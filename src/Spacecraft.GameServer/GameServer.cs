@@ -30,6 +30,7 @@ public sealed partial class GameServer
     private readonly IServerTransport _transport;
     private readonly IWorldRepository _repo;
     private readonly IGameLogger _log;
+    private readonly IAiMissionProvider _ai;
 
     private readonly Dictionary<int, PlayerSession> _sessions = new();
 
@@ -49,13 +50,16 @@ public sealed partial class GameServer
         GameContent content,
         IServerTransport transport,
         IWorldRepository repo,
-        IGameLogger? logger = null)
+        IGameLogger? logger = null,
+        IAiMissionProvider? aiProvider = null)
     {
         _config = config;
         _content = content;
         _transport = transport;
         _repo = repo;
         _log = logger ?? new NullGameLogger();
+        _ai = aiProvider
+              ?? (config.AiLevel != AiLevel.Off ? new HttpAiMissionProvider(config.AiBackendUrl) : new NullAiMissionProvider());
     }
 
     private GameRules Rules => _config.Rules;
@@ -726,6 +730,15 @@ public sealed partial class GameServer
         if (!p.IsAdmin)
         {
             Reject(session, "admin", "Only the world admin or admins may use cheats.");
+            return;
+        }
+
+        // Admin content tooling (not a cheat): AI mission generation.
+        if (string.Equals(cmd.Command, "ai_mission", StringComparison.OrdinalIgnoreCase))
+        {
+            var (ok, message) = TryGenerateAiMission(cmd.StringArg ?? string.Empty);
+            Send(session, new ServerMessage { Text = message });
+            CheatLog(p, ok ? $"generated an AI mission" : $"AI mission request: {message}");
             return;
         }
 

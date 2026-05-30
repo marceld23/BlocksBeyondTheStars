@@ -61,6 +61,12 @@ public sealed class ServerConfig
     /// <summary>Universe description used when first creating the world.</summary>
     public Spacecraft.Shared.World.WorldDescription World { get; set; } = new();
 
+    /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
+    public AiLevel AiLevel { get; set; } = AiLevel.Off;
+
+    /// <summary>Base URL of the optional Python AI backend (used when <see cref="AiLevel"/> is not Off).</summary>
+    public string AiBackendUrl { get; set; } = "http://127.0.0.1:8077";
+
     // --- Filesystem locations (resolved relative to the server install dir) ---
 
     public string SavesRoot { get; set; } = "saves";

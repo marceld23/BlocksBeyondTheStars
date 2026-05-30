@@ -1,5 +1,17 @@
 namespace Spacecraft.Shared.Configuration;
 
+/// <summary>
+/// How much the optional AI mission backend may do (technical requirements /
+/// `anf_mission_editor.md` §11.2). The game always works with AI off.
+/// </summary>
+public enum AiLevel
+{
+    Off,
+    TextOnly,
+    Suggest,
+    Auto,
+}
+
 /// <summary>Primary game mode for a world.</summary>
 public enum GameMode
 {
