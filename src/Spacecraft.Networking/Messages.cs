@@ -55,6 +55,11 @@ public sealed class SelectHotbarIntent
     public int Slot { get; set; }
 }
 
+/// <summary>Client asks for the star map (cockpit). Server replies with <see cref="StarMapData"/>.</summary>
+public sealed class RequestStarMap
+{
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -146,6 +151,32 @@ public sealed class ServerRules
     public bool KeepInventoryOnDeath { get; set; }
     public bool OxygenEnabled { get; set; }
     public bool AdminCheatsActive { get; set; }
+}
+
+// --- Star map ---
+
+public sealed class NetBody
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public string? PlanetType { get; set; }
+    public string Status { get; set; } = string.Empty;
+}
+
+public sealed class NetStarSystem
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float MapX { get; set; }
+    public float MapY { get; set; }
+    public NetBody[] Bodies { get; set; } = System.Array.Empty<NetBody>();
+}
+
+public sealed class StarMapData
+{
+    public NetStarSystem[] Systems { get; set; } = System.Array.Empty<NetStarSystem>();
+    public string ActiveLocationId { get; set; } = string.Empty;
 }
 
 /// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>

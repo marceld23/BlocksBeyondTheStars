@@ -28,6 +28,7 @@ public static class NetCodec
         Register(5, typeof(CraftIntent));
         Register(6, typeof(UnlockBlueprintIntent));
         Register(7, typeof(SelectHotbarIntent));
+        Register(8, typeof(RequestStarMap));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -41,6 +42,7 @@ public static class NetCodec
         Register(58, typeof(ServerMessage));
         Register(59, typeof(ServerRules));
         Register(60, typeof(RespawnNotice));
+        Register(61, typeof(StarMapData));
     }
 
     private static void Register(byte tag, Type type)

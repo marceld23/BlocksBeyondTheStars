@@ -61,6 +61,12 @@ public interface IWorldRepository : IDisposable
 
     void DeleteContainer(string id);
 
+    /// <summary>Records the generation/discovery status of a location (system or body).</summary>
+    void SetLocationStatus(string locationId, string status);
+
+    /// <summary>Loads all stored location statuses (id → status).</summary>
+    IReadOnlyDictionary<string, string> LoadLocationStatuses();
+
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();
 

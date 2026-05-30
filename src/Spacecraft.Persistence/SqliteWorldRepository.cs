@@ -54,7 +54,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
-                x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);");
+                x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);");
     }
 
     // --- Metadata ---
@@ -274,6 +275,38 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$id", id);
             cmd.ExecuteNonQuery();
         }
+    }
+
+    // --- Location status ---
+
+    public void SetLocationStatus(string locationId, string status)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO location_status (id, status) VALUES ($id, $s) " +
+                              "ON CONFLICT(id) DO UPDATE SET status = excluded.status;";
+            cmd.Parameters.AddWithValue("$id", locationId);
+            cmd.Parameters.AddWithValue("$s", status);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyDictionary<string, string> LoadLocationStatuses()
+    {
+        var map = new Dictionary<string, string>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, status FROM location_status;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                map[reader.GetString(0)] = reader.GetString(1);
+            }
+        }
+
+        return map;
     }
 
     // --- Maintenance ---

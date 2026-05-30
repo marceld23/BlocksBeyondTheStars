@@ -49,6 +49,9 @@ public sealed class ServerConfig
     /// <summary>Authoritative world rules (mode, PvP, hazards, death penalty, cheats, ...).</summary>
     public GameRules Rules { get; set; } = new();
 
+    /// <summary>Universe description used when first creating the world.</summary>
+    public Spacecraft.Shared.World.WorldDescription World { get; set; } = new();
+
     // --- Filesystem locations (resolved relative to the server install dir) ---
 
     public string SavesRoot { get; set; } = "saves";

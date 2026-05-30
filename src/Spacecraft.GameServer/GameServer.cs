@@ -37,6 +37,7 @@ public sealed class GameServer
     private WorldGenerator _generator = null!;
     private ServerWorld _world = null!;
     private ShipState _ship = new();
+    private Galaxy _galaxy = new();
 
     private double _sinceAutoSave;
     private volatile bool _running;
@@ -59,6 +60,7 @@ public sealed class GameServer
 
     public ServerWorld World => _world;
     public ShipState Ship => _ship;
+    public Galaxy Galaxy => _galaxy;
     public IReadOnlyDictionary<int, PlayerSession> Sessions => _sessions;
     public WorldMetadata Metadata => _meta;
 
@@ -79,6 +81,8 @@ public sealed class GameServer
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
         _repo.SaveShip(ShipId, _ship);
 
+        BuildGalaxy();
+
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
         _transport.PayloadReceived += OnPayload;
@@ -96,7 +100,51 @@ public sealed class GameServer
             Seed = seed,
             DefaultPlanetType = _config.StartPlanet,
             ActiveLocationId = _config.StartPlanet,
+            Description = _config.World,
         };
+    }
+
+    /// <summary>
+    /// Builds the deterministic galaxy from the seed + world description, applies persisted
+    /// generation status, and marks the start location as visited.
+    /// </summary>
+    private void BuildGalaxy()
+    {
+        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate();
+
+        var stored = _repo.LoadLocationStatuses();
+        foreach (var body in _galaxy.AllBodies())
+        {
+            if (stored.TryGetValue(body.Id, out var s) && Enum.TryParse<GenerationStatus>(s, out var status))
+            {
+                body.Status = status;
+            }
+        }
+
+        // Choose a start body: first planet matching the configured start planet type, else any planet.
+        CelestialBody? start = null;
+        foreach (var body in _galaxy.AllBodies())
+        {
+            if (body.Kind == CelestialKind.Planet)
+            {
+                start ??= body;
+                if (body.PlanetType == _meta.DefaultPlanetType)
+                {
+                    start = body;
+                    break;
+                }
+            }
+        }
+
+        if (start is not null)
+        {
+            _meta.ActiveLocationId = start.Id;
+            if (start.Status != GenerationStatus.Visited)
+            {
+                start.Status = GenerationStatus.Visited;
+                _repo.SetLocationStatus(start.Id, start.Status.ToString());
+            }
+        }
     }
 
     private ShipState CreateStarterShip()
@@ -376,6 +424,7 @@ public sealed class GameServer
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
+            case RequestStarMap: SendStarMap(session); break;
         }
     }
 
@@ -730,6 +779,27 @@ public sealed class GameServer
             Oxygen = p.Oxygen,
             SuitEnergy = p.SuitEnergy,
         });
+    }
+
+    private void SendStarMap(PlayerSession session)
+    {
+        var systems = _galaxy.Systems.Select(sys => new NetStarSystem
+        {
+            Id = sys.Id,
+            Name = sys.Name,
+            MapX = sys.MapX,
+            MapY = sys.MapY,
+            Bodies = sys.Bodies.Select(b => new NetBody
+            {
+                Id = b.Id,
+                Name = b.Name,
+                Kind = b.Kind.ToString(),
+                PlanetType = b.PlanetType,
+                Status = b.Status.ToString(),
+            }).ToArray(),
+        }).ToArray();
+
+        Send(session, new StarMapData { Systems = systems, ActiveLocationId = _meta.ActiveLocationId });
     }
 
     private void SendRules(PlayerSession session)

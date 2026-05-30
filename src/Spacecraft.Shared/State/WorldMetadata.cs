@@ -1,3 +1,5 @@
+using Spacecraft.Shared.World;
+
 namespace Spacecraft.Shared.State;
 
 /// <summary>
@@ -19,4 +21,7 @@ public sealed class WorldMetadata
 
     /// <summary>Schema/content version for future migrations.</summary>
     public int SaveVersion { get; set; } = 1;
+
+    /// <summary>Admin-defined universe description; combined with the seed it yields the galaxy.</summary>
+    public WorldDescription Description { get; set; } = new();
 }
