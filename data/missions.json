@@ -1,0 +1,22 @@
+[
+  {
+    "id": "first_iron",
+    "source": "system",
+    "nameKey": "mission.first_iron.name",
+    "descriptionKey": "mission.first_iron.desc",
+    "objectives": [ { "type": "mine", "target": "iron_ore", "required": 10 } ],
+    "rewards": [ { "item": "iron_plate", "count": 5 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "supply_cables",
+    "source": "system",
+    "nameKey": "mission.supply_cables.name",
+    "descriptionKey": "mission.supply_cables.desc",
+    "objectives": [ { "type": "deliver", "target": "cable", "required": 5 } ],
+    "rewards": [ { "item": "data_fragment", "count": 1 } ],
+    "repeatable": true,
+    "active": true
+  }
+]

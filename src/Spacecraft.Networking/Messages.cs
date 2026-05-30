@@ -170,6 +170,67 @@ public sealed class ServerRules
     public bool AdminCheatsActive { get; set; }
 }
 
+// --- Missions ---
+
+public sealed class RequestMissions { }
+
+public sealed class AcceptMissionIntent
+{
+    public string MissionId { get; set; } = string.Empty;
+}
+
+public sealed class TurnInMissionIntent
+{
+    public string MissionId { get; set; } = string.Empty;
+}
+
+public sealed class NetMissionObjective
+{
+    public string Type { get; set; } = string.Empty;
+    public string Target { get; set; } = string.Empty;
+    public int Required { get; set; }
+    public int Progress { get; set; }
+}
+
+public sealed class NetReward
+{
+    public string Item { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+/// <summary>Client-supplied mission when a player creates a mission for others.</summary>
+public sealed class CreateMissionIntent
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public NetMissionObjective[] Objectives { get; set; } = System.Array.Empty<NetMissionObjective>();
+    public NetReward[] Rewards { get; set; } = System.Array.Empty<NetReward>();
+}
+
+public sealed class NetMission
+{
+    public string Id { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public NetMissionObjective[] Objectives { get; set; } = System.Array.Empty<NetMissionObjective>();
+    public NetReward[] Rewards { get; set; } = System.Array.Empty<NetReward>();
+}
+
+public sealed class MissionList
+{
+    public NetMission[] Available { get; set; } = System.Array.Empty<NetMission>();
+    public NetMission[] Active { get; set; } = System.Array.Empty<NetMission>();
+}
+
+public sealed class MissionResult
+{
+    public bool Success { get; set; }
+    public string MissionId { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+}
+
 // --- Star map ---
 
 public sealed class NetBody

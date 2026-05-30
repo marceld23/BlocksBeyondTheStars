@@ -30,6 +30,10 @@ public static class NetCodec
         Register(7, typeof(SelectHotbarIntent));
         Register(8, typeof(RequestStarMap));
         Register(9, typeof(AdminCommandIntent));
+        Register(10, typeof(RequestMissions));
+        Register(11, typeof(AcceptMissionIntent));
+        Register(12, typeof(TurnInMissionIntent));
+        Register(13, typeof(CreateMissionIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -44,6 +48,8 @@ public static class NetCodec
         Register(59, typeof(ServerRules));
         Register(60, typeof(RespawnNotice));
         Register(61, typeof(StarMapData));
+        Register(62, typeof(MissionList));
+        Register(63, typeof(MissionResult));
     }
 
     private static void Register(byte tag, Type type)

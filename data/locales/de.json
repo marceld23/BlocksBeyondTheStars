@@ -87,5 +87,10 @@
 
   "planet.rocky.name": "Felsplanet",
   "planet.ice.name": "Eisplanet",
-  "planet.lava.name": "Lavaplanet"
+  "planet.lava.name": "Lavaplanet",
+
+  "mission.first_iron.name": "Erstes Eisen",
+  "mission.first_iron.desc": "Baue 10 Eisenerz ab, um deine Werkstatt in Gang zu bringen.",
+  "mission.supply_cables.name": "Kabel-Lieferung",
+  "mission.supply_cables.desc": "Liefere 5 Kabel am Missionscomputer ab."
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Missions;
 using Spacecraft.Shared.State;
 using Spacecraft.Shared.World;
 
@@ -55,7 +56,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
                 x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);");
+            CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);");
     }
 
     // --- Metadata ---
@@ -307,6 +309,54 @@ public sealed class SqliteWorldRepository : IWorldRepository
         }
 
         return map;
+    }
+
+    // --- Missions (player/admin-created) ---
+
+    public void SaveMission(MissionDefinition mission)
+    {
+        var json = JsonSerializer.Serialize(mission, JsonOptions);
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO mission (id, json) VALUES ($id, $json) " +
+                              "ON CONFLICT(id) DO UPDATE SET json = excluded.json;";
+            cmd.Parameters.AddWithValue("$id", mission.Id);
+            cmd.Parameters.AddWithValue("$json", json);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<MissionDefinition> ListMissions()
+    {
+        var result = new List<MissionDefinition>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT json FROM mission;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var m = JsonSerializer.Deserialize<MissionDefinition>(reader.GetString(0), JsonOptions);
+                if (m is not null)
+                {
+                    result.Add(m);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteMission(string id)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM mission WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
     }
 
     // --- Maintenance ---

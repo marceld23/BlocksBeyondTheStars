@@ -1,4 +1,5 @@
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Missions;
 using Spacecraft.Shared.State;
 using Spacecraft.Shared.World;
 
@@ -66,6 +67,14 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Loads all stored location statuses (id → status).</summary>
     IReadOnlyDictionary<string, string> LoadLocationStatuses();
+
+    /// <summary>Stores (inserts or replaces) a player/admin-created mission definition.</summary>
+    void SaveMission(MissionDefinition mission);
+
+    /// <summary>Lists all stored (player/admin-created) mission definitions.</summary>
+    IReadOnlyList<MissionDefinition> ListMissions();
+
+    void DeleteMission(string id);
 
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();

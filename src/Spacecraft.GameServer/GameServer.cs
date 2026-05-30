@@ -19,7 +19,7 @@ namespace Spacecraft.GameServer;
 /// (technical requirements §7, §15). Drive it by calling <see cref="Tick"/> at the
 /// configured rate, or use <see cref="Run"/> for a blocking loop.
 /// </summary>
-public sealed class GameServer
+public sealed partial class GameServer
 {
     private const string ShipId = "default";
     private const float MaxReach = 8f;
@@ -84,6 +84,7 @@ public sealed class GameServer
         _repo.SaveShip(ShipId, _ship);
 
         BuildGalaxy();
+        BuildMissions();
 
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
@@ -435,6 +436,10 @@ public sealed class GameServer
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case RequestStarMap: SendStarMap(session); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
+            case RequestMissions: SendMissionList(session); break;
+            case AcceptMissionIntent accept: HandleAcceptMission(session, accept.MissionId); break;
+            case TurnInMissionIntent turnIn: HandleTurnInMission(session, turnIn.MissionId); break;
+            case CreateMissionIntent create: HandleCreateMission(session, create); break;
         }
     }
 
@@ -568,6 +573,7 @@ public sealed class GameServer
         }
 
         Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
+        OnBlockMined(session, def.Key);
         SendInventory(session);
     }
 

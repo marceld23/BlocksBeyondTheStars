@@ -87,5 +87,10 @@
 
   "planet.rocky.name": "Rocky Planet",
   "planet.ice.name": "Ice Planet",
-  "planet.lava.name": "Lava Planet"
+  "planet.lava.name": "Lava Planet",
+
+  "mission.first_iron.name": "First Iron",
+  "mission.first_iron.desc": "Mine 10 iron ore to get your workshop going.",
+  "mission.supply_cables.name": "Cable Supply Run",
+  "mission.supply_cables.desc": "Deliver 5 cables to the mission computer."
 }

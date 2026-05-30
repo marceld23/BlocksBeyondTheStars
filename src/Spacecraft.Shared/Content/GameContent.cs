@@ -1,5 +1,6 @@
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Localization;
+using Spacecraft.Shared.Missions;
 using Spacecraft.Shared.Primitives;
 
 namespace Spacecraft.Shared.Content;
@@ -21,6 +22,7 @@ public sealed class GameContent
     private readonly Dictionary<string, BlueprintDefinition> _blueprints;
     private readonly Dictionary<string, ShipModuleDefinition> _shipModules;
     private readonly Dictionary<string, PlanetType> _planets;
+    private readonly Dictionary<string, MissionDefinition> _missions;
     private readonly BlockDefinition?[] _blocksById;
     private readonly Dictionary<GameLocale, Dictionary<string, string>> _locales;
 
@@ -30,6 +32,7 @@ public sealed class GameContent
     public IReadOnlyDictionary<string, BlueprintDefinition> Blueprints => _blueprints;
     public IReadOnlyDictionary<string, ShipModuleDefinition> ShipModules => _shipModules;
     public IReadOnlyDictionary<string, PlanetType> Planets => _planets;
+    public IReadOnlyDictionary<string, MissionDefinition> Missions => _missions;
 
     public GameContent(
         IEnumerable<BlockDefinition> blocks,
@@ -38,7 +41,8 @@ public sealed class GameContent
         IEnumerable<BlueprintDefinition> blueprints,
         IEnumerable<ShipModuleDefinition> shipModules,
         IDictionary<GameLocale, Dictionary<string, string>> locales,
-        IEnumerable<PlanetType>? planets = null)
+        IEnumerable<PlanetType>? planets = null,
+        IEnumerable<MissionDefinition>? missions = null)
     {
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
@@ -46,6 +50,7 @@ public sealed class GameContent
         _blueprints = blueprints.ToDictionary(b => b.Key);
         _shipModules = shipModules.ToDictionary(m => m.Key);
         _planets = (planets ?? Enumerable.Empty<PlanetType>()).ToDictionary(p => p.Key);
+        _missions = (missions ?? Enumerable.Empty<MissionDefinition>()).ToDictionary(m => m.Id);
         _locales = new Dictionary<GameLocale, Dictionary<string, string>>(locales);
 
         AssignBlockIds();
@@ -87,6 +92,7 @@ public sealed class GameContent
     public BlueprintDefinition? GetBlueprint(string key) => _blueprints.TryGetValue(key, out var b) ? b : null;
     public ShipModuleDefinition? GetShipModule(string key) => _shipModules.TryGetValue(key, out var m) ? m : null;
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
+    public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;
 
     public int MaxStackOf(string itemKey) => _items.TryGetValue(itemKey, out var i) ? i.MaxStack : 1;
 
@@ -195,6 +201,28 @@ public sealed class GameContent
             foreach (var ore in planet.Ores)
             {
                 RequireBlock($"Planet '{planet.Key}' ore", ore.Block);
+            }
+        }
+
+        foreach (var mission in _missions.Values)
+        {
+            foreach (var reward in mission.Rewards)
+            {
+                RequireItem($"Mission '{mission.Id}' reward", reward.Item);
+            }
+
+            foreach (var obj in mission.Objectives)
+            {
+                switch (obj.Type)
+                {
+                    case Spacecraft.Shared.Missions.MissionObjectiveType.Mine:
+                        RequireBlock($"Mission '{mission.Id}' mine objective", obj.Target);
+                        break;
+                    case Spacecraft.Shared.Missions.MissionObjectiveType.Collect:
+                    case Spacecraft.Shared.Missions.MissionObjectiveType.Deliver:
+                        RequireItem($"Mission '{mission.Id}' objective", obj.Target);
+                        break;
+                }
             }
         }
 

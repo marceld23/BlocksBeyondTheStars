@@ -1,4 +1,5 @@
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Missions;
 
 namespace Spacecraft.Shared.State;
 
@@ -52,4 +53,7 @@ public sealed class PlayerState
     public bool InstantBuild { get; set; }
 
     public bool IsAdmin => Role is PlayerRole.Admin or PlayerRole.WorldAdmin;
+
+    /// <summary>Accepted missions and their progress.</summary>
+    public List<MissionProgress> Missions { get; set; } = new();
 }

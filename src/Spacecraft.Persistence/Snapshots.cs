@@ -1,4 +1,5 @@
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Missions;
 using Spacecraft.Shared.State;
 
 namespace Spacecraft.Persistence;
@@ -34,6 +35,7 @@ public sealed class PlayerSnapshot
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
+    public List<MissionProgress> Missions { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -96,6 +98,14 @@ public static class StateMapper
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
         Inventory = DumpInventory(p.Inventory),
+        Missions = p.Missions.Select(CloneProgress).ToList(),
+    };
+
+    private static MissionProgress CloneProgress(MissionProgress m) => new()
+    {
+        MissionId = m.MissionId,
+        Status = m.Status,
+        ObjectiveProgress = new List<int>(m.ObjectiveProgress),
     };
 
     public static PlayerState FromSnapshot(PlayerSnapshot s) => new()
@@ -114,6 +124,7 @@ public static class StateMapper
         Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
+        Missions = s.Missions.Select(CloneProgress).ToList(),
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

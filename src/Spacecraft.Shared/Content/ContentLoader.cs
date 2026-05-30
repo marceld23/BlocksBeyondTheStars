@@ -38,6 +38,7 @@ public static class ContentLoader
         var blueprints = LoadArray<BlueprintDefinition>(Path.Combine(dataDir, "blueprints.json"));
         var modules = LoadArray<ShipModuleDefinition>(Path.Combine(dataDir, "ship_modules.json"));
         var planets = LoadArray<PlanetType>(Path.Combine(dataDir, "planets.json"));
+        var missions = LoadArray<Spacecraft.Shared.Missions.MissionDefinition>(Path.Combine(dataDir, "missions.json"));
 
         var locales = new Dictionary<GameLocale, Dictionary<string, string>>();
         var localeDir = Path.Combine(dataDir, "locales");
@@ -53,7 +54,7 @@ public static class ContentLoader
             }
         }
 
-        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets);
+        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions);
         content.Validate();
         return content;
     }
