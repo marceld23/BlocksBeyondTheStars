@@ -272,3 +272,26 @@ without Unity. Source docs: `anf_admin_einstellungen.md`, `anf_admin_blueprinf.m
 > Order: M9 → M16. Unity-side work (WebGL build, browser UI) is documented/feasibility
 > only here since the Unity Editor can't run in this environment; all server logic is
 > implemented and tested.
+
+### M17 – Personal landing zones & extended space settings (`anf_space_flight.md` §3, §13)
+- [ ] Extend `GameRules` with space/combat/enemy settings (FreeSpaceFlight, SpaceCombat,
+  ShipWeapons, ShipDamageByPlayers, SpaceNPCEnemies, AlienUFOs, AsteroidDestruction,
+  PlanetEnemies, ShipDocking, landing-zone protection)
+- [ ] Personal landing zone per player (assigned, persisted, protected); ship lands there
+- [ ] Server presets updated; tests
+
+### M18 – Ship docking (`anf_space_flight.md` §4–5)
+- [ ] Airlock/docking module blueprints + build
+- [ ] Server-authoritative docking handshake (request → accept/reject), guest access rights,
+  undock; persisted docking state; tests
+
+### M19 – Free space flight, combat & enemies (`anf_space_flight.md` §6–12)
+- [ ] **Concept/prototype doc first** (`docs/SPACE_COMBAT_CONCEPT.md`): controls, room
+  instances, hit resolution, multiplayer sync, how much combat fits the core
+- [ ] Server MVP: local space instances, ship weapon blueprints, shield/hull values,
+  simple NPC drones (server-spawned per settings), planet enemies per settings —
+  all server-authoritative and gated by rules; no permanent ship loss
+- [ ] Unity flight/combat UI is feasibility/scaffold only (Editor unavailable here)
+
+> Note: M19 is deliberately concept-first and large; it is the most exploratory milestone
+> and depends on M17's rules. Friendly servers stay friendly (all enemies/PvP off).

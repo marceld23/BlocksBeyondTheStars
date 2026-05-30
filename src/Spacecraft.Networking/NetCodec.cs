@@ -29,6 +29,7 @@ public static class NetCodec
         Register(6, typeof(UnlockBlueprintIntent));
         Register(7, typeof(SelectHotbarIntent));
         Register(8, typeof(RequestStarMap));
+        Register(9, typeof(AdminCommandIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));

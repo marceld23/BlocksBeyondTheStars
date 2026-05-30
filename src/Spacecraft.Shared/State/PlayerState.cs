@@ -2,6 +2,15 @@ using Spacecraft.Shared.Geometry;
 
 namespace Spacecraft.Shared.State;
 
+/// <summary>Permission level (technical requirements / `anf_admin_einstellungen.md` §10–11).</summary>
+public enum PlayerRole
+{
+    Player,
+    Moderator,
+    Admin,
+    WorldAdmin,
+}
+
 /// <summary>
 /// Authoritative per-player state owned by the server. The client only renders a view
 /// of this; it never decides these values itself.
@@ -33,4 +42,14 @@ public sealed class PlayerState
 
     /// <summary>True when the player is currently aboard their ship (enables cargo crafting).</summary>
     public bool AboardShip { get; set; } = true;
+
+    /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
+    public PlayerRole Role { get; set; } = PlayerRole.Player;
+
+    // Session cheat toggles (admin only, server-authoritative; not persisted).
+    public bool GodMode { get; set; }
+    public bool Fly { get; set; }
+    public bool InstantBuild { get; set; }
+
+    public bool IsAdmin => Role is PlayerRole.Admin or PlayerRole.WorldAdmin;
 }

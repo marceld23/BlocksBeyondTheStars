@@ -30,6 +30,7 @@ public sealed class PlayerSnapshot
     public float SuitEnergy { get; set; } = 100f;
     public int SelectedHotbarSlot { get; set; }
     public bool AboardShip { get; set; } = true;
+    public string Role { get; set; } = "Player";
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
@@ -91,6 +92,7 @@ public static class StateMapper
         SuitEnergy = p.SuitEnergy,
         SelectedHotbarSlot = p.SelectedHotbarSlot,
         AboardShip = p.AboardShip,
+        Role = p.Role.ToString(),
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
         Inventory = DumpInventory(p.Inventory),
@@ -109,6 +111,7 @@ public static class StateMapper
         SuitEnergy = s.SuitEnergy,
         SelectedHotbarSlot = s.SelectedHotbarSlot,
         AboardShip = s.AboardShip,
+        Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
     };

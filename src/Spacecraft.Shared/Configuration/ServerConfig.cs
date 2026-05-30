@@ -25,6 +25,9 @@ public sealed class ServerConfig
     public List<string> Whitelist { get; set; } = new();
     public string AdminPassword { get; set; } = string.Empty;
 
+    /// <summary>Player names granted the Admin role on join (the world creator becomes WorldAdmin).</summary>
+    public List<string> AdminPlayers { get; set; } = new();
+
     public int AutoSaveIntervalMinutes { get; set; } = 5;
     public int BackupIntervalMinutes { get; set; } = 60;
 

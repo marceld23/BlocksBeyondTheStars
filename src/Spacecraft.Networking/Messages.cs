@@ -60,6 +60,23 @@ public sealed class RequestStarMap
 {
 }
 
+/// <summary>
+/// An admin/cheat command (technical requirements / `anf_admin_einstellungen.md` §10). The
+/// server checks the player's role + that cheats are enabled, applies it authoritatively
+/// and logs it. Commands: teleport_to_player, teleport_to_location, give_item, set_time,
+/// set_weather, fly, godmode, instant_build.
+/// </summary>
+public sealed class AdminCommandIntent
+{
+    public string Command { get; set; } = string.Empty;
+    public string? TargetPlayer { get; set; }
+    public string? StringArg { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public int IntArg { get; set; }
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted

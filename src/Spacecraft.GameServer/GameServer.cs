@@ -41,6 +41,8 @@ public sealed class GameServer
 
     private double _sinceAutoSave;
     private volatile bool _running;
+    private string _timeOfDay = "day";
+    private string _weather = "clear";
 
     public GameServer(
         ServerConfig config,
@@ -252,6 +254,13 @@ public sealed class GameServer
             }
 
             var p = session.State;
+            if (p.GodMode)
+            {
+                p.Health = 100f;
+                p.Oxygen = 100f;
+                continue; // invulnerable: no drain, no death
+            }
+
             if (p.AboardShip || !Rules.OxygenEnabled)
             {
                 // Aboard the ship (life support) or oxygen disabled by rules: regenerate.
@@ -425,6 +434,7 @@ public sealed class GameServer
             case CraftIntent craft: HandleCraft(session, craft); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case RequestStarMap: SendStarMap(session); break;
+            case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
         }
     }
 
@@ -458,6 +468,13 @@ public sealed class GameServer
         }
 
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+
+        // A configured admin name is granted the Admin role (the world creator keeps WorldAdmin).
+        if (state.Role != PlayerRole.WorldAdmin && _config.AdminPlayers.Contains(name))
+        {
+            state.Role = PlayerRole.Admin;
+        }
+
         var session = new PlayerSession(connectionId, state) { Joined = true };
         _sessions[connectionId] = session;
 
@@ -485,6 +502,10 @@ public sealed class GameServer
             Position = spawn,
             RespawnPoint = spawn, // the heal-tank in the ship's Medbay
             AboardShip = true,
+            // The very first player to join becomes the world admin (world creator).
+            Role = _repo.ListPlayerIds().Count == 0
+                ? PlayerRole.WorldAdmin
+                : (_config.AdminPlayers.Contains(name) ? PlayerRole.Admin : PlayerRole.Player),
         };
 
         // Starter kit: a basic drill, a block placer and a hand scanner in the first hotbar slots.
@@ -579,14 +600,20 @@ public sealed class GameServer
             return;
         }
 
+        // Creative mode and admin instant-build place without consuming materials.
+        bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
-        if (pool.Count(place.ItemKey) < 1)
+        if (!free)
         {
-            Reject(session, "place", "You do not have that block.");
-            return;
+            if (pool.Count(place.ItemKey) < 1)
+            {
+                Reject(session, "place", "You do not have that block.");
+                return;
+            }
+
+            pool.Remove(new[] { new ItemAmount(place.ItemKey, 1) });
         }
 
-        pool.Remove(new[] { new ItemAmount(place.ItemKey, 1) });
         _world.SetBlock(pos, blockDef.NumericId);
 
         Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
@@ -686,6 +713,117 @@ public sealed class GameServer
         Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
         SendInventory(session);
     }
+
+    private void HandleAdminCommand(PlayerSession session, AdminCommandIntent cmd)
+    {
+        var p = session.State;
+        if (!p.IsAdmin)
+        {
+            Reject(session, "admin", "Only the world admin or admins may use cheats.");
+            return;
+        }
+
+        if (!Rules.CheatsAllowed)
+        {
+            Reject(session, "admin", "Admin cheats are disabled on this server.");
+            return;
+        }
+
+        switch (cmd.Command?.ToLowerInvariant())
+        {
+            case "give_item":
+            {
+                if (_content.GetItem(cmd.StringArg ?? string.Empty) is null)
+                {
+                    Reject(session, "admin", "Unknown item.");
+                    return;
+                }
+
+                var target = FindSessionByName(cmd.TargetPlayer) ?? session;
+                int amount = System.Math.Max(1, cmd.IntArg);
+                new MaterialPool(_content, target.State, _ship).Add(cmd.StringArg!, amount);
+                SendInventory(target);
+                CheatLog(p, $"gave {amount} {cmd.StringArg} to {target.State.Name}");
+                break;
+            }
+
+            case "teleport_to_location":
+                p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
+                SendPlayerState(session);
+                CheatLog(p, $"teleported to ({cmd.X:0.#}, {cmd.Y:0.#}, {cmd.Z:0.#})");
+                break;
+
+            case "teleport_to_player":
+            {
+                var target = FindSessionByName(cmd.TargetPlayer);
+                if (target is null)
+                {
+                    Reject(session, "admin", "Target player not found.");
+                    return;
+                }
+
+                p.Position = target.State.Position;
+                SendPlayerState(session);
+                CheatLog(p, $"teleported to player {target.State.Name}");
+                break;
+            }
+
+            case "set_time":
+                _timeOfDay = cmd.StringArg ?? _timeOfDay;
+                Broadcast(new ServerMessage { Text = $"The world admin set the time to {_timeOfDay}." });
+                CheatLog(p, $"set time to {_timeOfDay}");
+                break;
+
+            case "set_weather":
+                _weather = cmd.StringArg ?? _weather;
+                Broadcast(new ServerMessage { Text = $"The world admin set the weather to {_weather}." });
+                CheatLog(p, $"set weather to {_weather}");
+                break;
+
+            case "fly":
+                p.Fly = !p.Fly;
+                Send(session, new ServerMessage { Text = $"Fly mode: {(p.Fly ? "on" : "off")}" });
+                CheatLog(p, $"toggled fly to {p.Fly}");
+                break;
+
+            case "godmode":
+                p.GodMode = !p.GodMode;
+                Send(session, new ServerMessage { Text = $"God mode: {(p.GodMode ? "on" : "off")}" });
+                CheatLog(p, $"toggled god mode to {p.GodMode}");
+                break;
+
+            case "instant_build":
+                p.InstantBuild = !p.InstantBuild;
+                Send(session, new ServerMessage { Text = $"Instant build: {(p.InstantBuild ? "on" : "off")}" });
+                CheatLog(p, $"toggled instant build to {p.InstantBuild}");
+                break;
+
+            default:
+                Reject(session, "admin", "Unknown admin command.");
+                break;
+        }
+    }
+
+    private PlayerSession? FindSessionByName(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && s.State.Name == name)
+            {
+                return s;
+            }
+        }
+
+        return null;
+    }
+
+    private void CheatLog(PlayerState admin, string message)
+        => _log.Info($"[CHEAT] Admin {admin.Name} {message}.");
 
     // ---------------- Helpers ----------------
 
