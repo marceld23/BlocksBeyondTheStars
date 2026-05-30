@@ -76,6 +76,18 @@ public enum StructureDamageMode
     On,
 }
 
+// --- Space flight / combat / enemy settings (anf_space_flight.md §13) ---
+
+public enum SpaceCombatMode { Off, PvE, Pvp, Both }
+
+public enum ShipWeaponMode { Off, MiningOnly, NpcsOnly, PvpAllowed, All }
+
+public enum AsteroidDestructionMode { Off, MiningOnly, WeaponsAllowed }
+
+public enum DockingMode { Off, FriendsOnly, RequestRequired, Free }
+
+public enum LandingZoneProtection { Off, StartZoneOnly, All }
+
 /// <summary>
 /// Authoritative world rules (technical requirements / `anf_admin_einstellungen.md`).
 /// The admin sets these; the server enforces them; clients are told the active set on join.
@@ -105,6 +117,20 @@ public sealed class GameRules
     public bool AdminCheats { get; set; }
     public bool AllowCheatsInSurvival { get; set; }
     public bool AllowCheatsInCreative { get; set; } = true;
+
+    // --- Space flight / combat / enemies / docking / landing zones ---
+
+    public bool FreeSpaceFlight { get; set; }
+    public SpaceCombatMode SpaceCombat { get; set; } = SpaceCombatMode.Off;
+    public ShipWeaponMode ShipWeapons { get; set; } = ShipWeaponMode.Off;
+    public AlienActivity SpaceNpcEnemies { get; set; } = AlienActivity.Off;
+    public bool NeutralNpcShips { get; set; } = true;
+    public AlienActivity AlienUfos { get; set; } = AlienActivity.Off;
+    public AlienActivity PlanetEnemies { get; set; } = AlienActivity.Normal;
+    public AsteroidDestructionMode AsteroidDestruction { get; set; } = AsteroidDestructionMode.MiningOnly;
+    public DockingMode ShipDocking { get; set; } = DockingMode.RequestRequired;
+    public bool PersonalLandingZones { get; set; } = true;
+    public LandingZoneProtection PersonalLandingZoneProtection { get; set; } = LandingZoneProtection.StartZoneOnly;
 
     /// <summary>Whether crafting consumes materials / needs stations (false in Creative).</summary>
     public bool CraftingCostsMaterials => GameMode != GameMode.Creative;

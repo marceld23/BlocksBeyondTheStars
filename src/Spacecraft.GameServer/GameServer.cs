@@ -89,6 +89,7 @@ public sealed partial class GameServer
 
         BuildGalaxy();
         BuildMissions();
+        LoadLandingZones();
 
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
@@ -502,8 +503,16 @@ public sealed partial class GameServer
 
     private PlayerState CreateNewPlayer(string name)
     {
-        int surfaceY = _generator.SurfaceHeight(_world.Planet, 0, 0);
-        var spawn = new Vector3f(0.5f, surfaceY + 2f, 0.5f);
+        int spawnX = 0, spawnZ = 0;
+        if (Rules.PersonalLandingZones)
+        {
+            var zone = EnsureLandingZone(name);
+            spawnX = zone.CenterX;
+            spawnZ = zone.CenterZ;
+        }
+
+        int surfaceY = _generator.SurfaceHeight(_world.Planet, spawnX, spawnZ);
+        var spawn = new Vector3f(spawnX + 0.5f, surfaceY + 2f, spawnZ + 0.5f);
         var state = new PlayerState
         {
             PlayerId = name,
@@ -561,6 +570,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (!session.State.IsAdmin && IsLandingZoneBlockedForOther(session.State.PlayerId, pos))
+        {
+            Reject(session, "mine", "This is another player's protected landing zone.");
+            return;
+        }
+
         var tool = ActiveTool(session.State);
         if (!ToolCanMine(tool, def))
         {
@@ -607,6 +622,12 @@ public sealed partial class GameServer
         if (!WithinReach(session.State, pos))
         {
             Reject(session, "place", "Out of reach.");
+            return;
+        }
+
+        if (!session.State.IsAdmin && IsLandingZoneBlockedForOther(session.State.PlayerId, pos))
+        {
+            Reject(session, "place", "This is another player's protected landing zone.");
             return;
         }
 

@@ -57,7 +57,11 @@ public sealed class SqliteWorldRepository : IWorldRepository
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
                 x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);");
+            CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS landing_zone (
+                player_id TEXT NOT NULL, location_id TEXT NOT NULL,
+                cx INTEGER NOT NULL, cz INTEGER NOT NULL, radius INTEGER NOT NULL, protected INTEGER NOT NULL,
+                PRIMARY KEY (player_id, location_id));");
     }
 
     // --- Metadata ---
@@ -357,6 +361,53 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$id", id);
             cmd.ExecuteNonQuery();
         }
+    }
+
+    // --- Landing zones ---
+
+    public void SaveLandingZone(LandingZone zone)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO landing_zone (player_id, location_id, cx, cz, radius, protected) " +
+                              "VALUES ($pid, $loc, $cx, $cz, $r, $p) " +
+                              "ON CONFLICT(player_id, location_id) DO UPDATE SET cx=excluded.cx, cz=excluded.cz, " +
+                              "radius=excluded.radius, protected=excluded.protected;";
+            cmd.Parameters.AddWithValue("$pid", zone.PlayerId);
+            cmd.Parameters.AddWithValue("$loc", zone.LocationId);
+            cmd.Parameters.AddWithValue("$cx", zone.CenterX);
+            cmd.Parameters.AddWithValue("$cz", zone.CenterZ);
+            cmd.Parameters.AddWithValue("$r", zone.Radius);
+            cmd.Parameters.AddWithValue("$p", zone.Protected ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<LandingZone> ListLandingZones(string locationId)
+    {
+        var result = new List<LandingZone>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT player_id, cx, cz, radius, protected FROM landing_zone WHERE location_id = $loc;";
+            cmd.Parameters.AddWithValue("$loc", locationId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new LandingZone
+                {
+                    PlayerId = reader.GetString(0),
+                    LocationId = locationId,
+                    CenterX = reader.GetInt32(1),
+                    CenterZ = reader.GetInt32(2),
+                    Radius = reader.GetInt32(3),
+                    Protected = reader.GetInt32(4) != 0,
+                });
+            }
+        }
+
+        return result;
     }
 
     // --- Maintenance ---

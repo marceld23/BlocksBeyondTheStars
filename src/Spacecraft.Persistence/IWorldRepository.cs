@@ -76,6 +76,12 @@ public interface IWorldRepository : IDisposable
 
     void DeleteMission(string id);
 
+    /// <summary>Stores (inserts or replaces) a player's personal landing zone.</summary>
+    void SaveLandingZone(LandingZone zone);
+
+    /// <summary>Lists all landing zones on a location.</summary>
+    IReadOnlyList<LandingZone> ListLandingZones(string locationId);
+
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();
 
