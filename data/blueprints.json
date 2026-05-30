@@ -23,5 +23,10 @@
     "key": "oxygen_generator", "nameKey": "blueprint.oxygen_generator.name", "descriptionKey": "blueprint.oxygen_generator.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "ice", "count": 20 }, { "item": "cable", "count": 5 } ]
+  },
+  {
+    "key": "docking_module", "nameKey": "blueprint.docking_module.name", "descriptionKey": "blueprint.docking_module.desc",
+    "category": "ShipExpansion", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
   }
 ]

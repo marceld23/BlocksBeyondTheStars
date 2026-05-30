@@ -75,6 +75,11 @@
   "module.refinery.desc": "Verarbeitet Erze und stellt Legierungen her.",
   "module.oxygen_generator.name": "Sauerstoffgenerator",
   "module.oxygen_generator.desc": "Erzeugt Sauerstoff für längere Expeditionen.",
+  "module.docking_module.name": "Docking-Modul",
+  "module.docking_module.desc": "Eine Schleuse, über die Schiffe andocken und Spieler übersetzen können.",
+
+  "blueprint.docking_module.name": "Docking-Modul",
+  "blueprint.docking_module.desc": "Schaltet eine Schleuse / ein Docking-Modul frei, damit Schiffe andocken können.",
 
   "ui.hud.health": "Gesundheit",
   "ui.hud.oxygen": "Sauerstoff",

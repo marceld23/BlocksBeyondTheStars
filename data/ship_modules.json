@@ -24,5 +24,11 @@
     "mandatory": false, "requiredBlueprint": "oxygen_generator",
     "buildCost": [ { "item": "iron_plate", "count": 20 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 6 } ],
     "stats": { "oxygen_production": 5 }
+  },
+  {
+    "key": "docking_module", "nameKey": "module.docking_module.name", "descriptionKey": "module.docking_module.desc",
+    "mandatory": false, "requiredBlueprint": "docking_module",
+    "buildCost": [ { "item": "iron_plate", "count": 20 }, { "item": "cable", "count": 8 }, { "item": "glass", "count": 2 } ],
+    "stats": {}
   }
 ]

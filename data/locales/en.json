@@ -54,6 +54,8 @@
   "blueprint.refinery.desc": "Unlocks the refinery module for processing ores.",
   "blueprint.oxygen_generator.name": "Oxygen Generator",
   "blueprint.oxygen_generator.desc": "Unlocks the oxygen generator module.",
+  "blueprint.docking_module.name": "Docking Module",
+  "blueprint.docking_module.desc": "Unlocks an airlock/docking module so ships can dock.",
 
   "module.cockpit.name": "Cockpit",
   "module.cockpit.desc": "Access the star map, travel and scanning.",
@@ -75,6 +77,8 @@
   "module.refinery.desc": "Refines ores and produces alloys.",
   "module.oxygen_generator.name": "Oxygen Generator",
   "module.oxygen_generator.desc": "Produces oxygen for longer expeditions.",
+  "module.docking_module.name": "Docking Module",
+  "module.docking_module.desc": "An airlock that lets ships dock and players cross over.",
 
   "ui.hud.health": "Health",
   "ui.hud.oxygen": "Oxygen",
