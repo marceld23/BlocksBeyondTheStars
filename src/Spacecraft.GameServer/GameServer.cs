@@ -219,7 +219,76 @@ public sealed class GameServer
                     p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
                 }
             }
+
+            if (p.Health <= 0f)
+            {
+                RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
+            }
         }
+    }
+
+    /// <summary>
+    /// Returns the player to the heal-tank in their ship's Medbay and restores vitals. Per
+    /// the active rules, non-tool items may be left behind in a salvage capsule at the
+    /// death site (`anf_admin_blueprinf.md` §2–3).
+    /// </summary>
+    private void RespawnPlayer(PlayerSession session, string reason)
+    {
+        var p = session.State;
+        bool dropSalvage = !Rules.KeepInventoryOnDeath &&
+                           Rules.DeathPenalty is DeathPenalty.Normal or DeathPenalty.Hard;
+
+        bool salvaged = false;
+        if (dropSalvage)
+        {
+            var capsule = new StoredContainer
+            {
+                Id = "salvage_" + Guid.NewGuid().ToString("N"),
+                Planet = _world.PlanetKey,
+                Kind = "salvage_capsule",
+                Position = p.Position.ToBlock(),
+            };
+
+            for (int i = 0; i < p.Inventory.SlotCount; i++)
+            {
+                if (p.Inventory.Slots[i] is { } stack && !stack.IsEmpty)
+                {
+                    var def = _content.GetItem(stack.Item);
+                    if (def is { Category: ItemCategory.Tool })
+                    {
+                        continue; // tools are never lost
+                    }
+
+                    capsule.Items.Add(stack.Clone());
+                    p.Inventory.SetSlot(i, null);
+                }
+            }
+
+            if (capsule.Items.Count > 0)
+            {
+                _repo.SaveContainer(capsule);
+                salvaged = true;
+            }
+        }
+
+        p.Health = 100f;
+        p.Oxygen = 100f;
+        p.SuitEnergy = 100f;
+        p.Position = p.RespawnPoint;
+        p.AboardShip = true;
+
+        Send(session, new RespawnNotice
+        {
+            X = p.RespawnPoint.X,
+            Y = p.RespawnPoint.Y,
+            Z = p.RespawnPoint.Z,
+            Reason = reason,
+            SalvageCapsuleDropped = salvaged,
+        });
+        SendInventory(session);
+        SendPlayerState(session);
+        _repo.SavePlayer(p);
+        _log.Info($"Player '{p.Name}' respawned at heal-tank (salvage={salvaged}).");
     }
 
     private void StreamChunks()
@@ -359,11 +428,13 @@ public sealed class GameServer
     private PlayerState CreateNewPlayer(string name)
     {
         int surfaceY = _generator.SurfaceHeight(_world.Planet, 0, 0);
+        var spawn = new Vector3f(0.5f, surfaceY + 2f, 0.5f);
         var state = new PlayerState
         {
             PlayerId = name,
             Name = name,
-            Position = new Vector3f(0.5f, surfaceY + 2f, 0.5f),
+            Position = spawn,
+            RespawnPoint = spawn, // the heal-tank in the ship's Medbay
             AboardShip = true,
         };
 

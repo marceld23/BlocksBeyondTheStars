@@ -15,6 +15,9 @@ public sealed class PlayerState
     public float Yaw { get; set; }
     public float Pitch { get; set; }
 
+    /// <summary>Where the player respawns — the heal-tank in their ship's Medbay.</summary>
+    public Vector3f RespawnPoint { get; set; } = Vector3f.Zero;
+
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;

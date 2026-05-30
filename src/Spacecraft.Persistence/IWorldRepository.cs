@@ -4,6 +4,16 @@ using Spacecraft.Shared.World;
 
 namespace Spacecraft.Persistence;
 
+/// <summary>A persisted world container (storage crate, salvage capsule, ...).</summary>
+public sealed class StoredContainer
+{
+    public string Id { get; set; } = string.Empty;
+    public string Planet { get; set; } = string.Empty;
+    public string Kind { get; set; } = "container";
+    public Vector3i Position { get; set; }
+    public List<ItemStack> Items { get; set; } = new();
+}
+
 /// <summary>A single persisted player block edit (placement or removal) in world space.</summary>
 public readonly struct BlockEdit
 {
@@ -42,6 +52,14 @@ public interface IWorldRepository : IDisposable
 
     ShipState? LoadShip(string shipId);
     void SaveShip(string shipId, ShipState ship);
+
+    /// <summary>Stores (inserts or replaces) a world container.</summary>
+    void SaveContainer(StoredContainer container);
+
+    /// <summary>Lists all containers on a planet (e.g. to retrieve salvage capsules).</summary>
+    IReadOnlyList<StoredContainer> ListContainers(string planet);
+
+    void DeleteContainer(string id);
 
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();

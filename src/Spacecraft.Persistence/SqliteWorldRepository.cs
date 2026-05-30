@@ -51,7 +51,10 @@ public sealed class SqliteWorldRepository : IWorldRepository
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS player (id TEXT PRIMARY KEY, json TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);");
+            CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS container (
+                id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
+                x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);");
     }
 
     // --- Metadata ---
@@ -210,6 +213,65 @@ public sealed class SqliteWorldRepository : IWorldRepository
                               "ON CONFLICT(id) DO UPDATE SET json = excluded.json;";
             cmd.Parameters.AddWithValue("$id", shipId);
             cmd.Parameters.AddWithValue("$json", json);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Containers ---
+
+    public void SaveContainer(StoredContainer container)
+    {
+        var json = JsonSerializer.Serialize(container.Items, JsonOptions);
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json) " +
+                              "VALUES ($id, $p, $k, $x, $y, $z, $json) " +
+                              "ON CONFLICT(id) DO UPDATE SET planet=excluded.planet, kind=excluded.kind, " +
+                              "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json;";
+            cmd.Parameters.AddWithValue("$id", container.Id);
+            cmd.Parameters.AddWithValue("$p", container.Planet);
+            cmd.Parameters.AddWithValue("$k", container.Kind);
+            cmd.Parameters.AddWithValue("$x", container.Position.X);
+            cmd.Parameters.AddWithValue("$y", container.Position.Y);
+            cmd.Parameters.AddWithValue("$z", container.Position.Z);
+            cmd.Parameters.AddWithValue("$json", json);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredContainer> ListContainers(string planet)
+    {
+        var result = new List<StoredContainer>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, kind, x, y, z, json FROM container WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredContainer
+                {
+                    Id = reader.GetString(0),
+                    Planet = planet,
+                    Kind = reader.GetString(1),
+                    Position = new Vector3i(reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4)),
+                    Items = JsonSerializer.Deserialize<List<ItemStack>>(reader.GetString(5), JsonOptions) ?? new List<ItemStack>(),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteContainer(string id)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM container WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", id);
             cmd.ExecuteNonQuery();
         }
     }

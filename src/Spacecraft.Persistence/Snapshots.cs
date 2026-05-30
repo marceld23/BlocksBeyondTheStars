@@ -22,6 +22,9 @@ public sealed class PlayerSnapshot
     public float Z { get; set; }
     public float Yaw { get; set; }
     public float Pitch { get; set; }
+    public float RespawnX { get; set; }
+    public float RespawnY { get; set; }
+    public float RespawnZ { get; set; }
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;
@@ -80,6 +83,9 @@ public static class StateMapper
         Z = p.Position.Z,
         Yaw = p.Yaw,
         Pitch = p.Pitch,
+        RespawnX = p.RespawnPoint.X,
+        RespawnY = p.RespawnPoint.Y,
+        RespawnZ = p.RespawnPoint.Z,
         Health = p.Health,
         Oxygen = p.Oxygen,
         SuitEnergy = p.SuitEnergy,
@@ -97,6 +103,7 @@ public static class StateMapper
         Position = new Vector3f(s.X, s.Y, s.Z),
         Yaw = s.Yaw,
         Pitch = s.Pitch,
+        RespawnPoint = new Vector3f(s.RespawnX, s.RespawnY, s.RespawnZ),
         Health = s.Health,
         Oxygen = s.Oxygen,
         SuitEnergy = s.SuitEnergy,
