@@ -77,4 +77,45 @@ app.MapPost("/api/backups", (AdminService a) =>
 
 app.MapGet("/api/logs", (AdminService a, int lines = 200) => Results.Json(a.TailLog(lines)));
 
+// --- Admin extension editor: missions & content packs ---
+
+app.MapGet("/api/missions", (AdminService a) => Results.Json(a.ListAdminMissions()));
+
+app.MapPost("/api/missions", async (HttpRequest req, AdminService a) =>
+{
+    using var reader = new StreamReader(req.Body);
+    var json = await reader.ReadToEndAsync();
+    try
+    {
+        var mission = System.Text.Json.JsonSerializer.Deserialize<Spacecraft.Shared.Missions.MissionDefinition>(json);
+        if (mission is null)
+        {
+            return Results.BadRequest(new { error = "empty mission" });
+        }
+
+        var result = a.SaveAdminMission(mission);
+        return result.Success ? Results.Json(result) : Results.BadRequest(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
+app.MapDelete("/api/missions/{id}", (string id, AdminService a) =>
+{
+    a.DeleteAdminMission(id);
+    return Results.Ok(new { deleted = id });
+});
+
+app.MapGet("/api/content-pack", (AdminService a) => Results.Content(a.ExportContentPack(), "application/json"));
+
+app.MapPost("/api/content-pack", async (HttpRequest req, AdminService a) =>
+{
+    using var reader = new StreamReader(req.Body);
+    var json = await reader.ReadToEndAsync();
+    var result = a.ImportContentPack(json);
+    return result.Success ? Results.Json(result) : Results.BadRequest(result);
+});
+
 app.Run();

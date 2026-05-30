@@ -25,6 +25,14 @@ try
             RequireArgs(args, 3, "backup <savesRoot> <worldName>");
             return Backup(args[1], args[2]);
 
+        case "export-pack":
+            RequireArgs(args, 4, "export-pack <savesRoot> <worldName> <outFile>");
+            return ExportPack(args[1], args[2], args[3]);
+
+        case "import-pack":
+            RequireArgs(args, 4, "import-pack <savesRoot> <worldName> <inFile> [dataDir]");
+            return ImportPack(args[1], args[2], args[3], args.Length > 4 ? args[4] : "data");
+
         default:
             PrintUsage();
             return 1;
@@ -43,6 +51,8 @@ static void PrintUsage()
     Console.WriteLine("  spacecraft-tools validate [dataDir]          Validate data-driven content definitions");
     Console.WriteLine("  spacecraft-tools info <savesRoot> <world>    Show world metadata and stats");
     Console.WriteLine("  spacecraft-tools backup <savesRoot> <world>  Create a consistent world backup");
+    Console.WriteLine("  spacecraft-tools export-pack <savesRoot> <world> <outFile>          Export admin content pack");
+    Console.WriteLine("  spacecraft-tools import-pack <savesRoot> <world> <inFile> [dataDir]  Import & validate a content pack");
 }
 
 static void RequireArgs(string[] args, int count, string usage)
@@ -101,4 +111,51 @@ static int Backup(string savesRoot, string world)
     var path = repo.CreateBackup("backup_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
     Console.WriteLine($"Backup created: {path}");
     return 0;
+}
+
+static int ExportPack(string savesRoot, string world, string outFile)
+{
+    using var repo = new SqliteWorldRepository(new SaveGamePaths(savesRoot, world));
+    repo.Initialize();
+    var pack = new Spacecraft.Shared.Missions.ContentPack { Name = world + "-content", Missions = repo.ListMissions().ToList() };
+    File.WriteAllText(outFile, System.Text.Json.JsonSerializer.Serialize(pack, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+    Console.WriteLine($"Exported {pack.Missions.Count} missions to {outFile}");
+    return 0;
+}
+
+static int ImportPack(string savesRoot, string world, string inFile, string dataDir)
+{
+    if (!File.Exists(inFile))
+    {
+        Console.Error.WriteLine($"File not found: {inFile}");
+        return 1;
+    }
+
+    var content = ContentLoader.LoadFromDirectory(dataDir);
+    var pack = System.Text.Json.JsonSerializer.Deserialize<Spacecraft.Shared.Missions.ContentPack>(File.ReadAllText(inFile));
+    if (pack is null)
+    {
+        Console.Error.WriteLine("Empty or invalid content pack.");
+        return 1;
+    }
+
+    using var repo = new SqliteWorldRepository(new SaveGamePaths(savesRoot, world));
+    repo.Initialize();
+    int imported = 0, rejected = 0;
+    foreach (var mission in pack.Missions)
+    {
+        var problems = Spacecraft.Shared.Missions.MissionValidator.Validate(mission, content);
+        if (problems.Count > 0)
+        {
+            rejected++;
+            Console.Error.WriteLine($"Rejected '{mission.Id}': {string.Join("; ", problems)}");
+            continue;
+        }
+
+        repo.SaveMission(mission);
+        imported++;
+    }
+
+    Console.WriteLine($"Imported {imported}, rejected {rejected}.");
+    return rejected == 0 ? 0 : 2;
 }
