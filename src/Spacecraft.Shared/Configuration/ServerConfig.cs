@@ -46,6 +46,9 @@ public sealed class ServerConfig
     /// <summary>Planet type the world starts on.</summary>
     public string StartPlanet { get; set; } = "rocky";
 
+    /// <summary>Authoritative world rules (mode, PvP, hazards, death penalty, cheats, ...).</summary>
+    public GameRules Rules { get; set; } = new();
+
     // --- Filesystem locations (resolved relative to the server install dir) ---
 
     public string SavesRoot { get; set; } = "saves";

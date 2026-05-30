@@ -39,6 +39,8 @@ public static class NetCodec
         Register(56, typeof(CraftResult));
         Register(57, typeof(ActionRejected));
         Register(58, typeof(ServerMessage));
+        Register(59, typeof(ServerRules));
+        Register(60, typeof(RespawnNotice));
     }
 
     private static void Register(byte tag, Type type)

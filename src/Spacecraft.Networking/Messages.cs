@@ -130,3 +130,30 @@ public sealed class ServerMessage
 {
     public string Text { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// The active world rule set, sent to a client right after it joins so it can show the
+/// server's mode/rules and explain when an action is blocked by them.
+/// </summary>
+public sealed class ServerRules
+{
+    public string GameMode { get; set; } = string.Empty;
+    public string Pvp { get; set; } = string.Empty;
+    public string WeaponMode { get; set; } = string.Empty;
+    public string AggressiveAliens { get; set; } = string.Empty;
+    public string EnvironmentalHazards { get; set; } = string.Empty;
+    public string DeathPenalty { get; set; } = string.Empty;
+    public bool KeepInventoryOnDeath { get; set; }
+    public bool OxygenEnabled { get; set; }
+    public bool AdminCheatsActive { get; set; }
+}
+
+/// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>
+public sealed class RespawnNotice
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public bool SalvageCapsuleDropped { get; set; }
+}

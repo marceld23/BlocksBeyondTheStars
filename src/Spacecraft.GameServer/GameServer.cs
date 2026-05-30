@@ -55,6 +55,8 @@ public sealed class GameServer
         _log = logger ?? new NullGameLogger();
     }
 
+    private GameRules Rules => _config.Rules;
+
     public ServerWorld World => _world;
     public ShipState Ship => _ship;
     public IReadOnlyDictionary<int, PlayerSession> Sessions => _sessions;
@@ -202,15 +204,16 @@ public sealed class GameServer
             }
 
             var p = session.State;
-            if (p.AboardShip)
+            if (p.AboardShip || !Rules.OxygenEnabled)
             {
+                // Aboard the ship (life support) or oxygen disabled by rules: regenerate.
                 p.Oxygen = System.Math.Min(100f, p.Oxygen + (float)(dt * 25));
                 p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
             }
             else
             {
-                // MVP: assume the surface has no breathable atmosphere.
-                p.Oxygen = System.Math.Max(0f, p.Oxygen - (float)(dt * 2));
+                // Outside without a breathable atmosphere: drain at the configured rate.
+                p.Oxygen = System.Math.Max(0f, p.Oxygen - (float)(dt * Rules.OxygenDrainPerSecond));
                 if (p.Oxygen <= 0f)
                 {
                     p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
@@ -348,6 +351,7 @@ public sealed class GameServer
         });
         SendInventory(session);
         SendPlayerState(session);
+        SendRules(session);
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }
@@ -479,6 +483,20 @@ public sealed class GameServer
         }
 
         int count = System.Math.Max(1, craft.Count);
+
+        // Creative mode: no material/blueprint/station cost — just produce the output.
+        if (!Rules.CraftingCostsMaterials)
+        {
+            var freePool = new MaterialPool(_content, session.State, _ship);
+            foreach (var output in recipe.Outputs)
+            {
+                freePool.Add(output.Item, output.Count * count);
+            }
+
+            Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
+            SendInventory(session);
+            return;
+        }
 
         if (!string.IsNullOrEmpty(recipe.RequiredBlueprint) &&
             !session.State.UnlockedBlueprints.Contains(recipe.RequiredBlueprint!))
@@ -640,6 +658,23 @@ public sealed class GameServer
             Health = p.Health,
             Oxygen = p.Oxygen,
             SuitEnergy = p.SuitEnergy,
+        });
+    }
+
+    private void SendRules(PlayerSession session)
+    {
+        var r = Rules;
+        Send(session, new ServerRules
+        {
+            GameMode = r.GameMode.ToString(),
+            Pvp = r.Pvp.ToString(),
+            WeaponMode = r.WeaponMode.ToString(),
+            AggressiveAliens = r.AggressiveAliens.ToString(),
+            EnvironmentalHazards = r.EnvironmentalHazards.ToString(),
+            DeathPenalty = r.DeathPenalty.ToString(),
+            KeepInventoryOnDeath = r.KeepInventoryOnDeath,
+            OxygenEnabled = r.OxygenEnabled,
+            AdminCheatsActive = r.CheatsAllowed,
         });
     }
 

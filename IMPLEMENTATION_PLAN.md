@@ -213,3 +213,62 @@ no crew/modding system, no cloud saves. The architecture stays open to them.
 - Server publishable for win-x64 / linux-x64 / linux-arm64.
 - Client scaffold + shared data model in place.
 - All tests green.
+
+---
+
+## 14. Extended scope (additional requirement docs)
+
+Four further requirement docs were added after the MVP and are planned in here. They
+build on the authoritative-server foundation; most are server-side and unit-testable
+without Unity. Source docs: `anf_admin_einstellungen.md`, `anf_admin_blueprinf.md`,
+`anf_mission_editor.md`, `anf_webclient.md`.
+
+### M9 – Game modes & server rules (`anf_admin_einstellungen.md`)
+- [ ] `GameMode` (Survival/Creative) + `GameRules` (PvP, aggressive aliens, weapon mode,
+  environmental hazards, death penalty, keep-inventory/keep-ship, admin cheats) in config
+- [ ] Server presets (peaceful-creative, family, coop-survival, dangerous, pvp)
+- [ ] Server enforces rules authoritatively (creative = free/instant crafting, etc.)
+- [ ] Client receives the active rule set on join; tests
+
+### M10 – Heal-tank respawn & death (`anf_admin_blueprinf.md` §2–4)
+- [ ] Medbay heal-tank as the respawn point (not the bed)
+- [ ] Death triggers (health 0, oxygen depletion); respawn at ship heal-tank, restore health
+- [ ] Death penalty per rules (keep-inventory vs. salvage capsule); tests
+
+### M11 – World description & procedural universe (`anf_admin_einstellungen.md` §8–9)
+- [ ] `WorldDescription` (star-system count, planets/system, moons, asteroids, stations,
+  planet-type frequencies, resource/danger density) — data + admin-editable
+- [ ] Deterministic universe generation (systems → bodies) from seed + description
+- [ ] Persist generated locations + generation status (generated/discovered/visited)
+- [ ] "Generated once → stable" guarantee; tests
+
+### M12 – Admin roles & cheats (`anf_admin_einstellungen.md` §10–12)
+- [ ] Player roles (world admin = creator, admin, moderator, player)
+- [ ] Server-authoritative, admin-only, logged cheats: teleport, give item, set time,
+  set weather, fly, god mode, instant build (gated by `adminCheats`)
+- [ ] Cheat audit log; tests
+
+### M13 – Mission system, no AI (`anf_mission_editor.md` §1, `anf_admin_blueprinf.md` §6)
+- [ ] Data-driven mission definitions + runtime mission state (accept/track/complete)
+- [ ] Server-validated objective types (collect/mine/deliver/travel/scan/build/...)
+- [ ] Reward depot + system reward for creators; player-created missions
+- [ ] Persistence; tests
+
+### M14 – Admin extension editor & content packs (`anf_admin_blueprinf.md` §5–13)
+- [ ] Per-world content overlay: admin missions, blueprints, recipes, reward tables
+- [ ] Validation, draft/activate, export/import content packs (JSON)
+- [ ] Admin API endpoints + UI; tests
+
+### M15 – Web portal & WebSocket transport (`anf_webclient.md`)
+- [ ] `WebSocketServerTransport` so browser clients use the same protocol over WS
+- [ ] Server web portal (`/` download native / `/play` / status) via the API
+- [ ] Feasibility doc for the Unity WebGL Lite client (`docs/WEBCLIENT_FEASIBILITY.md`)
+
+### M16 – Optional Python AI mission backend (`anf_mission_editor.md` §3–16)
+- [ ] Separate Python service scaffold (FastAPI) producing a validated `MissionPlan`
+- [ ] Server-side AI client with strict validation + fallback (game works without AI)
+- [ ] Config levels (off / text-only / suggest / auto); decision doc
+
+> Order: M9 → M16. Unity-side work (WebGL build, browser UI) is documented/feasibility
+> only here since the Unity Editor can't run in this environment; all server logic is
+> implemented and tested.
