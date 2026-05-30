@@ -1,0 +1,28 @@
+[
+  { "key": "cockpit",        "nameKey": "module.cockpit.name",        "descriptionKey": "module.cockpit.desc",        "mandatory": true,  "buildCost": [], "stats": { "scanner_strength": 1 } },
+  { "key": "reactor",        "nameKey": "module.reactor.name",        "descriptionKey": "module.reactor.desc",        "mandatory": true,  "buildCost": [], "stats": { "energy_production": 20 } },
+  { "key": "life_support",   "nameKey": "module.life_support.name",   "descriptionKey": "module.life_support.desc",   "mandatory": true,  "buildCost": [], "stats": { "oxygen_storage": 100 } },
+  { "key": "quarters",       "nameKey": "module.quarters.name",       "descriptionKey": "module.quarters.desc",       "mandatory": false, "buildCost": [], "stats": {} },
+  { "key": "medbay",         "nameKey": "module.medbay.name",         "descriptionKey": "module.medbay.desc",         "mandatory": false, "buildCost": [], "stats": {} },
+  { "key": "workshop",       "nameKey": "module.workshop.name",       "descriptionKey": "module.workshop.desc",       "mandatory": false, "buildCost": [], "stats": {} },
+  { "key": "cargo_hold_basic","nameKey": "module.cargo_hold_basic.name","descriptionKey": "module.cargo_hold_basic.desc","mandatory": false, "buildCost": [], "stats": { "cargo_slots": 48 } },
+
+  {
+    "key": "cargo_hold_1", "nameKey": "module.cargo_hold_1.name", "descriptionKey": "module.cargo_hold_1.desc",
+    "mandatory": false, "requiredBlueprint": "cargo_expansion_1",
+    "buildCost": [ { "item": "iron_plate", "count": 80 }, { "item": "cable", "count": 16 } ],
+    "stats": { "cargo_slots": 24 }
+  },
+  {
+    "key": "refinery", "nameKey": "module.refinery.name", "descriptionKey": "module.refinery.desc",
+    "mandatory": false, "requiredBlueprint": "refinery",
+    "buildCost": [ { "item": "iron_plate", "count": 50 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 6 }, { "item": "energy_cell_1", "count": 4 } ],
+    "stats": {}
+  },
+  {
+    "key": "oxygen_generator", "nameKey": "module.oxygen_generator.name", "descriptionKey": "module.oxygen_generator.desc",
+    "mandatory": false, "requiredBlueprint": "oxygen_generator",
+    "buildCost": [ { "item": "iron_plate", "count": 20 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 6 } ],
+    "stats": { "oxygen_production": 5 }
+  }
+]

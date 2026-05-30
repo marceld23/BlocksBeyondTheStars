@@ -1,0 +1,44 @@
+# .NET
+bin/
+obj/
+*.user
+artifacts/
+publish/
+
+# Rider / VS
+.idea/
+.vs/
+
+# Unity (client/)
+client/Library/
+client/Temp/
+client/Obj/
+client/Build/
+client/Builds/
+client/Logs/
+client/UserSettings/
+client/[Bb]uild/
+*.csproj.user
+
+# Savegames / runtime data
+saves/
+*.db
+*.db-shm
+*.db-wal
+logs/
+backups/
+
+# Generated Unity client content (reproduce via scripts/sync-client-libs.ps1)
+client/Assets/Plugins/*.dll
+client/Assets/Plugins/*.dll.meta
+client/Assets/StreamingAssets/data/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Stray / unrelated folders that exist in this workspace
+%APPDATA%/
+packages/
+tests/Spacecraft.Tests/bin/
+tests/Spacecraft.Tests/obj/

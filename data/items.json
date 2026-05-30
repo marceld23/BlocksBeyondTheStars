@@ -1,0 +1,31 @@
+[
+  { "key": "stone",           "nameKey": "item.stone.name",           "category": "material",   "maxStack": 99 },
+  { "key": "dirt",            "nameKey": "item.dirt.name",            "category": "material",   "maxStack": 99 },
+  { "key": "basalt",          "nameKey": "item.basalt.name",          "category": "material",   "maxStack": 99 },
+  { "key": "ice",             "nameKey": "item.ice.name",             "category": "material",   "maxStack": 99 },
+  { "key": "iron_ore",        "nameKey": "item.iron_ore.name",        "category": "material",   "maxStack": 99 },
+  { "key": "copper_ore",      "nameKey": "item.copper_ore.name",      "category": "material",   "maxStack": 99 },
+  { "key": "silicate",        "nameKey": "item.silicate.name",        "category": "material",   "maxStack": 99 },
+  { "key": "carbon",          "nameKey": "item.carbon.name",          "category": "material",   "maxStack": 99 },
+  { "key": "titanium_ore",    "nameKey": "item.titanium_ore.name",    "category": "material",   "maxStack": 99 },
+
+  { "key": "iron_ingot",      "nameKey": "item.iron_ingot.name",      "category": "material",   "maxStack": 99 },
+  { "key": "iron_plate",      "nameKey": "item.iron_plate.name",      "category": "component",  "maxStack": 99 },
+  { "key": "copper_wire",     "nameKey": "item.copper_wire.name",     "category": "material",   "maxStack": 99 },
+  { "key": "cable",           "nameKey": "item.cable.name",           "category": "component",  "maxStack": 99 },
+  { "key": "carbon_composite","nameKey": "item.carbon_composite.name","category": "material",   "maxStack": 99 },
+  { "key": "energy_cell_1",   "nameKey": "item.energy_cell_1.name",   "category": "component",  "maxStack": 50 },
+  { "key": "titanium_plate",  "nameKey": "item.titanium_plate.name",  "category": "component",  "maxStack": 99 },
+
+  { "key": "data_fragment",   "nameKey": "item.data_fragment.name",   "category": "component",  "maxStack": 20 },
+  { "key": "oxygen_tank_1",   "nameKey": "item.oxygen_tank_1.name",   "category": "consumable", "maxStack": 10, "descriptionKey": "item.oxygen_tank_1.desc" },
+  { "key": "medpack",         "nameKey": "item.medpack.name",         "category": "consumable", "maxStack": 20, "descriptionKey": "item.medpack.desc" },
+
+  { "key": "glass",           "nameKey": "item.glass.name",           "category": "block",      "maxStack": 99, "placesBlock": "glass" },
+  { "key": "iron_wall",       "nameKey": "item.iron_wall.name",       "category": "block",      "maxStack": 99, "placesBlock": "iron_wall" },
+
+  { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
+  { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },
+  { "key": "block_placer",    "nameKey": "item.block_placer.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.block_placer.desc", "tool": { "kind": "blockPlacer", "tier": 1, "energyPerUse": 0.0 } },
+  { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } }
+]

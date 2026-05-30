@@ -1,0 +1,16 @@
+[
+  { "key": "iron_ingot",       "station": "workshop", "inputs": [ { "item": "iron_ore", "count": 2 } ],                                            "outputs": [ { "item": "iron_ingot", "count": 1 } ] },
+  { "key": "iron_plate",       "station": "workshop", "inputs": [ { "item": "iron_ingot", "count": 2 } ],                                          "outputs": [ { "item": "iron_plate", "count": 1 } ] },
+  { "key": "copper_wire",      "station": "workshop", "inputs": [ { "item": "copper_ore", "count": 1 } ],                                          "outputs": [ { "item": "copper_wire", "count": 2 } ] },
+  { "key": "cable",            "station": "workshop", "inputs": [ { "item": "copper_wire", "count": 2 }, { "item": "silicate", "count": 1 } ],     "outputs": [ { "item": "cable", "count": 1 } ] },
+  { "key": "carbon_composite", "station": "workshop", "inputs": [ { "item": "carbon", "count": 2 } ],                                             "outputs": [ { "item": "carbon_composite", "count": 1 } ] },
+  { "key": "glass",            "station": "workshop", "inputs": [ { "item": "silicate", "count": 3 } ],                                           "outputs": [ { "item": "glass", "count": 1 } ] },
+  { "key": "energy_cell_1",    "station": "workshop", "inputs": [ { "item": "cable", "count": 1 }, { "item": "carbon_composite", "count": 1 } ],  "outputs": [ { "item": "energy_cell_1", "count": 1 } ] },
+  { "key": "medpack",          "station": "hand",     "inputs": [ { "item": "carbon", "count": 2 }, { "item": "silicate", "count": 1 } ],         "outputs": [ { "item": "medpack", "count": 1 } ] },
+  { "key": "iron_wall",        "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 1 } ],                                          "outputs": [ { "item": "iron_wall", "count": 4 } ] },
+
+  { "key": "titanium_plate",   "station": "refinery", "inputs": [ { "item": "titanium_ore", "count": 2 } ],                                        "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
+
+  { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
+  { "key": "oxygen_tank_1",    "station": "workshop", "requiredBlueprint": "oxygen_tank_1",  "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ],          "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] }
+]

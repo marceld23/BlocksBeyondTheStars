@@ -1,0 +1,27 @@
+[
+  {
+    "key": "oxygen_tank_1", "nameKey": "blueprint.oxygen_tank_1.name", "descriptionKey": "blueprint.oxygen_tank_1.desc",
+    "category": "Suit", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 5 } ]
+  },
+  {
+    "key": "titanium_drill", "nameKey": "blueprint.titanium_drill.name", "descriptionKey": "blueprint.titanium_drill.desc",
+    "category": "Tools", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
+  },
+  {
+    "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
+    "category": "ShipExpansion", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]
+  },
+  {
+    "key": "refinery", "nameKey": "blueprint.refinery.name", "descriptionKey": "blueprint.refinery.desc",
+    "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_1" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "oxygen_generator", "nameKey": "blueprint.oxygen_generator.name", "descriptionKey": "blueprint.oxygen_generator.desc",
+    "category": "ShipExpansion", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "ice", "count": 20 }, { "item": "cable", "count": 5 } ]
+  }
+]

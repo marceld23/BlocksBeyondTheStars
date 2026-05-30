@@ -1,0 +1,14 @@
+[
+  { "key": "stone",        "nameKey": "block.stone.name",        "hardness": 1.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "stone", "count": 1 } ] },
+  { "key": "dirt",         "nameKey": "block.dirt.name",         "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
+  { "key": "basalt",       "nameKey": "block.basalt.name",       "hardness": 2.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "basalt", "count": 1 } ] },
+  { "key": "ice",          "nameKey": "block.ice.name",          "hardness": 0.8, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "ice", "count": 1 } ] },
+  { "key": "iron_ore",     "nameKey": "block.iron_ore.name",     "hardness": 2.5, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_ore", "count": 1 } ] },
+  { "key": "copper_ore",   "nameKey": "block.copper_ore.name",   "hardness": 2.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "copper_ore", "count": 1 } ] },
+  { "key": "silicate",     "nameKey": "block.silicate.name",     "hardness": 1.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "silicate", "count": 1 } ] },
+  { "key": "carbon",       "nameKey": "block.carbon.name",       "hardness": 1.6, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "carbon", "count": 1 } ] },
+  { "key": "titanium_ore", "nameKey": "block.titanium_ore.name", "hardness": 4.5, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "titanium_ore", "count": 1 } ] },
+  { "key": "data_cache",   "nameKey": "block.data_cache.name",   "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "data_fragment", "count": 1 } ] },
+  { "key": "glass",        "nameKey": "block.glass.name",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass", "count": 1 } ] },
+  { "key": "iron_wall",    "nameKey": "block.iron_wall.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] }
+]

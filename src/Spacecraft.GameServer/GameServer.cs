@@ -1,0 +1,677 @@
+using Spacecraft.Networking;
+using Spacecraft.Networking.Messages;
+using Spacecraft.Networking.Transport;
+using Spacecraft.Persistence;
+using Spacecraft.Shared.Configuration;
+using Spacecraft.Shared.Content;
+using Spacecraft.Shared.Definitions;
+using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Primitives;
+using Spacecraft.Shared.State;
+using Spacecraft.Shared.World;
+using Spacecraft.WorldGeneration;
+
+namespace Spacecraft.GameServer;
+
+/// <summary>
+/// The authoritative game server: it owns the world, players and ship, validates every
+/// client intent and broadcasts the resulting state. The client never decides outcomes
+/// (technical requirements §7, §15). Drive it by calling <see cref="Tick"/> at the
+/// configured rate, or use <see cref="Run"/> for a blocking loop.
+/// </summary>
+public sealed class GameServer
+{
+    private const string ShipId = "default";
+    private const float MaxReach = 8f;
+    private const int HotbarSlots = 9;
+
+    private readonly ServerConfig _config;
+    private readonly GameContent _content;
+    private readonly IServerTransport _transport;
+    private readonly IWorldRepository _repo;
+    private readonly IGameLogger _log;
+
+    private readonly Dictionary<int, PlayerSession> _sessions = new();
+
+    private WorldMetadata _meta = new();
+    private WorldGenerator _generator = null!;
+    private ServerWorld _world = null!;
+    private ShipState _ship = new();
+
+    private double _sinceAutoSave;
+    private volatile bool _running;
+
+    public GameServer(
+        ServerConfig config,
+        GameContent content,
+        IServerTransport transport,
+        IWorldRepository repo,
+        IGameLogger? logger = null)
+    {
+        _config = config;
+        _content = content;
+        _transport = transport;
+        _repo = repo;
+        _log = logger ?? new NullGameLogger();
+    }
+
+    public ServerWorld World => _world;
+    public ShipState Ship => _ship;
+    public IReadOnlyDictionary<int, PlayerSession> Sessions => _sessions;
+    public WorldMetadata Metadata => _meta;
+
+    // ---------------- Lifecycle ----------------
+
+    public void Start()
+    {
+        _repo.Initialize();
+
+        _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
+        _repo.SaveMetadata(_meta);
+
+        var planet = _content.GetPlanet(_meta.DefaultPlanetType)
+                     ?? throw new InvalidOperationException($"Unknown planet type '{_meta.DefaultPlanetType}'.");
+        _generator = new WorldGenerator(_meta.Seed, _content);
+        _world = new ServerWorld(_content, _generator, _repo, planet);
+
+        _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
+        _repo.SaveShip(ShipId, _ship);
+
+        _transport.ClientConnected += OnClientConnected;
+        _transport.ClientDisconnected += OnClientDisconnected;
+        _transport.PayloadReceived += OnPayload;
+        _transport.Start(_config.GameplayPort);
+
+        _log.Info($"Server '{_config.ServerName}' started on port {_config.GameplayPort}, world '{_meta.WorldName}' (seed {_meta.Seed}, planet {_meta.DefaultPlanetType}).");
+    }
+
+    private WorldMetadata CreateInitialMetadata()
+    {
+        long seed = _config.Seed != 0 ? _config.Seed : WorldGenerator.StableHash(_config.WorldName);
+        return new WorldMetadata
+        {
+            WorldName = _config.WorldName,
+            Seed = seed,
+            DefaultPlanetType = _config.StartPlanet,
+            ActiveLocationId = _config.StartPlanet,
+        };
+    }
+
+    private ShipState CreateStarterShip()
+    {
+        var ship = new ShipState { CurrentLocationId = _meta.DefaultPlanetType };
+        foreach (var key in new[] { "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic" })
+        {
+            if (_content.GetShipModule(key) is not null)
+            {
+                ship.Modules.Add(key);
+            }
+        }
+
+        ResizeCargo(ship);
+        return ship;
+    }
+
+    /// <summary>Recomputes cargo capacity from built modules, preserving existing contents.</summary>
+    private void ResizeCargo(ShipState ship)
+    {
+        int slots = 0;
+        foreach (var moduleKey in ship.Modules)
+        {
+            if (_content.GetShipModule(moduleKey) is { } m && m.Stats.TryGetValue("cargo_slots", out var s))
+            {
+                slots += (int)s;
+            }
+        }
+
+        slots = System.Math.Max(slots, 1);
+        if (ship.Cargo.SlotCount == slots)
+        {
+            return;
+        }
+
+        var resized = new Inventory(slots);
+        for (int i = 0; i < ship.Cargo.SlotCount; i++)
+        {
+            if (ship.Cargo.Slots[i] is { } stack && !stack.IsEmpty)
+            {
+                resized.Add(stack.Item, stack.Count, _content.MaxStackOf(stack.Item));
+            }
+        }
+
+        ship.Cargo = resized;
+    }
+
+    /// <summary>Blocking loop; runs until <see cref="Stop"/> is called.</summary>
+    public void Run()
+    {
+        _running = true;
+        double tickSeconds = 1.0 / System.Math.Max(1, _config.TickRate);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        double last = sw.Elapsed.TotalSeconds;
+
+        while (_running)
+        {
+            double now = sw.Elapsed.TotalSeconds;
+            double dt = now - last;
+            last = now;
+
+            Tick(dt);
+
+            double sleep = tickSeconds - (sw.Elapsed.TotalSeconds - now);
+            if (sleep > 0)
+            {
+                System.Threading.Thread.Sleep((int)(sleep * 1000));
+            }
+        }
+    }
+
+    public void Stop()
+    {
+        _running = false;
+        SaveAll();
+        _repo.Flush();
+        _transport.Stop();
+        _log.Info("Server stopped and world saved.");
+    }
+
+    // ---------------- Tick ----------------
+
+    public void Tick(double deltaSeconds)
+    {
+        _transport.Poll();
+        TickEnvironment(deltaSeconds);
+        StreamChunks();
+
+        _sinceAutoSave += deltaSeconds;
+        if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
+        {
+            _sinceAutoSave = 0;
+            SaveAll();
+            _log.Info("Autosave complete.");
+        }
+    }
+
+    private void TickEnvironment(double dt)
+    {
+        foreach (var session in _sessions.Values)
+        {
+            if (!session.Joined)
+            {
+                continue;
+            }
+
+            var p = session.State;
+            if (p.AboardShip)
+            {
+                p.Oxygen = System.Math.Min(100f, p.Oxygen + (float)(dt * 25));
+                p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
+            }
+            else
+            {
+                // MVP: assume the surface has no breathable atmosphere.
+                p.Oxygen = System.Math.Max(0f, p.Oxygen - (float)(dt * 2));
+                if (p.Oxygen <= 0f)
+                {
+                    p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
+                }
+            }
+        }
+    }
+
+    private void StreamChunks()
+    {
+        int radius = System.Math.Max(1, _config.ViewDistanceChunks);
+        const int perTickBudget = 8;
+
+        foreach (var session in _sessions.Values)
+        {
+            if (!session.Joined)
+            {
+                continue;
+            }
+
+            var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
+            int sent = 0;
+            for (int dy = -1; dy <= 1 && sent < perTickBudget; dy++)
+            for (int dx = -radius; dx <= radius && sent < perTickBudget; dx++)
+            for (int dz = -radius; dz <= radius && sent < perTickBudget; dz++)
+            {
+                var coord = new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz);
+                if (session.SentChunks.Contains(coord))
+                {
+                    continue;
+                }
+
+                var chunk = _world.GetOrLoadChunk(coord);
+                Send(session, new ChunkDataMessage
+                {
+                    Cx = coord.X,
+                    Cy = coord.Y,
+                    Cz = coord.Z,
+                    Blocks = chunk.ToArray(),
+                });
+                session.SentChunks.Add(coord);
+                sent++;
+            }
+        }
+    }
+
+    // ---------------- Connection handling ----------------
+
+    private void OnClientConnected(int connectionId)
+    {
+        // Session is created on a successful JoinRequest; just note the pending connection.
+        _log.Info($"Connection {connectionId} opened; awaiting join.");
+    }
+
+    private void OnClientDisconnected(int connectionId)
+    {
+        if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
+        {
+            _repo.SavePlayer(session.State);
+            _repo.SaveShip(ShipId, _ship);
+        }
+
+        _sessions.Remove(connectionId);
+        _log.Info($"Connection {connectionId} closed.");
+    }
+
+    private void OnPayload(int connectionId, byte[] payload)
+    {
+        var message = NetCodec.Decode(payload);
+        if (message is null)
+        {
+            return;
+        }
+
+        if (message is JoinRequest join)
+        {
+            HandleJoin(connectionId, join);
+            return;
+        }
+
+        if (!_sessions.TryGetValue(connectionId, out var session) || !session.Joined)
+        {
+            return; // ignore gameplay intents before joining
+        }
+
+        switch (message)
+        {
+            case MoveIntent move: HandleMove(session, move); break;
+            case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
+            case MineBlockIntent mine: HandleMine(session, mine); break;
+            case PlaceBlockIntent place: HandlePlace(session, place); break;
+            case CraftIntent craft: HandleCraft(session, craft); break;
+            case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
+        }
+    }
+
+    private void HandleJoin(int connectionId, JoinRequest join)
+    {
+        if (join.ProtocolVersion != Protocol.Version)
+        {
+            SendTo(connectionId, new JoinRejected { Reason = $"Protocol mismatch (server {Protocol.Version}, client {join.ProtocolVersion})." });
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(_config.ServerPassword) && join.Password != _config.ServerPassword)
+        {
+            SendTo(connectionId, new JoinRejected { Reason = "Invalid server password." });
+            return;
+        }
+
+        var name = string.IsNullOrWhiteSpace(join.PlayerName) ? $"player_{connectionId}" : join.PlayerName.Trim();
+
+        if (_config.WhitelistEnabled && !_config.Whitelist.Contains(name))
+        {
+            SendTo(connectionId, new JoinRejected { Reason = "You are not on the whitelist." });
+            return;
+        }
+
+        int joinedCount = _sessions.Values.Count(s => s.Joined);
+        if (joinedCount >= _config.MaxPlayers)
+        {
+            SendTo(connectionId, new JoinRejected { Reason = "Server is full." });
+            return;
+        }
+
+        var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+        var session = new PlayerSession(connectionId, state) { Joined = true };
+        _sessions[connectionId] = session;
+
+        SendTo(connectionId, new JoinAccepted
+        {
+            PlayerId = state.PlayerId,
+            WorldSeed = _meta.Seed,
+            PlanetType = _meta.DefaultPlanetType,
+        });
+        SendInventory(session);
+        SendPlayerState(session);
+
+        _log.Info($"Player '{name}' joined (connection {connectionId}).");
+    }
+
+    private PlayerState CreateNewPlayer(string name)
+    {
+        int surfaceY = _generator.SurfaceHeight(_world.Planet, 0, 0);
+        var state = new PlayerState
+        {
+            PlayerId = name,
+            Name = name,
+            Position = new Vector3f(0.5f, surfaceY + 2f, 0.5f),
+            AboardShip = true,
+        };
+
+        // Starter kit: a basic drill, a block placer and a hand scanner in the first hotbar slots.
+        state.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
+        state.Inventory.SetSlot(1, new ItemStack("block_placer", 1));
+        state.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
+        _repo.SavePlayer(state);
+        return state;
+    }
+
+    // ---------------- Authoritative validators ----------------
+
+    private void HandleMove(PlayerSession session, MoveIntent move)
+    {
+        // MVP: trust position but clamp to sane finite values. (Full movement validation later.)
+        if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
+        {
+            session.State.Position = new Vector3f(move.X, move.Y, move.Z);
+            session.State.Yaw = move.Yaw;
+            session.State.Pitch = move.Pitch;
+        }
+    }
+
+    private void HandleMine(PlayerSession session, MineBlockIntent mine)
+    {
+        var pos = new Vector3i(mine.X, mine.Y, mine.Z);
+        var current = _world.GetBlock(pos);
+        if (current.IsAir)
+        {
+            Reject(session, "mine", "Block is already empty.");
+            return;
+        }
+
+        var def = _world.Definition(current);
+        if (def is null || !def.Mineable)
+        {
+            Reject(session, "mine", "Block cannot be mined.");
+            return;
+        }
+
+        if (!WithinReach(session.State, pos))
+        {
+            Reject(session, "mine", "Out of reach.");
+            return;
+        }
+
+        var tool = ActiveTool(session.State);
+        if (!ToolCanMine(tool, def))
+        {
+            Reject(session, "mine", "Your current tool cannot mine this block.");
+            return;
+        }
+
+        _world.SetBlock(pos, BlockId.Air);
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        foreach (var drop in def.Drops)
+        {
+            pool.Add(drop.Item, drop.Count);
+        }
+
+        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
+        SendInventory(session);
+    }
+
+    private void HandlePlace(PlayerSession session, PlaceBlockIntent place)
+    {
+        var item = _content.GetItem(place.ItemKey);
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        {
+            Reject(session, "place", "Item cannot be placed.");
+            return;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null)
+        {
+            Reject(session, "place", "Unknown block for item.");
+            return;
+        }
+
+        var pos = new Vector3i(place.X, place.Y, place.Z);
+        if (!_world.GetBlock(pos).IsAir)
+        {
+            Reject(session, "place", "Target is not empty.");
+            return;
+        }
+
+        if (!WithinReach(session.State, pos))
+        {
+            Reject(session, "place", "Out of reach.");
+            return;
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        if (pool.Count(place.ItemKey) < 1)
+        {
+            Reject(session, "place", "You do not have that block.");
+            return;
+        }
+
+        pool.Remove(new[] { new ItemAmount(place.ItemKey, 1) });
+        _world.SetBlock(pos, blockDef.NumericId);
+
+        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
+        SendInventory(session);
+    }
+
+    private void HandleCraft(PlayerSession session, CraftIntent craft)
+    {
+        var recipe = _content.GetRecipe(craft.RecipeKey);
+        if (recipe is null)
+        {
+            Reject(session, "craft", "Unknown recipe.");
+            return;
+        }
+
+        int count = System.Math.Max(1, craft.Count);
+
+        if (!string.IsNullOrEmpty(recipe.RequiredBlueprint) &&
+            !session.State.UnlockedBlueprints.Contains(recipe.RequiredBlueprint!))
+        {
+            CraftFail(session, recipe.Key, "Blueprint not unlocked.");
+            return;
+        }
+
+        if (!StationAvailable(session.State, recipe.Station))
+        {
+            CraftFail(session, recipe.Key, "Required crafting station is not available here.");
+            return;
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count)).ToList();
+        if (!pool.Has(scaledInputs))
+        {
+            CraftFail(session, recipe.Key, "Missing materials.");
+            return;
+        }
+
+        pool.Remove(scaledInputs);
+        foreach (var output in recipe.Outputs)
+        {
+            pool.Add(output.Item, output.Count * count);
+        }
+
+        Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
+        SendInventory(session);
+    }
+
+    private void HandleUnlock(PlayerSession session, UnlockBlueprintIntent unlock)
+    {
+        var bp = _content.GetBlueprint(unlock.BlueprintKey);
+        if (bp is null)
+        {
+            Reject(session, "unlock", "Unknown blueprint.");
+            return;
+        }
+
+        if (session.State.UnlockedBlueprints.Contains(bp.Key))
+        {
+            Reject(session, "unlock", "Already unlocked.");
+            return;
+        }
+
+        foreach (var pre in bp.Prerequisites)
+        {
+            if (!session.State.UnlockedBlueprints.Contains(pre))
+            {
+                Reject(session, "unlock", "Prerequisite blueprint missing.");
+                return;
+            }
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        if (!pool.Has(bp.UnlockCost))
+        {
+            Reject(session, "unlock", "Missing research materials.");
+            return;
+        }
+
+        pool.Remove(bp.UnlockCost);
+        session.State.UnlockedBlueprints.Add(bp.Key);
+
+        Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
+        SendInventory(session);
+    }
+
+    // ---------------- Helpers ----------------
+
+    private static bool WithinReach(PlayerState player, Vector3i block)
+    {
+        var center = new Vector3f(block.X + 0.5f, block.Y + 0.5f, block.Z + 0.5f);
+        return player.Position.DistanceSquared(center) <= MaxReach * MaxReach;
+    }
+
+    private ToolProperties ActiveTool(PlayerState player)
+    {
+        int slot = player.SelectedHotbarSlot;
+        if (slot >= 0 && slot < player.Inventory.SlotCount && player.Inventory.Slots[slot] is { } stack && !stack.IsEmpty)
+        {
+            var def = _content.GetItem(stack.Item);
+            if (def is { Category: ItemCategory.Tool, Tool: { } tool })
+            {
+                return tool;
+            }
+        }
+
+        return new ToolProperties { Kind = ToolKind.None, Tier = 0 };
+    }
+
+    private static bool ToolCanMine(ToolProperties tool, BlockDefinition block)
+    {
+        if (block.RequiredTool != ToolKind.None && tool.Kind != block.RequiredTool)
+        {
+            return false;
+        }
+
+        return tool.Tier >= block.MinToolTier;
+    }
+
+    private bool StationAvailable(PlayerState player, CraftingStation station)
+    {
+        if (station == CraftingStation.Hand)
+        {
+            return true;
+        }
+
+        if (!player.AboardShip)
+        {
+            return false;
+        }
+
+        var moduleKey = station switch
+        {
+            CraftingStation.Workshop => "workshop",
+            CraftingStation.Refinery => "refinery",
+            CraftingStation.Lab => "lab",
+            CraftingStation.MachineRoom => "machine_room",
+            _ => string.Empty,
+        };
+
+        return moduleKey.Length > 0 && _ship.HasModule(moduleKey);
+    }
+
+    private void SaveAll()
+    {
+        foreach (var session in _sessions.Values)
+        {
+            if (session.Joined)
+            {
+                _repo.SavePlayer(session.State);
+            }
+        }
+
+        _repo.SaveShip(ShipId, _ship);
+        _repo.SaveMetadata(_meta);
+    }
+
+    private void Reject(PlayerSession session, string action, string reason)
+        => Send(session, new ActionRejected { Action = action, Reason = reason });
+
+    private void CraftFail(PlayerSession session, string recipeKey, string reason)
+        => Send(session, new CraftResult { Success = false, RecipeKey = recipeKey, Reason = reason });
+
+    private void SendPlayerState(PlayerSession session)
+    {
+        var p = session.State;
+        Send(session, new PlayerStateUpdate
+        {
+            PlayerId = p.PlayerId,
+            X = p.Position.X,
+            Y = p.Position.Y,
+            Z = p.Position.Z,
+            Yaw = p.Yaw,
+            Pitch = p.Pitch,
+            Health = p.Health,
+            Oxygen = p.Oxygen,
+            SuitEnergy = p.SuitEnergy,
+        });
+    }
+
+    private void SendInventory(PlayerSession session)
+    {
+        Send(session, new InventoryUpdate
+        {
+            Personal = DumpInventory(session.State.Inventory),
+            Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
+        });
+    }
+
+    private static NetItemStack[] DumpInventory(Inventory inv)
+    {
+        var list = new List<NetItemStack>();
+        for (int i = 0; i < inv.SlotCount; i++)
+        {
+            if (inv.Slots[i] is { } s && !s.IsEmpty)
+            {
+                list.Add(new NetItemStack { Slot = i, Item = s.Item, Count = s.Count });
+            }
+        }
+
+        return list.ToArray();
+    }
+
+    private void Send(PlayerSession session, object message)
+        => _transport.Send(session.ConnectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+
+    private void SendTo(int connectionId, object message)
+        => _transport.Send(connectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+
+    private void Broadcast(object message)
+        => _transport.Broadcast(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+}

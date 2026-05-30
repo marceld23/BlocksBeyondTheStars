@@ -1,0 +1,20 @@
+{
+  "name": "Spacecraft.Client",
+  "rootNamespace": "Spacecraft.Client",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Spacecraft.Shared.dll",
+    "Spacecraft.WorldGeneration.dll",
+    "Spacecraft.Networking.dll",
+    "MessagePack.dll",
+    "LiteNetLib.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

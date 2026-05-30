@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Spacecraft.Shared\Spacecraft.Shared.csproj" />
+    <ProjectReference Include="..\Spacecraft.Persistence\Spacecraft.Persistence.csproj" />
+    <ProjectReference Include="..\Spacecraft.WorldGeneration\Spacecraft.WorldGeneration.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

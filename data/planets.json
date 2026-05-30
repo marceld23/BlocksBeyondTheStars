@@ -1,0 +1,36 @@
+[
+  {
+    "key": "rocky", "nameKey": "planet.rocky.name",
+    "baseHeight": 64, "amplitude": 14, "terrainScale": 48.0,
+    "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0008,
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 256 },
+      { "block": "carbon",     "rarity": 0.04, "minDepth": 8,  "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "ice", "nameKey": "planet.ice.name",
+    "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
+    "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
+    "caveThreshold": 0.76, "dataCacheRarity": 0.0010,
+    "ores": [
+      { "block": "silicate",     "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "copper_ore",   "rarity": 0.04, "minDepth": 6,  "maxDepth": 256 },
+      { "block": "titanium_ore", "rarity": 0.02, "minDepth": 24, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "lava", "nameKey": "planet.lava.name",
+    "baseHeight": 56, "amplitude": 22, "terrainScale": 40.0,
+    "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "deepBlock": "stone", "surfaceDepth": 3,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0012,
+    "ores": [
+      { "block": "iron_ore",     "rarity": 0.06, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "titanium_ore", "rarity": 0.05, "minDepth": 12, "maxDepth": 256 },
+      { "block": "carbon",       "rarity": 0.05, "minDepth": 6,  "maxDepth": 256 }
+    ]
+  }
+]
