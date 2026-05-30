@@ -31,7 +31,18 @@ catch (Exception ex)
 
 var paths = new SaveGamePaths(savesRoot, config.WorldName);
 using var repo = new SqliteWorldRepository(paths);
-using var transport = new LiteNetLibServerTransport(config.MaxPlayers);
+
+// Native UDP for the Windows client; optionally also WebSocket for browser clients
+// (same protocol, same authoritative server). Both share the gameplay port number.
+var native = new LiteNetLibServerTransport(config.MaxPlayers);
+using IServerTransport transport = config.EnableWebSocket
+    ? new CompositeServerTransport(native, new WebSocketServerTransport(config.WebSocketBindAddress))
+    : native;
+
+if (config.EnableWebSocket)
+{
+    logger.Info($"WebSocket gateway enabled on {config.WebSocketBindAddress}:{config.GameplayPort} (browser clients).");
+}
 
 var server = new GameServer(config, content, transport, repo, logger);
 server.Start();

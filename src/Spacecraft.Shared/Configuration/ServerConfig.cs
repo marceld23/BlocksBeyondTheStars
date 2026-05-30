@@ -19,6 +19,12 @@ public sealed class ServerConfig
     public int GameplayPort { get; set; } = DefaultGameplayPort;
     public int AdminPort { get; set; } = DefaultAdminPort;
 
+    /// <summary>Also accept browser clients over WebSocket (on the gameplay port, TCP).</summary>
+    public bool EnableWebSocket { get; set; }
+
+    /// <summary>WebSocket bind host ("localhost"/LAN ip for safety, "+" for all interfaces).</summary>
+    public string WebSocketBindAddress { get; set; } = "localhost";
+
     public int MaxPlayers { get; set; } = 4;
     public string ServerPassword { get; set; } = string.Empty;
     public bool WhitelistEnabled { get; set; }
