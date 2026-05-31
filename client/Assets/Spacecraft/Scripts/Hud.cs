@@ -57,6 +57,14 @@ namespace Spacecraft.Client
                 GUI.Label(new Rect(10, 154, Screen.width - 20, 22), Game.LastMessage);
             }
 
+            // Station interaction prompt (when standing next to one and no panel is open).
+            if (!Game.MenuOpen && !string.IsNullOrEmpty(Game.NearbyStation))
+            {
+                var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+                string label = $"{loc.Get("ui.hud.use")}: {loc.Get($"ui.station.{Game.NearbyStation}")}";
+                GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 24, 300, 22), label, style);
+            }
+
             // Hint.
             GUI.Label(new Rect(10, Screen.height - 22, 600, 20), loc.Get("ui.hud.hint"));
         }

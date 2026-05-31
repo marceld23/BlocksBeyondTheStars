@@ -101,7 +101,9 @@ consumes protocol messages that already exist.
 - **M23a — the ship as a place — code DONE, needs playtest.** Server stamps a walk-in voxel
   ship hull at the landing zone (player starts inside); `AboardShip` derived from being inside
   it (gates cargo/crafting); HUD shows "aboard" + a minimap/compass that always points to the
-  ship with distance. `PlaceStarterShip` config flag (on by default).
+  ship with distance. `PlaceStarterShip` config flag (on by default). Hull is mining-protected.
+  **Stations (M23a-2):** interior markers + "Press E" interaction — heal-tank heals, quarters
+  sets respawn, workshop/cargo → Tab menu, cockpit → star map (soon). Server-validated.
 - **M23b (NEW) — player avatar, customization & third-person camera:** blocky humanoid avatar
   (head/torso/arms/legs), per-part colour customization (later armor overrides parts),
   first/third-person toggle (V) showing your own figure. See CLIENT_COMPLETION_PLAN.

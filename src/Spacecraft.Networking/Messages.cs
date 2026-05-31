@@ -128,6 +128,12 @@ public sealed class AttackEntityIntent
     public string EntityId { get; set; } = string.Empty;
 }
 
+/// <summary>Client uses a ship station it is standing next to (medbay heal-tank, cockpit, quarters, ...).</summary>
+public sealed class UseStationIntent
+{
+    public string Station { get; set; } = string.Empty;
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -410,4 +416,19 @@ public sealed class ShipPlacement
     public float X { get; set; }
     public float Y { get; set; }
     public float Z { get; set; }
+}
+
+/// <summary>A station inside the ship the player can interact with.</summary>
+public sealed class NetShipStation
+{
+    public string Type { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+}
+
+/// <summary>The interactive stations inside the ship, sent on join.</summary>
+public sealed class ShipStations
+{
+    public NetShipStation[] Stations { get; set; } = System.Array.Empty<NetShipStation>();
 }

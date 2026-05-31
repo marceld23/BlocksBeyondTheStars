@@ -62,6 +62,58 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void HealTank_HealsPlayer_WhenStandingAtIt()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            var tank = server.StationPosition("medbay")!.Value;
+            pilot.State.Position = tank; // standing at the heal-tank
+            pilot.State.Health = 40f;
+            pilot.State.AboardShip = true;
+
+            server.UseStation("Pilot", "medbay");
+
+            Assert.Equal(100f, pilot.State.Health);
+        }
+    }
+
+    [Fact]
+    public void Station_RejectsWhenTooFar()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+            pilot.State.Health = 40f;
+            pilot.State.Position = new Spacecraft.Shared.Geometry.Vector3f(1000, 64, 1000); // far away
+
+            server.UseStation("Pilot", "medbay");
+
+            Assert.Equal(40f, pilot.State.Health); // not healed
+        }
+    }
+
+    [Fact]
+    public void Quarters_SetsRespawnPoint()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            var quarters = server.StationPosition("quarters")!.Value;
+            pilot.State.Position = quarters;
+            pilot.State.AboardShip = true;
+
+            server.UseStation("Pilot", "quarters");
+
+            Assert.Equal(quarters, pilot.State.RespawnPoint);
+        }
+    }
+
+    [Fact]
     public void NoShip_WhenDisabled()
     {
         var server = Started(placeShip: false, out var repo);

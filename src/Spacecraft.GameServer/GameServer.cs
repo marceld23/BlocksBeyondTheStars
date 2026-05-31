@@ -468,6 +468,7 @@ public sealed partial class GameServer
             case LeaveSpaceIntent: HandleLeaveSpace(session); break;
             case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
+            case UseStationIntent use: HandleUseStation(session, use); break;
         }
     }
 
@@ -525,6 +526,7 @@ public sealed partial class GameServer
         SendRules(session);
         SendShipCombatStatus(session);
         SendShipPlacement(session);
+        SendShipStations(session);
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }

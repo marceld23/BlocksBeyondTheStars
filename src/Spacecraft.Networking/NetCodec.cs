@@ -42,6 +42,7 @@ public static class NetCodec
         Register(19, typeof(LeaveSpaceIntent));
         Register(20, typeof(FireWeaponIntent));
         Register(21, typeof(AttackEntityIntent));
+        Register(22, typeof(UseStationIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -67,6 +68,7 @@ public static class NetCodec
         Register(70, typeof(PlanetEnemyList));
         Register(71, typeof(PlanetEnemyDefeated));
         Register(72, typeof(ShipPlacement));
+        Register(73, typeof(ShipStations));
     }
 
     private static void Register(byte tag, Type type)

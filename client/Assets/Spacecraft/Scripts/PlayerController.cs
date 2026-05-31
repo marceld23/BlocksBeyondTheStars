@@ -60,6 +60,16 @@ namespace Spacecraft.Client
             {
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
+                HandleStations();
+            }
+        }
+
+        private void HandleStations()
+        {
+            Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
+            if (!string.IsNullOrEmpty(Game.NearbyStation) && Input.GetKeyDown(KeyCode.E))
+            {
+                Game.Network?.SendUseStation(Game.NearbyStation);
             }
         }
 

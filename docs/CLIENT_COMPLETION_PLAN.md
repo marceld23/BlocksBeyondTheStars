@@ -124,10 +124,14 @@ rejected), so the ship can't be dismantled.
 life-support, medbay, workshop, quarters, cargo hold) and drive behaviour today — the workshop
 module gates workshop crafting (when aboard), the **medbay heal-tank is the respawn point**,
 the cargo hold is the shared cargo inventory. The interior now also has **visible station
-markers** (heal-tank, cockpit console, workshop bench, cargo crates, bunk). **Planned next**
-(M23a-2): turn the markers into proper props/areas with per-station interaction — use the
-cockpit to open the star map / travel, stand at the workshop to craft, the heal-tank for
-healing, bigger module-driven interiors, and lift-off.
+markers** (heal-tank, cockpit console, workshop bench, cargo crates, bunk).
+
+**Station interactions (M23a-2 — DONE, code):** the server sends the station positions
+(`ShipStations`); standing next to one shows a **"Press E: <station>"** prompt and `E` sends a
+`UseStationIntent` the server validates by proximity + module: **heal-tank** heals to full,
+**quarters** sets the respawn point, **workshop/cargo** point you to the Tab menu, **cockpit**
+acknowledges (full star-map travel in M23). Later: proper 3D props, bigger module-driven
+interiors, and lift-off / star-map travel from the cockpit.
 
 Later: per-player ships, modules shown as interior props, lift-off / star-map travel from the
 cockpit, explicit "press E to enter".

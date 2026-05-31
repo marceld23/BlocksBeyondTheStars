@@ -144,6 +144,12 @@
   "ui.hud.location": "Location",
   "ui.hud.aboard": "aboard ship",
   "ui.hud.ship": "Ship",
+  "ui.hud.use": "Press E",
+  "ui.station.medbay": "Heal-tank",
+  "ui.station.cockpit": "Cockpit",
+  "ui.station.workshop": "Workshop",
+  "ui.station.cargo": "Cargo hold",
+  "ui.station.quarters": "Quarters",
 
   "planet.rocky.name": "Rocky Planet",
   "planet.ice.name": "Ice Planet",

@@ -53,6 +53,29 @@ namespace Spacecraft.Client
         public Vector3 PlayerPosition;
         public float PlayerYaw;
 
+        /// <summary>Interactive ship stations, and the one the player is currently next to (or empty).</summary>
+        public NetShipStation[] Stations { get; private set; } = System.Array.Empty<NetShipStation>();
+        public string NearbyStation;
+
+        /// <summary>Type of the nearest station within <paramref name="range"/> blocks, or empty.</summary>
+        public string NearestStationType(Vector3 pos, float range)
+        {
+            string best = string.Empty;
+            float bestSq = range * range;
+            foreach (var s in Stations)
+            {
+                float dx = s.X - pos.x, dy = s.Y - pos.y, dz = s.Z - pos.z;
+                float d = dx * dx + dy * dy + dz * dz;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = s.Type;
+                }
+            }
+
+            return best;
+        }
+
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
@@ -112,6 +135,7 @@ namespace Spacecraft.Client
             Network.PlayerStateUpdated += OnPlayerState;
             Network.InventoryUpdated += m => { Personal = m.Personal; Cargo = m.Cargo; };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
+            Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
             Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };
             Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = m.Text; };

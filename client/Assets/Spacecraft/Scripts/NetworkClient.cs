@@ -37,6 +37,7 @@ namespace Spacecraft.Client
         public event Action<PlanetEnemyList> PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
         public event Action<ShipPlacement> ShipPlacementReceived;
+        public event Action<ShipStations> ShipStationsReceived;
 
         public bool Connected { get; private set; }
 
@@ -89,6 +90,8 @@ namespace Spacecraft.Client
 
         public void SendAttackEntity(string entityId) => Send(new AttackEntityIntent { EntityId = entityId });
 
+        public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -117,6 +120,7 @@ namespace Spacecraft.Client
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
+                case ShipStations m: ShipStationsReceived?.Invoke(m); break;
             }
         }
 

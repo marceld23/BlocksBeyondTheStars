@@ -21,9 +21,12 @@ public sealed partial class GameServer
     private const int ShipHeight = 4;
     private const int ShipHalfZ = 3;
 
+    private const float ShipStationReach = 3f;
+
     private Vector3i _shipAnchor;
     private Vector3f _healTank;
     private bool _shipStamped;
+    private readonly List<(string Type, Vector3f Pos)> _stations = new();
 
     /// <summary>The medbay heal-tank position inside the ship (respawn point), if a ship is placed.</summary>
     public Vector3f HealTank => _healTank;
@@ -80,30 +83,124 @@ public sealed partial class GameServer
             _world.SetBlock(pos, viewport ? glass : wall);
         }
 
-        // Interior station markers on the floor (placeholders for proper props/interactions
-        // later — see CLIENT_COMPLETION_PLAN M23a). The whole hull is mining-protected, so
-        // these stay put. The logical stations already exist as ship modules.
+        // Interior station markers on the floor. The whole hull is mining-protected, so these
+        // stay put. The logical stations also exist as ship modules (workshop gates crafting,
+        // medbay = respawn, cargo = shared hold); these tiles add interaction points.
         int floor = y0 + 1;
-        PlaceStation(cx - 1, floor, cz - 2, "ice");          // medbay heal-tank (respawn)
-        PlaceStation(cx,     floor, cz + 2, "data_cache");   // cockpit console (star map / travel)
-        PlaceStation(cx + 1, floor, cz,     "stone");        // workshop bench
-        PlaceStation(cx - 1, floor, cz + 1, "iron_wall");    // cargo crates
-        PlaceStation(cx + 1, floor, cz - 2, "carbon");       // quarters / bunk
+        _stations.Clear();
+        AddStation("medbay", cx - 1, floor, cz - 2, "ice");          // heal-tank (heal + respawn)
+        AddStation("cockpit", cx, floor, cz + 2, "data_cache");      // star map / travel
+        AddStation("workshop", cx + 1, floor, cz, "stone");          // crafting bench
+        AddStation("cargo", cx - 1, floor, cz + 1, "iron_wall");     // shared cargo hold
+        AddStation("quarters", cx + 1, floor, cz - 2, "carbon");     // sleep / set respawn
 
-        // The heal-tank tile is the in-ship respawn point.
-        _healTank = new Vector3f(cx - 1 + 0.5f, floor + 1f, cz - 2 + 0.5f);
+        // Respawn at an open tile in the middle of the ship (next to the heal-tank).
+        _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
 
         _shipStamped = true;
-        _log.Info($"Ship hull placed at ({cx}, {y0}, {cz}).");
+        _log.Info($"Ship hull placed at ({cx}, {y0}, {cz}) with {_stations.Count} stations.");
     }
 
-    private void PlaceStation(int x, int y, int z, string blockKey)
+    private void AddStation(string type, int x, int y, int z, string blockKey)
     {
         if (_content.GetBlock(blockKey) is { } def)
         {
             _world.SetBlock(new Vector3i(x, y, z), def.NumericId);
         }
+
+        _stations.Add((type, new Vector3f(x + 0.5f, y, z + 0.5f)));
     }
+
+    private void SendShipStations(PlayerSession session)
+    {
+        if (!_shipStamped)
+        {
+            return;
+        }
+
+        Send(session, new ShipStations
+        {
+            Stations = _stations.Select(s => new NetShipStation
+            {
+                Type = s.Type, X = s.Pos.X, Y = s.Pos.Y, Z = s.Pos.Z,
+            }).ToArray(),
+        });
+    }
+
+    /// <summary>Test/diagnostic: the world position of a ship station, or null if absent.</summary>
+    public Vector3f? StationPosition(string type)
+    {
+        foreach (var s in _stations)
+        {
+            if (s.Type == type)
+            {
+                return s.Pos;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Handles using a ship station the player is standing next to (server-authoritative).</summary>
+    public void UseStation(string playerId, string station)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        var p = session.State;
+        var pos = StationPosition(station);
+        if (pos is null)
+        {
+            Reject(session, "station", "No such station.");
+            return;
+        }
+
+        if (!p.AboardShip || p.Position.DistanceSquared(pos.Value) > ShipStationReach * ShipStationReach)
+        {
+            Reject(session, "station", "Too far from the station.");
+            return;
+        }
+
+        switch (station)
+        {
+            case "medbay":
+                if (!_ship.HasModule("medbay"))
+                {
+                    Send(session, new ServerMessage { Text = "No medbay module aboard." });
+                    return;
+                }
+
+                p.Health = 100f;
+                p.Oxygen = 100f;
+                p.SuitEnergy = 100f;
+                SendPlayerState(session);
+                Send(session, new ServerMessage { Text = "Healed at the medbay heal-tank." });
+                break;
+
+            case "quarters":
+                p.RespawnPoint = pos.Value;
+                Send(session, new ServerMessage { Text = "Respawn point set to your quarters." });
+                break;
+
+            case "workshop":
+                Send(session, new ServerMessage { Text = "Workshop ready — open the menu (Tab) to craft." });
+                break;
+
+            case "cargo":
+                Send(session, new ServerMessage { Text = "Cargo hold — open the menu (Tab) to manage it." });
+                break;
+
+            case "cockpit":
+                Send(session, new ServerMessage { Text = "Cockpit — star map travel is coming soon." });
+                break;
+        }
+    }
+
+    private void HandleUseStation(PlayerSession session, UseStationIntent intent)
+        => UseStation(session.State.PlayerId, intent.Station);
 
     /// <summary>True if the cell is part of the (indestructible) ship hull/interior fittings.</summary>
     private bool IsShipBlock(Vector3i p)
