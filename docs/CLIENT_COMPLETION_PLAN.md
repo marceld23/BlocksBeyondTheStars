@@ -850,6 +850,25 @@ Original notes (remaining work):
   master×SFX bus.
 - Later: real **recorded SFX** (ship hums, doors/airlock/docking, alarms, respawn, weapons) +
   **music**, sourced CC0/permissive and recorded in `NOTICES.md`; full music/ambient bus.
+- **Full sound design (planned)** — extend the audio module with these categories (generate via the
+  AI sound tool `tools/ai-assets/gen_sound.py` / procedural / CC0, on the master×SFX or music bus):
+  - **Menu SFX:** hover/click/confirm/back/error cues for the unified UI (every button/tab).
+  - **Ship ambient loop:** a low background hum/air‑recycler loop while **aboard the ship**
+    (`AboardShip`), fading in/out with entering/leaving; distinct loops per area later.
+  - **Creature sounds:** per‑species idle/alert/attack/hurt/die calls — varied by the procedural
+    descriptor (size → pitch), spatialised at the creature's position.
+  - **NPC sounds:** **non‑verbal** vocalisations only (grunts/chirps/beeps — humans *and* aliens),
+    **no real speech**; short barks on greet/trade/notice.
+  - **Equipment use:** click/power‑up/power‑down/toggle cues for tools, weapons (fire/charge),
+    suit lamp, scanner, etc. — tied to the use/fire actions.
+  - **Ship systems:** sounds for using stations/systems (cockpit, workshop, heal‑tank, docking,
+    reactor, hyperspace charge/jump) and module activation.
+  - **Background music:** ambient **MIDI** music for the game (a small synthesised soundtrack —
+    calm exploration, tension in combat, menu theme), looped on a dedicated **music bus** with its
+    own volume; can be rendered from MIDI in code (no large audio files) and cross‑fade by context
+    (menu / planet / space / combat).
+  - All spatialised where it makes sense (3D AudioSources for creatures/NPCs/equipment), volumes
+    from `ClientSettings` (master / SFX / music), respecting the audio settings.
 
 ### M27 — Art, icons & polish — **in progress**
 - **Unified sci‑fi UI + renderer concept — see [docs/UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) (planned).**

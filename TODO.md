@@ -241,6 +241,12 @@ consumes protocol messages that already exist.
   the refreshed Networking lib — re-run `scripts/sync-client-libs.ps1`.)*
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
+- **(NEW, planned) Full sound design:** menu SFX (hover/click/confirm/error), **ship ambient loop**
+  (aboard), **creature** calls (idle/alert/attack/hurt, varied by species), **NPC** non‑verbal
+  vocalisations (grunts/chirps, **no speech**), **equipment** use clicks (tools/weapons/lamp), **ship
+  systems** (stations/docking/hyperspace), and **background MIDI music** on a dedicated music bus
+  (menu/planet/space/combat cross‑fade). Generated via `tools/ai-assets/gen_sound.py` / procedural /
+  CC0; spatialised; volumes from `ClientSettings`. See CLIENT_COMPLETION_PLAN (M26).
 - **AI asset tools — scaffold DONE (`tools/ai-assets/`).** Two uv Python tools: `gen_sound.py`
   (ElevenLabs text→SFX) and `gen_image.py` (OpenAI text→image/texture; `gpt-image-1-mini` low ≈
   $0.005, downscaled locally). One file per run, keys in a git-ignored `.env`; Claude proposes the
