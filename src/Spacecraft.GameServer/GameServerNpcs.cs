@@ -40,6 +40,7 @@ public sealed partial class GameServer
 
     private readonly List<ServerNpc> _npcs = new();
     private double _npcBroadcastTimer;
+    private int _nextNpcId = 1;
 
     /// <summary>Read-only view of live settlement NPCs (id/role/current/home) for tests + inspection.</summary>
     public IReadOnlyList<(int Id, string Role, Vector3f Pos, Vector3f Home)> NpcSnapshots
@@ -57,6 +58,7 @@ public sealed partial class GameServer
     {
         _npcs.Clear();
         _npcBroadcastTimer = 0;
+        _nextNpcId = 1;
 
         if (!_settlementStamped || _settlementRuined)
         {
@@ -107,7 +109,7 @@ public sealed partial class GameServer
 
         return new ServerNpc
         {
-            Id = NextEntityId(),
+            Id = _nextNpcId++,
             Role = role,
             Theme = theme,
             NameKey = nameKey,
@@ -130,7 +132,7 @@ public sealed partial class GameServer
         }
 
         var targets = _sessions.Values
-            .Where(s => s.Joined && !s.State.AboardShip && !InSpace(s.State.PlayerId))
+            .Where(s => s.Joined && (!_shipStamped || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
             .ToList();
 
         if (targets.Count == 0)

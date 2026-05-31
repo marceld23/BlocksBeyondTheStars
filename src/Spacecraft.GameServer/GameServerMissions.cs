@@ -75,6 +75,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "Visit the station mission board to take this mission.");
+            return;
+        }
+
         if (session.State.Missions.Any(m => m.MissionId == missionId))
         {
             MissionFail(session, missionId, "Mission already accepted.");
@@ -105,6 +111,12 @@ public sealed partial class GameServer
         if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
         {
             MissionFail(session, missionId, "Return to the settlement's mission board to turn this in.");
+            return;
+        }
+
+        if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "Return to the station mission board to turn this in.");
             return;
         }
 

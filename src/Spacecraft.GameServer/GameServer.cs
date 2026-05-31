@@ -280,6 +280,7 @@ public sealed partial class GameServer
         TickWeather(deltaSeconds);
         TickFlora(deltaSeconds);
         TickCreatures(deltaSeconds);
+        TickNpcs(deltaSeconds);
         StreamChunks();
 
         _sinceAutoSave += deltaSeconds;
@@ -290,6 +291,9 @@ public sealed partial class GameServer
             _log.Info("Autosave complete.");
         }
     }
+
+    /// <summary>Test helper kept explicit so tests can drive one authoritative server tick.</summary>
+    public void TickForTest(double deltaSeconds) => Tick(deltaSeconds);
 
     private void TickEnvironment(double dt)
     {
@@ -567,6 +571,7 @@ public sealed partial class GameServer
         {
             ClearDocking(session.State.PlayerId);
             LeaveSpace(session.State.PlayerId);
+            LeaveStation(session.State.PlayerId);
             CancelTradesFor(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
@@ -636,6 +641,8 @@ public sealed partial class GameServer
             case LoadRationIntent loadRation: HandleLoadRation(session, loadRation); break;
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
+            case BoardStationIntent boardStation: HandleBoardStation(session, boardStation); break;
+            case LeaveStationIntent: HandleLeaveStation(session); break;
         }
     }
 
@@ -819,6 +826,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsStationBlock(pos))
+        {
+            Reject(session, "mine", "This station is protected.");
+            return;
+        }
+
         var def = _world.Definition(current);
         if (def is null || !def.Mineable)
         {
@@ -895,6 +908,12 @@ public sealed partial class GameServer
         if (!session.State.IsAdmin && IsLandingZoneBlockedForOther(session.State.PlayerId, pos))
         {
             Reject(session, "place", "This is another player's protected landing zone.");
+            return;
+        }
+
+        if (IsStationBlock(pos))
+        {
+            Reject(session, "place", "This station is protected.");
             return;
         }
 
@@ -1286,7 +1305,8 @@ public sealed partial class GameServer
     /// Whether the player can use a market (barter) trade station — either the ship's trade console
     /// (aboard) or standing next to a settlement vendor.
     /// </summary>
-    private bool MarketAvailable(PlayerState player) => player.AboardShip || NearSettlementVendor(player);
+    private bool MarketAvailable(PlayerState player)
+        => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player);
 
     private void SaveAll()
     {

@@ -167,6 +167,15 @@ public sealed class TeleportToShipIntent { }
 /// <summary>Client toggles the stealth field (requires a stealth suit + energy).</summary>
 public sealed class ToggleStealthIntent { }
 
+/// <summary>Client docks with and boards a nearby space station from the current space instance.</summary>
+public sealed class BoardStationIntent
+{
+    public string StationId { get; set; } = string.Empty;
+}
+
+/// <summary>Client leaves the currently boarded station and returns to the ship.</summary>
+public sealed class LeaveStationIntent { }
+
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
 public sealed class ScanIntent
 {
@@ -491,6 +500,7 @@ public sealed class NetCombatEntity
 {
     public string Id { get; set; } = string.Empty;
     public string Kind { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public bool Hostile { get; set; }
     public float Hull { get; set; }
     public float HullMax { get; set; }
@@ -529,6 +539,16 @@ public sealed class SpaceClosed
 
     /// <summary>True when the exit was forced by ship defeat (ship recovered to base, player respawned).</summary>
     public bool ShipDisabled { get; set; }
+}
+
+/// <summary>The player boarded a space station and is now walking inside its voxel interior.</summary>
+public sealed class StationBoarded
+{
+    public string StationId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
 }
 
 /// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>

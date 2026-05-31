@@ -176,13 +176,16 @@ consumes protocol messages that already exist.
   space-black on the surface). Excluded from the random universe pool (`Selectable=false`).
   Playable as a start planet. 5 tests. Planned: fly-to-and-land via star map, surface starfield,
   visible sun disc.
-- **Space stations — generator DONE (server).** `StationGenerator` assembles a station from
+- **Space stations — generator + boardable server slice DONE.** `StationGenerator` assembles a station from
   **module rooms joined on a grid** (hub + random-walk-grown rooms + stacked floors) into one voxel
   structure (`iron_wall`+`glass`); the solid hull enclosing hollow rooms makes **outer = inner** by
   construction. Doorways between adjacent modules, floor shaft between stacked, a hangar opening, and
-  markers (hangar/vendor/mission_board/heal_tank/quarters) scaling small→huge. 6 tests. Still
-  planned: stamp into a boardable instance, NPC market/mission boards, and the **named station on
-  the ship radar + the player's location readout**.
+  markers (hangar/vendor/mission_board/heal_tank/quarters) scaling small→huge. **Boarding slice
+  DONE:** station contacts appear in `SpaceState`, `BoardStation` validates range from the ship,
+  stamps the voxel interior into a reserved station instance area, moves the player inside, protects
+  station blocks, and enables vendor market barter + station-board missions. 10 station tests across
+  generator + boarding. Still planned: client docking/boarding UI + station rendering polish, station
+  NPC population, and the **named station on the ship radar + the player's location readout**.
 - **World variety — slice DONE.** Biome-aware `WorldGenerator`: single-biome planets + multi-biome
   worlds (surface per column from noise; **biome count randomised per world from the seed**); new
   blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);

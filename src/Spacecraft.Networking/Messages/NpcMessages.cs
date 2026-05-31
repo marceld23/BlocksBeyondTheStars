@@ -1,5 +1,3 @@
-using System;
-
 namespace Spacecraft.Networking.Messages;
 
 /// <summary>
@@ -34,7 +32,7 @@ public sealed class NetNpc
 }
 
 /// <summary>Full set of NPCs the client should currently render (server → client).</summary>
-public sealed class NpcList : IServerMessage
+public sealed class NpcList
 {
     public NetNpc[] Npcs { get; set; } = System.Array.Empty<NetNpc>();
 }

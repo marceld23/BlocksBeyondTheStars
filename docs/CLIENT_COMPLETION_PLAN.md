@@ -412,7 +412,7 @@ Big asteroids you can **land on** and walk around — tiny airless worlds:
 - Server marks the body `Airless` + `SpaceSky` + crystal-biased generation; the client skips the
   day/night sky there and keeps the starfield + sun.
 
-### Space stations — **generator DONE (server) / boarding + radar planned**
+### Space stations — **generator + boardable server slice DONE / client UI + radar planned**
 Boardable **space stations** that exist in a system, **near planets**:
 
 - **Procedural module-built generator DONE:** `StationGenerator` assembles a station from **module
@@ -425,9 +425,11 @@ Boardable **space stations** that exist in a system, **near planets**:
   interior **markers** (hangar/vendor/mission_board/heal_tank/quarters) drive interactions.
   Deterministic from the seed. 6 tests (determinism, multi-module assembly, hollow rooms with solid
   walls, adjacent modules connected by doorways, vendor/mission/hangar markers, size scaling).
-  **Still planned:** stamping a station into a boardable instance, NPC vendors using the market
-  barter, mission boards, and the **station name on the ship radar + the player's location readout**
-  (see below).
+  **Boarding slice DONE:** station contacts are added to `SpaceState`; `BoardStationIntent`
+  validates docking range, stamps the station into a reserved boardable voxel interior, moves the
+  player inside, protects station blocks, and wires vendor market barter + station-board missions.
+  **Still planned:** client docking/boarding UI, station NPC vendors/ambient NPCs, and the **station
+  name on the ship radar + the player's location readout** (see below).
 - Stations of **varying size — small to huge** — placed in the system (orbit / near a planet),
   reachable via free flight / the star map; you **dock** (M18) and **board** to walk inside.
 - **Interiors:** landing **hangars**, multiple **rooms/corridors**, with interactive points —

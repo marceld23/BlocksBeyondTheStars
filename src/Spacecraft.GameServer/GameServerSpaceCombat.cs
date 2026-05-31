@@ -12,6 +12,7 @@ public enum CombatEntityKind
     Drone,
     Ufo,
     Cruiser,
+    SpaceStation,
     Creature,
     AlienMonster,
     ResourceDrop,
@@ -22,6 +23,7 @@ public sealed class CombatEntity
 {
     public string Id { get; set; } = string.Empty;
     public CombatEntityKind Kind { get; set; }
+    public string Name { get; set; } = string.Empty;
     public bool Hostile { get; set; }
 
     /// <summary>For planet fauna: the procedural species id this entity is an instance of.</summary>
@@ -269,6 +271,8 @@ public sealed partial class GameServer
             instance.Entities.Add(MakeAsteroid(LargeAsteroidTier, new Vector3f(12 + i * 8, 0, 18)));
         }
 
+        AddStationContacts(instance);
+
         // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on.
         bool combatEnabled = Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both;
         if (combatEnabled)
@@ -451,6 +455,12 @@ public sealed partial class GameServer
             }
 
             return true;
+        }
+
+        if (target.Kind == CombatEntityKind.SpaceStation)
+        {
+            reason = "Dock with the station instead of firing on it.";
+            return false;
         }
 
         // Hostile NPC target: needs an actual combat weapon and combat-enabling rules.
@@ -713,6 +723,7 @@ public sealed partial class GameServer
     {
         Id = e.Id,
         Kind = e.Kind.ToString(),
+        Name = e.Name,
         Hostile = e.Hostile,
         Hull = e.Hull,
         HullMax = e.HullMax,

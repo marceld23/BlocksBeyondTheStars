@@ -60,6 +60,8 @@ public static class NetCodec
         Register(37, typeof(LoadRationIntent));
         Register(38, typeof(TeleportToShipIntent));
         Register(39, typeof(ToggleStealthIntent));
+        Register(40, typeof(BoardStationIntent));
+        Register(41, typeof(LeaveStationIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -95,6 +97,8 @@ public static class NetCodec
         Register(80, typeof(TradeUpdate));
         Register(81, typeof(TradeClosed));
         Register(82, typeof(ScanResult));
+        Register(83, typeof(StationBoarded));
+        Register(84, typeof(NpcList));
     }
 
     private static void Register(byte tag, Type type)
