@@ -191,6 +191,9 @@ consumes protocol messages that already exist.
   **poisonous** items harm instead. Survival-only. Builds on the consume system (ConsumeItemIntent
   + item consume-effects) added with creatures; adds a hunger-restore value + drain/starvation
   tick. See CLIENT_COMPLETION_PLAN "Hunger & eating".
+- **(NEW, planned) Detoxifier ship module:** a craftable part built into the ship (if a slot is
+  free) that converts **poisonous** plants/creature meat into **safe food** (e.g. toxic_gland →
+  creature_meat). Reuses ship modules + crafting + the consume/hunger system. See plan.
 - **(NEW, planned) Atmosphere-based view distance:** a planet's atmosphere sets a **fog/
   visibility range** (hazy/thick → see less far; thin → farther; airless → clearest), scaled by
   weather intensity, server-supplied via `WorldEnvironment`; the client applies it as camera fog

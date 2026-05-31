@@ -575,6 +575,14 @@ A survival need that makes food matter (server-authoritative; builds on the cons
   adds a **hunger** restore value to edible items (food restores hunger primarily, medicine heals)
   and the drain/starvation tick. Plants become eat-consumable when harvested (the material drop is
   edible if the species is food-type).
+- **Detoxifier (craftable ship module):** a buildable part installed into the ship (when a free
+  **module slot/space** is available — reuses the ship-module build system) that **converts
+  poisonous items into safe food** — toxic plants / tainted creature meat → an edible, non-toxic
+  version (e.g. `toxic_gland` → `creature_meat`, poison flora → edible flora/food). Works like a
+  small processing station when aboard (a recipe/throughput, maybe an energy cost), turning
+  otherwise-harmful drops into a reliable food supply — rewarding exploration of dangerous worlds.
+  Server-authoritative (validates the module is built + the conversion); ties into ship modules +
+  crafting + the consume/hunger system.
 - Server owns the hunger tick, starvation damage and what each item restores; the client shows the
   hunger bar and sends the eat/consume intent. Sequence with creatures + flora effects.
 
