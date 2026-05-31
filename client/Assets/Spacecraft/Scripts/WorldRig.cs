@@ -100,6 +100,11 @@ namespace Spacecraft.Client
             space.Game = boot;
             space.Camera = cam;
 
+            // Day/night + weather + sun colour (World systems).
+            var sky = root.AddComponent<Sky>();
+            sky.Game = boot;
+            sky.Camera = cam;
+
             return root;
         }
 

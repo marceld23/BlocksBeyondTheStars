@@ -95,6 +95,7 @@ public sealed partial class GameServer
         _repo.SaveShip(ShipId, _ship);
 
         BuildGalaxy();
+        InitWeather();
         BuildMissions();
         LoadLandingZones();
         if (_config.PlaceStarterShip)
@@ -260,6 +261,7 @@ public sealed partial class GameServer
         TickEnemies(deltaSeconds);
         TickPresence(deltaSeconds);
         TickFluids(deltaSeconds);
+        TickWeather(deltaSeconds);
         StreamChunks();
 
         _sinceAutoSave += deltaSeconds;
@@ -548,6 +550,7 @@ public sealed partial class GameServer
         SendShipPlacement(session);
         SendShipStations(session);
         SendOwnedShips(session);
+        SendEnvironment(session);
         SendExistingPresences(session); // show already-online players to the newcomer
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");

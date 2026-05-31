@@ -258,6 +258,25 @@ Scope: client-side presentation over the existing M19/M25 protocol; no server ch
 (the server already tracks in-space + entities). Sizeable Unity work — schedule with the art
 pass.
 
+### Space collisions, asteroid mining & tractor beam — NEW (planned)
+Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
+
+- **Collision damage:** the ship has a position/velocity in the space instance; flying into an
+  asteroid (or other solid object) causes a **collision** that damages the **hull/shield** (scaled
+  by impact speed) and stops/bounces the ship. The server validates hits (it owns entity
+  positions + the ship's space position once flight is authoritative); the client renders the
+  knock + a hit effect.
+- **Breakable asteroids:** shooting an asteroid with ship weapons damages it; a **large asteroid
+  first splits into several smaller chunks**, which split again, and the smallest **break into
+  (non-organic) resource drops** (ores/metals/ice). Reuses the M19 `FireWeapon`/entity-hull path
+  with a size tier + split-on-destroy.
+- **Tractor beam (ship add-on):** a new ship equipment module (like weapons — built/blueprinted)
+  that **pulls in nearby resource drops** in space and stows them in the **cargo hold until it's
+  full**. Server resolves pickup (range + cargo capacity); client shows the beam + cargo filling.
+- Depends on giving the ship an authoritative **position/velocity in the space instance** (M25 is
+  abstract today) — schedule with the M25b flight deepening. Tractor/weapons fit the existing
+  ship-module + build system.
+
 ### Ships: types, designs, expandable interiors & multiple owned ships — **slice DONE / extras planned**
 Implemented (server + data + minimal UI): data-driven `data/ships.json` (starter/hauler/scout)
 + `ShipDefinition` in content; an owned-ships registry with an active ship; `CraftShip`
@@ -297,6 +316,14 @@ Bigger world-simulation features (server-authoritative; the client renders the r
   broadcasts `BlockChanged`); the client renders fluid blocks with animated/translucent
   textures. Needs: fluid block types, a flow tick (rate-limited, bounded per tick), and
   buoyancy/damage in the movement/vitals rules.
+- **Day/night, sun colour & weather — slice DONE (server + client tint):** a server world clock
+  advances time of day (per-planet `DayLengthSeconds`); a weather state machine cycles
+  clear→clouds→rain→storm biased by `StormChance` — and planets can be fixed `clear`/`overcast`
+  (no weather) via `PlanetType.Weather`. Sun colour comes from the active star system. Broadcast
+  via `WorldEnvironment` (join/change/periodic). Client `Sky` drives a **global shader tint**
+  (`_Sc_Light`, multiplied into the block shaders so the unlit world responds), the sky colour
+  and a rotating sun light; time advances locally between updates. Still planned (below): cloud/
+  rain/storm **particles + lightning**, ambient weather sound, biome-flavoured variants.
 - **Day/night & weather, per planet:** a server world-time clock drives sunrise → day →
   sunset → night; **each planet type** has its own day length and **weather profile**. Weather
   states: **clear, clouds, rain, thunderstorm** (with lightning), plus planet-flavoured variants

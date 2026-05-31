@@ -47,4 +47,18 @@ public sealed class PlanetType
 
     /// <summary>Probability per eligible deep cell of spawning a rare data cache (0 disables).</summary>
     public double DataCacheRarity { get; set; } = 0.0;
+
+    // --- Day/night & weather (World systems) ---
+
+    /// <summary>Length of a full day on this planet, in seconds.</summary>
+    public double DayLengthSeconds { get; set; } = 600.0;
+
+    /// <summary>0..1 bias toward rain/storm weather on this planet (deserts low, ocean worlds high).</summary>
+    public double StormChance { get; set; } = 0.35;
+
+    /// <summary>
+    /// Weather behaviour: "dynamic" (changes over time), "clear" (no clouds, never changes) or
+    /// "overcast" (always cloudy). Lets some planets have no weather at all.
+    /// </summary>
+    public string Weather { get; set; } = "dynamic";
 }

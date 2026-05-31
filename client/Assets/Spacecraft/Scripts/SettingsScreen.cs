@@ -17,7 +17,9 @@ namespace Spacecraft.Client
         {
             _shell.DrawBackground();
             var s = _shell.Settings;
-            float x = 40, y = 40;
+            // Centre the settings column horizontally (was pinned top-left).
+            float x = Mathf.Max(20f, Screen.width / 2f - 150f);
+            float y = Mathf.Max(20f, Screen.height / 2f - 230f);
 
             GUI.Label(new Rect(x, y, 400, 30), _shell.L("ui.settings.title"));
             y += 38;

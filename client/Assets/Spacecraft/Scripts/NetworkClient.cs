@@ -50,6 +50,7 @@ namespace Spacecraft.Client
         public event Action<PlayerPresence> PlayerPresenceReceived;
         public event Action<PlayerLeft> PlayerLeftReceived;
         public event Action<OwnedShips> OwnedShipsReceived;
+        public event Action<WorldEnvironment> WorldEnvironmentReceived;
 
         public bool Connected { get; private set; }
 
@@ -157,6 +158,7 @@ namespace Spacecraft.Client
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
+                case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
             }
         }
 

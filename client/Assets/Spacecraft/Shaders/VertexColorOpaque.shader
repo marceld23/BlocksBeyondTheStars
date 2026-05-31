@@ -28,6 +28,8 @@ Shader "Spacecraft/VertexColorOpaque"
                 fixed4 color : COLOR;
             };
 
+            fixed4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
+
             v2f vert(appdata v)
             {
                 v2f o;
@@ -38,7 +40,9 @@ Shader "Spacecraft/VertexColorOpaque"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                return i.color;
+                fixed4 l = _Sc_Light;
+                if (l.a < 0.5) l = fixed4(1, 1, 1, 1); // default to no tint until set
+                return fixed4(i.color.rgb * l.rgb, i.color.a);
             }
             ENDCG
         }

@@ -20,6 +20,7 @@ Shader "Spacecraft/BlockAtlas"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
+            fixed4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
 
             struct appdata
             {
@@ -46,7 +47,10 @@ Shader "Spacecraft/BlockAtlas"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                return tex2D(_MainTex, i.uv) * i.color;
+                fixed4 c = tex2D(_MainTex, i.uv) * i.color;
+                fixed4 l = _Sc_Light;
+                if (l.a < 0.5) l = fixed4(1, 1, 1, 1); // default to no tint until set
+                return fixed4(c.rgb * l.rgb, c.a);
             }
             ENDCG
         }

@@ -128,10 +128,13 @@ consumes protocol messages that already exist.
   (starter/hauler/scout), owned-ships registry + active, `CraftShip`/`SwitchShip` +
   `OwnedShips` protocol, Ship-tab craft/switch UI, hull size from design. Planned extras:
   per-ship fleet persistence, expandable interiors, richer designs.
-- **World systems — fluids slice DONE; rest planned.** Water/lava flow (server cellular
-  automaton, placeable sources, lava damage; 3 tests) ✅. Planned: per-planet day/night +
-  **weather** (clouds/rain/thunderstorms, intensity per planet), star light colour
-  (white/yellow/blue/red) tinting the world. Server-authoritative.
+- **World systems — fluids + day/night/sun/weather slices DONE; rest planned.** Water/lava flow
+  ✅. **Day/night clock + sun colour + weather state** (server `WorldEnvironment`; client `Sky`
+  tints the unlit world via a global shader colour, drives sky + sun) ✅; planets can be fixed
+  clear/overcast. Planned: rain/storm **particles + lightning + sound**; biome-flavoured weather.
+- **(NEW, planned) Space collisions + asteroid mining + tractor beam:** ship takes hull/shield
+  damage flying into asteroids; weapons split big asteroids → chunks → resource drops; a tractor-
+  beam ship add-on collects drops into cargo. Needs authoritative ship position in space. See plan.
 - **(NEW, planned) World variety:** planets vary in **size**; worlds are **single-habitat**
   (ice/lava/forest/jungle/crystal/rock/sand/mud) **or multi-biome**; flora & creatures match the
   biome/habitat. Extends planet types into a biome system. See CLIENT_COMPLETION_PLAN.

@@ -78,6 +78,9 @@ namespace Spacecraft.Client
         /// <summary>The player's owned ships and which is active (M-ships).</summary>
         public NetOwnedShip[] OwnedShips { get; private set; } = System.Array.Empty<NetOwnedShip>();
 
+        /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
+        public WorldEnvironment Environment { get; private set; }
+
         /// <summary>Type of the nearest station within <paramref name="range"/> blocks, or empty.</summary>
         public string NearestStationType(Vector3 pos, float range)
         {
@@ -180,6 +183,7 @@ namespace Spacecraft.Client
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = m.Reason; };
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
+            Network.WorldEnvironmentReceived += m => Environment = m;
             Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";
             Network.RespawnNoticeReceived += m => LastMessage = m.Reason;
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };

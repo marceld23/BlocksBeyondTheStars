@@ -75,6 +75,7 @@ public static class NetCodec
         Register(74, typeof(PlayerPresence));
         Register(75, typeof(PlayerLeft));
         Register(76, typeof(OwnedShips));
+        Register(77, typeof(WorldEnvironment));
     }
 
     private static void Register(byte tag, Type type)

@@ -490,3 +490,22 @@ public sealed class OwnedShips
 {
     public NetOwnedShip[] Ships { get; set; } = System.Array.Empty<NetOwnedShip>();
 }
+
+/// <summary>Authoritative day/night + weather + sun colour for the current planet (World systems).</summary>
+public sealed class WorldEnvironment
+{
+    /// <summary>Time of day, 0..1 (0 = midnight, 0.5 = noon).</summary>
+    public float TimeOfDay { get; set; }
+
+    /// <summary>Full day length in seconds (the client advances time locally between updates).</summary>
+    public float DayLengthSeconds { get; set; } = 600f;
+
+    /// <summary>clear / clouds / rain / storm.</summary>
+    public string Weather { get; set; } = "clear";
+
+    /// <summary>0..1 weather strength.</summary>
+    public float Intensity { get; set; }
+
+    /// <summary>Sun/star light colour, packed 0xRRGGBB.</summary>
+    public int SunColor { get; set; } = 0xFFF6E8;
+}
