@@ -571,7 +571,7 @@ planet-side counterpart to space stations), server-authoritative:
   boards; clients render them and use the walk-up interactions. Sequence with **space stations +
   trading + creatures** (shared systems).
 
-### Crashed ship wrecks — **generator + stamping DONE (server) / repair planned**
+### Crashed ship wrecks — **generator + stamping + repair/claim server slice DONE / client UI planned**
 **Rare** abandoned/crashed spaceships scattered on planet surfaces — small landmark dungeons:
 
 - **Stamping DONE:** `GameServerWrecks.StampWreck` (run at world setup, gated by the new
@@ -584,18 +584,19 @@ planet-side counterpart to space stations), server-authoritative:
   markers, real blocks stamped, not protected/mineable, deterministic). **Loot DONE:** the
   loot/module/data_terminal markers spawn **scavengeable containers** (general salvage / recoverable
   components / data fragments) via the shared loot flow; each is generated once and guarded by
-  `WorldMetadata.GeneratedLoot` so it never respawns on reload (even after being looted). **Still
-  planned:** the repair-into-a-flyable-ship flow.
+  `WorldMetadata.GeneratedLoot` so it never respawns on reload (even after being looted).
+  **Repair/claim slice DONE:** `RepairWreckIntent` validates a target cell against the intact repair
+  mask, requires the matching block item, consumes it, restores the hull block and reports
+  `WreckRepairStatus`; once all repair-mask hull cells match the design, `ClaimWreckIntent` adds the
+  repaired design to `OwnedShips` as a switchable ship.
 
 - **Procedural generator DONE:** `WreckGenerator` builds a wreck from a known `ShipDefinition` hull
   (hollow `iron_wall`+`glass` shell, or `crystal` for **alien** wrecks), keeps the full intact hull
   as a **repair mask**, then runs a **decay pass** — random breaches + scorch (`carbon`) plus a
   guaranteed crash gash in one wall so it's enterable. No live crew; **markers** for loot caches, a
   recoverable **module**, and an occasional **data/lore terminal**. `IsBreach`/`BreachCount`/
-  `IntactHullCount` expose repair progress so a wreck can later be rebuilt block-by-block into a
-  flyable ship. Deterministic (stable hash); human/alien origin. 6 tests. **Still planned:** stamp
-  wrecks into the world at generation, the loot/module/terminal interactions, and the
-  repair-into-a-flyable-ship flow.
+  `IntactHullCount` expose repair progress so a wreck can be rebuilt block-by-block into a
+  flyable ship. Deterministic (stable hash); human/alien origin. 6 tests.
 
 - **Rarity & placement:** a **rare** seed-derived feature (much rarer than settlements) — most
   worlds have none; occasionally one (or a few on large worlds). Stamped as a **derelict voxel
@@ -623,6 +624,10 @@ planet-side counterpart to space stations), server-authoritative:
   per-wreck repair state, validates each placed block against the design, and the claim/ownership
   transfer. Ties into **Ships: types/designs + multiple owned ships** (the registry, switching)
   and the **module build** system.
+  **Server MVP shipped:** the repair mask is authoritative, repaired cells are validated/consumed
+  one at a time, and full repair claims the wreck into the owned fleet. Remaining work is the
+  client-facing repair panel/highlights, richer module repair requirements, and persistence for
+  multiple simultaneous wreck repair projects.
 - Reuses: ship voxel stamping + the **decay pass** shared with settlement **ruins**, **loot
   containers** (combat-loot system), **creatures** (squatters), missions (a wreck can be a
   mission objective — "investigate the distress signal"), and the **ship build/registry** for

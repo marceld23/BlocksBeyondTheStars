@@ -176,6 +176,18 @@ public sealed class BoardStationIntent
 /// <summary>Client leaves the currently boarded station and returns to the ship.</summary>
 public sealed class LeaveStationIntent { }
 
+/// <summary>Client repairs one damaged/missing wreck hull cell with a matching block item.</summary>
+public sealed class RepairWreckIntent
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string ItemKey { get; set; } = string.Empty;
+}
+
+/// <summary>Client claims a fully repaired wreck into the owned ship fleet.</summary>
+public sealed class ClaimWreckIntent { }
+
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
 public sealed class ScanIntent
 {
@@ -549,6 +561,17 @@ public sealed class StationBoarded
     public float X { get; set; }
     public float Y { get; set; }
     public float Z { get; set; }
+}
+
+/// <summary>Repair progress for the currently stamped wreck.</summary>
+public sealed class WreckRepairStatus
+{
+    public string WreckName { get; set; } = string.Empty;
+    public string ShipType { get; set; } = string.Empty;
+    public int Remaining { get; set; }
+    public int Total { get; set; }
+    public bool Claimable { get; set; }
+    public bool Claimed { get; set; }
 }
 
 /// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>

@@ -62,6 +62,8 @@ public static class NetCodec
         Register(39, typeof(ToggleStealthIntent));
         Register(40, typeof(BoardStationIntent));
         Register(41, typeof(LeaveStationIntent));
+        Register(42, typeof(RepairWreckIntent));
+        Register(43, typeof(ClaimWreckIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -99,6 +101,7 @@ public static class NetCodec
         Register(82, typeof(ScanResult));
         Register(83, typeof(StationBoarded));
         Register(84, typeof(NpcList));
+        Register(85, typeof(WreckRepairStatus));
     }
 
     private static void Register(byte tag, Type type)

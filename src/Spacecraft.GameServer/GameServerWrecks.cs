@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using Spacecraft.Networking.Messages;
+using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Primitives;
 using Spacecraft.WorldGeneration;
@@ -20,6 +22,7 @@ public sealed partial class GameServer
     private Vector3i _wreckOrigin;
     private WreckStructure? _wreck;
     private string _wreckName = string.Empty;
+    private bool _wreckClaimed;
     private readonly List<(string Type, Vector3f Pos)> _wreckMarkers = new();
 
     /// <summary>Interaction points inside the stamped wreck (loot / module / data_terminal).</summary>
@@ -30,6 +33,32 @@ public sealed partial class GameServer
 
     /// <summary>Whether a wreck was stamped on this world.</summary>
     public bool HasWreck => _wreckStamped;
+
+    /// <summary>Remaining hull cells that differ from the wreck's intact repair mask.</summary>
+    public int WreckRepairRemaining => CountWreckRepairRemaining();
+
+    /// <summary>Total hull cells in the intact repair mask.</summary>
+    public int WreckRepairTotal => _wreck?.IntactHullCount() ?? 0;
+
+    /// <summary>Whether the stamped wreck has already been claimed into the owned fleet.</summary>
+    public bool WreckClaimed => _wreckClaimed;
+
+    /// <summary>World-space cells that still need repair, with the required block key.</summary>
+    public IReadOnlyList<(Vector3i Pos, string BlockKey)> WreckRepairCells()
+    {
+        var result = new List<(Vector3i Pos, string BlockKey)>();
+        if (!_wreckStamped || _wreck is null)
+        {
+            return result;
+        }
+
+        foreach (var (pos, block) in EnumerateWreckRepairCells())
+        {
+            result.Add((pos, block.Key));
+        }
+
+        return result;
+    }
 
     private void StampWreck()
     {
@@ -81,6 +110,7 @@ public sealed partial class GameServer
 
         _wreck = structure;
         _wreckName = WreckDisplayName(structure.Origin, design, rng);
+        _wreckClaimed = false;
 
         _wreckMarkers.Clear();
         foreach (var m in structure.Markers)
@@ -118,4 +148,188 @@ public sealed partial class GameServer
         string prefix = origin == "alien" ? "Derelict" : "Wreck of the";
         return $"{prefix} {tags[rng.Next(tags.Length)]}-{num}";
     }
+
+    /// <summary>Repairs one wreck hull cell if the player has the exact matching block item.</summary>
+    public bool RepairWreck(string playerId, int x, int y, int z, string itemKey)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return false;
+        }
+
+        if (!_wreckStamped || _wreck is null)
+        {
+            Reject(session, "wreck_repair", "There is no repairable wreck on this world.");
+            return false;
+        }
+
+        if (_wreckClaimed)
+        {
+            Reject(session, "wreck_repair", "This wreck has already been claimed.");
+            return false;
+        }
+
+        var pos = new Vector3i(x, y, z);
+        if (!TryGetWreckRepairTarget(pos, out var required))
+        {
+            Reject(session, "wreck_repair", "That cell is not part of the wreck's repair mask.");
+            return false;
+        }
+
+        if (_world.GetBlock(pos) == required.NumericId)
+        {
+            Reject(session, "wreck_repair", "That hull cell is already repaired.");
+            return false;
+        }
+
+        if (!WithinReach(session.State, pos))
+        {
+            Reject(session, "wreck_repair", "Out of reach.");
+            return false;
+        }
+
+        var item = _content.GetItem(itemKey);
+        if (item is null || item.PlacesBlock != required.Key)
+        {
+            Reject(session, "wreck_repair", $"Repair requires a {required.Key} block item.");
+            return false;
+        }
+
+        bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
+        var pool = new MaterialPool(_content, session.State, _ship);
+        if (!free)
+        {
+            if (pool.Count(itemKey) < 1)
+            {
+                Reject(session, "wreck_repair", "You do not have the required repair block.");
+                return false;
+            }
+
+            pool.Remove(new[] { new ItemAmount(itemKey, 1) });
+        }
+
+        _world.SetBlock(pos, required.NumericId);
+        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = required.NumericId.Value });
+        SendInventory(session);
+        SendWreckRepairStatus(session);
+        return true;
+    }
+
+    /// <summary>Claims a fully repaired wreck into the player's owned ship fleet.</summary>
+    public (bool Ok, string ShipId) ClaimWreck(string playerId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return (false, string.Empty);
+        }
+
+        if (!_wreckStamped || _wreck is null)
+        {
+            Reject(session, "wreck_claim", "There is no wreck to claim.");
+            return (false, string.Empty);
+        }
+
+        if (_wreckClaimed)
+        {
+            Reject(session, "wreck_claim", "This wreck has already been claimed.");
+            return (false, string.Empty);
+        }
+
+        if (CountWreckRepairRemaining() > 0)
+        {
+            Reject(session, "wreck_claim", "The wreck hull is not fully repaired.");
+            SendWreckRepairStatus(session);
+            return (false, string.Empty);
+        }
+
+        var def = _content.GetShip(_wreck.ShipType);
+        if (def is null)
+        {
+            Reject(session, "wreck_claim", "The wreck's ship design is unknown.");
+            return (false, string.Empty);
+        }
+
+        string id = AddOwnedShipFromDefinition(def, "wreck");
+        _wreckClaimed = true;
+        Send(session, new ServerMessage { Text = $"Claimed repaired wreck: {def.Key}" });
+        SendWreckRepairStatus(session);
+        return (true, id);
+    }
+
+    private int CountWreckRepairRemaining() => EnumerateWreckRepairCells().Count();
+
+    private IEnumerable<(Vector3i Pos, BlockDefinition Block)> EnumerateWreckRepairCells()
+    {
+        if (!_wreckStamped || _wreck is null)
+        {
+            yield break;
+        }
+
+        for (int x = 0; x < _wreck.Width; x++)
+        for (int y = 0; y < _wreck.Height; y++)
+        for (int z = 0; z < _wreck.Length; z++)
+        {
+            ushort intact = _wreck.IntactAt(x, y, z);
+            if (intact == 0)
+            {
+                continue;
+            }
+
+            var world = new Vector3i(_wreckOrigin.X + x, _wreckOrigin.Y + y, _wreckOrigin.Z + z);
+            if (_world.GetBlock(world).Value == intact)
+            {
+                continue;
+            }
+
+            if (_content.BlockById(new BlockId(intact)) is { } required)
+            {
+                yield return (world, required);
+            }
+        }
+    }
+
+    private bool TryGetWreckRepairTarget(Vector3i world, out BlockDefinition required)
+    {
+        required = null!;
+        if (!_wreckStamped || _wreck is null)
+        {
+            return false;
+        }
+
+        int lx = world.X - _wreckOrigin.X;
+        int ly = world.Y - _wreckOrigin.Y;
+        int lz = world.Z - _wreckOrigin.Z;
+        if (!_wreck.InBounds(lx, ly, lz))
+        {
+            return false;
+        }
+
+        ushort intact = _wreck.IntactAt(lx, ly, lz);
+        if (intact == 0)
+        {
+            return false;
+        }
+
+        required = _content.BlockById(new BlockId(intact))!;
+        return required is not null;
+    }
+
+    private void SendWreckRepairStatus(PlayerSession session)
+        => Send(session, new WreckRepairStatus
+        {
+            WreckName = _wreckName,
+            ShipType = _wreck?.ShipType ?? string.Empty,
+            Remaining = WreckRepairRemaining,
+            Total = WreckRepairTotal,
+            Claimable = _wreckStamped && !_wreckClaimed && WreckRepairRemaining == 0,
+            Claimed = _wreckClaimed,
+        });
+
+    private void HandleRepairWreck(PlayerSession session, RepairWreckIntent intent)
+        => RepairWreck(session.State.PlayerId, intent.X, intent.Y, intent.Z, intent.ItemKey);
+
+    private void HandleClaimWreck(PlayerSession session)
+        => ClaimWreck(session.State.PlayerId);
 }

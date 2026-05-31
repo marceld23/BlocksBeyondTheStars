@@ -643,6 +643,8 @@ public sealed partial class GameServer
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case BoardStationIntent boardStation: HandleBoardStation(session, boardStation); break;
             case LeaveStationIntent: HandleLeaveStation(session); break;
+            case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
+            case ClaimWreckIntent: HandleClaimWreck(session); break;
         }
     }
 

@@ -246,15 +246,18 @@ consumes protocol messages that already exist.
   **ruin loot** markers spawn scavengeable containers; **mission board** offers local gather
   missions accepted/turned-in only at the board (`NearSettlementMissionBoard`). 15 tests. Still
   planned: NPC render/behaviour.
-- **Crashed ship wrecks — generator + stamping DONE (server).** `WreckGenerator` builds a wreck
+- **Crashed ship wrecks — generator + stamping + repair/claim server slice DONE.** `WreckGenerator` builds a wreck
   from a `ships.json` hull (iron/glass, or crystal for alien wrecks), keeps the intact hull as a
   **repair mask**, then decays it (breaches + scorch + a guaranteed crash gash so it's enterable).
   `GameServerWrecks.StampWreck` (gated by `ServerConfig.PlaceWrecks`) places one **rarely** per
   planet+seed, half-buried, offset from the landing zone + settlement; **not protected** (freely
   scavengeable); generated name + world-space loot/module/data_terminal markers. **Loot DONE:**
   those markers spawn scavengeable containers (salvage / components / data) via the shared loot
-  flow, guarded by `WorldMetadata.GeneratedLoot` so they don't respawn on reload. 12 tests. Still
-  planned: **repair-into-a-flyable-owned-ship**.
+  flow, guarded by `WorldMetadata.GeneratedLoot` so they don't respawn on reload. **Repair/claim
+  DONE:** `RepairWreckIntent` validates each repaired cell against the intact mask, consumes the
+  matching block item, restores the hull block, reports `WreckRepairStatus`, and `ClaimWreckIntent`
+  adds a fully repaired wreck to the owned-ships registry as a switchable ship. 16 wreck tests.
+  Still planned: client repair UI/VFX, persisted multi-wreck repair ledgers, module-level repair.
 - **Hunger & eating (survival) — slice DONE (server + HUD).** `PlayerState.Hunger` (persisted)
   drains outside the ship, sates aboard, **starves health at 0**; gated by `Rules.Hunger`+Survival.
   **Eating** refills it (`ItemDefinition.ConsumeHunger`): `creature_meat` (+30) and **edible plants**

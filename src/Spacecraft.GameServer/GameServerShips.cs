@@ -51,6 +51,16 @@ public sealed partial class GameServer
         return ship;
     }
 
+    /// <summary>Adds a ship to the owned fleet without material cost (used by repaired wreck claims).</summary>
+    private string AddOwnedShipFromDefinition(ShipDefinition def, string idPrefix)
+    {
+        string safePrefix = string.IsNullOrWhiteSpace(idPrefix) ? def.Key : idPrefix;
+        string id = $"{safePrefix}_{def.Key}_{_ships.Count}";
+        _ships[id] = BuildShipFromDefinition(def);
+        BroadcastOwnedShips();
+        return id;
+    }
+
     /// <summary>Crafts a new ship of the given type (validates blueprint + materials). Returns success + message.</summary>
     public (bool Ok, string Message) CraftShip(string playerId, string shipType)
     {
@@ -84,12 +94,10 @@ public sealed partial class GameServer
             pool.Remove(def.CraftCost);
         }
 
-        string id = shipType + "_" + _ships.Count;
-        _ships[id] = BuildShipFromDefinition(def);
+        string id = AddOwnedShipFromDefinition(def, shipType);
 
         SendInventory(session);
         Send(session, new ServerMessage { Text = $"Crafted ship: {shipType}" });
-        BroadcastOwnedShips();
         return (true, id);
     }
 
