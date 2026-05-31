@@ -77,6 +77,8 @@ namespace Spacecraft.Client
             // In-game gameplay menu (inventory / crafting / tech / ship / map / missions), Tab.
             var menu = root.AddComponent<GameMenu>();
             menu.Game = boot;
+            menu.Settings = shell.Settings;
+            menu.Avatar = avatar;
             pc.Menu = menu;
 
             // Render other players (multiplayer presence).

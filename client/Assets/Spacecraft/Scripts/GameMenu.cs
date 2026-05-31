@@ -11,8 +11,10 @@ namespace Spacecraft.Client
     public sealed class GameMenu : MonoBehaviour
     {
         public GameBootstrap Game;
+        public ClientSettings Settings;   // for in-game character customization
+        public PlayerAvatar Avatar;       // local avatar, recoloured live
 
-        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions }
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character }
 
         private Tab _tab = Tab.Inventory;
         private bool _open;
@@ -83,14 +85,18 @@ namespace Spacecraft.Client
             TabButton(loc.Get("ui.crafting.title"), Tab.Crafting);
             TabButton(loc.Get("ui.tab.tech"), Tab.Tech);
             TabButton(loc.Get("ui.tab.ship"), Tab.Ship);
-            TabButton(loc.Get("ui.tab.map"), Tab.Map);
-            TabButton(loc.Get("ui.tab.missions"), Tab.Missions);
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button(loc.Get("ui.action.close"), GUILayout.Width(90)))
+            if (GUILayout.Button(loc.Get("ui.action.close"), GUILayout.Width(80)))
             {
                 SetOpen(false);
             }
 
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            TabButton(loc.Get("ui.tab.map"), Tab.Map);
+            TabButton(loc.Get("ui.tab.missions"), Tab.Missions);
+            TabButton(loc.Get("ui.settings.character"), Tab.Character);
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             GUILayout.Space(6);
 
@@ -103,6 +109,7 @@ namespace Spacecraft.Client
                 case Tab.Ship: DrawShip(loc); break;
                 case Tab.Map: DrawMap(loc); break;
                 case Tab.Missions: DrawMissions(loc); break;
+                case Tab.Character: DrawCharacter(loc); break;
             }
 
             GUILayout.EndScrollView();
@@ -248,6 +255,74 @@ namespace Spacecraft.Client
 
                 GUILayout.EndHorizontal();
             }
+        }
+
+        private static readonly Color[] Palette =
+        {
+            new Color(0.85f, 0.68f, 0.55f), new Color(0.55f, 0.40f, 0.28f), new Color(0.90f, 0.85f, 0.80f),
+            new Color(0.80f, 0.20f, 0.20f), new Color(0.20f, 0.45f, 0.80f), new Color(0.20f, 0.65f, 0.35f),
+            new Color(0.90f, 0.75f, 0.20f), new Color(0.55f, 0.30f, 0.70f), new Color(0.25f, 0.25f, 0.32f),
+            new Color(0.92f, 0.92f, 0.95f),
+        };
+
+        private void DrawCharacter(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            if (Settings == null)
+            {
+                GUILayout.Label("—");
+                return;
+            }
+
+            ColorRow(loc, loc.Get("ui.settings.skin"), ref Settings.SkinColor);
+            ColorRow(loc, loc.Get("ui.settings.torso"), ref Settings.TorsoColor);
+            ColorRow(loc, loc.Get("ui.settings.arms"), ref Settings.ArmColor);
+            ColorRow(loc, loc.Get("ui.settings.legs"), ref Settings.LegColor);
+        }
+
+        private void ColorRow(Spacecraft.Shared.Localization.Localizer loc, string label, ref Color color)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(120));
+            if (GUILayout.Button(loc.Get("ui.settings.next_color"), GUILayout.Width(140)))
+            {
+                color = NextColor(color);
+                ApplyAppearance();
+            }
+
+            var rect = GUILayoutUtility.GetRect(48, 20, GUILayout.Width(48));
+            var prev = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = prev;
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>Applies the edited colours to the local avatar, persists them, and tells the server.</summary>
+        private void ApplyAppearance()
+        {
+            Avatar?.ApplyColors(Settings);
+            Settings.Save();
+            Game.Network?.SendAppearance(Rgb(Settings.SkinColor), Rgb(Settings.TorsoColor), Rgb(Settings.ArmColor), Rgb(Settings.LegColor));
+        }
+
+        private static int Rgb(Color c)
+            => (Mathf.RoundToInt(c.r * 255f) << 16) | (Mathf.RoundToInt(c.g * 255f) << 8) | Mathf.RoundToInt(c.b * 255f);
+
+        private static Color NextColor(Color current)
+        {
+            int idx = -1;
+            for (int i = 0; i < Palette.Length; i++)
+            {
+                if (Mathf.Approximately(Palette[i].r, current.r) &&
+                    Mathf.Approximately(Palette[i].g, current.g) &&
+                    Mathf.Approximately(Palette[i].b, current.b))
+                {
+                    idx = i;
+                    break;
+                }
+            }
+
+            return Palette[(idx + 1) % Palette.Length];
         }
 
         private static string ItemName(Spacecraft.Shared.Localization.Localizer loc, string itemKey)
