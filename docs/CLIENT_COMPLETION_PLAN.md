@@ -569,8 +569,18 @@ planet-side counterpart to space stations), server-authoritative:
   boards; clients render them and use the walk-up interactions. Sequence with **space stations +
   trading + creatures** (shared systems).
 
-### Crashed ship wrecks — **generator DONE (server) / stamping + repair planned**
+### Crashed ship wrecks — **generator + stamping DONE (server) / repair planned**
 **Rare** abandoned/crashed spaceships scattered on planet surfaces — small landmark dungeons:
+
+- **Stamping DONE:** `GameServerWrecks.StampWreck` (run at world setup, gated by the new
+  `ServerConfig.PlaceWrecks`) decides per planet+seed whether to place a **rare** wreck (~20 %),
+  picks a `ships.json` design, and stamps the decayed hull **half-buried** (sunk one block) on the
+  surface, offset from both the landing zone and the settlement. Wrecks are **not** protected —
+  freely scavengeable; their loot/module/data_terminal markers are exposed in world space, and the
+  generated **name** (e.g. "Wreck of the SC-417", "Derelict KV-822") + the intact-hull repair mask
+  are kept for the later rebuild flow. Deterministic from the seed. 4 stamp tests (named + loot
+  markers, real blocks stamped, not protected/mineable, deterministic). **Still planned:** the
+  loot/module/terminal interactions and the repair-into-a-flyable-ship flow.
 
 - **Procedural generator DONE:** `WreckGenerator` builds a wreck from a known `ShipDefinition` hull
   (hollow `iron_wall`+`glass` shell, or `crystal` for **alien** wrecks), keeps the full intact hull

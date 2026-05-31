@@ -111,6 +111,11 @@ public sealed partial class GameServer
             StampSettlement();
         }
 
+        if (_config.PlaceWrecks)
+        {
+            StampWreck();
+        }
+
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
         _transport.PayloadReceived += OnPayload;

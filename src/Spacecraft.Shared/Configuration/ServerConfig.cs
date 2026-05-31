@@ -81,6 +81,12 @@ public sealed class ServerConfig
     /// </summary>
     public bool PlaceSettlements { get; set; } = true;
 
+    /// <summary>
+    /// Whether the server may stamp a rare crashed-ship wreck on the start planet's surface (away
+    /// from the landing zone). Wrecks are uncommon and left scavengeable (not protected).
+    /// </summary>
+    public bool PlaceWrecks { get; set; } = true;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
