@@ -225,6 +225,30 @@ Remaining in M24 (still pending):
 - Deferred: a true 3D flyable cockpit/flight camera (the server models space abstractly);
   weapon selection UI (uses asteroid_breaker/ship_cannon_1 by target kind for now).
 
+### M25b — Real space view + launch/landing sequences — NEW (planned)
+Today "Launch into space" only opens the abstract console (no visual change). Give space an
+actual **view**, with three modes the player can switch between (V cycles them):
+1. **Cockpit view** — first person from inside the ship looking out (HUD overlay, viewport).
+2. **Third-person ship** — the ship rendered from outside, floating in a space scene (starfield
+   skybox, the planet below, asteroids/drones/UFOs as objects at the server's entity positions).
+3. **Board & walk inside** — switch to the on-foot character *inside* the sealed ship (hatch
+   closed) and use the interior stations (cockpit to fly, etc.).
+
+Build a lightweight **space scene** on entry: a dark starfield backdrop + a planet sphere +
+blocky placeholder models for the ship and entities (code-built, like the avatar), positioned
+from `SpaceState`. Combat (fire/hull/shield) drives the same authoritative messages; the view
+is presentation only.
+
+**Launch & landing sequences:** short scripted animations — **launch** (engine flare, the ship
+rises off the landing pad and the planet recedes into the space scene) when entering space;
+**landing** (descent, dust, settle onto the landing zone) when returning. Skippable; purely
+visual, gated by the same `EnterSpace`/`LeaveSpace` round-trip. A "Settings → reduced effects"
+toggle shortens them.
+
+Scope: client-side presentation over the existing M19/M25 protocol; no server change required
+(the server already tracks in-space + entities). Sizeable Unity work — schedule with the art
+pass.
+
 ### Ships: types, designs, expandable interiors & multiple owned ships — NEW (planned)
 Today there is one hardcoded ship. Grow this into a real ship system:
 - **Ship types & designs (craftable):** a data-driven `data/ships.json` — each type has base

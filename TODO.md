@@ -120,6 +120,10 @@ consumes protocol messages that already exist.
   Space console tab (launch/return + fire at entities), planet enemies rendered as blocks +
   attack with F. Singleplayer enables free flight + PvE via launcher flags. 3D flyable cockpit
   deferred.
+- **(NEW, planned) M25b — real space view + launch/landing sequences:** "Launch into space"
+  should show an actual view — cockpit / third-person ship in a starfield space scene / or board
+  & walk inside the sealed ship and use stations (V cycles). Plus scripted launch & landing
+  animations. Client-side presentation over existing protocol. See CLIENT_COMPLETION_PLAN.
 - **(NEW, planned) Ships: types/designs/expandable interiors/multiple owned + switching** —
   data-driven `ships.json`, craftable ship types, rooms-per-module interiors, owned-ships list
   with an active ship + `SwitchShipIntent`, a Hangar UI. See CLIENT_COMPLETION_PLAN.
