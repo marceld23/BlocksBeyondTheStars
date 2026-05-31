@@ -166,6 +166,7 @@
   "ui.hud.oxygen": "Sauerstoff",
   "ui.hud.energy": "Energie",
   "ui.hud.hunger": "Hunger",
+  "ui.hud.breathable": "atembar",
   "ui.hud.hint": "WASD bewegen · LMT abbauen · RMT setzen · 1-9 Hotbar · E benutzen · V Ansicht · Tab Menü · Esc beenden",
   "ui.tab.tech": "Technik",
   "ui.tab.ship": "Schiff",

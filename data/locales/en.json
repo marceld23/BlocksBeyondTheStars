@@ -165,6 +165,7 @@
   "ui.hud.oxygen": "Oxygen",
   "ui.hud.energy": "Energy",
   "ui.hud.hunger": "Hunger",
+  "ui.hud.breathable": "breathable",
   "ui.hud.hint": "WASD move · LMB mine · RMB place · 1-9 hotbar · E use · V view · Tab menu · Esc quit",
   "ui.tab.tech": "Tech",
   "ui.tab.ship": "Ship",

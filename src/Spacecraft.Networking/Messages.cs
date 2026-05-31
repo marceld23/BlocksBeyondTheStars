@@ -552,4 +552,7 @@ public sealed class WorldEnvironment
 
     /// <summary>Sun/star light colour, packed 0xRRGGBB.</summary>
     public int SunColor { get; set; } = 0xFFF6E8;
+
+    /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
+    public bool Breathable { get; set; }
 }

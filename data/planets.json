@@ -3,7 +3,7 @@
     "key": "rocky", "nameKey": "planet.rocky.name",
     "baseHeight": 64, "amplitude": 14, "terrainScale": 48.0,
     "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
-    "caveThreshold": 0.74, "dataCacheRarity": 0.0008, "creatureAbundance": "few",
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0008, "creatureAbundance": "few", "atmosphere": "toxic",
     "ores": [
       { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4,  "maxDepth": 256 },
       { "block": "copper_ore", "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
@@ -15,7 +15,7 @@
     "key": "ice", "nameKey": "planet.ice.name",
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
-    "caveThreshold": 0.76, "dataCacheRarity": 0.0010, "creatureAbundance": "few",
+    "caveThreshold": 0.76, "dataCacheRarity": 0.0010, "creatureAbundance": "few", "atmosphere": "toxic",
     "ores": [
       { "block": "silicate",     "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
       { "block": "copper_ore",   "rarity": 0.04, "minDepth": 6,  "maxDepth": 256 },
@@ -32,14 +32,14 @@
       { "block": "titanium_ore", "rarity": 0.05, "minDepth": 12, "maxDepth": 256 },
       { "block": "carbon",       "rarity": 0.05, "minDepth": 6,  "maxDepth": 256 }
     ],
-    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 520, "worldRadius": 700, "floraDensity": 0.06, "creatureAbundance": "few"
+    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 520, "worldRadius": 700, "floraDensity": 0.06, "creatureAbundance": "few", "atmosphere": "none"
   },
   {
     "key": "desert", "nameKey": "planet.desert.name",
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0,
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.78, "dataCacheRarity": 0.0008,
-    "weather": "clear", "stormChance": 0.05, "dayLengthSeconds": 640, "worldRadius": 900, "creatureAbundance": "few",
+    "weather": "clear", "stormChance": 0.05, "dayLengthSeconds": 640, "worldRadius": 900, "creatureAbundance": "few", "atmosphere": "toxic",
     "ores": [
       { "block": "silicate", "rarity": 0.07, "minDepth": 2, "maxDepth": 256 },
       { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 256 }
@@ -50,7 +50,7 @@
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0010,
-    "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800, "floraDensity": 0.14, "creatureAbundance": "many",
+    "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800, "floraDensity": 0.14, "creatureAbundance": "many", "atmosphere": "breathable",
     "ores": [
       { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
       { "block": "carbon", "rarity": 0.06, "minDepth": 6, "maxDepth": 256 }
@@ -61,7 +61,7 @@
     "baseHeight": 60, "amplitude": 18, "terrainScale": 50.0,
     "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.70, "dataCacheRarity": 0.0020,
-    "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 480, "worldRadius": 600, "floraDensity": 0.10, "creatureAbundance": "few",
+    "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 480, "worldRadius": 600, "floraDensity": 0.10, "creatureAbundance": "few", "atmosphere": "none",
     "ores": [
       { "block": "titanium_ore", "rarity": 0.05, "minDepth": 8, "maxDepth": 256 },
       { "block": "silicate", "rarity": 0.06, "minDepth": 2, "maxDepth": 256 }
@@ -72,7 +72,7 @@
     "baseHeight": 58, "amplitude": 8, "terrainScale": 52.0,
     "surfaceBlock": "mud", "subSurfaceBlock": "mud", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.74, "dataCacheRarity": 0.0010,
-    "weather": "overcast", "stormChance": 0.5, "dayLengthSeconds": 600, "worldRadius": 750, "floraDensity": 0.10, "creatureAbundance": "many",
+    "weather": "overcast", "stormChance": 0.5, "dayLengthSeconds": 600, "worldRadius": 750, "floraDensity": 0.10, "creatureAbundance": "many", "atmosphere": "breathable",
     "ores": [
       { "block": "copper_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
       { "block": "carbon", "rarity": 0.06, "minDepth": 6, "maxDepth": 256 }
@@ -83,7 +83,7 @@
     "baseHeight": 64, "amplitude": 18, "terrainScale": 46.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.73, "dataCacheRarity": 0.0010,
-    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 1000, "floraDensity": 0.10, "creatureAbundance": "many",
+    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 1000, "floraDensity": 0.10, "creatureAbundance": "many", "atmosphere": "breathable",
     "biomes": [
       { "surfaceBlock": "grass", "subSurfaceBlock": "dirt" },
       { "surfaceBlock": "sand",  "subSurfaceBlock": "sand" },

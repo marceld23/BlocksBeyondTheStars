@@ -297,15 +297,16 @@ public sealed partial class GameServer
                 continue; // invulnerable: no drain, no death
             }
 
-            if (p.AboardShip || !Rules.OxygenEnabled)
+            if (p.AboardShip || !Rules.OxygenEnabled || AtmosphereBreathable)
             {
-                // Aboard the ship (life support) or oxygen disabled by rules: regenerate.
+                // Aboard the ship (life support), oxygen disabled by rules, or a breathable
+                // atmosphere: regenerate, no drain.
                 p.Oxygen = System.Math.Min(100f, p.Oxygen + (float)(dt * 25));
                 p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
             }
             else
             {
-                // Outside without a breathable atmosphere: drain at the configured rate.
+                // Outside without a breathable atmosphere (toxic / airless): drain at the configured rate.
                 p.Oxygen = System.Math.Max(0f, p.Oxygen - (float)(dt * Rules.OxygenDrainPerSecond));
                 if (p.Oxygen <= 0f)
                 {

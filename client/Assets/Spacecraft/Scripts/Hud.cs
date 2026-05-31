@@ -49,7 +49,12 @@ namespace Spacecraft.Client
             GUI.DrawTexture(new Rect(20, 90, 16, 16), IconFactory.Oxygen);
             GUI.DrawTexture(new Rect(20, 112, 16, 16), IconFactory.Energy);
             GUI.Label(new Rect(42, 68, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
-            GUI.Label(new Rect(42, 90, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
+            string oxygen = $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}";
+            if (Game.Environment != null && Game.Environment.Breathable)
+            {
+                oxygen += $" ({loc.Get("ui.hud.breathable")})";
+            }
+            GUI.Label(new Rect(42, 90, 220, 20), oxygen);
             GUI.Label(new Rect(42, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
             GUI.Label(new Rect(42, 134, 200, 20), $"{loc.Get("ui.hud.hunger")}: {Mathf.RoundToInt(Game.Hunger)}");
             if (ship)

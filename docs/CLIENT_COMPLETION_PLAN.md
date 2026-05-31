@@ -532,7 +532,17 @@ Original notes:
   flora and creatures. Foundational for the creatures/flora systems below — sequence the biome
   generator first, then habitat-matched life.
 
-### Atmosphere & breathability — NEW (planned)
+### Atmosphere & breathability — **slice DONE / view-distance extra planned**
+Implemented (server + HUD): `PlanetType.Atmosphere` ("breathable" / "toxic" / "none", default
+toxic) per planet (jungle/swamp/varied breathable; rocky/desert toxic; lava/crystal airless). The
+oxygen tick keys off it: on a **breathable** world the suit **regenerates** oxygen on the surface
+(no drain), while **toxic/airless** worlds **drain** as before (the global `OxygenEnabled` rule
+still gates it; aboard always regenerates). Broadcast via `WorldEnvironment.Breathable`; the HUD
+marks oxygen "(breathable)". 4 tests (breathable no-drain, toxic drains, airless drains, reported).
+Still planned (below): the atmosphere-driven **view-distance / fog** range.
+
+Original notes (remaining work):
+
 Each world's atmosphere determines whether the suit consumes oxygen outside the ship:
 
 - A per-planet **atmosphere type**: **breathable** (no suit oxygen drain — the player can roam

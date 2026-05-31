@@ -27,6 +27,7 @@ public sealed partial class GameServer
     private double _weatherTimer;
     private double _sinceEnvBroadcast;
     private int _sunColor = 0xFFF6E8;
+    private bool _breathable;
     private System.Random _envRng = new(1);
 
     // Public accessors (HUD / tests).
@@ -34,12 +35,16 @@ public sealed partial class GameServer
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
 
+    /// <summary>Whether the current planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
+    public bool AtmosphereBreathable => _breathable;
+
     private void InitWeather()
     {
         var planet = _content.GetPlanet(_meta.DefaultPlanetType);
         _dayLength = planet?.DayLengthSeconds ?? 600.0;
         _stormChance = planet?.StormChance ?? 0.35;
         _planetWeatherMode = string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather;
+        _breathable = string.Equals(planet?.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase);
         _envRng = new System.Random((int)_meta.Seed);
         _dayFraction = 0.35;
         _weatherTimer = 0;
@@ -116,6 +121,7 @@ public sealed partial class GameServer
         Weather = _weatherState,
         Intensity = _weatherIntensity,
         SunColor = _sunColor,
+        Breathable = _breathable,
     };
 
     private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment());

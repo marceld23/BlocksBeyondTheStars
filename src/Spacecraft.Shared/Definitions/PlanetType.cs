@@ -88,4 +88,11 @@ public sealed class PlanetType
     /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps.
     /// </summary>
     public string CreatureAbundance { get; set; } = "few";
+
+    /// <summary>
+    /// Atmosphere type: "breathable" (no suit-oxygen drain on the surface), "toxic"
+    /// (non-breathable — drains, the default) or "none" (airless — drains). Aboard the ship
+    /// always regenerates regardless.
+    /// </summary>
+    public string Atmosphere { get; set; } = "toxic";
 }
