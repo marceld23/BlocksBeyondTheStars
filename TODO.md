@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **164 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **167 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -199,9 +199,10 @@ consumes protocol messages that already exist.
   (revert-on-change, validated, no dupes). Requires both to be **co-located + visible** (same
   station or same planet in range); auto-cancels on separation/disconnect. `TradeRequest`/
   `TradeOfferUpdate`/`TradeConfirm`/`TradeCancel`. See CLIENT_COMPLETION_PLAN "Player-to-player trading".
-- **(NEW, planned) Gear disassembly / recycling:** a **workshop** "Disassemble" action that breaks
-  crafted gear back into a **portion of its recipe components** (partial yield, server-tunable);
-  `DisassembleIntent`. Reuses recipe inputs + the crafting station. See CLIENT_COMPLETION_PLAN.
+- **Gear disassembly / recycling — DONE (server).** A workshop `Disassemble` action
+  (`DisassembleIntent`/`Disassemble`) breaks a crafted item back into ~half its recipe components
+  (`DisassemblyRecoveryRate`, server-tunable); needs a workshop + the item, rejects raw/un-craftable
+  items. `SendDisassemble` exists; crafting-tab button pending. 3 tests.
 - **(NEW, planned) Planet settlements & NPC towns:** some worlds have settlements — **primitive
   villages** (single-storey huts) or **modern towns** (multi-storey buildings) — populated by
   **human or alien NPCs**, with **mission boards** + **NPC traders** (like space stations, but
@@ -291,7 +292,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (164)
+dotnet test                      # expect all green (167)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

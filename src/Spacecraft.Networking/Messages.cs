@@ -148,6 +148,12 @@ public sealed class ShipMoveIntent
     public float Z { get; set; }
 }
 
+/// <summary>Client dismantles a crafted item at the workshop, recovering some of its components.</summary>
+public sealed class DisassembleIntent
+{
+    public string ItemKey { get; set; } = string.Empty;
+}
+
 /// <summary>Client uses a ship station it is standing next to (medbay heal-tank, cockpit, quarters, ...).</summary>
 public sealed class UseStationIntent
 {

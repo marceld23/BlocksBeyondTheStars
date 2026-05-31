@@ -299,7 +299,7 @@ public sealed class SpaceCombatTests : IDisposable
             server.EnterSpace("Pilot");
 
             // Break asteroids down until a floating salvage drop appears.
-            CombatEntity drop = null;
+            CombatEntity? drop = null;
             for (int i = 0; i < 24 && drop == null; i++)
             {
                 var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
@@ -315,7 +315,7 @@ public sealed class SpaceCombatTests : IDisposable
             Assert.Equal(0, server.Ship.Cargo.CountOf("iron_ore")); // not collected yet
 
             // Fly onto the drop; the tractor pulls it into the cargo hold.
-            server.ShipMove("Pilot", drop.Position.X, drop.Position.Y, drop.Position.Z);
+            server.ShipMove("Pilot", drop!.Position.X, drop.Position.Y, drop.Position.Z);
             server.Tick(0.1);
 
             Assert.True(server.Ship.Cargo.CountOf("iron_ore") >= 5, "Tractor should stow the salvage in cargo.");

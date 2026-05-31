@@ -449,7 +449,18 @@ A safe, server-authoritative **trade** between two players (distinct from NPC ve
   presence; sequence with stations/trading + the UI pass. Ties into (but is separate from) NPC
   vendor trading.
 
-### Crafting: gear disassembly / recycling — NEW (planned)
+### Crafting: gear disassembly / recycling — **DONE (server)**
+Implemented (server): a workshop **`Disassemble`** action (`DisassembleIntent` / public
+`Disassemble`) dismantles a crafted item back into a **portion of its recipe inputs** — it finds
+the recipe that produces the item, and returns `floor(input.Count × 0.5 / outputCount)` of each
+component (50 % recovery, server‑tunable via `DisassemblyRecoveryRate`). Requires a **workshop**
+station (aboard) and the item in hand; raw/un‑craftable items (no recipe) are rejected. Reuses the
+recipe data + `MaterialPool`. `NetworkClient.SendDisassemble` exists; the crafting‑tab "Disassemble"
+button is the remaining client bit. 3 tests (recovers components, rejects raw material, requires a
+workshop). Suite 167 green.
+
+Original notes (remaining work):
+
 Let players **dismantle crafted equipment** back into its parts at the **workshop**:
 
 - At a **workshop** (the existing crafting station), a **Disassemble** action breaks a crafted item

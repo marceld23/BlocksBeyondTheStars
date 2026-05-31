@@ -517,6 +517,7 @@ public sealed partial class GameServer
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
+            case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;
         }
     }
 
@@ -851,6 +852,67 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
     }
+
+    /// <summary>Fraction of a crafted item's recipe inputs recovered when it is disassembled.</summary>
+    private const float DisassemblyRecoveryRate = 0.5f;
+
+    /// <summary>Dismantles one crafted item at a workshop, returning a portion of its recipe components.</summary>
+    public void Disassemble(string playerId, string itemKey)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        // Find the recipe that produces this item (so we know what it's made of).
+        RecipeDefinition? recipe = null;
+        int perCraft = 1;
+        foreach (var r in _content.Recipes.Values)
+        {
+            var output = r.Outputs.FirstOrDefault(o => o.Item == itemKey);
+            if (output is not null && r.Inputs.Count > 0)
+            {
+                recipe = r;
+                perCraft = System.Math.Max(1, output.Count);
+                break;
+            }
+        }
+
+        if (recipe is null)
+        {
+            Reject(session, "disassemble", "This item cannot be disassembled.");
+            return;
+        }
+
+        if (!StationAvailable(session.State, CraftingStation.Workshop))
+        {
+            Reject(session, "disassemble", "A workshop is required to disassemble.");
+            return;
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        if (pool.Count(itemKey) < 1)
+        {
+            Reject(session, "disassemble", "You don't have that item.");
+            return;
+        }
+
+        pool.Remove(new[] { new ItemAmount(itemKey, 1) });
+        foreach (var input in recipe.Inputs)
+        {
+            int recovered = (int)System.Math.Floor(input.Count * DisassemblyRecoveryRate / perCraft);
+            if (recovered > 0)
+            {
+                pool.Add(input.Item, recovered);
+            }
+        }
+
+        SendInventory(session);
+    }
+
+    private void HandleDisassemble(PlayerSession session, DisassembleIntent intent)
+        => Disassemble(session.State.PlayerId, intent.ItemKey);
 
     private void HandleUnlock(PlayerSession session, UnlockBlueprintIntent unlock)
     {
