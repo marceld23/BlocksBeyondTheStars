@@ -24,4 +24,10 @@ public sealed class WorldMetadata
 
     /// <summary>Admin-defined universe description; combined with the seed it yields the galaxy.</summary>
     public WorldDescription Description { get; set; } = new();
+
+    /// <summary>
+    /// Keys of structure loot markers (wreck/ruin caches) already turned into containers, so they
+    /// aren't re-spawned on reload — even after the container has been looted and removed.
+    /// </summary>
+    public System.Collections.Generic.List<string> GeneratedLoot { get; set; } = new();
 }
