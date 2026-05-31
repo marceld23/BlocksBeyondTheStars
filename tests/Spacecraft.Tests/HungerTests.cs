@@ -124,6 +124,58 @@ public sealed class HungerTests : IDisposable
         }
     }
 
+    [Fact]
+    public void EmergencyRation_AutoFeeds_WhenHungerLow()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Starver");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Hunger = 10f; // below the auto-feed threshold
+            p.State.Inventory.Add("emergency_ration", 1, 20);
+
+            server.Tick(1.0);
+
+            Assert.Equal(0, p.State.Inventory.CountOf("emergency_ration")); // ration consumed
+            Assert.True(p.State.Hunger > 40f, "Eating the ration should top up hunger.");
+        }
+    }
+
+    [Fact]
+    public void NoRation_NoAutoFeed()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Starver");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Hunger = 10f;
+
+            server.Tick(1.0);
+            Assert.True(p.State.Hunger <= 10f); // still hungry, nothing to eat
+        }
+    }
+
+    [Fact]
+    public void EmergencyRation_NotEaten_WhenHungerHigh()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Fed");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Hunger = 80f; // well above the threshold
+            p.State.Inventory.Add("emergency_ration", 1, 20);
+
+            server.Tick(1.0);
+            Assert.Equal(1, p.State.Inventory.CountOf("emergency_ration")); // not consumed
+        }
+    }
+
     public void Dispose()
     {
         try

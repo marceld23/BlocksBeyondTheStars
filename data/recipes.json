@@ -21,5 +21,7 @@
   { "key": "laser_pistol",   "station": "workshop", "requiredBlueprint": "laser_pistol",   "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "laser_pistol", "count": 1 } ] },
   { "key": "plasma_blaster", "station": "workshop", "requiredBlueprint": "plasma_blaster", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "plasma_blaster", "count": 1 } ] },
 
-  { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] }
+  { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] },
+
+  { "key": "emergency_ration", "station": "hand", "inputs": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "emergency_ration", "count": 1 } ] }
 ]

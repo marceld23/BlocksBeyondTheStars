@@ -923,8 +923,11 @@ in data, surfaced in the crafting/tech UI and the equipment slots.
   re-skin so armor overrides the matching body part visually (M23b note).
 - **Improved oxygen tank:** larger `Oxygen` capacity / slower drain tiers (`oxygen_tank_1` → 2 → …),
   extending surface/airless excursions.
-- **Emergency rations (suit system):** an auto-feed module — when **hunger** hits a low threshold it
-  consumes a stored ration to top up (prevents accidental starvation); limited charges, refillable.
+- **Emergency rations (suit system) — DONE (server):** an `emergency_ration` item (craftable from
+  food) that the suit **auto-eats** when hunger drops to/below a threshold (`EmergencyRationThreshold`
+  15) — `TryAutoEatRation` in the hunger tick consumes one and tops hunger up (+40), preventing
+  accidental starvation; carried as inventory charges. 3 tests (auto-feeds when low, nothing without
+  one, not eaten when full). The rest of this list is still planned.
 - **Improved flashlight / suit lamp:** brighter/wider **light cone**, longer battery — tiers of the
   planned suit lamp (see Lighting).
 - **Improved radar scanner (multi-tier):** a wearable radar that adds blips to the HUD — **tier 1**

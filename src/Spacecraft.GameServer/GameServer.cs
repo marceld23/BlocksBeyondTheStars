@@ -330,6 +330,11 @@ public sealed partial class GameServer
             else
             {
                 p.Hunger = System.Math.Max(0f, p.Hunger - (float)(dt * Rules.HungerDrainPerSecond));
+                if (p.Hunger <= EmergencyRationThreshold)
+                {
+                    TryAutoEatRation(session); // suit auto-feeds a stored ration before starvation
+                }
+
                 if (p.Hunger <= 0f)
                 {
                     p.Health = System.Math.Max(0f, p.Health - (float)(dt * 3));
@@ -341,6 +346,24 @@ public sealed partial class GameServer
                 RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
             }
         }
+    }
+
+    /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>
+    private const float EmergencyRationThreshold = 15f;
+
+    /// <summary>If the player carries an emergency ration, consume one to top up hunger (auto-feed).</summary>
+    private void TryAutoEatRation(PlayerSession session)
+    {
+        var p = session.State;
+        if (!p.Inventory.Has("emergency_ration", 1))
+        {
+            return;
+        }
+
+        p.Inventory.Remove("emergency_ration", 1);
+        float restore = _content.GetItem("emergency_ration")?.ConsumeHunger ?? 40f;
+        p.Hunger = System.Math.Min(100f, p.Hunger + restore);
+        SendInventory(session);
     }
 
     /// <summary>

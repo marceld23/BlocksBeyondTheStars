@@ -28,6 +28,8 @@
   "item.toxic_gland.desc": "Poisonous — eating it harms you.",
   "item.berries.name": "Berries",
   "item.berries.desc": "Edible plant food — eases hunger.",
+  "item.emergency_ration.name": "Emergency Ration",
+  "item.emergency_ration.desc": "Suit ration — auto-eaten when you're about to starve.",
   "creature.generic.name": "Creature",
   "item.machete.name": "Machete",
   "item.machete.desc": "A heavy blade for close combat.",

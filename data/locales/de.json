@@ -28,6 +28,8 @@
   "item.toxic_gland.desc": "Giftig — der Verzehr schadet dir.",
   "item.berries.name": "Beeren",
   "item.berries.desc": "Essbare Pflanzennahrung — lindert den Hunger.",
+  "item.emergency_ration.name": "Notration",
+  "item.emergency_ration.desc": "Anzugs-Ration — wird automatisch gegessen, bevor du verhungerst.",
   "creature.generic.name": "Kreatur",
   "item.machete.name": "Machete",
   "item.machete.desc": "Eine schwere Klinge für den Nahkampf.",
