@@ -851,7 +851,22 @@ creatures and — where PvP is enabled — other players (server-authoritative):
   (creatures/PvP), and `SuitEnergy`. Server owns damage, range, cost and hit validation. Sequence
   with creatures + combat-loot.
 
-### Scanners: handheld & ship — NEW (planned)
+### Scanners: handheld & ship — **slice DONE (server) / client readout + extras planned**
+Implemented (server): `GameServerScanning` — `ScanSubject` (handheld) identifies a **creature**
+species (habitat/activity/temperament + **threat**: Hostile / Provokable / Safe) or a **block/
+flora/material** (its yield); `ScanSpaceEntity` (ship) reveals an **asteroid's resources**.
+**First‑time scans grant knowledge** (`KnowledgePoints`, persisted; tracked via a per‑player
+`Scanned` ledger so re‑scans pay nothing — creature 3 / hostile 5 / block 1 / asteroid 4).
+**Blueprints now also cost knowledge** (`BlueprintDefinition.KnowledgeCost`): `HandleUnlock`
+requires + deducts both materials and knowledge (advanced blueprints — detoxifier/tractor/laser/
+plasma — carry a cost). Protocol: `ScanIntent`/`ScanEntityIntent` → `ScanResult`;
+`NetworkClient.SendScan`/`SendScanEntity` added. 5 tests (first‑scan grants / re‑scan doesn't,
+threat report, block knowledge, asteroid resources, blueprint needs knowledge). Suite 178 green.
+Still planned: the client **scanner readout panel** + aiming, the **upgraded scanners** (more
+knowledge / wider radar — see Equipment), and the Tech‑tab knowledge display.
+
+Original notes (remaining work):
+
 Give the existing `hand_scanner` tool (and a new ship scanner) a real readout:
 
 - **Handheld scanner (player):** aim the equipped `hand_scanner` at a target and get an **info

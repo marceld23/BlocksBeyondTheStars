@@ -18,4 +18,7 @@ public sealed class BlueprintDefinition
 
     /// <summary>Resource/research cost to unlock this blueprint.</summary>
     public List<ItemAmount> UnlockCost { get; set; } = new();
+
+    /// <summary>Knowledge points (earned by scanning new things) additionally required to unlock.</summary>
+    public int KnowledgeCost { get; set; }
 }

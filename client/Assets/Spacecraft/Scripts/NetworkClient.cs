@@ -109,6 +109,10 @@ namespace Spacecraft.Client
 
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });
 
+        public void SendScan(string subjectType, string subjectKey) => Send(new ScanIntent { SubjectType = subjectType, SubjectKey = subjectKey });
+
+        public void SendScanEntity(string entityId) => Send(new ScanEntityIntent { EntityId = entityId });
+
         public void SendLootContainer(string containerId) => Send(new LootContainerIntent { ContainerId = containerId });
 
         // Reports the ship's position while flying in space (for server-side collision). Wire this

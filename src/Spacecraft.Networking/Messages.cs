@@ -154,6 +154,30 @@ public sealed class DisassembleIntent
     public string ItemKey { get; set; } = string.Empty;
 }
 
+/// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
+public sealed class ScanIntent
+{
+    public string SubjectType { get; set; } = string.Empty; // "creature" | "block"
+    public string SubjectKey { get; set; } = string.Empty;
+}
+
+/// <summary>Client scans a space entity (asteroid) with the ship scanner to reveal its resources.</summary>
+public sealed class ScanEntityIntent
+{
+    public string EntityId { get; set; } = string.Empty;
+}
+
+/// <summary>Result of a scan: a readout + threat, and any knowledge gained (first scan only).</summary>
+public sealed class ScanResult
+{
+    public string Subject { get; set; } = string.Empty;
+    public string Info { get; set; } = string.Empty;
+    public string Threat { get; set; } = "—";
+    public bool FirstTime { get; set; }
+    public int KnowledgeGained { get; set; }
+    public int KnowledgeTotal { get; set; }
+}
+
 /// <summary>An item + quantity in a trade offer.</summary>
 public sealed class NetTradeItem
 {

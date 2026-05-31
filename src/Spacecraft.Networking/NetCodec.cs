@@ -55,6 +55,8 @@ public static class NetCodec
         Register(32, typeof(TradeOfferIntent));
         Register(33, typeof(TradeConfirmIntent));
         Register(34, typeof(TradeCancelIntent));
+        Register(35, typeof(ScanIntent));
+        Register(36, typeof(ScanEntityIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -89,6 +91,7 @@ public static class NetCodec
         Register(79, typeof(ContainerList));
         Register(80, typeof(TradeUpdate));
         Register(81, typeof(TradeClosed));
+        Register(82, typeof(ScanResult));
     }
 
     private static void Register(byte tag, Type type)

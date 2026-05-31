@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **173 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **178 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -183,17 +183,12 @@ consumes protocol messages that already exist.
   worlds (surface per column from noise; **biome count randomised per world from the seed**); new
   blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);
   `WorldRadius` field. 2 tests. Planned: enforce size bounds, smooth blending, biome-matched life.
-- **(NEW, planned) Scanners (handheld + ship):** the `hand_scanner` shows a **readout + threat
-  level** when aimed at a **creature** (temperament → safe/provokable/hostile), **flora** (edible/
-  poison/material) or **material** (yield/tool) — mostly from already-synced descriptors/defs,
-  `ScanIntent` only for hidden info; costs a little `SuitEnergy`. A **ship scanner module** scans a
-  targeted **asteroid** and reveals whether it holds **resources** (server knows the loot;
-  `ScanEntityIntent`), flagged on the radar. See CLIENT_COMPLETION_PLAN "Scanners".
-- **(NEW, planned) Knowledge points (research):** scanning something **for the first time** grants
-  **knowledge points** (server tracks a per-player first-scan ledger; persisted
-  `PlayerState.KnowledgePoints`). **Blueprints additionally cost knowledge** (`BlueprintDefinition.
-  KnowledgeCost`) on top of materials — so unlocking advanced gear requires exploring + scanning,
-  not just mining. Server validates + deducts both. Shown in the Tech tab. See CLIENT_COMPLETION_PLAN.
+- **Scanners + knowledge research — slice DONE (server).** `GameServerScanning`: `ScanSubject`
+  (creature → threat / block → yield) + `ScanSpaceEntity` (asteroid resources); **first scans grant
+  `KnowledgePoints`** (persisted; `Scanned` ledger so re-scans don't), and **blueprints additionally
+  cost knowledge** (`BlueprintDefinition.KnowledgeCost`, validated + deducted in `HandleUnlock`).
+  `ScanIntent`/`ScanEntityIntent` → `ScanResult`. 5 tests. Remaining: client scanner readout panel +
+  aiming, Tech-tab knowledge display, upgraded scanners (see Equipment).
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,
   bioluminescent creatures). See CLIENT_COMPLETION_PLAN "Lighting".
@@ -303,7 +298,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (173)
+dotnet test                      # expect all green (178)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

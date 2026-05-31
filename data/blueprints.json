@@ -21,12 +21,12 @@
   },
   {
     "key": "detoxifier", "nameKey": "blueprint.detoxifier.name", "descriptionKey": "blueprint.detoxifier.desc",
-    "category": "ShipExpansion", "prerequisites": [],
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 6,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "tractor_beam", "nameKey": "blueprint.tractor_beam.name", "descriptionKey": "blueprint.tractor_beam.desc",
-    "category": "ShipExpansion", "prerequisites": [],
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 8,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
@@ -96,12 +96,12 @@
   },
   {
     "key": "laser_pistol", "nameKey": "blueprint.laser_pistol.name", "descriptionKey": "blueprint.laser_pistol.desc",
-    "category": "Weapon", "prerequisites": [ "gauss_pistol" ],
+    "category": "Weapon", "prerequisites": [ "gauss_pistol" ], "knowledgeCost": 10,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 5 } ]
   },
   {
     "key": "plasma_blaster", "nameKey": "blueprint.plasma_blaster.name", "descriptionKey": "blueprint.plasma_blaster.desc",
-    "category": "Weapon", "prerequisites": [ "laser_pistol" ],
+    "category": "Weapon", "prerequisites": [ "laser_pistol" ], "knowledgeCost": 16,
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
   }
 ]

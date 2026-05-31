@@ -44,6 +44,12 @@ public sealed class PlayerState
     /// <summary>Blueprint keys the player has unlocked (gates crafting/building).</summary>
     public HashSet<string> UnlockedBlueprints { get; set; } = new();
 
+    /// <summary>Research currency earned by scanning new things; spent (with materials) on blueprints.</summary>
+    public int KnowledgePoints { get; set; }
+
+    /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
+    public HashSet<string> Scanned { get; set; } = new();
+
     /// <summary>True when the player is currently aboard their ship (enables cargo crafting).</summary>
     public bool AboardShip { get; set; } = true;
 

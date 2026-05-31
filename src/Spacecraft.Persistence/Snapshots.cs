@@ -35,6 +35,8 @@ public sealed class PlayerSnapshot
     public string Role { get; set; } = "Player";
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
+    public int KnowledgePoints { get; set; }
+    public List<string> Scanned { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
     public List<MissionProgress> Missions { get; set; } = new();
 }
@@ -102,6 +104,8 @@ public static class StateMapper
         Role = p.Role.ToString(),
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
+        KnowledgePoints = p.KnowledgePoints,
+        Scanned = p.Scanned.ToList(),
         Inventory = DumpInventory(p.Inventory),
         Missions = p.Missions.Select(CloneProgress).ToList(),
     };
@@ -130,6 +134,8 @@ public static class StateMapper
         Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
+        KnowledgePoints = s.KnowledgePoints,
+        Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
     };
 

@@ -524,6 +524,8 @@ public sealed partial class GameServer
             case TradeOfferIntent tradeOffer: HandleTradeOffer(session, tradeOffer); break;
             case TradeConfirmIntent: HandleTradeConfirm(session); break;
             case TradeCancelIntent: HandleTradeCancel(session); break;
+            case ScanIntent scan: HandleScan(session, scan); break;
+            case ScanEntityIntent scanEntity: HandleScanEntity(session, scanEntity); break;
         }
     }
 
@@ -660,6 +662,15 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } session)
         {
             HandleCraft(session, new CraftIntent { RecipeKey = recipeKey, Count = count });
+        }
+    }
+
+    /// <summary>Runs the authoritative blueprint-unlock validator for a player (used by local play / tests).</summary>
+    public void UnlockBlueprint(string playerId, string blueprintKey)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleUnlock(session, new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
         }
     }
 
@@ -951,7 +962,14 @@ public sealed partial class GameServer
             return;
         }
 
+        if (session.State.KnowledgePoints < bp.KnowledgeCost)
+        {
+            Reject(session, "unlock", "Not enough knowledge — scan more to research this.");
+            return;
+        }
+
         pool.Remove(bp.UnlockCost);
+        session.State.KnowledgePoints -= bp.KnowledgeCost;
         session.State.UnlockedBlueprints.Add(bp.Key);
 
         Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
