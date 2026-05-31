@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **186 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **188 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -197,7 +197,9 @@ consumes protocol messages that already exist.
   armor + special helmets** (damage resistance + perks), **bigger oxygen tank**, **improved
   flashlight**, **multi-tier radar scanner** (animals → players → material/flora on the HUD),
   **atmospheric O₂ extractor** (lowers oxygen drain in toxic atmo, per-planet efficiency; useless
-  when airless). **Suit teleporter — DONE:** craftable `suit_teleporter` recalls the player to the
+  when airless) — **DONE:** `oxygen_extractor` item reduces oxygen drain by `0.6 ×
+  PlanetType.OxygenExtractability` (rocky 0.6 / ice·desert 0.5 / airless 0); 2 tests.
+  **Suit teleporter — DONE:** craftable `suit_teleporter` recalls the player to the
   ship (respawn point) — `TeleportToShip`/`TeleportToShipIntent`, gated by device + not-in-space +
   30 s cooldown + 10 `SuitEnergy`; 3 tests.
   See CLIENT_COMPLETION_PLAN "Equipment & upgrades".
@@ -310,7 +312,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (186)
+dotnet test                      # expect all green (188)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

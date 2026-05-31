@@ -25,5 +25,7 @@
 
   { "key": "emergency_ration", "station": "hand", "inputs": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "emergency_ration", "count": 1 } ] },
 
-  { "key": "suit_teleporter", "station": "workshop", "requiredBlueprint": "suit_teleporter", "inputs": [ { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "data_fragment", "count": 2 } ], "outputs": [ { "item": "suit_teleporter", "count": 1 } ] }
+  { "key": "suit_teleporter", "station": "workshop", "requiredBlueprint": "suit_teleporter", "inputs": [ { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "data_fragment", "count": 2 } ], "outputs": [ { "item": "suit_teleporter", "count": 1 } ] },
+
+  { "key": "oxygen_extractor", "station": "workshop", "requiredBlueprint": "oxygen_extractor", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "oxygen_extractor", "count": 1 } ] }
 ]

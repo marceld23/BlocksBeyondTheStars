@@ -102,6 +102,48 @@ public sealed class AtmosphereTests : IDisposable
         }
     }
 
+    private (Spacecraft.Shared.State.PlayerState withExtractor, Spacecraft.Shared.State.PlayerState without) TwoSurfaceMiners(SvGameServer server)
+    {
+        var a = server.AddLocalPlayer("WithExtractor").State;
+        var b = server.AddLocalPlayer("Plain").State;
+        foreach (var s in new[] { a, b })
+        {
+            s.AboardShip = false;
+            s.Position = new Vector3f(0, 64, 0);
+            s.Oxygen = 50f;
+        }
+
+        a.Inventory.Add("oxygen_extractor", 1, 1);
+        return (a, b);
+    }
+
+    [Fact]
+    public void OxygenExtractor_SlowsDrain_OnToxicPlanet()
+    {
+        var server = Started("rocky", out var repo); // toxic, extractability 0.6
+        using (repo)
+        {
+            var (withExtractor, without) = TwoSurfaceMiners(server);
+            server.Tick(2.0);
+
+            Assert.True(withExtractor.Oxygen > without.Oxygen, "The extractor should slow oxygen loss in a toxic atmosphere.");
+            Assert.True(without.Oxygen < 50f); // the plain suit still drains
+        }
+    }
+
+    [Fact]
+    public void OxygenExtractor_GivesNoBenefit_OnAirlessPlanet()
+    {
+        var server = Started("crystal", out var repo); // airless (none), extractability 0
+        using (repo)
+        {
+            var (withExtractor, without) = TwoSurfaceMiners(server);
+            server.Tick(2.0);
+
+            Assert.Equal(without.Oxygen, withExtractor.Oxygen); // nothing to extract from vacuum
+        }
+    }
+
     public void Dispose()
     {
         try

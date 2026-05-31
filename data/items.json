@@ -36,6 +36,7 @@
   { "key": "berries",         "nameKey": "item.berries.name",         "category": "consumable", "maxStack": 20, "descriptionKey": "item.berries.desc", "consumeHealth": 5, "consumeHunger": 18 },
   { "key": "emergency_ration","nameKey": "item.emergency_ration.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.emergency_ration.desc", "consumeHunger": 40 },
   { "key": "suit_teleporter", "nameKey": "item.suit_teleporter.name", "category": "component",  "maxStack": 1,  "descriptionKey": "item.suit_teleporter.desc" },
+  { "key": "oxygen_extractor","nameKey": "item.oxygen_extractor.name", "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_extractor.desc" },
 
   { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },

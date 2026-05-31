@@ -936,13 +936,12 @@ in data, surfaced in the crafting/tech UI and the equipment slots.
   creatures/animals, **tier 2** other players, **tier 3** material deposits / flora / points of
   interest. Each tier widens what the HUD minimap + edge-arrows show (shares the space-radar style;
   colour-coded). Higher tiers cost more knowledge + materials and draw `SuitEnergy`.
-- **Atmospheric O₂ extractor (suit upgrade):** in a **non-breathable (toxic)** atmosphere the suit
-  can **slowly extract oxygen**, so the **net oxygen drain is lower** than normal (it doesn't refill,
-  just reduces consumption). **Efficiency varies per planet** — a per-planet
-  `OxygenExtractability` (0..1, seed/atmosphere-derived) scales how much of the drain it offsets, so
-  some toxic worlds breathe easier than others. In an **airless ("none")** atmosphere there's
-  nothing to extract → no benefit. Server applies it in the oxygen tick (`drain × (1 −
-  extractor × extractability)`); tiers improve the base offset.
+- **Atmospheric O₂ extractor (suit upgrade) — DONE (server):** a craftable `oxygen_extractor`
+  (blueprint, knowledge-gated) that, when carried, **reduces oxygen drain** in a non-breathable
+  atmosphere — the oxygen tick multiplies the drain by `1 − OxygenExtractorEffectiveness (0.6) ×
+  PlanetType.OxygenExtractability`. **Efficiency varies per planet** (`OxygenExtractability` 0..1:
+  rocky 0.6, ice/desert 0.5, …), and **airless worlds are 0** → no benefit. It only reduces, never
+  refills. 2 tests (slows drain on a toxic world, no benefit on an airless one). Tiers later.
 - **Suit teleporter (recall to ship) — DONE (server):** a craftable `suit_teleporter`
   (blueprint, knowledge-gated) that **recalls the player to their ship** (the heal-tank / landing-
   zone respawn point). `TeleportToShip` / `TeleportToShipIntent` validates the device is carried,

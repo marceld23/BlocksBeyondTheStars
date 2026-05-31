@@ -80,6 +80,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "oxygen_extractor", "nameKey": "blueprint.oxygen_extractor.name", "descriptionKey": "blueprint.oxygen_extractor.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 10 }, { "item": "cable", "count": 5 } ]
+  },
+  {
     "key": "machete", "nameKey": "blueprint.machete.name", "descriptionKey": "blueprint.machete.desc",
     "category": "Weapon", "prerequisites": [],
     "unlockCost": [ { "item": "iron_plate", "count": 3 } ]

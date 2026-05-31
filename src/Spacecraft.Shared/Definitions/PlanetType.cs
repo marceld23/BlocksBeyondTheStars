@@ -103,6 +103,13 @@ public sealed class PlanetType
     public bool SpaceSky { get; set; }
 
     /// <summary>
+    /// 0..1 — how much extractable oxygen a non-breathable atmosphere holds. The suit's oxygen
+    /// extractor reduces the drain proportionally; airless ("none") worlds are 0 (nothing to
+    /// extract). Ignored on breathable worlds (no drain anyway).
+    /// </summary>
+    public double OxygenExtractability { get; set; } = 0.5;
+
+    /// <summary>
     /// Whether the universe generator may pick this type for a random system planet. Special
     /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
     /// </summary>

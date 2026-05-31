@@ -309,7 +309,15 @@ public sealed partial class GameServer
             else
             {
                 // Outside without a breathable atmosphere (toxic / airless): drain at the configured rate.
-                p.Oxygen = System.Math.Max(0f, p.Oxygen - (float)(dt * Rules.OxygenDrainPerSecond));
+                float drain = (float)(dt * Rules.OxygenDrainPerSecond);
+                if (_oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
+                {
+                    // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
+                    // the drain, scaled by how breathable-ish this world is. Airless worlds (0) don't help.
+                    drain *= 1f - OxygenExtractorEffectiveness * (float)_oxygenExtractability;
+                }
+
+                p.Oxygen = System.Math.Max(0f, p.Oxygen - drain);
                 if (p.Oxygen <= 0f)
                 {
                     p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
@@ -351,6 +359,9 @@ public sealed partial class GameServer
 
     /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>
     private const float EmergencyRationThreshold = 15f;
+
+    /// <summary>Base fraction of oxygen drain the suit extractor can offset (× the planet's extractability).</summary>
+    private const float OxygenExtractorEffectiveness = 0.6f;
 
     /// <summary>
     /// Auto-feed when hungry: the suit's ration dispenser dispenses stored food first; failing that
