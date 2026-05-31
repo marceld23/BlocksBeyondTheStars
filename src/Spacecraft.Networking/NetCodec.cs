@@ -34,6 +34,9 @@ public static class NetCodec
         Register(11, typeof(AcceptMissionIntent));
         Register(12, typeof(TurnInMissionIntent));
         Register(13, typeof(CreateMissionIntent));
+        Register(14, typeof(DockRequestIntent));
+        Register(15, typeof(DockResponseIntent));
+        Register(16, typeof(UndockIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -50,6 +53,8 @@ public static class NetCodec
         Register(61, typeof(StarMapData));
         Register(62, typeof(MissionList));
         Register(63, typeof(MissionResult));
+        Register(64, typeof(DockRequestNotice));
+        Register(65, typeof(DockStatus));
     }
 
     private static void Register(byte tag, Type type)

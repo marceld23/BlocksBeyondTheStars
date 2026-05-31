@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **68 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **75 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -17,26 +17,25 @@ Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENT
 | M15 | WebSocket gateway + composite transport + web portal + WebGL feasibility doc |
 | M16 | Optional Python AI mission backend (off by default) + decision doc |
 | M17 | Personal landing zones + extended space settings (rules) |
+| M18 | Ship docking: request/response/undock intents, handshake gated by `ShipDocking` rule, `docking_module` requirement, guest access, undock-on-disconnect |
 
 Also done: MIT license, father-son README, all spec docs moved to local `plans/`,
 commit author = `marceld23 <marcel.duetscher@gmail.com>`.
 
-## In progress — M18: Ship docking
+### M18 notes (implementation details)
 
-**Done so far:** docking blueprint + ship module (`docking_module`) added to
-`data/blueprints.json`, `data/ship_modules.json`, and en/de locales (committed with this note).
-
-**Remaining (start here tomorrow):**
-1. Network messages: `DockRequestIntent {TargetPlayer}`, `DockResponseIntent {Requester, Accept}`,
-   `UndockIntent` (client→server); `DockRequestNotice`, `DockStatus` (server→client) + codec tags.
-2. `GameServerDocking.cs` (partial): pending-requests + active-dockings maps; methods
-   `RequestDock(fromId,toId)`, `RespondDock(toId,fromId,accept)`, `Undock(id)`, `AreDocked(a,b)`;
-   gate by `Rules.ShipDocking` (Off→reject, Free→auto-accept, RequestRequired/FriendsOnly→handshake);
-   require ship module `docking_module`; guest-access flags; undock on disconnect.
-3. Wire dispatch cases in `OnPayload`; persist active docking (optional `docking` table).
-4. Add a **multi-client loopback** (or a public `AddLocalPlayer(name)` helper on GameServer)
-   so 2-player docking can be unit-tested — current `LoopbackLink` is single-client.
-5. Tests: request→accept docks both; reject; Off rejects; undock; disconnect undocks.
+- Messages: `DockRequestIntent`/`DockResponseIntent`/`UndockIntent` (client→server, codec
+  tags 14–16); `DockRequestNotice`/`DockStatus` (server→client, tags 64–65).
+- [GameServerDocking.cs](src/Spacecraft.GameServer/GameServerDocking.cs): `RequestDock` /
+  `RespondDock` / `Undock` / `AreDocked` / `HasGuestAccess`; gated by `Rules.ShipDocking`
+  (Off→reject, Free→auto-accept, RequestRequired/FriendsOnly→handshake); requires the shared
+  ship's `docking_module`; `ClearDocking` on disconnect. FriendsOnly currently behaves like
+  RequestRequired until a friends system exists.
+- Dockings are in-memory only (they can't outlive a session → no `docking` table needed).
+- `GameServer.AddLocalPlayer(name)` adds a joined session with a synthetic negative
+  connection id, so 2-player docking is testable despite the single-client `LoopbackLink`.
+- Tests in [DockingTests.cs](tests/Spacecraft.Tests/DockingTests.cs): request→accept,
+  reject, Off-rejects, Free auto-dock, undock, missing-module, disconnect-undocks.
 
 ## Pending
 
@@ -52,8 +51,9 @@ commit author = `marceld23 <marcel.duetscher@gmail.com>`.
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green
-git log --oneline -5             # latest = M18 data (docking module)
+dotnet test                      # expect all green (75)
+git log --oneline -5             # latest = M18 ship docking
 ```
-Then continue M18 from "Remaining" above. Note: this sandbox blocks real sockets, so
+Then start **M19** (free space flight + combat + enemies) — concept-first: write
+`docs/SPACE_COMBAT_CONCEPT.md`, then a server MVP. Note: this sandbox blocks real sockets, so
 live WebSocket/2-player network tests are exercised via in-process/loopback, not real ports.

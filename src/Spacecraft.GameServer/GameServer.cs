@@ -34,6 +34,10 @@ public sealed partial class GameServer
 
     private readonly Dictionary<int, PlayerSession> _sessions = new();
 
+    // Synthetic connection ids for local (non-networked) sessions count down from -1 so they
+    // never collide with transport-assigned ids (which are positive).
+    private int _nextLocalConnectionId = -1;
+
     private WorldMetadata _meta = new();
     private WorldGenerator _generator = null!;
     private ServerWorld _world = null!;
@@ -404,6 +408,7 @@ public sealed partial class GameServer
     {
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
+            ClearDocking(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
         }
@@ -445,6 +450,9 @@ public sealed partial class GameServer
             case AcceptMissionIntent accept: HandleAcceptMission(session, accept.MissionId); break;
             case TurnInMissionIntent turnIn: HandleTurnInMission(session, turnIn.MissionId); break;
             case CreateMissionIntent create: HandleCreateMission(session, create); break;
+            case DockRequestIntent dock: HandleDockRequest(session, dock); break;
+            case DockResponseIntent response: HandleDockResponse(session, response); break;
+            case UndockIntent: HandleUndock(session); break;
         }
     }
 
@@ -532,6 +540,27 @@ public sealed partial class GameServer
         state.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
         _repo.SavePlayer(state);
         return state;
+    }
+
+    /// <summary>
+    /// Adds a fully-joined player session without a network handshake, using a synthetic
+    /// (negative) connection id. Used by singleplayer/local co-op and by multi-player server
+    /// tests, since the loopback transport only models a single networked client. The caller
+    /// drives this player's actions through the authoritative server methods directly.
+    /// </summary>
+    public PlayerSession AddLocalPlayer(string name)
+    {
+        var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+
+        if (state.Role != PlayerRole.WorldAdmin && _config.AdminPlayers.Contains(name))
+        {
+            state.Role = PlayerRole.Admin;
+        }
+
+        int connectionId = _nextLocalConnectionId--;
+        var session = new PlayerSession(connectionId, state) { Joined = true };
+        _sessions[connectionId] = session;
+        return session;
     }
 
     // ---------------- Authoritative validators ----------------

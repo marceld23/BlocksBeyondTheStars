@@ -77,6 +77,26 @@ public sealed class AdminCommandIntent
     public int IntArg { get; set; }
 }
 
+// --- Ship docking (anf_space_flight.md §13) ---
+
+/// <summary>Client asks to dock with another player's ship.</summary>
+public sealed class DockRequestIntent
+{
+    public string TargetPlayer { get; set; } = string.Empty;
+}
+
+/// <summary>The docking-request target accepts or declines a pending request.</summary>
+public sealed class DockResponseIntent
+{
+    public string Requester { get; set; } = string.Empty;
+    public bool Accept { get; set; }
+}
+
+/// <summary>Client asks to undock from its current docking partner.</summary>
+public sealed class UndockIntent
+{
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -265,4 +285,24 @@ public sealed class RespawnNotice
     public float Z { get; set; }
     public string Reason { get; set; } = string.Empty;
     public bool SalvageCapsuleDropped { get; set; }
+}
+
+// --- Ship docking (anf_space_flight.md §13) ---
+
+/// <summary>Notifies a player that another player has requested to dock with them.</summary>
+public sealed class DockRequestNotice
+{
+    public string Requester { get; set; } = string.Empty;
+}
+
+/// <summary>Authoritative docking state change for the receiving player.</summary>
+public sealed class DockStatus
+{
+    /// <summary>The other player in the docking (the partner).</summary>
+    public string Partner { get; set; } = string.Empty;
+
+    /// <summary>True when now docked, false when undocked / declined.</summary>
+    public bool Docked { get; set; }
+
+    public string Reason { get; set; } = string.Empty;
 }
