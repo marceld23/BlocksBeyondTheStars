@@ -188,12 +188,15 @@ Original notes:
 - Depends on: the player rig (done), `PlayerStateUpdate` for others (M24 multiplayer presence)
   to show other players' avatars. Customization colours can ship before multiplayer.
 
-### M23 — Navigation, missions & feedback
-- **Star map** screen (`RequestStarMap`/`StarMapData`).
-- **Mission log**: list/accept/turn-in/create (`RequestMissions`, `Accept/TurnIn/CreateMissionIntent`,
-  `MissionList`, `MissionResult`).
-- **Death/respawn** feedback (`RespawnNotice`), **server rules** display (`ServerRules`),
-  `ActionRejected`/`ServerMessage` toasts.
+### M23 — Navigation, missions & feedback — **DONE (code) / pending playtest**
+- **Star map** tab in `GameMenu` (`RequestStarMap`/`StarMapData`): lists systems + bodies and
+  marks "you are here". Opened from the **cockpit** station (E).
+- **Mission log** tab (`RequestMissions`/`MissionList`): available missions (Accept) + active
+  missions with progress (Turn in) via `Accept/TurnInMissionIntent`; result as a toast.
+  (Player-created missions deferred.)
+- **Feedback:** `RespawnNotice`, `ServerRules` (mode/PvP summary on join) and
+  `CraftResult`/`ActionRejected`/`ServerMessage` all surface as HUD toasts.
+- Data-driven tabs re-request on open. All over existing protocol — no server change.
 
 ### M24 — Multiplayer presence
 - Render **other players** from `PlayerStateUpdate` (avatar + nameplate), interpolation.

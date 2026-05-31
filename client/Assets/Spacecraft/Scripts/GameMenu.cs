@@ -12,7 +12,7 @@ namespace Spacecraft.Client
     {
         public GameBootstrap Game;
 
-        private enum Tab { Inventory, Crafting, Tech, Ship }
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions }
 
         private Tab _tab = Tab.Inventory;
         private bool _open;
@@ -22,16 +22,46 @@ namespace Spacecraft.Client
         {
             if (Game != null && Input.GetKeyDown(KeyCode.Tab))
             {
-                Toggle();
+                SetOpen(!_open);
             }
         }
 
-        private void Toggle()
+        // Public entry points used by station interactions (cockpit → map, etc.).
+        public void OpenInventory() => OpenAt(Tab.Inventory);
+        public void OpenCrafting() => OpenAt(Tab.Crafting);
+        public void OpenMap() => OpenAt(Tab.Map);
+        public void OpenMissions() => OpenAt(Tab.Missions);
+
+        private void OpenAt(Tab tab)
         {
-            _open = !_open;
+            SwitchTo(tab);
+            SetOpen(true);
+        }
+
+        private void SetOpen(bool open)
+        {
+            _open = open;
             Game.MenuOpen = _open;
             Cursor.lockState = _open ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = _open;
+            if (_open)
+            {
+                SwitchTo(_tab); // refresh data for the current tab
+            }
+        }
+
+        /// <summary>Switches tab and (re)requests server data for data-driven tabs.</summary>
+        private void SwitchTo(Tab tab)
+        {
+            _tab = tab;
+            if (tab == Tab.Map)
+            {
+                Game.Network?.SendRequestStarMap();
+            }
+            else if (tab == Tab.Missions)
+            {
+                Game.Network?.SendRequestMissions();
+            }
         }
 
         private void OnGUI()
@@ -53,10 +83,12 @@ namespace Spacecraft.Client
             TabButton(loc.Get("ui.crafting.title"), Tab.Crafting);
             TabButton(loc.Get("ui.tab.tech"), Tab.Tech);
             TabButton(loc.Get("ui.tab.ship"), Tab.Ship);
+            TabButton(loc.Get("ui.tab.map"), Tab.Map);
+            TabButton(loc.Get("ui.tab.missions"), Tab.Missions);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button(loc.Get("ui.action.close"), GUILayout.Width(90)))
             {
-                Toggle();
+                SetOpen(false);
             }
 
             GUILayout.EndHorizontal();
@@ -69,6 +101,8 @@ namespace Spacecraft.Client
                 case Tab.Crafting: DrawCrafting(loc); break;
                 case Tab.Tech: DrawTech(loc); break;
                 case Tab.Ship: DrawShip(loc); break;
+                case Tab.Map: DrawMap(loc); break;
+                case Tab.Missions: DrawMissions(loc); break;
             }
 
             GUILayout.EndScrollView();
@@ -78,9 +112,9 @@ namespace Spacecraft.Client
         private void TabButton(string label, Tab tab)
         {
             string text = _tab == tab ? "▸ " + label : label;
-            if (GUILayout.Button(text, GUILayout.Width(110)))
+            if (GUILayout.Button(text, GUILayout.Width(92)))
             {
-                _tab = tab;
+                SwitchTo(tab);
             }
         }
 
@@ -149,6 +183,67 @@ namespace Spacecraft.Client
                 if (GUILayout.Button(loc.Get("ui.action.build"), GUILayout.Width(100)))
                 {
                     Game.Network.SendBuildModule(m.Key);
+                }
+
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawMap(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            var map = Game.StarMap;
+            if (map == null || map.Systems.Length == 0)
+            {
+                GUILayout.Label(loc.Get("ui.map.loading"));
+                return;
+            }
+
+            foreach (var sys in map.Systems)
+            {
+                GUILayout.Label($"★ {sys.Name}");
+                foreach (var b in sys.Bodies)
+                {
+                    bool here = b.Id == map.ActiveLocationId;
+                    string marker = here ? "  ▸ " : "    ";
+                    GUILayout.Label($"{marker}{b.Name}  [{b.Kind}]  {(here ? loc.Get("ui.map.here") : b.Status)}");
+                }
+
+                GUILayout.Space(4);
+            }
+        }
+
+        private void DrawMissions(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            var list = Game.Missions;
+            if (list == null)
+            {
+                GUILayout.Label(loc.Get("ui.map.loading"));
+                return;
+            }
+
+            GUILayout.Label(loc.Get("ui.missions.available"));
+            foreach (var m in list.Available)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{m.Title}", GUILayout.Width(400));
+                if (GUILayout.Button(loc.Get("ui.action.accept"), GUILayout.Width(100)))
+                {
+                    Game.Network.SendAcceptMission(m.Id);
+                }
+
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(8);
+            GUILayout.Label(loc.Get("ui.missions.active"));
+            foreach (var m in list.Active)
+            {
+                GUILayout.BeginHorizontal();
+                string progress = m.Objectives.Length > 0 ? $" ({m.Objectives[0].Progress}/{m.Objectives[0].Required})" : string.Empty;
+                GUILayout.Label($"{m.Title}{progress}", GUILayout.Width(400));
+                if (GUILayout.Button(loc.Get("ui.action.turn_in"), GUILayout.Width(100)))
+                {
+                    Game.Network.SendTurnInMission(m.Id);
                 }
 
                 GUILayout.EndHorizontal();

@@ -70,9 +70,10 @@ namespace Spacecraft.Client
             var hud = root.AddComponent<Hud>();
             hud.Game = boot;
 
-            // In-game gameplay menu (inventory / crafting / tech / ship), toggled with Tab.
+            // In-game gameplay menu (inventory / crafting / tech / ship / map / missions), Tab.
             var menu = root.AddComponent<GameMenu>();
             menu.Game = boot;
+            pc.Menu = menu;
 
             return root;
         }

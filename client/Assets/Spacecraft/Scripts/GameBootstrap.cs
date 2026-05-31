@@ -57,6 +57,11 @@ namespace Spacecraft.Client
         public NetShipStation[] Stations { get; private set; } = System.Array.Empty<NetShipStation>();
         public string NearbyStation;
 
+        // Navigation, missions & rules (M23).
+        public StarMapData StarMap { get; private set; }
+        public MissionList Missions { get; private set; }
+        public ServerRules Rules { get; private set; }
+
         /// <summary>Type of the nearest station within <paramref name="range"/> blocks, or empty.</summary>
         public string NearestStationType(Vector3 pos, float range)
         {
@@ -136,6 +141,11 @@ namespace Spacecraft.Client
             Network.InventoryUpdated += m => { Personal = m.Personal; Cargo = m.Cargo; };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
+            Network.StarMapReceived += m => StarMap = m;
+            Network.MissionsReceived += m => Missions = m;
+            Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";
+            Network.RespawnNoticeReceived += m => LastMessage = m.Reason;
+            Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
             Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };
             Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = m.Text; };

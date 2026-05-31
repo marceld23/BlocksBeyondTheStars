@@ -39,6 +39,13 @@ namespace Spacecraft.Client
         public event Action<ShipPlacement> ShipPlacementReceived;
         public event Action<ShipStations> ShipStationsReceived;
 
+        // Navigation, missions & feedback (M23).
+        public event Action<StarMapData> StarMapReceived;
+        public event Action<MissionList> MissionsReceived;
+        public event Action<MissionResult> MissionResultReceived;
+        public event Action<RespawnNotice> RespawnNoticeReceived;
+        public event Action<ServerRules> ServerRulesReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -92,6 +99,15 @@ namespace Spacecraft.Client
 
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
+        // --- Navigation & missions (M23) ---
+        public void SendRequestStarMap() => Send(new RequestStarMap());
+
+        public void SendRequestMissions() => Send(new RequestMissions());
+
+        public void SendAcceptMission(string missionId) => Send(new AcceptMissionIntent { MissionId = missionId });
+
+        public void SendTurnInMission(string missionId) => Send(new TurnInMissionIntent { MissionId = missionId });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -121,6 +137,11 @@ namespace Spacecraft.Client
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
+                case StarMapData m: StarMapReceived?.Invoke(m); break;
+                case MissionList m: MissionsReceived?.Invoke(m); break;
+                case MissionResult m: MissionResultReceived?.Invoke(m); break;
+                case RespawnNotice m: RespawnNoticeReceived?.Invoke(m); break;
+                case ServerRules m: ServerRulesReceived?.Invoke(m); break;
             }
         }
 

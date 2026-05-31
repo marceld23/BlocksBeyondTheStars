@@ -108,7 +108,9 @@ consumes protocol messages that already exist.
   Code-built blocky humanoid (`PlayerAvatar`), per-part colours in Settings (Character section),
   first/third-person toggle (V). Networked appearance (others see it) deferred to M24; armor
   overrides + animation later.
-- **M23** — star map, mission log, death/respawn + rules feedback.
+- **M23 — navigation, missions & feedback — code DONE, needs playtest.** Star-map tab (opened
+  from the cockpit), mission-log tab (accept/turn-in), respawn/rules/craft feedback as HUD
+  toasts — all over existing protocol.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,
   planet enemies) for the M19 server systems.

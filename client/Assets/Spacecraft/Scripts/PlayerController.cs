@@ -13,6 +13,7 @@ namespace Spacecraft.Client
         public GameBootstrap Game;
         public Camera Camera;
         public PlayerAvatar Avatar;
+        public GameMenu Menu;
 
         public float MoveSpeed = 6f;
         public float JumpSpeed = 7f;
@@ -91,9 +92,18 @@ namespace Spacecraft.Client
         private void HandleStations()
         {
             Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
-            if (!string.IsNullOrEmpty(Game.NearbyStation) && Input.GetKeyDown(KeyCode.E))
+            if (string.IsNullOrEmpty(Game.NearbyStation) || !Input.GetKeyDown(KeyCode.E))
             {
-                Game.Network?.SendUseStation(Game.NearbyStation);
+                return;
+            }
+
+            // Stations that open a client UI panel; the rest are resolved server-side.
+            switch (Game.NearbyStation)
+            {
+                case "cockpit": Menu?.OpenMap(); break;
+                case "workshop": Menu?.OpenCrafting(); break;
+                case "cargo": Menu?.OpenInventory(); break;
+                default: Game.Network?.SendUseStation(Game.NearbyStation); break; // medbay, quarters
             }
         }
 
