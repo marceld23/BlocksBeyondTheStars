@@ -20,8 +20,7 @@ namespace Spacecraft.Client
         public bool InvertY = false;
         public float Reach = 6f;
 
-        /// <summary>Item key used when placing blocks (would come from the selected hotbar slot).</summary>
-        public string PlaceItem = "iron_wall";
+        private const int HotbarSlots = 9;
 
         private CharacterController _controller;
         private float _pitch;
@@ -43,10 +42,69 @@ namespace Spacecraft.Client
                 _spawned = true;
             }
 
+            // A UI panel is open: don't steer/interact, just keep the player settled by gravity.
+            if (Game != null && Game.MenuOpen)
+            {
+                ApplyGravityOnly();
+                return;
+            }
+
+            HandleHotbar();
             LookAround();
             Move();
             HandleInteract();
             SendMovement();
+        }
+
+        private void HandleHotbar()
+        {
+            if (Game == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < HotbarSlots; i++)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                {
+                    SelectSlot(i);
+                }
+            }
+
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (scroll > 0f)
+            {
+                SelectSlot((Game.SelectedHotbarSlot + HotbarSlots - 1) % HotbarSlots);
+            }
+            else if (scroll < 0f)
+            {
+                SelectSlot((Game.SelectedHotbarSlot + 1) % HotbarSlots);
+            }
+        }
+
+        private void SelectSlot(int slot)
+        {
+            if (slot == Game.SelectedHotbarSlot)
+            {
+                return;
+            }
+
+            Game.SelectedHotbarSlot = slot;
+            Game.Network?.SendSelectHotbar(slot);
+        }
+
+        private void ApplyGravityOnly()
+        {
+            if (_controller.isGrounded)
+            {
+                _verticalVelocity = -1f;
+            }
+            else
+            {
+                _verticalVelocity -= Gravity * Time.deltaTime;
+            }
+
+            _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
         }
 
         private void LookAround()
@@ -110,8 +168,13 @@ namespace Spacecraft.Client
             }
             else
             {
-                var t = FloorVec(hit.point + hit.normal * 0.5f);
-                Game.Network.SendPlace(t.x, t.y, t.z, PlaceItem);
+                // Place the item in the selected hotbar slot; skip if the slot is empty.
+                string item = Game.ItemInSlot(Game.SelectedHotbarSlot);
+                if (!string.IsNullOrEmpty(item))
+                {
+                    var t = FloorVec(hit.point + hit.normal * 0.5f);
+                    Game.Network.SendPlace(t.x, t.y, t.z, item);
+                }
             }
         }
 

@@ -58,9 +58,13 @@ namespace Spacecraft.Client
             pc.MouseSensitivity = shell.Settings.MouseSensitivity;
             pc.InvertY = shell.Settings.InvertY;
 
-            // Localized vitals HUD.
+            // Localized vitals HUD + hotbar.
             var hud = root.AddComponent<Hud>();
             hud.Game = boot;
+
+            // In-game gameplay menu (inventory / crafting / tech / ship), toggled with Tab.
+            var menu = root.AddComponent<GameMenu>();
+            menu.Game = boot;
 
             return root;
         }

@@ -99,13 +99,16 @@ Remaining before declaring M21 fully closed: an **in-Editor playtest** (publish 
 server, press Play, verify the loop) and any fixes it surfaces. A real **32×32 texture atlas**
 (replacing the palette) is deferred to M27.
 
-### M22 — Core gameplay UI (the survival/build loop)
-- **Hotbar** (drives the selected item; replaces hardcoded `PlaceItem`) + `SelectHotbarIntent`.
-- **Inventory** + **cargo** views (`InventoryUpdate`).
-- **Crafting** + **blueprint unlock** UI (`CraftIntent`/`UnlockBlueprintIntent`,
-  `CraftResult`), gated/feedback from server.
-- **Ship-module build** UI (`BuildShipModuleIntent`) incl. weapons/defense from M19.
-- Move from IMGUI to **uGUI/UI Toolkit** for these screens (HUD can stay light).
+### M22 — Core gameplay UI (the survival/build loop) — **DONE (code) / pending playtest**
+- **Hotbar** in the HUD (1–9 keys + scroll select; drives the placed item; sends
+  `SelectHotbarIntent`) — replaces the hardcoded place item.
+- **`GameMenu`** (Tab) with tabs: **Inventory + cargo** (`InventoryUpdate`), **Crafting**
+  (`CraftIntent`/`CraftResult`), **Tech** = blueprint unlock (`UnlockBlueprintIntent`), and
+  **Ship** = module build (`BuildShipModuleIntent`, incl. M19 weapons/defense). Opening the
+  menu frees the cursor and pauses the player; server feedback shows as a HUD toast.
+- Bilingual UI keys added (`ui.tab.*`, `ui.action.*`, `ui.hud.hint`).
+- IMGUI for now (consistent + testable without the Editor); **uGUI/UI Toolkit polish deferred**
+  to M27. Item-move/drag between slots needs new server intents — also deferred.
 
 ### M23 — Navigation, missions & feedback
 - **Star map** screen (`RequestStarMap`/`StarMapData`).

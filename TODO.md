@@ -94,8 +94,10 @@ consumes protocol messages that already exist.
   + spawn snap; curated per-block palette + per-face shading via a built-in vertex-colour shader;
   settings applied (sensitivity/invert-Y/view distance); Esc returns to menu. Real 32×32 texture
   atlas deferred to M27. *Next: publish the local server + press Play to playtest.*
-- **M22** — core gameplay UI: hotbar, inventory/cargo, crafting + blueprint unlock, ship-module
-  build (uGUI/UI Toolkit).
+- **M22 — core gameplay UI — code DONE, needs playtest.** HUD hotbar (1-9 + scroll, drives the
+  placed item via `SelectHotbarIntent`); `GameMenu` (Tab) with Inventory/cargo, Crafting,
+  Tech (blueprint unlock) and Ship (module build) tabs, all over existing intents; server
+  feedback as a HUD toast. IMGUI for now; uGUI polish + item drag-move deferred.
 - **M23** — star map, mission log, death/respawn + rules feedback.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,

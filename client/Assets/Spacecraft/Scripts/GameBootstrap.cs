@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Localization;
 using Spacecraft.Shared.World;
@@ -42,6 +43,33 @@ namespace Spacecraft.Client
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
+        // Latest authoritative inventory (personal + ship cargo) for the UI.
+        public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
+        public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
+
+        /// <summary>Hotbar slot the player has selected (written by the player controller).</summary>
+        public int SelectedHotbarSlot;
+
+        /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.</summary>
+        public bool MenuOpen;
+
+        /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
+        public string LastMessage { get; private set; } = string.Empty;
+
+        /// <summary>The item key in a personal inventory slot, or empty if none.</summary>
+        public string ItemInSlot(int slot)
+        {
+            foreach (var s in Personal)
+            {
+                if (s.Slot == slot)
+                {
+                    return s.Item;
+                }
+            }
+
+            return string.Empty;
+        }
+
         private readonly Dictionary<ChunkCoord, GameObject> _chunkObjects = new Dictionary<ChunkCoord, GameObject>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
 
@@ -66,8 +94,10 @@ namespace Spacecraft.Client
             Network.ChunkReceived += OnChunk;
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
-            Network.ActionRejected += m => Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");
-            Network.ServerMessageReceived += m => Debug.Log(m.Text);
+            Network.InventoryUpdated += m => { Personal = m.Personal; Cargo = m.Cargo; };
+            Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
+            Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };
+            Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = m.Text; };
 
             // Connect now; the join handshake is sent once the transport reports Connected
             // (UDP connect is asynchronous — sending the join before that would be dropped).
