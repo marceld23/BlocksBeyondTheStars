@@ -93,7 +93,8 @@ public static class StationGenerator
     public static StationStructure Generate(string sizeTier, long seed, GameContent content)
     {
         var (moduleCount, floors) = Layout(sizeTier);
-        var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ sizeTier.GetHashCode()));
+        // Stable hash (string.GetHashCode is randomized per process) → deterministic across runs.
+        var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash(sizeTier)));
 
         ushort hull = content.GetBlock("iron_wall")?.NumericId.Value ?? 0;
         ushort glass = content.GetBlock("glass")?.NumericId.Value ?? 0;

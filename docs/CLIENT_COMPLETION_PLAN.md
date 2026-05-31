@@ -505,9 +505,20 @@ Let players **dismantle crafted equipment** back into its parts at the **worksho
   crafting tab. Reuses the recipe data (inputs) and the crafting/station system — no new content.
 - Lets players **recover materials** from unwanted/obsolete gear and re-tier their loadout.
 
-### Planet settlements & NPC towns — NEW (planned)
+### Planet settlements & NPC towns — **generator DONE (server) / stamping + NPCs planned**
 Some planets are **inhabited** — settlements you can walk into, populated by NPCs (the
 planet-side counterpart to space stations), server-authoritative:
+
+- **Procedural generator DONE:** `SettlementGenerator` lays out **buildings on a plot grid** (with
+  streets between) baked into one voxel structure to stamp on the terrain. **Villages** are
+  single-storey huts in the **biome's surface block** (mud/stone/…); **towns** are multi-storey
+  `iron_wall`+`glass` buildings with **ladders** between floors (new `ladder`/`stairs` blocks, also
+  player-craftable). Each building is a hollow room with a door + window band. Markers: one
+  **vendor** (market barter), one **mission_board**, the rest **npc** spawns; the settlement's
+  inhabitants are **human or alien**. A **ruined** variant runs a decay pass (drops ~35 % of blocks,
+  flora overgrowth, no NPCs, scatters **loot**) for explorable abandoned sites. Deterministic from
+  the seed (stable hash). 6 tests. **Still planned:** stamping onto the world at generation, NPC
+  rendering/behaviour, and the vendor/mission interactions.
 
 - **Where & whether:** only **some** worlds have settlements (seed + planet/biome derived,
   admin-overridable) — barren/hostile worlds none, hospitable ones one or more. Placement is on

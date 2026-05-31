@@ -46,6 +46,8 @@
   { "key": "oxygen_tank_2",   "nameKey": "item.oxygen_tank_2.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_tank_2.desc", "oxygenBonus": 50 },
   { "key": "suit_lamp",       "nameKey": "item.suit_lamp.name",       "category": "component",  "maxStack": 1,  "descriptionKey": "item.suit_lamp.desc" },
   { "key": "radar_scanner",   "nameKey": "item.radar_scanner.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.radar_scanner.desc" },
+  { "key": "ladder",          "nameKey": "item.ladder.name",          "category": "block",      "maxStack": 99, "placesBlock": "ladder" },
+  { "key": "stairs",          "nameKey": "item.stairs.name",          "category": "block",      "maxStack": 99, "placesBlock": "stairs" },
 
   { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },

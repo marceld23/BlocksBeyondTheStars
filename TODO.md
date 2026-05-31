@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **202 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **208 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -230,13 +230,12 @@ consumes protocol messages that already exist.
   (`DisassembleIntent`/`Disassemble`) breaks a crafted item back into ~half its recipe components
   (`DisassemblyRecoveryRate`, server-tunable); needs a workshop + the item, rejects raw/un-craftable
   items. `SendDisassemble` exists; crafting-tab button pending. 3 tests.
-- **(NEW, planned) Planet settlements & NPC towns:** some worlds have settlements — **primitive
-  villages** (single-storey huts) or **modern towns** (multi-storey buildings) — populated by
-  **human or alien NPCs**, with **mission boards** + **NPC traders** (like space stations, but
-  planet-side). Also **ruins of abandoned settlements**: the same templates in a decayed state
-  (collapsed/overgrown, no living NPCs), explorable for **salvage/loot** rather than services.
-  Reuses voxel stamping + station interactions + missions + trading + loot + the avatar/creature
-  renderer. See CLIENT_COMPLETION_PLAN "Planet settlements & NPC towns".
+- **Planet settlements & NPC towns — generator DONE (server).** `SettlementGenerator` lays out
+  buildings on a plot grid into one voxel structure: **villages** (single-storey, biome material),
+  **towns** (multi-storey iron/glass with **ladders** between floors), plus a **ruined** variant
+  (decay pass, no NPCs, loot). Markers: vendor / mission_board / npc; inhabitants human or alien.
+  New `ladder`/`stairs` blocks (player-craftable). Deterministic (stable hash). 6 tests. Still
+  planned: stamp into the world, NPC render/behaviour, vendor/mission interactions.
 - **(NEW, planned) Crashed ship wrecks:** **rare** abandoned/crashed ships on planet surfaces —
   derelict voxel hulls (from `ships.json`) in a crashed pose (tilted/half-buried, breached via a
   decay pass), explorable for **salvage/loot** (containers, cargo, modules, data/lore), with
@@ -319,7 +318,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (202)
+dotnet test                      # expect all green (208)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side
