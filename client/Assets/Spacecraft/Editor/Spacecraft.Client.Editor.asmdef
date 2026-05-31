@@ -1,0 +1,12 @@
+{
+  "name": "Spacecraft.Client.Editor",
+  "rootNamespace": "Spacecraft.Client.EditorTools",
+  "references": [
+    "Spacecraft.Client"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

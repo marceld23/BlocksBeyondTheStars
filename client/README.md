@@ -60,6 +60,20 @@ client only renders the authoritative world it streams back.
 > Use an otherwise-empty launcher scene — `WorldRig` disables any pre-existing scene cameras so
 > only the player camera renders in-game.
 
+## Building a Windows player (.exe)
+
+For a self-contained singleplayer build, sync content + bundle the server, then build:
+
+```powershell
+../scripts/sync-client-libs.ps1
+../scripts/publish-local-server.ps1
+../scripts/build-client.ps1            # uses Unity 6000.4.x in batch mode
+```
+
+`build-client.ps1` runs `Spacecraft/Build Windows Player` (an editor menu item too) which
+generates the launcher scene (one `AppShell` object) and writes `Build/Windows/Spacecraft.exe`.
+Everything under `Assets/StreamingAssets/` (data + the published server) is bundled automatically.
+
 ## Scripts (`Assets/Spacecraft/Scripts/`)
 
 | Script | Role |

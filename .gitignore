@@ -17,6 +17,7 @@ client/Obj/
 client/Build/
 client/Builds/
 client/Logs/
+client/build.log
 client/UserSettings/
 client/MemoryCaptures/
 client/Recordings/
