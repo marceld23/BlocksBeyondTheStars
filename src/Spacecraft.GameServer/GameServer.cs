@@ -100,6 +100,7 @@ public sealed partial class GameServer
         InitWeather();
         BuildMissions();
         LoadLandingZones();
+        LoadContainers();
         if (_config.PlaceStarterShip)
         {
             StampShip();
@@ -381,7 +382,7 @@ public sealed partial class GameServer
 
             if (capsule.Items.Count > 0)
             {
-                _repo.SaveContainer(capsule);
+                AddContainer(capsule); // persists + tracks + broadcasts (now lootable)
                 salvaged = true;
             }
         }
@@ -514,6 +515,7 @@ public sealed partial class GameServer
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
+            case LootContainerIntent loot: HandleLootContainer(session, loot); break;
         }
     }
 
@@ -575,6 +577,7 @@ public sealed partial class GameServer
         SendOwnedShips(session);
         SendEnvironment(session);
         SendCreatures(session);
+        SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");

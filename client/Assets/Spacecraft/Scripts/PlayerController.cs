@@ -85,6 +85,11 @@ namespace Spacecraft.Client
                 AttackNearestEnemy();
             }
 
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                LootNearestContainer();
+            }
+
             HandleHotbar();
             LookAround();
             Move();
@@ -133,6 +138,31 @@ namespace Spacecraft.Client
             if (nearest != null)
             {
                 Game.Network.SendAttackEntity(nearest);
+            }
+        }
+
+        private void LootNearestContainer()
+        {
+            if (Game?.Network == null)
+            {
+                return;
+            }
+
+            string nearest = null;
+            float bestSq = 6f * 6f; // loot reach
+            foreach (var c in Game.Containers)
+            {
+                float d = (new Vector3(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - transform.position).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    nearest = c.Id;
+                }
+            }
+
+            if (nearest != null)
+            {
+                Game.Network.SendLootContainer(nearest);
             }
         }
 

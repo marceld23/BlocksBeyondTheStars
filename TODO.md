@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **158 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **161 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -151,9 +151,11 @@ consumes protocol messages that already exist.
   → mineral drops, via the existing `FireWeapon`/`AsteroidDestruction` path. 2 tests. Still planned:
   **collision damage** (flying into an asteroid) + **tractor beam** add-on (collect drops into
   cargo) — both need an authoritative ship position/velocity in space.
-- **(NEW, planned) Combat loot:** destroyed ships (player/NPC) drop (part of) their cargo as
-  tractor-collectable salvage; planet PvP leaves a **lootable corpse** with the victim's full
-  carried inventory (victim respawns without it) that persists until emptied. Rules-gated. See plan.
+- **Combat loot — lootable containers DONE.** The death-drop salvage capsule is now a **lootable
+  container** (`GameServerContainers`): tracked + persisted, `LootContainer` transfers contents to a
+  nearby player (proximity-checked, partial if full, despawns when emptied); `ContainerList`/
+  `NetContainer` + `LootContainerIntent` + client hook (**G** loots nearest). 3 tests. Planned:
+  **PvP corpses** with the full inventory (needs PvP damage) + **ship-salvage** drops + tractor.
 - **Atmosphere & breathability — slice DONE (server + HUD).** `PlanetType.Atmosphere`
   (breathable/toxic/none) per planet; the oxygen tick regenerates on breathable worlds, drains on
   toxic/airless (global oxygen rule still gates). `WorldEnvironment.Breathable` → HUD marks oxygen
@@ -255,7 +257,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (158)
+dotnet test                      # expect all green (161)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

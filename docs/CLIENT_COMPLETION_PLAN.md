@@ -337,7 +337,20 @@ Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
   abstract today) — schedule with the M25b flight deepening. Tractor/weapons fit the existing
   ship-module + build system.
 
-### Combat loot: salvage & corpses — NEW (planned)
+### Combat loot: salvage & corpses — **lootable containers DONE / ship salvage planned**
+Implemented (server + protocol + client hook): the M10 death-drop salvage capsule is now a
+**lootable container**. `GameServerContainers` tracks world containers (loaded at start, persisted),
+the death path drops one with the victim's carried (non-tool) items, and **`LootContainer`** lets a
+nearby player transfer the contents into their inventory (proximity-validated; partial loot if the
+inventory is full; the capsule **despawns once emptied**). Sent via `ContainerList`/`NetContainer`
+(on join + on change); `LootContainerIntent` + a client hook (**G** loots the nearest container).
+This generalises the salvage capsule into the **lootable corpse** others can open. 3 tests (death
+drops a lootable capsule, looting transfers + despawns, out-of-range rejected). Suite 161 green.
+Still planned (below): **PvP corpses** carrying the *full* inventory (needs PvP damage), and
+**ship-salvage drops** in space collected by the tractor beam.
+
+Original notes (remaining work):
+
 Reward winning fights (only where the world's rules permit combat — `SpaceCombat`/`ShipWeapons`/
 PvP settings; never in protected zones):
 

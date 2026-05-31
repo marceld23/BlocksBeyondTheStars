@@ -134,6 +134,12 @@ public sealed class ConsumeItemIntent
     public string ItemKey { get; set; } = string.Empty;
 }
 
+/// <summary>Client loots a nearby container (salvage capsule / corpse). Server validates proximity + transfers.</summary>
+public sealed class LootContainerIntent
+{
+    public string ContainerId { get; set; } = string.Empty;
+}
+
 /// <summary>Client uses a ship station it is standing next to (medbay heal-tank, cockpit, quarters, ...).</summary>
 public sealed class UseStationIntent
 {
@@ -473,6 +479,23 @@ public sealed class NetCreature
 public sealed class CreatureList
 {
     public NetCreature[] Creatures { get; set; } = System.Array.Empty<NetCreature>();
+}
+
+/// <summary>A lootable container in the world — a salvage capsule or a defeated player's corpse.</summary>
+public sealed class NetContainer
+{
+    public string Id { get; set; } = string.Empty;
+    public string Kind { get; set; } = "container";
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public int ItemCount { get; set; }
+}
+
+/// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.</summary>
+public sealed class ContainerList
+{
+    public NetContainer[] Containers { get; set; } = System.Array.Empty<NetContainer>();
 }
 
 /// <summary>Where the player's ship hull stands in the world (for the HUD minimap / compass).</summary>
