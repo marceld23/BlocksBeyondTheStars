@@ -250,6 +250,7 @@ public sealed partial class GameServer
         TickEnvironment(deltaSeconds);
         TickSpace(deltaSeconds);
         TickEnemies(deltaSeconds);
+        TickPresence(deltaSeconds);
         StreamChunks();
 
         _sinceAutoSave += deltaSeconds;
@@ -421,6 +422,7 @@ public sealed partial class GameServer
             LeaveSpace(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
+            Broadcast(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar elsewhere
         }
 
         _sessions.Remove(connectionId);
@@ -469,6 +471,7 @@ public sealed partial class GameServer
             case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
+            case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
         }
     }
 
@@ -527,6 +530,7 @@ public sealed partial class GameServer
         SendShipCombatStatus(session);
         SendShipPlacement(session);
         SendShipStations(session);
+        SendExistingPresences(session); // show already-online players to the newcomer
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }

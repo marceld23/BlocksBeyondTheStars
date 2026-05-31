@@ -112,6 +112,10 @@ consumes protocol messages that already exist.
   from the cockpit), mission-log tab (accept/turn-in), respawn/rules/craft feedback as HUD
   toasts — all over existing protocol.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
+- **M24 — multiplayer presence — presence DONE (needs LAN playtest); docking-UI + join-polish
+  pending.** Server broadcasts PlayerPresence (pos + colours) + PlayerLeft; clients send colours
+  on join; `RemotePlayers` renders other players as coloured avatars with nameplates. Still to
+  do: docking request/accept UI, protocol-mismatch/disconnect handling in the shell.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,
   planet enemies) for the M19 server systems.
 - **M26** — audio (buses from `ClientSettings`, SFX + music). **M27** — art & polish (full atlas,

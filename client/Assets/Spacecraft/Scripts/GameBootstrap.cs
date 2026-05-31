@@ -27,6 +27,12 @@ namespace Spacecraft.Client
         [Header("Rendering")]
         public Material ChunkMaterial;
 
+        // Our avatar colours (packed 0xRRGGBB), set by WorldRig; sent to the server on join.
+        public int SkinRgb = 0xD9AE8C;
+        public int TorsoRgb = 0x3372CC;
+        public int ArmRgb = 0x3372CC;
+        public int LegRgb = 0x40404F;
+
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
         public NetworkClient Network { get; private set; }
@@ -164,6 +170,7 @@ namespace Spacecraft.Client
                 if (Network.Connected)
                 {
                     Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password);
+                    Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb);
                     _joinSent = true;
                 }
                 else

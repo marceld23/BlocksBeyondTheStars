@@ -14,12 +14,14 @@ namespace Spacecraft.Client
         private readonly List<Renderer> _renderers = new List<Renderer>();
         private Material _skin, _torso, _arms, _legs;
 
-        public void Build(ClientSettings s)
+        public void Build(ClientSettings s) => Build(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor);
+
+        public void Build(Color skin, Color torso, Color arms, Color legs)
         {
-            _skin = Unlit(s.SkinColor);
-            _torso = Unlit(s.TorsoColor);
-            _arms = Unlit(s.ArmColor);
-            _legs = Unlit(s.LegColor);
+            _skin = Unlit(skin);
+            _torso = Unlit(torso);
+            _arms = Unlit(arms);
+            _legs = Unlit(legs);
 
             // Local positions are relative to the player's feet (CharacterController origin).
             AddPart("Head", new Vector3(0f, 1.65f, 0f), new Vector3(0.5f, 0.5f, 0.5f), _skin);

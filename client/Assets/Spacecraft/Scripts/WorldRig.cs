@@ -28,6 +28,10 @@ namespace Spacecraft.Client
             boot.PlayerName = string.IsNullOrWhiteSpace(shell.PlayerName) ? "Pilot" : shell.PlayerName;
             boot.German = shell.Settings.Language == "de";
             boot.ChunkMaterial = material;
+            boot.SkinRgb = Rgb(shell.Settings.SkinColor);
+            boot.TorsoRgb = Rgb(shell.Settings.TorsoColor);
+            boot.ArmRgb = Rgb(shell.Settings.ArmColor);
+            boot.LegRgb = Rgb(shell.Settings.LegColor);
 
             // Only our camera should render in-game; disable any pre-existing scene cameras.
             foreach (var existing in Camera.allCameras)
@@ -75,7 +79,14 @@ namespace Spacecraft.Client
             menu.Game = boot;
             pc.Menu = menu;
 
+            // Render other players (multiplayer presence).
+            var remotes = root.AddComponent<RemotePlayers>();
+            remotes.Game = boot;
+
             return root;
         }
+
+        private static int Rgb(Color c)
+            => (Mathf.RoundToInt(c.r * 255f) << 16) | (Mathf.RoundToInt(c.g * 255f) << 8) | Mathf.RoundToInt(c.b * 255f);
     }
 }

@@ -134,6 +134,15 @@ public sealed class UseStationIntent
     public string Station { get; set; } = string.Empty;
 }
 
+/// <summary>Client tells the server its avatar colours (packed 0xRRGGBB) so other players can see them.</summary>
+public sealed class SetAppearanceIntent
+{
+    public int Skin { get; set; }
+    public int Torso { get; set; }
+    public int Arms { get; set; }
+    public int Legs { get; set; }
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -431,4 +440,27 @@ public sealed class NetShipStation
 public sealed class ShipStations
 {
     public NetShipStation[] Stations { get; set; } = System.Array.Empty<NetShipStation>();
+}
+
+/// <summary>Authoritative state of another player, for rendering them (avatar + nameplate).</summary>
+public sealed class PlayerPresence
+{
+    public string PlayerId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public float Yaw { get; set; }
+
+    // Avatar colours, packed 0xRRGGBB.
+    public int Skin { get; set; }
+    public int Torso { get; set; }
+    public int Arms { get; set; }
+    public int Legs { get; set; }
+}
+
+/// <summary>A player left; the client removes their avatar.</summary>
+public sealed class PlayerLeft
+{
+    public string PlayerId { get; set; } = string.Empty;
 }

@@ -198,12 +198,20 @@ Original notes:
   `CraftResult`/`ActionRejected`/`ServerMessage` all surface as HUD toasts.
 - Data-driven tabs re-request on open. All over existing protocol — no server change.
 
-### M24 — Multiplayer presence
-- Render **other players** from `PlayerStateUpdate` (avatar + nameplate), interpolation.
-- **Docking** UI: request/accept/decline/undock (`DockRequest*`/`DockResponse*`/`Undock`,
+### M24 — Multiplayer presence — **partly DONE (presence) / docking-UI + join-polish pending**
+Implemented:
+- Server **broadcasts presence** (`PlayerPresence`, ~10 Hz) of each player to the others with
+  position + heading + **avatar colours**, sends existing players to a newcomer, and announces
+  `PlayerLeft` on disconnect. Clients send their colours on join (`SetAppearanceIntent`).
+- Client `RemotePlayers` renders each other player as a coloured blocky avatar with a floating
+  **nameplate**, interpolated to the latest position. (Verified by server-side presence tests.)
+
+Remaining in M24 (still pending):
+- **Docking UI**: request/accept/decline/undock buttons (`DockRequest*`/`DockResponse*`/`Undock`,
   `DockRequestNotice`/`DockStatus`) — server M18 already enforces it.
-- Join/host flow polish: **protocol-mismatch** warning (`JoinRejected`), disconnect/reconnect,
-  server-unreachable handling.
+- **Join/host polish**: protocol-mismatch warning (`JoinRejected`), disconnect/reconnect and
+  server-unreachable handling in the shell.
+- Not playtestable in singleplayer (needs 2 clients / LAN).
 
 ### M25 — Space flight & combat (client for M19)
 - **Enter/leave space** (`EnterSpaceIntent`/`LeaveSpaceIntent`, `SpaceState`/`SpaceClosed`).
@@ -217,11 +225,19 @@ Original notes:
 - UI clicks, mining/placing, ship hums, docking, alarms, respawn, combat; menu music.
 - Sourced as CC0/permissive only; record each in `NOTICES.md`.
 
-### M27 — Art & polish
-- Finalize the **texture atlas** (all material groups from `anf_textures.md`), module colour
-  codes; first-person **tool/hand** visuals; mining/placing **feedback** (particles, outline).
+### M27 — Art, icons & polish
+- **Textures:** finalize a proper **block texture atlas** (all material groups from
+  `anf_textures.md`) replacing the flat per-block palette; module colour codes; first-person
+  **tool/hand** visuals; mining/placing **feedback** (particles, outline).
+- **Icons & symbols (game + menus):** a real icon set replacing the current text/emoji
+  placeholders — item/hotbar icons, station/compass/minimap symbols, mission & map markers,
+  HUD vitals icons (health/oxygen/energy), and menu button/tab icons. Ship the UI on
+  **uGUI/UI Toolkit** with a consistent visual style (the M20 colours/branding), not raw IMGUI.
+- **Avatar:** swappable part shapes/cosmetics beyond colours; walk/idle animation.
 - **Pause menu**, in-game settings, accessibility flags applied (reduced effects, larger UI),
   animated/main-menu background (optional).
+- Every bundled asset (textures, icons, fonts, audio) recorded in `NOTICES.md`, permissive
+  licences only.
 
 ### M28 — Build & distribution
 - Windows **player build** (.exe) bundling the server (Option A), data and assets; first-run.

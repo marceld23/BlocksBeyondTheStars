@@ -46,6 +46,10 @@ namespace Spacecraft.Client
         public event Action<RespawnNotice> RespawnNoticeReceived;
         public event Action<ServerRules> ServerRulesReceived;
 
+        // Multiplayer presence (M24).
+        public event Action<PlayerPresence> PlayerPresenceReceived;
+        public event Action<PlayerLeft> PlayerLeftReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -108,6 +112,9 @@ namespace Spacecraft.Client
 
         public void SendTurnInMission(string missionId) => Send(new TurnInMissionIntent { MissionId = missionId });
 
+        public void SendAppearance(int skin, int torso, int arms, int legs)
+            => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -142,6 +149,8 @@ namespace Spacecraft.Client
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;
                 case RespawnNotice m: RespawnNoticeReceived?.Invoke(m); break;
                 case ServerRules m: ServerRulesReceived?.Invoke(m); break;
+                case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
+                case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
             }
         }
 
