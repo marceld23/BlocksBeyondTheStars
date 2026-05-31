@@ -6,9 +6,10 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**None.** As of milestone M20 the client ships **no third-party art or audio**. All visuals
-are runtime-generated placeholders (flat block colours, IMGUI text); there is no texture
-atlas, model, sound, music or custom font bundled. See
+**None.** The client ships **no third-party art or audio files**. All visuals are
+runtime-generated placeholders (flat/vertex block colours, code-built avatars, IMGUI text) and
+all sound effects are **generated procedurally in code** (`ClientAudio`); there is no texture
+atlas, model, sound/music file or custom font bundled. See
 `docs/CLIENT_SHELL_AND_ASSETS.md` for the placeholder strategy and the asset folder layout
 real assets will drop into later.
 

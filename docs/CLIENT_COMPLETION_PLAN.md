@@ -241,10 +241,14 @@ Today there is one hardcoded ship. Grow this into a real ship system:
 - Builds on M23a (ship-as-place) + the module system; needs a ship registry + persistence of
   owned ships. Sizeable — schedule after the core client (M26–M28) or interleave per appetite.
 
-### M26 — Audio
-- Add the Unity **audio module**; implement the master/music/sfx buses from `ClientSettings`.
-- UI clicks, mining/placing, ship hums, docking, alarms, respawn, combat; menu music.
-- Sourced as CC0/permissive only; record each in `NOTICES.md`.
+### M26 — Audio — **DONE (procedural SFX) / recorded audio + music later**
+- Unity **audio module** enabled; `AudioListener` on the player camera; master/SFX volumes from
+  `ClientSettings` applied (`ClientAudio`).
+- **Procedural SFX** generated in code (no bundled files): mining vs placing (from
+  `BlockChanged`), craft success/failure, rejection, ship hit (hull drop). Played via the
+  master×SFX bus.
+- Later: real **recorded SFX** (ship hums, doors/airlock/docking, alarms, respawn, weapons) +
+  **music**, sourced CC0/permissive and recorded in `NOTICES.md`; full music/ambient bus.
 
 ### M27 — Art, icons & polish
 - **Textures:** finalize a proper **block texture atlas** (all material groups from

@@ -54,6 +54,7 @@ namespace Spacecraft.Client
             camGo.transform.SetParent(player.transform);
             camGo.transform.localPosition = new Vector3(0f, 1.6f, 0f);
             var cam = camGo.AddComponent<Camera>();
+            camGo.AddComponent<AudioListener>(); // hear procedural SFX (M26)
             camGo.tag = "MainCamera";
 
             // Blocky avatar (shown in third-person), coloured from the player's settings.
@@ -88,6 +89,11 @@ namespace Spacecraft.Client
             // Render planet enemies (M25).
             var entities = root.AddComponent<WorldEntities>();
             entities.Game = boot;
+
+            // Procedural sound effects (M26).
+            var audio = root.AddComponent<ClientAudio>();
+            audio.Game = boot;
+            audio.Settings = shell.Settings;
 
             return root;
         }
