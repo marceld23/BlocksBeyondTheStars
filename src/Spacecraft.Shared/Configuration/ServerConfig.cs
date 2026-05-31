@@ -75,6 +75,12 @@ public sealed class ServerConfig
     /// <summary>Whether to stamp the enterable starter-ship hull at the start landing zone (M23a).</summary>
     public bool PlaceStarterShip { get; set; } = true;
 
+    /// <summary>
+    /// Whether the server may stamp a procedural settlement on the start planet's surface (away
+    /// from the landing zone) when the planet + seed call for one.
+    /// </summary>
+    public bool PlaceSettlements { get; set; } = true;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
