@@ -87,6 +87,12 @@ public sealed partial class GameServer
         {
             var pos = new Vector3f(ax + m.LocalPos.X + 0.5f, baseY + m.LocalPos.Y + 0.5f, az + m.LocalPos.Z + 0.5f);
             _wreckMarkers.Add((m.Type, pos));
+
+            // Loot caches, the recoverable module and the data terminal are all scavengeable.
+            if (m.Type is "loot" or "module" or "data_terminal")
+            {
+                SpawnStructureLoot("wreck", m.Type, pos, rng);
+            }
         }
 
         _wreckStamped = true;

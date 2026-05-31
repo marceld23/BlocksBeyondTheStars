@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **222 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **226 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -239,15 +239,18 @@ consumes protocol messages that already exist.
   **Stamping DONE:** `StampSettlement` (gated by `ServerConfig.PlaceSettlements`) places one per
   planet+seed (airless/lifeless worlds get none) with a flattened foundation, offset from the
   landing zone; intact = mining-protected (`IsSettlementBlock`), ruins scavengeable; generated name
-  + world-space markers. 4 stamp tests (10 total). Still planned: NPC render/behaviour +
-  vendor/mission marker interactions.
+  + world-space markers. **Vendor → market barter** near a vendor marker (`NearSettlementVendor`);
+  **ruin loot** markers spawn scavengeable containers. 12 tests. Still planned: NPC render/behaviour
+  + mission-board interaction.
 - **Crashed ship wrecks — generator + stamping DONE (server).** `WreckGenerator` builds a wreck
   from a `ships.json` hull (iron/glass, or crystal for alien wrecks), keeps the intact hull as a
   **repair mask**, then decays it (breaches + scorch + a guaranteed crash gash so it's enterable).
   `GameServerWrecks.StampWreck` (gated by `ServerConfig.PlaceWrecks`) places one **rarely** per
   planet+seed, half-buried, offset from the landing zone + settlement; **not protected** (freely
-  scavengeable); generated name + world-space loot/module/data_terminal markers. 10 tests (6 gen +
-  4 stamp). Still planned: loot/module/terminal interactions + **repair-into-a-flyable-owned-ship**.
+  scavengeable); generated name + world-space loot/module/data_terminal markers. **Loot DONE:**
+  those markers spawn scavengeable containers (salvage / components / data) via the shared loot
+  flow, guarded by `WorldMetadata.GeneratedLoot` so they don't respawn on reload. 12 tests. Still
+  planned: **repair-into-a-flyable-owned-ship**.
 - **Hunger & eating (survival) — slice DONE (server + HUD).** `PlayerState.Hunger` (persisted)
   drains outside the ship, sates aboard, **starves health at 0**; gated by `Rules.Hunger`+Survival.
   **Eating** refills it (`ItemDefinition.ConsumeHunger`): `creature_meat` (+30) and **edible plants**
@@ -322,7 +325,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (222)
+dotnet test                      # expect all green (226)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

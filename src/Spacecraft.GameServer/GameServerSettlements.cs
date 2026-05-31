@@ -100,6 +100,12 @@ public sealed partial class GameServer
         {
             var pos = new Vector3f(origin.X + m.LocalPos.X + 0.5f, groundY + m.LocalPos.Y + 0.5f, origin.Z + m.LocalPos.Z + 0.5f);
             _settlementMarkers.Add((m.Type, pos));
+
+            // Ruined settlements leave scavengeable loot caches at their loot markers.
+            if (m.Type == "loot")
+            {
+                SpawnStructureLoot("settlement", m.Type, pos, rng);
+            }
         }
 
         _settlementStamped = true;
@@ -130,6 +136,22 @@ public sealed partial class GameServer
         string root = roots[rng.Next(roots.Length)];
         string suffix = (tier == "town" ? townSuffix : villageSuffix)[rng.Next(5)];
         return ruined ? $"Ruins of {root}{suffix}" : $"{root}{suffix}";
+    }
+
+    private const float SettlementVendorReach = 4f;
+
+    /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
+    public bool NearSettlementVendor(Shared.State.PlayerState player)
+    {
+        foreach (var (type, pos) in _settlementMarkers)
+        {
+            if (type == "vendor" && player.Position.DistanceSquared(pos) <= SettlementVendorReach * SettlementVendorReach)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>

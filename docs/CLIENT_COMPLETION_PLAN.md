@@ -579,8 +579,11 @@ planet-side counterpart to space stations), server-authoritative:
   freely scavengeable; their loot/module/data_terminal markers are exposed in world space, and the
   generated **name** (e.g. "Wreck of the SC-417", "Derelict KV-822") + the intact-hull repair mask
   are kept for the later rebuild flow. Deterministic from the seed. 4 stamp tests (named + loot
-  markers, real blocks stamped, not protected/mineable, deterministic). **Still planned:** the
-  loot/module/terminal interactions and the repair-into-a-flyable-ship flow.
+  markers, real blocks stamped, not protected/mineable, deterministic). **Loot DONE:** the
+  loot/module/data_terminal markers spawn **scavengeable containers** (general salvage / recoverable
+  components / data fragments) via the shared loot flow; each is generated once and guarded by
+  `WorldMetadata.GeneratedLoot` so it never respawns on reload (even after being looted). **Still
+  planned:** the repair-into-a-flyable-ship flow.
 
 - **Procedural generator DONE:** `WreckGenerator` builds a wreck from a known `ShipDefinition` hull
   (hollow `iron_wall`+`glass` shell, or `crystal` for **alien** wrecks), keeps the full intact hull

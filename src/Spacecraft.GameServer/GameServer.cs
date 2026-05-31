@@ -116,6 +116,9 @@ public sealed partial class GameServer
             StampWreck();
         }
 
+        // Persist any newly generated structure-loot guard keys so caches don't respawn on reload.
+        _repo.SaveMetadata(_meta);
+
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
         _transport.PayloadReceived += OnPayload;
@@ -1279,8 +1282,11 @@ public sealed partial class GameServer
         return moduleKey.Length > 0 && _ship.HasModule(moduleKey);
     }
 
-    /// <summary>Whether the player can use a market (barter) trade station — the ship's trade console (aboard).</summary>
-    private static bool MarketAvailable(PlayerState player) => player.AboardShip;
+    /// <summary>
+    /// Whether the player can use a market (barter) trade station — either the ship's trade console
+    /// (aboard) or standing next to a settlement vendor.
+    /// </summary>
+    private bool MarketAvailable(PlayerState player) => player.AboardShip || NearSettlementVendor(player);
 
     private void SaveAll()
     {
