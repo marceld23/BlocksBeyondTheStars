@@ -106,4 +106,70 @@ public sealed class ServerConfig
 
     public static ServerConfig FromJson(string json)
         => JsonSerializer.Deserialize<ServerConfig>(json, Options) ?? new ServerConfig();
+
+    /// <summary>
+    /// Applies <c>--key value</c> command-line overrides onto this config. Used to embed/launch
+    /// the server programmatically — e.g. the Unity client's local singleplayer host passes a
+    /// port, a private saves dir and the data dir. Unknown keys are ignored; missing trailing
+    /// values are safe. Returns the canonical names of the keys that were applied.
+    /// </summary>
+    public IReadOnlyList<string> ApplyCommandLine(string[]? args)
+    {
+        var applied = new List<string>();
+        if (args is null)
+        {
+            return applied;
+        }
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            var key = args[i];
+            if (string.IsNullOrEmpty(key) || !key.StartsWith("--", StringComparison.Ordinal) || i + 1 >= args.Length)
+            {
+                continue;
+            }
+
+            var value = args[++i]; // consume the value
+            switch (key.Substring(2).ToLowerInvariant())
+            {
+                case "port":
+                case "gameplay-port":
+                    if (int.TryParse(value, out var gp)) { GameplayPort = gp; applied.Add("port"); }
+                    break;
+                case "admin-port":
+                    if (int.TryParse(value, out var ap)) { AdminPort = ap; applied.Add("admin-port"); }
+                    break;
+                case "saves":
+                case "saves-root":
+                    SavesRoot = value; applied.Add("saves");
+                    break;
+                case "data":
+                case "data-dir":
+                    DataDir = value; applied.Add("data");
+                    break;
+                case "world":
+                case "world-name":
+                    WorldName = value; applied.Add("world");
+                    break;
+                case "name":
+                case "server-name":
+                    ServerName = value; applied.Add("name");
+                    break;
+                case "max-players":
+                    if (int.TryParse(value, out var mp)) { MaxPlayers = mp; applied.Add("max-players"); }
+                    break;
+                case "password":
+                    ServerPassword = value; applied.Add("password");
+                    break;
+                case "seed":
+                    if (long.TryParse(value, out var sd)) { Seed = sd; applied.Add("seed"); }
+                    break;
+                case "admin-bind":
+                    AdminBindAddress = value; applied.Add("admin-bind");
+                    break;
+            }
+        }
+
+        return applied;
+    }
 }

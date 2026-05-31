@@ -12,10 +12,18 @@ string configPath = Path.Combine(installDir, "config", "server.json");
 
 var config = ServerConfig.Load(configPath);
 
+// Command-line overrides (e.g. the client's local singleplayer host passes --port/--saves/--data).
+var appliedOverrides = config.ApplyCommandLine(args);
+
 string dataDir = ResolveDataDir(installDir, config.DataDir);
 string savesRoot = Path.IsPathRooted(config.SavesRoot) ? config.SavesRoot : Path.Combine(installDir, config.SavesRoot);
 
 var logger = new ConsoleGameLogger(Path.Combine(savesRoot, config.WorldName, "logs", "server.log"));
+
+if (appliedOverrides.Count > 0)
+{
+    logger.Info($"Applied command-line overrides: {string.Join(", ", appliedOverrides)}.");
+}
 
 GameContent content;
 try

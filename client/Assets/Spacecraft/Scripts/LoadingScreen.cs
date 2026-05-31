@@ -9,10 +9,11 @@ namespace Spacecraft.Client
     /// </summary>
     public sealed class LoadingScreen
     {
-        private const float MinShowSeconds = 0.6f;
-
         private readonly AppShell _shell;
         private float _elapsed;
+
+        /// <summary>How long to hold the loading screen before launching (raised when hosting a local server).</summary>
+        public float MinShow = 0.6f;
 
         public LoadingScreen(AppShell shell) => _shell = shell;
 
@@ -25,7 +26,7 @@ namespace Spacecraft.Client
             }
 
             _elapsed += Time.deltaTime;
-            if (_elapsed >= MinShowSeconds)
+            if (_elapsed >= MinShow)
             {
                 _elapsed = 0f;
                 _shell.LaunchGame();

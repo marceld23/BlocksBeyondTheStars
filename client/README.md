@@ -26,6 +26,20 @@ This places `Spacecraft.Shared.dll`, `Spacecraft.WorldGeneration.dll`,
 > If Unity reports a duplicate of a `System.*` assembly it already ships, delete that one
 > DLL from `Assets/Plugins/`.
 
+### Singleplayer hosting (optional but recommended)
+
+"Singleplayer" launches the bundled dedicated server as a child process bound to loopback
+(Option A — `GameServer`/`Persistence` are net8.0 + native SQLite and can't run inside Unity).
+Publish the server into the client once:
+
+```powershell
+../scripts/publish-local-server.ps1
+```
+
+This builds a self-contained `Spacecraft.GameServer` into `Assets/StreamingAssets/server/`.
+The client reuses `StreamingAssets/data` and writes saves under the user's persistent data
+path. Without this step, use **Join Server** against a manually started server instead.
+
 ## Scene setup
 
 ### Launcher scene (front-end shell)
@@ -53,7 +67,8 @@ around and left/right-click to mine/place (the server validates every action).
 
 | Script | Role |
 |---|---|
-| `AppShell` | Front-end state machine: splash → menu → settings → loading → in-game; owns local settings + localizer |
+| `AppShell` | Front-end state machine: splash → menu → settings → loading → in-game; owns local settings + localizer; starts/stops the local server for Singleplayer |
+| `LocalServerLauncher` | Launches/stops the bundled dedicated server as a child process for Singleplayer (Option A) |
 | `ClientSettings` | Local-only display/audio/input/comfort settings, persisted as JSON |
 | `SplashScreen` / `MainMenu` / `SettingsScreen` / `LoadingScreen` | IMGUI shell screens driven by `AppShell` |
 | `NetworkClient` | Wraps the shared transport + codec; sends intents, raises typed state events |

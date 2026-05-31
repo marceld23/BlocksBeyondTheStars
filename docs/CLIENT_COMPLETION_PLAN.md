@@ -77,6 +77,13 @@ Each phase is independently shippable and leaves the game in a working state. Ph
 ordered for the **fastest path to fun**; M21 is the milestone that makes it "a game".
 
 ### M21 — Playable vertical slice ⭐
+> **Done ahead of M21 (Singleplayer hosting groundwork, Option A):** the server accepts
+> `--port/--saves/--data/--world/--name/--max-players` CLI overrides
+> (`ServerConfig.ApplyCommandLine`, unit-tested); `LocalServerLauncher` (Unity) starts/stops
+> the bundled server as a child process; `AppShell` launches it on "Singleplayer";
+> `scripts/publish-local-server.ps1` bundles the server into `StreamingAssets/server/`.
+> Remaining for M21: the in-game scene/rig, textures, settings application, connect readiness.
+
 - Assemble one **in-game scene/prefab**: player (CharacterController + camera + `PlayerController`),
   directional light, a **chunk material**, and the `Hud`, all spawned by `AppShell.LaunchGame`
   (replace the bare bootstrap).

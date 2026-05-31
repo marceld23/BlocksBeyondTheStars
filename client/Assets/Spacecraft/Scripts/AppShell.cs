@@ -36,6 +36,9 @@ namespace Spacecraft.Client
         private SettingsScreen _settings;
         private LoadingScreen _loading;
 
+        private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
+        private bool _hostLocal;
+
         private void Awake()
         {
             Settings = ClientSettings.Load();
@@ -74,15 +77,50 @@ namespace Spacecraft.Client
 
         public void StartSingleplayer()
         {
-            // Singleplayer = a local server in-process (same authoritative GameServer). Hosting
-            // the server inside the client is wired in a later step; for now we target loopback.
-            Host = "127.0.0.1";
+            // Singleplayer hosts the bundled dedicated server as a child process bound to
+            // loopback (Option A), then connects to it like any other server. Start it now so
+            // it has the loading-screen window to come up before the client connects.
+            _hostLocal = true;
+            if (_localServer.Start())
+            {
+                Host = _localServer.Host;
+                Port = _localServer.Port.ToString();
+                _loading.MinShow = 2.5f; // give the server time to start listening
+            }
+            else
+            {
+                // No bundled server (not published yet): fall back to a manually started one.
+                Host = "127.0.0.1";
+            }
+
             Phase = ShellPhase.Loading;
         }
 
-        public void StartJoin() => Phase = ShellPhase.Loading;
+        public void StartJoin()
+        {
+            _hostLocal = false;
+            _loading.MinShow = 0.6f;
+            Phase = ShellPhase.Loading;
+        }
 
-        public void Quit() => Application.Quit();
+        public void Quit()
+        {
+            StopLocalServer();
+            Application.Quit();
+        }
+
+        private void StopLocalServer()
+        {
+            if (_hostLocal)
+            {
+                _localServer.Stop();
+                _hostLocal = false;
+            }
+        }
+
+        private void OnApplicationQuit() => _localServer.Stop();
+
+        private void OnDestroy() => _localServer.Stop();
 
         /// <summary>Spawns the in-game bootstrap configured from the shell + settings.</summary>
         public void LaunchGame()
