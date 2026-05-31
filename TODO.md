@@ -195,7 +195,9 @@ consumes protocol messages that already exist.
   craftable ration. 5 tests. Still planned: **stealth suit** (invisible to creatures, harder to
   see for players), **improved scanner** (more knowledge), **improved drill / mining beam**, **suit
   armor + special helmets** (damage resistance + perks), **bigger oxygen tank**, **improved
-  flashlight**, **multi-tier radar scanner** (animals → players → material/flora on the HUD).
+  flashlight**, **multi-tier radar scanner** (animals → players → material/flora on the HUD),
+  **atmospheric O₂ extractor** (lowers oxygen drain in toxic atmo, per-planet efficiency; useless
+  when airless), and a **suit teleporter** (recall to ship; cooldown/energy cost).
   See CLIENT_COMPLETION_PLAN "Equipment & upgrades".
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,

@@ -936,9 +936,22 @@ in data, surfaced in the crafting/tech UI and the equipment slots.
   creatures/animals, **tier 2** other players, **tier 3** material deposits / flora / points of
   interest. Each tier widens what the HUD minimap + edge-arrows show (shares the space-radar style;
   colour-coded). Higher tiers cost more knowledge + materials and draw `SuitEnergy`.
-- Server owns the gameplay effects (stealth detection, resistances, oxygen/hunger maths, what the
-  radar may reveal); the client renders the HUD/visual side. Sequence with lighting + the scanner/
-  knowledge loop (done) + the radar + the UI/art pass.
+- **Atmospheric O₂ extractor (suit upgrade):** in a **non-breathable (toxic)** atmosphere the suit
+  can **slowly extract oxygen**, so the **net oxygen drain is lower** than normal (it doesn't refill,
+  just reduces consumption). **Efficiency varies per planet** — a per-planet
+  `OxygenExtractability` (0..1, seed/atmosphere-derived) scales how much of the drain it offsets, so
+  some toxic worlds breathe easier than others. In an **airless ("none")** atmosphere there's
+  nothing to extract → no benefit. Server applies it in the oxygen tick (`drain × (1 −
+  extractor × extractability)`); tiers improve the base offset.
+- **Suit teleporter (recall to ship):** a craftable suit device that **teleports the player back to
+  their ship** (the landing-zone / heal-tank position) on use — an escape/recall tool. Server-
+  authoritative `TeleportToShipIntent`: validates the player owns the device, isn't blocked (e.g.
+  not mid-space-flight, rules permit), then sets position to the ship and clears the in-space state
+  if needed. Likely a **cooldown** and/or `SuitEnergy`/charge cost so it isn't spammed; maybe
+  disabled in PvP combat. A short teleport VFX client-side.
+- Server owns the gameplay effects (stealth detection, resistances, oxygen/hunger maths, the
+  extractor offset, the teleport, what the radar may reveal); the client renders the HUD/visual
+  side. Sequence with lighting + the scanner/knowledge loop (done) + the radar + the UI/art pass.
 
 ### Lighting: suit lamp, placed lights & glow — NEW (planned)
 Make the dark side of the day/night cycle (and caves) playable and atmospheric:
