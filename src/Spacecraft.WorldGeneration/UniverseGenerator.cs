@@ -44,10 +44,14 @@ public sealed class UniverseGenerator
 
         if (list.Count == 0)
         {
-            // Default: every known planet type at Normal weight.
+            // Default: every selectable planet type at Normal weight (special bodies such as
+            // landable asteroids are excluded so they never appear as ordinary system planets).
             foreach (var key in content.Planets.Keys)
             {
-                list.Add((key, Frequency.Normal.Weight()));
+                if (content.GetPlanet(key) is { Selectable: true })
+                {
+                    list.Add((key, Frequency.Normal.Weight()));
+                }
             }
         }
 

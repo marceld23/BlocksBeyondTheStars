@@ -57,10 +57,11 @@ namespace Spacecraft.Client
 
             float intensity = env?.Intensity ?? 0f;
             Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.9f);
-            ApplyLighting(_time, intensity, sun);
+            bool spaceSky = env != null && env.SpaceSky;
+            ApplyLighting(_time, intensity, sun, spaceSky);
         }
 
-        private void ApplyLighting(float time, float weatherIntensity, Color sunColor)
+        private void ApplyLighting(float time, float weatherIntensity, Color sunColor, bool spaceSky)
         {
             // Sun height: peaks at noon (0.5), lowest at midnight (0/1).
             float sunHeight = Mathf.Sin((time - 0.25f) * Mathf.PI * 2f);
@@ -75,10 +76,18 @@ namespace Spacecraft.Client
             // Sky colour + sun light (skip while the space view controls the camera).
             if (Camera != null && (Game == null || !Game.SpaceViewActive))
             {
-                Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
-                Color nightSky = new Color(0.03f, 0.04f, 0.09f);
                 Camera.clearFlags = CameraClearFlags.SolidColor;
-                Camera.backgroundColor = Color.Lerp(nightSky, daySky, day);
+                if (spaceSky)
+                {
+                    // Airless body (asteroid): the sky stays space-black even on the surface.
+                    Camera.backgroundColor = new Color(0.01f, 0.01f, 0.03f);
+                }
+                else
+                {
+                    Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
+                    Color nightSky = new Color(0.03f, 0.04f, 0.09f);
+                    Camera.backgroundColor = Color.Lerp(nightSky, daySky, day);
+                }
             }
 
             if (_sun != null)

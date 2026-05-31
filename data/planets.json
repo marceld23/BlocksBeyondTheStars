@@ -94,5 +94,18 @@
       { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
       { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 256 }
     ]
+  },
+  {
+    "key": "asteroid", "nameKey": "planet.asteroid.name",
+    "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0,
+    "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
+    "caveThreshold": 0.68, "dataCacheRarity": 0.0016,
+    "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 700, "worldRadius": 220, "floraDensity": 0.0, "creatureAbundance": "none",
+    "atmosphere": "none", "spaceSky": true, "selectable": false,
+    "ores": [
+      { "block": "crystal", "rarity": 0.10, "minDepth": 1, "maxDepth": 256 },
+      { "block": "titanium_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 256 },
+      { "block": "silicate", "rarity": 0.06, "minDepth": 2, "maxDepth": 256 }
+    ]
   }
 ]

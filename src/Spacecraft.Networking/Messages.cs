@@ -555,4 +555,7 @@ public sealed class WorldEnvironment
 
     /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool Breathable { get; set; }
+
+    /// <summary>Space sky on the surface (black + stars) — landable asteroids / airless bodies.</summary>
+    public bool SpaceSky { get; set; }
 }

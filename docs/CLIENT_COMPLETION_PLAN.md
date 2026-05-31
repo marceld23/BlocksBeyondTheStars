@@ -333,7 +333,19 @@ PvP settings; never in protected zones):
   the respawn. Clients render salvage drops / a corpse container and use the tractor / an open-
   container interaction.
 
-### Landable asteroids — NEW (planned)
+### Landable asteroids — **content slice DONE / travel-to-land planned**
+Implemented (server + data + client sky): an **`asteroid`** body type — small (`worldRadius` 220),
+**crystalline** surface (crystal/stone, crystal-rich ores), **no life** (`creatureAbundance` none →
+empty roster) and **no flora** (`floraDensity` 0), **airless** (`atmosphere` "none" → oxygen
+drains), with a permanent **space sky** (`PlanetType.SpaceSky` → `WorldEnvironment.SpaceSky`; the
+client `Sky` keeps the camera space-black on the surface, sun still tints). Excluded from the
+random universe planet pool (`PlanetType.Selectable = false`). Playable now by setting it as the
+start planet; 5 tests (airless/space-sky/non-selectable flags, crystal surface + no flora, no
+creatures, not in the random pool, drains oxygen). Still planned (below): **fly to it and land**
+via the star map / space view, a starfield on the surface, and the visible system sun disc.
+
+Original notes (remaining work):
+
 Big asteroids you can **land on** and walk around — tiny airless worlds:
 
 - A new celestial-body kind **large asteroid** in systems; you fly to it (free flight / star map)

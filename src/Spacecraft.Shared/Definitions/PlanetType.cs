@@ -95,4 +95,16 @@ public sealed class PlanetType
     /// always regenerates regardless.
     /// </summary>
     public string Atmosphere { get; set; } = "toxic";
+
+    /// <summary>
+    /// When true, the sky is always space (black + stars) even on the surface — the system's sun
+    /// is still visible. Used by landable asteroids / airless bodies; normal planets keep a sky.
+    /// </summary>
+    public bool SpaceSky { get; set; }
+
+    /// <summary>
+    /// Whether the universe generator may pick this type for a random system planet. Special
+    /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
+    /// </summary>
+    public bool Selectable { get; set; } = true;
 }
