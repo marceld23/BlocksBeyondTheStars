@@ -36,6 +36,7 @@ namespace Spacecraft.Client
         public event Action<SpaceClosed> SpaceClosed;
         public event Action<PlanetEnemyList> PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
+        public event Action<CreatureList> CreaturesReceived;
         public event Action<ShipPlacement> ShipPlacementReceived;
         public event Action<ShipStations> ShipStationsReceived;
 
@@ -103,6 +104,8 @@ namespace Spacecraft.Client
 
         public void SendAttackEntity(string entityId) => Send(new AttackEntityIntent { EntityId = entityId });
 
+        public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
+
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
         // --- Navigation & missions (M23) ---
@@ -148,6 +151,7 @@ namespace Spacecraft.Client
                 case SpaceClosed m: SpaceClosed?.Invoke(m); break;
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
+                case CreatureList m: CreaturesReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case StarMapData m: StarMapReceived?.Invoke(m); break;

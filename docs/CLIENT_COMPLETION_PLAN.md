@@ -586,7 +586,7 @@ A survival need that makes food matter (server-authoritative; builds on the cons
 - Server owns the hunger tick, starvation damage and what each item restores; the client shows the
   hunger bar and sends the eat/consume intent. Sequence with creatures + flora effects.
 
-### Procedural creatures & aliens — **slice DONE (server) / client render + extras planned**
+### Procedural creatures & aliens — **slice DONE (server + client render) / extras planned**
 Implemented (server + worldgen + data): a seed-derived **species roster per world**
 (`CreatureGenerator`) sized by the planet's **biodiversity** (`PlanetType.CreatureAbundance`:
 none → 0, few → 3, many → 6). Each `CreatureSpecies` carries **stats** (size/health/speed/attack),
@@ -602,10 +602,13 @@ the hostility rules allow** (peaceful servers keep wildlife harmless, §12.4). D
 resource (substitute), `creature_meat` (food) or `toxic_gland` (poison). A **consume system**
 (`ConsumeItemIntent` + `ItemDefinition.ConsumeHealth`) makes **food heal** and **poison harm**
 (also wires `medpack`). Sent to clients via `CreatureList`/`NetCreature` (full descriptor for the
-future parametric renderer). 10 creature tests; suite 127 green. Still planned (below): the **client
-`CreatureBuilder`** that renders the descriptor, richer **AI/movement** (wander/flee/hunt/flock),
-**territorial retaliation**, water/lava-volume spawning beyond the player's cell, and the
-hunger/eating survival loop (separate plan).
+future parametric renderer). 10 creature tests; suite 127 green. **Client render DONE:**
+`CreatureBuilder` assembles a blocky body from the descriptor (segments/head/eyes/legs/wings/tail,
+species colour, hostile tint, dimmed when asleep, a point-light glow for bioluminescent species)
+and `CreatureView` syncs/interpolates them from `CreatureList`; **F** attacks the nearest creature
+too (shared with enemies). Still planned (below): richer **AI/movement** (wander/flee/hunt/flock),
+**territorial retaliation**, water/lava-volume spawning beyond the player's cell, nameplates, and
+the hunger/eating survival loop (separate plan).
 
 Original notes (remaining work):
 

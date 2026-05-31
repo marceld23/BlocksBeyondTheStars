@@ -204,7 +204,7 @@ consumes protocol messages that already exist.
   weapon damage/range/fire-rate and ammo or `SuitEnergy` cost. Crafted/blueprinted with a tier
   progression; drives the same attack path as creatures/PvP. See CLIENT_COMPLETION_PLAN
   "Player weapons: melee & ranged".
-- **Procedural creatures & aliens — slice DONE (server).** Seed-derived **species roster** per
+- **Procedural creatures & aliens — slice DONE (server + client render).** Seed-derived **species roster** per
   world (`CreatureGenerator`, sized by `PlanetType.CreatureAbundance` none/few/many) — each species
   has stats, **temperament** (mostly **non-hostile**), **activity** (diurnal/nocturnal/… + sleep),
   **habitat** (land/water/lava/air), parametric appearance, and a **drop** tagged food/poison/
@@ -212,8 +212,11 @@ consumes protocol messages that already exist.
   **only hostile + awake** creatures damage, and only where hostility rules allow (peaceful = safe).
   Kills drop the species item (shared `AttackEntity`); a **consume system** (`ConsumeItemIntent` +
   `ItemDefinition.ConsumeHealth`) makes **food heal / poison harm**. Sent via `CreatureList`/
-  `NetCreature`. 10 tests. Planned: client `CreatureBuilder` render, richer AI/movement,
-  territorial retaliation, fluid-volume spawning, hunger loop.
+  `NetCreature`. 10 tests. **Client render done** (`CreatureBuilder` blocky body from the
+  descriptor — segments/legs/wings/tail/colour/glow + hostile tint + sleep dim; `CreatureView`
+  syncs them; F attacks creatures too). Planned: richer AI/movement, territorial retaliation,
+  fluid-volume spawning, nameplates, hunger loop. *(Client needs the refreshed Networking lib —
+  re-run `scripts/sync-client-libs.ps1`.)*
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done

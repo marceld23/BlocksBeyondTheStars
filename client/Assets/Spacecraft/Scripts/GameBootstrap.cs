@@ -75,6 +75,9 @@ namespace Spacecraft.Client
         public bool InSpace { get; private set; }
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
 
+        /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
+        public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
+
         /// <summary>The player's owned ships and which is active (M-ships).</summary>
         public NetOwnedShip[] OwnedShips { get; private set; } = System.Array.Empty<NetOwnedShip>();
 
@@ -182,6 +185,7 @@ namespace Spacecraft.Client
             Network.SpaceStateReceived += m => { Space = m; InSpace = true; };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = m.Reason; };
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
+            Network.CreaturesReceived += m => Creatures = m.Creatures;
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m => Environment = m;
             Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";

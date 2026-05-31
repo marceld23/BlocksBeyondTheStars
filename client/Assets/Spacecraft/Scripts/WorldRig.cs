@@ -105,6 +105,10 @@ namespace Spacecraft.Client
             sky.Game = boot;
             sky.Camera = cam;
 
+            // Procedural creatures / fauna (World systems §12).
+            var creatures = root.AddComponent<CreatureView>();
+            creatures.Game = boot;
+
             return root;
         }
 

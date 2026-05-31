@@ -119,6 +119,17 @@ namespace Spacecraft.Client
                 }
             }
 
+            // Creatures (fauna) are attackable too — the server shares the hit path.
+            foreach (var c in Game.Creatures)
+            {
+                float d = (new Vector3(c.X, c.Y, c.Z) - transform.position).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    nearest = c.Id;
+                }
+            }
+
             if (nearest != null)
             {
                 Game.Network.SendAttackEntity(nearest);
