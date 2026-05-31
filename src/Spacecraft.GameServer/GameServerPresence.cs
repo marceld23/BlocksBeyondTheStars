@@ -48,6 +48,7 @@ public sealed partial class GameServer
             Torso = s.TorsoColor,
             Arms = s.ArmColor,
             Legs = s.LegColor,
+            Stealthed = p.Stealthed,
         };
     }
 

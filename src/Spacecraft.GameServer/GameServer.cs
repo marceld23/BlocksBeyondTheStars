@@ -291,10 +291,12 @@ public sealed partial class GameServer
 
             var p = session.State;
             DecayTeleportCooldown(p.PlayerId, dt);
+            TickStealth(session, dt);
+            float maxOxygen = MaxOxygen(p);
             if (p.GodMode)
             {
                 p.Health = 100f;
-                p.Oxygen = 100f;
+                p.Oxygen = maxOxygen;
                 p.Hunger = 100f;
                 continue; // invulnerable: no drain, no death
             }
@@ -302,8 +304,8 @@ public sealed partial class GameServer
             if (p.AboardShip || !Rules.OxygenEnabled || AtmosphereBreathable)
             {
                 // Aboard the ship (life support), oxygen disabled by rules, or a breathable
-                // atmosphere: regenerate, no drain.
-                p.Oxygen = System.Math.Min(100f, p.Oxygen + (float)(dt * 25));
+                // atmosphere: regenerate, no drain (up to the equipped tank capacity).
+                p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
                 p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2));
             }
             else
@@ -324,10 +326,10 @@ public sealed partial class GameServer
                 }
             }
 
-            // Lava burns.
+            // Lava burns (reduced by armor).
             if (InLava(p.Position))
             {
-                p.Health = System.Math.Max(0f, p.Health - (float)(dt * 15));
+                p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 15)));
             }
 
             // Hunger (survival): aboard the ship or when disabled, sate; otherwise drain and,
@@ -479,9 +481,10 @@ public sealed partial class GameServer
         }
 
         p.Health = 100f;
-        p.Oxygen = 100f;
+        p.Oxygen = MaxOxygen(p);
         p.SuitEnergy = 100f;
         p.Hunger = 100f;
+        p.Stealthed = false;
         p.Position = p.RespawnPoint;
         p.AboardShip = true;
 
@@ -619,6 +622,7 @@ public sealed partial class GameServer
             case ScanEntityIntent scanEntity: HandleScanEntity(session, scanEntity); break;
             case LoadRationIntent loadRation: HandleLoadRation(session, loadRation); break;
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
+            case ToggleStealthIntent: HandleToggleStealth(session); break;
         }
     }
 

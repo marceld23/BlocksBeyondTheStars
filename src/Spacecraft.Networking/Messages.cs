@@ -164,6 +164,9 @@ public sealed class LoadRationIntent
 /// <summary>Client uses the suit teleporter to recall to its ship (server validates device/cooldown/energy).</summary>
 public sealed class TeleportToShipIntent { }
 
+/// <summary>Client toggles the stealth field (requires a stealth suit + energy).</summary>
+public sealed class ToggleStealthIntent { }
+
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
 public sealed class ScanIntent
 {
@@ -632,6 +635,9 @@ public sealed class PlayerPresence
     public int Torso { get; set; }
     public int Arms { get; set; }
     public int Legs { get; set; }
+
+    /// <summary>Stealth field active — other clients fade/hide the avatar + nameplate.</summary>
+    public bool Stealthed { get; set; }
 }
 
 /// <summary>A player left; the client removes their avatar.</summary>

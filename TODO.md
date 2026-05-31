@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **188 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **193 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -189,19 +189,17 @@ consumes protocol messages that already exist.
   cost knowledge** (`BlueprintDefinition.KnowledgeCost`, validated + deducted in `HandleUnlock`).
   `ScanIntent`/`ScanEntityIntent` → `ScanResult`. 5 tests. Remaining: client scanner readout panel +
   aiming, Tech-tab knowledge display, upgraded scanners (see Equipment).
-- **Equipment & upgrades — ration dispenser DONE; rest planned.** Suit **ration dispenser**
-  (`PlayerState.RationStore`, 5 slots, persisted) you stock with food (`LoadRation`); auto-dispenses
-  stored food when hunger ≤ threshold (`TryAutoEatRation`), loose-`emergency_ration` fallback;
-  craftable ration. 5 tests. Still planned: **stealth suit** (invisible to creatures, harder to
-  see for players), **improved scanner** (more knowledge), **improved drill / mining beam**, **suit
-  armor + special helmets** (damage resistance + perks), **bigger oxygen tank**, **improved
-  flashlight**, **multi-tier radar scanner** (animals → players → material/flora on the HUD),
-  **atmospheric O₂ extractor** (lowers oxygen drain in toxic atmo, per-planet efficiency; useless
-  when airless) — **DONE:** `oxygen_extractor` item reduces oxygen drain by `0.6 ×
-  PlanetType.OxygenExtractability` (rocky 0.6 / ice·desert 0.5 / airless 0); 2 tests.
-  **Suit teleporter — DONE:** craftable `suit_teleporter` recalls the player to the
-  ship (respawn point) — `TeleportToShip`/`TeleportToShipIntent`, gated by device + not-in-space +
-  30 s cooldown + 10 `SuitEnergy`; 3 tests.
+- **Equipment & upgrades — slice DONE (server).** Data-driven gear effects from carried items
+  (`ItemDefinition.ArmorResistance`/`OxygenBonus`/`ScanKnowledgeMultiplier` + `GameServerEquipment`):
+  **stealth_suit** (`ToggleStealth` → `Stealthed`; creatures + enemies ignore you, drains energy),
+  **advanced_scanner** (×2 knowledge), **mining_beam** (tier-3 drill), **armor_chest/legs/helmet**
+  (damage resistance, capped 0.75, applied to creature/enemy/lava), **oxygen_tank_2** (+50 MaxOxygen),
+  **oxygen_extractor** (lowers toxic-atmo drain by `0.6 × PlanetType.OxygenExtractability`),
+  **suit_teleporter** (recall to ship; device + not-in-space + 30 s cooldown + 10 energy),
+  **emergency_ration** + **ration dispenser** (`RationStore`, auto-feed). Items/recipes/blueprints
+  (knowledge-gated) + DE/EN locales. ~18 tests across equipment/atmosphere/hunger/teleport.
+  Client-side pending: **suit_lamp** light cone (shader) + **radar_scanner** HUD tiers + visual
+  armor/stealth fade.
   See CLIENT_COMPLETION_PLAN "Equipment & upgrades".
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,
@@ -312,7 +310,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (188)
+dotnet test                      # expect all green (193)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

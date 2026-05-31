@@ -81,7 +81,7 @@ public sealed partial class GameServer
     {
         var p = session.State;
         bool firstTime = p.Scanned.Add(ledgerKey); // HashSet.Add returns false if already present
-        int gained = firstTime ? value : 0;
+        int gained = firstTime ? (int)System.Math.Round(value * ScanMultiplier(p)) : 0;
         if (gained > 0)
         {
             p.KnowledgePoints += gained;

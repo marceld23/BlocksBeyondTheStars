@@ -59,6 +59,7 @@ public static class NetCodec
         Register(36, typeof(ScanEntityIntent));
         Register(37, typeof(LoadRationIntent));
         Register(38, typeof(TeleportToShipIntent));
+        Register(39, typeof(ToggleStealthIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));

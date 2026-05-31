@@ -902,27 +902,29 @@ Give the existing `hand_scanner` tool (and a new ship scanner) a real readout:
   is a client readout over synced data. Sequence with the creature/flora systems (done) + the space
   radar + the UI pass.
 
-### Equipment & upgrades — NEW (planned)
-A tree of **craftable/blueprinted gear** (tiered, knowledge-gated) that upgrades the suit, tools and
-sensors. All server-authoritative (effects applied on the server); each is an item/recipe/blueprint
-in data, surfaced in the crafting/tech UI and the equipment slots.
+### Equipment & upgrades — **slice DONE (server) / client UI + a few extras**
+A tree of **craftable/blueprinted gear** (knowledge-gated) that upgrades the suit, tools and
+sensors — **server-authoritative effects, derived from the gear the player carries** (no separate
+equip slots yet). Each is an item/recipe/blueprint in data, surfaced in the crafting/tech UI.
+**Implemented (server):** new `ItemDefinition` fields `ArmorResistance` / `OxygenBonus` /
+`ScanKnowledgeMultiplier`, plus `GameServerEquipment` helpers (`ArmorResistance`/`MaxOxygen`/
+`ScanMultiplier`/`Mitigate`/stealth). **5 tests** (stealth hides from enemies, armor reduces damage,
+big tank raises max oxygen, advanced scanner earns more knowledge, mining beam is tier-3). Suite
+193 green. Client HUD/aim/visuals for these are the remaining bits.
 
-- **Stealth suit (Tarnanzug):** makes the player **invisible to creatures** (creatures don't detect/
-  aggro a stealthed player — gate the creature aggro/provoke checks on a `Stealth` flag) and
-  **harder to see for other players** (reduced/faded nameplate + a translucent avatar in presence,
-  and dropped from the radar at range). Likely a `SuitEnergy` drain while active; toggleable.
-- **Improved scanner:** a higher-tier `hand_scanner` that **grants more knowledge** per first scan
-  (a `knowledge_multiplier` / tier on the scanner) and reveals more detail — feeds the research
-  loop faster.
-- **Improved drill / mining beam:** higher tool tiers (faster mining, harder blocks) up to a
-  continuous **mining beam** (`Abbaustrahl`) — bigger reach/area, more `EnergyPerUse`. Extends the
-  existing tool-tier model (`basic_drill` → `titanium_drill` → mining beam).
-- **Suit armor parts & special helmets:** equippable **armor pieces** (chest/legs/arms) and
-  **helmets** that add **damage resistance** (reduce creature/lava/PvP damage) and helmet perks
-  (e.g. built-in lamp, scanner HUD, sealed = slower oxygen drain). Reuses the avatar's per-part
-  re-skin so armor overrides the matching body part visually (M23b note).
-- **Improved oxygen tank:** larger `Oxygen` capacity / slower drain tiers (`oxygen_tank_1` → 2 → …),
-  extending surface/airless excursions.
+- **Stealth suit (Tarnanzug) — DONE:** `stealth_suit` + `ToggleStealth`/`ToggleStealthIntent` sets
+  `PlayerState.Stealthed`; creatures **and** planet enemies skip a stealthed player (no damage/
+  aggro). Drains `SuitEnergy` while active (auto-drops at 0). Carried on `PlayerPresence.Stealthed`
+  so other clients can fade the avatar (client render pending). *Still planned:* the radar drop-off.
+- **Improved scanner — DONE:** `advanced_scanner` (tier-2 scanner, `ScanKnowledgeMultiplier` 2)
+  doubles knowledge from first scans (best carried multiplier wins).
+- **Improved drill / mining beam — DONE:** `mining_beam` (tier-3 drill) mines the toughest blocks
+  via the existing tool-tier model.
+- **Suit armor & helmets — DONE:** `armor_chest` (0.25) / `armor_legs` (0.15) / `helmet` (0.15)
+  carry `ArmorResistance`, summed (capped 0.75) and applied to creature / planet-enemy / lava
+  damage (`Mitigate`). *Still planned:* visual armor over the avatar + helmet perks.
+- **Improved oxygen tank — DONE:** `oxygen_tank_2` (`OxygenBonus` +50) raises `MaxOxygen`; the
+  oxygen tick regenerates up to the equipped capacity, and respawn refills to it.
 - **Ration dispenser (suit system) — DONE (server):** the suit has a small **ration dispenser**
   (`PlayerState.RationStore`, 5 slots, persisted) you **stock with food** (`LoadRation` /
   `LoadRationIntent` — food only); when hunger drops to/below `EmergencyRationThreshold` (15) the
@@ -930,12 +932,12 @@ in data, surfaced in the crafting/tech UI and the equipment slots.
   applies its hunger restore), falling back to a loose `emergency_ration` in the inventory. The
   `emergency_ration` item is craftable from food (berries + plant_fibre). 5 tests (load + auto-feed
   from the dispenser, rejects non-food, loose-ration auto-feed, none-without, not-when-full).
-- **Improved flashlight / suit lamp:** brighter/wider **light cone**, longer battery — tiers of the
-  planned suit lamp (see Lighting).
-- **Improved radar scanner (multi-tier):** a wearable radar that adds blips to the HUD — **tier 1**
-  creatures/animals, **tier 2** other players, **tier 3** material deposits / flora / points of
-  interest. Each tier widens what the HUD minimap + edge-arrows show (shares the space-radar style;
-  colour-coded). Higher tiers cost more knowledge + materials and draw `SuitEnergy`.
+- **Improved flashlight / suit lamp — item DONE, render pending:** the `suit_lamp` item exists
+  (craftable); the brighter/wider **light cone** itself is client/shader work (see Lighting).
+- **Improved radar scanner (multi-tier) — item DONE, HUD pending:** the `radar_scanner` item exists
+  (craftable); the planned tiers (tier 1 creatures → tier 2 players → tier 3 material/flora on the
+  HUD minimap + edge-arrows, colour-coded) are the **client HUD** half, sharing the space-radar
+  style. The data the radar reveals (creatures/containers/presence) is already broadcast.
 - **Atmospheric O₂ extractor (suit upgrade) — DONE (server):** a craftable `oxygen_extractor`
   (blueprint, knowledge-gated) that, when carried, **reduces oxygen drain** in a non-breathable
   atmosphere — the oxygen tick multiplies the drain by `1 − OxygenExtractorEffectiveness (0.6) ×

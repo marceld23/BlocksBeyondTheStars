@@ -57,14 +57,14 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.GodMode)
+                if (p.GodMode || p.Stealthed) // cloaked players aren't detected
                 {
                     continue;
                 }
 
                 if (p.Position.DistanceSquared(enemy.Position) <= EnemyProximityRange * EnemyProximityRange)
                 {
-                    p.Health = System.Math.Max(0f, p.Health - (float)(enemy.DamagePerSecond * dt));
+                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
                     SendPlayerState(session);
                     if (p.Health <= 0f)
                     {

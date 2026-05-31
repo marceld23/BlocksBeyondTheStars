@@ -75,6 +75,51 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "stealth_suit", "nameKey": "blueprint.stealth_suit.name", "descriptionKey": "blueprint.stealth_suit.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "advanced_scanner", "nameKey": "blueprint.advanced_scanner.name", "descriptionKey": "blueprint.advanced_scanner.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
+  },
+  {
+    "key": "mining_beam", "nameKey": "blueprint.mining_beam.name", "descriptionKey": "blueprint.mining_beam.desc",
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 14,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "armor_chest", "nameKey": "blueprint.armor_chest.name", "descriptionKey": "blueprint.armor_chest.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 4,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 12 } ]
+  },
+  {
+    "key": "armor_legs", "nameKey": "blueprint.armor_legs.name", "descriptionKey": "blueprint.armor_legs.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 3,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 9 } ]
+  },
+  {
+    "key": "helmet", "nameKey": "blueprint.helmet.name", "descriptionKey": "blueprint.helmet.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 3,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 8 }, { "item": "glass", "count": 3 } ]
+  },
+  {
+    "key": "oxygen_tank_2", "nameKey": "blueprint.oxygen_tank_2.name", "descriptionKey": "blueprint.oxygen_tank_2.desc",
+    "category": "Suit", "prerequisites": [ "oxygen_tank_1" ], "knowledgeCost": 6,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 }, { "item": "glass", "count": 4 } ]
+  },
+  {
+    "key": "suit_lamp", "nameKey": "blueprint.suit_lamp.name", "descriptionKey": "blueprint.suit_lamp.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 2,
+    "unlockCost": [ { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
+  },
+  {
+    "key": "radar_scanner", "nameKey": "blueprint.radar_scanner.name", "descriptionKey": "blueprint.radar_scanner.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
+  },
+  {
     "key": "suit_teleporter", "nameKey": "blueprint.suit_teleporter.name", "descriptionKey": "blueprint.suit_teleporter.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 12,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]

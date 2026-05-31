@@ -49,4 +49,15 @@ public sealed class ItemDefinition
 
     /// <summary>Hunger restored when this item is eaten (food); 0 = doesn't satiate.</summary>
     public float ConsumeHunger { get; set; }
+
+    // --- Equipment effects (applied while the item is carried) ---
+
+    /// <summary>Armor: 0..1 fraction of incoming physical damage this piece blocks (summed, capped).</summary>
+    public float ArmorResistance { get; set; }
+
+    /// <summary>Extra maximum suit oxygen this item grants (e.g. a bigger tank).</summary>
+    public float OxygenBonus { get; set; }
+
+    /// <summary>Scanner: multiplies knowledge gained from a first scan (1 = no bonus).</summary>
+    public float ScanKnowledgeMultiplier { get; set; } = 1f;
 }

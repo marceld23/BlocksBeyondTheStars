@@ -62,6 +62,9 @@ public sealed class PlayerState
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
 
+    /// <summary>Stealth field active (from a stealth suit) — creatures/enemies ignore the player. Not persisted.</summary>
+    public bool Stealthed { get; set; }
+
     // Session cheat toggles (admin only, server-authoritative; not persisted).
     public bool GodMode { get; set; }
     public bool Fly { get; set; }
