@@ -82,12 +82,28 @@ commit author = `marceld23 <marcel.duetscher@gmail.com>`.
 - Client-only settings never touch authoritative server rules. Real textures/models/audio,
   animated background, controller support and uGUI polish are deferred (asset-production later).
 
-## Pending
+## Pending — finish the client into a playable game
 
-- **M21+** — open scope. Candidates from the specs: real asset/texture/audio production
-  pipeline + atlas; uGUI/UI-Toolkit inventory/crafting/star-map screens; WebGL build of the
-  shell (needs the Unity Editor); per-player ships + PvP ship combat; singleplayer in-process
-  server hosting inside the client.
+Full roadmap: [docs/CLIENT_COMPLETION_PLAN.md](docs/CLIENT_COMPLETION_PLAN.md). The server is
+feature-complete (M0–M19); the remaining work is client-side UI + rendering + scene wiring that
+consumes protocol messages that already exist.
+
+- **M21 — Playable vertical slice ⭐** assembled in-game scene (player rig + camera + chunk
+  material + HUD via `AppShell.LaunchGame`); Singleplayer hosts the bundled server as a child
+  process (Option A — `GameServer`/`Persistence` are net8.0 + native SQLite, can't load in
+  Unity); first 32×32 block texture atlas; apply core settings; clean return to menu.
+  *Outcome: menu → Singleplayer → walk/mine/place on a textured world → quit.*
+- **M22** — core gameplay UI: hotbar, inventory/cargo, crafting + blueprint unlock, ship-module
+  build (uGUI/UI Toolkit).
+- **M23** — star map, mission log, death/respawn + rules feedback.
+- **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
+- **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,
+  planet enemies) for the M19 server systems.
+- **M26** — audio (buses from `ClientSettings`, SFX + music). **M27** — art & polish (full atlas,
+  tool models, pause menu, accessibility). **M28** — Windows player build + optional WebGL Lite.
+
+Later/optional: Option B true in-process SP server (retarget to netstandard2.1); per-player ships
++ PvP ship combat.
 
 ## How to resume
 
