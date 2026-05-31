@@ -55,6 +55,15 @@ namespace Spacecraft.Client
             s.InvertY = GUI.Toggle(new Rect(x, y, 300, 22), s.InvertY, _shell.L("ui.settings.invert_y"));
             y += 34;
 
+            // --- Character appearance (M23b) ---
+            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.character"));
+            y += 26;
+            s.SkinColor = ColorRow(x, ref y, _shell.L("ui.settings.skin"), s.SkinColor);
+            s.TorsoColor = ColorRow(x, ref y, _shell.L("ui.settings.torso"), s.TorsoColor);
+            s.ArmColor = ColorRow(x, ref y, _shell.L("ui.settings.arms"), s.ArmColor);
+            s.LegColor = ColorRow(x, ref y, _shell.L("ui.settings.legs"), s.LegColor);
+            y += 6;
+
             // --- Language + back ---
             if (GUI.Button(new Rect(x, y, 145, 28), $"{_shell.L("ui.settings.language")}: {(s.Language == "de" ? "DE" : "EN")}"))
             {
@@ -75,6 +84,49 @@ namespace Spacecraft.Client
             value = GUI.HorizontalSlider(new Rect(x, y, 300, 18), value, 0f, 1f);
             y += 28;
             return value;
+        }
+
+        private static readonly Color[] Palette =
+        {
+            new Color(0.85f, 0.68f, 0.55f), new Color(0.55f, 0.40f, 0.28f), new Color(0.90f, 0.85f, 0.80f),
+            new Color(0.80f, 0.20f, 0.20f), new Color(0.20f, 0.45f, 0.80f), new Color(0.20f, 0.65f, 0.35f),
+            new Color(0.90f, 0.75f, 0.20f), new Color(0.55f, 0.30f, 0.70f), new Color(0.25f, 0.25f, 0.32f),
+            new Color(0.92f, 0.92f, 0.95f),
+        };
+
+        /// <summary>A label + "next colour" button + a swatch; clicking cycles through the palette.</summary>
+        private Color ColorRow(float x, ref float y, string label, Color current)
+        {
+            GUI.Label(new Rect(x, y, 120, 22), label);
+            if (GUI.Button(new Rect(x + 120, y, 120, 22), _shell.L("ui.settings.next_color")))
+            {
+                current = NextColor(current);
+            }
+
+            var prev = GUI.color;
+            GUI.color = current;
+            GUI.DrawTexture(new Rect(x + 250, y, 40, 22), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            y += 28;
+            return current;
+        }
+
+        private static Color NextColor(Color current)
+        {
+            int idx = -1;
+            for (int i = 0; i < Palette.Length; i++)
+            {
+                if (Mathf.Approximately(Palette[i].r, current.r) &&
+                    Mathf.Approximately(Palette[i].g, current.g) &&
+                    Mathf.Approximately(Palette[i].b, current.b))
+                {
+                    idx = i;
+                    break;
+                }
+            }
+
+            return Palette[(idx + 1) % Palette.Length];
         }
     }
 }

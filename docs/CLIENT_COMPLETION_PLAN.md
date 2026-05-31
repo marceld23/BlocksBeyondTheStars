@@ -159,8 +159,16 @@ Original design notes (for reference):
 This depends only on existing systems (landing zones, chunk streaming, `AboardShip`,
 protection) plus one small placement message. Target: implement right after M22/M23.
 
-### M23b — Player avatar, customization & third-person camera — NEW (planned)
-Give the player a visible body they can style, and let them see it.
+### M23b — Player avatar, customization & third-person camera — **DONE (code) / pending playtest**
+Implemented: a code-built blocky humanoid (`PlayerAvatar`: head/torso/2 arms/2 legs from
+cubes, colliders stripped), per-part **colours** in `ClientSettings` with a **Character section**
+in Settings (palette cycling + swatches), and a **first/third-person toggle** (key **V**;
+`PlayerController` moves the camera between eye and a behind-the-player offset and shows/hides
+the avatar). The avatar is parented to the player so it turns with movement. Deferred:
+networked appearance so **other players** see it (with M24, via a `PlayerAppearance` message),
+**armor overriding** parts, walk/idle **animation**, and third-person **camera collision**.
+
+Original notes:
 
 - **Avatar model:** a blocky humanoid built from cubes (head, torso, two arms, two legs) — a
   small code-built rig (like the ship/world) so no art asset is needed for the MVP; later a

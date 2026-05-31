@@ -52,11 +52,19 @@ namespace Spacecraft.Client
             var cam = camGo.AddComponent<Camera>();
             camGo.tag = "MainCamera";
 
+            // Blocky avatar (shown in third-person), coloured from the player's settings.
+            var avatarGo = new GameObject("Avatar");
+            avatarGo.transform.SetParent(player.transform, false);
+            var avatar = avatarGo.AddComponent<PlayerAvatar>();
+            avatar.Build(shell.Settings);
+
             var pc = player.AddComponent<PlayerController>();
             pc.Game = boot;
             pc.Camera = cam;
+            pc.Avatar = avatar;
             pc.MouseSensitivity = shell.Settings.MouseSensitivity;
             pc.InvertY = shell.Settings.InvertY;
+            pc.ThirdPerson = shell.Settings.ThirdPerson;
 
             // Localized vitals HUD + hotbar.
             var hud = root.AddComponent<Hud>();

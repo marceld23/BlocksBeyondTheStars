@@ -12,15 +12,20 @@ namespace Spacecraft.Client
     {
         public GameBootstrap Game;
         public Camera Camera;
+        public PlayerAvatar Avatar;
 
         public float MoveSpeed = 6f;
         public float JumpSpeed = 7f;
         public float Gravity = 20f;
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
+        public bool ThirdPerson = false;
         public float Reach = 6f;
 
         private const int HotbarSlots = 9;
+
+        private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
+        private static readonly Vector3 ThirdPersonEye = new Vector3(0f, 1.9f, -3.5f);
 
         private CharacterController _controller;
         private float _pitch;
@@ -29,6 +34,19 @@ namespace Spacecraft.Client
         private bool _spawned;
 
         private void Awake() => _controller = GetComponent<CharacterController>();
+
+        private void Start() => ApplyCameraMode();
+
+        private void ApplyCameraMode()
+        {
+            if (Camera != null)
+            {
+                Camera.transform.localPosition = ThirdPerson ? ThirdPersonEye : FirstPersonEye;
+            }
+
+            // Show the avatar only in third-person (otherwise the camera is inside the head).
+            Avatar?.SetVisible(ThirdPerson);
+        }
 
         private void Update()
         {
@@ -47,6 +65,12 @@ namespace Spacecraft.Client
             {
                 ApplyGravityOnly();
                 return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                ThirdPerson = !ThirdPerson;
+                ApplyCameraMode();
             }
 
             HandleHotbar();

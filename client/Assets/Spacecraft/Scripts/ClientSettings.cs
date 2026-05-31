@@ -39,6 +39,15 @@ namespace Spacecraft.Client
         public bool ReducedEffects = false;
         public bool LargeUi = false;
 
+        // Avatar appearance (M23b). Per-part colours; later armor overrides the matching part.
+        public Color SkinColor = new Color(0.85f, 0.68f, 0.55f);
+        public Color TorsoColor = new Color(0.20f, 0.45f, 0.80f);
+        public Color ArmColor = new Color(0.20f, 0.45f, 0.80f);
+        public Color LegColor = new Color(0.25f, 0.25f, 0.32f);
+
+        /// <summary>Start in third-person (showing your own figure) instead of first-person.</summary>
+        public bool ThirdPerson = false;
+
         private static string FilePath => Path.Combine(Application.persistentDataPath, "client_settings.json");
 
         public static ClientSettings Load()

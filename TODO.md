@@ -104,9 +104,10 @@ consumes protocol messages that already exist.
   ship with distance. `PlaceStarterShip` config flag (on by default). Hull is mining-protected.
   **Stations (M23a-2):** interior markers + "Press E" interaction — heal-tank heals, quarters
   sets respawn, workshop/cargo → Tab menu, cockpit → star map (soon). Server-validated.
-- **M23b (NEW) — player avatar, customization & third-person camera:** blocky humanoid avatar
-  (head/torso/arms/legs), per-part colour customization (later armor overrides parts),
-  first/third-person toggle (V) showing your own figure. See CLIENT_COMPLETION_PLAN.
+- **M23b — player avatar, customization & third-person camera — code DONE, needs playtest.**
+  Code-built blocky humanoid (`PlayerAvatar`), per-part colours in Settings (Character section),
+  first/third-person toggle (V). Networked appearance (others see it) deferred to M24; armor
+  overrides + animation later.
 - **M23** — star map, mission log, death/respawn + rules feedback.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,
