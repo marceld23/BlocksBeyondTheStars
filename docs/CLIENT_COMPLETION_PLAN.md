@@ -302,6 +302,35 @@ Bigger world-simulation features (server-authoritative; the client renders the r
 These are sizeable; sequence them with the art pass and the space-view work. All authoritative
 on the server (a client must not decide fluid spread, time of day or hazards).
 
+### Procedural creatures & aliens — NEW (planned)
+Make planets feel alive with **procedurally generated lifeforms** — each world deterministically
+derives its own species from the world/planet seed, so different planets have different,
+surprising aliens. Extends the M25 planet-enemy system into a full creature system (passive +
+hostile), server-authoritative.
+
+- **Per-species procedural descriptor** (generated server-side from the seed): randomized
+  **stats** (size, max health, speed, attack damage), **temperament** (passive / skittish /
+  territorial / aggressive / pack-hunter), **diet/behaviour** (grazes, flees, hunts, ambushes,
+  flocks), and **appearance** — a blocky body assembled from parts (body segments, head, legs
+  count, optional wings/fins/tail) with a colour palette. The descriptor is sent to clients so a
+  `CreatureBuilder` renders the *same* creature everywhere (like the avatar, but parametric).
+- **Habitat (where it lives):** each species is **aquatic / lava-dwelling / land / airborne**.
+  Habitat governs **spawning** (aquatic in water bodies, lava-dwellers in lava, fliers in the
+  air volume, land on the surface), **movement** (swim / fly / walk), and **survival** (a
+  lava-dweller is immune to lava, an aquatic one suffocates on land, etc.). Depends on the
+  fluids system (water/lava) for aquatic/lava habitats.
+- **Abundance per world (none / few / many):** a world **biodiversity** level — derived from the
+  planet type + seed and overridable via server settings (ties into `PlanetEnemies`,
+  `PassiveCreatures`, `AggressiveAliens`). Barren worlds have no life; lush ones teem with it.
+  Controls how many species exist and total spawn caps; hostility split follows the alien/enemy
+  rules (peaceful servers → passive only, §12.4).
+- **Server-authoritative:** species generation, spawn placement (habitat + biome + abundance),
+  AI/behaviour and combat all live on the server; clients render descriptors + positions and
+  send `AttackEntityIntent` as today. Scales the existing `PlanetEnemyList`/`AttackEntity` path
+  to carry the species descriptor + habitat.
+- Sequence after fluids (for water/lava habitats) and with the art pass (for nicer creature
+  models); the parametric blocky renderer works without bundled art.
+
 ### M26 — Audio — **DONE (procedural SFX) / recorded audio + music later**
 - Unity **audio module** enabled; `AudioListener` on the player camera; master/SFX volumes from
   `ClientSettings` applied (`ClientAudio`).

@@ -131,6 +131,10 @@ consumes protocol messages that already exist.
 - **(NEW, planned) World systems:** fluids (water/lava flow like Minecraft), per-planet
   day/night + weather, and star light colour (white/yellow/blue/red) tinting the world. All
   server-authoritative; see CLIENT_COMPLETION_PLAN "World systems".
+- **(NEW, planned) Procedural creatures & aliens:** seed-derived species per planet with random
+  stats/behaviour/appearance; habitat (water / lava / land / air) governs spawn, movement &
+  survival; per-world abundance (none / few / many). Extends the planet-enemy system, depends on
+  fluids for aquatic/lava life. See CLIENT_COMPLETION_PLAN "Procedural creatures & aliens".
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
