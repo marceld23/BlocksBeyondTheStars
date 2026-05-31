@@ -26,6 +26,12 @@
     "stats": {}
   },
   {
+    "key": "tractor_beam", "nameKey": "module.tractor_beam.name", "descriptionKey": "module.tractor_beam.desc",
+    "mandatory": false, "requiredBlueprint": "tractor_beam",
+    "buildCost": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ],
+    "stats": { "tractor_range": 8 }
+  },
+  {
     "key": "oxygen_generator", "nameKey": "module.oxygen_generator.name", "descriptionKey": "module.oxygen_generator.desc",
     "mandatory": false, "requiredBlueprint": "oxygen_generator",
     "buildCost": [ { "item": "iron_plate", "count": 20 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 6 } ],

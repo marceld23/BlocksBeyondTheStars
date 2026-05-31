@@ -101,6 +101,8 @@
   "blueprint.refinery.desc": "Schaltet das Raffinerie-Modul zur Erzverarbeitung frei.",
   "blueprint.detoxifier.name": "Entgifter",
   "blueprint.detoxifier.desc": "Schaltet das Entgifter-Modul frei, das Gift in sicheres Essen wandelt.",
+  "blueprint.tractor_beam.name": "Traktorstrahl",
+  "blueprint.tractor_beam.desc": "Schaltet den Traktorstrahl frei, der Salvage-Brocken in den Frachtraum zieht.",
   "blueprint.oxygen_generator.name": "Sauerstoffgenerator",
   "blueprint.oxygen_generator.desc": "Schaltet das Sauerstoffgenerator-Modul frei.",
 
@@ -124,6 +126,8 @@
   "module.refinery.desc": "Verarbeitet Erze und stellt Legierungen her.",
   "module.detoxifier.name": "Entgifter",
   "module.detoxifier.desc": "Verarbeitet giftige Pflanzen und Fleisch zu sicherem Essen.",
+  "module.tractor_beam.name": "Traktorstrahl",
+  "module.tractor_beam.desc": "Zieht nahe Salvage-Brocken im All in den Frachtraum.",
   "module.oxygen_generator.name": "Sauerstoffgenerator",
   "module.oxygen_generator.desc": "Erzeugt Sauerstoff für längere Expeditionen.",
   "module.docking_module.name": "Docking-Modul",

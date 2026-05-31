@@ -334,9 +334,12 @@ Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
   first splits into several smaller chunks**, which split again, and the smallest **break into
   (non-organic) resource drops** (ores/metals/ice). Reuses the M19 `FireWeapon`/entity-hull path
   with a size tier + split-on-destroy.
-- **Tractor beam (ship add-on):** a new ship equipment module (like weapons — built/blueprinted)
-  that **pulls in nearby resource drops** in space and stows them in the **cargo hold until it's
-  full**. Server resolves pickup (range + cargo capacity); client shows the beam + cargo filling.
+- **Tractor beam (ship add-on) — DONE (server):** a buildable `tractor_beam` ship module
+  (blueprint + cost). When fitted, destroyed targets' loot **floats as a `ResourceDrop`** instead of
+  teleporting into the inventory, and `CollectSalvage` (in `TickSpace`) **pulls drops within range
+  of the ship into the cargo hold until full** (leftover keeps floating). 1 test (break a small
+  asteroid with a tractor fitted → salvage floats → flying onto it stows ore in cargo). Client beam
+  VFX + the cargo-fill HUD are the remaining client bits.
 - Depends on giving the ship an authoritative **position/velocity in the space instance** (M25 is
   abstract today) — schedule with the M25b flight deepening. Tractor/weapons fit the existing
   ship-module + build system.

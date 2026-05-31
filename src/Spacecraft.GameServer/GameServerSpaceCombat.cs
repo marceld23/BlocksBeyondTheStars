@@ -14,6 +14,7 @@ public enum CombatEntityKind
     Cruiser,
     Creature,
     AlienMonster,
+    ResourceDrop,
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -360,6 +361,21 @@ public sealed partial class GameServer
         {
             SplitAsteroid(instance, target);
         }
+        else if (target.Loot.Count > 0 && _ship.HasModule(TractorModule))
+        {
+            // With a tractor beam fitted, loot floats as a salvage drop to be collected, instead of
+            // teleporting into the inventory.
+            instance.Entities.Add(new CombatEntity
+            {
+                Id = NextEntityId(),
+                Kind = CombatEntityKind.ResourceDrop,
+                Hostile = false,
+                Hull = 1f,
+                HullMax = 1f,
+                Position = target.Position,
+                Loot = new List<ItemAmount>(target.Loot),
+            });
+        }
         else if (session is not null)
         {
             var pool = new MaterialPool(_content, session.State, _ship);
@@ -487,6 +503,61 @@ public sealed partial class GameServer
     private const float ShipCollisionDamageFactor = 0.8f;
     private const float ShipCollisionMaxDamage = 50f;
 
+    private const string TractorModule = "tractor_beam";
+    private const float TractorRange = 8f;
+
+    /// <summary>Tractor beam: pulls salvage drops within range into the ship's cargo hold (until full).</summary>
+    private void CollectSalvage(SpaceInstance instance)
+    {
+        if (!_ship.HasModule(TractorModule))
+        {
+            return;
+        }
+
+        bool changed = false;
+        foreach (var drop in instance.Entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop).ToList())
+        {
+            if (drop.Position.DistanceSquared(instance.ShipPosition) > TractorRange * TractorRange)
+            {
+                continue;
+            }
+
+            var leftover = new List<ItemAmount>();
+            foreach (var item in drop.Loot)
+            {
+                int max = _content.GetItem(item.Item)?.MaxStack ?? 99;
+                int notStowed = _ship.Cargo.Add(item.Item, item.Count, max); // cargo full → leave the rest floating
+                if (notStowed < item.Count)
+                {
+                    changed = true;
+                }
+
+                if (notStowed > 0)
+                {
+                    leftover.Add(new ItemAmount(item.Item, notStowed));
+                }
+            }
+
+            drop.Loot = leftover;
+            if (drop.Loot.Count == 0)
+            {
+                instance.Entities.Remove(drop);
+            }
+        }
+
+        if (changed)
+        {
+            BroadcastSpaceState(instance);
+            foreach (var playerId in instance.Players)
+            {
+                if (FindSessionByPlayerId(playerId) is { } s)
+                {
+                    SendInventory(s); // cargo is part of the inventory update when aboard
+                }
+            }
+        }
+    }
+
     /// <summary>Sets the player's ship position in its space instance (trusted + finite-clamped, like on-foot move).</summary>
     public void ShipMove(string playerId, float x, float y, float z)
     {
@@ -522,6 +593,10 @@ public sealed partial class GameServer
             {
                 continue;
             }
+
+            // Tractor beam: pull nearby salvage drops into the cargo hold (before collision, so the
+            // collision bounce doesn't move the ship away from the drop first).
+            CollectSalvage(instance);
 
             // Collision: flying into an asteroid damages the ship (scaled by impact speed) and
             // stops it. Physical — independent of the combat rules.

@@ -281,6 +281,48 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    // ---------------- Tractor beam (salvage) ----------------
+
+    [Fact]
+    public void TractorBeam_PullsSalvageDrops_IntoCargo()
+    {
+        var server = NewServer("tractor", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.AsteroidDestruction = AsteroidDestructionMode.MiningOnly;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Add("tractor_beam"); // with a tractor, the smallest chunks float as salvage
+            server.EnterSpace("Pilot");
+
+            // Break asteroids down until a floating salvage drop appears.
+            CombatEntity drop = null;
+            for (int i = 0; i < 24 && drop == null; i++)
+            {
+                var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
+                if (a != null)
+                {
+                    server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+                }
+
+                drop = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.ResourceDrop);
+            }
+
+            Assert.NotNull(drop); // breaking the smallest asteroid left a salvage drop (not instant loot)
+            Assert.Equal(0, server.Ship.Cargo.CountOf("iron_ore")); // not collected yet
+
+            // Fly onto the drop; the tractor pulls it into the cargo hold.
+            server.ShipMove("Pilot", drop.Position.X, drop.Position.Y, drop.Position.Z);
+            server.Tick(0.1);
+
+            Assert.True(server.Ship.Cargo.CountOf("iron_ore") >= 5, "Tractor should stow the salvage in cargo.");
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Pilot"), e => e.Id == drop.Id); // drop consumed
+        }
+    }
+
     // ---------------- Planet enemies ----------------
 
     [Fact]
