@@ -505,9 +505,20 @@ Let players **dismantle crafted equipment** back into its parts at the **worksho
   crafting tab. Reuses the recipe data (inputs) and the crafting/station system — no new content.
 - Lets players **recover materials** from unwanted/obsolete gear and re-tier their loadout.
 
-### Planet settlements & NPC towns — **generator DONE (server) / stamping + NPCs planned**
+### Planet settlements & NPC towns — **generator + stamping DONE (server) / NPCs planned**
 Some planets are **inhabited** — settlements you can walk into, populated by NPCs (the
 planet-side counterpart to space stations), server-authoritative:
+
+- **Stamping DONE:** `GameServerSettlements.StampSettlement` (run at world setup, gated by the new
+  `ServerConfig.PlaceSettlements`) decides per planet+seed whether to place one — **airless or
+  lifeless worlds get none**, lush worlds almost always do — then lays a flattened foundation and
+  stamps the structure on the surface **offset from the landing zone**. Intact settlements are
+  **mining-protected** (`IsSettlementBlock`, like the ship hull); **ruins stay scavengeable**. The
+  settlement gets a generated **name** (e.g. "Mira Town", "Ruins of Karth Hollow") and exposes its
+  vendor/mission_board/npc/loot **markers** in world space for interactions. Deterministic from the
+  seed. 4 tests (lush world gets a named settlement + markers, airless never does, deterministic,
+  real blocks stamped). **Still planned:** NPC rendering/behaviour, and wiring the vendor (market
+  barter) + mission-board interactions to the markers.
 
 - **Procedural generator DONE:** `SettlementGenerator` lays out **buildings on a plot grid** (with
   streets between) baked into one voxel structure to stamp on the terrain. **Villages** are

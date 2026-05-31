@@ -106,6 +106,11 @@ public sealed partial class GameServer
             StampShip();
         }
 
+        if (_config.PlaceSettlements)
+        {
+            StampSettlement();
+        }
+
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
         _transport.PayloadReceived += OnPayload;
@@ -797,6 +802,12 @@ public sealed partial class GameServer
         if (IsShipBlock(pos))
         {
             Reject(session, "mine", "The ship hull cannot be mined.");
+            return;
+        }
+
+        if (IsSettlementBlock(pos))
+        {
+            Reject(session, "mine", "This settlement is protected.");
             return;
         }
 

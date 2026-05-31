@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **214 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **218 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -235,8 +235,12 @@ consumes protocol messages that already exist.
   buildings on a plot grid into one voxel structure: **villages** (single-storey, biome material),
   **towns** (multi-storey iron/glass with **ladders** between floors), plus a **ruined** variant
   (decay pass, no NPCs, loot). Markers: vendor / mission_board / npc; inhabitants human or alien.
-  New `ladder`/`stairs` blocks (player-craftable). Deterministic (stable hash). 6 tests. Still
-  planned: stamp into the world, NPC render/behaviour, vendor/mission interactions.
+  New `ladder`/`stairs` blocks (player-craftable). Deterministic (stable hash). 6 tests.
+  **Stamping DONE:** `StampSettlement` (gated by `ServerConfig.PlaceSettlements`) places one per
+  planet+seed (airless/lifeless worlds get none) with a flattened foundation, offset from the
+  landing zone; intact = mining-protected (`IsSettlementBlock`), ruins scavengeable; generated name
+  + world-space markers. 4 stamp tests (10 total). Still planned: NPC render/behaviour +
+  vendor/mission marker interactions.
 - **Crashed ship wrecks — generator DONE (server).** `WreckGenerator` builds a wreck from a
   `ships.json` hull (iron/glass, or crystal for alien wrecks), keeps the intact hull as a **repair
   mask**, then decays it (breaches + scorch + a guaranteed crash gash so it's enterable). No crew;
@@ -317,7 +321,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (214)
+dotnet test                      # expect all green (218)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side
