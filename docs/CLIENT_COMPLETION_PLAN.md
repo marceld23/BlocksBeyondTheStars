@@ -851,6 +851,30 @@ creatures and — where PvP is enabled — other players (server-authoritative):
   (creatures/PvP), and `SuitEnergy`. Server owns damage, range, cost and hit validation. Sequence
   with creatures + combat-loot.
 
+### Scanners: handheld & ship — NEW (planned)
+Give the existing `hand_scanner` tool (and a new ship scanner) a real readout:
+
+- **Handheld scanner (player):** aim the equipped `hand_scanner` at a target and get an **info
+  readout** of what it is + a **threat assessment**:
+  - **Creatures:** species name, habitat, **temperament → threat level** (passive/skittish = safe,
+    territorial = "provokable", aggressive/pack-hunter = **hostile/danger**), plus diurnal/nocturnal
+    and whether it's currently provoked — from the creature descriptor the client already has.
+  - **Flora:** species + its **property** (edible / poisonous / material) so the player knows
+    before harvesting/eating.
+  - **Materials/blocks:** block name + what it yields (ore type, hardness, required tool) from the
+    block/item defs.
+  The readout is mostly client-side (descriptors/defs are already synced); a `ScanIntent { target }`
+  asks the server only for **hidden/authoritative** details. Spends a little `SuitEnergy` per scan
+  (the tool already has `energyPerUse`). Shown as a small scanner panel/overlay in the unified UI.
+- **Ship scanner (space version):** a ship **scanner module** (built/blueprinted) that scans a
+  targeted **asteroid** and reveals **whether it holds resources** (and which) — the server knows
+  each asteroid's loot/tier, so a `ScanEntityIntent { entityId }` returns a **resource summary**
+  (e.g. "iron + titanium" / "barren"). Resource-bearing asteroids can then be flagged on the space
+  **radar** (ties into the radar plan). Server-authoritative over the hidden contents.
+- Server stays authoritative over anything the player shouldn't already know (asteroid contents,
+  exact hidden stats); the rest is a client readout over synced data. Sequence with the creature/
+  flora systems (done) + the space radar + the UI pass.
+
 ### Lighting: suit lamp, placed lights & glow — NEW (planned)
 Make the dark side of the day/night cycle (and caves) playable and atmospheric:
 

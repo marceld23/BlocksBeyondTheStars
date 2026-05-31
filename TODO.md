@@ -183,6 +183,12 @@ consumes protocol messages that already exist.
   worlds (surface per column from noise; **biome count randomised per world from the seed**); new
   blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);
   `WorldRadius` field. 2 tests. Planned: enforce size bounds, smooth blending, biome-matched life.
+- **(NEW, planned) Scanners (handheld + ship):** the `hand_scanner` shows a **readout + threat
+  level** when aimed at a **creature** (temperament → safe/provokable/hostile), **flora** (edible/
+  poison/material) or **material** (yield/tool) — mostly from already-synced descriptors/defs,
+  `ScanIntent` only for hidden info; costs a little `SuitEnergy`. A **ship scanner module** scans a
+  targeted **asteroid** and reveals whether it holds **resources** (server knows the loot;
+  `ScanEntityIntent`), flagged on the radar. See CLIENT_COMPLETION_PLAN "Scanners".
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,
   bioluminescent creatures). See CLIENT_COMPLETION_PLAN "Lighting".
