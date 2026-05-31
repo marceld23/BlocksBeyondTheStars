@@ -91,6 +91,7 @@ public sealed partial class GameServer
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
         RegisterActiveShip(_ship);
         RecomputeShipCombatStats();
+        InitFluids();
         _repo.SaveShip(ShipId, _ship);
 
         BuildGalaxy();
@@ -258,6 +259,7 @@ public sealed partial class GameServer
         TickSpace(deltaSeconds);
         TickEnemies(deltaSeconds);
         TickPresence(deltaSeconds);
+        TickFluids(deltaSeconds);
         StreamChunks();
 
         _sinceAutoSave += deltaSeconds;
@@ -302,6 +304,12 @@ public sealed partial class GameServer
                 {
                     p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
                 }
+            }
+
+            // Lava burns.
+            if (InLava(p.Position))
+            {
+                p.Health = System.Math.Max(0f, p.Health - (float)(dt * 15));
             }
 
             if (p.Health <= 0f)
@@ -728,6 +736,11 @@ public sealed partial class GameServer
         _world.SetBlock(pos, blockDef.NumericId);
 
         Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
+        if (IsFluid(blockDef.NumericId.Value))
+        {
+            RegisterFluidSource(pos); // placed water/lava starts flowing
+        }
+
         SendInventory(session);
     }
 

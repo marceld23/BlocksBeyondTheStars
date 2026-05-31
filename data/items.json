@@ -23,6 +23,8 @@
 
   { "key": "glass",           "nameKey": "item.glass.name",           "category": "block",      "maxStack": 99, "placesBlock": "glass" },
   { "key": "iron_wall",       "nameKey": "item.iron_wall.name",       "category": "block",      "maxStack": 99, "placesBlock": "iron_wall" },
+  { "key": "water",           "nameKey": "item.water.name",           "category": "block",      "maxStack": 99, "placesBlock": "water" },
+  { "key": "lava",            "nameKey": "item.lava.name",            "category": "block",      "maxStack": 99, "placesBlock": "lava" },
 
   { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },

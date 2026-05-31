@@ -109,12 +109,17 @@ namespace Spacecraft.Client
 
                 case "ice":
                 case "glass":
+                case "water":
                     // Diagonal sheen streak.
                     for (int d = 0; d < Tile; d++)
                     {
                         int x = d, y = (d + 6) % Tile;
-                        Texture.SetPixel(ox + x, oy + y, new Color(0.95f, 0.98f, 1f));
+                        Texture.SetPixel(ox + x, oy + y, key == "water" ? new Color(0.5f, 0.7f, 1f) : new Color(0.95f, 0.98f, 1f));
                     }
+                    break;
+
+                case "lava":
+                    Speckle(ox, oy, rng, new Color(1f, 0.85f, 0.3f), 30); // glowing flecks
                     break;
             }
         }
@@ -158,6 +163,8 @@ namespace Spacecraft.Client
             "data_cache" => new Color(0.18f, 0.40f, 0.55f),
             "glass" => new Color(0.70f, 0.90f, 0.95f),
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
+            "water" => new Color(0.20f, 0.42f, 0.85f),
+            "lava" => new Color(0.90f, 0.35f, 0.10f),
             _ => new Color(0.6f, 0.6f, 0.62f),
         };
     }

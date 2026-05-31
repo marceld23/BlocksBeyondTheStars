@@ -10,5 +10,7 @@
   { "key": "titanium_ore", "nameKey": "block.titanium_ore.name", "hardness": 4.5, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "data_cache",   "nameKey": "block.data_cache.name",   "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "data_fragment", "count": 1 } ] },
   { "key": "glass",        "nameKey": "block.glass.name",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass", "count": 1 } ] },
-  { "key": "iron_wall",    "nameKey": "block.iron_wall.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] }
+  { "key": "iron_wall",    "nameKey": "block.iron_wall.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] },
+  { "key": "water",        "nameKey": "block.water.name",        "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] },
+  { "key": "lava",         "nameKey": "block.lava.name",         "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] }
 ]

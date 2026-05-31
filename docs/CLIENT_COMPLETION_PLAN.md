@@ -285,6 +285,11 @@ Original notes:
 ### World systems: fluids, weather, day/night & star light — NEW (planned)
 Bigger world-simulation features (server-authoritative; the client renders the result):
 
+- **Fluids (water & lava) — slice DONE (server):** `GameServerFluids` runs a cellular-automaton
+  flow (down, then sideways with level decay; sources persist; per-tick cap), broadcasts
+  `BlockChanged`; water/lava blocks + placeable items + atlas colours; lava burns players on
+  contact. Tests cover fall + sideways spread. Still planned (the bullet below): worldgen
+  lakes/lava pools, swimming/buoyancy, transparency, buckets, water+lava→stone.
 - **Fluids (water & lava):** flowing liquids like Minecraft — source blocks spread to lower/
   adjacent cells with a flow level, settle, and stop; lava damages, water can be swum through
   and the two interacting (lava + water → stone/obsidian) is optional later. Server owns the
@@ -293,9 +298,14 @@ Bigger world-simulation features (server-authoritative; the client renders the r
   textures. Needs: fluid block types, a flow tick (rate-limited, bounded per tick), and
   buoyancy/damage in the movement/vitals rules.
 - **Day/night & weather, per planet:** a server world-time clock drives sunrise → day →
-  sunset → night; **each planet type** has its own day length, sky/weather profile (clear,
-  cloud, storm, dust, snow…) and hazard ties (M9 `EnvironmentalHazards`). Server broadcasts
-  time + weather; the client drives the skybox, a directional "sun" light and weather particles.
+  sunset → night; **each planet type** has its own day length and **weather profile**. Weather
+  states: **clear, clouds, rain, thunderstorm** (with lightning), plus planet-flavoured variants
+  (dust storm, snow, ash). **Intensity varies per planet** (a desert rarely rains; an ocean
+  world storms often; a lava world has ash) and a storm's strength scales effects + the M9
+  `EnvironmentalHazards` ties. The server owns the weather state machine (per planet, seed +
+  time driven) and broadcasts time + weather + intensity; the client drives the skybox, cloud
+  cover, a directional "sun" light, rain/snow/dust **particles**, lightning flashes and ambient
+  sound. Heavier weather = lower visibility / stronger particles.
 - **Star light colour:** each star system's sun has a colour (white / yellow / blue / reddish)
   from the universe generator; it tints the planet's directional light + ambient, so worlds in
   different systems *look* different. Carried in the world/star data → sent to the client →
@@ -316,6 +326,10 @@ hostile), server-authoritative.
   flocks), and **appearance** — a blocky body assembled from parts (body segments, head, legs
   count, optional wings/fins/tail) with a colour palette. The descriptor is sent to clients so a
   `CreatureBuilder` renders the *same* creature everywhere (like the avatar, but parametric).
+- **Activity cycle:** each species is **diurnal / nocturnal / crepuscular** and can **sleep** —
+  it rests (idle, reduced perception, won't wander/hunt) during its inactive phase and is active
+  in its phase. Ties into the day/night clock (World systems): nocturnal predators come out at
+  night, diurnal grazers sleep then, etc. Sleeping creatures are easier to avoid or surprise.
 - **Habitat (where it lives):** each species is **aquatic / lava-dwelling / land / airborne**.
   Habitat governs **spawning** (aquatic in water bodies, lava-dwellers in lava, fliers in the
   air volume, land on the surface), **movement** (swim / fly / walk), and **survival** (a
@@ -332,6 +346,28 @@ hostile), server-authoritative.
   to carry the species descriptor + habitat.
 - Sequence after fluids (for water/lava habitats) and with the art pass (for nicer creature
   models); the parametric blocky renderer works without bundled art.
+
+### Procedural flora — NEW (planned)
+Plants/growths across the worlds, **procedurally generated per planet from the seed** (like the
+creatures), server-authoritative:
+
+- **Habitat types:** **land, water, crystalline, and lava** flora — each only grows on/in the
+  matching substrate (land plants on dirt/stone, water plants submerged, crystalline on rock,
+  lava flora in/around lava). Depends on the fluids system for water/lava flora.
+- **Procedural form & appearance:** a species has a **growth form** — tree-like, vine, bush,
+  grass, crystal cluster, fungus — assembled procedurally (trunk/stem + branches/fronds + a
+  colour palette), so each planet's flora looks distinct. Rendered with the parametric blocky
+  builder (or as block clusters); no bundled art needed.
+- **Properties & effects (on harvest/consume):** poisonous, healing, food/nutrition, or a
+  **material substitute** — e.g. a fibrous plant yields a `cable`-substitute, a woody one a
+  building material — so flora feeds crafting. Encoded as drops + effect tags on the species.
+- **Growth & regrowth:** species have **growth rates**; harvested flora **regrows over time**
+  *as long as the block it spawned on is intact* — mine the host block and it won't return.
+  Server tracks flora instances + their host cell + a growth timer; regrowth is a rate-limited
+  tick that re-places the plant block and broadcasts the change.
+- **Abundance** follows the same per-world biodiversity level as creatures (barren ↔ lush).
+- Server owns spawning, growth/regrowth and effects; clients render flora blocks/models and
+  send harvest via the normal mine/interact path. Sequence with creatures + the art pass.
 
 ### M26 — Audio — **DONE (procedural SFX) / recorded audio + music later**
 - Unity **audio module** enabled; `AudioListener` on the player camera; master/SFX volumes from

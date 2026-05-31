@@ -11,6 +11,10 @@
   "block.data_cache.name": "Data Cache",
   "block.glass.name": "Glass Block",
   "block.iron_wall.name": "Iron Wall",
+  "block.water.name": "Water",
+  "block.lava.name": "Lava",
+  "item.water.name": "Water",
+  "item.lava.name": "Lava",
 
   "item.stone.name": "Stone",
   "item.dirt.name": "Dirt",
