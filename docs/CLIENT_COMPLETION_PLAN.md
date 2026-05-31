@@ -758,6 +758,13 @@ Original notes (remaining work):
   animated/main-menu background (optional).
 - Every bundled asset (textures, icons, fonts, audio) recorded in `NOTICES.md`, permissive
   licences only.
+- **AI asset tools — scaffold DONE (`tools/ai-assets/`):** two uv Python tools turn a text
+  description into a real asset — **`gen_sound.py`** (ElevenLabs text-to-sound-effects) and
+  **`gen_image.py`** (OpenAI image API; `gpt-image-1-mini` low @ 1024² ≈ $0.005, downscaled
+  locally to a small/pixel-art texture). They feed the art pass (replace procedural placeholders;
+  log each in `NOTICES.md`). **Cost-gated:** one file per run, keys only in a git-ignored `.env`,
+  and Claude proposes the exact command + estimated per-file cost for **approval before any paid
+  call**. Building/running the actual asset set is a later, opt-in step.
 
 ### M28 — Build & distribution
 - Windows **player build** (.exe) bundling the server (Option A), data and assets; first-run.

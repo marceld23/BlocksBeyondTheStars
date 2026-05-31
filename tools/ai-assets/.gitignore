@@ -1,0 +1,6 @@
+# Never commit secrets or the local venv / scratch outputs.
+.env
+.venv/
+__pycache__/
+out/
+*.pyc

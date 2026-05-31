@@ -219,6 +219,11 @@ consumes protocol messages that already exist.
   re-run `scripts/sync-client-libs.ps1`.)*
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
+- **AI asset tools — scaffold DONE (`tools/ai-assets/`).** Two uv Python tools: `gen_sound.py`
+  (ElevenLabs text→SFX) and `gen_image.py` (OpenAI text→image/texture; `gpt-image-1-mini` low ≈
+  $0.005, downscaled locally). One file per run, keys in a git-ignored `.env`; Claude proposes the
+  command + estimated cost for **approval before any paid call**. Generating the real asset set is
+  a later opt-in step. See `tools/ai-assets/README.md`.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
   (`BlockTextureAtlas` + UV mapping + `Spacecraft/BlockAtlas` shader, no image files). Still:
   UI icons/symbols (can also be procedural), tool/hand visuals, mining feedback, uGUI polish.
