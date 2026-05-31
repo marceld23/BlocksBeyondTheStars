@@ -10,6 +10,12 @@ public sealed class ToolProperties
 
     /// <summary>Energy consumed per use (0 = no energy cost).</summary>
     public float EnergyPerUse { get; set; }
+
+    /// <summary>Weapon hit damage (<see cref="ToolKind.Weapon"/>); 0 falls back to a tier-scaled default.</summary>
+    public float Damage { get; set; }
+
+    /// <summary>Weapon reach in blocks (melee = short, ranged = long); 0 uses the default attack reach.</summary>
+    public float Range { get; set; }
 }
 
 /// <summary>

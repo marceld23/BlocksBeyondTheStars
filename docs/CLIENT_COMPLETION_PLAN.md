@@ -661,7 +661,21 @@ hostile), server-authoritative.
 - Sequence after fluids (for water/lava habitats) and with the art pass (for nicer creature
   models); the parametric blocky renderer works without bundled art.
 
-### Player weapons: melee & ranged — NEW (planned)
+### Player weapons: melee & ranged — **slice DONE (server + data) / extras planned**
+Implemented (server + data): six craftable **personal weapons** as `ToolKind.Weapon` tools with new
+`ToolProperties.Damage` + `Range` — **melee** `machete` / `vibro_knife` / `plasma_sword` (short
+reach, rising damage) and **ranged** `gauss_pistol` / `laser_pistol` / `plasma_blaster` (long
+reach; energy ones draw `SuitEnergy` per shot). The shared `AttackEntity` path is now weapon-aware:
+the held weapon's **range gates reach** (so ranged hits far, melee only close), its **damage**
+decides the hit, and **energy weapons consume suit energy** (rejected when empty). Each has a
+**recipe** (workshop) + **blueprint** (category "Weapon", tiered prerequisites) + bilingual
+locales, so they appear in the existing crafting/tech UI and the hotbar + **F**-attack use them
+with no client change. 3 tests (stats, ranged-hits-beyond-melee, energy-empty rejection); suite
+141 green. Still planned (below): **ammo** for kinetic guns, projectile/hitscan **VFX**, PvP
+damage + WeaponMode gating, damage types vs armor/creature resistances, reload/overheat.
+
+Original notes (remaining work):
+
 Craftable **personal weapons** for the player character (distinct from ship weapons), to fight
 creatures and — where PvP is enabled — other players (server-authoritative):
 

@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **138 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **141 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -198,12 +198,13 @@ consumes protocol messages that already exist.
   visibility range** (hazy/thick → see less far; thin → farther; airless → clearest), scaled by
   weather intensity, server-supplied via `WorldEnvironment`; the client applies it as camera fog
   (the view-distance setting stays a client cap). Folded into Atmosphere & breathability. See plan.
-- **(NEW, planned) Player weapons (melee & ranged):** craftable personal weapons — **melee**
-  (machete, vibro-knife, plasma sword) extending the `ToolKind.Weapon` tool model, and **ranged**
-  (gauss pistol, laser pistol, plasma blaster) with server-authoritative hit resolution + per-
-  weapon damage/range/fire-rate and ammo or `SuitEnergy` cost. Crafted/blueprinted with a tier
-  progression; drives the same attack path as creatures/PvP. See CLIENT_COMPLETION_PLAN
-  "Player weapons: melee & ranged".
+- **Player weapons (melee & ranged) — slice DONE (server + data).** Six craftable weapons as
+  `ToolKind.Weapon` tools with `Damage`+`Range`: melee (machete/vibro_knife/plasma_sword) and
+  ranged (gauss_pistol/laser_pistol/plasma_blaster; energy ones draw `SuitEnergy`). Shared
+  `AttackEntity` is weapon-aware — range gates reach, damage decides the hit, energy weapons spend
+  suit energy (rejected empty). Recipes + blueprints (tiered) + DE/EN locales, so they appear in
+  the crafting/tech UI and work via the hotbar + F with no client change. 3 tests. Planned: ammo,
+  projectile/hitscan VFX, PvP + WeaponMode gating, damage types vs resistances, reload/overheat.
 - **Procedural creatures & aliens — slice DONE (server + client render).** Seed-derived **species roster** per
   world (`CreatureGenerator`, sized by `PlanetType.CreatureAbundance` none/few/many) — each species
   has stats, **temperament** (mostly **non-hostile**), **activity** (diurnal/nocturnal/… + sleep),
@@ -240,7 +241,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (138)
+dotnet test                      # expect all green (141)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

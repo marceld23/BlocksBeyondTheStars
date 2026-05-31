@@ -12,5 +12,12 @@
   { "key": "titanium_plate",   "station": "refinery", "inputs": [ { "item": "titanium_ore", "count": 2 } ],                                        "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
 
   { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
-  { "key": "oxygen_tank_1",    "station": "workshop", "requiredBlueprint": "oxygen_tank_1",  "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ],          "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] }
+  { "key": "oxygen_tank_1",    "station": "workshop", "requiredBlueprint": "oxygen_tank_1",  "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ],          "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] },
+
+  { "key": "machete",        "station": "workshop", "requiredBlueprint": "machete",        "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "carbon", "count": 2 } ],                                          "outputs": [ { "item": "machete", "count": 1 } ] },
+  { "key": "vibro_knife",    "station": "workshop", "requiredBlueprint": "vibro_knife",    "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 2 }, { "item": "energy_cell_1", "count": 1 } ],    "outputs": [ { "item": "vibro_knife", "count": 1 } ] },
+  { "key": "plasma_sword",   "station": "workshop", "requiredBlueprint": "plasma_sword",   "inputs": [ { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "plasma_sword", "count": 1 } ] },
+  { "key": "gauss_pistol",   "station": "workshop", "requiredBlueprint": "gauss_pistol",   "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 } ],                                          "outputs": [ { "item": "gauss_pistol", "count": 1 } ] },
+  { "key": "laser_pistol",   "station": "workshop", "requiredBlueprint": "laser_pistol",   "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "laser_pistol", "count": 1 } ] },
+  { "key": "plasma_blaster", "station": "workshop", "requiredBlueprint": "plasma_blaster", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "plasma_blaster", "count": 1 } ] }
 ]

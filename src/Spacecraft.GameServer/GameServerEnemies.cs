@@ -118,15 +118,34 @@ public sealed partial class GameServer
     private void AttackCombatEntity(PlayerSession session, CombatEntity target, List<CombatEntity> list, bool isCreature)
     {
         var p = session.State;
-        if (p.Position.DistanceSquared(target.Position) > EnemyAttackReach * EnemyAttackReach)
+        var tool = ActiveTool(p);
+        bool isWeapon = tool.Kind == ToolKind.Weapon;
+
+        // A crafted weapon's own range governs reach (melee = short, ranged = long); else default.
+        float reach = isWeapon && tool.Range > 0f ? tool.Range : EnemyAttackReach;
+        if (p.Position.DistanceSquared(target.Position) > reach * reach)
         {
             Reject(session, "attack", "Target is out of reach.");
             return;
         }
 
-        // Any tool deals damage; higher tiers (and the Weapon kind) hit harder.
-        var tool = ActiveTool(p);
-        float damage = 15f + tool.Tier * 10f + (tool.Kind == ToolKind.Weapon ? 15f : 0f);
+        // Energy weapons (laser/plasma) draw suit energy per shot.
+        if (isWeapon && tool.EnergyPerUse > 0f)
+        {
+            if (p.SuitEnergy < tool.EnergyPerUse)
+            {
+                Reject(session, "attack", "Not enough suit energy to fire.");
+                return;
+            }
+
+            p.SuitEnergy -= tool.EnergyPerUse;
+            SendPlayerState(session);
+        }
+
+        // A crafted weapon uses its own damage; any other tool keeps the tier-scaled fallback.
+        float damage = isWeapon
+            ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
+            : 15f + tool.Tier * 10f;
         target.Hull -= damage;
 
         if (target.Hull > 0f)

@@ -38,5 +38,12 @@
   { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },
   { "key": "block_placer",    "nameKey": "item.block_placer.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.block_placer.desc", "tool": { "kind": "blockPlacer", "tier": 1, "energyPerUse": 0.0 } },
-  { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } }
+  { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } },
+
+  { "key": "machete",        "nameKey": "item.machete.name",        "category": "tool", "maxStack": 1, "descriptionKey": "item.machete.desc",        "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 30, "range": 3.5 } },
+  { "key": "vibro_knife",    "nameKey": "item.vibro_knife.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.vibro_knife.desc",    "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 0.3, "damage": 45, "range": 3.5 } },
+  { "key": "plasma_sword",   "nameKey": "item.plasma_sword.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.plasma_sword.desc",   "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 0.6, "damage": 70, "range": 4.0 } },
+  { "key": "gauss_pistol",   "nameKey": "item.gauss_pistol.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.gauss_pistol.desc",   "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 25, "range": 26 } },
+  { "key": "laser_pistol",   "nameKey": "item.laser_pistol.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.laser_pistol.desc",   "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 1.0, "damage": 35, "range": 30 } },
+  { "key": "plasma_blaster", "nameKey": "item.plasma_blaster.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.plasma_blaster.desc", "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 2.0, "damage": 55, "range": 32 } }
 ]

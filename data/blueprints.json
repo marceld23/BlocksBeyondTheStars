@@ -63,5 +63,35 @@
     "key": "ship_scout", "nameKey": "blueprint.ship_scout.name", "descriptionKey": "blueprint.ship_scout.desc",
     "category": "Ship", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "machete", "nameKey": "blueprint.machete.name", "descriptionKey": "blueprint.machete.desc",
+    "category": "Weapon", "prerequisites": [],
+    "unlockCost": [ { "item": "iron_plate", "count": 3 } ]
+  },
+  {
+    "key": "vibro_knife", "nameKey": "blueprint.vibro_knife.name", "descriptionKey": "blueprint.vibro_knife.desc",
+    "category": "Weapon", "prerequisites": [ "machete" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 }, { "item": "cable", "count": 3 } ]
+  },
+  {
+    "key": "plasma_sword", "nameKey": "blueprint.plasma_sword.name", "descriptionKey": "blueprint.plasma_sword.desc",
+    "category": "Weapon", "prerequisites": [ "vibro_knife" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "gauss_pistol", "nameKey": "blueprint.gauss_pistol.name", "descriptionKey": "blueprint.gauss_pistol.desc",
+    "category": "Weapon", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]
+  },
+  {
+    "key": "laser_pistol", "nameKey": "blueprint.laser_pistol.name", "descriptionKey": "blueprint.laser_pistol.desc",
+    "category": "Weapon", "prerequisites": [ "gauss_pistol" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 5 } ]
+  },
+  {
+    "key": "plasma_blaster", "nameKey": "blueprint.plasma_blaster.name", "descriptionKey": "blueprint.plasma_blaster.desc",
+    "category": "Weapon", "prerequisites": [ "laser_pistol" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
   }
 ]
