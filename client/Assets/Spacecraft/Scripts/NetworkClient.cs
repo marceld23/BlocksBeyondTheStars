@@ -49,6 +49,7 @@ namespace Spacecraft.Client
         // Multiplayer presence (M24).
         public event Action<PlayerPresence> PlayerPresenceReceived;
         public event Action<PlayerLeft> PlayerLeftReceived;
+        public event Action<OwnedShips> OwnedShipsReceived;
 
         public bool Connected { get; private set; }
 
@@ -115,6 +116,10 @@ namespace Spacecraft.Client
         public void SendAppearance(int skin, int torso, int arms, int legs)
             => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs });
 
+        public void SendCraftShip(string shipType) => Send(new CraftShipIntent { ShipType = shipType });
+
+        public void SendSwitchShip(string shipId) => Send(new SwitchShipIntent { ShipId = shipId });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -151,6 +156,7 @@ namespace Spacecraft.Client
                 case ServerRules m: ServerRulesReceived?.Invoke(m); break;
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
+                case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
             }
         }
 

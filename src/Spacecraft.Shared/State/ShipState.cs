@@ -15,6 +15,9 @@ public sealed class ShipState
     /// <summary>Identifier of the system/planet/station the ship is currently at.</summary>
     public string CurrentLocationId { get; set; } = string.Empty;
 
+    /// <summary>Ship type/design key (see <c>data/ships.json</c>); drives the hull design + base stats.</summary>
+    public string ShipType { get; set; } = "starter";
+
     /// <summary>
     /// Current hull integrity (space combat, `anf_space_flight.md` §8.4). Reaching 0 disables
     /// the ship and recovers it to its base — there is no permanent ship loss (§8.5). The

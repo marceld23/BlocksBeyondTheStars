@@ -249,8 +249,16 @@ Scope: client-side presentation over the existing M19/M25 protocol; no server ch
 (the server already tracks in-space + entities). Sizeable Unity work — schedule with the art
 pass.
 
-### Ships: types, designs, expandable interiors & multiple owned ships — NEW (planned)
-Today there is one hardcoded ship. Grow this into a real ship system:
+### Ships: types, designs, expandable interiors & multiple owned ships — **slice DONE / extras planned**
+Implemented (server + data + minimal UI): data-driven `data/ships.json` (starter/hauler/scout)
++ `ShipDefinition` in content; an owned-ships registry with an active ship; `CraftShip`
+(blueprint + cost validated) and `SwitchShip` (re-stamps the design, applies base hull/shield);
+`CraftShipIntent`/`SwitchShipIntent`/`OwnedShips` protocol; the hull size is derived from the
+active design; the Ship tab lists owned ships (switch) + craftable types. 5 fleet tests pass.
+Still planned: per-ship **persistence** of the whole fleet (owned ships are in-memory this
+slice), **expandable interiors** (rooms grow with modules), and richer designs/props.
+
+Original notes:
 - **Ship types & designs (craftable):** a data-driven `data/ships.json` — each type has base
   hull/shield, module slots, a **design** (the hull block layout `StampShip` builds) and a
   craft cost / blueprint. The current hull becomes the default "starter" design. New ships are
@@ -264,6 +272,28 @@ Today there is one hardcoded ship. Grow this into a real ship system:
   switch the active one. Server stays authoritative over ownership/active selection/craft.
 - Builds on M23a (ship-as-place) + the module system; needs a ship registry + persistence of
   owned ships. Sizeable — schedule after the core client (M26–M28) or interleave per appetite.
+
+### World systems: fluids, weather, day/night & star light — NEW (planned)
+Bigger world-simulation features (server-authoritative; the client renders the result):
+
+- **Fluids (water & lava):** flowing liquids like Minecraft — source blocks spread to lower/
+  adjacent cells with a flow level, settle, and stop; lava damages, water can be swum through
+  and the two interacting (lava + water → stone/obsidian) is optional later. Server owns the
+  cellular-automaton flow (a `fluid` block layer + a tick that updates changed cells and
+  broadcasts `BlockChanged`); the client renders fluid blocks with animated/translucent
+  textures. Needs: fluid block types, a flow tick (rate-limited, bounded per tick), and
+  buoyancy/damage in the movement/vitals rules.
+- **Day/night & weather, per planet:** a server world-time clock drives sunrise → day →
+  sunset → night; **each planet type** has its own day length, sky/weather profile (clear,
+  cloud, storm, dust, snow…) and hazard ties (M9 `EnvironmentalHazards`). Server broadcasts
+  time + weather; the client drives the skybox, a directional "sun" light and weather particles.
+- **Star light colour:** each star system's sun has a colour (white / yellow / blue / reddish)
+  from the universe generator; it tints the planet's directional light + ambient, so worlds in
+  different systems *look* different. Carried in the world/star data → sent to the client →
+  applied to the sun light colour. Ties into the M25b space-scene sun as well.
+
+These are sizeable; sequence them with the art pass and the space-view work. All authoritative
+on the server (a client must not decide fluid spread, time of day or hazards).
 
 ### M26 — Audio — **DONE (procedural SFX) / recorded audio + music later**
 - Unity **audio module** enabled; `AudioListener` on the player camera; master/SFX volumes from

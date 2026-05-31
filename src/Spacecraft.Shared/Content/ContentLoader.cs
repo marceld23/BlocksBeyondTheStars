@@ -37,6 +37,7 @@ public static class ContentLoader
         var recipes = LoadArray<RecipeDefinition>(Path.Combine(dataDir, "recipes.json"));
         var blueprints = LoadArray<BlueprintDefinition>(Path.Combine(dataDir, "blueprints.json"));
         var modules = LoadArray<ShipModuleDefinition>(Path.Combine(dataDir, "ship_modules.json"));
+        var ships = LoadArray<ShipDefinition>(Path.Combine(dataDir, "ships.json"));
         var planets = LoadArray<PlanetType>(Path.Combine(dataDir, "planets.json"));
         var missions = LoadArray<Spacecraft.Shared.Missions.MissionDefinition>(Path.Combine(dataDir, "missions.json"));
 
@@ -54,7 +55,7 @@ public static class ContentLoader
             }
         }
 
-        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions);
+        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions, ships);
         content.Validate();
         return content;
     }

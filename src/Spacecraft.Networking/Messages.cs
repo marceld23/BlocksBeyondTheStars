@@ -134,6 +134,18 @@ public sealed class UseStationIntent
     public string Station { get; set; } = string.Empty;
 }
 
+/// <summary>Client crafts a new ship of the given type (data-driven `ships.json`).</summary>
+public sealed class CraftShipIntent
+{
+    public string ShipType { get; set; } = string.Empty;
+}
+
+/// <summary>Client switches its active ship to one it owns.</summary>
+public sealed class SwitchShipIntent
+{
+    public string ShipId { get; set; } = string.Empty;
+}
+
 /// <summary>Client tells the server its avatar colours (packed 0xRRGGBB) so other players can see them.</summary>
 public sealed class SetAppearanceIntent
 {
@@ -463,4 +475,18 @@ public sealed class PlayerPresence
 public sealed class PlayerLeft
 {
     public string PlayerId { get; set; } = string.Empty;
+}
+
+/// <summary>One ship the player owns.</summary>
+public sealed class NetOwnedShip
+{
+    public string Id { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public bool Active { get; set; }
+}
+
+/// <summary>The player's owned ships and which is active (sent on join and on change).</summary>
+public sealed class OwnedShips
+{
+    public NetOwnedShip[] Ships { get; set; } = System.Array.Empty<NetOwnedShip>();
 }

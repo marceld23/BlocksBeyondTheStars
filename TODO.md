@@ -124,9 +124,13 @@ consumes protocol messages that already exist.
   should show an actual view — cockpit / third-person ship in a starfield space scene / or board
   & walk inside the sealed ship and use stations (V cycles). Plus scripted launch & landing
   animations. Client-side presentation over existing protocol. See CLIENT_COMPLETION_PLAN.
-- **(NEW, planned) Ships: types/designs/expandable interiors/multiple owned + switching** —
-  data-driven `ships.json`, craftable ship types, rooms-per-module interiors, owned-ships list
-  with an active ship + `SwitchShipIntent`, a Hangar UI. See CLIENT_COMPLETION_PLAN.
+- **Ships: types/designs/multiple owned + switching — slice DONE.** `ships.json`
+  (starter/hauler/scout), owned-ships registry + active, `CraftShip`/`SwitchShip` +
+  `OwnedShips` protocol, Ship-tab craft/switch UI, hull size from design. Planned extras:
+  per-ship fleet persistence, expandable interiors, richer designs.
+- **(NEW, planned) World systems:** fluids (water/lava flow like Minecraft), per-planet
+  day/night + weather, and star light colour (white/yellow/blue/red) tinting the world. All
+  server-authoritative; see CLIENT_COMPLETION_PLAN "World systems".
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done

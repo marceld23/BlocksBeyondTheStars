@@ -89,6 +89,7 @@ public sealed partial class GameServer
         _world = new ServerWorld(_content, _generator, _repo, planet);
 
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
+        RegisterActiveShip(_ship);
         RecomputeShipCombatStats();
         _repo.SaveShip(ShipId, _ship);
 
@@ -166,6 +167,12 @@ public sealed partial class GameServer
 
     private ShipState CreateStarterShip()
     {
+        // Prefer the data-driven "starter" ship design; fall back to a built-in module list.
+        if (_content.GetShip("starter") is { } def)
+        {
+            return BuildShipFromDefinition(def);
+        }
+
         var ship = new ShipState { CurrentLocationId = _meta.DefaultPlanetType };
         foreach (var key in new[] { "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic" })
         {
@@ -472,6 +479,8 @@ public sealed partial class GameServer
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
+            case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
+            case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
         }
     }
 
@@ -530,6 +539,7 @@ public sealed partial class GameServer
         SendShipCombatStatus(session);
         SendShipPlacement(session);
         SendShipStations(session);
+        SendOwnedShips(session);
         SendExistingPresences(session); // show already-online players to the newcomer
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");

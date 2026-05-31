@@ -196,6 +196,41 @@ namespace Spacecraft.Client
 
                 GUILayout.EndHorizontal();
             }
+
+            // --- Fleet: craft ship types + switch the active ship ---
+            GUILayout.Space(10);
+            GUILayout.Label(loc.Get("ui.ships.fleet"));
+            foreach (var ship in Game.OwnedShips)
+            {
+                GUILayout.BeginHorizontal();
+                string tag = ship.Active ? "  ▸ " : "    ";
+                GUILayout.Label($"{tag}{loc.Get($"ship.{ship.Type}.name")}", GUILayout.Width(400));
+                if (!ship.Active && GUILayout.Button(loc.Get("ui.ships.switch"), GUILayout.Width(100)))
+                {
+                    Game.Network.SendSwitchShip(ship.Id);
+                }
+
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(6);
+            GUILayout.Label(loc.Get("ui.ships.craft_new"));
+            foreach (var s in Game.Content.Ships.Values)
+            {
+                if (string.IsNullOrEmpty(s.RequiredBlueprint))
+                {
+                    continue; // the starter type is already owned
+                }
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{loc.Get($"ship.{s.Key}.name")}  ({CostLabel(loc, s.CraftCost)})", GUILayout.Width(400));
+                if (GUILayout.Button(loc.Get("ui.action.craft"), GUILayout.Width(100)))
+                {
+                    Game.Network.SendCraftShip(s.Key);
+                }
+
+                GUILayout.EndHorizontal();
+            }
         }
 
         private void DrawMap(Spacecraft.Shared.Localization.Localizer loc)

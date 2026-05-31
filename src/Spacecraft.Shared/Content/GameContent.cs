@@ -21,6 +21,7 @@ public sealed class GameContent
     private readonly Dictionary<string, RecipeDefinition> _recipes;
     private readonly Dictionary<string, BlueprintDefinition> _blueprints;
     private readonly Dictionary<string, ShipModuleDefinition> _shipModules;
+    private readonly Dictionary<string, ShipDefinition> _ships;
     private readonly Dictionary<string, PlanetType> _planets;
     private readonly Dictionary<string, MissionDefinition> _missions;
     private readonly BlockDefinition?[] _blocksById;
@@ -31,6 +32,7 @@ public sealed class GameContent
     public IReadOnlyDictionary<string, RecipeDefinition> Recipes => _recipes;
     public IReadOnlyDictionary<string, BlueprintDefinition> Blueprints => _blueprints;
     public IReadOnlyDictionary<string, ShipModuleDefinition> ShipModules => _shipModules;
+    public IReadOnlyDictionary<string, ShipDefinition> Ships => _ships;
     public IReadOnlyDictionary<string, PlanetType> Planets => _planets;
     public IReadOnlyDictionary<string, MissionDefinition> Missions => _missions;
 
@@ -42,13 +44,15 @@ public sealed class GameContent
         IEnumerable<ShipModuleDefinition> shipModules,
         IDictionary<GameLocale, Dictionary<string, string>> locales,
         IEnumerable<PlanetType>? planets = null,
-        IEnumerable<MissionDefinition>? missions = null)
+        IEnumerable<MissionDefinition>? missions = null,
+        IEnumerable<ShipDefinition>? ships = null)
     {
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
         _recipes = recipes.ToDictionary(r => r.Key);
         _blueprints = blueprints.ToDictionary(b => b.Key);
         _shipModules = shipModules.ToDictionary(m => m.Key);
+        _ships = (ships ?? Enumerable.Empty<ShipDefinition>()).ToDictionary(s => s.Key);
         _planets = (planets ?? Enumerable.Empty<PlanetType>()).ToDictionary(p => p.Key);
         _missions = (missions ?? Enumerable.Empty<MissionDefinition>()).ToDictionary(m => m.Id);
         _locales = new Dictionary<GameLocale, Dictionary<string, string>>(locales);
@@ -91,6 +95,7 @@ public sealed class GameContent
     public RecipeDefinition? GetRecipe(string key) => _recipes.TryGetValue(key, out var r) ? r : null;
     public BlueprintDefinition? GetBlueprint(string key) => _blueprints.TryGetValue(key, out var b) ? b : null;
     public ShipModuleDefinition? GetShipModule(string key) => _shipModules.TryGetValue(key, out var m) ? m : null;
+    public ShipDefinition? GetShip(string key) => _ships.TryGetValue(key, out var s) ? s : null;
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
     public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;
 
@@ -182,6 +187,23 @@ public sealed class GameContent
             foreach (var cost in module.BuildCost)
             {
                 RequireItem($"Ship module '{module.Key}' build cost", cost.Item);
+            }
+        }
+
+        foreach (var ship in _ships.Values)
+        {
+            RequireBlueprint($"Ship '{ship.Key}'", ship.RequiredBlueprint);
+            foreach (var cost in ship.CraftCost)
+            {
+                RequireItem($"Ship '{ship.Key}' craft cost", cost.Item);
+            }
+
+            foreach (var mod in ship.StartModules)
+            {
+                if (!_shipModules.ContainsKey(mod))
+                {
+                    problems.Add($"Ship '{ship.Key}' references unknown module '{mod}'.");
+                }
             }
         }
 

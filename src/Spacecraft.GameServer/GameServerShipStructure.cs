@@ -16,10 +16,10 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    // Interior footprint: 5 wide (x), 4 tall (y), 7 long (z). Walls sit on the half-extents.
-    private const int ShipHalfX = 2;
-    private const int ShipHeight = 4;
-    private const int ShipHalfZ = 3;
+    // Hull half-extents, derived from the active ship design in StampShip (defaults = starter).
+    private int _shipHalfX = 2;
+    private int _shipHeight = 4;
+    private int _shipHalfZ = 3;
 
     private const float ShipStationReach = 3f;
 
@@ -46,6 +46,15 @@ public sealed partial class GameServer
         int y0 = _generator.SurfaceHeight(_world.Planet, cx, cz);
         _shipAnchor = new Vector3i(cx, y0, cz);
 
+        // Hull size from the active ship's design (data/ships.json), falling back to the starter.
+        var design = _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter");
+        if (design != null)
+        {
+            _shipHalfX = System.Math.Max(2, design.InteriorWidth / 2);
+            _shipHalfZ = System.Math.Max(2, design.InteriorLength / 2);
+            _shipHeight = System.Math.Max(3, design.Height);
+        }
+
         var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
         var glass = _content.GetBlock("glass")?.NumericId ?? wall;
         if (wall.IsAir)
@@ -54,15 +63,15 @@ public sealed partial class GameServer
             return;
         }
 
-        for (int x = cx - ShipHalfX; x <= cx + ShipHalfX; x++)
-        for (int y = y0; y <= y0 + ShipHeight; y++)
-        for (int z = cz - ShipHalfZ; z <= cz + ShipHalfZ; z++)
+        for (int x = cx - _shipHalfX; x <= cx + _shipHalfX; x++)
+        for (int y = y0; y <= y0 + _shipHeight; y++)
+        for (int z = cz - _shipHalfZ; z <= cz + _shipHalfZ; z++)
         {
             var pos = new Vector3i(x, y, z);
 
-            bool shell = x == cx - ShipHalfX || x == cx + ShipHalfX
-                         || y == y0 || y == y0 + ShipHeight
-                         || z == cz - ShipHalfZ || z == cz + ShipHalfZ;
+            bool shell = x == cx - _shipHalfX || x == cx + _shipHalfX
+                         || y == y0 || y == y0 + _shipHeight
+                         || z == cz - _shipHalfZ || z == cz + _shipHalfZ;
 
             if (!shell)
             {
@@ -71,7 +80,7 @@ public sealed partial class GameServer
             }
 
             // Door: a 1-wide, 2-tall gap in the -Z wall, centred on x.
-            bool door = z == cz - ShipHalfZ && x == cx && (y == y0 + 1 || y == y0 + 2);
+            bool door = z == cz - _shipHalfZ && x == cx && (y == y0 + 1 || y == y0 + 2);
             if (door)
             {
                 _world.SetBlock(pos, BlockId.Air);
@@ -79,7 +88,7 @@ public sealed partial class GameServer
             }
 
             // Glass viewport: the +Z wall's middle row (excluding the corners).
-            bool viewport = z == cz + ShipHalfZ && y == y0 + 2 && x > cx - ShipHalfX && x < cx + ShipHalfX;
+            bool viewport = z == cz + _shipHalfZ && y == y0 + 2 && x > cx - _shipHalfX && x < cx + _shipHalfX;
             _world.SetBlock(pos, viewport ? glass : wall);
         }
 
@@ -87,12 +96,13 @@ public sealed partial class GameServer
         // stay put. The logical stations also exist as ship modules (workshop gates crafting,
         // medbay = respawn, cargo = shared hold); these tiles add interaction points.
         int floor = y0 + 1;
+        int dx = _shipHalfX - 1, dz = _shipHalfZ - 1; // keep stations inside the walls
         _stations.Clear();
-        AddStation("medbay", cx - 1, floor, cz - 2, "ice");          // heal-tank (heal + respawn)
-        AddStation("cockpit", cx, floor, cz + 2, "data_cache");      // star map / travel
-        AddStation("workshop", cx + 1, floor, cz, "stone");          // crafting bench
-        AddStation("cargo", cx - 1, floor, cz + 1, "iron_wall");     // shared cargo hold
-        AddStation("quarters", cx + 1, floor, cz - 2, "carbon");     // sleep / set respawn
+        AddStation("medbay", cx - dx, floor, cz - dz, "ice");          // heal-tank (heal + respawn)
+        AddStation("cockpit", cx, floor, cz + dz, "data_cache");       // star map / travel
+        AddStation("workshop", cx + dx, floor, cz, "stone");           // crafting bench
+        AddStation("cargo", cx - dx, floor, cz, "iron_wall");          // shared cargo hold
+        AddStation("quarters", cx + dx, floor, cz - dz, "carbon");     // sleep / set respawn
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
@@ -211,9 +221,9 @@ public sealed partial class GameServer
         }
 
         int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
-        return p.X >= cx - ShipHalfX && p.X <= cx + ShipHalfX
-               && p.Y >= y0 && p.Y <= y0 + ShipHeight
-               && p.Z >= cz - ShipHalfZ && p.Z <= cz + ShipHalfZ;
+        return p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
+               && p.Y >= y0 && p.Y <= y0 + _shipHeight
+               && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
     }
 
     /// <summary>Test/diagnostic accessor: whether a world cell is protected ship structure.</summary>
@@ -231,9 +241,9 @@ public sealed partial class GameServer
         }
 
         int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
-        return p.X >= cx - ShipHalfX && p.X <= cx + ShipHalfX
-               && p.Y >= y0 && p.Y <= y0 + ShipHeight
-               && p.Z >= cz - ShipHalfZ && p.Z <= cz + ShipHalfZ;
+        return p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
+               && p.Y >= y0 && p.Y <= y0 + _shipHeight
+               && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
     }
 
     /// <summary>Tells the client where the ship stands so it can show a compass/minimap to it.</summary>

@@ -78,7 +78,11 @@ public sealed partial class GameServer
     /// <summary>Recomputes hull/shield maxima from built modules and clamps current values.</summary>
     private void RecomputeShipCombatStats()
     {
-        float hull = BaseHull, shield = 0f, regen = 0f;
+        // Base stats come from the active ship's design (data/ships.json); modules add on top.
+        var design = _content.GetShip(_ship.ShipType);
+        float hull = design?.BaseHull ?? BaseHull;
+        float shield = design?.BaseShield ?? 0f;
+        float regen = 0f;
         foreach (var key in _ship.Modules)
         {
             if (_content.GetShipModule(key) is not { } m)

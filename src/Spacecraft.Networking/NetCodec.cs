@@ -44,6 +44,8 @@ public static class NetCodec
         Register(21, typeof(AttackEntityIntent));
         Register(22, typeof(UseStationIntent));
         Register(23, typeof(SetAppearanceIntent));
+        Register(24, typeof(CraftShipIntent));
+        Register(25, typeof(SwitchShipIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -72,6 +74,7 @@ public static class NetCodec
         Register(73, typeof(ShipStations));
         Register(74, typeof(PlayerPresence));
         Register(75, typeof(PlayerLeft));
+        Register(76, typeof(OwnedShips));
     }
 
     private static void Register(byte tag, Type type)

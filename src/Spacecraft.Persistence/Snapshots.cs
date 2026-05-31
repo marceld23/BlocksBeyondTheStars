@@ -46,6 +46,7 @@ public sealed class ShipSnapshot
     public List<InventorySlotDto> Cargo { get; set; } = new();
     public float Hull { get; set; } = 100f;
     public float Shield { get; set; }
+    public string ShipType { get; set; } = "starter";
 }
 
 /// <summary>Maps between runtime state objects and their persisted snapshots.</summary>
@@ -137,6 +138,7 @@ public static class StateMapper
         Cargo = DumpInventory(ship.Cargo),
         Hull = ship.Hull,
         Shield = ship.Shield,
+        ShipType = ship.ShipType,
     };
 
     public static ShipState FromSnapshot(ShipSnapshot s) => new()
@@ -146,5 +148,6 @@ public static class StateMapper
         Cargo = RestoreInventory(s.CargoSlotCount, s.Cargo),
         Hull = s.Hull,
         Shield = s.Shield,
+        ShipType = string.IsNullOrEmpty(s.ShipType) ? "starter" : s.ShipType,
     };
 }
