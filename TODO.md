@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **141 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **145 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -217,9 +217,11 @@ consumes protocol messages that already exist.
   descriptor — segments/legs/wings/tail/colour/glow + hostile tint + sleep dim; `CreatureView`
   syncs them; F attacks creatures too). **Movement AI done** (`CreatureBehaviour.Step`): hunters
   approach, skittish flee, the rest wander, sleepers rest; server moves them per tick + re-syncs
-  positions ~2 Hz for the client to interpolate. Planned: pack/flock, territorial retaliation,
-  pathing, fluid-volume spawning, nameplates, hunger loop. *(Client needs the refreshed Networking
-  lib — re-run `scripts/sync-client-libs.ps1`.)*
+  positions ~2 Hz for the client to interpolate. **Territorial retaliation done:** attacking a
+  retaliating species (territorial / hostile) provokes it (`ProvokeTimer`) → hunts + bites back
+  ~12 s then calms; pack-hunters rally nearby kin; hooked into AttackEntity so weapons trigger it.
+  Planned: flock movement, pathing, fluid-volume spawning, nameplates, hunger loop. *(Client needs
+  the refreshed Networking lib — re-run `scripts/sync-client-libs.ps1`.)*
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
 - **AI asset tools — scaffold DONE (`tools/ai-assets/`).** Two uv Python tools: `gen_sound.py`
@@ -241,7 +243,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (141)
+dotnet test                      # expect all green (145)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

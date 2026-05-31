@@ -623,9 +623,13 @@ too (shared with enemies). **Movement AI DONE:** a pure, tested `CreatureBehavio
 the server — hunters (aggressive/pack) **approach** a player in aggro range, **skittish flee**,
 the rest **wander**, and **sleepers don't move** (off their activity phase); the server moves
 creatures each tick (capped per step) and re-broadcasts positions at ~2 Hz for the client to
-interpolate. Still planned (below): **pack/flock** coordination, **territorial retaliation** (fight
-back only when attacked), pathing/terrain-follow, water/lava-volume spawning beyond the player's
-cell, nameplates, and the hunger/eating survival loop (separate plan).
+interpolate. **Territorial retaliation DONE:** attacking a creature that **retaliates** (territorial,
+or already-hostile) **provokes** it (`CombatEntity.ProvokeTimer`) — for ~12 s it acts aggressive
+(hunts + bites back, reads as hostile/red to clients), then calms down; a **pack-hunter rallies
+nearby kin** of its species when provoked. Hooked into the shared `AttackEntity` path, so crafted
+weapons trigger it. Still planned (below): true **flock** movement coordination, pathing/terrain-
+follow, water/lava-volume spawning beyond the player's cell, nameplates, and the hunger/eating
+survival loop (separate plan).
 
 Original notes (remaining work):
 

@@ -150,6 +150,13 @@ public sealed partial class GameServer
 
         if (target.Hull > 0f)
         {
+            // A surviving creature that retaliates (territorial / already hostile) is provoked:
+            // for a while it hunts and bites back (and a pack-hunter rallies nearby kin).
+            if (isCreature)
+            {
+                ProvokeCreature(target);
+            }
+
             if (isCreature) BroadcastCreatures(); else BroadcastPlanetEnemies();
             return;
         }

@@ -31,6 +31,8 @@ public sealed partial class GameServer
     private const double CreatureMoveDtCap = 0.25;         // cap per-step movement so big ticks can't teleport
     private const float CreatureAggroRange = 10f;          // hunters approach within this
     private const float CreatureFleeRange = 6f;            // skittish flee within this
+    private const double CreatureProvokeSeconds = 12.0;    // how long a provoked creature retaliates
+    private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
@@ -131,7 +133,14 @@ public sealed partial class GameServer
 
         foreach (var creature in _creatures)
         {
-            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp) || !sp.Hostile || !SpeciesActive(sp))
+            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
+            {
+                continue;
+            }
+
+            // Hostile species attack; so do provoked (territorial) creatures fighting back.
+            bool aggressiveNow = sp.Hostile || creature.ProvokeTimer > 0;
+            if (!aggressiveNow || !SpeciesActive(sp))
             {
                 continue;
             }
@@ -220,16 +229,47 @@ public sealed partial class GameServer
 
         foreach (var creature in _creatures)
         {
+            if (creature.ProvokeTimer > 0)
+            {
+                creature.ProvokeTimer = System.Math.Max(0, creature.ProvokeTimer - dt);
+            }
+
             if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
             {
                 continue;
             }
 
+            // A provoked territorial creature hunts like an aggressor until it calms down.
+            var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
             double phase = _creatureClock * 0.8 + (StableStringHash(creature.Id) % 360) * (System.Math.PI / 180.0);
             creature.Position = CreatureBehaviour.Step(
-                creature.Position, sp.Temperament, sp.Speed, SpeciesActive(sp),
+                creature.Position, temperament, sp.Speed, SpeciesActive(sp),
                 nearest, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
+        }
+    }
+
+    /// <summary>Marks an attacked creature as provoked if its species retaliates; pack-hunters rally kin.</summary>
+    private void ProvokeCreature(CombatEntity target)
+    {
+        if (!_speciesById.TryGetValue(target.SpeciesId, out var sp)
+            || !CreatureBehaviour.RetaliatesWhenAttacked(sp.Temperament))
+        {
+            return;
+        }
+
+        target.ProvokeTimer = CreatureProvokeSeconds;
+
+        if (sp.Temperament == CreatureTemperament.PackHunter)
+        {
+            foreach (var other in _creatures)
+            {
+                if (!ReferenceEquals(other, target) && other.SpeciesId == target.SpeciesId
+                    && other.Position.DistanceSquared(target.Position) <= CreaturePackRallyRange * CreaturePackRallyRange)
+                {
+                    other.ProvokeTimer = CreatureProvokeSeconds;
+                }
+            }
         }
     }
 
@@ -264,7 +304,7 @@ public sealed partial class GameServer
             Id = e.Id,
             SpeciesId = e.SpeciesId,
             NameKey = sp?.NameKey ?? "creature.generic.name",
-            Hostile = e.Hostile,
+            Hostile = e.Hostile || e.ProvokeTimer > 0, // provoked creatures read as hostile (red tint)
             Asleep = asleep,
             Hull = e.Hull,
             HullMax = e.HullMax,

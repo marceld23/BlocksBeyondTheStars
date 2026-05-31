@@ -25,6 +25,9 @@ public sealed class CombatEntity
 
     /// <summary>For planet fauna: the procedural species id this entity is an instance of.</summary>
     public string SpeciesId { get; set; } = string.Empty;
+
+    /// <summary>Seconds a (territorial) creature stays provoked after being attacked (hunts + bites back).</summary>
+    public double ProvokeTimer { get; set; }
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public Vector3f Position { get; set; }

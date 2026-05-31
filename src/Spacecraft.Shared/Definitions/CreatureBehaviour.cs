@@ -65,4 +65,23 @@ public static class CreatureBehaviour
         float step = (float)(speed * dt);
         return new Vector3f(current.X + (float)(dirX * step), current.Y, current.Z + (float)(dirZ * step));
     }
+
+    /// <summary>
+    /// Whether a creature fights back when attacked. Already-hostile hunters do; <b>territorial</b>
+    /// species turn hostile when provoked; passive grazers and skittish fleers do not retaliate.
+    /// </summary>
+    public static bool RetaliatesWhenAttacked(CreatureTemperament temperament) => temperament
+        is CreatureTemperament.Territorial
+        or CreatureTemperament.Aggressive
+        or CreatureTemperament.PackHunter;
+
+    /// <summary>
+    /// The temperament a creature acts on right now: a <b>provoked territorial</b> creature behaves
+    /// as <see cref="CreatureTemperament.Aggressive"/> (hunts + attacks); otherwise its base
+    /// temperament stands (skittish keep fleeing, passives keep wandering even if provoked).
+    /// </summary>
+    public static CreatureTemperament EffectiveTemperament(CreatureTemperament baseTemperament, bool provoked)
+        => provoked && baseTemperament == CreatureTemperament.Territorial
+            ? CreatureTemperament.Aggressive
+            : baseTemperament;
 }

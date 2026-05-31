@@ -280,6 +280,72 @@ public sealed class CreatureTests : IDisposable
         Assert.True(XzDist(next, player) >= XzDist(cur, player) - 0.01f);
     }
 
+    // ---------------- Territorial retaliation (provoke) ----------------
+
+    [Fact]
+    public void Retaliation_OnlyHostileAndTerritorialFightBack()
+    {
+        Assert.True(CreatureBehaviour.RetaliatesWhenAttacked(CreatureTemperament.Territorial));
+        Assert.True(CreatureBehaviour.RetaliatesWhenAttacked(CreatureTemperament.Aggressive));
+        Assert.True(CreatureBehaviour.RetaliatesWhenAttacked(CreatureTemperament.PackHunter));
+        Assert.False(CreatureBehaviour.RetaliatesWhenAttacked(CreatureTemperament.Passive));
+        Assert.False(CreatureBehaviour.RetaliatesWhenAttacked(CreatureTemperament.Skittish));
+    }
+
+    [Fact]
+    public void ProvokedTerritorial_ActsAggressive_OthersUnchanged()
+    {
+        Assert.Equal(CreatureTemperament.Aggressive, CreatureBehaviour.EffectiveTemperament(CreatureTemperament.Territorial, provoked: true));
+        Assert.Equal(CreatureTemperament.Territorial, CreatureBehaviour.EffectiveTemperament(CreatureTemperament.Territorial, provoked: false));
+        Assert.Equal(CreatureTemperament.Skittish, CreatureBehaviour.EffectiveTemperament(CreatureTemperament.Skittish, provoked: true));
+        Assert.Equal(CreatureTemperament.Passive, CreatureBehaviour.EffectiveTemperament(CreatureTemperament.Passive, provoked: true));
+    }
+
+    [Fact]
+    public void AttackingCreature_ProvokesIt_OnlyIfItRetaliates()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Hunter");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First();
+            var species = server.SpeciesRoster.First(s => s.Id == creature.SpeciesId);
+            creature.Hull = 9999f;                       // ensure it survives the hit
+            creature.Position = new Vector3f(0, 64, 2);  // within default attack reach
+
+            server.AttackEntity("Hunter", creature.Id);
+
+            bool retaliates = CreatureBehaviour.RetaliatesWhenAttacked(species.Temperament);
+            Assert.Equal(retaliates, creature.ProvokeTimer > 0);
+        }
+    }
+
+    [Fact]
+    public void Provoke_DecaysOverTime()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Prey");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First();
+            creature.ProvokeTimer = 5.0;
+
+            server.Tick(2.0);
+            Assert.True(creature.ProvokeTimer is < 5.0 and > 0.0);
+
+            server.Tick(5.0);
+            Assert.Equal(0.0, creature.ProvokeTimer);
+        }
+    }
+
     public void Dispose()
     {
         try
