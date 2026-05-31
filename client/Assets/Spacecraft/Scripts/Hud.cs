@@ -45,9 +45,12 @@ namespace Spacecraft.Client
             // Vitals (+ ship hull/shield).
             bool ship = Game.ShipCombat != null;
             GUI.Box(new Rect(10, 62, 220, ship ? 134 : 86), GUIContent.none);
-            GUI.Label(new Rect(20, 68, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
-            GUI.Label(new Rect(20, 90, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
-            GUI.Label(new Rect(20, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
+            GUI.DrawTexture(new Rect(20, 68, 16, 16), IconFactory.Health);
+            GUI.DrawTexture(new Rect(20, 90, 16, 16), IconFactory.Oxygen);
+            GUI.DrawTexture(new Rect(20, 112, 16, 16), IconFactory.Energy);
+            GUI.Label(new Rect(42, 68, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
+            GUI.Label(new Rect(42, 90, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
+            GUI.Label(new Rect(42, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
             if (ship)
             {
                 var c = Game.ShipCombat;
@@ -104,7 +107,16 @@ namespace Spacecraft.Client
                 GUI.Label(new Rect(rect.x + 4, rect.y + 2, SlotSize - 10, 18), (i + 1).ToString());
                 if (!string.IsNullOrEmpty(item))
                 {
-                    GUI.Label(new Rect(rect.x + 2, rect.y + 20, SlotSize - 8, 34), ShortName(loc, item));
+                    var iconRect = new Rect(rect.x + 12, rect.y + 18, SlotSize - 28, SlotSize - 28);
+                    var blockDef = Game.Content?.GetBlock(item);
+                    if (blockDef != null && Game.Atlas != null)
+                    {
+                        GUI.DrawTextureWithTexCoords(iconRect, Game.Atlas.Texture, Game.Atlas.TileUv(blockDef.NumericId.Value));
+                    }
+                    else
+                    {
+                        GUI.DrawTexture(iconRect, IconFactory.Generic);
+                    }
                 }
             }
         }
