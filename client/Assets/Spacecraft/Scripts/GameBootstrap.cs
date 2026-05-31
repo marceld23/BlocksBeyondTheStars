@@ -110,6 +110,9 @@ namespace Spacecraft.Client
         /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.</summary>
         public bool MenuOpen;
 
+        /// <summary>True while the space view owns the camera (on-foot control is frozen).</summary>
+        public bool SpaceViewActive;
+
         /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
         public string LastMessage { get; private set; } = string.Empty;
 

@@ -61,6 +61,12 @@ namespace Spacecraft.Client
                 _spawned = true;
             }
 
+            // The space view owns the camera and freezes on-foot control entirely.
+            if (Game != null && Game.SpaceViewActive)
+            {
+                return;
+            }
+
             // A UI panel is open: don't steer/interact, just keep the player settled by gravity.
             if (Game != null && Game.MenuOpen)
             {

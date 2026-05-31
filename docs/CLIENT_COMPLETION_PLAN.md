@@ -225,9 +225,16 @@ Remaining in M24 (still pending):
 - Deferred: a true 3D flyable cockpit/flight camera (the server models space abstractly);
   weapon selection UI (uses asteroid_breaker/ship_cannon_1 by target kind for now).
 
-### M25b — Real space view + launch/landing sequences — NEW (planned)
-Today "Launch into space" only opens the abstract console (no visual change). Give space an
-actual **view**, with three modes the player can switch between (V cycles them):
+### M25b — Real space view + launch/landing sequences — **in progress (code)**
+Implemented: `SpaceView` builds a lightweight space scene on entering space (starfield +
+planet sphere + a code-built blocky ship + the server's entities from `SpaceState`), takes
+over the camera with **third-person** and **cockpit** modes (V cycles), freezes on-foot control
+(`SpaceViewActive`), and plays a **launch sequence** (ship rises, fade) on entry / **landing
+sequence** on exit. Combat still uses the M25 console + authoritative messages.
+Still planned: the third option — **board & walk inside the sealed ship in space** (interior
+scene); real flyable controls; nicer ship/entity models with the art pass.
+
+Original design (three modes the player can switch between):
 1. **Cockpit view** — first person from inside the ship looking out (HUD overlay, viewport).
 2. **Third-person ship** — the ship rendered from outside, floating in a space scene (starfield
    skybox, the planet below, asteroids/drones/UFOs as objects at the server's entity positions).

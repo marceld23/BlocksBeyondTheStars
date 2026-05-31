@@ -95,6 +95,11 @@ namespace Spacecraft.Client
             audio.Game = boot;
             audio.Settings = shell.Settings;
 
+            // Real space view + launch/landing sequences (M25b).
+            var space = root.AddComponent<SpaceView>();
+            space.Game = boot;
+            space.Camera = cam;
+
             return root;
         }
 
