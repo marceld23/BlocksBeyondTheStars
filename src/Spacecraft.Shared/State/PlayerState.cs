@@ -32,6 +32,9 @@ public sealed class PlayerState
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;
 
+    /// <summary>Satiation 0..100 (survival): drains over time, refilled by eating; at 0 you starve.</summary>
+    public float Hunger { get; set; } = 100f;
+
     /// <summary>The player's personal inventory.</summary>
     public Inventory Inventory { get; set; } = new(24);
 

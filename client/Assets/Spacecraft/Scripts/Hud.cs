@@ -44,18 +44,19 @@ namespace Spacecraft.Client
 
             // Vitals (+ ship hull/shield).
             bool ship = Game.ShipCombat != null;
-            GUI.Box(new Rect(10, 62, 220, ship ? 134 : 86), GUIContent.none);
+            GUI.Box(new Rect(10, 62, 220, ship ? 200 : 108), GUIContent.none);
             GUI.DrawTexture(new Rect(20, 68, 16, 16), IconFactory.Health);
             GUI.DrawTexture(new Rect(20, 90, 16, 16), IconFactory.Oxygen);
             GUI.DrawTexture(new Rect(20, 112, 16, 16), IconFactory.Energy);
             GUI.Label(new Rect(42, 68, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
             GUI.Label(new Rect(42, 90, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
             GUI.Label(new Rect(42, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
+            GUI.Label(new Rect(42, 134, 200, 20), $"{loc.Get("ui.hud.hunger")}: {Mathf.RoundToInt(Game.Hunger)}");
             if (ship)
             {
                 var c = Game.ShipCombat;
-                GUI.Label(new Rect(20, 134, 200, 20), $"{loc.Get("ui.hud.hull")}: {Mathf.RoundToInt(c.Hull)}/{Mathf.RoundToInt(c.HullMax)}");
-                GUI.Label(new Rect(20, 156, 200, 20), $"{loc.Get("ui.hud.shield")}: {Mathf.RoundToInt(c.Shield)}/{Mathf.RoundToInt(c.ShieldMax)}");
+                GUI.Label(new Rect(20, 156, 200, 20), $"{loc.Get("ui.hud.hull")}: {Mathf.RoundToInt(c.Hull)}/{Mathf.RoundToInt(c.HullMax)}");
+                GUI.Label(new Rect(20, 178, 200, 20), $"{loc.Get("ui.hud.shield")}: {Mathf.RoundToInt(c.Shield)}/{Mathf.RoundToInt(c.ShieldMax)}");
             }
 
             DrawHotbar(loc);

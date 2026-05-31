@@ -555,7 +555,20 @@ Each world's atmosphere determines whether the suit consumes oxygen outside the 
   existing **view-distance setting** stays a client cap — the atmosphere can only reduce it,
   never force-stream more chunks.
 
-### Hunger & eating (survival) — NEW (planned)
+### Hunger & eating (survival) — **slice DONE (server + HUD) / extras planned**
+Implemented (server-authoritative): a `PlayerState.Hunger` vital (0..100, persisted) that **drains**
+outside the ship (`Rules.HungerDrainPerSecond`), **sates** aboard the ship / when disabled, and
+**starves health** at 0 (health loss until you eat). Gated by `Rules.Hunger` + Survival
+(`HungerEnabled`); GodMode and respawn refill it. **Eating restores hunger** via the consume
+system (`ItemDefinition.ConsumeHunger`): `creature_meat` (+30) and **edible plants** — `flora_plant`
+now also drops **`berries`** (+18 hunger), a consumable food — while **poison** (`toxic_gland`)
+still harms. Hunger rides on `PlayerStateUpdate`; the client HUD shows a **Hunger** vital. 6 tests
+(rule gating, drain outside / no-drain aboard, starvation, meat + berries restore). Still planned
+(below): the **detoxifier** module (poison → safe food), poison **status effect** over time,
+sprint-faster drain, and a real hunger HUD icon.
+
+Original notes (remaining work):
+
 A survival need that makes food matter (server-authoritative; builds on the consume system):
 
 - **Hunger vital:** add `PlayerState.Hunger` (0..100, like health/oxygen). It **drains slowly**

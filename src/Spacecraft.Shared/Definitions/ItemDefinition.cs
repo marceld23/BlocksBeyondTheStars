@@ -40,4 +40,7 @@ public sealed class ItemDefinition
     /// positive = food/medicine that heals, negative = poison that harms. 0 = not eat-consumable.
     /// </summary>
     public float ConsumeHealth { get; set; }
+
+    /// <summary>Hunger restored when this item is eaten (food); 0 = doesn't satiate.</summary>
+    public float ConsumeHunger { get; set; }
 }

@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **132 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **138 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -185,12 +185,12 @@ consumes protocol messages that already exist.
   into your owned-ships registry** (a mid-game way to gain a bigger/alien hull). Reuses ship
   stamping + the ruins decay pass + loot + creatures + missions + the ship build/registry. See
   CLIENT_COMPLETION_PLAN "Crashed ship wrecks".
-- **(NEW, planned) Hunger & eating (survival):** a `PlayerState.Hunger` vital that drains over
-  time (not aboard ship), **damages health at 0** (starvation), and is refilled by **eating** —
-  `creature_meat` and **edible flora** (a plant is eatable only if `edible` and not `poisonous`);
-  **poisonous** items harm instead. Survival-only. Builds on the consume system (ConsumeItemIntent
-  + item consume-effects) added with creatures; adds a hunger-restore value + drain/starvation
-  tick. See CLIENT_COMPLETION_PLAN "Hunger & eating".
+- **Hunger & eating (survival) — slice DONE (server + HUD).** `PlayerState.Hunger` (persisted)
+  drains outside the ship, sates aboard, **starves health at 0**; gated by `Rules.Hunger`+Survival.
+  **Eating** refills it (`ItemDefinition.ConsumeHunger`): `creature_meat` (+30) and **edible plants**
+  — `flora_plant` now also drops **`berries`** (+18); poison still harms. Rides on `PlayerStateUpdate`;
+  HUD shows a Hunger vital. 6 tests. Planned: detoxifier module, poison status-effect over time,
+  sprint-drain, hunger icon. *(Client needs the refreshed Networking lib — re-run sync-client-libs.)*
 - **(NEW, planned) Detoxifier ship module:** a craftable part built into the ship (if a slot is
   free) that converts **poisonous** plants/creature meat into **safe food** (e.g. toxic_gland →
   creature_meat). Reuses ship modules + crafting + the consume/hunger system. See plan.
@@ -240,7 +240,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (132)
+dotnet test                      # expect all green (138)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

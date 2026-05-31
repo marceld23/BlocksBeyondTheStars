@@ -315,6 +315,11 @@ public sealed partial class GameServer
             p.Health = System.Math.Min(100f, System.Math.Max(0f, p.Health + item.ConsumeHealth));
         }
 
+        if (item.ConsumeHunger != 0f)
+        {
+            p.Hunger = System.Math.Min(100f, System.Math.Max(0f, p.Hunger + item.ConsumeHunger));
+        }
+
         SendInventory(session);
         SendPlayerState(session);
         if (p.Health <= 0f)

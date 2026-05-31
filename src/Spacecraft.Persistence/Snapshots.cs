@@ -29,6 +29,7 @@ public sealed class PlayerSnapshot
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;
+    public float Hunger { get; set; } = 100f;
     public int SelectedHotbarSlot { get; set; }
     public bool AboardShip { get; set; } = true;
     public string Role { get; set; } = "Player";
@@ -95,6 +96,7 @@ public static class StateMapper
         Health = p.Health,
         Oxygen = p.Oxygen,
         SuitEnergy = p.SuitEnergy,
+        Hunger = p.Hunger,
         SelectedHotbarSlot = p.SelectedHotbarSlot,
         AboardShip = p.AboardShip,
         Role = p.Role.ToString(),
@@ -122,6 +124,7 @@ public static class StateMapper
         Health = s.Health,
         Oxygen = s.Oxygen,
         SuitEnergy = s.SuitEnergy,
+        Hunger = s.Hunger,
         SelectedHotbarSlot = s.SelectedHotbarSlot,
         AboardShip = s.AboardShip,
         Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,

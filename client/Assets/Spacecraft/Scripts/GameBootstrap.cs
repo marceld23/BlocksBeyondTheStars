@@ -43,6 +43,7 @@ namespace Spacecraft.Client
         public float Health { get; private set; } = 100f;
         public float Oxygen { get; private set; } = 100f;
         public float SuitEnergy { get; private set; } = 100f;
+        public float Hunger { get; private set; } = 100f;
 
         /// <summary>Our own player id (from the join handshake), used to pick our state out of broadcasts.</summary>
         public string LocalPlayerId { get; private set; }
@@ -264,6 +265,7 @@ namespace Spacecraft.Client
             Health = m.Health;
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;
+            Hunger = m.Hunger;
             Aboard = m.AboardShip;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }

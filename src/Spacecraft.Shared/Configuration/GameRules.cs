@@ -107,6 +107,9 @@ public sealed class GameRules
     public HazardLevel EnvironmentalHazards { get; set; } = HazardLevel.Normal;
     public OxygenConsumption OxygenConsumption { get; set; } = OxygenConsumption.Normal;
 
+    /// <summary>Whether the player gets hungry and must eat (survival need); off in Creative.</summary>
+    public bool Hunger { get; set; } = true;
+
     public DeathPenalty DeathPenalty { get; set; } = DeathPenalty.Light;
     public bool KeepInventoryOnDeath { get; set; }
     public bool KeepShipOnDeath { get; set; } = true;
@@ -146,6 +149,12 @@ public sealed class GameRules
         OxygenConsumption.Fast => 4f,
         _ => 0f,
     };
+
+    /// <summary>Whether the player's hunger drains given the mode and setting.</summary>
+    public bool HungerEnabled => GameMode != GameMode.Creative && Hunger;
+
+    /// <summary>Hunger lost per second outside the ship (a full bar lasts a few minutes).</summary>
+    public float HungerDrainPerSecond => 0.5f;
 
     /// <summary>Whether admin cheats may be used at all, given mode + toggles.</summary>
     public bool CheatsAllowed => AdminCheats &&

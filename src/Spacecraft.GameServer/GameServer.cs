@@ -293,6 +293,7 @@ public sealed partial class GameServer
             {
                 p.Health = 100f;
                 p.Oxygen = 100f;
+                p.Hunger = 100f;
                 continue; // invulnerable: no drain, no death
             }
 
@@ -316,6 +317,21 @@ public sealed partial class GameServer
             if (InLava(p.Position))
             {
                 p.Health = System.Math.Max(0f, p.Health - (float)(dt * 15));
+            }
+
+            // Hunger (survival): aboard the ship or when disabled, sate; otherwise drain and,
+            // once empty, starve (health loss until the player eats).
+            if (p.AboardShip || !Rules.HungerEnabled)
+            {
+                p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * 10));
+            }
+            else
+            {
+                p.Hunger = System.Math.Max(0f, p.Hunger - (float)(dt * Rules.HungerDrainPerSecond));
+                if (p.Hunger <= 0f)
+                {
+                    p.Health = System.Math.Max(0f, p.Health - (float)(dt * 3));
+                }
             }
 
             if (p.Health <= 0f)
@@ -372,6 +388,7 @@ public sealed partial class GameServer
         p.Health = 100f;
         p.Oxygen = 100f;
         p.SuitEnergy = 100f;
+        p.Hunger = 100f;
         p.Position = p.RespawnPoint;
         p.AboardShip = true;
 
@@ -1070,6 +1087,7 @@ public sealed partial class GameServer
             Health = p.Health,
             Oxygen = p.Oxygen,
             SuitEnergy = p.SuitEnergy,
+            Hunger = p.Hunger,
             AboardShip = p.AboardShip,
         });
     }

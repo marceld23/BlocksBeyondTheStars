@@ -221,6 +221,7 @@ public sealed class PlayerStateUpdate
     public float Health { get; set; }
     public float Oxygen { get; set; }
     public float SuitEnergy { get; set; }
+    public float Hunger { get; set; }
 
     /// <summary>Whether the player is currently inside their ship (enables cargo crafting, oxygen regen).</summary>
     public bool AboardShip { get; set; }

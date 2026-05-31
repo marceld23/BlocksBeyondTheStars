@@ -17,6 +17,6 @@
   { "key": "mud",          "nameKey": "block.mud.name",          "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "mud", "count": 1 } ] },
   { "key": "grass",        "nameKey": "block.grass.name",        "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
   { "key": "crystal",      "nameKey": "block.crystal.name",      "hardness": 2.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "crystal", "count": 1 } ] },
-  { "key": "flora_plant",  "nameKey": "block.flora_plant.name",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
+  { "key": "flora_plant",  "nameKey": "block.flora_plant.name",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 }, { "item": "berries", "count": 1 } ] },
   { "key": "flora_crystal","nameKey": "block.flora_crystal.name", "hardness": 1.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "crystal", "count": 1 } ] }
 ]
