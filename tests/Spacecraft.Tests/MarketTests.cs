@@ -71,11 +71,11 @@ public sealed class MarketTests : IDisposable
         var server = Started(out var repo);
         using (repo)
         {
-            var p = server.AddLocalPlayer("Trader"); // aboard, but empty-handed
+            var p = server.AddLocalPlayer("Trader"); // aboard, but without the trade goods
 
-            server.Craft("Trader", "market_buy_medpack"); // needs carbon + silicate
+            server.Craft("Trader", "market_iron_to_titanium"); // needs 5 iron_ore (has none)
 
-            Assert.Equal(0, p.State.Inventory.CountOf("medpack"));
+            Assert.Equal(0, p.State.Inventory.CountOf("titanium_ore")); // no trade happened
         }
     }
 
