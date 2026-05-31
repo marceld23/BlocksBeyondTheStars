@@ -120,6 +120,10 @@ consumes protocol messages that already exist.
   Space console tab (launch/return + fire at entities), planet enemies rendered as blocks +
   attack with F. Singleplayer enables free flight + PvE via launcher flags. 3D flyable cockpit
   deferred.
+- **(NEW, planned) Space HUD radar:** in ship mode, a **minimap + screen-edge arrows** for nearby
+  asteroids/planets/enemies/other players, **colour-coded** white=neutral, blue=friend, red=hostile.
+  Uses `SpaceState` entities (carry `Hostile`) + planets; other players in the instance need their
+  positions broadcast. Client HUD over the authoritative list. See CLIENT_COMPLETION_PLAN (M25b).
 - **M25b — real space view + launch/landing — in progress (code).** `SpaceView` shows an actual
   space scene (starfield + planet + blocky ship + entities) with third-person/cockpit camera
   (V cycles) + launch/landing fades; on-foot control frozen while flying. Still: board-and-walk-

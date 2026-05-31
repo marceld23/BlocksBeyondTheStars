@@ -236,6 +236,19 @@ authoritative messages.
 Still planned: the third option — **board & walk inside the sealed ship in space** (interior
 scene); real flyable controls; nicer ship/entity models with the art pass.
 
+**Space HUD radar — minimap + edge arrows (planned):** in ship/space mode the HUD shows nearby
+**asteroids, planets, enemies and other players** as a **radar minimap** (top-corner blips) **and
+off-screen arrows at the screen edge** pointing to each contact, **colour-coded by allegiance:
+white = neutral** (asteroids, planets, neutral NPCs), **blue = friendly** (allied/docked players),
+**red = hostile** (enemy drones/UFOs, hostile players). Each contact carries a position + a
+neutral/friend/hostile flag; blips on the minimap and arrows for anything outside the view frustum
+(arrow clamped to the screen border, optionally with distance). Data comes from `SpaceState`
+entities (which already carry `Hostile`) + planets in the scene; **other players in the same space
+instance** need their positions broadcast (small addition to the space instance, like surface
+presence). Allegiance: neutral by default, hostile from `Hostile`/PvP, friendly from docking/teams
+(once teams exist). Client-side HUD over the authoritative entity list; sequence with M25b + the
+space-flight deepening.
+
 **Consistent ship appearance (important):** the player's ship must **look identical in space and
 on the planet** — same hull shape, size, colours and module props. Today the planet-side ship is
 the **voxel hull** (`StampShip` from the active `ships.json` design) and the space-side ship is a
