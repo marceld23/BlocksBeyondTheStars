@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **196 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **202 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -176,9 +176,13 @@ consumes protocol messages that already exist.
   space-black on the surface). Excluded from the random universe pool (`Selectable=false`).
   Playable as a start planet. 5 tests. Planned: fly-to-and-land via star map, surface starfield,
   visible sun disc.
-- **(NEW, planned) Space stations:** boardable stations near planets, small→huge, with landing
-  hangars, rooms, NPC traders/aliens and mission boards. Reuses docking + ship-as-place +
-  missions + a new trading system. See CLIENT_COMPLETION_PLAN.
+- **Space stations — generator DONE (server).** `StationGenerator` assembles a station from
+  **module rooms joined on a grid** (hub + random-walk-grown rooms + stacked floors) into one voxel
+  structure (`iron_wall`+`glass`); the solid hull enclosing hollow rooms makes **outer = inner** by
+  construction. Doorways between adjacent modules, floor shaft between stacked, a hangar opening, and
+  markers (hangar/vendor/mission_board/heal_tank/quarters) scaling small→huge. 6 tests. Still
+  planned: stamp into a boardable instance, NPC market/mission boards, and the **named station on
+  the ship radar + the player's location readout**.
 - **World variety — slice DONE.** Biome-aware `WorldGenerator`: single-biome planets + multi-biome
   worlds (surface per column from noise; **biome count randomised per world from the seed**); new
   blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);
@@ -315,7 +319,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (196)
+dotnet test                      # expect all green (202)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

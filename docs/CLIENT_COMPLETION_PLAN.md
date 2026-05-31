@@ -412,9 +412,22 @@ Big asteroids you can **land on** and walk around — tiny airless worlds:
 - Server marks the body `Airless` + `SpaceSky` + crystal-biased generation; the client skips the
   day/night sky there and keeps the starfield + sun.
 
-### Space stations — NEW (planned)
+### Space stations — **generator DONE (server) / boarding + radar planned**
 Boardable **space stations** that exist in a system, **near planets**:
 
+- **Procedural module-built generator DONE:** `StationGenerator` assembles a station from **module
+  rooms placed on a grid and joined together** (a central hub, rooms grown outward by a seeded
+  random walk, stacked floors for big stations), baked into one **voxel structure** of `iron_wall`
+  + `glass` viewports. Because adjacent modules share walls in a single solid hull enclosing hollow
+  rooms, the **exterior matches the interior by construction**. Adjacent modules get cut doorways,
+  stacked ones a floor shaft, and the hangar module opens to space. Module types (hub / hangar /
+  market / mission / medbay / quarters / corridor) + counts scale by size tier (small→huge), and
+  interior **markers** (hangar/vendor/mission_board/heal_tank/quarters) drive interactions.
+  Deterministic from the seed. 6 tests (determinism, multi-module assembly, hollow rooms with solid
+  walls, adjacent modules connected by doorways, vendor/mission/hangar markers, size scaling).
+  **Still planned:** stamping a station into a boardable instance, NPC vendors using the market
+  barter, mission boards, and the **station name on the ship radar + the player's location readout**
+  (see below).
 - Stations of **varying size — small to huge** — placed in the system (orbit / near a planet),
   reachable via free flight / the star map; you **dock** (M18) and **board** to walk inside.
 - **Interiors:** landing **hangars**, multiple **rooms/corridors**, with interactive points —
@@ -424,6 +437,11 @@ Boardable **space stations** that exist in a system, **near planets**:
 - Reuses existing patterns: docking (M18), the **ship-as-place** interior + station-interaction
   system (M23a-2), missions (M13/M23), and a new **trading** system (vendor inventories + prices,
   server-authoritative). NPCs tie into the creature/AI work.
+- **Named station on the ship radar + location readout (planned):** each station has a **name**
+  (from the universe `CelestialBody.Name`). While flying, the station shows up on the **ship's HUD
+  radar** (a labelled blip — see the space-radar plan, neutral/white by default) and, once boarded
+  or nearby, the **player's location/place readout** shows the station name (like the planet/system
+  name on join). Carried via the space `SpaceState`/station-placement messages (name + position).
 - Server owns station placement, interiors, vendor stock/prices and mission boards; clients
   render the station + interior and use dock/board/trade/mission interactions.
 
