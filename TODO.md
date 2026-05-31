@@ -138,9 +138,13 @@ consumes protocol messages that already exist.
 - **(NEW, planned) Combat loot:** destroyed ships (player/NPC) drop (part of) their cargo as
   tractor-collectable salvage; planet PvP leaves a **lootable corpse** with the victim's full
   carried inventory (victim respawns without it) that persists until emptied. Rules-gated. See plan.
-- **(NEW, planned) World variety:** planets vary in **size**; worlds are **single-habitat**
-  (ice/lava/forest/jungle/crystal/rock/sand/mud) **or multi-biome**; flora & creatures match the
-  biome/habitat. Extends planet types into a biome system. See CLIENT_COMPLETION_PLAN.
+- **World variety — slice DONE.** Biome-aware `WorldGenerator`: single-biome planets + multi-biome
+  worlds (surface per column from noise; **biome count randomised per world from the seed**); new
+  blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);
+  `WorldRadius` field. 2 tests. Planned: enforce size bounds, smooth blending, biome-matched life.
+- **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
+  shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,
+  bioluminescent creatures). See CLIENT_COMPLETION_PLAN "Lighting".
 - **(NEW, planned) Procedural flora:** land/water/crystalline/lava plants, seed-derived forms
   (tree/vine/bush/crystal/fungus), properties/effects (poison/heal/food/material-substitute),
   growth + regrowth (regrows unless the host block is mined). See CLIENT_COMPLETION_PLAN.

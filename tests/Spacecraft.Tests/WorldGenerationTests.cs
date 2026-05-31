@@ -1,4 +1,5 @@
 using Spacecraft.Shared.Content;
+using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Primitives;
 using Spacecraft.Shared.World;
 using Spacecraft.WorldGeneration;
@@ -74,6 +75,45 @@ public class WorldGenerationTests
             Assert.True(System.Math.Abs(h - prev) <= 4, $"Unexpectedly steep terrain step at x={x}.");
             prev = h;
         }
+    }
+
+    private static ushort SurfaceBlockAt(WorldGenerator gen, Spacecraft.Shared.Definitions.PlanetType planet, int x, int z)
+    {
+        int y = gen.SurfaceHeight(planet, x, z);
+        var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
+        var origin = WorldConstants.ChunkOrigin(coord);
+        var chunk = gen.Generate(planet, coord);
+        return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z).Value;
+    }
+
+    [Fact]
+    public void SingleBiomePlanet_HasItsSurfaceBlock()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("desert")!;
+        var gen = new WorldGenerator(2024, content);
+        ushort sand = content.GetBlock("sand")!.NumericId.Value;
+
+        Assert.Equal(sand, SurfaceBlockAt(gen, planet, 10, 10));
+    }
+
+    [Fact]
+    public void MultiBiomeWorld_HasSeveralSurfaceBlocks()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("varied")!;
+        var gen = new WorldGenerator(2024, content);
+
+        var surfaces = new HashSet<ushort>();
+        for (int x = 0; x < 600; x += 20)
+        {
+            for (int z = 0; z < 600; z += 20)
+            {
+                surfaces.Add(SurfaceBlockAt(gen, planet, x, z));
+            }
+        }
+
+        Assert.True(surfaces.Count >= 2, $"Expected a multi-biome world to show several surface blocks (got {surfaces.Count}).");
     }
 
     [Fact]

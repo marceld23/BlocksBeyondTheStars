@@ -165,6 +165,10 @@ namespace Spacecraft.Client
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
             "water" => new Color(0.20f, 0.42f, 0.85f),
             "lava" => new Color(0.90f, 0.35f, 0.10f),
+            "sand" => new Color(0.85f, 0.78f, 0.52f),
+            "mud" => new Color(0.36f, 0.28f, 0.18f),
+            "grass" => new Color(0.32f, 0.62f, 0.28f),
+            "crystal" => new Color(0.55f, 0.75f, 0.95f),
             _ => new Color(0.6f, 0.6f, 0.62f),
         };
     }

@@ -31,6 +31,68 @@
       { "block": "iron_ore",     "rarity": 0.06, "minDepth": 4,  "maxDepth": 256 },
       { "block": "titanium_ore", "rarity": 0.05, "minDepth": 12, "maxDepth": 256 },
       { "block": "carbon",       "rarity": 0.05, "minDepth": 6,  "maxDepth": 256 }
+    ],
+    "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 520, "worldRadius": 700
+  },
+  {
+    "key": "desert", "nameKey": "planet.desert.name",
+    "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0,
+    "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
+    "caveThreshold": 0.78, "dataCacheRarity": 0.0008,
+    "weather": "clear", "stormChance": 0.05, "dayLengthSeconds": 640, "worldRadius": 900,
+    "ores": [
+      { "block": "silicate", "rarity": 0.07, "minDepth": 2, "maxDepth": 256 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "jungle", "nameKey": "planet.jungle.name",
+    "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0010,
+    "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800,
+    "ores": [
+      { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
+      { "block": "carbon", "rarity": 0.06, "minDepth": 6, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "crystal", "nameKey": "planet.crystal.name",
+    "baseHeight": 60, "amplitude": 18, "terrainScale": 50.0,
+    "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
+    "caveThreshold": 0.70, "dataCacheRarity": 0.0020,
+    "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 480, "worldRadius": 600,
+    "ores": [
+      { "block": "titanium_ore", "rarity": 0.05, "minDepth": 8, "maxDepth": 256 },
+      { "block": "silicate", "rarity": 0.06, "minDepth": 2, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "swamp", "nameKey": "planet.swamp.name",
+    "baseHeight": 58, "amplitude": 8, "terrainScale": 52.0,
+    "surfaceBlock": "mud", "subSurfaceBlock": "mud", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0010,
+    "weather": "overcast", "stormChance": 0.5, "dayLengthSeconds": 600, "worldRadius": 750,
+    "ores": [
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
+      { "block": "carbon", "rarity": 0.06, "minDepth": 6, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "varied", "nameKey": "planet.varied.name",
+    "baseHeight": 64, "amplitude": 18, "terrainScale": 46.0,
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.73, "dataCacheRarity": 0.0010,
+    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 1000,
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt" },
+      { "surfaceBlock": "sand",  "subSurfaceBlock": "sand" },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone" },
+      { "surfaceBlock": "mud",   "subSurfaceBlock": "mud" }
+    ],
+    "ores": [
+      { "block": "iron_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 256 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 256 }
     ]
   }
 ]

@@ -1,5 +1,12 @@
 namespace Spacecraft.Shared.Definitions;
 
+/// <summary>One biome's surface make-up within a planet (World systems).</summary>
+public sealed class Biome
+{
+    public string SurfaceBlock { get; set; } = "dirt";
+    public string SubSurfaceBlock { get; set; } = "dirt";
+}
+
 /// <summary>An ore vein generation rule for a planet type.</summary>
 public sealed class OreVein
 {
@@ -61,4 +68,15 @@ public sealed class PlanetType
     /// "overcast" (always cloudy). Lets some planets have no weather at all.
     /// </summary>
     public string Weather { get; set; } = "dynamic";
+
+    // --- World variety (size & biomes) ---
+
+    /// <summary>
+    /// Biomes blended across the surface. Empty = single biome from <see cref="SurfaceBlock"/>;
+    /// one entry = single biome; several = a multi-biome world (chosen per column by noise).
+    /// </summary>
+    public List<Biome> Biomes { get; set; } = new();
+
+    /// <summary>Soft world radius in blocks (0 = effectively unbounded). Informational for now.</summary>
+    public int WorldRadius { get; set; }
 }

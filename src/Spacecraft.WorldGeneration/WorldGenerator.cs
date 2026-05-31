@@ -56,8 +56,7 @@ public sealed class WorldGenerator
         var chunk = new ChunkData(coord);
         long seed = PlanetSeed(planet);
 
-        var surfaceId = ResolveBlock(planet.SurfaceBlock);
-        var subSurfaceId = ResolveBlock(planet.SubSurfaceBlock);
+        var biomes = ResolveBiomes(planet);
         var deepId = ResolveBlock(planet.DeepBlock);
         var dataCacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
 
@@ -69,6 +68,11 @@ public sealed class WorldGenerator
             int worldX = origin.X + lx;
             int worldZ = origin.Z + lz;
             int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+
+            // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
+            int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count);
+            var surfaceId = biomes[biomeIndex].Surface;
+            var subSurfaceId = biomes[biomeIndex].Sub;
 
             for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
             {
@@ -140,6 +144,45 @@ public sealed class WorldGenerator
         }
 
         return fallback;
+    }
+
+    /// <summary>
+    /// Resolves the (surface, sub-surface) block ids the planet actually uses. A multi-biome
+    /// planet lists a *pool* of biomes; how many of them this world uses is randomised per world
+    /// from the seed (2..pool), so each multi-biome world differs. Single-biome → one entry.
+    /// </summary>
+    private List<(BlockId Surface, BlockId Sub)> ResolveBiomes(PlanetType planet)
+    {
+        var list = new List<(BlockId, BlockId)>();
+        if (planet.Biomes.Count <= 0)
+        {
+            list.Add((ResolveBlock(planet.SurfaceBlock), ResolveBlock(planet.SubSurfaceBlock)));
+            return list;
+        }
+
+        int pool = planet.Biomes.Count;
+        int count = pool;
+        if (pool > 1)
+        {
+            long s = PlanetSeed(planet) ^ 0x0B10C0;
+            count = 2 + (int)((ulong)(s < 0 ? -s : s) % (ulong)(pool - 1)); // 2..pool, seed-derived
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            var b = planet.Biomes[i];
+            list.Add((ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock)));
+        }
+
+        return list;
+    }
+
+    /// <summary>Broad low-frequency noise picks a biome per column (multi-biome worlds).</summary>
+    private static int BiomeIndex(long seed, int worldX, int worldZ, int count)
+    {
+        double n = Noise.Fbm2D(seed ^ 0x0B10E, worldX / 140.0, worldZ / 140.0, octaves: 3);
+        int idx = (int)(n * count);
+        return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }
 
     private BlockId ResolveBlock(string key)

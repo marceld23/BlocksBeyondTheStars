@@ -12,5 +12,9 @@
   { "key": "glass",        "nameKey": "block.glass.name",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass", "count": 1 } ] },
   { "key": "iron_wall",    "nameKey": "block.iron_wall.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] },
   { "key": "water",        "nameKey": "block.water.name",        "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] },
-  { "key": "lava",         "nameKey": "block.lava.name",         "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] }
+  { "key": "lava",         "nameKey": "block.lava.name",         "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] },
+  { "key": "sand",         "nameKey": "block.sand.name",         "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "sand", "count": 1 } ] },
+  { "key": "mud",          "nameKey": "block.mud.name",          "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "mud", "count": 1 } ] },
+  { "key": "grass",        "nameKey": "block.grass.name",        "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
+  { "key": "crystal",      "nameKey": "block.crystal.name",      "hardness": 2.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "crystal", "count": 1 } ] }
 ]

@@ -361,8 +361,16 @@ Bigger world-simulation features (server-authoritative; the client renders the r
 These are sizeable; sequence them with the art pass and the space-view work. All authoritative
 on the server (a client must not decide fluid spread, time of day or hazards).
 
-### World variety: size & biomes/habitats — NEW (planned)
-Make planets genuinely different in scale and make-up (server-authoritative generation):
+### World variety: size & biomes/habitats — **slice DONE / extras planned**
+Implemented: `PlanetType` gains a **biome list**, a **WorldRadius** and the weather fields; the
+`WorldGenerator` is biome-aware — single-biome planets use one surface, multi-biome planets pick
+a surface per column from low-frequency noise, and **how many biomes a multi-biome world uses is
+randomised per world from the seed** (2..pool). New biome blocks (sand/mud/grass/crystal) +
+items + atlas colours; new planet types (desert/jungle/crystal/swamp + a multi-biome "varied").
+2 generation tests. Still planned: enforcing **world size** bounds, smooth biome blending/
+transition blocks, biome-specific ores/caves, and habitat-matched flora & creatures (below).
+
+Original notes:
 
 - **World size:** planets vary in size — small moons to large worlds — affecting the playable
   surface extent / world bounds, chunk count and how much there is to explore. The world
@@ -413,6 +421,32 @@ hostile), server-authoritative.
   to carry the species descriptor + habitat.
 - Sequence after fluids (for water/lava habitats) and with the art pass (for nicer creature
   models); the parametric blocky renderer works without bundled art.
+
+### Lighting: suit lamp, placed lights & glow — NEW (planned)
+Make the dark side of the day/night cycle (and caves) playable and atmospheric:
+
+- **Suit/helmet lamp:** the player (always suited) has a toggleable **head lamp** casting a
+  **light cone** in look direction. Because the world uses unlit shaders + a global day/night
+  tint (`_Sc_Light`), a real spotlight won't brighten blocks — so add a **player-light term to
+  the block shaders**: pass the player position + a lamp direction/range as shader globals and
+  brighten cells within the cone/radius (combined with `_Sc_Light`). A real `Light` also lit
+  props/avatars. Toggle key + battery/`SuitEnergy` drain optional.
+- **Placed & ship lights (later):** craftable **light blocks** the player places, and **ship
+  exterior lights**, add local light (extra shader light points, or baked brighten radii).
+- **Emissive materials & creatures:** some blocks **glow** (e.g. a faint crystal shimmer) and
+  some creatures are **bioluminescent** — an emissive term added in the shader (per-block flag
+  in the atlas / a creature glow colour) so they stay visible at night and read as alive.
+- Server stays authoritative over light *sources that are world state* (placed light blocks,
+  glowing ore); the suit lamp + render are client-side. Sequence with day/night (done) and the
+  art pass.
+- **Reflective materials (planned, render upgrade):** give materials **different reflective
+  properties** — matte (mud/dirt), glossy (ice/glass), metallic (iron/titanium), sparkly
+  (crystal). This needs moving blocks from the current **unlit** shaders to a **lit** shader
+  (vertex normals + the sun + suit lamp), with **per-block material params** (a smoothness/
+  metalness/emissive value, supplied via a parallel data channel or extra atlas/UV2). Then the
+  sun colour, day/night and lamp produce specular highlights that differ per material. Bigger
+  change — schedule with the lighting + art pass; until then the global tint approximates
+  lighting without true reflections.
 
 ### Procedural flora — NEW (planned)
 Plants/growths across the worlds, **procedurally generated per planet from the seed** (like the
