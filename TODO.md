@@ -172,8 +172,11 @@ consumes protocol messages that already exist.
 - **(NEW, planned) Crashed ship wrecks:** **rare** abandoned/crashed ships on planet surfaces —
   derelict voxel hulls (from `ships.json`) in a crashed pose (tilted/half-buried, breached via a
   decay pass), explorable for **salvage/loot** (containers, cargo, modules, data/lore), with
-  hostile scavengers and human/alien variants. Reuses ship stamping + the ruins decay pass +
-  loot + creatures + missions. See CLIENT_COMPLETION_PLAN "Crashed ship wrecks".
+  hostile scavengers and human/alien variants. **Repairable into a flyable owned ship** —
+  rebuild the design's missing/broken blocks + required modules, then the server **claims it
+  into your owned-ships registry** (a mid-game way to gain a bigger/alien hull). Reuses ship
+  stamping + the ruins decay pass + loot + creatures + missions + the ship build/registry. See
+  CLIENT_COMPLETION_PLAN "Crashed ship wrecks".
 - **(NEW, planned) Atmosphere-based view distance:** a planet's atmosphere sets a **fog/
   visibility range** (hazy/thick → see less far; thin → farther; airless → clearest), scaled by
   weather intensity, server-supplied via `WorldEnvironment`; the client applies it as camera fog

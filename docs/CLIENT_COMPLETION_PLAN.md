@@ -384,11 +384,25 @@ planet-side counterpart to space stations), server-authoritative:
 - **Variety:** different **ship types/sizes** (matching `ships.json`) and origins (human or
   **alien** wrecks, alien ones using alien block/palette variants) so wrecks feel distinct;
   bigger wrecks hold more loot and more squatters.
+- **Repairable → a usable ship (important):** a wreck can be **restored** into a working,
+  flyable ship the player **owns**. Because a wreck is a known `ships.json` design with a
+  decay/damage mask, repair = **rebuilding the missing/broken blocks** of that design: the player
+  brings materials and **fills the breaches** (place the design's hull blocks back, reusing the
+  normal build/place + ship-module build flow), and once the hull is **complete enough** (and the
+  required modules — cockpit/reactor/etc. — are present/repaired) the server **claims it into the
+  player's owned-ships registry** and it becomes flyable (lifts off, star-map travel). Drives a
+  meaningful mid-game goal: find a rare wreck, clear the squatters, invest materials, **gain a new
+  ship** (often a bigger/alien hull than you could craft yet). A partially-repaired wreck shows
+  **progress** (% hull restored / which modules still missing). Server-authoritative: it owns the
+  per-wreck repair state, validates each placed block against the design, and the claim/ownership
+  transfer. Ties into **Ships: types/designs + multiple owned ships** (the registry, switching)
+  and the **module build** system.
 - Reuses: ship voxel stamping + the **decay pass** shared with settlement **ruins**, **loot
-  containers** (combat-loot system), **creatures** (squatters) and missions (a wreck can be a
-  mission objective — "investigate the distress signal"). Server owns wreck placement, the
-  decayed layout, loot tables and squatter spawns; clients just render + use loot/interact.
-  Sequence with **settlements/ruins + combat-loot + creatures** (shared systems).
+  containers** (combat-loot system), **creatures** (squatters), missions (a wreck can be a
+  mission objective — "investigate the distress signal"), and the **ship build/registry** for
+  repair-and-claim. Server owns wreck placement, the decayed layout, loot tables, squatter spawns
+  and the repair/claim state; clients render + use loot/interact/repair. Sequence with
+  **settlements/ruins + combat-loot + creatures + the ship registry** (shared systems).
 
 ### Ships: types, designs, expandable interiors & multiple owned ships — **slice DONE / extras planned**
 Implemented (server + data + minimal UI): data-driven `data/ships.json` (starter/hauler/scout)
