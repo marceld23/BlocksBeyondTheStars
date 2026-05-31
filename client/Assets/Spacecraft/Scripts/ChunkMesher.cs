@@ -21,11 +21,12 @@ namespace Spacecraft.Client
             new Vector3i(0, 0, 1), new Vector3i(0, 0, -1),
         };
 
-        public static Mesh Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock)
+        public static Mesh Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();
             var colors = new List<Color>();
+            var uvs = new List<Vector2>();
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
@@ -40,7 +41,10 @@ namespace Spacecraft.Client
                     continue;
                 }
 
-                var baseColor = BlockColor(content, id);
+                // With an atlas, the texture carries the colour and vertex colour is just the
+                // per-face shade; without one, fall back to the flat palette × shade.
+                Color baseColor = atlas == null ? BlockColor(content, id) : Color.white;
+                Rect uv = atlas != null ? atlas.TileUv(id.Value) : new Rect(0f, 0f, 1f, 1f);
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -51,11 +55,11 @@ namespace Spacecraft.Client
                         continue; // neighbour solid => face hidden
                     }
 
-                    // Bake simple directional shading per face so the blocky shapes read in 3D
-                    // without any scene lighting (the chunk shader is unlit).
                     float s = FaceShade(f);
-                    var shaded = new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
-                    AddFace(verts, tris, colors, new Vector3(x, y, z), f, shaded);
+                    var col = atlas != null
+                        ? new Color(s, s, s, 1f)
+                        : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
+                    AddFace(verts, tris, colors, uvs, new Vector3(x, y, z), f, col, uv);
                 }
             }
 
@@ -63,6 +67,7 @@ namespace Spacecraft.Client
             mesh.SetVertices(verts);
             mesh.SetTriangles(tris, 0);
             mesh.SetColors(colors);
+            mesh.SetUVs(0, uvs);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
@@ -118,12 +123,16 @@ namespace Spacecraft.Client
                 0.35f + 0.5f * (float)rng.NextDouble());
         }
 
-        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, Vector3 p, int face, Color color)
+        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, Vector3 p, int face, Color color, Rect uv)
         {
             int baseIndex = verts.Count;
             Vector3[] q = FaceQuad(p, face);
             verts.Add(q[0]); verts.Add(q[1]); verts.Add(q[2]); verts.Add(q[3]);
             colors.Add(color); colors.Add(color); colors.Add(color); colors.Add(color);
+            uvs.Add(new Vector2(uv.xMin, uv.yMin));
+            uvs.Add(new Vector2(uv.xMin, uv.yMax));
+            uvs.Add(new Vector2(uv.xMax, uv.yMax));
+            uvs.Add(new Vector2(uv.xMax, uv.yMin));
             tris.Add(baseIndex); tris.Add(baseIndex + 1); tris.Add(baseIndex + 2);
             tris.Add(baseIndex); tris.Add(baseIndex + 2); tris.Add(baseIndex + 3);
         }

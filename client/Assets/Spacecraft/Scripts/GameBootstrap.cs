@@ -37,6 +37,7 @@ namespace Spacecraft.Client
         public Localizer Localizer { get; private set; }
         public NetworkClient Network { get; private set; }
         public ClientWorld World { get; private set; }
+        public BlockTextureAtlas Atlas { get; private set; }
 
         // Latest authoritative player vitals for the HUD.
         public float Health { get; private set; } = 100f;
@@ -136,6 +137,19 @@ namespace Spacecraft.Client
             Content = ContentLoader.LoadFromDirectory(dataDir);
             Localizer = Content.CreateLocalizer(German ? GameLocale.German : GameLocale.English);
             World = new ClientWorld();
+
+            // Procedurally generate the block texture atlas and a material that samples it
+            // (M27). Falls back to whatever WorldRig assigned if the shader is missing.
+            Atlas = new BlockTextureAtlas(Content);
+            var atlasShader = Shader.Find("Spacecraft/BlockAtlas");
+            if (atlasShader != null)
+            {
+                ChunkMaterial = new Material(atlasShader) { mainTexture = Atlas.Texture };
+            }
+            else
+            {
+                Atlas = null; // no atlas shader → fall back to the flat palette + vertex-colour material
+            }
 
             Network = new NetworkClient();
             Network.JoinAccepted += m =>
@@ -246,7 +260,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            var mesh = ChunkMesher.Build(chunk, Content, World.GetBlock);
+            var mesh = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas);
 
             if (!_chunkObjects.TryGetValue(coord, out var go))
             {

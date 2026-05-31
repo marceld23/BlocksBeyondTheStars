@@ -125,9 +125,12 @@ consumes protocol messages that already exist.
   with an active ship + `SwitchShipIntent`, a Hangar UI. See CLIENT_COMPLETION_PLAN.
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
-- **M27** — art, **icons & symbols** (game + menus), full texture atlas, tool models, uGUI/UI-Toolkit
-  polish, pause menu, accessibility. **M28** — Windows player build + optional WebGL Lite.
-  *(M27/M28 are asset/Editor-driven: real art/icons/audio files + a Unity batchmode build.)*
+- **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
+  (`BlockTextureAtlas` + UV mapping + `Spacecraft/BlockAtlas` shader, no image files). Still:
+  UI icons/symbols (can also be procedural), tool/hand visuals, mining feedback, uGUI polish.
+- **M28** — Windows player build + optional WebGL Lite *(needs a Unity batchmode build script)*.
+  Note: real hand-/AI-authored art & audio files remain an asset task; everything so far is
+  generated in code (textures, avatars, SFX) — no bundled binary assets.
 
 Later/optional: Option B true in-process SP server (retarget to netstandard2.1); per-player ships
 + PvP ship combat.

@@ -250,10 +250,14 @@ Today there is one hardcoded ship. Grow this into a real ship system:
 - Later: real **recorded SFX** (ship hums, doors/airlock/docking, alarms, respawn, weapons) +
   **music**, sourced CC0/permissive and recorded in `NOTICES.md`; full music/ambient bus.
 
-### M27 — Art, icons & polish
-- **Textures:** finalize a proper **block texture atlas** (all material groups from
-  `anf_textures.md`) replacing the flat per-block palette; module colour codes; first-person
-  **tool/hand** visuals; mining/placing **feedback** (particles, outline).
+### M27 — Art, icons & polish — **in progress**
+- **Block textures — DONE (procedural):** `BlockTextureAtlas` generates a 32×32-per-block atlas
+  in code (grain, ore speckles, metal panel+rivets, ice/glass streak, circuit grid, dark edges);
+  `ChunkMesher` UV-maps faces into it and the `Spacecraft/BlockAtlas` shader samples it × per-face
+  shade. No image assets bundled. Hand-authored/AI art can replace the atlas later (same UVs).
+- **Still to do:** procedural (or authored) **UI icons & symbols** (hotbar/items, station,
+  compass, vitals, menu tabs); first-person **tool/hand** visuals; mining/placing **feedback**
+  (particles, outline); module colour codes.
 - **Icons & symbols (game + menus):** a real icon set replacing the current text/emoji
   placeholders — item/hotbar icons, station/compass/minimap symbols, mission & map markers,
   HUD vitals icons (health/oxygen/energy), and menu button/tab icons. Ship the UI on
