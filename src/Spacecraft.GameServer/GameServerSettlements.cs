@@ -213,18 +213,27 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var mission = new Shared.Missions.Mission
+            var def = new Shared.Missions.MissionDefinition
             {
                 Id = $"settle_{(uint)WorldGenerator.StableHash(_settlementName) % 100000u}_{i}",
-                TitleKey = "mission.settlement.gather.title",
+                Source = Shared.Missions.MissionSource.System,
+                NameKey = "mission.settlement.gather.title",
                 DescriptionKey = "mission.settlement.gather.desc",
-                Kind = Shared.Missions.MissionKind.Gather,
-                Objectives = { new Shared.Missions.Mission.MissionObjective { Item = tpl.Need, Target = tpl.Target } },
+                Objectives =
+                {
+                    new Shared.Missions.MissionObjective
+                    {
+                        Type = Shared.Missions.MissionObjectiveType.Deliver,
+                        Target = tpl.Need,
+                        Required = tpl.Target,
+                    },
+                },
                 Rewards = { new Shared.Definitions.ItemAmount(tpl.Reward, tpl.RewardN) },
+                Active = true,
             };
 
-            _missions.Add(mission);
-            _settlementMissionIds.Add(mission.Id);
+            _missionDefs[def.Id] = def;
+            _settlementMissionIds.Add(def.Id);
         }
     }
 

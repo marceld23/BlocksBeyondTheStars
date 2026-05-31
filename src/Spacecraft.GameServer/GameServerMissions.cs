@@ -69,6 +69,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "Visit the settlement's mission board to take this mission.");
+            return;
+        }
+
         if (session.State.Missions.Any(m => m.MissionId == missionId))
         {
             MissionFail(session, missionId, "Mission already accepted.");
@@ -93,6 +99,12 @@ public sealed partial class GameServer
         if (pr is null || def is null)
         {
             MissionFail(session, missionId, "Mission is not active.");
+            return;
+        }
+
+        if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
+        {
+            MissionFail(session, missionId, "Return to the settlement's mission board to turn this in.");
             return;
         }
 
@@ -320,4 +332,22 @@ public sealed partial class GameServer
 
     private void MissionFail(PlayerSession session, string missionId, string reason)
         => Send(session, new MissionResult { Success = false, MissionId = missionId, Reason = reason });
+
+    /// <summary>Accepts a mission for a player (used by local play / tests).</summary>
+    public void AcceptMission(string playerId, string missionId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleAcceptMission(session, missionId);
+        }
+    }
+
+    /// <summary>Turns in a mission for a player (used by local play / tests).</summary>
+    public void TurnInMission(string playerId, string missionId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleTurnInMission(session, missionId);
+        }
+    }
 }

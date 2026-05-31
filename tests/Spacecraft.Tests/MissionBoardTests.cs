@@ -114,7 +114,7 @@ public sealed class MissionBoardTests : IDisposable
             server.TurnInMission("Courier", id);
 
             var prog = p.State.Missions.First(m => m.MissionId == id);
-            Assert.Equal(MissionStatus.Completed, prog.Status);
+            Assert.Equal(MissionStatus.TurnedIn, prog.Status);
         }
     }
 
