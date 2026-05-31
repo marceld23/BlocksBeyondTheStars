@@ -294,7 +294,18 @@ star map):
   system switch; the client renders selection + the warp streaks + arrival. Sequence with M25b +
   the star-map travel work.
 
-### Space collisions, asteroid mining & tractor beam — NEW (planned)
+### Space collisions, asteroid mining & tractor beam — **breakable asteroids DONE / rest planned**
+Implemented (server): space asteroids now have a **size tier** (`CombatEntity.AsteroidTier`:
+2 large / 1 medium / 0 small) and **split on destruction** — shooting a **large** asteroid yields
+**smaller chunks** (no loot), which split again, and only the **smallest** break into **mineral
+drops** (iron/titanium), reusing the existing `FireWeapon` + `AsteroidDestruction` gating. Space
+instances spawn large asteroids. 2 tests (large → smaller chunks, no loot; breaking all the way
+down eventually drops ore). Still planned (below): **collision damage** (flying into an asteroid
+hurts hull/shield) and the **tractor beam** add-on (pull floating drops into the cargo hold) —
+both need an authoritative ship **position/velocity** in the space instance (abstract today).
+
+Original notes (remaining work):
+
 Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
 
 - **Collision damage:** the ship has a position/velocity in the space instance; flying into an

@@ -28,6 +28,9 @@ public sealed class CombatEntity
 
     /// <summary>Seconds a (territorial) creature stays provoked after being attacked (hunts + bites back).</summary>
     public double ProvokeTimer { get; set; }
+
+    /// <summary>For asteroids: size tier (2 = large, 1 = medium, 0 = small). Large ones split when destroyed.</summary>
+    public int AsteroidTier { get; set; }
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public Vector3f Position { get; set; }
@@ -253,20 +256,12 @@ public sealed partial class GameServer
     {
         var instance = new SpaceInstance { Id = instanceId, Kind = "orbit" };
 
-        // Asteroids are always present as scenery + mining targets; breaking them is gated at fire time.
+        // Asteroids are always present as scenery + mining targets; breaking them is gated at fire
+        // time. They start large and split into smaller chunks when destroyed (§8.1).
         int asteroids = 3;
         for (int i = 0; i < asteroids; i++)
         {
-            instance.Entities.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = CombatEntityKind.Asteroid,
-                Hostile = false,
-                Hull = 50f,
-                HullMax = 50f,
-                Position = new Vector3f(12 + i * 8, 0, 18),
-                Loot = { new ItemAmount("iron_ore", 5), new ItemAmount("titanium_ore", 2) },
-            });
+            instance.Entities.Add(MakeAsteroid(LargeAsteroidTier, new Vector3f(12 + i * 8, 0, 18)));
         }
 
         // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on.
@@ -354,9 +349,14 @@ public sealed partial class GameServer
             return;
         }
 
-        // Destroyed: award loot to the firing player and remove the entity.
+        // Destroyed. A large/medium asteroid splits into smaller chunks instead of dropping loot;
+        // only the smallest asteroids (and other entities) yield resources.
         instance.Entities.Remove(target);
-        if (session is not null)
+        if (target.Kind == CombatEntityKind.Asteroid && target.AsteroidTier > 0)
+        {
+            SplitAsteroid(instance, target);
+        }
+        else if (session is not null)
         {
             var pool = new MaterialPool(_content, session.State, _ship);
             foreach (var drop in target.Loot)
@@ -369,6 +369,45 @@ public sealed partial class GameServer
 
         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
         BroadcastSpaceState(instance);
+    }
+
+    private const int LargeAsteroidTier = 2;
+    private const int AsteroidSplitCount = 2;
+
+    /// <summary>Hull of an asteroid by size tier (large is tougher; small breaks fast into resources).</summary>
+    private static float AsteroidHull(int tier) => tier switch
+    {
+        2 => 40f,
+        1 => 25f,
+        _ => 15f,
+    };
+
+    private CombatEntity MakeAsteroid(int tier, Vector3f position) => new()
+    {
+        Id = NextEntityId(),
+        Kind = CombatEntityKind.Asteroid,
+        Hostile = false,
+        Hull = AsteroidHull(tier),
+        HullMax = AsteroidHull(tier),
+        AsteroidTier = tier,
+        Position = position,
+        // Only the smallest chunks carry mineral drops; larger ones split first.
+        Loot = tier == 0
+            ? new List<ItemAmount> { new("iron_ore", 5), new("titanium_ore", 2) }
+            : new List<ItemAmount>(),
+    };
+
+    /// <summary>Replaces a destroyed large/medium asteroid with a couple of smaller-tier chunks nearby.</summary>
+    private void SplitAsteroid(SpaceInstance instance, CombatEntity parent)
+    {
+        int childTier = parent.AsteroidTier - 1;
+        for (int i = 0; i < AsteroidSplitCount; i++)
+        {
+            float dx = i == 0 ? -2f : 2f;
+            float dz = i == 0 ? -2f : 2f;
+            var pos = new Vector3f(parent.Position.X + dx, parent.Position.Y, parent.Position.Z + dz);
+            instance.Entities.Add(MakeAsteroid(childTier, pos));
+        }
     }
 
     /// <summary>Applies the rule gating from §7.2 / §8.2 / §11 for a weapon firing at a target.</summary>

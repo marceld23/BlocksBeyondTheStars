@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **157 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **158 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -142,9 +142,11 @@ consumes protocol messages that already exist.
   plays a **warp animation** (starfield stretches into streaks → drop out into the new system).
   In-system hops keep launch/landing; hyperspace is system-to-system only. Reuses star map (M23)
   + SpaceView + ship modules + universe data (M11). See CLIENT_COMPLETION_PLAN "Hyperspace travel".
-- **(NEW, planned) Space collisions + asteroid mining + tractor beam:** ship takes hull/shield
-  damage flying into asteroids; weapons split big asteroids → chunks → resource drops; a tractor-
-  beam ship add-on collects drops into cargo. Needs authoritative ship position in space. See plan.
+- **Space asteroid mining — breakable asteroids DONE.** Space asteroids have a size tier
+  (`AsteroidTier` 2/1/0) and **split on destruction**: large → smaller chunks (no loot) → smallest
+  → mineral drops, via the existing `FireWeapon`/`AsteroidDestruction` path. 2 tests. Still planned:
+  **collision damage** (flying into an asteroid) + **tractor beam** add-on (collect drops into
+  cargo) — both need an authoritative ship position/velocity in space.
 - **(NEW, planned) Combat loot:** destroyed ships (player/NPC) drop (part of) their cargo as
   tractor-collectable salvage; planet PvP leaves a **lootable corpse** with the victim's full
   carried inventory (victim respawns without it) that persists until emptied. Rules-gated. See plan.
@@ -249,7 +251,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (157)
+dotnet test                      # expect all green (158)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

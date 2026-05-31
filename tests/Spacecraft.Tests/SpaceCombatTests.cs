@@ -88,7 +88,7 @@ public sealed class SpaceCombatTests : IDisposable
     // ---------------- Weapons + rule gating ----------------
 
     [Fact]
-    public void AsteroidBreaker_BreaksAsteroid_AndYieldsLoot()
+    public void AsteroidBreaker_BreaksAsteroidsDown_AndEventuallyYieldsLoot()
     {
         var server = NewServer("breaker", r =>
         {
@@ -101,15 +101,44 @@ public sealed class SpaceCombatTests : IDisposable
             server.Ship.Modules.Add("asteroid_breaker");
             server.EnterSpace("Pilot");
 
-            var asteroid = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
-            var id = asteroid.Id;
+            // Keep breaking the nearest asteroid: large -> medium -> small -> mineral drops.
+            for (int i = 0; i < 16 && pilot.State.Inventory.CountOf("iron_ore") == 0; i++)
+            {
+                var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
+                if (a is null) break;
+                server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+            }
 
-            server.FireWeapon("Pilot", "asteroid_breaker", id); // 25 dmg, hull 50
-            Assert.Contains(server.SpaceEntitiesFor("Pilot"), e => e.Id == id);
-            server.FireWeapon("Pilot", "asteroid_breaker", id); // destroyed
+            Assert.True(pilot.State.Inventory.CountOf("iron_ore") >= 5, "Breaking asteroids down should eventually drop ore.");
+        }
+    }
 
-            Assert.DoesNotContain(server.SpaceEntitiesFor("Pilot"), e => e.Id == id);
-            Assert.True(pilot.State.Inventory.CountOf("iron_ore") >= 5);
+    [Fact]
+    public void LargeAsteroid_SplitsIntoSmallerChunks_WithoutLoot()
+    {
+        var server = NewServer("split", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.AsteroidDestruction = AsteroidDestructionMode.MiningOnly;
+        }, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.EnterSpace("Pilot");
+
+            var large = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid && e.AsteroidTier == 2);
+            int asteroidsBefore = server.SpaceEntitiesFor("Pilot").Count(e => e.Kind == CombatEntityKind.Asteroid);
+
+            // asteroid_breaker = 25 dmg; a large asteroid has 40 hull → two hits.
+            server.FireWeapon("Pilot", "asteroid_breaker", large.Id);
+            server.FireWeapon("Pilot", "asteroid_breaker", large.Id);
+
+            var asteroids = server.SpaceEntitiesFor("Pilot").Where(e => e.Kind == CombatEntityKind.Asteroid).ToList();
+            Assert.DoesNotContain(asteroids, e => e.Id == large.Id);                 // the large one is gone
+            Assert.True(asteroids.Count > asteroidsBefore - 1, "Destroying a large asteroid should spawn smaller chunks.");
+            Assert.Contains(asteroids, e => e.AsteroidTier == 1);                    // medium chunks appeared
+            Assert.Equal(0, pilot.State.Inventory.CountOf("iron_ore"));              // no loot from a large one
         }
     }
 
