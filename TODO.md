@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **208 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **214 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -319,7 +319,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (208)
+dotnet test                      # expect all green (214)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side
