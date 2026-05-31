@@ -225,6 +225,8 @@
   "ui.hud.energy": "Energie",
   "ui.hud.hunger": "Hunger",
   "ui.hud.breathable": "atembar",
+  "mission.settlement.gather.title": "Versorgungsauftrag der Siedlung",
+  "mission.settlement.gather.desc": "Liefere die geforderten Rohstoffe am Missionsboard der Siedlung ab und erhalte eine Belohnung.",
   "ui.hud.hint": "WASD bewegen · LMT abbauen · RMT setzen · 1-9 Hotbar · E benutzen · V Ansicht · Tab Menü · Esc beenden",
   "ui.tab.tech": "Technik",
   "ui.tab.ship": "Schiff",

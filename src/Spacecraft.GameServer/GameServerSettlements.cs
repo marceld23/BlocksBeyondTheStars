@@ -23,6 +23,9 @@ public sealed partial class GameServer
     private string _settlementInhabitant = string.Empty;
     private readonly List<(string Type, Vector3f Pos)> _settlementMarkers = new();
 
+    /// <summary>Mission ids offered by this settlement's board (only acceptable/turn-in-able there).</summary>
+    private readonly HashSet<string> _settlementMissionIds = new();
+
     /// <summary>Interaction/spawn points inside the stamped settlement (vendor/mission_board/npc/loot).</summary>
     public IReadOnlyList<(string Type, Vector3f Pos)> SettlementMarkers => _settlementMarkers;
 
@@ -96,6 +99,8 @@ public sealed partial class GameServer
         _settlementName = SettlementDisplayName(tier, ruined, rng);
 
         _settlementMarkers.Clear();
+        _settlementMissionIds.Clear();
+        bool hasBoard = false;
         foreach (var m in structure.Markers)
         {
             var pos = new Vector3f(origin.X + m.LocalPos.X + 0.5f, groundY + m.LocalPos.Y + 0.5f, origin.Z + m.LocalPos.Z + 0.5f);
@@ -106,6 +111,17 @@ public sealed partial class GameServer
             {
                 SpawnStructureLoot("settlement", m.Type, pos, rng);
             }
+            else if (m.Type == "mission_board")
+            {
+                hasBoard = true;
+            }
+        }
+
+        // An inhabited settlement's mission board offers a couple of local gather missions
+        // (only acceptable/turn-in-able while standing at the board).
+        if (hasBoard && !ruined)
+        {
+            GenerateSettlementMissions(rng);
         }
 
         _settlementStamped = true;
@@ -139,19 +155,77 @@ public sealed partial class GameServer
     }
 
     private const float SettlementVendorReach = 4f;
+    private const float SettlementBoardReach = 4f;
 
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)
+        => NearMarker(player, "vendor", SettlementVendorReach);
+
+    /// <summary>True if the player is standing next to the settlement's mission board.</summary>
+    public bool NearSettlementMissionBoard(Shared.State.PlayerState player)
+        => NearMarker(player, "mission_board", SettlementBoardReach);
+
+    private bool NearMarker(Shared.State.PlayerState player, string type, float reach)
     {
-        foreach (var (type, pos) in _settlementMarkers)
+        foreach (var (markerType, pos) in _settlementMarkers)
         {
-            if (type == "vendor" && player.Position.DistanceSquared(pos) <= SettlementVendorReach * SettlementVendorReach)
+            if (markerType == type && player.Position.DistanceSquared(pos) <= reach * reach)
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>True if a mission is one offered by the settlement board (board-gated accept/turn-in).</summary>
+    public bool IsSettlementMission(string missionId) => _settlementMissionIds.Contains(missionId);
+
+    /// <summary>Mission ids offered by the settlement board (test/inspection).</summary>
+    public IReadOnlyCollection<string> SettlementMissionIds => _settlementMissionIds;
+
+    /// <summary>Generates a couple of deterministic local gather missions for the settlement board.</summary>
+    private void GenerateSettlementMissions(System.Random rng)
+    {
+        // (deliver item, target, reward item, reward count) pools — all real content items.
+        (string Need, int Target, string Reward, int RewardN)[] templates =
+        {
+            ("iron_ore", 10, "iron_plate", 3),
+            ("carbon", 8, "cable", 2),
+            ("silicate", 8, "energy_cell_1", 1),
+            ("copper_ore", 10, "cable", 3),
+            ("crystal", 5, "titanium_plate", 2),
+        };
+
+        int count = 1 + rng.Next(2); // 1–2 missions
+        var used = new HashSet<int>();
+        for (int i = 0; i < count; i++)
+        {
+            int t = rng.Next(templates.Length);
+            if (!used.Add(t))
+            {
+                continue;
+            }
+
+            var tpl = templates[t];
+            if (_content.GetItem(tpl.Need) is null || _content.GetItem(tpl.Reward) is null)
+            {
+                continue;
+            }
+
+            var mission = new Shared.Missions.Mission
+            {
+                Id = $"settle_{(uint)WorldGenerator.StableHash(_settlementName) % 100000u}_{i}",
+                TitleKey = "mission.settlement.gather.title",
+                DescriptionKey = "mission.settlement.gather.desc",
+                Kind = Shared.Missions.MissionKind.Gather,
+                Objectives = { new Shared.Missions.Mission.MissionObjective { Item = tpl.Need, Target = tpl.Target } },
+                Rewards = { new Shared.Definitions.ItemAmount(tpl.Reward, tpl.RewardN) },
+            };
+
+            _missions.Add(mission);
+            _settlementMissionIds.Add(mission.Id);
+        }
     }
 
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>
