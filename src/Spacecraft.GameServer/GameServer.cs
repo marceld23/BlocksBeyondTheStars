@@ -89,6 +89,7 @@ public sealed partial class GameServer
         _world = new ServerWorld(_content, _generator, _repo, planet);
 
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
+        RecomputeShipCombatStats();
         _repo.SaveShip(ShipId, _ship);
 
         BuildGalaxy();
@@ -243,6 +244,8 @@ public sealed partial class GameServer
     {
         _transport.Poll();
         TickEnvironment(deltaSeconds);
+        TickSpace(deltaSeconds);
+        TickEnemies(deltaSeconds);
         StreamChunks();
 
         _sinceAutoSave += deltaSeconds;
@@ -409,6 +412,7 @@ public sealed partial class GameServer
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
             ClearDocking(session.State.PlayerId);
+            LeaveSpace(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
         }
@@ -453,6 +457,11 @@ public sealed partial class GameServer
             case DockRequestIntent dock: HandleDockRequest(session, dock); break;
             case DockResponseIntent response: HandleDockResponse(session, response); break;
             case UndockIntent: HandleUndock(session); break;
+            case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
+            case EnterSpaceIntent: HandleEnterSpace(session); break;
+            case LeaveSpaceIntent: HandleLeaveSpace(session); break;
+            case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
+            case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
         }
     }
 
@@ -505,6 +514,7 @@ public sealed partial class GameServer
         SendInventory(session);
         SendPlayerState(session);
         SendRules(session);
+        SendShipCombatStatus(session);
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }

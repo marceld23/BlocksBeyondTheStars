@@ -97,6 +97,37 @@ public sealed class UndockIntent
 {
 }
 
+// --- Ship building & space flight / combat (anf_space_flight.md §6-12) ---
+
+/// <summary>Client asks to build a ship module from cargo materials (gated by blueprint + station).</summary>
+public sealed class BuildShipModuleIntent
+{
+    public string ModuleKey { get; set; } = string.Empty;
+}
+
+/// <summary>Client asks to launch into free space flight around its current location.</summary>
+public sealed class EnterSpaceIntent
+{
+}
+
+/// <summary>Client asks to leave the space instance and return to the surface/base.</summary>
+public sealed class LeaveSpaceIntent
+{
+}
+
+/// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.</summary>
+public sealed class FireWeaponIntent
+{
+    public string WeaponKey { get; set; } = string.Empty;
+    public string TargetEntityId { get; set; } = string.Empty;
+}
+
+/// <summary>Client attacks a planet enemy with the held tool/weapon. The server resolves the hit.</summary>
+public sealed class AttackEntityIntent
+{
+    public string EntityId { get; set; } = string.Empty;
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -305,4 +336,63 @@ public sealed class DockStatus
     public bool Docked { get; set; }
 
     public string Reason { get; set; } = string.Empty;
+}
+
+// --- Space flight / combat & planet enemies (anf_space_flight.md §6-12) ---
+
+/// <summary>A combat entity in space (asteroid, drone, ufo, cruiser) or a planet enemy.</summary>
+public sealed class NetCombatEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public bool Hostile { get; set; }
+    public float Hull { get; set; }
+    public float HullMax { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+}
+
+/// <summary>Authoritative ship hull/shield, sent on join and whenever they change.</summary>
+public sealed class ShipCombatStatus
+{
+    public float Hull { get; set; }
+    public float HullMax { get; set; }
+    public float Shield { get; set; }
+    public float ShieldMax { get; set; }
+}
+
+/// <summary>Snapshot of the space instance a player is in (sent on entry and on change).</summary>
+public sealed class SpaceState
+{
+    public string InstanceId { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
+    public NetCombatEntity[] Entities { get; set; } = System.Array.Empty<NetCombatEntity>();
+}
+
+/// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>
+public sealed class SpaceEntityDestroyed
+{
+    public string Id { get; set; } = string.Empty;
+}
+
+/// <summary>The player has left space (manually, or because the ship was disabled — no permanent loss).</summary>
+public sealed class SpaceClosed
+{
+    public string Reason { get; set; } = string.Empty;
+
+    /// <summary>True when the exit was forced by ship defeat (ship recovered to base, player respawned).</summary>
+    public bool ShipDisabled { get; set; }
+}
+
+/// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>
+public sealed class PlanetEnemyList
+{
+    public NetCombatEntity[] Enemies { get; set; } = System.Array.Empty<NetCombatEntity>();
+}
+
+/// <summary>A planet enemy was defeated.</summary>
+public sealed class PlanetEnemyDefeated
+{
+    public string Id { get; set; } = string.Empty;
 }

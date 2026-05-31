@@ -30,5 +30,35 @@
     "mandatory": false, "requiredBlueprint": "docking_module",
     "buildCost": [ { "item": "iron_plate", "count": 20 }, { "item": "cable", "count": 8 }, { "item": "glass", "count": 2 } ],
     "stats": {}
+  },
+  {
+    "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
+    "mandatory": false, "requiredBlueprint": "hull_plating",
+    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 } ],
+    "stats": { "hull": 100 }
+  },
+  {
+    "key": "shield_generator", "nameKey": "module.shield_generator.name", "descriptionKey": "module.shield_generator.desc",
+    "mandatory": false, "requiredBlueprint": "shield_generator",
+    "buildCost": [ { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 4 } ],
+    "stats": { "shield": 80, "shield_regen": 8 }
+  },
+  {
+    "key": "asteroid_breaker", "nameKey": "module.asteroid_breaker.name", "descriptionKey": "module.asteroid_breaker.desc",
+    "mandatory": false, "requiredBlueprint": "asteroid_breaker",
+    "buildCost": [ { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 2 } ],
+    "stats": { "weapon_class": 0, "weapon_damage": 25, "weapon_range": 40, "weapon_cooldown": 1.5, "weapon_energy": 2 }
+  },
+  {
+    "key": "ship_cannon_1", "nameKey": "module.ship_cannon_1.name", "descriptionKey": "module.ship_cannon_1.desc",
+    "mandatory": false, "requiredBlueprint": "ship_cannon_1",
+    "buildCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 20, "weapon_range": 50, "weapon_cooldown": 1.0, "weapon_energy": 3 }
+  },
+  {
+    "key": "laser_cannon_2", "nameKey": "module.laser_cannon_2.name", "descriptionKey": "module.laser_cannon_2.desc",
+    "mandatory": false, "requiredBlueprint": "laser_cannon_2",
+    "buildCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 6 }, { "item": "glass", "count": 4 } ],
+    "stats": { "weapon_class": 1, "weapon_damage": 45, "weapon_range": 70, "weapon_cooldown": 1.2, "weapon_energy": 5 }
   }
 ]

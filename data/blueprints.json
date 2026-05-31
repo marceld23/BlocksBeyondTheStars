@@ -28,5 +28,30 @@
     "key": "docking_module", "nameKey": "blueprint.docking_module.name", "descriptionKey": "blueprint.docking_module.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
+  },
+  {
+    "key": "hull_plating", "nameKey": "blueprint.hull_plating.name", "descriptionKey": "blueprint.hull_plating.desc",
+    "category": "ShipDefense", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 10 } ]
+  },
+  {
+    "key": "shield_generator", "nameKey": "blueprint.shield_generator.name", "descriptionKey": "blueprint.shield_generator.desc",
+    "category": "ShipDefense", "prerequisites": [ "hull_plating" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "asteroid_breaker", "nameKey": "blueprint.asteroid_breaker.name", "descriptionKey": "blueprint.asteroid_breaker.desc",
+    "category": "ShipWeapon", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 6 } ]
+  },
+  {
+    "key": "ship_cannon_1", "nameKey": "blueprint.ship_cannon_1.name", "descriptionKey": "blueprint.ship_cannon_1.desc",
+    "category": "ShipWeapon", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 4 } ]
+  },
+  {
+    "key": "laser_cannon_2", "nameKey": "blueprint.laser_cannon_2.name", "descriptionKey": "blueprint.laser_cannon_2.desc",
+    "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
   }
 ]

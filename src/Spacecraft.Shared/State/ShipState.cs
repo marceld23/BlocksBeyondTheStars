@@ -15,5 +15,15 @@ public sealed class ShipState
     /// <summary>Identifier of the system/planet/station the ship is currently at.</summary>
     public string CurrentLocationId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Current hull integrity (space combat, `anf_space_flight.md` §8.4). Reaching 0 disables
+    /// the ship and recovers it to its base — there is no permanent ship loss (§8.5). The
+    /// maximum is derived from built modules; the server clamps and restores this value.
+    /// </summary>
+    public float Hull { get; set; } = 100f;
+
+    /// <summary>Current shield charge; regenerates out of combat up to the module-derived maximum.</summary>
+    public float Shield { get; set; }
+
     public bool HasModule(string moduleKey) => Modules.Contains(moduleKey);
 }

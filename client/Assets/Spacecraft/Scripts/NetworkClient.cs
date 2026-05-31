@@ -26,6 +26,17 @@ namespace Spacecraft.Client
         public event Action<ActionRejected> ActionRejected;
         public event Action<ServerMessage> ServerMessageReceived;
 
+        // Ship docking (M18) and free space flight / combat (M19). Rendering is added later;
+        // these hooks let the client react to the authoritative state the server reports.
+        public event Action<DockRequestNotice> DockRequested;
+        public event Action<DockStatus> DockStatusChanged;
+        public event Action<ShipCombatStatus> ShipCombatStatusChanged;
+        public event Action<SpaceState> SpaceStateReceived;
+        public event Action<SpaceEntityDestroyed> SpaceEntityDestroyed;
+        public event Action<SpaceClosed> SpaceClosed;
+        public event Action<PlanetEnemyList> PlanetEnemiesReceived;
+        public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -57,6 +68,26 @@ namespace Spacecraft.Client
 
         public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });
 
+        // --- Ship docking (M18) ---
+        public void SendDockRequest(string targetPlayer) => Send(new DockRequestIntent { TargetPlayer = targetPlayer });
+
+        public void SendDockResponse(string requester, bool accept)
+            => Send(new DockResponseIntent { Requester = requester, Accept = accept });
+
+        public void SendUndock() => Send(new UndockIntent());
+
+        // --- Free space flight & combat (M19) ---
+        public void SendBuildModule(string moduleKey) => Send(new BuildShipModuleIntent { ModuleKey = moduleKey });
+
+        public void SendEnterSpace() => Send(new EnterSpaceIntent());
+
+        public void SendLeaveSpace() => Send(new LeaveSpaceIntent());
+
+        public void SendFireWeapon(string weaponKey, string targetEntityId)
+            => Send(new FireWeaponIntent { WeaponKey = weaponKey, TargetEntityId = targetEntityId });
+
+        public void SendAttackEntity(string entityId) => Send(new AttackEntityIntent { EntityId = entityId });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -76,6 +107,14 @@ namespace Spacecraft.Client
                 case CraftResult m: CraftCompleted?.Invoke(m); break;
                 case ActionRejected m: ActionRejected?.Invoke(m); break;
                 case ServerMessage m: ServerMessageReceived?.Invoke(m); break;
+                case DockRequestNotice m: DockRequested?.Invoke(m); break;
+                case DockStatus m: DockStatusChanged?.Invoke(m); break;
+                case ShipCombatStatus m: ShipCombatStatusChanged?.Invoke(m); break;
+                case SpaceState m: SpaceStateReceived?.Invoke(m); break;
+                case SpaceEntityDestroyed m: SpaceEntityDestroyed?.Invoke(m); break;
+                case SpaceClosed m: SpaceClosed?.Invoke(m); break;
+                case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
+                case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
             }
         }
 

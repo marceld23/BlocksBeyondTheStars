@@ -37,6 +37,11 @@ public static class NetCodec
         Register(14, typeof(DockRequestIntent));
         Register(15, typeof(DockResponseIntent));
         Register(16, typeof(UndockIntent));
+        Register(17, typeof(BuildShipModuleIntent));
+        Register(18, typeof(EnterSpaceIntent));
+        Register(19, typeof(LeaveSpaceIntent));
+        Register(20, typeof(FireWeaponIntent));
+        Register(21, typeof(AttackEntityIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -55,6 +60,12 @@ public static class NetCodec
         Register(63, typeof(MissionResult));
         Register(64, typeof(DockRequestNotice));
         Register(65, typeof(DockStatus));
+        Register(66, typeof(ShipCombatStatus));
+        Register(67, typeof(SpaceState));
+        Register(68, typeof(SpaceEntityDestroyed));
+        Register(69, typeof(SpaceClosed));
+        Register(70, typeof(PlanetEnemyList));
+        Register(71, typeof(PlanetEnemyDefeated));
     }
 
     private static void Register(byte tag, Type type)
