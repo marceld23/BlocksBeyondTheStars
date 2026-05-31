@@ -152,10 +152,30 @@ namespace Spacecraft.Client
             _splash.Update();
             _loading.Update();
 
-            if (Phase == ShellPhase.InGame && Input.GetKeyDown(KeyCode.Escape))
+            if (Input.GetKeyDown(KeyCode.Escape))
             {
-                ReturnToMenu();
+                if (Phase == ShellPhase.InGame)
+                {
+                    ReturnToMenu();
+                }
+                else if (Phase == ShellPhase.Settings)
+                {
+                    CloseSettings();
+                }
+                else if (Phase == ShellPhase.Credits)
+                {
+                    Phase = ShellPhase.MainMenu;
+                }
             }
+        }
+
+        /// <summary>Fills the whole screen with an opaque background so menu screens never bleed through.</summary>
+        public void DrawBackground()
+        {
+            var prev = GUI.color;
+            GUI.color = new Color(0.04f, 0.08f, 0.16f, 1f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
         }
 
         private void OnGUI()
@@ -173,6 +193,7 @@ namespace Spacecraft.Client
 
         private void DrawCredits()
         {
+            DrawBackground();
             float x = Screen.width / 2f - 200, y = Screen.height / 2f - 60;
             GUI.Label(new Rect(x, y, 400, 30), L("ui.credits.title"));
             GUI.Label(new Rect(x, y + 34, 400, 60), L("ui.credits.body"));

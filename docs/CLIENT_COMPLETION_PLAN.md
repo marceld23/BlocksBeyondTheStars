@@ -110,6 +110,31 @@ server, press Play, verify the loop) and any fixes it surfaces. A real **32×32 
 - IMGUI for now (consistent + testable without the Editor); **uGUI/UI Toolkit polish deferred**
   to M27. Item-move/drag between slots needs new server intents — also deferred.
 
+### M23a — The ship as a place (visible on the planet + enterable) — NEW
+Today the ship is an abstract hub (`ShipState` + the `AboardShip` flag); it has no physical
+presence. Make it a real, visible structure the player can walk into. Recommended approach:
+
+- **Anchor:** the player's `LandingZone` (already has `CenterX/CenterZ`) at the surface height
+  is the ship's world position. The server owns it.
+- **Body (MVP):** on world setup, the server writes a small **voxel ship** at the landing zone
+  — a hollow hull of `iron_wall`/`glass` blocks with a floor, a door gap and interior module
+  markers (cockpit/medbay/workshop/cargo tiles). It streams like any other chunks, so the
+  existing mesher renders it and the player can physically enter through the door. The landing
+  zone is already protection-gated so others can't grief it.
+- **Enter/exit + "aboard":** the server sets `AboardShip` from whether the player is inside the
+  ship's bounding box (authoritative), which already gates cargo crafting / module build /
+  oxygen regen. Optional explicit `EnterShipIntent`/`ExitShipIntent` for a teleport-to-cockpit
+  convenience. New protocol: `ShipPlacement { x,y,z, bounds }` sent on join so the client knows
+  where the ship is (HUD marker / "you are aboard" indicator).
+- **Client:** render is automatic (it's blocks); add an "aboard" HUD indicator and, when near
+  the door, a "Press E to enter" prompt (drives the optional intent). The respawn heal-tank
+  (Medbay) sits inside, so death already returns the player into the ship.
+- **Later:** modules visually reflected inside (M19 weapons/defense as props), ship lift-off /
+  star-map travel from the cockpit, multi-block ship building, per-player ships.
+
+This depends only on existing systems (landing zones, chunk streaming, `AboardShip`,
+protection) plus one small placement message. Target: implement right after M22/M23.
+
 ### M23 — Navigation, missions & feedback
 - **Star map** screen (`RequestStarMap`/`StarMapData`).
 - **Mission log**: list/accept/turn-in/create (`RequestMissions`, `Accept/TurnIn/CreateMissionIntent`,

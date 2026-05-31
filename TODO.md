@@ -98,6 +98,9 @@ consumes protocol messages that already exist.
   placed item via `SelectHotbarIntent`); `GameMenu` (Tab) with Inventory/cargo, Crafting,
   Tech (blueprint unlock) and Ship (module build) tabs, all over existing intents; server
   feedback as a HUD toast. IMGUI for now; uGUI polish + item drag-move deferred.
+- **M23a (NEW) — the ship as a place:** make the ship a visible, enterable voxel structure at
+  the player's landing zone (server writes the hull as blocks; `AboardShip` derived from being
+  inside it; `ShipPlacement` message + "Press E to enter" prompt). See CLIENT_COMPLETION_PLAN.
 - **M23** — star map, mission log, death/respawn + rules feedback.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,

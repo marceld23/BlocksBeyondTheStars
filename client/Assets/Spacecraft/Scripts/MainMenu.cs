@@ -15,6 +15,7 @@ namespace Spacecraft.Client
 
         public void Draw()
         {
+            _shell.DrawBackground();
             float x = Screen.width / 2f - 150, y = Screen.height / 2f - 150;
 
             GUI.Label(new Rect(x, y - 54, 300, 44), "SPACECRAFT");

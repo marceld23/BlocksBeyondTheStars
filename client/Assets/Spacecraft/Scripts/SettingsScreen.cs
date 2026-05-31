@@ -15,6 +15,7 @@ namespace Spacecraft.Client
 
         public void Draw()
         {
+            _shell.DrawBackground();
             var s = _shell.Settings;
             float x = 40, y = 40;
 

@@ -168,9 +168,11 @@ namespace Spacecraft.Client
             }
             else
             {
-                // Place the item in the selected hotbar slot; skip if the slot is empty.
+                // Place the item in the selected hotbar slot — only if it actually places a
+                // block (tools like the drill/scanner don't), so we don't spam server rejects.
                 string item = Game.ItemInSlot(Game.SelectedHotbarSlot);
-                if (!string.IsNullOrEmpty(item))
+                var def = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item);
+                if (def != null && !string.IsNullOrEmpty(def.PlacesBlock))
                 {
                     var t = FloorVec(hit.point + hit.normal * 0.5f);
                     Game.Network.SendPlace(t.x, t.y, t.z, item);

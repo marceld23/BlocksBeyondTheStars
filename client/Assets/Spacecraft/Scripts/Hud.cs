@@ -22,6 +22,15 @@ namespace Spacecraft.Client
             }
 
             var loc = Game.Localizer;
+
+            // Centre crosshair (hidden while a UI panel is open).
+            if (!Game.MenuOpen)
+            {
+                float cx = Screen.width / 2f, cy = Screen.height / 2f;
+                GUI.DrawTexture(new Rect(cx - 1, cy - 9, 2, 18), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(cx - 9, cy - 1, 18, 2), Texture2D.whiteTexture);
+            }
+
             GUI.Box(new Rect(10, 10, 220, 86), GUIContent.none);
             GUI.Label(new Rect(20, 16, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
             GUI.Label(new Rect(20, 38, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");

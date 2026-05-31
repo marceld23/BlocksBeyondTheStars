@@ -35,7 +35,7 @@ namespace Spacecraft.Client
 
         public void Draw()
         {
-            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), GUIContent.none);
+            _shell.DrawBackground();
             GUI.Label(new Rect(Screen.width / 2f - 100, Screen.height / 2f - 12, 200, 24), _shell.L("ui.loading.title"));
         }
     }
