@@ -236,6 +236,16 @@ authoritative messages.
 Still planned: the third option — **board & walk inside the sealed ship in space** (interior
 scene); real flyable controls; nicer ship/entity models with the art pass.
 
+**Consistent ship appearance (important):** the player's ship must **look identical in space and
+on the planet** — same hull shape, size, colours and module props. Today the planet-side ship is
+the **voxel hull** (`StampShip` from the active `ships.json` design) and the space-side ship is a
+separate code-built placeholder, so they differ. Fix: build the **space ship model from the same
+ship design** (the same block layout `StampShip` uses) — e.g. mesh the design's voxel blocks into
+the flyable space object (and reuse it for the third-person/cockpit views) so both views render
+one consistent ship. When the design changes (switch/upgrade/repaired wreck) both views update
+together. Server already owns the design; this is a client rendering change shared by the
+ship-as-place (M23a) and `SpaceView`.
+
 Original design (three modes the player can switch between):
 1. **Cockpit view** — first person from inside the ship looking out (HUD overlay, viewport).
 2. **Third-person ship** — the ship rendered from outside, floating in a space scene (starfield

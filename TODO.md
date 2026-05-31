@@ -123,7 +123,9 @@ consumes protocol messages that already exist.
 - **M25b — real space view + launch/landing — in progress (code).** `SpaceView` shows an actual
   space scene (starfield + planet + blocky ship + entities) with third-person/cockpit camera
   (V cycles) + launch/landing fades; on-foot control frozen while flying. Still: board-and-walk-
-  inside-in-space, real flight controls, nicer models.
+  inside-in-space, real flight controls, nicer models, and **identical ship appearance in space
+  and on the planet** (build the space ship model from the same `ships.json`/`StampShip` design,
+  not a separate placeholder, so both views match and update together).
 - **Ships: types/designs/multiple owned + switching — slice DONE.** `ships.json`
   (starter/hauler/scout), owned-ships registry + active, `CraftShip`/`SwitchShip` +
   `OwnedShips` protocol, Ship-tab craft/switch UI, hull size from design. Planned extras:
