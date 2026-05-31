@@ -558,8 +558,18 @@ planet-side counterpart to space stations), server-authoritative:
   boards; clients render them and use the walk-up interactions. Sequence with **space stations +
   trading + creatures** (shared systems).
 
-### Crashed ship wrecks — NEW (planned)
+### Crashed ship wrecks — **generator DONE (server) / stamping + repair planned**
 **Rare** abandoned/crashed spaceships scattered on planet surfaces — small landmark dungeons:
+
+- **Procedural generator DONE:** `WreckGenerator` builds a wreck from a known `ShipDefinition` hull
+  (hollow `iron_wall`+`glass` shell, or `crystal` for **alien** wrecks), keeps the full intact hull
+  as a **repair mask**, then runs a **decay pass** — random breaches + scorch (`carbon`) plus a
+  guaranteed crash gash in one wall so it's enterable. No live crew; **markers** for loot caches, a
+  recoverable **module**, and an occasional **data/lore terminal**. `IsBreach`/`BreachCount`/
+  `IntactHullCount` expose repair progress so a wreck can later be rebuilt block-by-block into a
+  flyable ship. Deterministic (stable hash); human/alien origin. 6 tests. **Still planned:** stamp
+  wrecks into the world at generation, the loot/module/terminal interactions, and the
+  repair-into-a-flyable-ship flow.
 
 - **Rarity & placement:** a **rare** seed-derived feature (much rarer than settlements) — most
   worlds have none; occasionally one (or a few on large worlds). Stamped as a **derelict voxel

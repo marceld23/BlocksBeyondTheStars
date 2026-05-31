@@ -237,14 +237,12 @@ consumes protocol messages that already exist.
   (decay pass, no NPCs, loot). Markers: vendor / mission_board / npc; inhabitants human or alien.
   New `ladder`/`stairs` blocks (player-craftable). Deterministic (stable hash). 6 tests. Still
   planned: stamp into the world, NPC render/behaviour, vendor/mission interactions.
-- **(NEW, planned) Crashed ship wrecks:** **rare** abandoned/crashed ships on planet surfaces —
-  derelict voxel hulls (from `ships.json`) in a crashed pose (tilted/half-buried, breached via a
-  decay pass), explorable for **salvage/loot** (containers, cargo, modules, data/lore), with
-  hostile scavengers and human/alien variants. **Repairable into a flyable owned ship** —
-  rebuild the design's missing/broken blocks + required modules, then the server **claims it
-  into your owned-ships registry** (a mid-game way to gain a bigger/alien hull). Reuses ship
-  stamping + the ruins decay pass + loot + creatures + missions + the ship build/registry. See
-  CLIENT_COMPLETION_PLAN "Crashed ship wrecks".
+- **Crashed ship wrecks — generator DONE (server).** `WreckGenerator` builds a wreck from a
+  `ships.json` hull (iron/glass, or crystal for alien wrecks), keeps the intact hull as a **repair
+  mask**, then decays it (breaches + scorch + a guaranteed crash gash so it's enterable). No crew;
+  markers for loot / recoverable module / data terminal; `IsBreach`/`BreachCount`/`IntactHullCount`
+  expose repair progress. Deterministic; human/alien. 6 tests. Still planned: stamp into the world,
+  loot/module/terminal interactions, and **repair-into-a-flyable-owned-ship** flow.
 - **Hunger & eating (survival) — slice DONE (server + HUD).** `PlayerState.Hunger` (persisted)
   drains outside the ship, sates aboard, **starves health at 0**; gated by `Rules.Hunger`+Survival.
   **Eating** refills it (`ItemDefinition.ConsumeHunger`): `creature_meat` (+30) and **edible plants**
