@@ -161,6 +161,9 @@ public sealed class LoadRationIntent
     public int Count { get; set; } = 1;
 }
 
+/// <summary>Client uses the suit teleporter to recall to its ship (server validates device/cooldown/energy).</summary>
+public sealed class TeleportToShipIntent { }
+
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
 public sealed class ScanIntent
 {

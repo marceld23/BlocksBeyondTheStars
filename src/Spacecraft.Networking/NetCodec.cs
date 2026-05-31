@@ -58,6 +58,7 @@ public static class NetCodec
         Register(35, typeof(ScanIntent));
         Register(36, typeof(ScanEntityIntent));
         Register(37, typeof(LoadRationIntent));
+        Register(38, typeof(TeleportToShipIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));

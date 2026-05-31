@@ -290,6 +290,7 @@ public sealed partial class GameServer
             UpdateAboard(session);
 
             var p = session.State;
+            DecayTeleportCooldown(p.PlayerId, dt);
             if (p.GodMode)
             {
                 p.Health = 100f;
@@ -606,6 +607,7 @@ public sealed partial class GameServer
             case ScanIntent scan: HandleScan(session, scan); break;
             case ScanEntityIntent scanEntity: HandleScanEntity(session, scanEntity); break;
             case LoadRationIntent loadRation: HandleLoadRation(session, loadRation); break;
+            case TeleportToShipIntent: HandleTeleportToShip(session); break;
         }
     }
 

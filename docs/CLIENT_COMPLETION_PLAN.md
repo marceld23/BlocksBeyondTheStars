@@ -943,12 +943,13 @@ in data, surfaced in the crafting/tech UI and the equipment slots.
   some toxic worlds breathe easier than others. In an **airless ("none")** atmosphere there's
   nothing to extract → no benefit. Server applies it in the oxygen tick (`drain × (1 −
   extractor × extractability)`); tiers improve the base offset.
-- **Suit teleporter (recall to ship):** a craftable suit device that **teleports the player back to
-  their ship** (the landing-zone / heal-tank position) on use — an escape/recall tool. Server-
-  authoritative `TeleportToShipIntent`: validates the player owns the device, isn't blocked (e.g.
-  not mid-space-flight, rules permit), then sets position to the ship and clears the in-space state
-  if needed. Likely a **cooldown** and/or `SuitEnergy`/charge cost so it isn't spammed; maybe
-  disabled in PvP combat. A short teleport VFX client-side.
+- **Suit teleporter (recall to ship) — DONE (server):** a craftable `suit_teleporter`
+  (blueprint, knowledge-gated) that **recalls the player to their ship** (the heal-tank / landing-
+  zone respawn point). `TeleportToShip` / `TeleportToShipIntent` validates the device is carried,
+  the player **isn't flying in space**, the **cooldown** (30 s, decayed in the env tick) has
+  elapsed, and enough **`SuitEnergy`** (−10); then sets position to the respawn point + aboard. 3
+  tests (recalls with device, nothing without, cooldown-then-recharge). Client VFX is the remaining
+  bit.
 - Server owns the gameplay effects (stealth detection, resistances, oxygen/hunger maths, the
   extractor offset, the teleport, what the radar may reveal); the client renders the HUD/visual
   side. Sequence with lighting + the scanner/knowledge loop (done) + the radar + the UI/art pass.
