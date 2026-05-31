@@ -1256,6 +1256,9 @@ public sealed partial class GameServer
         return moduleKey.Length > 0 && _ship.HasModule(moduleKey);
     }
 
+    /// <summary>Whether the player can use a market (barter) trade station — the ship's trade console (aboard).</summary>
+    private static bool MarketAvailable(PlayerState player) => player.AboardShip;
+
     private void SaveAll()
     {
         foreach (var session in _sessions.Values)
