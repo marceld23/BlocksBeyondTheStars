@@ -9,7 +9,8 @@ publish/
 .idea/
 .vs/
 
-# Unity (client/)
+# Unity (client/) — generated folders + IDE project files (Unity regenerates these).
+# NOTE: .meta files and ProjectSettings/*.asset ARE version-controlled (do not ignore them).
 client/Library/
 client/Temp/
 client/Obj/
@@ -17,7 +18,12 @@ client/Build/
 client/Builds/
 client/Logs/
 client/UserSettings/
+client/MemoryCaptures/
+client/Recordings/
 client/[Bb]uild/
+client/*.csproj
+client/*.sln
+client/.vsconfig
 *.csproj.user
 
 # Savegames / runtime data
@@ -31,17 +37,20 @@ backups/
 # Local planning / requirement specs (kept out of the repo by request)
 plans/
 
-# Generated Unity client content (reproduce via scripts/sync-client-libs.ps1)
-client/Assets/Plugins/*.dll
-client/Assets/Plugins/*.dll.meta
-client/Assets/StreamingAssets/data/
+# Generated Unity client content (reproduce via scripts/sync-client-libs.ps1).
+# Ignore the whole synced folders incl. their folder .meta so no dangling metas are tracked.
+client/Assets/Plugins/
+client/Assets/Plugins.meta
+client/Assets/StreamingAssets/
+client/Assets/StreamingAssets.meta
 
 # OS
 Thumbs.db
 .DS_Store
 
 # Stray / unrelated folders that exist in this workspace
+# (anchored to repo root so Unity's client/Packages/ is NOT caught)
 %APPDATA%/
-packages/
+/packages/
 tests/Spacecraft.Tests/bin/
 tests/Spacecraft.Tests/obj/
