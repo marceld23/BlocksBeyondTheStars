@@ -505,11 +505,14 @@ public sealed partial class GameServer
         var session = new PlayerSession(connectionId, state) { Joined = true };
         _sessions[connectionId] = session;
 
+        var (systemName, planetName) = ActiveLocationNames();
         SendTo(connectionId, new JoinAccepted
         {
             PlayerId = state.PlayerId,
             WorldSeed = _meta.Seed,
             PlanetType = _meta.DefaultPlanetType,
+            PlanetName = planetName,
+            SystemName = systemName,
         });
         SendInventory(session);
         SendPlayerState(session);
@@ -996,6 +999,23 @@ public sealed partial class GameServer
             Oxygen = p.Oxygen,
             SuitEnergy = p.SuitEnergy,
         });
+    }
+
+    /// <summary>Resolves the friendly (system, planet) names for the world's active location.</summary>
+    private (string System, string Planet) ActiveLocationNames()
+    {
+        foreach (var sys in _galaxy.Systems)
+        {
+            foreach (var body in sys.Bodies)
+            {
+                if (body.Id == _meta.ActiveLocationId)
+                {
+                    return (sys.Name, body.Name);
+                }
+            }
+        }
+
+        return (string.Empty, _meta.DefaultPlanetType);
     }
 
     private void SendStarMap(PlayerSession session)

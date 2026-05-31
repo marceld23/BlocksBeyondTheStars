@@ -1,8 +1,8 @@
 [
-  { "key": "stone",           "nameKey": "item.stone.name",           "category": "material",   "maxStack": 99 },
-  { "key": "dirt",            "nameKey": "item.dirt.name",            "category": "material",   "maxStack": 99 },
-  { "key": "basalt",          "nameKey": "item.basalt.name",          "category": "material",   "maxStack": 99 },
-  { "key": "ice",             "nameKey": "item.ice.name",             "category": "material",   "maxStack": 99 },
+  { "key": "stone",           "nameKey": "item.stone.name",           "category": "block",      "maxStack": 99, "placesBlock": "stone" },
+  { "key": "dirt",            "nameKey": "item.dirt.name",            "category": "block",      "maxStack": 99, "placesBlock": "dirt" },
+  { "key": "basalt",          "nameKey": "item.basalt.name",          "category": "block",      "maxStack": 99, "placesBlock": "basalt" },
+  { "key": "ice",             "nameKey": "item.ice.name",             "category": "block",      "maxStack": 99, "placesBlock": "ice" },
   { "key": "iron_ore",        "nameKey": "item.iron_ore.name",        "category": "material",   "maxStack": 99 },
   { "key": "copper_ore",      "nameKey": "item.copper_ore.name",      "category": "material",   "maxStack": 99 },
   { "key": "silicate",        "nameKey": "item.silicate.name",        "category": "material",   "maxStack": 99 },

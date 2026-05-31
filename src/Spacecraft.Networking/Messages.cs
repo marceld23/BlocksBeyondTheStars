@@ -136,6 +136,10 @@ public sealed class JoinAccepted
     public string PlayerId { get; set; } = string.Empty;
     public long WorldSeed { get; set; }
     public string PlanetType { get; set; } = string.Empty;
+
+    /// <summary>Friendly name of the body the player is on, and its star system (for the HUD).</summary>
+    public string PlanetName { get; set; } = string.Empty;
+    public string SystemName { get; set; } = string.Empty;
 }
 
 public sealed class JoinRejected

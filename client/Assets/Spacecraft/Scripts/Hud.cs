@@ -31,17 +31,23 @@ namespace Spacecraft.Client
                 GUI.DrawTexture(new Rect(cx - 9, cy - 1, 18, 2), Texture2D.whiteTexture);
             }
 
-            GUI.Box(new Rect(10, 10, 220, 86), GUIContent.none);
-            GUI.Label(new Rect(20, 16, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
-            GUI.Label(new Rect(20, 38, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
-            GUI.Label(new Rect(20, 60, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
+            // Location (top-left): which system / planet the player is on.
+            GUI.Box(new Rect(10, 10, 280, 44), GUIContent.none);
+            GUI.Label(new Rect(20, 14, 260, 18), $"📍 {loc.Get("ui.hud.location")}");
+            GUI.Label(new Rect(20, 32, 260, 18), string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName);
+
+            // Vitals.
+            GUI.Box(new Rect(10, 62, 220, 86), GUIContent.none);
+            GUI.Label(new Rect(20, 68, 200, 20), $"{loc.Get("ui.hud.health")}: {Mathf.RoundToInt(Game.Health)}");
+            GUI.Label(new Rect(20, 90, 200, 20), $"{loc.Get("ui.hud.oxygen")}: {Mathf.RoundToInt(Game.Oxygen)}");
+            GUI.Label(new Rect(20, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
 
             DrawHotbar(loc);
 
             // Server feedback toast (craft result, rejection, message).
             if (!string.IsNullOrEmpty(Game.LastMessage))
             {
-                GUI.Label(new Rect(10, 100, Screen.width - 20, 22), Game.LastMessage);
+                GUI.Label(new Rect(10, 154, Screen.width - 20, 22), Game.LastMessage);
             }
 
             // Hint.

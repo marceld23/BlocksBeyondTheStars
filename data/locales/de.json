@@ -141,7 +141,8 @@
   "ui.settings.language": "Sprache",
   "ui.loading.title": "Lädt…",
   "ui.credits.title": "Mitwirkende",
-  "ui.credits.body": "Spacecraft — ein Vater-Sohn-Projekt. Auf Basis von .NET und Unity.",
+  "ui.credits.body": "Spacecraft — ein Vater-Sohn-Projekt von\nJustus Dütscher und Marcel Dütscher.\nAuf Basis von .NET und Unity.",
+  "ui.hud.location": "Standort",
 
   "planet.rocky.name": "Felsplanet",
   "planet.ice.name": "Eisplanet",

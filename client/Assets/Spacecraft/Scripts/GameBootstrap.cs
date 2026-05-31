@@ -40,6 +40,9 @@ namespace Spacecraft.Client
         /// <summary>Our own player id (from the join handshake), used to pick our state out of broadcasts.</summary>
         public string LocalPlayerId { get; private set; }
 
+        /// <summary>Friendly current location ("System · Planet") for the HUD.</summary>
+        public string LocationName { get; private set; } = string.Empty;
+
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
@@ -88,7 +91,10 @@ namespace Spacecraft.Client
             Network.JoinAccepted += m =>
             {
                 LocalPlayerId = m.PlayerId;
-                Debug.Log($"Joined as {m.PlayerId} on planet {m.PlanetType} (seed {m.WorldSeed}).");
+                LocationName = string.IsNullOrEmpty(m.SystemName)
+                    ? m.PlanetName
+                    : $"{m.SystemName} · {m.PlanetName}";
+                Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
             };
             Network.JoinRejected += m => Debug.LogWarning($"Join rejected: {m.Reason}");
             Network.ChunkReceived += OnChunk;
