@@ -66,6 +66,7 @@ public static class NetCodec
         Register(69, typeof(SpaceClosed));
         Register(70, typeof(PlanetEnemyList));
         Register(71, typeof(PlanetEnemyDefeated));
+        Register(72, typeof(ShipPlacement));
     }
 
     private static void Register(byte tag, Type type)

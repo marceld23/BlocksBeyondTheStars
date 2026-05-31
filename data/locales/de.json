@@ -143,6 +143,8 @@
   "ui.credits.title": "Mitwirkende",
   "ui.credits.body": "Spacecraft — ein Vater-Sohn-Projekt von\nJustus Dütscher und Marcel Dütscher.\nAuf Basis von .NET und Unity.",
   "ui.hud.location": "Standort",
+  "ui.hud.aboard": "an Bord",
+  "ui.hud.ship": "Schiff",
 
   "planet.rocky.name": "Felsplanet",
   "planet.ice.name": "Eisplanet",

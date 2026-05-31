@@ -27,7 +27,7 @@ public sealed class SpaceCombatTests : IDisposable
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999 };
+        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         configure(config.Rules);
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -196,7 +196,7 @@ public sealed class SpaceCombatTests : IDisposable
         var link = new LoopbackLink();
         using var st = new LoopbackServerTransport(link);
         using var client = new LoopbackClientTransport(link);
-        var config = new ServerConfig { WorldName = "build", Seed = 1, AutoSaveIntervalMinutes = 9999 };
+        var config = new ServerConfig { WorldName = "build", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
 
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

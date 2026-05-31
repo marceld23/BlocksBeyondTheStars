@@ -54,6 +54,13 @@ namespace Spacecraft.Client
             Move();
             HandleInteract();
             SendMovement();
+
+            // Publish local pose for the HUD minimap/compass.
+            if (Game != null)
+            {
+                Game.PlayerPosition = transform.position;
+                Game.PlayerYaw = transform.eulerAngles.y;
+            }
         }
 
         private void HandleHotbar()

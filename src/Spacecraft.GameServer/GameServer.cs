@@ -95,6 +95,10 @@ public sealed partial class GameServer
         BuildGalaxy();
         BuildMissions();
         LoadLandingZones();
+        if (_config.PlaceStarterShip)
+        {
+            StampShip();
+        }
 
         _transport.ClientConnected += OnClientConnected;
         _transport.ClientDisconnected += OnClientDisconnected;
@@ -265,6 +269,8 @@ public sealed partial class GameServer
             {
                 continue;
             }
+
+            UpdateAboard(session);
 
             var p = session.State;
             if (p.GodMode)
@@ -518,6 +524,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         SendRules(session);
         SendShipCombatStatus(session);
+        SendShipPlacement(session);
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }
@@ -998,6 +1005,7 @@ public sealed partial class GameServer
             Health = p.Health,
             Oxygen = p.Oxygen,
             SuitEnergy = p.SuitEnergy,
+            AboardShip = p.AboardShip,
         });
     }
 

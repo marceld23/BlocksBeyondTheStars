@@ -31,6 +31,7 @@ public sealed class GameServerIntegrationTests : IDisposable
         AutoSaveIntervalMinutes = 9999, // never auto-save during the test
         ViewDistanceChunks = 1,
         MaxPlayers = 4,
+        PlaceStarterShip = false, // these tests assume bare terrain at the spawn column
     };
 
     private static void JoinAndDrain(SvGameServer server, LoopbackClientTransport client, string name)

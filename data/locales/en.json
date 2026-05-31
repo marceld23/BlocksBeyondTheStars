@@ -142,6 +142,8 @@
   "ui.credits.title": "Credits",
   "ui.credits.body": "Spacecraft — a father-and-son project by\nJustus Dütscher and Marcel Dütscher.\nBuilt on .NET and Unity.",
   "ui.hud.location": "Location",
+  "ui.hud.aboard": "aboard ship",
+  "ui.hud.ship": "Ship",
 
   "planet.rocky.name": "Rocky Planet",
   "planet.ice.name": "Ice Planet",

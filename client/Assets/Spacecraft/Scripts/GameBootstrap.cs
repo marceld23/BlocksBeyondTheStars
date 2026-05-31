@@ -43,6 +43,16 @@ namespace Spacecraft.Client
         /// <summary>Friendly current location ("System · Planet") for the HUD.</summary>
         public string LocationName { get; private set; } = string.Empty;
 
+        /// <summary>Whether we're currently inside the ship (authoritative; enables cargo crafting).</summary>
+        public bool Aboard { get; private set; }
+
+        /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
+        public Vector3? ShipPosition { get; private set; }
+
+        /// <summary>The player's current world position and heading, written by the controller for the HUD.</summary>
+        public Vector3 PlayerPosition;
+        public float PlayerYaw;
+
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
@@ -101,6 +111,7 @@ namespace Spacecraft.Client
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
             Network.InventoryUpdated += m => { Personal = m.Personal; Cargo = m.Cargo; };
+            Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
             Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };
             Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = m.Text; };
@@ -173,6 +184,7 @@ namespace Spacecraft.Client
             Health = m.Health;
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;
+            Aboard = m.AboardShip;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }
 

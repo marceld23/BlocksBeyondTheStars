@@ -36,6 +36,7 @@ namespace Spacecraft.Client
         public event Action<SpaceClosed> SpaceClosed;
         public event Action<PlanetEnemyList> PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
+        public event Action<ShipPlacement> ShipPlacementReceived;
 
         public bool Connected { get; private set; }
 
@@ -115,6 +116,7 @@ namespace Spacecraft.Client
                 case SpaceClosed m: SpaceClosed?.Invoke(m); break;
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
+                case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
             }
         }
 

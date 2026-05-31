@@ -110,9 +110,17 @@ server, press Play, verify the loop) and any fixes it surfaces. A real **32×32 
 - IMGUI for now (consistent + testable without the Editor); **uGUI/UI Toolkit polish deferred**
   to M27. Item-move/drag between slots needs new server intents — also deferred.
 
-### M23a — The ship as a place (visible on the planet + enterable) — NEW
-Today the ship is an abstract hub (`ShipState` + the `AboardShip` flag); it has no physical
-presence. Make it a real, visible structure the player can walk into. Recommended approach:
+### M23a — The ship as a place (visible on the planet + enterable) — **DONE (code) / pending playtest**
+Implemented: the server stamps a hollow, walk-in **voxel ship hull** (`iron_wall` + a `glass`
+viewport + a door) at the start landing zone (`StampShip`, gated by `PlaceStarterShip`); it
+renders via normal chunk streaming and the player **starts inside it**. `AboardShip` is derived
+authoritatively from standing inside the hull (`UpdateAboard`), which gates cargo crafting /
+module build / oxygen regen; `PlayerStateUpdate` now carries it and the HUD shows "aboard ship".
+A `ShipPlacement` message drives a **HUD minimap/compass** (top-right) that always points to the
+ship with the distance in blocks. Later: per-player ships, modules shown as interior props,
+lift-off / star-map travel from the cockpit, explicit "press E to enter".
+
+Original design notes (for reference):
 
 - **Anchor:** the player's `LandingZone` (already has `CenterX/CenterZ`) at the surface height
   is the ship's world position. The server owns it.
@@ -134,6 +142,27 @@ presence. Make it a real, visible structure the player can walk into. Recommende
 
 This depends only on existing systems (landing zones, chunk streaming, `AboardShip`,
 protection) plus one small placement message. Target: implement right after M22/M23.
+
+### M23b — Player avatar, customization & third-person camera — NEW (planned)
+Give the player a visible body they can style, and let them see it.
+
+- **Avatar model:** a blocky humanoid built from cubes (head, torso, two arms, two legs) — a
+  small code-built rig (like the ship/world) so no art asset is needed for the MVP; later a
+  proper skinned/segmented model.
+- **Customization:** a character screen (from the main menu and/or in-game) to set per-part
+  **colours** first (head/torso/arms/legs/skin), then later swappable shapes/cosmetics. Stored
+  in `ClientSettings` locally; for multiplayer the appearance is sent to the server on join and
+  broadcast so **other players see it** (new `PlayerAppearance` message + field on the player
+  state). Server stays authoritative over identity; appearance is cosmetic.
+- **Armor reflected:** when an equipment/armor system exists, equipped pieces **override** the
+  matching body part's look (helmet → head, chestplate → torso, etc.). Design the avatar so
+  parts are individually re-skinnable to make this drop-in later.
+- **First/third-person toggle:** a key (e.g. **V**) and a setting switch the camera between the
+  existing first-person view and a third-person follow camera that frames the avatar (with
+  collision so it doesn't clip terrain/ship). In first person the avatar is hidden (or arms
+  only); in third person it's fully shown and animated (idle/walk later).
+- Depends on: the player rig (done), `PlayerStateUpdate` for others (M24 multiplayer presence)
+  to show other players' avatars. Customization colours can ship before multiplayer.
 
 ### M23 — Navigation, missions & feedback
 - **Star map** screen (`RequestStarMap`/`StarMapData`).

@@ -98,9 +98,13 @@ consumes protocol messages that already exist.
   placed item via `SelectHotbarIntent`); `GameMenu` (Tab) with Inventory/cargo, Crafting,
   Tech (blueprint unlock) and Ship (module build) tabs, all over existing intents; server
   feedback as a HUD toast. IMGUI for now; uGUI polish + item drag-move deferred.
-- **M23a (NEW) — the ship as a place:** make the ship a visible, enterable voxel structure at
-  the player's landing zone (server writes the hull as blocks; `AboardShip` derived from being
-  inside it; `ShipPlacement` message + "Press E to enter" prompt). See CLIENT_COMPLETION_PLAN.
+- **M23a — the ship as a place — code DONE, needs playtest.** Server stamps a walk-in voxel
+  ship hull at the landing zone (player starts inside); `AboardShip` derived from being inside
+  it (gates cargo/crafting); HUD shows "aboard" + a minimap/compass that always points to the
+  ship with distance. `PlaceStarterShip` config flag (on by default).
+- **M23b (NEW) — player avatar, customization & third-person camera:** blocky humanoid avatar
+  (head/torso/arms/legs), per-part colour customization (later armor overrides parts),
+  first/third-person toggle (V) showing your own figure. See CLIENT_COMPLETION_PLAN.
 - **M23** — star map, mission log, death/respawn + rules feedback.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
 - **M25** — space flight & combat client (enter/leave space, entities, hull/shield HUD, weapons,

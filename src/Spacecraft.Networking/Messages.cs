@@ -188,6 +188,9 @@ public sealed class PlayerStateUpdate
     public float Health { get; set; }
     public float Oxygen { get; set; }
     public float SuitEnergy { get; set; }
+
+    /// <summary>Whether the player is currently inside their ship (enables cargo crafting, oxygen regen).</summary>
+    public bool AboardShip { get; set; }
 }
 
 public sealed class CraftResult
@@ -399,4 +402,12 @@ public sealed class PlanetEnemyList
 public sealed class PlanetEnemyDefeated
 {
     public string Id { get; set; } = string.Empty;
+}
+
+/// <summary>Where the player's ship hull stands in the world (for the HUD minimap / compass).</summary>
+public sealed class ShipPlacement
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
 }

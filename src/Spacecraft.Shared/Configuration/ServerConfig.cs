@@ -72,6 +72,9 @@ public sealed class ServerConfig
     public string SavesRoot { get; set; } = "saves";
     public string DataDir { get; set; } = "data";
 
+    /// <summary>Whether to stamp the enterable starter-ship hull at the start landing zone (M23a).</summary>
+    public bool PlaceStarterShip { get; set; } = true;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,

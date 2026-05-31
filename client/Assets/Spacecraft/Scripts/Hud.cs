@@ -33,8 +33,14 @@ namespace Spacecraft.Client
 
             // Location (top-left): which system / planet the player is on.
             GUI.Box(new Rect(10, 10, 280, 44), GUIContent.none);
+            string place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName;
+            if (Game.Aboard)
+            {
+                place += $"  ({loc.Get("ui.hud.aboard")})";
+            }
+
             GUI.Label(new Rect(20, 14, 260, 18), $"📍 {loc.Get("ui.hud.location")}");
-            GUI.Label(new Rect(20, 32, 260, 18), string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName);
+            GUI.Label(new Rect(20, 32, 260, 18), place);
 
             // Vitals.
             GUI.Box(new Rect(10, 62, 220, 86), GUIContent.none);
@@ -43,6 +49,7 @@ namespace Spacecraft.Client
             GUI.Label(new Rect(20, 112, 200, 20), $"{loc.Get("ui.hud.energy")}: {Mathf.RoundToInt(Game.SuitEnergy)}");
 
             DrawHotbar(loc);
+            DrawShipCompass(loc);
 
             // Server feedback toast (craft result, rejection, message).
             if (!string.IsNullOrEmpty(Game.LastMessage))
@@ -84,6 +91,56 @@ namespace Spacecraft.Client
         {
             string name = loc.Get($"item.{itemKey}.name");
             return name.Length > 12 ? name.Substring(0, 12) : name;
+        }
+
+        /// <summary>
+        /// Top-right minimap/compass that always points toward the player's ship, relative to
+        /// where the player is facing, with the distance in blocks.
+        /// </summary>
+        private void DrawShipCompass(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            const float size = 120f;
+            float ox = Screen.width - size - 10f, oy = 10f;
+            GUI.Box(new Rect(ox, oy, size, size), GUIContent.none);
+            GUI.Label(new Rect(ox + 6, oy + 2, size - 12, 18), $"🚀 {loc.Get("ui.hud.ship")}");
+
+            var center = new Vector2(ox + size / 2f, oy + size / 2f + 6f);
+            float radius = size / 2f - 16f;
+
+            // Player marker at the centre + a forward tick (up = where the player looks).
+            GUI.DrawTexture(new Rect(center.x - 2, center.y - 2, 4, 4), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(center.x - 1, center.y - radius, 2, 8), Texture2D.whiteTexture);
+
+            if (!Game.ShipPosition.HasValue)
+            {
+                return;
+            }
+
+            var ship = Game.ShipPosition.Value;
+            float dx = ship.x - Game.PlayerPosition.x;
+            float dz = ship.z - Game.PlayerPosition.z;
+            float distance = Mathf.Sqrt(dx * dx + dz * dz);
+
+            // Bearing to the ship relative to the player's heading (0 = straight ahead).
+            float worldAngle = Mathf.Atan2(dx, dz) * Mathf.Rad2Deg;
+            float rel = (worldAngle - Game.PlayerYaw) * Mathf.Deg2Rad;
+
+            float r = Mathf.Clamp(distance * 1.2f, 10f, radius);
+            var blip = new Vector2(center.x + Mathf.Sin(rel) * r, center.y - Mathf.Cos(rel) * r);
+
+            // Line from the player to the ship blip (rotated 1px texture).
+            var prev = GUI.matrix;
+            var prevColor = GUI.color;
+            GUI.color = new Color(0.3f, 0.8f, 1f, 0.9f);
+            float ang = Mathf.Atan2(blip.y - center.y, blip.x - center.x) * Mathf.Rad2Deg;
+            GUIUtility.RotateAroundPivot(ang, center);
+            GUI.DrawTexture(new Rect(center.x, center.y - 1, r, 2), Texture2D.whiteTexture);
+            GUI.matrix = prev;
+
+            GUI.DrawTexture(new Rect(blip.x - 4, blip.y - 4, 8, 8), Texture2D.whiteTexture);
+            GUI.color = prevColor;
+
+            GUI.Label(new Rect(ox, oy + size - 20, size, 18), $"{Mathf.RoundToInt(distance)} m");
         }
     }
 }
