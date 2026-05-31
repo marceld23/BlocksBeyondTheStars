@@ -175,6 +175,7 @@
   "ui.tab.space": "Space",
   "ui.space.enter": "Launch into space",
   "ui.space.leave": "Return to surface",
+  "ui.space.controls": "WASD + mouse: fly · V: view · L: land",
   "ui.action.fire": "Fire",
   "ui.ships.fleet": "Your ships",
   "ui.ships.switch": "Switch to",

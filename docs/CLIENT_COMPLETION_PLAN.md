@@ -226,11 +226,13 @@ Remaining in M24 (still pending):
   weapon selection UI (uses asteroid_breaker/ship_cannon_1 by target kind for now).
 
 ### M25b — Real space view + launch/landing sequences — **in progress (code)**
-Implemented: `SpaceView` builds a lightweight space scene on entering space (starfield +
-planet sphere + a code-built blocky ship + the server's entities from `SpaceState`), takes
-over the camera with **third-person** and **cockpit** modes (V cycles), freezes on-foot control
-(`SpaceViewActive`), and plays a **launch sequence** (ship rises, fade) on entry / **landing
-sequence** on exit. Combat still uses the M25 console + authoritative messages.
+Implemented: `SpaceView` builds a space scene on entry — **black sky** + starfield + two planets
++ a code-built **flyable ship** + the server's entities from `SpaceState` — and takes over the
+camera (sets solid-black clear so the blue sky is gone). The ship **flies** with WASD + mouse in
+**third-person**/**cockpit** (V cycles); on-foot control is frozen (`SpaceViewActive`). A
+**launch sequence** (ship rises + fade) plays on entry; **L** (or the Space-tab "Return to
+surface") flies you home with a **landing sequence**. Combat still uses the M25 console +
+authoritative messages.
 Still planned: the third option — **board & walk inside the sealed ship in space** (interior
 scene); real flyable controls; nicer ship/entity models with the art pass.
 
