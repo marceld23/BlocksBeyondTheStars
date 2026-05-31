@@ -246,6 +246,12 @@ consumes protocol messages that already exist.
   $0.005, downscaled locally). One file per run, keys in a git-ignored `.env`; Claude proposes the
   command + estimated cost for **approval before any paid call**. Generating the real asset set is
   a later opt-in step. See `tools/ai-assets/README.md`.
+- **(NEW, planned) Unified sci‑fi UI + renderer concept — [docs/UI_AND_RENDER_CONCEPT.md](docs/UI_AND_RENDER_CONCEPT.md).**
+  Consistent futuristic UI (deep‑blue translucent menus, **white** line icons + text, holographic
+  frames, one uGUI/UI‑Toolkit component kit + theme replacing IMGUI); **splash overhaul** (rendered
+  starfield/warp intro + logo reveal); **renderer overhaul** (lit block shader + per‑material
+  reflectivity + emissive glow + post stack: bloom/tonemap/AO/fog, better skies/water/lava,
+  particles), preset‑gated. Part of M27 + a render milestone.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
   (`BlockTextureAtlas` + UV mapping + `Spacecraft/BlockAtlas` shader, no image files). Still:
   UI icons/symbols (can also be procedural), tool/hand visuals, mining feedback, uGUI polish.

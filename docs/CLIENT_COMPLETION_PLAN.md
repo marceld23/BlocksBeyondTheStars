@@ -852,6 +852,15 @@ Original notes (remaining work):
   **music**, sourced CC0/permissive and recorded in `NOTICES.md`; full music/ambient bus.
 
 ### M27 — Art, icons & polish — **in progress**
+- **Unified sci‑fi UI + renderer concept — see [docs/UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) (planned).**
+  A design concept for a **consistent futuristic UI** (deep‑blue translucent menus, **white** line
+  icons + white text, holographic frames, one uGUI/UI‑Toolkit component kit + theme replacing raw
+  IMGUI), a **splash‑screen overhaul** (rendered starfield/warp intro + logo reveal), and a
+  **renderer overhaul** for a fancy sci‑fi look (lit block shader with normals + sun + lamps,
+  per‑material reflectivity/metalness, emissive glow, a post‑processing stack — bloom/tonemap/AO/
+  fog, better skies + water/lava, particles/VFX), all gated by the quality presets. Ties together
+  the lighting / reflective‑materials / weather plans. Server stays authoritative (presentation
+  only).
 - **Block textures — DONE (procedural):** `BlockTextureAtlas` generates a 32×32-per-block atlas
   in code (grain, ore speckles, metal panel+rivets, ice/glass streak, circuit grid, dark edges);
   `ChunkMesher` UV-maps faces into it and the `Spacecraft/BlockAtlas` shader samples it × per-face
