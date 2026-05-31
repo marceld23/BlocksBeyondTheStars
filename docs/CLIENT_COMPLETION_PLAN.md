@@ -258,6 +258,32 @@ Scope: client-side presentation over the existing M19/M25 protocol; no server ch
 (the server already tracks in-space + entities). Sizeable Unity work — schedule with the art
 pass.
 
+### Hyperspace travel between star systems — NEW (planned)
+Travel to **other star systems** happens via a **hyperspace jump** (builds on the M11 universe +
+star map):
+
+- **Jump generator (per ship):** every ship has a **hyperspace jump generator** — a ship module
+  (in `ships.json` / module list, like the reactor/cockpit) required to jump. A ruined/under-
+  built ship (see wrecks) without a working generator can't jump until it's repaired/built. Later
+  knobs: a **charge/cooldown** and an **energy/fuel cost** per jump, and a **range/tier** (better
+  generators reach farther systems) — all server-authoritative.
+- **Initiating a jump:** from the **star map** (cockpit → M23) the player selects a **destination
+  system** and confirms the jump. The server validates (generator present + charged + in space /
+  cleared to leave), then moves the player/ship to the target system (swaps the active space
+  instance / star-system context) — authoritative; the client never decides the destination.
+- **Hyperspace jump animation:** a short scripted sequence in `SpaceView` — the ship aligns, the
+  generator **charges**, then on jump the **starfield stretches into streaks** (stars elongate
+  along the travel axis, a speed-tunnel/warp-streak effect, brief bloom/flash) for the duration,
+  then **drops out** into the destination system's scene (new sun colour, planets, entities).
+  Purely visual over the authoritative travel; a "reduced effects" setting shortens it. Local
+  in-system hops (planet ↔ orbit) keep the existing launch/landing sequences — hyperspace is only
+  for the **system-to-system** leg.
+- Reuses: the **star map** (M23) for selection, **`SpaceView`** for the scene + the new warp
+  animation, the **ship-module/build system** for the generator, and the universe/star data (M11)
+  for systems + their sun colours. Server owns the generator requirement, jump validation and the
+  system switch; the client renders selection + the warp streaks + arrival. Sequence with M25b +
+  the star-map travel work.
+
 ### Space collisions, asteroid mining & tractor beam — NEW (planned)
 Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
 

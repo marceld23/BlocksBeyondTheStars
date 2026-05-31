@@ -132,6 +132,12 @@ consumes protocol messages that already exist.
   ✅. **Day/night clock + sun colour + weather state** (server `WorldEnvironment`; client `Sky`
   tints the unlit world via a global shader colour, drives sky + sun) ✅; planets can be fixed
   clear/overcast. Planned: rain/storm **particles + lightning + sound**; biome-flavoured weather.
+- **(NEW, planned) Hyperspace travel between systems:** travel to other star systems via a
+  **hyperspace jump** — every ship has a **jump-generator module** (required + later charge/cost/
+  range); pick a destination on the **star map**, server validates + switches the system; client
+  plays a **warp animation** (starfield stretches into streaks → drop out into the new system).
+  In-system hops keep launch/landing; hyperspace is system-to-system only. Reuses star map (M23)
+  + SpaceView + ship modules + universe data (M11). See CLIENT_COMPLETION_PLAN "Hyperspace travel".
 - **(NEW, planned) Space collisions + asteroid mining + tractor beam:** ship takes hull/shield
   damage flying into asteroids; weapons split big asteroids → chunks → resource drops; a tractor-
   beam ship add-on collects drops into cargo. Needs authoritative ship position in space. See plan.
