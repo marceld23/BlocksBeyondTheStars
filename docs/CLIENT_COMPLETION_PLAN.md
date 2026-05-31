@@ -117,8 +117,20 @@ renders via normal chunk streaming and the player **starts inside it**. `AboardS
 authoritatively from standing inside the hull (`UpdateAboard`), which gates cargo crafting /
 module build / oxygen regen; `PlayerStateUpdate` now carries it and the HUD shows "aboard ship".
 A `ShipPlacement` message drives a **HUD minimap/compass** (top-right) that always points to the
-ship with the distance in blocks. Later: per-player ships, modules shown as interior props,
-lift-off / star-map travel from the cockpit, explicit "press E to enter".
+ship with the distance in blocks. The **hull is mining-protected** (`IsShipBlock` → mine
+rejected), so the ship can't be dismantled.
+
+**Stations:** the logical stations already exist as **ship modules** (cockpit, reactor,
+life-support, medbay, workshop, quarters, cargo hold) and drive behaviour today — the workshop
+module gates workshop crafting (when aboard), the **medbay heal-tank is the respawn point**,
+the cargo hold is the shared cargo inventory. The interior now also has **visible station
+markers** (heal-tank, cockpit console, workshop bench, cargo crates, bunk). **Planned next**
+(M23a-2): turn the markers into proper props/areas with per-station interaction — use the
+cockpit to open the star map / travel, stand at the workshop to craft, the heal-tank for
+healing, bigger module-driven interiors, and lift-off.
+
+Later: per-player ships, modules shown as interior props, lift-off / star-map travel from the
+cockpit, explicit "press E to enter".
 
 Original design notes (for reference):
 

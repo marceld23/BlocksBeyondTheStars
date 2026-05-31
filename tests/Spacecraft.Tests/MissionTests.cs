@@ -29,7 +29,7 @@ public sealed class MissionTests : IDisposable
         var link = new LoopbackLink();
         var st = new LoopbackServerTransport(link);
         var client = new LoopbackClientTransport(link);
-        var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999 };
+        var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);

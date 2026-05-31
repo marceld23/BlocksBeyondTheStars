@@ -546,7 +546,7 @@ public sealed partial class GameServer
             PlayerId = name,
             Name = name,
             Position = spawn,
-            RespawnPoint = spawn, // the heal-tank in the ship's Medbay
+            RespawnPoint = _shipStamped ? _healTank : spawn, // the heal-tank in the ship's Medbay
             AboardShip = true,
             // The very first player to join becomes the world admin (world creator).
             Role = _repo.ListPlayerIds().Count == 0
@@ -583,6 +583,15 @@ public sealed partial class GameServer
         return session;
     }
 
+    /// <summary>Runs the authoritative mine validator for a player (used by local play / tests).</summary>
+    public void MineBlock(string playerId, int x, int y, int z)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleMine(session, new MineBlockIntent { X = x, Y = y, Z = z });
+        }
+    }
+
     // ---------------- Authoritative validators ----------------
 
     private void HandleMove(PlayerSession session, MoveIntent move)
@@ -603,6 +612,12 @@ public sealed partial class GameServer
         if (current.IsAir)
         {
             Reject(session, "mine", "Block is already empty.");
+            return;
+        }
+
+        if (IsShipBlock(pos))
+        {
+            Reject(session, "mine", "The ship hull cannot be mined.");
             return;
         }
 
