@@ -246,6 +246,41 @@ public sealed class SpaceCombatTests : IDisposable
         Assert.Equal(0, state.Inventory.CountOf("iron_plate"));
     }
 
+    // ---------------- Collision ----------------
+
+    [Fact]
+    public void FlyingIntoAsteroid_DamagesShip()
+    {
+        var server = NewServer("collide", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            float before = server.Ship.Hull;
+
+            var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
+            server.ShipMove("Pilot", ast.Position.X, ast.Position.Y, ast.Position.Z); // fly straight into it
+            server.Tick(0.1);
+
+            Assert.True(server.Ship.Hull < before, "Colliding with an asteroid should damage the ship.");
+        }
+    }
+
+    [Fact]
+    public void DriftingInOpenSpace_DoesNotDamageShip()
+    {
+        var server = NewServer("nocollide", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            float before = server.Ship.Hull;
+
+            server.Tick(0.1); // ship sits at the origin; asteroids are far away
+            Assert.Equal(before, server.Ship.Hull);
+        }
+    }
+
     // ---------------- Planet enemies ----------------
 
     [Fact]

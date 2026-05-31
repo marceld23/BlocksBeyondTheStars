@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **161 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **163 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -148,9 +148,12 @@ consumes protocol messages that already exist.
   + SpaceView + ship modules + universe data (M11). See CLIENT_COMPLETION_PLAN "Hyperspace travel".
 - **Space asteroid mining — breakable asteroids DONE.** Space asteroids have a size tier
   (`AsteroidTier` 2/1/0) and **split on destruction**: large → smaller chunks (no loot) → smallest
-  → mineral drops, via the existing `FireWeapon`/`AsteroidDestruction` path. 2 tests. Still planned:
-  **collision damage** (flying into an asteroid) + **tractor beam** add-on (collect drops into
-  cargo) — both need an authoritative ship position/velocity in space.
+  → mineral drops, via the existing `FireWeapon`/`AsteroidDestruction` path. 2 tests.
+- **Space collision — server foundation DONE.** The ship has an authoritative `ShipPosition` in
+  the instance (`ShipMoveIntent`/`ShipMove`); `TickSpace` damages hull/shield by impact speed when
+  it overlaps an asteroid and bounces it. 2 tests. Remaining: wire SpaceView to fly in server
+  coords + report position (`SendShipMove`) + hit effect; then the **tractor beam** add-on
+  (collect drops into cargo).
 - **Combat loot — lootable containers DONE.** The death-drop salvage capsule is now a **lootable
   container** (`GameServerContainers`): tracked + persisted, `LootContainer` transfers contents to a
   nearby player (proximity-checked, partial if full, despawns when emptied); `ContainerList`/
@@ -257,7 +260,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (161)
+dotnet test                      # expect all green (163)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

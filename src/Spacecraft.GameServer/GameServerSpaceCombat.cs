@@ -49,6 +49,10 @@ public sealed class SpaceInstance
     public string Kind { get; set; } = "orbit";
     public List<CombatEntity> Entities { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
+
+    /// <summary>The (shared) ship's authoritative position in this instance, and last tick's, for collision/speed.</summary>
+    public Vector3f ShipPosition { get; set; }
+    public Vector3f ShipLastPosition { get; set; }
 }
 
 /// <summary>
@@ -476,6 +480,33 @@ public sealed partial class GameServer
         return true;
     }
 
+    // ---------------- Ship flight (position in the instance) ----------------
+
+    private const float ShipCollisionRadius = 3f;
+    private const float ShipCollisionMinSpeed = 3f;
+    private const float ShipCollisionDamageFactor = 0.8f;
+    private const float ShipCollisionMaxDamage = 50f;
+
+    /// <summary>Sets the player's ship position in its space instance (trusted + finite-clamped, like on-foot move).</summary>
+    public void ShipMove(string playerId, float x, float y, float z)
+    {
+        if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
+            !_spaceInstances.TryGetValue(instanceId, out var instance))
+        {
+            return;
+        }
+
+        if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z))
+        {
+            return; // ignore garbage
+        }
+
+        instance.ShipPosition = new Vector3f(x, y, z);
+    }
+
+    private void HandleShipMove(PlayerSession session, ShipMoveIntent move)
+        => ShipMove(session.State.PlayerId, move.X, move.Y, move.Z);
+
     // ---------------- Space simulation tick ----------------
 
     private void TickSpace(double dt)
@@ -491,6 +522,33 @@ public sealed partial class GameServer
             {
                 continue;
             }
+
+            // Collision: flying into an asteroid damages the ship (scaled by impact speed) and
+            // stops it. Physical — independent of the combat rules.
+            float speed = (float)(System.Math.Sqrt(instance.ShipPosition.DistanceSquared(instance.ShipLastPosition))
+                                  / System.Math.Max(dt, 0.0001));
+            bool hitAsteroid = instance.Entities.Any(e => e.Kind == CombatEntityKind.Asteroid
+                && e.Position.DistanceSquared(instance.ShipPosition) <= ShipCollisionRadius * ShipCollisionRadius);
+            if (hitAsteroid && speed > ShipCollisionMinSpeed)
+            {
+                ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
+                instance.ShipPosition = instance.ShipLastPosition; // bounce back / stop at the impact
+                foreach (var playerId in instance.Players)
+                {
+                    if (FindSessionByPlayerId(playerId) is { } s)
+                    {
+                        SendShipCombatStatus(s);
+                    }
+                }
+
+                if (_ship.Hull <= 0f)
+                {
+                    DisableShip(instance);
+                    continue;
+                }
+            }
+
+            instance.ShipLastPosition = instance.ShipPosition;
 
             float incoming = instance.Entities.Where(e => e.Hostile).Sum(e => e.DamagePerSecond);
             if (incoming > 0f)

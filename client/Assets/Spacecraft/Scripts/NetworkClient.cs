@@ -109,6 +109,10 @@ namespace Spacecraft.Client
 
         public void SendLootContainer(string containerId) => Send(new LootContainerIntent { ContainerId = containerId });
 
+        // Reports the ship's position while flying in space (for server-side collision). Wire this
+        // once SpaceView flies in the server's entity coordinate space (M25b real-flight work).
+        public void SendShipMove(Vector3 pos) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z });
+
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
         // --- Navigation & missions (M23) ---

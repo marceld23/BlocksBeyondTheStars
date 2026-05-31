@@ -516,6 +516,7 @@ public sealed partial class GameServer
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
+            case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
         }
     }
 

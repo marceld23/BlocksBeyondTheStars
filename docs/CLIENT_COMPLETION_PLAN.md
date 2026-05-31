@@ -321,11 +321,15 @@ Original notes (remaining work):
 
 Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
 
-- **Collision damage:** the ship has a position/velocity in the space instance; flying into an
-  asteroid (or other solid object) causes a **collision** that damages the **hull/shield** (scaled
-  by impact speed) and stops/bounces the ship. The server validates hits (it owns entity
-  positions + the ship's space position once flight is authoritative); the client renders the
-  knock + a hit effect.
+- **Collision damage — server foundation DONE:** the ship now has an authoritative
+  **position** in the space instance (`SpaceInstance.ShipPosition`, set via `ShipMoveIntent` /
+  `ShipMove`). `TickSpace` computes impact **speed** from the per-tick position delta and, when the
+  ship overlaps an asteroid, applies **hull/shield damage scaled by speed** (capped) and **stops/
+  bounces** the ship; ship-defeat still recovers via `DisableShip`. 2 tests (flying into an
+  asteroid damages the ship; drifting in open space doesn't). The client sender
+  (`NetworkClient.SendShipMove`) exists but isn't wired yet — **remaining:** SpaceView must fly in
+  the **server's entity coordinate space** (M25b real-flight) before reporting position, plus the
+  client hit effect.
 - **Breakable asteroids:** shooting an asteroid with ship weapons damages it; a **large asteroid
   first splits into several smaller chunks**, which split again, and the smallest **break into
   (non-organic) resource drops** (ores/metals/ice). Reuses the M19 `FireWeapon`/entity-hull path

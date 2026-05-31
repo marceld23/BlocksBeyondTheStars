@@ -48,6 +48,7 @@ public static class NetCodec
         Register(25, typeof(SwitchShipIntent));
         Register(26, typeof(ConsumeItemIntent));
         Register(27, typeof(LootContainerIntent));
+        Register(28, typeof(ShipMoveIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));

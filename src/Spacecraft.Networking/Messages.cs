@@ -140,6 +140,14 @@ public sealed class LootContainerIntent
     public string ContainerId { get; set; } = string.Empty;
 }
 
+/// <summary>Client reports its ship's position while flying in space (server validates + checks collisions).</summary>
+public sealed class ShipMoveIntent
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+}
+
 /// <summary>Client uses a ship station it is standing next to (medbay heal-tank, cockpit, quarters, ...).</summary>
 public sealed class UseStationIntent
 {
