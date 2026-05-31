@@ -154,6 +154,54 @@ public sealed class DisassembleIntent
     public string ItemKey { get; set; } = string.Empty;
 }
 
+/// <summary>An item + quantity in a trade offer.</summary>
+public sealed class NetTradeItem
+{
+    public string Item { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+/// <summary>Client asks another nearby player to trade.</summary>
+public sealed class TradeRequestIntent
+{
+    public string TargetPlayer { get; set; } = string.Empty;
+}
+
+/// <summary>Client accepts/declines a pending trade request.</summary>
+public sealed class TradeRespondIntent
+{
+    public bool Accept { get; set; }
+}
+
+/// <summary>Client sets the items on its side of the open trade (replaces the previous offer).</summary>
+public sealed class TradeOfferIntent
+{
+    public NetTradeItem[] Items { get; set; } = System.Array.Empty<NetTradeItem>();
+}
+
+/// <summary>Client confirms ("ready") the current trade; the swap happens when both sides confirm.</summary>
+public sealed class TradeConfirmIntent { }
+
+/// <summary>Client cancels the open trade (or a pending request).</summary>
+public sealed class TradeCancelIntent { }
+
+/// <summary>Server view of the open trade for one participant (both offers + both ready states).</summary>
+public sealed class TradeUpdate
+{
+    public string Partner { get; set; } = string.Empty;
+    public NetTradeItem[] MyOffer { get; set; } = System.Array.Empty<NetTradeItem>();
+    public NetTradeItem[] TheirOffer { get; set; } = System.Array.Empty<NetTradeItem>();
+    public bool MyConfirmed { get; set; }
+    public bool TheirConfirmed { get; set; }
+}
+
+/// <summary>A trade ended — completed (items swapped) or cancelled.</summary>
+public sealed class TradeClosed
+{
+    public bool Completed { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
 /// <summary>Client uses a ship station it is standing next to (medbay heal-tank, cockpit, quarters, ...).</summary>
 public sealed class UseStationIntent
 {

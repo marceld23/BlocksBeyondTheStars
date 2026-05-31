@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **167 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **173 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -194,11 +194,11 @@ consumes protocol messages that already exist.
   (`GameServerFlora`), capped at one plant per cell (no spread); **seeds replant** on a valid
   host only (`HandlePlace` host check). 6 flora tests. Planned: procedural form/appearance,
   water/lava flora, effects (poison/heal/food), maturity→produces-seeds. See plan.
-- **(NEW, planned) Player-to-player trading:** a two-sided trade window — both players add items
-  (from **inventory or cargo**), both **confirm**, then the server **atomically transfers** them
-  (revert-on-change, validated, no dupes). Requires both to be **co-located + visible** (same
-  station or same planet in range); auto-cancels on separation/disconnect. `TradeRequest`/
-  `TradeOfferUpdate`/`TradeConfirm`/`TradeCancel`. See CLIENT_COMPLETION_PLAN "Player-to-player trading".
+- **Player-to-player trading — DONE (server).** `GameServerTrade`: `RequestTrade`/`RespondTrade`
+  open a `TradeSession`; each side stages an offer (validated) + confirms; any offer change voids
+  both confirms; on mutual confirm the server **atomically swaps** items (re-validated, leftover
+  returned). Range-gated at request + commit; cancel + disconnect close it. `TradeRequest/Respond/
+  Offer/Confirm/Cancel` + `TradeUpdate`/`TradeClosed`. 6 tests. Remaining: client trade panel.
 - **Gear disassembly / recycling — DONE (server).** A workshop `Disassemble` action
   (`DisassembleIntent`/`Disassemble`) breaks a crafted item back into ~half its recipe components
   (`DisassemblyRecoveryRate`, server-tunable); needs a workshop + the item, rejects raw/un-craftable
@@ -292,7 +292,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (167)
+dotnet test                      # expect all green (173)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

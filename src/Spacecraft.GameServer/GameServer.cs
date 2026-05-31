@@ -460,6 +460,7 @@ public sealed partial class GameServer
         {
             ClearDocking(session.State.PlayerId);
             LeaveSpace(session.State.PlayerId);
+            CancelTradesFor(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
             Broadcast(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar elsewhere
@@ -518,6 +519,11 @@ public sealed partial class GameServer
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
             case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;
+            case TradeRequestIntent tradeReq: HandleTradeRequest(session, tradeReq); break;
+            case TradeRespondIntent tradeResp: HandleTradeRespond(session, tradeResp); break;
+            case TradeOfferIntent tradeOffer: HandleTradeOffer(session, tradeOffer); break;
+            case TradeConfirmIntent: HandleTradeConfirm(session); break;
+            case TradeCancelIntent: HandleTradeCancel(session); break;
         }
     }
 

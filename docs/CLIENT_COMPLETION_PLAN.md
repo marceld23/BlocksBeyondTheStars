@@ -427,7 +427,20 @@ Boardable **space stations** that exist in a system, **near planets**:
 - Server owns station placement, interiors, vendor stock/prices and mission boards; clients
   render the station + interior and use dock/board/trade/mission interactions.
 
-### Player-to-player trading — NEW (planned)
+### Player-to-player trading — **DONE (server)**
+Implemented (server): `GameServerTrade` runs a `TradeSession` between two co-located players —
+`RequestTrade` → `RespondTrade` opens it; each side stages an offer (`SetTradeOffer`, validated
+against what they hold via `MaterialPool`, so cargo counts when aboard) and a ready flag
+(`ConfirmTrade`); **any offer change voids both ready flags**; on **mutual confirm** the server
+**atomically swaps** the items (re-validates both sides still hold them, returns anything that
+doesn't fit). `CancelTrade` and disconnect (`CancelTradesFor`) close it; proximity is enforced at
+request and commit (`TradeRange`). Protocol: `TradeRequest/Respond/Offer/Confirm/Cancel` +
+`TradeUpdate`/`TradeClosed`. 6 tests (swap on mutual confirm, no swap until both, change resets
+confirms, can't offer items you lack, range-gated, cancel). Suite 173 green. Remaining: the
+two-column **trade panel** in the client UI.
+
+Original notes (remaining work):
+
 A safe, server-authoritative **trade** between two players (distinct from NPC vendors):
 
 - **Two-sided offer:** each player puts items into their side of a **trade window**; either side

@@ -50,6 +50,11 @@ public static class NetCodec
         Register(27, typeof(LootContainerIntent));
         Register(28, typeof(ShipMoveIntent));
         Register(29, typeof(DisassembleIntent));
+        Register(30, typeof(TradeRequestIntent));
+        Register(31, typeof(TradeRespondIntent));
+        Register(32, typeof(TradeOfferIntent));
+        Register(33, typeof(TradeConfirmIntent));
+        Register(34, typeof(TradeCancelIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -82,6 +87,8 @@ public static class NetCodec
         Register(77, typeof(WorldEnvironment));
         Register(78, typeof(CreatureList));
         Register(79, typeof(ContainerList));
+        Register(80, typeof(TradeUpdate));
+        Register(81, typeof(TradeClosed));
     }
 
     private static void Register(byte tag, Type type)
