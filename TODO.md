@@ -135,6 +135,9 @@ consumes protocol messages that already exist.
 - **(NEW, planned) Space collisions + asteroid mining + tractor beam:** ship takes hull/shield
   damage flying into asteroids; weapons split big asteroids → chunks → resource drops; a tractor-
   beam ship add-on collects drops into cargo. Needs authoritative ship position in space. See plan.
+- **(NEW, planned) Combat loot:** destroyed ships (player/NPC) drop (part of) their cargo as
+  tractor-collectable salvage; planet PvP leaves a **lootable corpse** with the victim's full
+  carried inventory (victim respawns without it) that persists until emptied. Rules-gated. See plan.
 - **(NEW, planned) World variety:** planets vary in **size**; worlds are **single-habitat**
   (ice/lava/forest/jungle/crystal/rock/sand/mud) **or multi-biome**; flora & creatures match the
   biome/habitat. Extends planet types into a biome system. See CLIENT_COMPLETION_PLAN.

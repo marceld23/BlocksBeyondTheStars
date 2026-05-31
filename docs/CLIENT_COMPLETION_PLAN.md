@@ -277,6 +277,26 @@ Make free-space flight (M25/M25b) tactile and rewarding (server-authoritative):
   abstract today) — schedule with the M25b flight deepening. Tractor/weapons fit the existing
   ship-module + build system.
 
+### Combat loot: salvage & corpses — NEW (planned)
+Reward winning fights (only where the world's rules permit combat — `SpaceCombat`/`ShipWeapons`/
+PvP settings; never in protected zones):
+
+- **Destroyed ships drop cargo:** when a **player's ship** or a **hostile NPC/alien ship** is
+  destroyed in space, it spawns **salvage** — (part of) its cargo as resource drops floating in
+  the instance, collectable with the **tractor beam** into your hold. The fraction salvageable
+  is a server/rules knob (harder/PvP servers drop more). Ties into the M19 ship-defeat path
+  (which already recovers the owner's ship without permanent loss) — the salvage is the *cargo*,
+  not the ship.
+- **Planet PvP corpses:** defeating another **player on a planet** (where PvP is enabled) leaves
+  a **lootable corpse** at the death site holding the **entire carried inventory**; the killer
+  (or anyone) can loot it. The defeated player **respawns at their heal-tank without that
+  inventory** (subject to `KeepInventoryOnDeath`). The corpse **persists at the spot until it's
+  emptied** (then despawns). This generalises the existing M10 salvage capsule into a lootable
+  container others can open.
+- All server-authoritative: who may attack whom, what drops, who may loot (zone/PvP rules), and
+  the respawn. Clients render salvage drops / a corpse container and use the tractor / an open-
+  container interaction.
+
 ### Ships: types, designs, expandable interiors & multiple owned ships — **slice DONE / extras planned**
 Implemented (server + data + minimal UI): data-driven `data/ships.json` (starter/hauler/scout)
 + `ShipDefinition` in content; an owned-ships registry with an active ship; `CraftShip`
