@@ -979,11 +979,18 @@ public sealed partial class GameServer
             return;
         }
 
-        // Find the recipe that produces this item (so we know what it's made of).
+        // Find the crafting recipe that produces this item (so we know what it's made of).
+        // Market (barter) recipes are trades, not construction — they must not make raw resources
+        // look "disassemblable".
         RecipeDefinition? recipe = null;
         int perCraft = 1;
         foreach (var r in _content.Recipes.Values)
         {
+            if (r.Station == CraftingStation.Market)
+            {
+                continue;
+            }
+
             var output = r.Outputs.FirstOrDefault(o => o.Item == itemKey);
             if (output is not null && r.Inputs.Count > 0)
             {
