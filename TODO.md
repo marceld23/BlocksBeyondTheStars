@@ -189,6 +189,13 @@ consumes protocol messages that already exist.
   cost knowledge** (`BlueprintDefinition.KnowledgeCost`, validated + deducted in `HandleUnlock`).
   `ScanIntent`/`ScanEntityIntent` → `ScanResult`. 5 tests. Remaining: client scanner readout panel +
   aiming, Tech-tab knowledge display, upgraded scanners (see Equipment).
+- **(NEW, planned) Equipment & upgrades:** craftable/knowledge-gated gear — **stealth suit**
+  (invisible to creatures, harder to see for players), **improved scanner** (more knowledge),
+  **improved drill / mining beam**, **suit armor + special helmets** (damage resistance + perks),
+  **bigger oxygen tank**, **emergency rations** (auto-feed at low hunger), **improved flashlight**,
+  and a **multi-tier radar scanner** (tier1 animals → tier2 players → tier3 material/flora on the
+  HUD). Server owns the effects; reuses tool tiers / vitals / creature aggro / lighting / radar.
+  See CLIENT_COMPLETION_PLAN "Equipment & upgrades".
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,
   bioluminescent creatures). See CLIENT_COMPLETION_PLAN "Lighting".

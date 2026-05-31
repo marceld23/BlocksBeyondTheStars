@@ -902,6 +902,39 @@ Give the existing `hand_scanner` tool (and a new ship scanner) a real readout:
   is a client readout over synced data. Sequence with the creature/flora systems (done) + the space
   radar + the UI pass.
 
+### Equipment & upgrades — NEW (planned)
+A tree of **craftable/blueprinted gear** (tiered, knowledge-gated) that upgrades the suit, tools and
+sensors. All server-authoritative (effects applied on the server); each is an item/recipe/blueprint
+in data, surfaced in the crafting/tech UI and the equipment slots.
+
+- **Stealth suit (Tarnanzug):** makes the player **invisible to creatures** (creatures don't detect/
+  aggro a stealthed player — gate the creature aggro/provoke checks on a `Stealth` flag) and
+  **harder to see for other players** (reduced/faded nameplate + a translucent avatar in presence,
+  and dropped from the radar at range). Likely a `SuitEnergy` drain while active; toggleable.
+- **Improved scanner:** a higher-tier `hand_scanner` that **grants more knowledge** per first scan
+  (a `knowledge_multiplier` / tier on the scanner) and reveals more detail — feeds the research
+  loop faster.
+- **Improved drill / mining beam:** higher tool tiers (faster mining, harder blocks) up to a
+  continuous **mining beam** (`Abbaustrahl`) — bigger reach/area, more `EnergyPerUse`. Extends the
+  existing tool-tier model (`basic_drill` → `titanium_drill` → mining beam).
+- **Suit armor parts & special helmets:** equippable **armor pieces** (chest/legs/arms) and
+  **helmets** that add **damage resistance** (reduce creature/lava/PvP damage) and helmet perks
+  (e.g. built-in lamp, scanner HUD, sealed = slower oxygen drain). Reuses the avatar's per-part
+  re-skin so armor overrides the matching body part visually (M23b note).
+- **Improved oxygen tank:** larger `Oxygen` capacity / slower drain tiers (`oxygen_tank_1` → 2 → …),
+  extending surface/airless excursions.
+- **Emergency rations (suit system):** an auto-feed module — when **hunger** hits a low threshold it
+  consumes a stored ration to top up (prevents accidental starvation); limited charges, refillable.
+- **Improved flashlight / suit lamp:** brighter/wider **light cone**, longer battery — tiers of the
+  planned suit lamp (see Lighting).
+- **Improved radar scanner (multi-tier):** a wearable radar that adds blips to the HUD — **tier 1**
+  creatures/animals, **tier 2** other players, **tier 3** material deposits / flora / points of
+  interest. Each tier widens what the HUD minimap + edge-arrows show (shares the space-radar style;
+  colour-coded). Higher tiers cost more knowledge + materials and draw `SuitEnergy`.
+- Server owns the gameplay effects (stealth detection, resistances, oxygen/hunger maths, what the
+  radar may reveal); the client renders the HUD/visual side. Sequence with lighting + the scanner/
+  knowledge loop (done) + the radar + the UI/art pass.
+
 ### Lighting: suit lamp, placed lights & glow — NEW (planned)
 Make the dark side of the day/night cycle (and caves) playable and atmospheric:
 
