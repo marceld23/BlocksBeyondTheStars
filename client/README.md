@@ -26,20 +26,34 @@ This places `Spacecraft.Shared.dll`, `Spacecraft.WorldGeneration.dll`,
 
 ## Scene setup
 
+### Launcher scene (front-end shell)
+
 1. Open the project in Unity Hub (point it at this `client/` folder).
-2. Create a scene with:
+2. Create a scene with a single empty GameObject carrying **`AppShell`**. Press Play: it shows
+   the splash, then the main menu (Singleplayer / Join / Settings / Credits / Quit), reads and
+   writes local settings, and spawns the in-game `GameBootstrap` on launch.
+
+### In-game (driven by the shell, or set up directly for testing)
+
+`AppShell.LaunchGame` adds a **`GameBootstrap`** configured from the menu + settings. To test
+the world without the shell, build the scene manually instead:
+
    - An empty GameObject with **`GameBootstrap`** (set Host/Port/PlayerName; assign a
      material for `ChunkMaterial`; tick **German** for the German locale).
    - A player GameObject with a **`CharacterController`**, a child **Camera**, and the
      **`PlayerController`** component (assign `Game` = the bootstrap object and `Camera`).
    - The **`Hud`** component (assign `Game`).
-3. Press Play. The client connects, joins, receives chunks, meshes them, and you can walk
-   around and left/right-click to mine/place (the server validates every action).
+
+Press Play. The client connects, joins, receives chunks, meshes them, and you can walk
+around and left/right-click to mine/place (the server validates every action).
 
 ## Scripts (`Assets/Spacecraft/Scripts/`)
 
 | Script | Role |
 |---|---|
+| `AppShell` | Front-end state machine: splash → menu → settings → loading → in-game; owns local settings + localizer |
+| `ClientSettings` | Local-only display/audio/input/comfort settings, persisted as JSON |
+| `SplashScreen` / `MainMenu` / `SettingsScreen` / `LoadingScreen` | IMGUI shell screens driven by `AppShell` |
 | `NetworkClient` | Wraps the shared transport + codec; sends intents, raises typed state events |
 | `ClientWorld` | Client-side cache of server chunks (a view, not the source of truth) |
 | `ChunkMesher` | Builds a culled block mesh for a chunk |
@@ -49,6 +63,7 @@ This places `Spacecraft.Shared.dll`, `Spacecraft.WorldGeneration.dll`,
 
 ## What is intentionally minimal here
 
-Textures (blocks use placeholder colours), full uGUI/UI Toolkit inventory/crafting/star-map
-screens, client-side prediction, and audio. The networking, world streaming, localization
-and authoritative-action flow are wired and working.
+Real textures (blocks use placeholder colours), 3D models, audio/music, an animated menu
+background, and full uGUI/UI Toolkit inventory/crafting/star-map screens. The shell uses IMGUI
+like the HUD. The networking, world streaming, localization, the front-end shell flow and the
+authoritative-action flow are wired and working. See `docs/CLIENT_SHELL_AND_ASSETS.md`.

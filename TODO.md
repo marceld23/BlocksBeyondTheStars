@@ -19,6 +19,7 @@ Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENT
 | M17 | Personal landing zones + extended space settings (rules) |
 | M18 | Ship docking: request/response/undock intents, handshake gated by `ShipDocking` rule, `docking_module` requirement, guest access, undock-on-disconnect |
 | M19 | Free space flight + combat (PvE slice): concept doc, ship hull/shield, ship-weapon blueprints/modules, local space instances, NPC drones + asteroids, planet enemies — all rule-gated, no permanent ship loss; ship-module build flow |
+| M20 | Client shell, assets & UX: decisions doc + NOTICES, bilingual shell locale strings, Unity scaffold (AppShell splash→menu→settings→loading→in-game, ClientSettings local persistence) |
 
 Also done: MIT license, father-son README, all spec docs moved to local `plans/`,
 commit author = `marceld23 <marcel.duetscher@gmail.com>`.
@@ -66,20 +67,36 @@ commit author = `marceld23 <marcel.duetscher@gmail.com>`.
   module-level damage, ammo/energy/overheat, salvage/boarding, real flight physics, Unity
   flight/combat UI (only `NetworkClient` hooks added).
 
+### M20 notes (implementation details)
+
+- Decisions doc [docs/CLIENT_SHELL_AND_ASSETS.md](docs/CLIENT_SHELL_AND_ASSETS.md) answers the
+  `anf_textures.md` question catalogue (branding, splash, menu, settings, texture/audio style,
+  asset folder layout, MVP-vs-later) + [NOTICES.md](NOTICES.md) (no bundled third-party assets
+  yet; placeholders only; library attribution).
+- Bilingual shell locale strings (`ui.splash.*`, `ui.menu.*`, `ui.settings.*`, `ui.loading.*`,
+  `ui.credits.*`) in `data/locales/{en,de}.json`.
+- Unity scaffold (IMGUI, presentation-only): `AppShell` (splash→menu→settings→loading→in-game
+  state machine; owns localizer + settings; spawns `GameBootstrap`), `SplashScreen`, `MainMenu`,
+  `SettingsScreen`, `LoadingScreen`, and `ClientSettings` (local JSON persistence; quality
+  presets incl. Potato/Pi, audio buses, mouse, language, accessibility flags).
+- Client-only settings never touch authoritative server rules. Real textures/models/audio,
+  animated background, controller support and uGUI polish are deferred (asset-production later).
+
 ## Pending
 
-- **M20** — Client shell, assets & UX. Decisions doc `docs/CLIENT_SHELL_AND_ASSETS.md`
-  (splash/menu/settings/textures/sounds/asset structure, MVP-vs-later, placeholder
-  strategy, NOTICES); Unity scaffold for splash/main menu/settings/loading.
+- **M21+** — open scope. Candidates from the specs: real asset/texture/audio production
+  pipeline + atlas; uGUI/UI-Toolkit inventory/crafting/star-map screens; WebGL build of the
+  shell (needs the Unity Editor); per-player ships + PvP ship combat; singleplayer in-process
+  server hosting inside the client.
 
 ## How to resume
 
 ```powershell
 dotnet build Spacecraft.sln
 dotnet test                      # expect all green (86)
-git log --oneline -5             # latest = M19 free space flight + combat
+git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
-Then start **M20** (client shell, assets & UX) — decisions doc
-`docs/CLIENT_SHELL_AND_ASSETS.md`, then a Unity scaffold for splash/menu/settings/loading.
-Note: this sandbox blocks real sockets, so live WebSocket/2-player network tests are
-exercised via in-process/loopback, not real ports.
+All milestones from the local plan (M0–M20) are now implemented on the server/shared side
+with a Unity scaffold. Next work is open scope (see Pending). Note: this sandbox blocks real
+sockets, so live WebSocket/2-player network tests are exercised via in-process/loopback, not
+real ports; the Unity client scripts are not compiled by `dotnet` (Editor required).
