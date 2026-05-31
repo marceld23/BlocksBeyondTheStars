@@ -203,7 +203,8 @@ consumes protocol messages that already exist.
   **emergency_ration** + **ration dispenser** (`RationStore`, auto-feed). Items/recipes/blueprints
   (knowledge-gated) + DE/EN locales. ~18 tests across equipment/atmosphere/hunger/teleport.
   Client-side pending: **suit_lamp** light cone (shader) + **radar_scanner** HUD tiers + visual
-  armor/stealth fade.
+  armor/stealth fade. Still planned: **jetpack** (short flights/boosted jumps; burns SuitEnergy,
+  recharges on ground/aboard — needs the movement system, mostly client).
   See CLIENT_COMPLETION_PLAN "Equipment & upgrades".
 - **(NEW, planned) Lighting:** suit/helmet lamp (light cone via a player-light term in the block
   shaders), later placed light blocks + ship exterior lights, and emissive glow (crystals,

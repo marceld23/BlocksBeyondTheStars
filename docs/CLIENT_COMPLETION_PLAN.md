@@ -973,6 +973,13 @@ big tank raises max oxygen, advanced scanner earns more knowledge, mining beam i
   PlanetType.OxygenExtractability`. **Efficiency varies per planet** (`OxygenExtractability` 0..1:
   rocky 0.6, ice/desert 0.5, …), and **airless worlds are 0** → no benefit. It only reduces, never
   refills. 2 tests (slows drain on a toxic world, no benefit on an airless one). Tiers later.
+- **Jetpack (suit upgrade, planned):** a craftable suit module enabling **short flights/boosted
+  jumps** — hold jump to ascend/hover while it burns **`SuitEnergy`** (or a dedicated fuel/charge),
+  with a capped flight time that **recharges on the ground / aboard the ship**. Lets the player
+  cross gaps, scale settlement towers and station shafts, and soften falls. Server stays
+  authoritative over the energy budget + whether flight is allowed (rules/zone); the client adds
+  the hold-to-fly control + thruster VFX/sound. Reuses the `SuitEnergy` drain pattern (like
+  stealth) and ties into the movement system. Sequence with the equipment + lighting/VFX passes.
 - **Suit teleporter (recall to ship) — DONE (server):** a craftable `suit_teleporter`
   (blueprint, knowledge-gated) that **recalls the player to their ship** (the heal-tank / landing-
   zone respawn point). `TeleportToShip` / `TeleportToShipIntent` validates the device is carried,
