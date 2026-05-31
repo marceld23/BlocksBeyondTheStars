@@ -606,9 +606,13 @@ future parametric renderer). 10 creature tests; suite 127 green. **Client render
 `CreatureBuilder` assembles a blocky body from the descriptor (segments/head/eyes/legs/wings/tail,
 species colour, hostile tint, dimmed when asleep, a point-light glow for bioluminescent species)
 and `CreatureView` syncs/interpolates them from `CreatureList`; **F** attacks the nearest creature
-too (shared with enemies). Still planned (below): richer **AI/movement** (wander/flee/hunt/flock),
-**territorial retaliation**, water/lava-volume spawning beyond the player's cell, nameplates, and
-the hunger/eating survival loop (separate plan).
+too (shared with enemies). **Movement AI DONE:** a pure, tested `CreatureBehaviour.Step` drives
+the server — hunters (aggressive/pack) **approach** a player in aggro range, **skittish flee**,
+the rest **wander**, and **sleepers don't move** (off their activity phase); the server moves
+creatures each tick (capped per step) and re-broadcasts positions at ~2 Hz for the client to
+interpolate. Still planned (below): **pack/flock** coordination, **territorial retaliation** (fight
+back only when attacked), pathing/terrain-follow, water/lava-volume spawning beyond the player's
+cell, nameplates, and the hunger/eating survival loop (separate plan).
 
 Original notes (remaining work):
 

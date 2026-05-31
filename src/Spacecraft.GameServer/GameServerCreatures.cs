@@ -27,11 +27,17 @@ public sealed partial class GameServer
     private const double CreatureSpawnInterval = 6.0;
     private const float CreatureProximityRange = 4f;
     private const int CreatureCapPerPlayer = 4;
+    private const double CreatureBroadcastInterval = 0.5;  // position-sync cadence (client interpolates)
+    private const double CreatureMoveDtCap = 0.25;         // cap per-step movement so big ticks can't teleport
+    private const float CreatureAggroRange = 10f;          // hunters approach within this
+    private const float CreatureFleeRange = 6f;            // skittish flee within this
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
     private readonly List<CombatEntity> _creatures = new();
     private double _creatureSpawnTimer;
+    private double _creatureClock;
+    private double _creatureBroadcastTimer;
     private int _creatureSpawnRotor;
     private ushort _creatureWaterId, _creatureLavaId;
 
@@ -56,6 +62,8 @@ public sealed partial class GameServer
 
         _creatures.Clear();
         _creatureSpawnTimer = 0;
+        _creatureClock = 0;
+        _creatureBroadcastTimer = 0;
         _creatureSpawnRotor = 0;
         _creatureWaterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _creatureLavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
@@ -102,6 +110,16 @@ public sealed partial class GameServer
             {
                 BroadcastCreatures();
             }
+        }
+
+        MoveCreatures(targets, dt);
+
+        // Position-sync cadence so clients can interpolate wandering/fleeing/hunting creatures.
+        _creatureBroadcastTimer += dt;
+        if (_creatures.Count > 0 && _creatureBroadcastTimer >= CreatureBroadcastInterval)
+        {
+            _creatureBroadcastTimer = 0;
+            BroadcastCreatures();
         }
 
         // Only hostile, awake creatures hurt the player — and only where the hostility rules allow
@@ -188,6 +206,49 @@ public sealed partial class GameServer
 
     private ushort BlockValueAt(Vector3f at)
         => _world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).Value;
+
+    /// <summary>Advances every creature: hunters approach, skittish flee, the rest wander; sleepers rest.</summary>
+    private void MoveCreatures(List<PlayerSession> targets, double dt)
+    {
+        if (_creatures.Count == 0)
+        {
+            return;
+        }
+
+        double moveDt = System.Math.Min(dt, CreatureMoveDtCap);
+        _creatureClock += moveDt;
+
+        foreach (var creature in _creatures)
+        {
+            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
+            {
+                continue;
+            }
+
+            Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
+            double phase = _creatureClock * 0.8 + (StableStringHash(creature.Id) % 360) * (System.Math.PI / 180.0);
+            creature.Position = CreatureBehaviour.Step(
+                creature.Position, sp.Temperament, sp.Speed, SpeciesActive(sp),
+                nearest, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
+        }
+    }
+
+    private static Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from)
+    {
+        Vector3f? best = null;
+        float bestSq = float.MaxValue;
+        foreach (var s in targets)
+        {
+            float d = s.State.Position.DistanceSquared(from);
+            if (d < bestSq)
+            {
+                bestSq = d;
+                best = s.State.Position;
+            }
+        }
+
+        return best;
+    }
 
     private void BroadcastCreatures() => Broadcast(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
 

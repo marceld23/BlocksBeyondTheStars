@@ -215,6 +215,71 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    // ---------------- Movement / behaviour (pure, deterministic) ----------------
+
+    private static float XzDist(Vector3f a, Vector3f b)
+    {
+        float dx = a.X - b.X, dz = a.Z - b.Z;
+        return MathF.Sqrt(dx * dx + dz * dz);
+    }
+
+    [Fact]
+    public void Aggressive_MovesTowardNearbyPlayer()
+    {
+        var cur = new Vector3f(0, 64, 0);
+        var player = new Vector3f(5, 64, 0);
+        var next = CreatureBehaviour.Step(cur, CreatureTemperament.Aggressive, speed: 3f, active: true,
+            player: player, aggroRange: 10f, fleeRange: 6f, dt: 0.25, wanderPhase: 0.0);
+
+        Assert.True(XzDist(next, player) < XzDist(cur, player), "Hunter should close the distance.");
+    }
+
+    [Fact]
+    public void Skittish_FleesFromNearbyPlayer()
+    {
+        var cur = new Vector3f(0, 64, 0);
+        var player = new Vector3f(2, 64, 0);
+        var next = CreatureBehaviour.Step(cur, CreatureTemperament.Skittish, speed: 3f, active: true,
+            player: player, aggroRange: 10f, fleeRange: 6f, dt: 0.25, wanderPhase: 0.0);
+
+        Assert.True(XzDist(next, player) > XzDist(cur, player), "Skittish should increase the distance.");
+    }
+
+    [Fact]
+    public void Passive_WandersByRoughlySpeedTimesDt_RegardlessOfPlayer()
+    {
+        var cur = new Vector3f(0, 64, 0);
+        var player = new Vector3f(1, 64, 0); // close, but passive ignores it
+        var next = CreatureBehaviour.Step(cur, CreatureTemperament.Passive, speed: 4f, active: true,
+            player: player, aggroRange: 10f, fleeRange: 6f, dt: 0.25, wanderPhase: 1.0);
+
+        float moved = XzDist(next, cur);
+        Assert.Equal(4f * 0.25f, moved, 3); // |dir| == 1, so distance == speed*dt
+    }
+
+    [Fact]
+    public void Sleeping_DoesNotMove()
+    {
+        var cur = new Vector3f(3, 64, 7);
+        var next = CreatureBehaviour.Step(cur, CreatureTemperament.Aggressive, speed: 5f, active: false,
+            player: new Vector3f(4, 64, 7), aggroRange: 10f, fleeRange: 6f, dt: 1.0, wanderPhase: 0.5);
+
+        Assert.Equal(cur.X, next.X);
+        Assert.Equal(cur.Z, next.Z);
+    }
+
+    [Fact]
+    public void Aggressive_BeyondAggroRange_DoesNotBeeline()
+    {
+        var cur = new Vector3f(0, 64, 0);
+        var player = new Vector3f(50, 64, 0); // far outside aggro range -> wanders instead
+        var next = CreatureBehaviour.Step(cur, CreatureTemperament.Aggressive, speed: 3f, active: true,
+            player: player, aggroRange: 10f, fleeRange: 6f, dt: 0.25, wanderPhase: 3.14159);
+
+        // Wander phase π points roughly -X (away from the player at +X), so it should not have closed in.
+        Assert.True(XzDist(next, player) >= XzDist(cur, player) - 0.01f);
+    }
+
     public void Dispose()
     {
         try
