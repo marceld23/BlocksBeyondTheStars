@@ -1233,6 +1233,11 @@ public sealed partial class GameServer
             return true;
         }
 
+        if (station == CraftingStation.Market)
+        {
+            return MarketAvailable(player); // barter trade console — no module needed
+        }
+
         if (!player.AboardShip)
         {
             return false;

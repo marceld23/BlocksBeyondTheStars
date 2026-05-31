@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **193 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **196 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -212,6 +212,11 @@ consumes protocol messages that already exist.
   (`GameServerFlora`), capped at one plant per cell (no spread); **seeds replant** on a valid
   host only (`HandlePlace` host check). 6 flora tests. Planned: procedural form/appearance,
   water/lava flora, effects (poison/heal/food), maturity→produces-seeds. See plan.
+- **Market / NPC trading (resource barter, no credits) — DONE (server).** `CraftingStation.Market`
+  + `market_*` give→get trade-offer recipes (e.g. 5 iron→1 titanium, carbon+silicate→medpack) run
+  through the craft path; available at the ship's trade console (aboard, `MarketAvailable`). No
+  currency — pure resource barter. 3 tests. Stations/settlements will host NPC vendors using the
+  same market station later.
 - **Player-to-player trading — DONE (server).** `GameServerTrade`: `RequestTrade`/`RespondTrade`
   open a `TradeSession`; each side stages an offer (validated) + confirms; any offer change voids
   both confirms; on mutual confirm the server **atomically swaps** items (re-validated, leftover
@@ -310,7 +315,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (193)
+dotnet test                      # expect all green (196)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

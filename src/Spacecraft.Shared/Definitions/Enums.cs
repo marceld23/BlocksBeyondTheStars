@@ -33,4 +33,5 @@ public enum CraftingStation
     Lab,
     MachineRoom,
     Detoxifier,
+    Market,
 }
