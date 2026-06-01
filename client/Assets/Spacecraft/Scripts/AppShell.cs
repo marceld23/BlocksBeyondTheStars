@@ -217,6 +217,14 @@ namespace Spacecraft.Client
             if (Phase == ShellPhase.MainMenu && _uiMenu == null)
             {
                 _uiMenu = UiMainMenu.Build(this);
+
+                // Land the bombastic intro sting on the first menu reveal (logo + full UI), rather
+                // than during the mandatory black Unity engine splash that precedes it.
+                if (!_splashSoundDone)
+                {
+                    _splashSoundDone = true;
+                    PlaySplashSound();
+                }
             }
             else if (Phase != ShellPhase.MainMenu && _uiMenu != null)
             {
@@ -265,18 +273,7 @@ namespace Spacecraft.Client
         {
             switch (Phase)
             {
-                case ShellPhase.Splash:
-                    // Play the intro sting on the first frame our splash actually renders (the
-                    // mandatory Unity engine logo blocks game rendering until it's done), so the
-                    // sound lands with the title rather than during the engine splash.
-                    if (!_splashSoundDone)
-                    {
-                        _splashSoundDone = true;
-                        PlaySplashSound();
-                    }
-
-                    _splash.Draw();
-                    break;
+                case ShellPhase.Splash: _splash.Draw(); break;
                 case ShellPhase.MainMenu: break; // uGUI (UiMainMenu) draws this phase
                 case ShellPhase.Settings: _settings.Draw(); break;
                 case ShellPhase.Credits: DrawCredits(); break;
