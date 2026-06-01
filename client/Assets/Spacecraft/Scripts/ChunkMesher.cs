@@ -45,6 +45,9 @@ namespace Spacecraft.Client
                 // per-face shade; without one, fall back to the flat palette × shade.
                 Color baseColor = atlas == null ? BlockColor(content, id) : Color.white;
                 Rect uv = atlas != null ? atlas.TileUv(id.Value) : new Rect(0f, 0f, 1f, 1f);
+                // Per-block reflection params (gloss, metal) for the lit atlas shader.
+                var mat = BlockMaterial(content, id);
+                float matR = mat.x, matG = mat.y;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -56,8 +59,11 @@ namespace Spacecraft.Client
                     }
 
                     float s = FaceShade(f);
+                    // With an atlas the lit shader does the directional shading, so the vertex colour
+                    // carries material params instead: r=gloss, g=metal, b=per-face AO (subtle edge
+                    // definition). Without one, fall back to the flat palette colour x face shade.
                     var col = atlas != null
-                        ? new Color(s, s, s, 1f)
+                        ? new Color(matR, matG, s, 1f)
                         : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
                     AddFace(verts, tris, colors, uvs, new Vector3(x, y, z), f, col, uv);
                 }
@@ -83,6 +89,32 @@ namespace Spacecraft.Client
             4 => 0.66f, // +Z
             _ => 0.76f, // -Z
         };
+
+        /// <summary>
+        /// Per-block reflection params for the lit atlas shader: x=gloss (0 matte .. 1 mirror-ish),
+        /// y=metal (0 dielectric .. 1 metal — metals tint their highlight + reflection by the albedo).
+        /// Ice/glass/crystal are glossy, hull/ore metals reflective, soils matte.
+        /// </summary>
+        private static Vector2 BlockMaterial(GameContent content, BlockId id)
+        {
+            var def = content.BlockById(id);
+            switch (def?.Key)
+            {
+                case "glass": return new Vector2(0.90f, 0.0f);
+                case "ice": return new Vector2(0.85f, 0.0f);
+                case "water": return new Vector2(0.80f, 0.0f);
+                case "crystal": return new Vector2(0.95f, 0.15f);
+                case "data_cache": return new Vector2(0.90f, 0.20f);
+                case "iron_wall": return new Vector2(0.60f, 0.90f);
+                case "titanium_ore": return new Vector2(0.50f, 0.70f);
+                case "copper_ore": return new Vector2(0.45f, 0.60f);
+                case "iron_ore": return new Vector2(0.35f, 0.50f);
+                case "carbon": return new Vector2(0.30f, 0.10f);
+                case "silicate": return new Vector2(0.15f, 0.0f);
+                case "basalt": return new Vector2(0.10f, 0.0f);
+                default: return new Vector2(0.05f, 0.0f); // stone, dirt, grass, sand, mud, lava, ...
+            }
+        }
 
         private static Color BlockColor(GameContent content, BlockId id)
         {

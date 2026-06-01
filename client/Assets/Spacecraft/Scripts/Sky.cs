@@ -17,6 +17,7 @@ namespace Spacecraft.Client
 
         private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
+        private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
 
         private Light _sun;
         private float _time;        // local 0..1 day fraction
@@ -74,21 +75,28 @@ namespace Spacecraft.Client
             tint.a = 1f; // marks the global as "set" for the shaders
             Shader.SetGlobalColor(LightId, tint);
 
-            // Sky colour + sun light (skip while the space view controls the camera).
+            // Sky colour: drives both the camera background and the global the lit shader samples
+            // for grazing-angle environment reflections (glossy/metallic blocks).
+            Color sky;
+            if (spaceSky)
+            {
+                // Airless body (asteroid): the sky stays space-black even on the surface.
+                sky = new Color(0.01f, 0.01f, 0.03f);
+            }
+            else
+            {
+                Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
+                Color nightSky = new Color(0.03f, 0.04f, 0.09f);
+                sky = Color.Lerp(nightSky, daySky, day);
+            }
+            sky.a = 1f;
+            Shader.SetGlobalColor(SkyId, sky);
+
+            // Apply to the camera background (skip while the space view controls the camera).
             if (Camera != null && (Game == null || !Game.SpaceViewActive))
             {
                 Camera.clearFlags = CameraClearFlags.SolidColor;
-                if (spaceSky)
-                {
-                    // Airless body (asteroid): the sky stays space-black even on the surface.
-                    Camera.backgroundColor = new Color(0.01f, 0.01f, 0.03f);
-                }
-                else
-                {
-                    Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
-                    Color nightSky = new Color(0.03f, 0.04f, 0.09f);
-                    Camera.backgroundColor = Color.Lerp(nightSky, daySky, day);
-                }
+                Camera.backgroundColor = sky;
             }
 
             if (_sun != null)
