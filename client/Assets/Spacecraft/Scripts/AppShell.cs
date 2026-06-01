@@ -40,19 +40,27 @@ namespace Spacecraft.Client
         private bool _hostLocal;
         private GameObject _gameRoot;
 
+        private bool _splashSoundDone;
+
         private void Awake()
         {
             Settings = ClientSettings.Load();
             Settings.Apply();
             LoadLocalizer();
 
+            // IMGUI renders at native pixels; on a high-DPI / 4K display that makes the whole UI
+            // tiny. Cap the render resolution so menus + HUD stay a readable physical size.
+            var cur = Screen.currentResolution;
+            if (cur.width > 1920)
+            {
+                Screen.SetResolution(1920, 1080, Screen.fullScreenMode);
+            }
+
             _splash = new SplashScreen(this);
             _menu = new MainMenu(this);
             _settings = new SettingsScreen(this);
             _loading = new LoadingScreen(this);
         }
-
-        private void Start() => PlaySplashSound();
 
         /// <summary>Plays the bombastic intro sting over the splash screen (ensures a listener exists).</summary>
         private void PlaySplashSound()
@@ -204,7 +212,18 @@ namespace Spacecraft.Client
         {
             switch (Phase)
             {
-                case ShellPhase.Splash: _splash.Draw(); break;
+                case ShellPhase.Splash:
+                    // Play the intro sting on the first frame our splash actually renders (the
+                    // mandatory Unity engine logo blocks game rendering until it's done), so the
+                    // sound lands with the title rather than during the engine splash.
+                    if (!_splashSoundDone)
+                    {
+                        _splashSoundDone = true;
+                        PlaySplashSound();
+                    }
+
+                    _splash.Draw();
+                    break;
                 case ShellPhase.MainMenu: _menu.Draw(); break;
                 case ShellPhase.Settings: _settings.Draw(); break;
                 case ShellPhase.Credits: DrawCredits(); break;

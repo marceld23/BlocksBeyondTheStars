@@ -22,10 +22,19 @@ namespace Spacecraft.Client.EditorTools
         private const string SceneDir = "Assets/Scenes";
         private const string ScenePath = SceneDir + "/Launcher.unity";
 
+        /// <summary>Shaders the client loads at runtime via Shader.Find — must be force-included or the build strips them.</summary>
+        private static readonly string[] RuntimeShaders =
+        {
+            "Spacecraft/VertexColorOpaque",
+            "Spacecraft/BlockAtlas",
+            "Unlit/Color",
+        };
+
         [MenuItem("Spacecraft/Build Windows Player")]
         public static void BuildWindows()
         {
             EnsureLauncherScene();
+            EnsureShadersIncluded();
 
             string outDir = GetArg("-spacecraftOut") ?? "Build/Windows";
             Directory.CreateDirectory(outDir);
@@ -46,6 +55,56 @@ namespace Spacecraft.Client.EditorTools
             {
                 EditorApplication.Exit(1);
             }
+        }
+
+        /// <summary>
+        /// Adds the runtime <see cref="Shader.Find"/> shaders to GraphicsSettings' "Always Included
+        /// Shaders" so the player build keeps them (otherwise Shader.Find returns null at runtime and
+        /// WorldRig.Build throws on <c>new Material(null)</c>, hanging Singleplayer at loading).
+        /// </summary>
+        public static void EnsureShadersIncluded()
+        {
+            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (assets == null || assets.Length == 0)
+            {
+                Debug.LogWarning("GraphicsSettings.asset not found; cannot register always-included shaders.");
+                return;
+            }
+
+            var so = new SerializedObject(assets[0]);
+            var list = so.FindProperty("m_AlwaysIncludedShaders");
+
+            foreach (var name in RuntimeShaders)
+            {
+                var shader = Shader.Find(name);
+                if (shader == null)
+                {
+                    Debug.LogWarning($"Shader '{name}' not found in the editor; skipping always-include.");
+                    continue;
+                }
+
+                bool present = false;
+                for (int i = 0; i < list.arraySize; i++)
+                {
+                    if (list.GetArrayElementAtIndex(i).objectReferenceValue == shader)
+                    {
+                        present = true;
+                        break;
+                    }
+                }
+
+                if (present)
+                {
+                    continue;
+                }
+
+                list.InsertArrayElementAtIndex(list.arraySize);
+                list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = shader;
+                Debug.Log($"Always-included shader added: {name}");
+            }
+
+            so.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>Creates and saves the launcher scene (one AppShell object) if it doesn't exist.</summary>
