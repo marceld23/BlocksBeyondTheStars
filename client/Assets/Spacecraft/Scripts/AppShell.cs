@@ -281,8 +281,9 @@ namespace Spacecraft.Client
         private void DrawCredits()
         {
             DrawBackground();
+            UiScale.Begin();
             _creditTitle ??= new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
-            float x = Screen.width / 2f - 220f, y = Screen.height / 2f - 90f;
+            float x = UiScale.Width / 2f - 220f, y = UiScale.Height / 2f - 90f;
 
             // Themed panel.
             var panel = new Rect(x - 24f, y - 22f, 488f, 220f);
@@ -302,6 +303,8 @@ namespace Spacecraft.Client
             {
                 Phase = ShellPhase.MainMenu;
             }
+
+            UiScale.End();
         }
     }
 }

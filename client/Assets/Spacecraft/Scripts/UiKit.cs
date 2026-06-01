@@ -72,8 +72,9 @@ namespace Spacecraft.Client
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            // Expand = scale by the smaller of the width/height ratios, so the whole 1920x1080 layout
+            // always fits (no right-edge overflow on non-16:9 / high-res monitors); extra space is margin.
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             go.AddComponent<GraphicRaycaster>();
             return canvas;
         }

@@ -43,10 +43,11 @@ namespace Spacecraft.Client
         {
             _shell.DrawBackground();
             EnsureStyles();
+            UiScale.Begin(); // virtual 1080p layout so settings scale with resolution
             var s = _shell.Settings;
             // Centre the settings column horizontally (was pinned top-left).
-            float x = Mathf.Max(20f, Screen.width / 2f - 150f);
-            float y = Mathf.Max(20f, Screen.height / 2f - 230f);
+            float x = Mathf.Max(20f, UiScale.Width / 2f - 150f);
+            float y = Mathf.Max(20f, UiScale.Height / 2f - 230f);
 
             Frame(new Rect(x - 28, y - 22, 356, 690));
 
@@ -106,6 +107,8 @@ namespace Spacecraft.Client
             {
                 _shell.CloseSettings();
             }
+
+            UiScale.End();
         }
 
         private float VolumeSlider(float x, ref float y, string label, float value)

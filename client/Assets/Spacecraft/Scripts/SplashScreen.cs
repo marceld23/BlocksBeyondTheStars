@@ -55,8 +55,9 @@ namespace Spacecraft.Client
         public void Draw()
         {
             EnsureStyles();
+            UiScale.Begin(); // lay out in a virtual 1080p space so the splash scales with resolution
 
-            float w = Screen.width, h = Screen.height;
+            float w = UiScale.Width, h = UiScale.Height;
             float t = _elapsed;
 
             // The animated MenuBackground space scene shows through behind the splash (same as the
@@ -101,6 +102,8 @@ namespace Spacecraft.Client
                 new Color(1f, 0.72f, 0.2f, lateAlpha));
             DrawCentered(new Rect(0, h * 0.90f, w, 22), _shell.L("ui.splash.skip"), _subStyle,
                 new Color(0.7f, 0.8f, 0.9f, 0.6f * lateAlpha));
+
+            UiScale.End();
         }
 
         private void EnsureStyles()
