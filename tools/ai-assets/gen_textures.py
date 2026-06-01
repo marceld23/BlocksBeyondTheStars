@@ -1,8 +1,9 @@
 """Generate the block texture set (approved batch) via OpenAI images — seamless 64px pixel-art tiles.
 
 One API call per texture; resumable (existing out/textures/<key>.png skipped) and tolerant of single
-failures. Chosen textures are bundled into client/Assets/Resources/textures as .bytes (loaded at
-runtime via Texture2D.LoadImage) and logged in NOTICES.md.
+failures. After generating, run `bundle_textures.py --from-out` to write the chosen tiles into
+client/Assets/Resources/textures as raw RGBA32 .bytes (the client decodes them with
+Texture2D.LoadRawTextureData; LoadImage isn't available from the client asmdef). Logged in NOTICES.md.
 
 Usage:
     uv run gen_textures.py

@@ -180,21 +180,24 @@ namespace Spacecraft.Client
             return m;
         }
 
-        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes PNG) at runtime.</summary>
+        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes raw 64x64 RGBA32,
+        /// via LoadRawTextureData from the core module — no ImageConversion dependency).</summary>
         private static Texture2D LoadTex(string key)
         {
             var asset = Resources.Load<TextAsset>("textures/" + key);
-            if (asset == null)
+            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
             {
                 return null;
             }
 
-            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
             };
-            return tex.LoadImage(asset.bytes) ? tex : null;
+            tex.LoadRawTextureData(asset.bytes);
+            tex.Apply();
+            return tex;
         }
     }
 }

@@ -11,8 +11,7 @@
     "Spacecraft.WorldGeneration.dll",
     "Spacecraft.Networking.dll",
     "MessagePack.dll",
-    "LiteNetLib.dll",
-    "UnityEngine.ImageConversionModule.dll"
+    "LiteNetLib.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

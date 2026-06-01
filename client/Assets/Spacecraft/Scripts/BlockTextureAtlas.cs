@@ -79,44 +79,23 @@ namespace Spacecraft.Client
         }
 
         /// <summary>
-        /// Blits a generated block texture (bundled as a <c>Resources/textures/&lt;key&gt;.bytes</c> PNG,
-        /// decoded via <see cref="Texture2D.LoadImage"/> so the import "readable" flag doesn't matter)
-        /// into the tile, nearest-sampling if its size differs from the tile. Returns false if absent.
+        /// Blits a generated block texture (bundled as a <c>Resources/textures/&lt;key&gt;.bytes</c> raw
+        /// RGBA32 tile, decoded via <see cref="Texture2D.LoadRawTextureData(byte[])"/> from the core
+        /// module — avoids LoadImage, which lives in the non-auto-referenced ImageConversionModule and
+        /// won't compile from the client asmdef). Returns false if absent or the wrong size.
         /// </summary>
         private bool TryPaintFromAsset(string key, int ox, int oy)
         {
             var asset = Resources.Load<TextAsset>("textures/" + key);
-            if (asset == null)
+            if (asset == null || asset.bytes.Length != Tile * Tile * 4)
             {
                 return false;
             }
 
-            var src = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            if (!src.LoadImage(asset.bytes))
-            {
-                Object.Destroy(src);
-                return false;
-            }
-
-            if (src.width == Tile && src.height == Tile)
-            {
-                Texture.SetPixels(ox, oy, Tile, Tile, src.GetPixels());
-            }
-            else
-            {
-                var px = src.GetPixels32();
-                for (int y = 0; y < Tile; y++)
-                {
-                    int sy = y * src.height / Tile;
-                    for (int x = 0; x < Tile; x++)
-                    {
-                        int sx = x * src.width / Tile;
-                        Color32 c = px[sy * src.width + sx];
-                        Texture.SetPixel(ox + x, oy + y, c);
-                    }
-                }
-            }
-
+            var src = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false);
+            src.LoadRawTextureData(asset.bytes);
+            src.Apply();
+            Texture.SetPixels(ox, oy, Tile, Tile, src.GetPixels());
             Object.Destroy(src);
             return true;
         }

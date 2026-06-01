@@ -18,9 +18,10 @@ for the generating account's plan. Background **music** and the remaining UI/fee
 `tools/ai-assets/gen_icons.py`); they are AI-synthesised images, use governed by the OpenAI
 usage terms for the generating account.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (17 PNGs) are **AI-generated** with the
-same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
-`tools/ai-assets/gen_textures.py`), decoded into the block atlas at runtime; same OpenAI usage terms.
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (17 raw 64x64 RGBA32 tiles) are
+**AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
+`tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
+block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
 
 **No third-party models or fonts** are bundled — the rest of the visuals remain runtime-generated
 (vertex/atlas block colours, code-built avatars + logo, procedural UI panels). See
