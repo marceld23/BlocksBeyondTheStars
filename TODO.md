@@ -335,9 +335,20 @@ consumes protocol messages that already exist.
   the hand** — a **first‑person viewmodel** and on the **third‑person** avatar — with **use
   animations** (mining swing/drill, weapon swing/fire, scanner/lamp toggle, place gesture) driven by
   the actions and synced to other players via presence. Part of M27 + avatar animation.
-- **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
-  (`BlockTextureAtlas` + UV mapping + `Spacecraft/BlockAtlas` shader, no image files). Still:
-  UI icons/symbols (can also be procedural), tool/hand visuals, mining feedback, uGUI polish.
+- **M27 — art, icons & renderer pass — in progress.** Done this pass (all code/procedural, Built-in
+  RP): **block texture atlas** (17 AI tiles, runtime-decoded) + UV mapping; **lit block shader** shading
+  by `normal · sun` in the **per-system sun colour** (+ tinted ambient floor); **per-material
+  reflections** (gloss/metal Blinn-Phong sun highlight + Fresnel **sky** reflection); a **visible sun
+  disc** (per-system colour, terrain-occluded); a **lit + textured menu backdrop**; **space-view planets
+  coloured by their world/biome**; the **Tab menu scaled up** (clamped for small/low-DPI screens); 14 AI
+  **UI icons** + bundled SFX (M26). New always-included shaders `Spacecraft/{BlockAtlas, LitColor,
+  SunGlow}`. Also done: **creatures/NPCs no longer enter the ship** (server). Still **this pass**:
+  **post-FX** (distance fog first, then bloom/AO), **planet-side ship = space-ship model** (engines off,
+  hatch open), **per-ship speed + manoeuvrability** (`ships.json`). Standing planned (tracked above, do
+  not drop): **player/NPC/equipment-use animations** (see "Held tools/weapons + use animations" +
+  creatures), **weapon/equipment VFX** (see Player weapons + Equipment), **weather** clouds + fog/view-
+  distance + rain/lightning (see World systems), the **suit lamp/lighting** term, and a **texture audit**
+  (items/icons, creatures/NPCs, planet surfaces, ship-hull variants — generate more as needed).
 - **M28 — Windows player build — tooling DONE, needs a real build run.** `BuildScript.BuildWindows`
   (editor, generates a minimal `Launcher.unity` with one `AppShell`, builds StandaloneWindows64 →
   `Build/Windows/Spacecraft.exe`, auto-includes StreamingAssets = data + bundled server) +
