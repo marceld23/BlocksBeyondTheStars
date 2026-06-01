@@ -202,10 +202,23 @@ namespace Spacecraft.Client
             Phase = ShellPhase.MainMenu;
         }
 
+        private GameObject _uiMenu;
+
         private void Update()
         {
             _splash.Update();
             _loading.Update();
+
+            // The main menu is uGUI (M27): spawn it for the MainMenu phase, tear it down otherwise.
+            if (Phase == ShellPhase.MainMenu && _uiMenu == null)
+            {
+                _uiMenu = UiMainMenu.Build(this);
+            }
+            else if (Phase != ShellPhase.MainMenu && _uiMenu != null)
+            {
+                Destroy(_uiMenu);
+                _uiMenu = null;
+            }
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -250,7 +263,7 @@ namespace Spacecraft.Client
 
                     _splash.Draw();
                     break;
-                case ShellPhase.MainMenu: _menu.Draw(); break;
+                case ShellPhase.MainMenu: break; // uGUI (UiMainMenu) draws this phase
                 case ShellPhase.Settings: _settings.Draw(); break;
                 case ShellPhase.Credits: DrawCredits(); break;
                 case ShellPhase.Loading: _loading.Draw(); break;
