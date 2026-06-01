@@ -159,7 +159,10 @@ public sealed partial class GameServer
             npc.WanderPhase += moveDt * NpcWanderSpeed;
             float ox = (float)System.Math.Cos(npc.WanderPhase) * NpcWanderLeash;
             float oz = (float)System.Math.Sin(npc.WanderPhase * 0.7) * NpcWanderLeash;
-            npc.Pos = new Vector3f(npc.Home.X + ox, npc.Home.Y, npc.Home.Z + oz);
+            var next = new Vector3f(npc.Home.X + ox, npc.Home.Y, npc.Home.Z + oz);
+
+            // NPCs don't wander into the player's ship.
+            npc.Pos = EntityBlockedByShip(next) ? npc.Pos : next;
 
             // Face the nearest player if one is close, else look along the stroll heading.
             var nearest = NearestPlayerPosition(targets, npc.Pos);

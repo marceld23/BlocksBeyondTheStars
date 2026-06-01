@@ -243,9 +243,12 @@ public sealed partial class GameServer
             var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
             double phase = _creatureClock * 0.8 + (StableStringHash(creature.Id) % 360) * (System.Math.PI / 180.0);
-            creature.Position = CreatureBehaviour.Step(
+            var next = CreatureBehaviour.Step(
                 creature.Position, temperament, sp.Speed, SpeciesActive(sp),
                 nearest, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
+
+            // Creatures don't walk into the player's ship — hold position at the hull.
+            creature.Position = EntityBlockedByShip(next) ? creature.Position : next;
         }
     }
 

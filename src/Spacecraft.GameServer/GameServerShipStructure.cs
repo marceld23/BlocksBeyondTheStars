@@ -246,6 +246,25 @@ public sealed partial class GameServer
                && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
     }
 
+    /// <summary>
+    /// True if a position is inside (or right against) the ship hull, so creatures and settlement
+    /// NPCs can be kept from walking into the player's ship. Uses a small margin around the hull
+    /// footprint + height; positions above the hull (flying creatures) are allowed to pass over.
+    /// </summary>
+    private bool EntityBlockedByShip(Vector3f p)
+    {
+        if (!_shipStamped)
+        {
+            return false;
+        }
+
+        const float m = 0.5f;
+        int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
+        return p.X >= cx - _shipHalfX - m && p.X <= cx + _shipHalfX + m
+               && p.Y >= y0 - m && p.Y <= y0 + _shipHeight + m
+               && p.Z >= cz - _shipHalfZ - m && p.Z <= cz + _shipHalfZ + m;
+    }
+
     /// <summary>Tells the client where the ship stands so it can show a compass/minimap to it.</summary>
     private void SendShipPlacement(PlayerSession session)
     {
