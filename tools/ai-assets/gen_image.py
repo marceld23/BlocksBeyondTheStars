@@ -53,6 +53,8 @@ def main() -> None:
                     help="resize the result to NxN px (e.g. 32, 64, 256); 0 = keep full size")
     ap.add_argument("--nearest", action="store_true",
                     help="nearest-neighbour downscale (crisp pixel-art textures); default is smooth")
+    ap.add_argument("--transparent", action="store_true",
+                    help="transparent background (PNG) — for logos / UI icons that overlay panels")
     args = ap.parse_args()
 
     load_dotenv()
@@ -69,13 +71,10 @@ def main() -> None:
     from openai import OpenAI
 
     client = OpenAI(api_key=key)
-    resp = client.images.generate(
-        model=args.model,
-        prompt=args.prompt,
-        size=args.size,
-        quality=args.quality,
-        n=1,
-    )
+    gen_kwargs = dict(model=args.model, prompt=args.prompt, size=args.size, quality=args.quality, n=1)
+    if args.transparent:
+        gen_kwargs["background"] = "transparent"
+    resp = client.images.generate(**gen_kwargs)
     raw = base64.b64decode(resp.data[0].b64_json)
 
     out = Path(args.out)
