@@ -355,6 +355,14 @@ consumes protocol messages that already exist.
 - **(NEW, planned) Local time-of-day indicator:** a small planet HUD day/night clock scaled to the
   world's day length, showing how long until night / until day (from `WorldEnvironment.TimeOfDay` +
   `DayLengthSeconds`). The visible **sun already wanders** across the sky by time of day. Bilingual.
+- **(KNOWN BUG, to fix) Space travel lands on origin:** flying from space to a different planet lands
+  the player back on the **departure** planet instead of the destination — investigate the leave-space/
+  land flow + destination/system switch + target `WorldEnvironment`. (Reported 2026-06-02.)
+- **(NEW, to verify) Space stations + NPCs:** confirm space stations are actually anchored/placed
+  in-world and reachable, and whether they are **populated with NPCs** (station NPC population is
+  currently listed as planned).
+- **(NEW, to scope) Animations status:** review existing vs planned — player (walk/mine/attack/place),
+  NPC (idle/gesture/walk), equipment-use, and weapon/equipment VFX — and plan the first animation pass.
 - **(NEW, planned) Content editors + merge:** a menu-based **ship-type editor** (build a ship from
   blocks — engines, cockpit glass, entry hatch, stations — set hull/shield/flightSpeed/handling/cargo
   + blueprint-unlock cost) and an **equipment/recipe editor** (new items + crafting recipes, costs,
