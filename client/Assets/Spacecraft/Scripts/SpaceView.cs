@@ -260,13 +260,17 @@ namespace Spacecraft.Client
                 Cube("Star", _root.transform, dir * 280f, Vector3.one * (1.4f + (float)rng.NextDouble() * 2f), star);
             }
 
+            // Planets reflect the actual world/biome: the big one is the planet you're at, the
+            // distant one a neighbouring body in the same system (from the star map). Lit + textured.
+            ResolvePlanetLooks(out var mainLook, out var secondLook);
+
             var planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             planet.name = "Planet";
             StripCollider(planet);
             planet.transform.SetParent(_root.transform, false);
             planet.transform.localPosition = new Vector3(20f, -120f, 70f);
             planet.transform.localScale = Vector3.one * 160f;
-            planet.GetComponent<Renderer>().sharedMaterial = Unlit(new Color(0.25f, 0.45f, 0.65f));
+            planet.GetComponent<Renderer>().sharedMaterial = Lit(mainLook.tint, LoadTex(mainLook.tex), new Vector2(6f, 3f));
 
             // A second, distant planet so space doesn't look empty.
             var planet2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -275,7 +279,7 @@ namespace Spacecraft.Client
             planet2.transform.SetParent(_root.transform, false);
             planet2.transform.localPosition = new Vector3(-160f, 60f, 220f);
             planet2.transform.localScale = Vector3.one * 60f;
-            planet2.GetComponent<Renderer>().sharedMaterial = Unlit(new Color(0.7f, 0.5f, 0.35f));
+            planet2.GetComponent<Renderer>().sharedMaterial = Lit(secondLook.tint, LoadTex(secondLook.tex), new Vector2(3f, 2f));
 
             _ship = BuildShip(_root.transform);
         }
@@ -416,6 +420,131 @@ namespace Spacecraft.Client
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
             return new Material(shader) { color = c };
+        }
+
+        /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>
+        private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
+        {
+            var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(shader) { color = c };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+                if (tiling != default)
+                {
+                    m.mainTextureScale = tiling;
+                }
+            }
+
+            return m;
+        }
+
+        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes PNG) at runtime.</summary>
+        private static Texture2D LoadTex(string key)
+        {
+            var asset = Resources.Load<TextAsset>("textures/" + key);
+            if (asset == null)
+            {
+                return null;
+            }
+
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point,
+            };
+            return tex.LoadImage(asset.bytes) ? tex : null;
+        }
+
+        /// <summary>
+        /// Picks the look of the two space-view planets from the actual world: the main planet is the
+        /// body you're at (active star-map location, falling back to the current biome), the second a
+        /// neighbouring body in the same system. Both reflect their planet type's colour + texture.
+        /// </summary>
+        private void ResolvePlanetLooks(out (Color tint, string tex) main, out (Color tint, string tex) second)
+        {
+            string mainType = Game?.Environment?.Biome;
+            string secondType = null;
+
+            var map = Game?.StarMap;
+            if (map?.Systems != null)
+            {
+                object activeSys = null;
+                foreach (var sys in map.Systems)
+                {
+                    foreach (var b in sys.Bodies)
+                    {
+                        if (b.Id == map.ActiveLocationId)
+                        {
+                            activeSys = sys;
+                            if (!string.IsNullOrEmpty(b.PlanetType))
+                            {
+                                mainType = b.PlanetType;
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if (activeSys != null)
+                    {
+                        // Use a different body in the same system for the distant planet.
+                        foreach (var b in sys.Bodies)
+                        {
+                            if (b.Id != map.ActiveLocationId && b.Kind != "star" && !string.IsNullOrEmpty(b.PlanetType))
+                            {
+                                secondType = b.PlanetType;
+                                break;
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            main = PlanetLook(mainType);
+            second = PlanetLook(secondType ?? "rock");
+        }
+
+        /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
+        /// keys get a stable hash-derived colour so every world type still looks distinct.</summary>
+        private static (Color tint, string tex) PlanetLook(string key)
+        {
+            switch ((key ?? string.Empty).ToLowerInvariant())
+            {
+                case "jungle":
+                case "forest": return (new Color(0.32f, 0.55f, 0.30f), "grass");
+                case "desert": return (new Color(0.82f, 0.68f, 0.42f), "sand");
+                case "ice":
+                case "frozen": return (new Color(0.72f, 0.86f, 0.96f), "ice");
+                case "lava":
+                case "volcanic": return (new Color(0.78f, 0.32f, 0.18f), "lava");
+                case "swamp": return (new Color(0.40f, 0.45f, 0.30f), "mud");
+                case "crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
+                case "ocean":
+                case "water": return (new Color(0.24f, 0.46f, 0.72f), "water");
+                case "barren":
+                case "asteroid":
+                case "rock": return (new Color(0.52f, 0.50f, 0.47f), "stone");
+                default:
+                    return (HashColor(key), "stone");
+            }
+        }
+
+        private static Color HashColor(string key)
+        {
+            int h = 0;
+            foreach (char c in key ?? string.Empty)
+            {
+                h = h * 31 + c;
+            }
+
+            var rng = new System.Random(h);
+            return new Color(
+                0.40f + 0.45f * (float)rng.NextDouble(),
+                0.40f + 0.45f * (float)rng.NextDouble(),
+                0.40f + 0.45f * (float)rng.NextDouble());
         }
     }
 }
