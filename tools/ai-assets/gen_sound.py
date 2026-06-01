@@ -36,7 +36,7 @@ def main() -> None:
     if not key:
         sys.exit("ELEVENLABS_API_KEY is not set (put it in .env or the environment).")
 
-    print("[cost] ElevenLabs bills sound effects in credits (≈ per second of audio); "
+    print("[cost] ElevenLabs bills sound effects in credits (~ per second of audio); "
           "check your plan's credit cost before running.")
 
     from elevenlabs.client import ElevenLabs

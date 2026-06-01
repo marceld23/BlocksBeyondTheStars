@@ -1098,7 +1098,9 @@ Original notes (remaining work):
 - Server owns spawning, growth/regrowth and effects; clients render flora blocks/models and
   send harvest via the normal mine/interact path. Sequence with creatures + the art pass.
 
-### M26 — Audio — **DONE (procedural SFX) / recorded audio + music later**
+### M26 — Audio — **procedural SFX + ambient music & ship hum DONE / recorded SFX (ElevenLabs, batched) later**
+> Full sound catalogue (events, counts, per-category source: procedural / ElevenLabs / MIDI):
+> [docs/SOUND_DESIGN.md](SOUND_DESIGN.md).
 - Unity **audio module** enabled; `AudioListener` on the player camera; master/SFX volumes from
   `ClientSettings` applied (`ClientAudio`).
 - **Procedural SFX** generated in code (no bundled files): mining vs placing (from
