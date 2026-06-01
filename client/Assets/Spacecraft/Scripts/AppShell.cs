@@ -285,13 +285,29 @@ namespace Spacecraft.Client
             }
         }
 
+        private GUIStyle _creditTitle;
+
         private void DrawCredits()
         {
             DrawBackground();
-            float x = Screen.width / 2f - 200, y = Screen.height / 2f - 60;
-            GUI.Label(new Rect(x, y, 400, 30), L("ui.credits.title"));
-            GUI.Label(new Rect(x, y + 34, 400, 60), L("ui.credits.body"));
-            if (GUI.Button(new Rect(x, y + 100, 200, 30), L("ui.menu.back")))
+            _creditTitle ??= new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
+            float x = Screen.width / 2f - 220f, y = Screen.height / 2f - 90f;
+
+            // Themed panel.
+            var panel = new Rect(x - 24f, y - 22f, 488f, 220f);
+            var prev = GUI.color;
+            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.86f);
+            GUI.DrawTexture(panel, Texture2D.whiteTexture);
+            GUI.color = UiKit.Cyan;
+            GUI.DrawTexture(new Rect(panel.x, panel.y, panel.width, 1f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(panel.x, panel.yMax - 1f, panel.width, 1f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(panel.x, panel.y, 1f, panel.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(panel.xMax - 1f, panel.y, 1f, panel.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            GUI.Label(new Rect(x, y, 440, 30), L("ui.credits.title"), _creditTitle);
+            GUI.Label(new Rect(x, y + 42f, 440, 100), L("ui.credits.body"));
+            if (GUI.Button(new Rect(x, y + 152f, 200, 30), L("ui.menu.back")))
             {
                 Phase = ShellPhase.MainMenu;
             }

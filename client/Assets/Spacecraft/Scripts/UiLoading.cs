@@ -18,13 +18,13 @@ namespace Spacecraft.Client
 
             // Chrome echoing the menu: system check + title + version.
             UiKit.AddPanel(root, 40f, 40f, 280f, 200f, UiKit.PanelFill);
-            UiKit.AddText(root, 60f, 54f, 250f, 22f, "// SYSTEM CHECK", 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            string[] sys = { "ENGINES", "SHIELDS", "LIFE SUPPORT", "COMMS", "NAVIGATION" };
-            for (int i = 0; i < sys.Length; i++)
+            UiKit.AddText(root, 60f, 54f, 250f, 22f, shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
+            for (int i = 0; i < sysKeys.Length; i++)
             {
                 float yy = 92f + i * 28f;
-                UiKit.AddText(root, 60f, yy, 190f, 22f, sys[i], 15, UiKit.TextCol);
-                UiKit.AddText(root, 250f, yy, 50f, 22f, "OK", 15, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(root, 60f, yy, 190f, 22f, shell.L(sysKeys[i]), 15, UiKit.TextCol);
+                UiKit.AddText(root, 250f, yy, 50f, 22f, shell.L("ui.sys.ok"), 15, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
             UiKit.AddText(root, 360f, 70f, 800f, 96f, "SPACECRAFT", 64, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -43,14 +43,12 @@ namespace Spacecraft.Client
 
             // TIP panel.
             UiKit.AddPanel(root, 1210f, 760f, 630f, 120f, UiKit.PanelFill);
-            UiKit.AddText(root, 1240f, 776f, 120f, 24f, "TIP", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var tip = UiKit.AddText(root, 1240f, 802f, 570f, 64f, "Upgrade your ship's modules to survive harsher planets.", 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            UiKit.AddText(root, 1240f, 776f, 120f, 24f, shell.L("ui.loading.tip_label"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var tip = UiKit.AddText(root, 1240f, 802f, 570f, 64f, shell.L("ui.loading.tip"), 17, UiKit.TextCol, TextAnchor.UpperLeft);
             tip.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // Status row.
-            UiKit.AddText(root, 110f, 910f, 1700f, 24f,
-                "Generating star systems     ·     Preparing planet chunks     ·     Syncing mission data",
-                17, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(root, 110f, 910f, 1700f, 24f, shell.L("ui.loading.status"), 17, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             var updater = canvas.gameObject.AddComponent<LoadingUpdater>();
             updater.Shell = shell;

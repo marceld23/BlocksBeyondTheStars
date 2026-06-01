@@ -18,13 +18,13 @@ namespace Spacecraft.Client
 
             // --- SYSTEM CHECK panel (decorative flavour) ---
             UiKit.AddPanel(root, 40f, 40f, 280f, 220f, UiKit.PanelFill);
-            UiKit.AddText(root, 60f, 54f, 250f, 22f, "// SYSTEM CHECK", 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            string[] systems = { "ENGINES", "SHIELDS", "LIFE SUPPORT", "COMMS", "NAVIGATION" };
-            for (int i = 0; i < systems.Length; i++)
+            UiKit.AddText(root, 60f, 54f, 250f, 22f, shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
+            for (int i = 0; i < sysKeys.Length; i++)
             {
                 float yy = 92f + i * 30f;
-                UiKit.AddText(root, 60f, yy, 190f, 22f, systems[i], 16, UiKit.TextCol);
-                UiKit.AddText(root, 250f, yy, 50f, 22f, "OK", 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(root, 60f, yy, 190f, 22f, shell.L(sysKeys[i]), 16, UiKit.TextCol);
+                UiKit.AddText(root, 250f, yy, 50f, 22f, shell.L("ui.sys.ok"), 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
             // --- Title ---
@@ -42,15 +42,15 @@ namespace Spacecraft.Client
 
             // --- World / server info panel (bottom-right, decorative) ---
             UiKit.AddPanel(root, 1290f, 650f, 590f, 250f, UiKit.PanelFill);
-            UiKit.AddText(root, 1314f, 666f, 540f, 24f, "WORLD / SERVER INFO", 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            AddInfo(root, 706f, "MODE: SURVIVAL", "Gather resources, craft, build, survive.");
-            AddInfo(root, 770f, "MULTIPLAYER READY", "Play with friends or host your own server.");
-            AddInfo(root, 834f, "PROCEDURAL WORLDS", "Infinite worlds, unique every time.");
+            UiKit.AddText(root, 1314f, 666f, 540f, 24f, shell.L("ui.menu.world_info"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            AddInfo(root, 706f, shell.L("ui.info.mode_title"), shell.L("ui.info.mode_desc"));
+            AddInfo(root, 770f, shell.L("ui.info.mp_title"), shell.L("ui.info.mp_desc"));
+            AddInfo(root, 834f, shell.L("ui.info.proc_title"), shell.L("ui.info.proc_desc"));
 
             // --- Bottom bar ---
-            UiKit.AddText(root, 90f, 1030f, 400f, 26f, "JOIN THE COMMUNITY", 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(root, 90f, 1030f, 500f, 26f, shell.L("ui.menu.community"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(root, 660f, 1030f, 600f, 26f, shell.L("ui.splash.tagline"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddText(root, 1480f, 1030f, 400f, 26f, "WISHLIST ON STEAM!", 16, UiKit.Cyan, TextAnchor.MiddleRight, FontStyle.Bold);
+            UiKit.AddText(root, 1420f, 1030f, 460f, 26f, shell.L("ui.menu.wishlist"), 16, UiKit.Cyan, TextAnchor.MiddleRight, FontStyle.Bold);
 
             return canvas.gameObject;
         }

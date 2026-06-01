@@ -13,19 +13,48 @@ namespace Spacecraft.Client
 
         public SettingsScreen(AppShell shell) => _shell = shell;
 
+        private GUIStyle _titleStyle, _headStyle;
+
+        private void EnsureStyles()
+        {
+            if (_titleStyle != null)
+            {
+                return;
+            }
+
+            _titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
+            _headStyle = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
+        }
+
+        private static void Frame(Rect r)
+        {
+            var prev = GUI.color;
+            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.86f);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = UiKit.Cyan;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, 1), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - 1, r.width, 1), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.y, 1, r.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.xMax - 1, r.y, 1, r.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+        }
+
         public void Draw()
         {
             _shell.DrawBackground();
+            EnsureStyles();
             var s = _shell.Settings;
             // Centre the settings column horizontally (was pinned top-left).
             float x = Mathf.Max(20f, Screen.width / 2f - 150f);
             float y = Mathf.Max(20f, Screen.height / 2f - 230f);
 
-            GUI.Label(new Rect(x, y, 400, 30), _shell.L("ui.settings.title"));
+            Frame(new Rect(x - 28, y - 22, 356, 690));
+
+            GUI.Label(new Rect(x, y, 400, 30), _shell.L("ui.settings.title"), _titleStyle);
             y += 38;
 
             // --- Graphics ---
-            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.graphics"));
+            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.graphics"), _headStyle);
             y += 26;
             if (GUI.Button(new Rect(x, y, 300, 28), $"{_shell.L("ui.settings.preset")}: {s.Preset}"))
             {
@@ -41,14 +70,14 @@ namespace Spacecraft.Client
             y += 32;
 
             // --- Audio ---
-            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.audio"));
+            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.audio"), _headStyle);
             y += 26;
             s.MasterVolume = VolumeSlider(x, ref y, _shell.L("ui.settings.master_volume"), s.MasterVolume);
             s.MusicVolume = VolumeSlider(x, ref y, _shell.L("ui.settings.music_volume"), s.MusicVolume);
             s.SfxVolume = VolumeSlider(x, ref y, _shell.L("ui.settings.sfx_volume"), s.SfxVolume);
 
             // --- Controls ---
-            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.controls"));
+            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.controls"), _headStyle);
             y += 26;
             GUI.Label(new Rect(x, y, 300, 20), $"{_shell.L("ui.settings.mouse_sensitivity")}: {s.MouseSensitivity:0.0}");
             y += 22;
@@ -58,7 +87,7 @@ namespace Spacecraft.Client
             y += 34;
 
             // --- Character appearance (M23b) ---
-            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.character"));
+            GUI.Label(new Rect(x, y, 400, 20), _shell.L("ui.settings.character"), _headStyle);
             y += 26;
             s.SkinColor = ColorRow(x, ref y, _shell.L("ui.settings.skin"), s.SkinColor);
             s.TorsoColor = ColorRow(x, ref y, _shell.L("ui.settings.torso"), s.TorsoColor);
