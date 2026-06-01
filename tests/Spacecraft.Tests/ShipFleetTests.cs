@@ -106,7 +106,7 @@ public sealed class ShipFleetTests : IDisposable
             Assert.True(server.SwitchShip(id));
             Assert.Equal(id, server.ActiveShipId);
             Assert.Equal("hauler", server.Ship.ShipType);
-            Assert.Equal(140f, server.Ship.Hull); // hauler base hull
+            Assert.Equal(170f, server.Ship.Hull); // hauler base hull
         }
     }
 

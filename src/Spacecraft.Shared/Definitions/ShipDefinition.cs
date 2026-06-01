@@ -15,6 +15,12 @@ public sealed class ShipDefinition
     public float BaseHull { get; set; } = 100f;
     public float BaseShield { get; set; }
 
+    /// <summary>Flight handling, relative to the balanced starter (1.0). Higher = faster cruise speed
+    /// (<see cref="FlightSpeed"/>) and snappier turning (<see cref="Handling"/>). Presentation-side in
+    /// the space view today; archetypes: hauler slow/sluggish, scout fast/agile.</summary>
+    public float FlightSpeed { get; set; } = 1f;
+    public float Handling { get; set; } = 1f;
+
     /// <summary>Interior footprint (odd numbers read best) + height; drives the stamped hull size.</summary>
     public int InteriorWidth { get; set; } = 5;
     public int InteriorLength { get; set; } = 7;

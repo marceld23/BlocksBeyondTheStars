@@ -42,6 +42,8 @@ namespace Spacecraft.Client
         private int _viewMode; // 0 = third-person, 1 = cockpit
         private float _seq;
         private float _yaw, _pitch;
+        private float _shipSpeedMul = 1f; // cruise-speed factor from the active ship design
+        private float _shipTurnMul = 1f;  // turn-rate factor from the active ship design
 
         private void Update()
         {
@@ -139,14 +141,14 @@ namespace Spacecraft.Client
                 Game.Network?.SendLeaveSpace();
             }
 
-            _yaw += Input.GetAxis("Mouse X") * LookSpeed;
-            _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * LookSpeed, -80f, 80f);
+            _yaw += Input.GetAxis("Mouse X") * LookSpeed * _shipTurnMul;
+            _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * LookSpeed * _shipTurnMul, -80f, 80f);
             var rot = Quaternion.Euler(_pitch, _yaw, 0f);
             _ship.transform.localRotation = rot;
 
             float fwd = Input.GetAxis("Vertical");
             float strafe = Input.GetAxis("Horizontal");
-            var move = rot * (Vector3.forward * fwd + Vector3.right * strafe) * (MoveSpeed * Time.deltaTime);
+            var move = rot * (Vector3.forward * fwd + Vector3.right * strafe) * (MoveSpeed * _shipSpeedMul * Time.deltaTime);
             var pos = _ship.transform.localPosition + move;
             if (pos.magnitude > Bounds)
             {
@@ -188,6 +190,7 @@ namespace Spacecraft.Client
             _pitch = 0f;
             Game.SpaceViewActive = true;
 
+            ResolveShipFlight();
             BuildScene();
 
             // Launch roar + a looping engine bed for the flight.
@@ -242,6 +245,35 @@ namespace Spacecraft.Client
             _exhaust = null;
             _active = false;
             Game.SpaceViewActive = false;
+        }
+
+        /// <summary>Reads the active ship's design (data/ships.json) so heavier ships fly slower and
+        /// turn more sluggishly than light scouts (presentation only; combat stays server-side).</summary>
+        private void ResolveShipFlight()
+        {
+            _shipSpeedMul = 1f;
+            _shipTurnMul = 1f;
+
+            string type = null;
+            var owned = Game?.OwnedShips;
+            if (owned != null)
+            {
+                foreach (var s in owned)
+                {
+                    if (s.Active)
+                    {
+                        type = s.Type;
+                        break;
+                    }
+                }
+            }
+
+            var def = type != null ? Game?.Content?.GetShip(type) : null;
+            if (def != null)
+            {
+                _shipSpeedMul = def.FlightSpeed > 0f ? def.FlightSpeed : 1f;
+                _shipTurnMul = def.Handling > 0f ? def.Handling : 1f;
+            }
         }
 
         private void BuildScene()
