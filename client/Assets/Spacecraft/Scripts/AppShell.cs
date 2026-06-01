@@ -52,6 +52,28 @@ namespace Spacecraft.Client
             _loading = new LoadingScreen(this);
         }
 
+        private void Start() => PlaySplashSound();
+
+        /// <summary>Plays the bombastic intro sting over the splash screen (ensures a listener exists).</summary>
+        private void PlaySplashSound()
+        {
+            var clip = Resources.Load<AudioClip>("audio/splash_intro");
+            if (clip == null)
+            {
+                return;
+            }
+
+            if (FindFirstObjectByType<AudioListener>() == null)
+            {
+                gameObject.AddComponent<AudioListener>();
+            }
+
+            var src = gameObject.AddComponent<AudioSource>();
+            src.spatialBlend = 0f;
+            src.volume = Mathf.Clamp01(Settings?.MasterVolume ?? 0.8f);
+            src.PlayOneShot(clip);
+        }
+
         /// <summary>(Re)loads content and the localizer for the currently selected language.</summary>
         public void LoadLocalizer()
         {
