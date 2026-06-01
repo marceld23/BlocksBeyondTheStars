@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -102,6 +103,30 @@ namespace Spacecraft.Client
             return img;
         }
 
+        private static readonly Dictionary<string, Sprite> _icons = new Dictionary<string, Sprite>();
+
+        /// <summary>Loads a UI icon sprite from Resources/icons by name (runtime Sprite from the
+        /// Texture2D, so its import type doesn't matter); returns null if the icon isn't present.</summary>
+        public static Sprite Icon(string name)
+        {
+            if (_icons.TryGetValue(name, out var sprite))
+            {
+                return sprite;
+            }
+
+            var tex = Resources.Load<Texture2D>("icons/" + name);
+            sprite = tex != null ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f) : null;
+            _icons[name] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Places an icon (if it exists) at a square rect; no-op when the icon is missing.</summary>
+        public static Image AddIcon(Transform parent, float x, float y, float size, string name)
+        {
+            var sprite = Icon(name);
+            return sprite == null ? null : AddImage(parent, x, y, size, size, sprite, Color.white);
+        }
+
         public static Image AddImage(Transform parent, float x, float y, float w, float h, Sprite sprite, Color color, Image.Type type = Image.Type.Simple)
         {
             var go = new GameObject("Image", typeof(RectTransform));
@@ -132,6 +157,23 @@ namespace Spacecraft.Client
             t.verticalOverflow = VerticalWrapMode.Overflow;
             t.raycastTarget = false;
             return t;
+        }
+
+        /// <summary>Draws the title as a layered "logo": a cyan glow + a 3D extruded depth + a bright white face.</summary>
+        public static void AddLogo(Transform parent, float x, float y, float w, float h, string text, int size)
+        {
+            var glow = new Color(0.30f, 0.75f, 1f, 0.35f);
+            AddText(parent, x - 4f, y, w, h, text, size, glow, TextAnchor.MiddleLeft, FontStyle.Bold);
+            AddText(parent, x + 4f, y, w, h, text, size, glow, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            for (int d = 7; d >= 1; d--)
+            {
+                float k = d / 7f;
+                var depth = new Color(0.06f, 0.16f * (1f - k) + 0.06f, 0.30f * (1f - k) + 0.08f, 1f);
+                AddText(parent, x + d, y + d, w, h, text, size, depth, TextAnchor.MiddleLeft, FontStyle.Bold);
+            }
+
+            AddText(parent, x, y, w, h, text, size, new Color(0.93f, 0.97f, 1f), TextAnchor.MiddleLeft, FontStyle.Bold);
         }
 
         public static Button AddButton(Transform parent, float x, float y, float w, float h, string label, System.Action onClick)

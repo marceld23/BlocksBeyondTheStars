@@ -27,7 +27,7 @@ namespace Spacecraft.Client
                 UiKit.AddText(root, 250f, yy, 50f, 22f, shell.L("ui.sys.ok"), 15, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
-            UiKit.AddText(root, 360f, 70f, 800f, 96f, "SPACECRAFT", 64, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddLogo(root, 360f, 70f, 800f, 96f, "SPACECRAFT", 64);
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
             // Progress bar.

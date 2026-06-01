@@ -28,7 +28,7 @@ namespace Spacecraft.Client
             }
 
             // --- Title ---
-            UiKit.AddText(root, 360f, 70f, 800f, 96f, "SPACECRAFT", 72, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddLogo(root, 360f, 70f, 800f, 96f, "SPACECRAFT", 72);
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
             // --- Menu buttons ---
