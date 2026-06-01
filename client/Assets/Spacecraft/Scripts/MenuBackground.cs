@@ -5,8 +5,9 @@ namespace Spacecraft.Client
     /// <summary>
     /// Animated space-scene backdrop for the shell screens (M27 UI rework): a code-built starfield,
     /// a slowly rotating planet, a drifting blocky ship and tumbling asteroids, rendered by its own
-    /// camera so the menu/loading IMGUI (and later uGUI) draws on top. Pure code on the
-    /// always-included Unlit/Color shader — no assets. Gentle continuous motion.
+    /// camera so the menu/loading IMGUI (and later uGUI) draws on top. The planet, moon, ship and
+    /// asteroids are lit (Spacecraft/LitColor, a fixed key light) and carry block textures so they
+    /// read as 3D; the starfield and engine/cockpit glow stay unlit. Gentle continuous motion.
     /// </summary>
     public sealed class MenuBackground : MonoBehaviour
     {
@@ -31,10 +32,16 @@ namespace Spacecraft.Client
 
             BuildStars();
 
-            _planet = MakeSphere("Planet", new Vector3(11f, -3f, 34f), 26f, new Color(0.22f, 0.42f, 0.62f)).transform;
-            _moon = MakeSphere("Moon", new Vector3(-16f, 11f, 60f), 5f, new Color(0.55f, 0.55f, 0.6f)).transform;
+            var rock = LoadTex("stone");
+            var hullTex = LoadTex("iron_wall");
+            var iceTex = LoadTex("ice");
 
-            _ship = BuildShip();
+            _planet = MakeSphere("Planet", new Vector3(11f, -3f, 34f), 26f,
+                Lit(new Color(0.30f, 0.50f, 0.70f), iceTex, new Vector2(4f, 2f))).transform;
+            _moon = MakeSphere("Moon", new Vector3(-16f, 11f, 60f), 5f,
+                Lit(new Color(0.60f, 0.60f, 0.64f), rock, new Vector2(2f, 1f))).transform;
+
+            _ship = BuildShip(hullTex);
             _ship.localPosition = new Vector3(-2.5f, -1.5f, 9f);
             _ship.localRotation = Quaternion.Euler(6f, 28f, -3f);
 
@@ -44,7 +51,7 @@ namespace Spacecraft.Client
                 var a = Cube("Asteroid", transform,
                     new Vector3((float)(rng.NextDouble() * 28 - 14), (float)(rng.NextDouble() * 16 - 8), 14f + (float)rng.NextDouble() * 24f),
                     Vector3.one * (0.6f + (float)rng.NextDouble() * 1.6f),
-                    Unlit(new Color(0.32f, 0.30f, 0.27f)));
+                    Lit(new Color(0.45f, 0.40f, 0.34f), rock));
                 _asteroids[i] = a.transform;
             }
         }
@@ -101,11 +108,11 @@ namespace Spacecraft.Client
             }
         }
 
-        private Transform BuildShip()
+        private Transform BuildShip(Texture2D hullTex)
         {
             var ship = new GameObject("Ship").transform;
             ship.SetParent(transform, false);
-            var hull = Unlit(new Color(0.58f, 0.60f, 0.66f));
+            var hull = Lit(new Color(0.62f, 0.64f, 0.70f), hullTex);
             var glass = Unlit(new Color(0.3f, 0.7f, 0.95f));
             var engine = Unlit(new Color(0.35f, 0.8f, 1f));
 
@@ -118,14 +125,14 @@ namespace Spacecraft.Client
             return ship;
         }
 
-        private static GameObject MakeSphere(string name, Vector3 pos, float scale, Color color)
+        private static GameObject MakeSphere(string name, Vector3 pos, float scale, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = name;
             StripCollider(go);
             go.transform.localPosition = pos;
             go.transform.localScale = Vector3.one * scale;
-            go.GetComponent<Renderer>().sharedMaterial = Unlit(color);
+            go.GetComponent<Renderer>().sharedMaterial = mat;
             return go;
         }
 
@@ -154,6 +161,40 @@ namespace Spacecraft.Client
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
             return new Material(shader) { color = c };
+        }
+
+        /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>
+        private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
+        {
+            var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(shader) { color = c };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+                if (tiling != default)
+                {
+                    m.mainTextureScale = tiling;
+                }
+            }
+
+            return m;
+        }
+
+        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes PNG) at runtime.</summary>
+        private static Texture2D LoadTex(string key)
+        {
+            var asset = Resources.Load<TextAsset>("textures/" + key);
+            if (asset == null)
+            {
+                return null;
+            }
+
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point,
+            };
+            return tex.LoadImage(asset.bytes) ? tex : null;
         }
     }
 }

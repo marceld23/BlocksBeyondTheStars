@@ -27,6 +27,8 @@ namespace Spacecraft.Client.EditorTools
         {
             "Spacecraft/VertexColorOpaque",
             "Spacecraft/BlockAtlas",
+            "Spacecraft/LitColor",
+            "Spacecraft/SunGlow",
             "Unlit/Color",
         };
 

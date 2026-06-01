@@ -18,8 +18,11 @@ namespace Spacecraft.Client
         private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         private Light _sun;
+        private Transform _sunDisc;     // visible glowing sun billboard in the sky
+        private Material _sunDiscMat;
         private float _time;        // local 0..1 day fraction
         private float _dayLength = 600f;
         private bool _haveEnv;
@@ -31,6 +34,62 @@ namespace Spacecraft.Client
             _sun = go.AddComponent<Light>();
             _sun.type = LightType.Directional;
             _sun.shadows = LightShadows.None;
+
+            BuildSunDisc();
+        }
+
+        private void BuildSunDisc()
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = "SunDisc";
+            var col = quad.GetComponent<Collider>();
+            if (col != null)
+            {
+                Destroy(col);
+            }
+
+            var shader = Shader.Find("Spacecraft/SunGlow");
+            _sunDiscMat = new Material(shader != null ? shader : Shader.Find("Unlit/Color"))
+            {
+                mainTexture = GenerateGlowTexture(),
+            };
+            _sunDiscMat.SetColor(ColorId, Color.white);
+
+            var mr = quad.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _sunDiscMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+
+            _sunDisc = quad.transform;
+            _sunDisc.SetParent(transform, false);
+            _sunDisc.gameObject.SetActive(false);
+        }
+
+        private static Texture2D GenerateGlowTexture()
+        {
+            const int n = 128;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+            {
+                for (int x = 0; x < n; x++)
+                {
+                    float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
+                    float core = Mathf.Clamp01(1f - d * 4f);              // tight bright disc
+                    float halo = Mathf.Pow(Mathf.Clamp01(1f - d), 2.5f); // soft surrounding glow
+                    float a = Mathf.Clamp01(core * 0.8f + halo * 0.6f);
+                    px[y * n + x] = new Color(1f, 1f, 1f, a);
+                }
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
         }
 
         private void Update()
@@ -107,12 +166,49 @@ namespace Spacecraft.Client
                 // The lit block shader reads the sun direction from this global (direction TO the sun).
                 Shader.SetGlobalVector(SunDirId, -_sun.transform.forward);
             }
+
+            UpdateSunDisc(sunHeight, sunColor, spaceSky);
+        }
+
+        /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the
+        /// system sun colour and faded near/below the horizon. Hidden during the space view.</summary>
+        private void UpdateSunDisc(float sunHeight, Color sunColor, bool spaceSky)
+        {
+            if (_sunDisc == null || _sun == null)
+            {
+                return;
+            }
+
+            bool active = Camera != null && sunHeight > -0.12f && (Game == null || !Game.SpaceViewActive);
+            _sunDisc.gameObject.SetActive(active);
+            if (!active)
+            {
+                return;
+            }
+
+            Vector3 camPos = Camera.transform.position;
+            Vector3 dir = (-_sun.transform.forward).normalized; // direction TO the sun
+            float dist = Mathf.Min(Camera.farClipPlane * 0.85f, 900f);
+            _sunDisc.position = camPos + dir * dist;
+            _sunDisc.rotation = Quaternion.LookRotation(camPos - _sunDisc.position); // billboard (Cull Off)
+            float size = dist * (spaceSky ? 0.18f : 0.14f);
+            _sunDisc.localScale = new Vector3(size, size, size);
+
+            // Fade in as the sun rises; a touch brighter against an airless black sky.
+            float a = Mathf.Clamp01(sunHeight * 1.6f + 0.3f) * (spaceSky ? 1.25f : 1f);
+            Color c = sunColor;
+            c.a = Mathf.Clamp01(a);
+            _sunDiscMat.SetColor(ColorId, c);
         }
 
         private void OnDisable()
         {
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
+            if (_sunDisc != null)
+            {
+                _sunDisc.gameObject.SetActive(false);
+            }
         }
 
         private static Color Rgb(int rgb)
