@@ -28,6 +28,11 @@ public sealed partial class GameServer
     private bool _shipStamped;
     private readonly List<(string Type, Vector3f Pos)> _stations = new();
 
+    // Exterior cosmetic blocks (wings, rear engine nozzles, cockpit canopy) that give the landed
+    // hull the space-ship silhouette. Tracked so they count as protected ship structure, but they
+    // are outside the interior box so they don't affect the "aboard" check.
+    private readonly HashSet<Vector3i> _shipExtra = new();
+
     /// <summary>The medbay heal-tank position inside the ship (respawn point), if a ship is placed.</summary>
     public Vector3f HealTank => _healTank;
     public bool HasShip => _shipStamped;
@@ -91,6 +96,42 @@ public sealed partial class GameServer
             bool viewport = z == cz + _shipHalfZ && y == y0 + 2 && x > cx - _shipHalfX && x < cx + _shipHalfX;
             _world.SetBlock(pos, viewport ? glass : wall);
         }
+
+        // Exterior silhouette so the landed ship reads like the space ship from outside: side wings,
+        // rear engine nozzles (dark = engines off) and a raised glass cockpit canopy at the front.
+        // The front -Z door stays the open hatch. These sit outside the interior box.
+        var dark = _content.GetBlock("carbon")?.NumericId
+                   ?? _content.GetBlock("basalt")?.NumericId ?? wall;
+        _shipExtra.Clear();
+
+        void Ext(int x, int y, int z, BlockId id)
+        {
+            var p = new Vector3i(x, y, z);
+            _world.SetBlock(p, id);
+            _shipExtra.Add(p);
+        }
+
+        int wingY = y0 + System.Math.Max(1, _shipHeight / 2);   // wings at hull mid-height
+        for (int s = -1; s <= 1; s += 2)                        // both sides
+        {
+            for (int w = 1; w <= 2; w++)                        // span outward
+            {
+                for (int zc = cz - 1; zc <= cz + 1; zc++)       // wing chord (centred)
+                {
+                    Ext(cx + s * (_shipHalfX + w), wingY, zc, wall);
+                }
+            }
+
+            // Rear engine nozzle (dark, off), paired near the back centre.
+            for (int d = 1; d <= 2; d++)
+            {
+                Ext(cx + s, y0 + 1, cz - _shipHalfZ - d, dark);
+            }
+        }
+
+        // Cockpit canopy: a small raised glass bump on top, toward the front.
+        Ext(cx, y0 + _shipHeight + 1, cz + _shipHalfZ - 1, glass);
+        Ext(cx, y0 + _shipHeight + 1, cz + _shipHalfZ - 2, glass);
 
         // Interior station markers on the floor. The whole hull is mining-protected, so these
         // stay put. The logical stations also exist as ship modules (workshop gates crafting,
@@ -221,9 +262,10 @@ public sealed partial class GameServer
         }
 
         int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
-        return p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
+        bool inHull = p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
                && p.Y >= y0 && p.Y <= y0 + _shipHeight
                && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
+        return inHull || _shipExtra.Contains(p);
     }
 
     /// <summary>Test/diagnostic accessor: whether a world cell is protected ship structure.</summary>
