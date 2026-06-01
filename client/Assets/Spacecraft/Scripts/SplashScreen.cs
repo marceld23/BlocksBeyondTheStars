@@ -59,24 +59,9 @@ namespace Spacecraft.Client
             float w = Screen.width, h = Screen.height;
             float t = _elapsed;
 
-            // --- Dark vertical gradient background ---
-            const int bands = 32;
-            for (int i = 0; i < bands; i++)
-            {
-                float f = i / (float)bands;
-                var top = new Color(0.02f, 0.03f, 0.07f);
-                var bottom = new Color(0.05f, 0.10f, 0.20f);
-                Fill(new Rect(0, h * f, w, h / bands + 1), Color.Lerp(top, bottom, f));
-            }
-
-            // --- Drifting, twinkling starfield ---
-            for (int i = 0; i < StarCount; i++)
-            {
-                float sx = _starX[i] * w;
-                float sy = (_starY[i] + t * 0.012f) % 1f * h;
-                float a = 0.25f + 0.75f * (0.5f + 0.5f * Mathf.Sin(t * 1.6f + _starPhase[i]));
-                Fill(new Rect(sx, sy, _starSize[i], _starSize[i]), new Color(0.8f, 0.9f, 1f, a));
-            }
+            // The animated MenuBackground space scene shows through behind the splash (same as the
+            // menu), so we only draw a faint darkening for title readability — no separate starfield.
+            Fill(new Rect(0, 0, w, h), new Color(0.02f, 0.04f, 0.09f, 0.35f));
 
             // --- Animated extruded title ---
             float intro = Mathf.Clamp01(t / 0.9f);

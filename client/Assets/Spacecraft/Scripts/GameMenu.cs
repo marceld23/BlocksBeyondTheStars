@@ -76,7 +76,24 @@ namespace Spacecraft.Client
             var loc = Game.Localizer;
             const float w = 580f, h = 440f;
             var area = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            GUI.Box(area, "Spacecraft");
+
+            // Themed panel (deep-blue fill + cyan border) + a cyan tint for the IMGUI controls.
+            var prevBg = GUI.backgroundColor;
+            var prevContent = GUI.contentColor;
+            var prevColor = GUI.color;
+            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.94f);
+            GUI.DrawTexture(area, Texture2D.whiteTexture);
+            GUI.color = UiKit.Cyan;
+            GUI.DrawTexture(new Rect(area.x, area.y, area.width, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(area.x, area.yMax - 2f, area.width, 2f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(area.x, area.y, 2f, area.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(area.xMax - 2f, area.y, 2f, area.height), Texture2D.whiteTexture);
+            GUI.color = prevColor;
+
+            GUI.contentColor = UiKit.Cyan;
+            GUI.Label(new Rect(area.x + 14f, area.y + 5f, w - 28f, 20f), "SPACECRAFT");
+            GUI.contentColor = UiKit.TextCol;
+            GUI.backgroundColor = new Color(0.35f, 0.7f, 1f, 1f);
 
             GUILayout.BeginArea(new Rect(area.x + 12, area.y + 28, w - 24, h - 40));
 
@@ -116,6 +133,9 @@ namespace Spacecraft.Client
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+
+            GUI.backgroundColor = prevBg;
+            GUI.contentColor = prevContent;
         }
 
         private void TabButton(string label, Tab tab)
