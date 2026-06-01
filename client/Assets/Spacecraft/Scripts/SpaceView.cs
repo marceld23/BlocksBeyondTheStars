@@ -399,7 +399,9 @@ namespace Spacecraft.Client
                 var loc = Game.Localizer;
                 string hint = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
                 var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-                GUI.Label(new Rect(Screen.width / 2f - 250, Screen.height - 28, 500, 22), hint, style);
+                UiScale.Begin();
+                GUI.Label(new Rect(UiScale.Width / 2f - 250, UiScale.Height - 28, 500, 22), hint, style);
+                UiScale.End();
             }
         }
 

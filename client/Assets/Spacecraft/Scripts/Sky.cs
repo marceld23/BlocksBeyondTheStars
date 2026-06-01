@@ -212,7 +212,9 @@ namespace Spacecraft.Client
 
             Vector3 camPos = Camera.transform.position;
             Vector3 dir = (-_sun.transform.forward).normalized; // direction TO the sun
-            float dist = Mathf.Min(Camera.farClipPlane * 0.85f, 900f);
+            // Kept comfortably inside the frustum (the disc isn't depth-tested, so distance only sets
+            // its placement + angular size); avoids clipping against the camera's far plane.
+            float dist = Mathf.Clamp(Camera.farClipPlane * 0.5f, 60f, 400f);
             _sunDisc.position = camPos + dir * dist;
             _sunDisc.rotation = Quaternion.LookRotation(camPos - _sunDisc.position); // billboard (Cull Off)
             float size = dist * (spaceSky ? 0.26f : 0.20f);

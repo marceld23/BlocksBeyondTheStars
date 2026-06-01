@@ -49,11 +49,12 @@ namespace Spacecraft.Client
 
             EnsureStyles();
             var loc = Game.Localizer;
+            UiScale.Begin(); // lay out in a virtual 1080p space so the HUD scales with resolution
 
             // Centre crosshair (hidden while a UI panel is open).
             if (!Game.MenuOpen)
             {
-                float cx = Screen.width / 2f, cy = Screen.height / 2f;
+                float cx = UiScale.Width / 2f, cy = UiScale.Height / 2f;
                 var prev = GUI.color;
                 GUI.color = UiKit.Cyan;
                 GUI.DrawTexture(new Rect(cx - 1, cy - 9, 2, 18), Texture2D.whiteTexture);
@@ -97,28 +98,30 @@ namespace Spacecraft.Client
             // Server feedback toast.
             if (!string.IsNullOrEmpty(Game.LastMessage))
             {
-                GUI.Label(new Rect(14, 268, Screen.width - 28, 22), Game.LastMessage, _cyan);
+                GUI.Label(new Rect(14, 268, UiScale.Width - 28, 22), Game.LastMessage, _cyan);
             }
 
             // In-space indicator.
             if (Game.InSpace)
             {
-                GUI.Label(new Rect(Screen.width / 2f - 100, 8, 200, 22), loc.Get("ui.hud.in_space"), _center);
+                GUI.Label(new Rect(UiScale.Width / 2f - 100, 8, 200, 22), loc.Get("ui.hud.in_space"), _center);
             }
 
             // Centre interaction prompt: station, else scanner-in-hand.
             if (!Game.MenuOpen && !string.IsNullOrEmpty(Game.NearbyStation))
             {
-                GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 24, 300, 22),
+                GUI.Label(new Rect(UiScale.Width / 2f - 150, UiScale.Height / 2f + 24, 300, 22),
                     $"{loc.Get("ui.hud.use")}: {loc.Get($"ui.station.{Game.NearbyStation}")}", _center);
             }
             else if (!Game.MenuOpen && HoldingScanner())
             {
-                GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 24, 300, 22), loc.Get("ui.scan.use_hint"), _center);
+                GUI.Label(new Rect(UiScale.Width / 2f - 150, UiScale.Height / 2f + 24, 300, 22), loc.Get("ui.scan.use_hint"), _center);
             }
 
             // Hint.
-            GUI.Label(new Rect(12, Screen.height - 24, 1000, 20), loc.Get("ui.hud.hint"), _label);
+            GUI.Label(new Rect(12, UiScale.Height - 24, 1000, 20), loc.Get("ui.hud.hint"), _label);
+
+            UiScale.End();
         }
 
         /// <summary>One vital row: optional icon + a value bar with an overlaid "label value" caption.</summary>
@@ -137,8 +140,8 @@ namespace Spacecraft.Client
         private void DrawHotbar(Spacecraft.Shared.Localization.Localizer loc)
         {
             float totalWidth = HotbarSlots * SlotSize;
-            float x0 = (Screen.width - totalWidth) / 2f;
-            float y = Screen.height - SlotSize - 28;
+            float x0 = (UiScale.Width - totalWidth) / 2f;
+            float y = UiScale.Height - SlotSize - 28;
 
             for (int i = 0; i < HotbarSlots; i++)
             {
@@ -193,7 +196,7 @@ namespace Spacecraft.Client
             }
 
             const float w = 290f, h = 96f;
-            float x = 10f, y = Screen.height - h - 48f;
+            float x = 10f, y = UiScale.Height - h - 48f;
             Frame(new Rect(x, y, w, h));
             GUI.Label(new Rect(x + 10, y + 6, w - 18, 18), $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {scan.Subject}", _cyan);
             GUI.Label(new Rect(x + 10, y + 28, w - 18, 18), scan.Info, _label);
@@ -210,7 +213,7 @@ namespace Spacecraft.Client
             }
 
             const float w = 250f, h = 100f;
-            float x = Screen.width - w - 10f, y = 140f;
+            float x = UiScale.Width - w - 10f, y = 140f;
             Frame(new Rect(x, y, w, h));
             GUI.Label(new Rect(x + 10, y + 6, w - 18, 18), loc.Get("ui.wreck.title").ToUpperInvariant(), _cyan);
             GUI.Label(new Rect(x + 10, y + 26, w - 18, 18), wreck.WreckName, _label);
@@ -257,14 +260,14 @@ namespace Spacecraft.Client
                 return;
             }
 
-            GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 48, 300, 22), $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})", _center);
+            GUI.Label(new Rect(UiScale.Width / 2f - 150, UiScale.Height / 2f + 48, 300, 22), $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})", _center);
         }
 
         /// <summary>Top-right minimap/compass that always points toward the player's ship, with the distance.</summary>
         private void DrawShipCompass(Spacecraft.Shared.Localization.Localizer loc)
         {
             const float size = 120f;
-            float ox = Screen.width - size - 10f, oy = 10f;
+            float ox = UiScale.Width - size - 10f, oy = 10f;
             Frame(new Rect(ox, oy, size, size));
             GUI.Label(new Rect(ox + 8, oy + 3, size - 14, 18), loc.Get("ui.hud.ship").ToUpperInvariant(), _cyan);
 

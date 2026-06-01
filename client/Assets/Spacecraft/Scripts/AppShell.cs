@@ -48,14 +48,8 @@ namespace Spacecraft.Client
             Settings.Apply();
             LoadLocalizer();
 
-            // IMGUI renders at native pixels; on a high-DPI / 4K display that makes the whole UI
-            // tiny. Cap the render resolution so menus + HUD stay a readable physical size.
-            var cur = Screen.currentResolution;
-            if (cur.width > 1920)
-            {
-                Screen.SetResolution(1920, 1080, Screen.fullScreenMode);
-            }
-
+            // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
+            // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
             _splash = new SplashScreen(this);
             _menu = new MainMenu(this);
             _settings = new SettingsScreen(this);

@@ -22,7 +22,8 @@ namespace Spacecraft.Client
                 return;
             }
 
-            float cx = Screen.width / 2f, cy = Radius + 24f;
+            UiScale.Begin(); // scale the radar with resolution
+            float cx = UiScale.Width / 2f, cy = Radius + 24f;
             var prev = GUI.color;
 
             // Panel + cyan border.
@@ -61,6 +62,7 @@ namespace Spacecraft.Client
             }
 
             GUI.color = prev;
+            UiScale.End();
         }
     }
 }

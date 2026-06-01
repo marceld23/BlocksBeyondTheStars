@@ -74,15 +74,12 @@ namespace Spacecraft.Client
             }
 
             var loc = Game.Localizer;
-            const float w = 580f, h = 440f;
+            const float w = 760f, h = 560f;
 
-            // Scale the whole menu up (centred) so it's comfortably large, clamped so it still fits
-            // on smaller / lower-resolution screens (panel must stay within ~95% of the screen).
-            float scale = Mathf.Min(1.7f, Screen.width * 0.95f / w, Screen.height * 0.95f / h);
-            var prevMatrix = GUI.matrix;
-            GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(Screen.width / 2f, Screen.height / 2f));
-
-            var area = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
+            // Resolution-independent scaling: lay the menu out in a virtual 1080p space (centred), so
+            // it is comfortably large and keeps its physical size on high-DPI / 4K screens.
+            UiScale.Begin();
+            var area = new Rect((UiScale.Width - w) / 2f, (UiScale.Height - h) / 2f, w, h);
 
             // Themed panel (deep-blue fill + cyan border) + a cyan tint for the IMGUI controls.
             var prevBg = GUI.backgroundColor;
@@ -143,7 +140,7 @@ namespace Spacecraft.Client
 
             GUI.backgroundColor = prevBg;
             GUI.contentColor = prevContent;
-            GUI.matrix = prevMatrix;
+            UiScale.End();
         }
 
         private void TabButton(string label, Tab tab)

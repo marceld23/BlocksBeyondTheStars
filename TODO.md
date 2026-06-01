@@ -352,6 +352,14 @@ consumes protocol messages that already exist.
   creatures), **weapon/equipment VFX** (see Player weapons + Equipment), **weather** clouds + fog/view-
   distance + rain/lightning (see World systems), the **suit lamp/lighting** term, and a **texture audit**
   (items/icons, creatures/NPCs, planet surfaces, ship-hull variants — generate more as needed).
+- **(NEW, planned) Local time-of-day indicator:** a small planet HUD day/night clock scaled to the
+  world's day length, showing how long until night / until day (from `WorldEnvironment.TimeOfDay` +
+  `DayLengthSeconds`). The visible **sun already wanders** across the sky by time of day. Bilingual.
+- **(NEW, planned) Content editors + merge:** a menu-based **ship-type editor** (build a ship from
+  blocks — engines, cockpit glass, entry hatch, stations — set hull/shield/flightSpeed/handling/cargo
+  + blueprint-unlock cost) and an **equipment/recipe editor** (new items + crafting recipes, costs,
+  blueprint gating), each exporting JSON, plus a **merge script** that validates + folds the output
+  into `data/*` (ships/items/recipes/blueprints). See plan addendum "Tooling — content editors".
 - **M28 — Windows player build — tooling DONE, needs a real build run.** `BuildScript.BuildWindows`
   (editor, generates a minimal `Launcher.unity` with one `AppShell`, builds StandaloneWindows64 →
   `Build/Windows/Spacecraft.exe`, auto-includes StreamingAssets = data + bundled server) +

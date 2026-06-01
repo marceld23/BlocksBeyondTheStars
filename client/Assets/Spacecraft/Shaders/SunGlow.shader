@@ -10,11 +10,14 @@ Shader "Spacecraft/SunGlow"
     }
     SubShader
     {
-        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
+        // Drawn before opaque geometry (Background) and never depth-tested, so it always shows on the
+        // sky; opaque terrain drawn afterwards naturally occludes it where there are hills. This avoids
+        // depth-test edge cases (reversed-Z) that made the disc invisible at the far horizon.
+        Tags { "Queue" = "Background+10" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
         Blend One One
         Cull Off
         ZWrite Off
-        ZTest LEqual
+        ZTest Always
 
         Pass
         {
