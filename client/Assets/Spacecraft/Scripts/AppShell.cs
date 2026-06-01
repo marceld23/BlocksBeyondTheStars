@@ -60,6 +60,29 @@ namespace Spacecraft.Client
             _menu = new MainMenu(this);
             _settings = new SettingsScreen(this);
             _loading = new LoadingScreen(this);
+
+            EnsureMenuBackground();
+        }
+
+        private GameObject _menuBackground;
+
+        /// <summary>Spawns the animated space-scene backdrop shown behind the shell screens.</summary>
+        private void EnsureMenuBackground()
+        {
+            if (_menuBackground == null)
+            {
+                _menuBackground = new GameObject("MenuBackground");
+                _menuBackground.AddComponent<MenuBackground>();
+            }
+        }
+
+        private void DestroyMenuBackground()
+        {
+            if (_menuBackground != null)
+            {
+                UnityEngine.Object.Destroy(_menuBackground);
+                _menuBackground = null;
+            }
         }
 
         /// <summary>Plays the bombastic intro sting over the splash screen (ensures a listener exists).</summary>
@@ -156,6 +179,7 @@ namespace Spacecraft.Client
         /// <summary>Builds the in-game rig (player + camera + world + HUD) and enters play.</summary>
         public void LaunchGame()
         {
+            DestroyMenuBackground();
             _gameRoot = WorldRig.Build(this);
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -172,6 +196,7 @@ namespace Spacecraft.Client
             }
 
             StopLocalServer();
+            EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             Phase = ShellPhase.MainMenu;
@@ -202,8 +227,9 @@ namespace Spacecraft.Client
         /// <summary>Fills the whole screen with an opaque background so menu screens never bleed through.</summary>
         public void DrawBackground()
         {
+            // Semi-transparent so the animated space-scene backdrop shows through behind the menu.
             var prev = GUI.color;
-            GUI.color = new Color(0.04f, 0.08f, 0.16f, 1f);
+            GUI.color = new Color(0.03f, 0.06f, 0.13f, 0.45f);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = prev;
         }
