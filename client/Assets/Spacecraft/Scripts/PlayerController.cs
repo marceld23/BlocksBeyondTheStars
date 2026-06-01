@@ -90,11 +90,6 @@ namespace Spacecraft.Client
                 LootNearestContainer();
             }
 
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                ScanTarget();
-            }
-
             if (Input.GetKeyDown(KeyCode.R))
             {
                 RepairWreckCell();
@@ -174,6 +169,14 @@ namespace Spacecraft.Client
             {
                 Game.Network.SendLootContainer(nearest);
             }
+        }
+
+        /// <summary>True if the selected hotbar item is a handheld scanner (its primary action scans).</summary>
+        private bool HoldingScanner()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return !string.IsNullOrEmpty(held)
+                && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Scanner;
         }
 
         /// <summary>Scans the nearest creature (threat assessment) or, failing that, the block in view.</summary>
@@ -352,6 +355,13 @@ namespace Spacecraft.Client
             bool place = Input.GetMouseButtonDown(1);
             if (!mine && !place)
             {
+                return;
+            }
+
+            // Holding a scanner turns the primary action into a scan (select it in the hotbar, then aim + click).
+            if (mine && HoldingScanner())
+            {
+                ScanTarget();
                 return;
             }
 

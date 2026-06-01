@@ -103,8 +103,10 @@ consumes protocol messages that already exist.
   uGUI polish + item drag-move deferred.
 - **Missing client UIs — code DONE, needs playtest.** Filled the client-side gaps over
   already-tested server systems (no protocol/server change). Solo-testable: **Disassemble**
-  button in the Crafting tab (`SendDisassemble`); **Scanner** readout panel + **C** key (nearest
-  creature → threat, else looked-at block → yield; `ScanResult` with knowledge total); **Wreck
+  button in the Crafting tab (`SendDisassemble`); **Scanner** is a held item — select the
+  `hand_scanner` (starter hotbar slot 3) and **left-click** to scan (nearest creature → threat,
+  else looked-at block → yield; `ScanResult` readout + knowledge), with distinct per-item hotbar
+  icons + name labels so tools are tellable apart; **Wreck
   repair** — **R** rebuilds the looked-at breach cell with the held block (`RepairWreckIntent`),
   a HUD progress panel + **Claim ship** button (`WreckRepairStatus`/`ClaimWreckIntent`); **loot
   prompt** ("G: loot (N)") near a container. Multiplayer (needs a 2nd client/LAN to test):

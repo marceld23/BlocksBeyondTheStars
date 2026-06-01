@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Spacecraft.Shared.Definitions;
 using UnityEngine;
 
 namespace Spacecraft.Client
@@ -12,11 +14,48 @@ namespace Spacecraft.Client
         private const int Size = 16;
 
         private static Texture2D _health, _oxygen, _energy, _generic;
+        private static readonly Dictionary<string, Texture2D> _items = new Dictionary<string, Texture2D>();
 
         public static Texture2D Health => _health ??= BuildCross(new Color(0.9f, 0.2f, 0.2f));
         public static Texture2D Oxygen => _oxygen ??= BuildRing(new Color(0.3f, 0.8f, 1f));
         public static Texture2D Energy => _energy ??= BuildDiamond(new Color(1f, 0.82f, 0.2f));
         public static Texture2D Generic => _generic ??= BuildBox(new Color(0.6f, 0.62f, 0.7f));
+
+        /// <summary>
+        /// A distinct, cached glyph for a non-block inventory item: a deterministic colour from the
+        /// item key plus a shape that hints its tool kind (scanner = ring, weapon = diamond, drill =
+        /// cross, otherwise a filled box), so the hotbar items can be told apart without art assets.
+        /// </summary>
+        public static Texture2D ForItem(string key, ToolKind kind)
+        {
+            if (_items.TryGetValue(key, out var tex))
+            {
+                return tex;
+            }
+
+            var color = ColorFromKey(key);
+            tex = kind switch
+            {
+                ToolKind.Scanner => BuildRing(color),
+                ToolKind.Weapon => BuildDiamond(color),
+                ToolKind.Drill => BuildCross(color),
+                _ => BuildBox(color),
+            };
+            _items[key] = tex;
+            return tex;
+        }
+
+        /// <summary>Deterministic, vivid colour derived from the item key (stable across runs).</summary>
+        private static Color ColorFromKey(string key)
+        {
+            int h = 17;
+            foreach (char c in key)
+            {
+                h = (h * 31 + c) & 0x7FFFFFFF;
+            }
+
+            return Color.HSVToRGB((h % 360) / 360f, 0.6f, 0.92f);
+        }
 
         private static Texture2D New()
         {

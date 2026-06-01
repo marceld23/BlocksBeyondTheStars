@@ -14,6 +14,16 @@ namespace Spacecraft.Client
         private const int HotbarSlots = 9;
         private const int SlotSize = 64;
 
+        private GUIStyle _slotNameStyle;
+
+        /// <summary>Small centred label style for the item name shown in each hotbar slot (built lazily during OnGUI).</summary>
+        private GUIStyle SlotNameStyle => _slotNameStyle ??= new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 9,
+            alignment = TextAnchor.MiddleCenter,
+            wordWrap = false,
+        };
+
         private void OnGUI()
         {
             if (Game?.Localizer == null)
@@ -90,6 +100,12 @@ namespace Spacecraft.Client
                 string label = $"{loc.Get("ui.hud.use")}: {loc.Get($"ui.station.{Game.NearbyStation}")}";
                 GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 24, 300, 22), label, style);
             }
+            else if (!Game.MenuOpen && HoldingScanner())
+            {
+                // Holding the scanner: the primary action (LMB) scans what you look at.
+                var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+                GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 24, 300, 22), loc.Get("ui.scan.use_hint"), style);
+            }
 
             // Hint.
             GUI.Label(new Rect(10, Screen.height - 22, 600, 20), loc.Get("ui.hud.hint"));
@@ -116,7 +132,7 @@ namespace Spacecraft.Client
                 GUI.Label(new Rect(rect.x + 4, rect.y + 2, SlotSize - 10, 18), (i + 1).ToString());
                 if (!string.IsNullOrEmpty(item))
                 {
-                    var iconRect = new Rect(rect.x + 12, rect.y + 18, SlotSize - 28, SlotSize - 28);
+                    var iconRect = new Rect(rect.x + 16, rect.y + 14, SlotSize - 36, SlotSize - 36);
                     var blockDef = Game.Content?.GetBlock(item);
                     if (blockDef != null && Game.Atlas != null)
                     {
@@ -124,8 +140,12 @@ namespace Spacecraft.Client
                     }
                     else
                     {
-                        GUI.DrawTexture(iconRect, IconFactory.Generic);
+                        var kind = Game.Content?.GetItem(item)?.Tool?.Kind ?? Spacecraft.Shared.Definitions.ToolKind.None;
+                        GUI.DrawTexture(iconRect, IconFactory.ForItem(item, kind));
                     }
+
+                    // Item name under the icon, so different items (drill / placer / scanner …) are distinguishable.
+                    GUI.Label(new Rect(rect.x + 2, rect.y + SlotSize - 22, SlotSize - 6, 14), ShortName(loc, item), SlotNameStyle);
                 }
             }
         }
@@ -133,7 +153,15 @@ namespace Spacecraft.Client
         private static string ShortName(Spacecraft.Shared.Localization.Localizer loc, string itemKey)
         {
             string name = loc.Get($"item.{itemKey}.name");
-            return name.Length > 12 ? name.Substring(0, 12) : name;
+            return name.Length > 9 ? name.Substring(0, 8) + "…" : name;
+        }
+
+        /// <summary>True if the selected hotbar item is a handheld scanner (its primary action scans).</summary>
+        private bool HoldingScanner()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return !string.IsNullOrEmpty(held)
+                && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Scanner;
         }
 
         /// <summary>Bottom-left scanner readout (subject + info + threat + knowledge), auto-hidden a few seconds after a scan.</summary>
