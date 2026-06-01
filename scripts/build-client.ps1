@@ -52,9 +52,16 @@ Write-Host "Building Windows player (this can take a few minutes)..." -Foregroun
     -executeMethod Spacecraft.Client.EditorTools.BuildScript.BuildWindows `
     -spacecraftOut $Out `
     -logFile $log
+$unityExit = $LASTEXITCODE
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Build failed (exit $LASTEXITCODE). See $log"
+# Don't trust the exit code alone: a script-compile failure can still exit 0 and skip the build.
+# Treat it as success only if the editor logged the BuildScript success marker and no compile errors.
+$succeeded   = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Spacecraft build: Succeeded' -Quiet)
+$compileFail = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Scripts have compiler errors' -Quiet)
+
+if ($unityExit -ne 0 -or $compileFail -or -not $succeeded) {
+    $why = if ($compileFail) { 'script compile errors' } elseif (-not $succeeded) { 'no success marker in log' } else { "unity exit $unityExit" }
+    Write-Error "Build FAILED ($why). See $log"
 }
 
 Write-Host "Build complete → $(Join-Path $project $Out)\Spacecraft.exe" -ForegroundColor Green

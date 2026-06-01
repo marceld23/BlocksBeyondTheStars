@@ -23,6 +23,7 @@ Shader "Spacecraft/BlockAtlas"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_fog
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
@@ -45,6 +46,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 fixed4 mat : COLOR;
+                UNITY_FOG_COORDS(3)
             };
 
             v2f vert(appdata v)
@@ -55,6 +57,7 @@ Shader "Spacecraft/BlockAtlas"
                 o.wn = UnityObjectToWorldNormal(v.normal);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.mat = v.color;
+                UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
             }
 
@@ -91,7 +94,9 @@ Shader "Spacecraft/BlockAtlas"
                 float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres;
                 col = lerp(col, reflTint, reflK);
 
-                return fixed4(col, 1);
+                fixed4 outc = fixed4(col, 1);
+                UNITY_APPLY_FOG(i.fogCoord, outc); // fade into the sky-coloured distance fog
+                return outc;
             }
             ENDCG
         }

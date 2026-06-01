@@ -158,6 +158,8 @@ namespace Spacecraft.Client
                 Camera.backgroundColor = sky;
             }
 
+            ApplyFog(sky, weatherIntensity, day, spaceSky);
+
             if (_sun != null)
             {
                 _sun.color = sunColor;
@@ -168,6 +170,28 @@ namespace Spacecraft.Client
             }
 
             UpdateSunDisc(sunHeight, sunColor, spaceSky);
+        }
+
+        /// <summary>
+        /// Distance fog in the sky colour, so the world fades into the horizon. Storms pull it in,
+        /// night thickens it a little; airless bodies (space sky) and the space view stay clear. The
+        /// fog-enabled block shader applies it; other scenes' shaders ignore RenderSettings.fog.
+        /// </summary>
+        private void ApplyFog(Color sky, float weatherIntensity, float day, bool spaceSky)
+        {
+            bool fog = !spaceSky && (Game == null || !Game.SpaceViewActive);
+            RenderSettings.fog = fog;
+            if (!fog)
+            {
+                return;
+            }
+
+            RenderSettings.fogColor = sky;
+            RenderSettings.fogMode = FogMode.Linear;
+            // Clear weather sees far; storms close in; night a touch hazier than day.
+            float far = Mathf.Lerp(240f, 80f, weatherIntensity) * Mathf.Lerp(0.85f, 1f, day);
+            RenderSettings.fogStartDistance = far * 0.35f;
+            RenderSettings.fogEndDistance = far;
         }
 
         /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the
@@ -191,7 +215,7 @@ namespace Spacecraft.Client
             float dist = Mathf.Min(Camera.farClipPlane * 0.85f, 900f);
             _sunDisc.position = camPos + dir * dist;
             _sunDisc.rotation = Quaternion.LookRotation(camPos - _sunDisc.position); // billboard (Cull Off)
-            float size = dist * (spaceSky ? 0.18f : 0.14f);
+            float size = dist * (spaceSky ? 0.26f : 0.20f);
             _sunDisc.localScale = new Vector3(size, size, size);
 
             // Fade in as the sun rises; a touch brighter against an airless black sky.
@@ -205,6 +229,7 @@ namespace Spacecraft.Client
         {
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
+            RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {
                 _sunDisc.gameObject.SetActive(false);
