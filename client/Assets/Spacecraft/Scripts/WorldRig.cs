@@ -124,6 +124,12 @@ namespace Spacecraft.Client
             var creatures = root.AddComponent<CreatureView>();
             creatures.Game = boot;
 
+            // Block selection outline + mining/placing particle feedback (M27 polish).
+            var miningFx = root.AddComponent<MiningFx>();
+            miningFx.Game = boot;
+            miningFx.Camera = cam;
+            miningFx.Reach = pc.Reach;
+
             return root;
         }
 
