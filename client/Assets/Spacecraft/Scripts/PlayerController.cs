@@ -90,6 +90,16 @@ namespace Spacecraft.Client
                 LootNearestContainer();
             }
 
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                ScanTarget();
+            }
+
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                RepairWreckCell();
+            }
+
             HandleHotbar();
             LookAround();
             Move();
@@ -164,6 +174,71 @@ namespace Spacecraft.Client
             {
                 Game.Network.SendLootContainer(nearest);
             }
+        }
+
+        /// <summary>Scans the nearest creature (threat assessment) or, failing that, the block in view.</summary>
+        private void ScanTarget()
+        {
+            if (Game?.Network == null || Camera == null)
+            {
+                return;
+            }
+
+            string speciesId = null;
+            float bestSq = Reach * Reach;
+            foreach (var c in Game.Creatures)
+            {
+                float d = (new Vector3(c.X, c.Y, c.Z) - transform.position).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    speciesId = c.SpeciesId;
+                }
+            }
+
+            if (speciesId != null)
+            {
+                Game.Network.SendScan("creature", speciesId);
+                return;
+            }
+
+            var ray = new Ray(Camera.transform.position, Camera.transform.forward);
+            if (!Physics.Raycast(ray, out var hit, Reach))
+            {
+                return;
+            }
+
+            var b = FloorVec(hit.point - hit.normal * 0.5f);
+            var def = Game.Content?.BlockById(Game.World.GetBlock(b.x, b.y, b.z));
+            if (def != null)
+            {
+                Game.Network.SendScan("block", def.Key);
+            }
+        }
+
+        /// <summary>Fills the targeted breach cell of a crashed wreck with the selected hotbar block (server validates).</summary>
+        private void RepairWreckCell()
+        {
+            if (Game?.Network == null || Camera == null)
+            {
+                return;
+            }
+
+            string item = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            if (string.IsNullOrEmpty(item))
+            {
+                return; // need a block in hand to rebuild the hull
+            }
+
+            var ray = new Ray(Camera.transform.position, Camera.transform.forward);
+            if (!Physics.Raycast(ray, out var hit, Reach))
+            {
+                return;
+            }
+
+            // Fill the empty cell against the hit face — the server checks it against the wreck's intact mask.
+            var t = FloorVec(hit.point + hit.normal * 0.5f);
+            Game.Network.SendRepairWreck(t.x, t.y, t.z, item);
         }
 
         private void HandleStations()

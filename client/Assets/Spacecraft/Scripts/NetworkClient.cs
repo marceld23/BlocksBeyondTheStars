@@ -54,6 +54,12 @@ namespace Spacecraft.Client
         public event Action<OwnedShips> OwnedShipsReceived;
         public event Action<WorldEnvironment> WorldEnvironmentReceived;
 
+        // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
+        public event Action<ScanResult> ScanResultReceived;
+        public event Action<WreckRepairStatus> WreckRepairStatusChanged;
+        public event Action<TradeUpdate> TradeUpdated;
+        public event Action<TradeClosed> TradeClosedReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -121,6 +127,23 @@ namespace Spacecraft.Client
 
         public void SendLootContainer(string containerId) => Send(new LootContainerIntent { ContainerId = containerId });
 
+        // --- Crashed-ship wreck repair / claim ---
+        public void SendRepairWreck(int x, int y, int z, string itemKey)
+            => Send(new RepairWreckIntent { X = x, Y = y, Z = z, ItemKey = itemKey });
+
+        public void SendClaimWreck() => Send(new ClaimWreckIntent());
+
+        // --- Player-to-player trade ---
+        public void SendTradeRequest(string targetPlayer) => Send(new TradeRequestIntent { TargetPlayer = targetPlayer });
+
+        public void SendTradeRespond(bool accept) => Send(new TradeRespondIntent { Accept = accept });
+
+        public void SendTradeOffer(NetTradeItem[] items) => Send(new TradeOfferIntent { Items = items });
+
+        public void SendTradeConfirm() => Send(new TradeConfirmIntent());
+
+        public void SendTradeCancel() => Send(new TradeCancelIntent());
+
         // Reports the ship's position while flying in space (for server-side collision). Wire this
         // once SpaceView flies in the server's entity coordinate space (M25b real-flight work).
         public void SendShipMove(Vector3 pos) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z });
@@ -183,6 +206,10 @@ namespace Spacecraft.Client
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
+                case ScanResult m: ScanResultReceived?.Invoke(m); break;
+                case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
+                case TradeUpdate m: TradeUpdated?.Invoke(m); break;
+                case TradeClosed m: TradeClosedReceived?.Invoke(m); break;
             }
         }
 

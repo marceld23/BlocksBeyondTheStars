@@ -161,6 +161,50 @@ namespace Spacecraft.Client
 
                 GUILayout.EndHorizontal();
             }
+
+            // --- Disassemble crafted gear back into ~half of its components (needs a workshop) ---
+            GUILayout.Space(10);
+            GUILayout.Label(loc.Get("ui.crafting.disassemble"));
+            bool any = false;
+            foreach (var s in Game.Personal)
+            {
+                if (!IsCraftable(s.Item))
+                {
+                    continue; // raw materials have no recipe to reverse
+                }
+
+                any = true;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{ItemName(loc, s.Item)} ×{s.Count}", GUILayout.Width(400));
+                if (GUILayout.Button(loc.Get("ui.action.disassemble"), GUILayout.Width(100)))
+                {
+                    Game.Network.SendDisassemble(s.Item);
+                }
+
+                GUILayout.EndHorizontal();
+            }
+
+            if (!any)
+            {
+                GUILayout.Label("  —");
+            }
+        }
+
+        /// <summary>True if some recipe produces this item (so the workshop can disassemble it back into parts).</summary>
+        private bool IsCraftable(string itemKey)
+        {
+            foreach (var r in Game.Content.Recipes.Values)
+            {
+                foreach (var o in r.Outputs)
+                {
+                    if (o.Item == itemKey)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private void DrawTech(Spacecraft.Shared.Localization.Localizer loc)

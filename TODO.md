@@ -1,7 +1,7 @@
 # Spacecraft — Progress & Next Steps
 
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
-(local, git-ignored). Tests: **229 passing**. Repo pushed to `origin/main` (private).
+(local, git-ignored). Tests: **240 passing**. Repo pushed to `origin/main` (private).
 
 ## Done (committed & pushed)
 
@@ -88,16 +88,31 @@ Full roadmap: [docs/CLIENT_COMPLETION_PLAN.md](docs/CLIENT_COMPLETION_PLAN.md). 
 feature-complete (M0–M19); the remaining work is client-side UI + rendering + scene wiring that
 consumes protocol messages that already exist.
 
-- **M21 — Playable vertical slice ⭐ — code DONE, needs in-Editor playtest.** `WorldRig` builds
+- **M21 — Playable vertical slice ⭐ — DONE, in-Editor playtest passed ✅.** `WorldRig` builds
   the in-game rig in code (player + camera + chunk material + HUD) from `AppShell.LaunchGame`;
   Singleplayer hosts the bundled server as a child process (Option A); robust join-on-connected
   + spawn snap; curated per-block palette + per-face shading via a built-in vertex-colour shader;
   settings applied (sensitivity/invert-Y/view distance); Esc returns to menu. Real 32×32 texture
-  atlas deferred to M27. *Next: publish the local server + press Play to playtest.*
-- **M22 — core gameplay UI — code DONE, needs playtest.** HUD hotbar (1-9 + scroll, drives the
+  atlas deferred to M27. *Playtest confirmed: menu → Singleplayer → walk/mine/place on a shaded
+  blocky world with live vitals → Esc → menu; bundled server hosts via Option A
+  (`scripts/sync-client-libs.ps1` + `scripts/publish-local-server.ps1`, scene `testscene.unity`).*
+- **M22 — core gameplay UI — DONE, playtest passed ✅.** HUD hotbar (1-9 + scroll, drives the
   placed item via `SelectHotbarIntent`); `GameMenu` (Tab) with Inventory/cargo, Crafting,
   Tech (blueprint unlock) and Ship (module build) tabs, all over existing intents; server
-  feedback as a HUD toast. IMGUI for now; uGUI polish + item drag-move deferred.
+  feedback as a HUD toast — all verified in-Editor (hotbar, Tab menu, feedback). IMGUI for now;
+  uGUI polish + item drag-move deferred.
+- **Missing client UIs — code DONE, needs playtest.** Filled the client-side gaps over
+  already-tested server systems (no protocol/server change). Solo-testable: **Disassemble**
+  button in the Crafting tab (`SendDisassemble`); **Scanner** readout panel + **C** key (nearest
+  creature → threat, else looked-at block → yield; `ScanResult` with knowledge total); **Wreck
+  repair** — **R** rebuilds the looked-at breach cell with the held block (`RepairWreckIntent`),
+  a HUD progress panel + **Claim ship** button (`WreckRepairStatus`/`ClaimWreckIntent`); **loot
+  prompt** ("G: loot (N)") near a container. Multiplayer (needs a 2nd client/LAN to test):
+  **Docking UI** (K requests a dock with a nearby player; incoming request → Accept/Decline
+  modal; **U** undocks) and a two-column **Trade panel** (T requests; add/remove from inventory,
+  Confirm/Cancel, ready states; `TradeUpdate`/`TradeClosed`). New `PlayerInteractions.cs` +
+  `NetworkClient`/`GameBootstrap` hooks + en/de `ui.*` keys. *(Re-run `sync-client-libs.ps1` —
+  done — so the client sees the new locale keys.)*
 - **M23a — the ship as a place — code DONE, needs playtest.** Server stamps a walk-in voxel
   ship hull at the landing zone (player starts inside); `AboardShip` derived from being inside
   it (gates cargo/crafting); HUD shows "aboard" + a minimap/compass that always points to the
@@ -332,7 +347,7 @@ Later/optional: Option B true in-process SP server (retarget to netstandard2.1);
 
 ```powershell
 dotnet build Spacecraft.sln
-dotnet test                      # expect all green (229)
+dotnet test                      # expect all green (240)
 git log --oneline -5             # latest = M20 client shell, assets & UX
 ```
 All milestones from the local plan (M0–M20) are now implemented on the server/shared side

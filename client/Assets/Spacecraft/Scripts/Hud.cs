@@ -66,6 +66,9 @@ namespace Spacecraft.Client
 
             DrawHotbar(loc);
             DrawShipCompass(loc);
+            DrawScanReadout(loc);
+            DrawWreckPanel(loc);
+            DrawLootPrompt(loc);
 
             // Server feedback toast (craft result, rejection, message).
             if (!string.IsNullOrEmpty(Game.LastMessage))
@@ -131,6 +134,85 @@ namespace Spacecraft.Client
         {
             string name = loc.Get($"item.{itemKey}.name");
             return name.Length > 12 ? name.Substring(0, 12) : name;
+        }
+
+        /// <summary>Bottom-left scanner readout (subject + info + threat + knowledge), auto-hidden a few seconds after a scan.</summary>
+        private void DrawScanReadout(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            var scan = Game.LastScan;
+            if (scan == null || Time.time - Game.LastScanAt > 8f)
+            {
+                return;
+            }
+
+            const float w = 280f, h = 92f;
+            float x = 10f, y = Screen.height - h - 48f;
+            GUI.Box(new Rect(x, y, w, h), GUIContent.none);
+            GUI.Label(new Rect(x + 8, y + 4, w - 16, 18), $"🔍 {loc.Get("ui.scan.title")}: {scan.Subject}");
+            GUI.Label(new Rect(x + 8, y + 24, w - 16, 18), scan.Info);
+            GUI.Label(new Rect(x + 8, y + 44, w - 16, 18), $"{loc.Get("ui.scan.threat")}: {scan.Threat}");
+            GUI.Label(new Rect(x + 8, y + 64, w - 16, 18), $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}");
+        }
+
+        /// <summary>Right-side wreck repair progress, with a Claim button once the hull is fully restored.</summary>
+        private void DrawWreckPanel(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            var wreck = Game.Wreck;
+            if (wreck == null)
+            {
+                return;
+            }
+
+            const float w = 240f, h = 96f;
+            float x = Screen.width - w - 10f, y = 140f;
+            GUI.Box(new Rect(x, y, w, h), GUIContent.none);
+            GUI.Label(new Rect(x + 8, y + 4, w - 16, 18), $"🛠 {loc.Get("ui.wreck.title")}");
+            GUI.Label(new Rect(x + 8, y + 24, w - 16, 18), wreck.WreckName);
+            int done = wreck.Total - wreck.Remaining;
+            GUI.Label(new Rect(x + 8, y + 44, w - 16, 18), $"{loc.Get("ui.wreck.progress")}: {done}/{wreck.Total}");
+            if (wreck.Claimable)
+            {
+                if (GUI.Button(new Rect(x + 8, y + 66, w - 16, 24), loc.Get("ui.action.claim")))
+                {
+                    Game.Network?.SendClaimWreck();
+                }
+            }
+            else
+            {
+                GUI.Label(new Rect(x + 8, y + 68, w - 16, 18), loc.Get("ui.wreck.hint"));
+            }
+        }
+
+        /// <summary>Centre-screen prompt to loot the nearest container (salvage capsule / corpse) with G.</summary>
+        private void DrawLootPrompt(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            if (Game.MenuOpen)
+            {
+                return;
+            }
+
+            Spacecraft.Networking.Messages.NetContainer nearest = null;
+            float bestSq = 6f * 6f;
+            foreach (var c in Game.Containers)
+            {
+                float dx = c.X + 0.5f - Game.PlayerPosition.x;
+                float dy = c.Y + 0.5f - Game.PlayerPosition.y;
+                float dz = c.Z + 0.5f - Game.PlayerPosition.z;
+                float d = dx * dx + dy * dy + dz * dz;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    nearest = c;
+                }
+            }
+
+            if (nearest == null)
+            {
+                return;
+            }
+
+            var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+            GUI.Label(new Rect(Screen.width / 2f - 150, Screen.height / 2f + 48, 300, 22), $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})", style);
         }
 
         /// <summary>

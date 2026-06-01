@@ -25,6 +25,22 @@ namespace Spacecraft.Client
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
         private bool _subscribed;
 
+        /// <summary>Names of other players within <paramref name="range"/> of <paramref name="from"/> (for dock/trade targeting).</summary>
+        public List<string> PlayersWithin(Vector3 from, float range)
+        {
+            var result = new List<string>();
+            float sq = range * range;
+            foreach (var r in _remotes.Values)
+            {
+                if ((r.Go.transform.position - from).sqrMagnitude <= sq)
+                {
+                    result.Add(r.Name);
+                }
+            }
+
+            return result;
+        }
+
         private void Update()
         {
             if (!_subscribed && Game?.Network != null)

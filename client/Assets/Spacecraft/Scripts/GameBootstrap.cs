@@ -88,6 +88,23 @@ namespace Spacecraft.Client
         /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
         public WorldEnvironment Environment { get; private set; }
 
+        /// <summary>Most recent handheld/ship scan readout for the HUD, and when it arrived (for auto-hide).</summary>
+        public ScanResult LastScan { get; private set; }
+        public float LastScanAt { get; private set; }
+
+        /// <summary>Repair progress of the wreck the player is standing in (null until a wreck reports it).</summary>
+        public WreckRepairStatus Wreck { get; private set; }
+
+        /// <summary>The open player-to-player trade (both offers + ready states), or null when no trade is active.</summary>
+        public TradeUpdate Trade { get; private set; }
+        public bool TradeActive { get; private set; }
+
+        /// <summary>A player who has asked to dock with us (awaiting our accept/decline), or empty.</summary>
+        public string PendingDockFrom { get; set; } = string.Empty;
+
+        /// <summary>Latest authoritative docking state (partner + docked flag), or null.</summary>
+        public DockStatus Dock { get; private set; }
+
         /// <summary>Type of the nearest station within <paramref name="range"/> blocks, or empty.</summary>
         public string NearestStationType(Vector3 pos, float range)
         {
@@ -193,6 +210,29 @@ namespace Spacecraft.Client
             Network.ContainersReceived += m => Containers = m.Containers;
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m => Environment = m;
+            Network.ScanResultReceived += m =>
+            {
+                LastScan = m;
+                LastScanAt = Time.time;
+                if (m.FirstTime && m.KnowledgeGained > 0)
+                {
+                    LastMessage = $"+{m.KnowledgeGained} knowledge ({m.KnowledgeTotal})";
+                }
+            };
+            Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
+            Network.TradeUpdated += m => { Trade = m; TradeActive = true; };
+            Network.TradeClosedReceived += m =>
+            {
+                TradeActive = false;
+                Trade = null;
+                LastMessage = m.Completed ? "Trade complete." : m.Reason;
+            };
+            Network.DockRequested += m => { PendingDockFrom = m.Requester; LastMessage = $"{m.Requester} requests docking."; };
+            Network.DockStatusChanged += m =>
+            {
+                Dock = m;
+                LastMessage = m.Docked ? $"Docked with {m.Partner}" : m.Reason;
+            };
             Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";
             Network.RespawnNoticeReceived += m => LastMessage = m.Reason;
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };

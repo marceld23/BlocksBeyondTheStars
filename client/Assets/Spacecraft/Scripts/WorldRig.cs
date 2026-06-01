@@ -86,6 +86,11 @@ namespace Spacecraft.Client
             var remotes = root.AddComponent<RemotePlayers>();
             remotes.Game = boot;
 
+            // Player-to-player docking + trade UI (M24).
+            var interactions = root.AddComponent<PlayerInteractions>();
+            interactions.Game = boot;
+            interactions.Remotes = remotes;
+
             // Render planet enemies (M25).
             var entities = root.AddComponent<WorldEntities>();
             entities.Game = boot;

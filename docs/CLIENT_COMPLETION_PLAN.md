@@ -76,7 +76,7 @@ problematic. Multiplayer ("Join Server") already works against the standalone se
 Each phase is independently shippable and leaves the game in a working state. Phases are
 ordered for the **fastest path to fun**; M21 is the milestone that makes it "a game".
 
-### M21 — Playable vertical slice ⭐ — **DONE (code) / pending in-Editor playtest**
+### M21 — Playable vertical slice ⭐ — **DONE — in-Editor playtest passed ✅**
 Implemented:
 - **`WorldRig`** builds the whole in-game rig in code from `AppShell.LaunchGame` — server link
   (`GameBootstrap`), chunk material, first-person player (CharacterController + camera +
@@ -95,11 +95,14 @@ Implemented:
   unlocks the cursor.
 - **Outcome:** menu → Singleplayer → walk/mine/place on a shaded blocky world → Esc → menu.
 
-Remaining before declaring M21 fully closed: an **in-Editor playtest** (publish the local
-server, press Play, verify the loop) and any fixes it surfaces. A real **32×32 texture atlas**
+M21 is **closed**: the in-Editor playtest passed — from the main menu, Singleplayer loads a
+world, the player walks/mines/places on a shaded blocky world with live vitals, and Esc returns
+cleanly to the menu (the bundled server hosts via Option A). Prep is two scripts —
+`scripts/sync-client-libs.ps1` then `scripts/publish-local-server.ps1` — and the launcher scene
+`client/Assets/testscene.unity` (one `AppShell` GameObject). A real **32×32 texture atlas**
 (replacing the palette) is deferred to M27.
 
-### M22 — Core gameplay UI (the survival/build loop) — **DONE (code) / pending playtest**
+### M22 — Core gameplay UI (the survival/build loop) — **DONE — playtest passed ✅**
 - **Hotbar** in the HUD (1–9 keys + scroll select; drives the placed item; sends
   `SelectHotbarIntent`) — replaces the hardcoded place item.
 - **`GameMenu`** (Tab) with tabs: **Inventory + cargo** (`InventoryUpdate`), **Crafting**
