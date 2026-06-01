@@ -39,6 +39,12 @@ namespace Spacecraft.Client
                 existing.enabled = false;
             }
 
+            // And only our listener should hear; mute any pre-existing scene/splash AudioListener.
+            foreach (var al in Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+            {
+                al.enabled = false;
+            }
+
             // First-person player rig. Starts high and falls onto the streamed terrain until
             // the server spawn snaps it into place (PlayerController).
             var player = new GameObject("Player");

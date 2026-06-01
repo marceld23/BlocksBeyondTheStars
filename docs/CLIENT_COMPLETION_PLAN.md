@@ -1170,10 +1170,15 @@ Original notes (remaining work):
   and Claude proposes the exact command + estimated per-file cost for **approval before any paid
   call**. Building/running the actual asset set is a later, opt-in step.
 
-### M28 — Build & distribution
-- Windows **player build** (.exe) bundling the server (Option A), data and assets; first-run.
-- Smoke-test checklist; optional **WebGL "Lite"** build (per `WEBCLIENT_FEASIBILITY.md`).
-- Document the build steps; add a `scripts/build-client.ps1` if Unity CLI batchmode is used.
+### M28 — Build & distribution — **tooling DONE / needs a real build run**
+- Windows **player build** (.exe) bundling the server (Option A), data and assets — tooling in
+  place: `Spacecraft/Editor/BuildScript.cs` (`BuildWindows`: generates a minimal `Launcher.unity`
+  with one `AppShell`, builds StandaloneWindows64 → `Build/Windows/Spacecraft.exe`, auto-includes
+  `StreamingAssets/` = data + bundled server) and `scripts/build-client.ps1` (one command: runs the
+  sync-libs + publish-server prereqs, then the headless Unity batch build; `-SkipPrereqs` to skip).
+- **Next:** run `./scripts/build-client.ps1` on a machine with Unity 6000.4.x → a self-contained
+  `.exe`. Then a smoke-test checklist + first-run polish; optional **WebGL "Lite"** build
+  (per `WEBCLIENT_FEASIBILITY.md`).
 
 ## Cross-cutting principles
 

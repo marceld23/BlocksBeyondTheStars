@@ -338,7 +338,12 @@ consumes protocol messages that already exist.
 - **M27 — art, icons & polish — in progress.** Procedural **block texture atlas** done
   (`BlockTextureAtlas` + UV mapping + `Spacecraft/BlockAtlas` shader, no image files). Still:
   UI icons/symbols (can also be procedural), tool/hand visuals, mining feedback, uGUI polish.
-- **M28** — Windows player build + optional WebGL Lite *(needs a Unity batchmode build script)*.
+- **M28 — Windows player build — tooling DONE, needs a real build run.** `BuildScript.BuildWindows`
+  (editor, generates a minimal `Launcher.unity` with one `AppShell`, builds StandaloneWindows64 →
+  `Build/Windows/Spacecraft.exe`, auto-includes StreamingAssets = data + bundled server) +
+  `scripts/build-client.ps1` (one command: runs sync-libs + publish-server prereqs, then the
+  headless Unity batch build; `-SkipPrereqs` to skip). *Next: run `./scripts/build-client.ps1` with
+  Unity installed → a self-contained .exe Justus can double-click.* Optional WebGL Lite later.
   Note: real hand-/AI-authored art & audio files remain an asset task; everything so far is
   generated in code (textures, avatars, SFX) — no bundled binary assets.
 

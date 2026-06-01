@@ -4,15 +4,14 @@
 
 .DESCRIPTION
   Runs the bundled BuildScript.BuildWindows editor method headless. It generates the launcher
-  scene if needed and writes the player to the output folder. For a self-contained singleplayer
-  build, sync the shared content and bundle the server first:
+  scene if needed and writes the player to the output folder. The two prerequisites — syncing the
+  shared libs/content and publishing the bundled server — now run automatically, so a
+  self-contained singleplayer .exe is a single command:
 
-      ./scripts/sync-client-libs.ps1
-      ./scripts/publish-local-server.ps1
       ./scripts/build-client.ps1
 
-  Everything under client/Assets/StreamingAssets (data + the published server) is included in
-  the build automatically.
+  Use -SkipPrereqs to rebuild without re-syncing/re-publishing. Everything under
+  client/Assets/StreamingAssets (data + the published server) is included in the build.
 
 .PARAMETER UnityPath
   Path to Unity.exe. Defaults to the Unity Hub install of the project's editor version.
@@ -26,12 +25,20 @@
 #>
 param(
     [string] $UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe",
-    [string] $Out = "Build/Windows"
+    [string] $Out = "Build/Windows",
+    [switch] $SkipPrereqs   # skip the sync-libs + publish-server steps (e.g. when re-building only)
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repo 'client'
+
+# Self-contained singleplayer build needs the synced shared libs/content + the bundled server.
+if (-not $SkipPrereqs) {
+    Write-Host "Prerequisites: syncing shared libs/content + publishing the bundled server..." -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot 'sync-client-libs.ps1')
+    & (Join-Path $PSScriptRoot 'publish-local-server.ps1')
+}
 
 if (-not (Test-Path $UnityPath)) {
     Write-Error "Unity editor not found at '$UnityPath'. Pass -UnityPath to your Unity 6000.4.x Unity.exe."
