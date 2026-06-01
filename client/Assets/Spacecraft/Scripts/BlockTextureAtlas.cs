@@ -12,7 +12,7 @@ namespace Spacecraft.Client
     /// </summary>
     public sealed class BlockTextureAtlas
     {
-        public const int Tile = 32;
+        public const int Tile = 64;
         public const int Cols = 8;
         public const int Rows = 8;
 
@@ -49,6 +49,14 @@ namespace Spacecraft.Client
         private void PaintTile(int id, string key)
         {
             int ox = (id % Cols) * Tile, oy = (id / Cols) * Tile;
+
+            // Prefer a generated block texture (Resources/textures/<key>.bytes); fall back to the
+            // procedural tile when none is bundled.
+            if (TryPaintFromAsset(key, ox, oy))
+            {
+                return;
+            }
+
             Color baseCol = BaseColor(key);
             var rng = new System.Random(Hash(key));
 
@@ -68,6 +76,49 @@ namespace Spacecraft.Client
             }
 
             Decorate(id, key, ox, oy, rng);
+        }
+
+        /// <summary>
+        /// Blits a generated block texture (bundled as a <c>Resources/textures/&lt;key&gt;.bytes</c> PNG,
+        /// decoded via <see cref="Texture2D.LoadImage"/> so the import "readable" flag doesn't matter)
+        /// into the tile, nearest-sampling if its size differs from the tile. Returns false if absent.
+        /// </summary>
+        private bool TryPaintFromAsset(string key, int ox, int oy)
+        {
+            var asset = Resources.Load<TextAsset>("textures/" + key);
+            if (asset == null)
+            {
+                return false;
+            }
+
+            var src = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!src.LoadImage(asset.bytes))
+            {
+                Object.Destroy(src);
+                return false;
+            }
+
+            if (src.width == Tile && src.height == Tile)
+            {
+                Texture.SetPixels(ox, oy, Tile, Tile, src.GetPixels());
+            }
+            else
+            {
+                var px = src.GetPixels32();
+                for (int y = 0; y < Tile; y++)
+                {
+                    int sy = y * src.height / Tile;
+                    for (int x = 0; x < Tile; x++)
+                    {
+                        int sx = x * src.width / Tile;
+                        Color32 c = px[sy * src.width + sx];
+                        Texture.SetPixel(ox + x, oy + y, c);
+                    }
+                }
+            }
+
+            Object.Destroy(src);
+            return true;
         }
 
         private void Decorate(int id, string key, int ox, int oy, System.Random rng)

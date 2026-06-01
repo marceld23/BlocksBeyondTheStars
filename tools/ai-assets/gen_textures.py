@@ -1,0 +1,107 @@
+"""Generate the block texture set (approved batch) via OpenAI images — seamless 64px pixel-art tiles.
+
+One API call per texture; resumable (existing out/textures/<key>.png skipped) and tolerant of single
+failures. Chosen textures are bundled into client/Assets/Resources/textures as .bytes (loaded at
+runtime via Texture2D.LoadImage) and logged in NOTICES.md.
+
+Usage:
+    uv run gen_textures.py
+    uv run gen_textures.py --dry-run
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import os
+import sys
+import time
+from io import BytesIO
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+OUT = Path("out/textures")
+STYLE = "seamless tileable pixel-art texture, top-down flat, retro 16-bit voxel game block tile, no text, no words"
+
+TEXTURES = [
+    ("stone", "rough grey stone rock surface with subtle cracks"),
+    ("dirt", "brown soil dirt earth with small pebbles"),
+    ("grass", "lush green grass top with blades"),
+    ("sand", "fine yellow desert sand grains"),
+    ("mud", "dark wet brown mud"),
+    ("basalt", "dark grey volcanic basalt rock"),
+    ("ice", "pale blue cracked ice"),
+    ("iron_ore", "grey stone with rusty orange iron ore flecks"),
+    ("copper_ore", "grey stone with bright orange copper ore veins"),
+    ("titanium_ore", "grey stone with silvery white titanium ore flecks"),
+    ("silicate", "pale sandy silicate mineral rock"),
+    ("carbon", "black carbon coal rock with shiny flecks"),
+    ("iron_wall", "grey sci-fi metal hull plate with rivets and panel seams"),
+    ("crystal", "pale glowing blue crystal facets"),
+    ("glass", "clear pale blue glass pane with a faint reflection"),
+    ("lava", "dark cooled crust with glowing orange molten lava cracks"),
+    ("water", "blue rippling water surface"),
+]
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Generate the block texture set (approved batch).")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    print(f"[tex] {len(TEXTURES)} textures")
+    if args.dry_run:
+        for i, (key, desc) in enumerate(TEXTURES, 1):
+            print(f"  {i:2d}. {key:16s} {desc}")
+        return
+
+    load_dotenv()
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        sys.exit("OPENAI_API_KEY is not set.")
+
+    from openai import OpenAI
+    from PIL import Image
+
+    client = OpenAI(api_key=key)
+    OUT.mkdir(parents=True, exist_ok=True)
+
+    done = skipped = failed = 0
+    fails: list[str] = []
+    total = len(TEXTURES)
+
+    for i, (block, desc) in enumerate(TEXTURES, 1):
+        out = OUT / f"{block}.png"
+        if out.exists() and out.stat().st_size > 0:
+            skipped += 1
+            print(f"[{i}/{total}] {block}: skip (exists)")
+            continue
+
+        prompt = f"{STYLE}, of {desc}"
+        ok = False
+        for attempt in (1, 2):
+            try:
+                resp = client.images.generate(
+                    model="gpt-image-1-mini", prompt=prompt, size="1024x1024", quality="low", n=1)
+                raw = base64.b64decode(resp.data[0].b64_json)
+                img = Image.open(BytesIO(raw)).convert("RGBA").resize((64, 64), Image.NEAREST)
+                img.save(out)
+                done += 1
+                ok = True
+                print(f"[{i}/{total}] {block}: ok ({out.stat().st_size} bytes)")
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"[{i}/{total}] {block}: attempt {attempt} failed: {exc}")
+                time.sleep(2)
+
+        if not ok:
+            failed += 1
+            fails.append(block)
+
+    print(f"\n[tex] done. generated={done} skipped={skipped} failed={failed} of {total}")
+    if fails:
+        print("[tex] failed: " + ", ".join(fails))
+
+
+if __name__ == "__main__":
+    main()
