@@ -29,6 +29,7 @@ public sealed partial class GameServer
     private int _sunColor = 0xFFF6E8;
     private bool _breathable;
     private bool _spaceSky;
+    private string _biome = "rock";
     private double _oxygenExtractability;
     private System.Random _envRng = new(1);
 
@@ -51,6 +52,7 @@ public sealed partial class GameServer
         _planetWeatherMode = string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather;
         _breathable = string.Equals(planet?.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase);
         _spaceSky = planet?.SpaceSky ?? false;
+        _biome = string.IsNullOrEmpty(_meta.DefaultPlanetType) ? "rock" : _meta.DefaultPlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
         _envRng = new System.Random((int)_meta.Seed);
         _dayFraction = 0.35;
@@ -130,6 +132,7 @@ public sealed partial class GameServer
         SunColor = _sunColor,
         Breathable = _breathable,
         SpaceSky = _spaceSky,
+        Biome = _biome,
     };
 
     private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment());

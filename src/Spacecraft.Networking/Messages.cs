@@ -726,4 +726,7 @@ public sealed class WorldEnvironment
 
     /// <summary>Space sky on the surface (black + stars) — landable asteroids / airless bodies.</summary>
     public bool SpaceSky { get; set; }
+
+    /// <summary>Active planet/biome key (e.g. "jungle", "desert", "ice", "lava") for client ambience.</summary>
+    public string Biome { get; set; } = "rock";
 }

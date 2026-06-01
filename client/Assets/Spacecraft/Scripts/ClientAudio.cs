@@ -246,15 +246,25 @@ namespace Spacecraft.Client
 
         private void OnEnvironment(WorldEnvironment e)
         {
+            // Bad weather takes over the bed; otherwise the planet's biome ambience plays.
             string id = e.Weather switch
             {
                 "storm" => "storm_loop",
                 "rain" => "rain_loop",
-                "clouds" => "wind_strong",
-                _ => "wind_light",
+                _ => BiomeBed(e.Biome),
             };
             SetAmbience(id);
         }
+
+        private static string BiomeBed(string biome) => biome switch
+        {
+            "jungle" or "forest" => "amb_forest",
+            "desert" => "amb_desert",
+            "ice" => "amb_ice",
+            "lava" => "amb_lava",
+            "swamp" => "amb_swamp",
+            _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
+        };
 
         private void OnBlock(BlockChanged m)
         {
