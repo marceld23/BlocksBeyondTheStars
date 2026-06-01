@@ -113,7 +113,7 @@ cleanly to the menu (the bundled server hosts via Option A). Prep is two scripts
 - IMGUI for now (consistent + testable without the Editor); **uGUI/UI Toolkit polish deferred**
   to M27. Item-move/drag between slots needs new server intents — also deferred.
 
-### M23a — The ship as a place (visible on the planet + enterable) — **DONE (code) / pending playtest**
+### M23a — The ship as a place (visible on the planet + enterable) — **DONE — playtest passed ✅**
 Implemented: the server stamps a hollow, walk-in **voxel ship hull** (`iron_wall` + a `glass`
 viewport + a door) at the start landing zone (`StampShip`, gated by `PlaceStarterShip`); it
 renders via normal chunk streaming and the player **starts inside it**. `AboardShip` is derived
@@ -162,7 +162,7 @@ Original design notes (for reference):
 This depends only on existing systems (landing zones, chunk streaming, `AboardShip`,
 protection) plus one small placement message. Target: implement right after M22/M23.
 
-### M23b — Player avatar, customization & third-person camera — **DONE (code) / pending playtest**
+### M23b — Player avatar, customization & third-person camera — **DONE — playtest passed ✅**
 Implemented: a code-built blocky humanoid (`PlayerAvatar`: head/torso/2 arms/2 legs from
 cubes, colliders stripped), per-part **colours** in `ClientSettings` with a **Character section**
 in Settings (palette cycling + swatches), and a **first/third-person toggle** (key **V**;
@@ -191,7 +191,7 @@ Original notes:
 - Depends on: the player rig (done), `PlayerStateUpdate` for others (M24 multiplayer presence)
   to show other players' avatars. Customization colours can ship before multiplayer.
 
-### M23 — Navigation, missions & feedback — **DONE (code) / pending playtest**
+### M23 — Navigation, missions & feedback — **DONE — playtest passed ✅**
 - **Star map** tab in `GameMenu` (`RequestStarMap`/`StarMapData`): lists systems + bodies and
   marks "you are here". Opened from the **cockpit** station (E).
 - **Mission log** tab (`RequestMissions`/`MissionList`): available missions (Accept) + active
@@ -216,7 +216,7 @@ Remaining in M24 (still pending):
   server-unreachable handling in the shell.
 - Not playtestable in singleplayer (needs 2 clients / LAN).
 
-### M25 — Space flight & combat (client for M19) — **DONE (code) / pending playtest**
+### M25 — Space flight & combat (client for M19) — **DONE — playtest passed ✅**
 - **Ship hull/shield HUD** (`ShipCombatStatus`) shown in the vitals panel + Space tab.
 - **Space console** (GameMenu "Space" tab): launch/return (`EnterSpace`/`LeaveSpace`,
   `SpaceState`/`SpaceClosed`), lists entities (asteroids/drones/UFOs) with **Fire** buttons
@@ -228,7 +228,7 @@ Remaining in M24 (still pending):
 - Deferred: a true 3D flyable cockpit/flight camera (the server models space abstractly);
   weapon selection UI (uses asteroid_breaker/ship_cannon_1 by target kind for now).
 
-### M25b — Real space view + launch/landing sequences — **in progress (code)**
+### M25b — Real space view + launch/landing sequences — **core flow playtest passed ✅ / extras planned**
 Implemented: `SpaceView` builds a space scene on entry — **black sky** + starfield + two planets
 + a code-built **flyable ship** + the server's entities from `SpaceState` — and takes over the
 camera (sets solid-black clear so the blue sky is gone). The ship **flies** with WASD + mouse in

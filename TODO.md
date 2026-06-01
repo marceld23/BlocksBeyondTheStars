@@ -115,17 +115,17 @@ consumes protocol messages that already exist.
   Confirm/Cancel, ready states; `TradeUpdate`/`TradeClosed`). New `PlayerInteractions.cs` +
   `NetworkClient`/`GameBootstrap` hooks + en/de `ui.*` keys. *(Re-run `sync-client-libs.ps1` —
   done — so the client sees the new locale keys.)*
-- **M23a — the ship as a place — code DONE, needs playtest.** Server stamps a walk-in voxel
+- **M23a — the ship as a place — DONE, playtest passed ✅.** Server stamps a walk-in voxel
   ship hull at the landing zone (player starts inside); `AboardShip` derived from being inside
   it (gates cargo/crafting); HUD shows "aboard" + a minimap/compass that always points to the
   ship with distance. `PlaceStarterShip` config flag (on by default). Hull is mining-protected.
   **Stations (M23a-2):** interior markers + "Press E" interaction — heal-tank heals, quarters
   sets respawn, workshop/cargo → Tab menu, cockpit → star map (soon). Server-validated.
-- **M23b — player avatar, customization & third-person camera — code DONE, needs playtest.**
+- **M23b — player avatar, customization & third-person camera — DONE, playtest passed ✅.**
   Code-built blocky humanoid (`PlayerAvatar`), per-part colours in Settings (Character section),
   first/third-person toggle (V). Networked appearance (others see it) deferred to M24; armor
   overrides + animation later.
-- **M23 — navigation, missions & feedback — code DONE, needs playtest.** Star-map tab (opened
+- **M23 — navigation, missions & feedback — DONE, playtest passed ✅.** Star-map tab (opened
   from the cockpit), mission-log tab (accept/turn-in), respawn/rules/craft feedback as HUD
   toasts — all over existing protocol.
 - **M24** — multiplayer presence (render other players + nameplates), docking UI, join/host polish.
@@ -133,7 +133,7 @@ consumes protocol messages that already exist.
   pending.** Server broadcasts PlayerPresence (pos + colours) + PlayerLeft; clients send colours
   on join; `RemotePlayers` renders other players as coloured avatars with nameplates. Still to
   do: docking request/accept UI, protocol-mismatch/disconnect handling in the shell.
-- **M25 — space flight & combat client — code DONE, needs playtest.** Ship hull/shield HUD,
+- **M25 — space flight & combat client — DONE, playtest passed ✅.** Ship hull/shield HUD,
   Space console tab (launch/return + fire at entities), planet enemies rendered as blocks +
   attack with F. Singleplayer enables free flight + PvE via launcher flags. 3D flyable cockpit
   deferred.
@@ -145,7 +145,7 @@ consumes protocol messages that already exist.
   asteroids/planets/enemies/other players, **colour-coded** white=neutral, blue=friend, red=hostile.
   Uses `SpaceState` entities (carry `Hostile`) + planets; other players in the instance need their
   positions broadcast. Client HUD over the authoritative list. See CLIENT_COMPLETION_PLAN (M25b).
-- **M25b — real space view + launch/landing — in progress (code).** `SpaceView` shows an actual
+- **M25b — real space view + launch/landing — core flow playtest passed ✅ (extras planned).** `SpaceView` shows an actual
   space scene (starfield + planet + blocky ship + entities) with third-person/cockpit camera
   (V cycles) + launch/landing fades; on-foot control frozen while flying. Still: board-and-walk-
   inside-in-space, real flight controls, nicer models, and **identical ship appearance in space
