@@ -361,6 +361,11 @@ consumes protocol messages that already exist.
 - **(NEW, to verify) Space stations + NPCs:** confirm space stations are actually anchored/placed
   in-world and reachable, and whether they are **populated with NPCs** (station NPC population is
   currently listed as planned).
+- **(NEW, design question) Crafting/Tech/Ships menu redesign:** the Tab menu's Crafting, Tech and Ship
+  tabs are cluttered + hard to scan. Clarify a clearer design first, then build (likely uGUI). Directions
+  to explore: category sidebar (tools/weapons/blocks/modules/equipment), search/filter, a "craftable now"
+  filter, recipe cards (icon + name + ingredient have/need counts, craftable highlighted / missing greyed),
+  Tech unlocks as a visual tree, Ship tab as ship cards (stats + cost).
 - **(NEW, to scope) Animations status:** review existing vs planned — player (walk/mine/attack/place),
   NPC (idle/gesture/walk), equipment-use, and weapon/equipment VFX — and plan the first animation pass.
 - **(NEW, planned) Content editors + merge:** a menu-based **ship-type editor** (build a ship from
