@@ -54,6 +54,21 @@ Write-Host "Building Windows player (this can take a few minutes)..." -Foregroun
     -logFile $log
 $unityExit = $LASTEXITCODE
 
+# Unity can relaunch a child process to recompile/build, so the call above may return before the
+# build actually finishes. Wait until the editor logs a terminal result so this script only completes
+# once Unity is truly done.
+Write-Host "Waiting for Unity to finish..." -ForegroundColor Cyan
+$deadline = (Get-Date).AddMinutes(20)
+while ((Get-Date) -lt $deadline -and
+       -not (Select-String -Path $log -Pattern 'Spacecraft build:|Scripts have compiler errors' -Quiet -ErrorAction SilentlyContinue)) {
+    Start-Sleep -Seconds 3
+}
+# Give a lingering Unity process a moment to exit and release the project lock.
+$lockDeadline = (Get-Date).AddSeconds(40)
+while ((Get-Date) -lt $lockDeadline -and (Get-Process Unity -ErrorAction SilentlyContinue)) {
+    Start-Sleep -Seconds 2
+}
+
 # Don't trust the exit code alone: a script-compile failure can still exit 0 and skip the build.
 # Treat it as success only if the editor logged the BuildScript success marker and no compile errors.
 $succeeded   = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Spacecraft build: Succeeded' -Quiet)
