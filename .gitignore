@@ -21,6 +21,8 @@ client/build.log
 client/UserSettings/
 client/MemoryCaptures/
 client/Recordings/
+client/Assets/_Recovery/
+client/Assets/_Recovery.meta
 client/[Bb]uild/
 client/*.csproj
 client/*.sln
