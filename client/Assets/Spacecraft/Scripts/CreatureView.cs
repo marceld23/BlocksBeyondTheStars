@@ -21,6 +21,9 @@ namespace Spacecraft.Client
             public string Bank;   // creature_{size}_{disposition} voice bank
             public float Pitch;   // shifted by body size for per-creature variety
             public float NextCall; // Time.time of the next idle vocalisation
+            public float NextAttack; // throttles the attack call while hostile + close
+            public bool PrevHostile; // to detect the turn-hostile transition (alert)
+            public float PrevHull;   // to detect a hull drop (hurt)
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -49,6 +52,8 @@ namespace Spacecraft.Client
                         Bank = Bank(c),
                         Pitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f),
                         NextCall = Time.time + Random.Range(2f, 6f),
+                        PrevHostile = c.Hostile,
+                        PrevHull = c.Hull,
                     };
                     _creatures[c.Id] = entry;
                 }
@@ -63,6 +68,32 @@ namespace Spacecraft.Client
                     entry.NextCall = Time.time + Random.Range(5f, 12f);
                     ClientAudio.Instance?.At(entry.Bank + "_idle", entry.Root.transform.position, entry.Pitch, 0.8f);
                 }
+
+                // React to authoritative state: hurt on a hull drop, alert on turning hostile,
+                // and a throttled attack call when a hostile creature is close to the player.
+                var audio = ClientAudio.Instance;
+                if (audio != null)
+                {
+                    if (c.Hull < entry.PrevHull - 0.5f)
+                    {
+                        audio.At(entry.Bank + "_hurt", entry.Root.transform.position, entry.Pitch, 0.9f);
+                    }
+
+                    if (c.Hostile && !entry.PrevHostile)
+                    {
+                        audio.At(entry.Bank + "_alert", entry.Root.transform.position, entry.Pitch, 0.9f);
+                    }
+
+                    if (c.Hostile && Time.time >= entry.NextAttack
+                        && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
+                    {
+                        entry.NextAttack = Time.time + Random.Range(1.5f, 3.5f);
+                        audio.At(entry.Bank + "_attack", entry.Root.transform.position, entry.Pitch);
+                    }
+                }
+
+                entry.PrevHull = c.Hull;
+                entry.PrevHostile = c.Hostile;
             }
 
             if (_creatures.Count > seen.Count)

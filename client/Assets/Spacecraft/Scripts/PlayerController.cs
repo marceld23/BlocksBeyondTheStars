@@ -101,6 +101,7 @@ namespace Spacecraft.Client
             LookAround();
             Move();
             HandleInteract();
+            HandleDrillAudio();
             SendMovement();
 
             // Publish local pose for the HUD minimap/compass.
@@ -173,6 +174,28 @@ namespace Spacecraft.Client
                 ClientAudio.Instance?.Cue("loot");
                 Game.Network.SendLootContainer(nearest);
             }
+        }
+
+        /// <summary>Keeps the drill loop alive while the player holds mine with a drill aimed at a block.</summary>
+        private void HandleDrillAudio()
+        {
+            if (Camera == null || !Input.GetMouseButton(0) || !HoldingDrill())
+            {
+                return;
+            }
+
+            if (Physics.Raycast(new Ray(Camera.transform.position, Camera.transform.forward), Reach))
+            {
+                ClientAudio.Instance?.DrillTick();
+            }
+        }
+
+        /// <summary>True if the selected hotbar item is a drill (its primary action mines).</summary>
+        private bool HoldingDrill()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return !string.IsNullOrEmpty(held)
+                && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Drill;
         }
 
         /// <summary>True if the selected hotbar item is a handheld scanner (its primary action scans).</summary>

@@ -24,12 +24,17 @@ namespace Spacecraft.Client
         private AudioSource _src;       // 2D one-shots
         private AudioSource _ambience;  // looping weather bed
         private AudioSource _hum;       // looping ship interior hum (procedural)
+        private AudioSource _fluid;     // looping lava/water bed when near a fluid
+        private AudioSource _drill;     // looping drill while mining
 
         private AudioClip _ok, _err, _blip; // procedural fallbacks (no recorded equivalent)
 
         private bool _subscribed;
         private float _lastHull = -1f, _lastShield = -1f;
         private string _ambienceId = string.Empty;
+        private string _fluidId = string.Empty;
+        private float _fluidScanTimer;
+        private float _drillRefresh = -10f;
         private float _thunderTimer;
         private readonly System.Random _rng = new System.Random();
 
@@ -59,6 +64,23 @@ namespace Spacecraft.Client
             _hum.clip = Hum();
             _hum.volume = 0f;
             _hum.Play();
+
+            _fluid = gameObject.AddComponent<AudioSource>();
+            _fluid.playOnAwake = false;
+            _fluid.loop = true;
+            _fluid.spatialBlend = 0f;
+            _fluid.volume = 0f;
+
+            _drill = gameObject.AddComponent<AudioSource>();
+            _drill.playOnAwake = false;
+            _drill.loop = true;
+            _drill.spatialBlend = 0f;
+            _drill.volume = 0f;
+            if (_clips.TryGetValue("drill_loop", out var drillClip))
+            {
+                _drill.clip = drillClip;
+                _drill.Play();
+            }
 
             _ok = Tone(660f, 0.12f, 0.4f);
             _err = Tone(110f, 0.20f, 0.5f);
@@ -107,6 +129,72 @@ namespace Spacecraft.Client
                     _thunderTimer = 8f + (float)_rng.NextDouble() * 12f;
                     Cue("thunder_" + (1 + _rng.Next(3)));
                 }
+            }
+
+            // Drill loop while mining (PlayerController calls DrillTick each frame it drills).
+            if (_drill != null && _drill.clip != null)
+            {
+                bool on = Time.time - _drillRefresh < 0.15f;
+                _drill.volume = Mathf.MoveTowards(_drill.volume, on ? sfx * 0.4f : 0f, Time.deltaTime * 4f);
+            }
+
+            // Lava/water ambience when near a fluid (throttled block scan around the player).
+            _fluidScanTimer -= Time.deltaTime;
+            if (_fluidScanTimer <= 0f)
+            {
+                _fluidScanTimer = 0.5f;
+                UpdateFluidAmbience();
+            }
+
+            if (_fluid != null && _fluid.clip != null)
+            {
+                _fluid.volume = Mathf.MoveTowards(_fluid.volume, _fluidId.Length == 0 ? 0f : sfx * 0.4f, Time.deltaTime * 0.8f);
+            }
+        }
+
+        /// <summary>Called by the player controller each frame it is actively drilling; keeps the drill loop alive.</summary>
+        public void DrillTick() => _drillRefresh = Time.time;
+
+        private void UpdateFluidAmbience()
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                SetFluid(string.Empty);
+                return;
+            }
+
+            var p = Game.PlayerPosition;
+            int px = Mathf.FloorToInt(p.x), py = Mathf.FloorToInt(p.y), pz = Mathf.FloorToInt(p.z);
+            string found = string.Empty;
+            for (int dx = -3; dx <= 3 && found.Length == 0; dx++)
+            {
+                for (int dy = -2; dy <= 2 && found.Length == 0; dy++)
+                {
+                    for (int dz = -3; dz <= 3 && found.Length == 0; dz++)
+                    {
+                        string k = Game.Content.BlockById(Game.World.GetBlock(px + dx, py + dy, pz + dz))?.Key ?? string.Empty;
+                        if (k.Contains("lava")) found = "lava_bubble";
+                        else if (k.Contains("water")) found = "water_shore";
+                    }
+                }
+            }
+
+            SetFluid(found);
+        }
+
+        private void SetFluid(string id)
+        {
+            if (id == _fluidId)
+            {
+                return;
+            }
+
+            _fluidId = id;
+            if (id.Length > 0 && _clips.TryGetValue(id, out var clip))
+            {
+                _fluid.clip = clip;
+                _fluid.volume = 0f;
+                _fluid.Play();
             }
         }
 
