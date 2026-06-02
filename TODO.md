@@ -389,11 +389,14 @@ consumes protocol messages that already exist.
   system → T3 all players**. Needs a `ChatIntent`/`ChatMessage` protocol + client chat UI (open/type/
   scrollback), server-authoritative recipient resolution by range (reuses travel/galaxy data),
   rate-limit + length cap, bilingual strings.
-- **(NEW, planned) Content editors + merge:** a menu-based **ship-type editor** (build a ship from
-  blocks — engines, cockpit glass, entry hatch, stations — set hull/shield/flightSpeed/handling/cargo
-  + blueprint-unlock cost) and an **equipment/recipe editor** (new items + crafting recipes, costs,
-  blueprint gating), each exporting JSON, plus a **merge script** that validates + folds the output
-  into `data/*` (ships/items/recipes/blueprints). See plan addendum "Tooling — content editors".
+- **(NEW, in progress) Ship-type editor — see [docs/SHIP_TYPE_EDITOR_PLAN.md](docs/SHIP_TYPE_EDITOR_PLAN.md).**
+  A main-menu **ship designer**: an empty 3D build room (move like in-game) to place hull/glass/all ship
+  **stations** + **hatch** + **lights** + **engine**, name the design and set its stats + blueprint cost
+  + craft cost, then **save it as a ship type**; a `merge_ship.py` folds the export into `data/ships.json`
+  + a voxel layout that `StampShip` stamps. Phased (editor MVP → new elements → integration → polish).
+- **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
+  recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
+  with the ship-type editor above.
 - **M28 — Windows player build — tooling DONE, needs a real build run.** `BuildScript.BuildWindows`
   (editor, generates a minimal `Launcher.unity` with one `AppShell`, builds StandaloneWindows64 →
   `Build/Windows/Spacecraft.exe`, auto-includes StreamingAssets = data + bundled server) +
