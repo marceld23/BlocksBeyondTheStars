@@ -31,6 +31,9 @@ namespace Spacecraft.Client.EditorTools
             "Spacecraft/LitColor",
             "Spacecraft/SunGlow",
             "Spacecraft/Cloud",
+            "Spacecraft/PostBloom",
+            "Spacecraft/PostComposite",
+            "Spacecraft/PostAO",
             "Unlit/Color",
         };
 

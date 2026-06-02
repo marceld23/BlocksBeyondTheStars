@@ -63,6 +63,10 @@ namespace Spacecraft.Client
             camGo.AddComponent<AudioListener>(); // hear procedural SFX (M26)
             camGo.tag = "MainCamera";
 
+            // Post-processing stack: bloom + ACES tonemap + vignette (+ SSAO on High), preset-gated.
+            var postFx = camGo.AddComponent<PostFx>();
+            postFx.ApplyPreset(shell.Settings.Preset, shell.Settings.ReducedEffects);
+
             // Blocky avatar (shown in third-person), coloured from the player's settings.
             var avatarGo = new GameObject("Avatar");
             avatarGo.transform.SetParent(player.transform, false);
