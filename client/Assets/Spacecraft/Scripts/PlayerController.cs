@@ -37,6 +37,7 @@ namespace Spacecraft.Client
         private bool _settling;
         private bool _wasGrounded = true;
         private float _stepTimer;
+        private int _lastWorldEpoch;
 
         private void Awake() => _controller = GetComponent<CharacterController>();
 
@@ -55,6 +56,14 @@ namespace Spacecraft.Client
 
         private void Update()
         {
+            // On travel the world is rebuilt at a new location: re-run the spawn snap there.
+            if (Game != null && Game.WorldEpoch != _lastWorldEpoch)
+            {
+                _lastWorldEpoch = Game.WorldEpoch;
+                _spawned = false;
+                _settling = false;
+            }
+
             // Snap to the server's authoritative spawn once it is known, then take over.
             if (!_spawned && Game != null && Game.ServerSpawn.HasValue)
             {

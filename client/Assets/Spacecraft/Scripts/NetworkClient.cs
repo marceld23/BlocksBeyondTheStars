@@ -53,6 +53,7 @@ namespace Spacecraft.Client
         public event Action<PlayerLeft> PlayerLeftReceived;
         public event Action<OwnedShips> OwnedShipsReceived;
         public event Action<WorldEnvironment> WorldEnvironmentReceived;
+        public event Action<WorldReset> WorldResetReceived;
 
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult> ScanResultReceived;
@@ -153,6 +154,8 @@ namespace Spacecraft.Client
         // --- Navigation & missions (M23) ---
         public void SendRequestStarMap() => Send(new RequestStarMap());
 
+        public void SendTravel(string bodyId) => Send(new TravelIntent { DestinationBodyId = bodyId });
+
         public void SendRequestMissions() => Send(new RequestMissions());
 
         public void SendAcceptMission(string missionId) => Send(new AcceptMissionIntent { MissionId = missionId });
@@ -206,6 +209,7 @@ namespace Spacecraft.Client
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
+                case WorldReset m: WorldResetReceived?.Invoke(m); break;
                 case ScanResult m: ScanResultReceived?.Invoke(m); break;
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
                 case TradeUpdate m: TradeUpdated?.Invoke(m); break;

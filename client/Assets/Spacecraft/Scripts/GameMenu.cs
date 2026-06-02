@@ -318,7 +318,19 @@ namespace Spacecraft.Client
                 {
                     bool here = b.Id == map.ActiveLocationId;
                     string marker = here ? "  ▸ " : "    ";
+
+                    GUILayout.BeginHorizontal();
                     GUILayout.Label($"{marker}{b.Name}  [{b.Kind}]  {(here ? loc.Get("ui.map.here") : b.Status)}");
+                    GUILayout.FlexibleSpace();
+
+                    // Travel to a landable body (a planet/moon with a type) that isn't the current one.
+                    bool landable = !here && !string.IsNullOrEmpty(b.PlanetType);
+                    if (landable && GUILayout.Button(loc.Get("ui.map.travel"), GUILayout.Width(120)))
+                    {
+                        Game.Network?.SendTravel(b.Id);
+                    }
+
+                    GUILayout.EndHorizontal();
                 }
 
                 GUILayout.Space(4);

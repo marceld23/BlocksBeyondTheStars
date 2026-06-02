@@ -160,6 +160,9 @@ namespace Spacecraft.Client
         private readonly Dictionary<ChunkCoord, GameObject> _chunkObjects = new Dictionary<ChunkCoord, GameObject>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
 
+        /// <summary>Bumped each time the world is rebuilt (travel); the player re-snaps to the new spawn.</summary>
+        public int WorldEpoch { get; private set; }
+
         private bool _joinSent;
         private float _retryTimer;
         private int _retries;
@@ -210,6 +213,7 @@ namespace Spacecraft.Client
             Network.ContainersReceived += m => Containers = m.Containers;
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m => Environment = m;
+            Network.WorldResetReceived += OnWorldReset;
             Network.ScanResultReceived += m =>
             {
                 LastScan = m;
@@ -288,6 +292,28 @@ namespace Spacecraft.Client
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
             World.StoreChunk(coord, m.Blocks);
             _dirty.Add(coord);
+        }
+
+        /// <summary>The active world changed (travel): drop all chunks/meshes so the new planet streams in.</summary>
+        private void OnWorldReset(Spacecraft.Networking.Messages.WorldReset m)
+        {
+            LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
+
+            foreach (var go in _chunkObjects.Values)
+            {
+                if (go != null)
+                {
+                    Destroy(go);
+                }
+            }
+
+            _chunkObjects.Clear();
+            _dirty.Clear();
+            World.Clear();
+
+            ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
+            WorldEpoch++;
+            LastMessage = $"Arriving at {m.PlanetName}…";
         }
 
         private void OnBlockChanged(Spacecraft.Networking.Messages.BlockChanged m)

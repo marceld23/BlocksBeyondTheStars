@@ -245,7 +245,8 @@ public sealed partial class GameServer
                 break;
 
             case "cockpit":
-                Send(session, new ServerMessage { Text = "Cockpit — star map travel is coming soon." });
+                Send(session, new ServerMessage { Text = "Cockpit — open the menu (Tab) → Map to travel to another planet." });
+                SendStarMap(session);
                 break;
         }
     }

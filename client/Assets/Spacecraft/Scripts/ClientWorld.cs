@@ -18,6 +18,9 @@ namespace Spacecraft.Client
         public void StoreChunk(ChunkCoord coord, ushort[] blocks)
             => _chunks[coord] = ChunkData.FromRaw(coord, blocks);
 
+        /// <summary>Drops all cached chunks (used when travelling to another world).</summary>
+        public void Clear() => _chunks.Clear();
+
         public bool TryGetChunk(ChunkCoord coord, out ChunkData chunk) => _chunks.TryGetValue(coord, out chunk);
 
         public BlockId GetBlock(int wx, int wy, int wz)
