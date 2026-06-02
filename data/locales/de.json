@@ -309,6 +309,7 @@
   "ui.tech.locked": "Gesperrt",
   "ui.tech.materials_missing": "Material fehlt",
   "ui.tech.unlockable": "Freischaltbar",
+  "ui.tech.tier": "Stufe",
   "ui.crafting.missing": "Fehlende Materialien",
   "ui.inventory.title": "Inventar",
   "ui.cargo.title": "Frachtraum",

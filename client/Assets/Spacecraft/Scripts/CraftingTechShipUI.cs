@@ -272,25 +272,56 @@ namespace Spacecraft.Client
 
         private float BuildTechList()
         {
-            float y = 0f;
-            foreach (var bp in Game.Content.Blueprints.Values)
-            {
-                if (_category != "all" && bp.Category != _category)
-                {
-                    continue;
-                }
+            // A progression tree: order by tier (prerequisite depth) and indent each tier, so the unlock
+            // chain reads top-to-bottom / left-to-right like a tech tree.
+            var shown = Game.Content.Blueprints.Values
+                .Where(bp => (_category == "all" || bp.Category == _category) && MatchesSearch(L($"blueprint.{bp.Key}.name")))
+                .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"))
+                .ToList();
 
-                if (!MatchesSearch(L($"blueprint.{bp.Key}.name")))
+            float y = 0f;
+            int lastTier = -1;
+            foreach (var bp in shown)
+            {
+                int tier = TechTier(bp);
+                if (tier != lastTier)
                 {
-                    continue;
+                    UiKit.AddText(_listContent, 0, y, 760, 24, L("ui.tech.tier") + " " + (tier + 1), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    y += 26f;
+                    lastTier = tier;
                 }
 
                 var (label, col) = TechStatus(bp);
-                AddCard(y, L($"blueprint.{bp.Key}.name"), "cat_tech", label, col, bp.Key, () => { _selected = bp.Key; RebuildDetail(); });
+                AddCard(y, L($"blueprint.{bp.Key}.name"), "cat_tech", label, col, bp.Key, () => { _selected = bp.Key; RebuildDetail(); }, Mathf.Min(tier, 4) * 28f);
                 y += 88f;
             }
 
             return y;
+        }
+
+        private readonly Dictionary<string, int> _tierCache = new();
+
+        /// <summary>Tier = longest prerequisite chain depth (0 = no prerequisites). Memoised, cycle-safe.</summary>
+        private int TechTier(BlueprintDefinition bp)
+        {
+            if (_tierCache.TryGetValue(bp.Key, out var t))
+            {
+                return t;
+            }
+
+            _tierCache[bp.Key] = 0; // guard against cycles
+            int max = 0;
+            foreach (var pre in bp.Prerequisites)
+            {
+                var pd = Game.Content.GetBlueprint(pre);
+                if (pd != null)
+                {
+                    max = Mathf.Max(max, TechTier(pd) + 1);
+                }
+            }
+
+            _tierCache[bp.Key] = max;
+            return max;
         }
 
         private float BuildShipList()
@@ -352,22 +383,23 @@ namespace Spacecraft.Client
             return y;
         }
 
-        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick)
+        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f)
         {
-            var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, onClick);
+            var card = UiKit.AddButton(_listContent, indent, y, 780 - indent, 78, string.Empty, onClick);
             if (_selected == key)
             {
                 card.GetComponent<Image>().color = UiKit.Cyan;
             }
 
+            float cw = 780f - indent;
             float tx = 16f;
             if (UiKit.AddIcon(card.transform, 14, 14, 50, icon) != null)
             {
                 tx = 78f;
             }
 
-            UiKit.AddText(card.transform, tx, 8, 780 - tx - 16, 40, title, 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddText(card.transform, tx, 44, 780 - tx - 16, 28, status, 18, statusCol, TextAnchor.MiddleLeft);
+            UiKit.AddText(card.transform, tx, 8, cw - tx - 16, 40, title, 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(card.transform, tx, 44, cw - tx - 16, 28, status, 18, statusCol, TextAnchor.MiddleLeft);
         }
 
         // --- detail pane ---

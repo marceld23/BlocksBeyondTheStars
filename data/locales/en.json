@@ -304,6 +304,7 @@
   "ui.tech.locked": "Locked",
   "ui.tech.materials_missing": "Materials missing",
   "ui.tech.unlockable": "Unlockable",
+  "ui.tech.tier": "Tier",
   "ui.crafting.missing": "Missing materials",
   "ui.inventory.title": "Inventory",
   "ui.cargo.title": "Cargo Hold",
