@@ -386,12 +386,14 @@ consumes protocol messages that already exist.
   **emissive glow**, **HDR nebula skies + atmospheric scattering + god rays**, a **water/lava shader** with
   planar reflections, **GPU detail scatter**, translucency, decals, reflection probes, AA/camera feel.
   Phased + preset-gated; **Phase 0 = decide Built-in RP vs URP migration** (gates SSR/TAA/volumetrics).
-- **(NEW, design question) Crafting/Tech/Ships menu redesign:** the Tab menu's Crafting, Tech and Ship
-  tabs are cluttered + hard to scan. **Read `plans/ux_verbesserung.md` first** (the full UX concept:
-  location-based interaction, show what's possible/missing/next, previews, recipe cards w/ have-need
-  materials, tech tree as a visual net, ship-expansion preview) and reflect it in the plan. Clarify the
-  design, then build (likely uGUI). Directions: category sidebar (tools/weapons/blocks/modules/equipment),
-  search/filter, a "craftable now" filter, recipe cards, Tech as a visual tree, Ship tab as ship cards.
+- **(NEW, planned) Crafting/Tech/Ship menu redesign — plan in [docs/CRAFTING_TECH_SHIP_UI_PLAN.md](docs/CRAFTING_TECH_SHIP_UI_PLAN.md).**
+  Redesign the three flat-list tabs to the UX concept (`plans/ux_verbesserung.md`): a **3-pane** screen
+  (category sidebar + card list + detail), **search** + **"craftable now"** filter, **ingredient have/need**
+  (pooled inventory + cargo), **why-blocked** messaging, **tech as a visual tree**, **ship cards** (stats +
+  cost). **Decided:** built in **uGUI** (DPI/resolution-independent — good on high-DPI *and* normal monitors
+  via CanvasScaler + clamped UiScale), **AI category icons**, **location-bound** (Crafting=workshop,
+  Tech=lab, Ship=console), all three together. Needs a small backend add: **sync unlocked blueprints** to
+  the client. Phased P1 foundation → P2 Crafting → P3 Tech → P4 Ship → P5 icons/polish.
 - **(NEW, planned) Avatar overhaul:** appearance **reflects equipped gear** (armor chest/legs/helmet,
   suit, lamp, jetpack visible on the body + to other players); **improved avatar model + textures**
   (better proportions, skinning); **avatar animations** (idle/walk/run/jump/mine/attack/place + tool-use);
