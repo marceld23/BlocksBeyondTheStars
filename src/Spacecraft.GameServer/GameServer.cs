@@ -71,6 +71,7 @@ public sealed partial class GameServer
     public ServerWorld World => _world;
     public ShipState Ship => _ship;
     public Galaxy Galaxy => _galaxy;
+    public string ActiveLocationId => _meta.ActiveLocationId;
     public IReadOnlyDictionary<int, PlayerSession> Sessions => _sessions;
     public WorldMetadata Metadata => _meta;
 
@@ -83,38 +84,19 @@ public sealed partial class GameServer
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
         _repo.SaveMetadata(_meta);
 
-        var planet = _content.GetPlanet(_meta.DefaultPlanetType)
-                     ?? throw new InvalidOperationException($"Unknown planet type '{_meta.DefaultPlanetType}'.");
         _generator = new WorldGenerator(_meta.Seed, _content);
-        _world = new ServerWorld(_content, _generator, _repo, planet);
+        BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
 
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
         RegisterActiveShip(_ship);
         RecomputeShipCombatStats();
-        InitFluids();
-        InitFlora();
-        InitCreatures();
         _repo.SaveShip(ShipId, _ship);
 
-        BuildGalaxy();
-        InitWeather();
         BuildMissions();
-        LoadLandingZones();
-        LoadContainers();
-        if (_config.PlaceStarterShip)
-        {
-            StampShip();
-        }
 
-        if (_config.PlaceSettlements)
-        {
-            StampSettlement();
-        }
-
-        if (_config.PlaceWrecks)
-        {
-            StampWreck();
-        }
+        // Builds the active world for the start body plus all its per-world state (weather, fauna,
+        // flora, fluids, landing zones, containers, stamped ship/settlement/wreck). Reused by travel.
+        SwitchActiveWorld(_meta.DefaultPlanetType, _meta.ActiveLocationId);
 
         // Persist any newly generated structure-loot guard keys so caches don't respawn on reload.
         _repo.SaveMetadata(_meta);
@@ -180,6 +162,158 @@ public sealed partial class GameServer
                 start.Status = GenerationStatus.Visited;
                 _repo.SetLocationStatus(start.Id, start.Status.ToString());
             }
+        }
+    }
+
+    /// <summary>
+    /// Makes <paramref name="locationId"/> (a celestial body of type <paramref name="planetTypeKey"/>)
+    /// the active world: rebuilds <see cref="_world"/> (its edits load from that body's persistence key),
+    /// resets + re-initialises all per-world runtime state (weather, fauna, flora, fluids, landing zones,
+    /// containers) and re-stamps the ship/settlement/wreck. Used at startup and on travel.
+    /// </summary>
+    private void SwitchActiveWorld(string planetTypeKey, string locationId)
+    {
+        var planet = _content.GetPlanet(planetTypeKey)
+                     ?? throw new InvalidOperationException($"Unknown planet type '{planetTypeKey}'.");
+
+        _meta.DefaultPlanetType = planetTypeKey;
+        _meta.ActiveLocationId = locationId;
+        if (_ship is not null)
+        {
+            _ship.CurrentLocationId = locationId;
+        }
+
+        _world = new ServerWorld(_content, _generator, _repo, planet, locationId);
+
+        ResetWorldRuntimeState();
+
+        // Per-world systems read the new planet type / seed.
+        InitWeather();
+        InitFluids();
+        InitFlora();
+        InitCreatures();
+        LoadLandingZones();
+        LoadContainers();
+
+        // (Re)stamp structures for this body (settlement/wreck are guarded against duplicate loot).
+        if (_config.PlaceStarterShip)
+        {
+            StampShip();
+        }
+
+        if (_config.PlaceSettlements)
+        {
+            StampSettlement();
+        }
+
+        if (_config.PlaceWrecks)
+        {
+            StampWreck();
+        }
+
+        // Mark the destination visited.
+        var body = _galaxy?.FindBody(locationId);
+        if (body is not null && body.Status != GenerationStatus.Visited)
+        {
+            body.Status = GenerationStatus.Visited;
+            _repo.SetLocationStatus(body.Id, body.Status.ToString());
+        }
+
+        _repo.SaveMetadata(_meta);
+    }
+
+    /// <summary>Clears all per-world runtime state so a freshly switched world doesn't keep the old
+    /// planet's entities/structures. Persistent collections (landing zones, containers) are reloaded by
+    /// their Load* methods; fauna/enemies/NPCs/fluids/flora re-populate from the new world.</summary>
+    private void ResetWorldRuntimeState()
+    {
+        _creatures.Clear();
+        _planetEnemies.Clear();
+        _npcs.Clear();
+        _settlementMarkers.Clear();
+        _settlementMissionIds.Clear();
+        _wreckMarkers.Clear();
+        _floraRegrow.Clear();
+        _fluidLevel.Clear();
+        _activeFluid.Clear();
+        _stations.Clear();
+        _shipExtra.Clear();
+        _shipStamped = false;
+        _healTank = default;
+    }
+
+    /// <summary>
+    /// Travels to (and lands on) another celestial body picked from the star map: switches the active
+    /// world to the destination, then relocates every player to its landing zone/ship and tells the
+    /// client to reload the world. Each body keeps its own edits (persistence is keyed by body id).
+    /// </summary>
+    /// <summary>Travels the given player to a celestial body by id (also the test/util entrypoint).</summary>
+    public void Travel(string playerId, string destinationBodyId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is not null)
+        {
+            HandleTravel(session, new TravelIntent { DestinationBodyId = destinationBodyId });
+        }
+    }
+
+    private void HandleTravel(PlayerSession session, TravelIntent intent)
+    {
+        if (!Rules.FreeSpaceFlight)
+        {
+            Reject(session, "travel", "Space flight is disabled on this server.");
+            return;
+        }
+
+        var body = _galaxy?.FindBody(intent.DestinationBodyId);
+        if (body is null || body.Kind != CelestialKind.Planet || string.IsNullOrEmpty(body.PlanetType))
+        {
+            Reject(session, "travel", "You can only travel to a planet.");
+            return;
+        }
+
+        if (body.Id == _meta.ActiveLocationId)
+        {
+            Reject(session, "travel", "You are already there.");
+            return;
+        }
+
+        // Take everyone out of the (old world's) space instance before switching worlds.
+        foreach (var pid in _playerInstance.Keys.ToList())
+        {
+            LeaveSpace(pid);
+        }
+
+        SwitchActiveWorld(body.PlanetType, body.Id);
+
+        var (systemName, planetName) = ActiveLocationNames();
+
+        // Relocate every joined player to the new world's landing zone / ship and reload their chunks.
+        foreach (var s in _sessions.Values)
+        {
+            if (!s.Joined)
+            {
+                continue;
+            }
+
+            var zone = EnsureLandingZone(s.State.PlayerId);
+            int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
+            var spawn = _shipStamped ? _healTank : new Vector3f(zone.CenterX + 0.5f, surfaceY + 2f, zone.CenterZ + 0.5f);
+            s.State.Position = spawn;
+            s.State.RespawnPoint = _shipStamped ? _healTank : spawn;
+            s.State.AboardShip = true;
+            s.SentChunks.Clear();
+
+            Send(s, new WorldReset { PlanetType = _meta.DefaultPlanetType, PlanetName = planetName, SystemName = systemName });
+            SendPlayerState(s);
+            SendShipCombatStatus(s);
+            SendShipPlacement(s);
+            SendShipStations(s);
+            SendEnvironment(s);
+            SendCreatures(s);
+            SendContainers(s);
+            SendStarMap(s);
+            Send(s, new ServerMessage { Text = $"Arrived at {planetName}." });
         }
     }
 
@@ -470,7 +604,7 @@ public sealed partial class GameServer
             var capsule = new StoredContainer
             {
                 Id = "salvage_" + Guid.NewGuid().ToString("N"),
-                Planet = _world.PlanetKey,
+                Planet = _world.LocationId,
                 Kind = "salvage_capsule",
                 Position = p.Position.ToBlock(),
             };
@@ -645,6 +779,7 @@ public sealed partial class GameServer
             case LeaveStationIntent: HandleLeaveStation(session); break;
             case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
             case ClaimWreckIntent: HandleClaimWreck(session); break;
+            case TravelIntent travel: HandleTravel(session, travel); break;
         }
     }
 

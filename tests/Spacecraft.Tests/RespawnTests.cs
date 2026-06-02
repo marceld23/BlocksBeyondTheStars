@@ -77,7 +77,7 @@ public sealed class RespawnTests : IDisposable
             Assert.Equal(0, p.Inventory.CountOf("iron_ore")); // dropped
             Assert.Equal(1, p.Inventory.CountOf("basic_drill")); // tool kept
 
-            var capsules = repo.ListContainers("rocky");
+            var capsules = repo.ListContainers(server.ActiveLocationId); // keyed by body id, not planet type
             Assert.Single(capsules);
             Assert.Equal("salvage_capsule", capsules[0].Kind);
             Assert.Contains(capsules[0].Items, s => s.Item == "iron_ore" && s.Count == 10);

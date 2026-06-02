@@ -64,6 +64,7 @@ public static class NetCodec
         Register(41, typeof(LeaveStationIntent));
         Register(42, typeof(RepairWreckIntent));
         Register(43, typeof(ClaimWreckIntent));
+        Register(44, typeof(TravelIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -102,6 +103,7 @@ public static class NetCodec
         Register(83, typeof(StationBoarded));
         Register(84, typeof(NpcList));
         Register(85, typeof(WreckRepairStatus));
+        Register(86, typeof(WorldReset));
     }
 
     private static void Register(byte tag, Type type)

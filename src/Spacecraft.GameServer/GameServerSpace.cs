@@ -19,7 +19,7 @@ public sealed partial class GameServer
     private void LoadLandingZones()
     {
         _landingZones.Clear();
-        foreach (var zone in _repo.ListLandingZones(_world.PlanetKey))
+        foreach (var zone in _repo.ListLandingZones(_world.LocationId))
         {
             _landingZones[zone.PlayerId] = zone;
         }
@@ -39,7 +39,7 @@ public sealed partial class GameServer
         var zone = new LandingZone
         {
             PlayerId = playerId,
-            LocationId = _world.PlanetKey,
+            LocationId = _world.LocationId,
             CenterX = index * LandingZoneSpacing,
             CenterZ = 0,
             Radius = LandingZoneRadius,

@@ -24,13 +24,21 @@ public sealed class ServerWorld
     public PlanetType Planet { get; }
     public string PlanetKey { get; }
 
-    public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet)
+    /// <summary>
+    /// The persistence key for this world's edits/landing-zones/containers. It is the celestial
+    /// <b>body id</b> (e.g. "sys0-p1"), not the planet <i>type</i> — so two different bodies of the
+    /// same type keep separate edits, and revisiting a planet restores what you left there.
+    /// </summary>
+    public string LocationId { get; }
+
+    public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet, string locationId)
     {
         _content = content;
         _generator = generator;
         _repo = repo;
         Planet = planet;
         PlanetKey = planet.Key;
+        LocationId = string.IsNullOrEmpty(locationId) ? planet.Key : locationId;
     }
 
     public int LoadedChunkCount => _loaded.Count;
@@ -43,7 +51,7 @@ public sealed class ServerWorld
         }
 
         var chunk = _generator.Generate(Planet, coord);
-        foreach (var edit in _repo.LoadChunkEdits(PlanetKey, coord))
+        foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);
             chunk.Set(local.X, local.Y, local.Z, new BlockId(edit.Block));
@@ -67,7 +75,7 @@ public sealed class ServerWorld
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);
         chunk.Set(local.X, local.Y, local.Z, block);
-        _repo.SetBlock(PlanetKey, world, block.Value);
+        _repo.SetBlock(LocationId, world, block.Value);
         return previous;
     }
 

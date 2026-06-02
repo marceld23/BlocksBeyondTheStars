@@ -50,7 +50,7 @@ public sealed class LandingZoneTests : IDisposable
         client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
-        var zones = repo.ListLandingZones("rocky");
+        var zones = repo.ListLandingZones(server.ActiveLocationId); // keyed by body id, not planet type
         var z = Assert.Single(zones);
         Assert.Equal("Pilot", z.PlayerId);
         Assert.True(z.Protected); // default protection = StartZoneOnly

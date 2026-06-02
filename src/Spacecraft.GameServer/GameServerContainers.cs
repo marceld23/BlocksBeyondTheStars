@@ -25,7 +25,7 @@ public sealed partial class GameServer
     private void LoadContainers()
     {
         _containers.Clear();
-        _containers.AddRange(_repo.ListContainers(_world.PlanetKey));
+        _containers.AddRange(_repo.ListContainers(_world.LocationId));
     }
 
     /// <summary>Registers a new world container (capsule / corpse): persists it, tracks it, broadcasts.</summary>

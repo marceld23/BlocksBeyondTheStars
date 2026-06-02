@@ -35,7 +35,7 @@ public sealed partial class GameServer
         AddContainer(new StoredContainer
         {
             Id = "loot_" + key.Replace(':', '_'),
-            Planet = _world.PlanetKey,
+            Planet = _world.LocationId,
             Kind = markerType switch
             {
                 "module" => "salvage_module",

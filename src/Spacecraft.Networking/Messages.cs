@@ -115,6 +115,12 @@ public sealed class LeaveSpaceIntent
 {
 }
 
+/// <summary>Client asks to travel to (and land on) another celestial body, picked from the star map.</summary>
+public sealed class TravelIntent
+{
+    public string DestinationBodyId { get; set; } = string.Empty;
+}
+
 /// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.</summary>
 public sealed class FireWeaponIntent
 {
@@ -473,6 +479,18 @@ public sealed class StarMapData
 {
     public NetStarSystem[] Systems { get; set; } = System.Array.Empty<NetStarSystem>();
     public string ActiveLocationId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Tells the client the active world has changed (the player travelled to another planet): clear all
+/// cached chunks/meshes and reload. Carries the new world's identity for the HUD; a fresh player state +
+/// environment + chunk stream follow.
+/// </summary>
+public sealed class WorldReset
+{
+    public string PlanetType { get; set; } = string.Empty;
+    public string PlanetName { get; set; } = string.Empty;
+    public string SystemName { get; set; } = string.Empty;
 }
 
 /// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>
