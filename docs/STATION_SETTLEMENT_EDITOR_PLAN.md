@@ -181,10 +181,17 @@ Add **template pools** the placers consult *before* falling back to procedural �
 - **P4 — polish:** extract `StructureEditorCore` (refactor ShipEditor onto it), undo, mirror, a 3D
   preview, per-pool spawn-weight tuning, `templateChance` as a server rule.
 - **P5 — procedural enrichment (separate from the editors; lever 2 from §1b):** lift the *procedural*
-  generators — settlement building/roof/size/material variety + a central feature + paths + walls +
-  inhabitant/biome theming + more size tiers; station type-specific interiors + module-shape + exterior
-  detail. Independent of P1–P4; can run before or after, in slices. Each slice updates the
-  Settlement/Station stamp tests.
+  generators. Independent of P1–P4; run in slices, each updating the stamp tests.
+  - **DONE (slice 1):** settlements — per-instance size jitter (towns 3–4 plots, 2–3 storeys), per-building
+    footprint/height/**roof** (flat parapet / pitched)/door-side/accent-band variety, a **central feature**
+    (well / monument / garden plaza), **street paths**, lamp posts + gardens by doors, an optional
+    **perimeter fence**, and **alien theming** (alien materials + denser growth). Stations — **type-specific
+    interiors** (hub consoles, market counter, medbay heal tank, quarters bunks, hangar crates, corridor
+    guide lights) + corner ceiling lights in every room.
+  - **Remaining:** station **module-shape** variety (long corridors / round domes) + **exterior** detail
+    (solar panels, antennae, docking arms, tubes — needs the structure bounds to reserve head/edge room);
+    more settlement **size tiers** (hamlet → city) wired at the placement call site; biome-specific
+    settlement theming beyond material.
 
 P1 delivers the requested **"world-gen picks from a list of hand-designed types in addition to
 procedural"** even before the editors exist (author a couple of templates by hand / via the ship-editor-

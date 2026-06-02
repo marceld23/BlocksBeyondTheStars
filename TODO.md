@@ -412,9 +412,12 @@ consumes protocol messages that already exist.
   call sites; empty pools → today's behaviour). **Includes an assessment of the current procedural output:**
   villages are a fixed 17×17 of 3–4 *identical* huts, towns 25×25 of identical 2-storey boxes (variety LOW,
   only 2 sizes); stations vary in silhouette (random walk) but every module is the same empty 7×6×7 shell
-  (variety MEDIUM). Improvable via (1) the templates here and (2) a **procedural-enrichment** pass (P5):
-  building/roof/size/material variety, central feature/paths/walls, inhabitant+biome theming, more size
-  tiers; station type-specific interiors + module-shape + exterior detail.
+  (variety MEDIUM). Improvable via (1) the templates here and (2) a **procedural-enrichment** pass (P5).
+  **P5 slice 1 DONE** (`b08e7d6`): settlements got per-instance size jitter, per-building footprint/height/
+  roof/door/accent variety, a central feature (well/monument/plaza), street paths, lamps + gardens, an
+  optional fence, and alien theming; stations got **type-specific furnished interiors** (consoles, counter,
+  heal tank, bunks, crates) + ceiling lights. **P5 remaining:** station module-shape + exterior detail
+  (panels/antennae/docking arms); more settlement size tiers (hamlet→city); biome theming.
 - **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
   recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
   with the ship-type editor above.
