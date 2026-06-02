@@ -31,6 +31,7 @@ namespace Spacecraft.Client
 
         private bool _subscribed;
         private float _lastHull = -1f, _lastShield = -1f;
+        private float _lastHealth = -1f;
         private string _ambienceId = string.Empty;
         private string _fluidId = string.Empty;
         private float _fluidScanTimer;
@@ -97,6 +98,7 @@ namespace Spacecraft.Client
                 n.ActionRejected += _ => Play2D(_err);
                 n.ScanResultReceived += _ => Play2D(_blip);
                 n.ShipCombatStatusChanged += OnShip;
+                n.PlayerStateUpdated += OnPlayerHealth;
                 n.SpaceEntityDestroyed += _ => Cue("asteroid_break");
                 n.SpaceClosed += m => { if (m.ShipDisabled) Cue("ship_destroyed"); };
                 n.WorldEnvironmentReceived += OnEnvironment;
@@ -295,6 +297,17 @@ namespace Spacecraft.Client
             _lastShield = s.Shield;
         }
 
+        /// <summary>Plays a pain cue when the on-foot player's health drops (not on heal/respawn).</summary>
+        private void OnPlayerHealth(Spacecraft.Networking.Messages.PlayerStateUpdate m)
+        {
+            if (_lastHealth >= 0f && m.Health < _lastHealth - 0.5f && m.Health > 0f)
+            {
+                Cue("hurt_player");
+            }
+
+            _lastHealth = m.Health;
+        }
+
         private void Play2D(AudioClip clip, float vol = 1f)
         {
             if (clip != null)
@@ -321,6 +334,7 @@ namespace Spacecraft.Client
             {
                 Game.Network.BlockChanged -= OnBlock;
                 Game.Network.ShipCombatStatusChanged -= OnShip;
+                Game.Network.PlayerStateUpdated -= OnPlayerHealth;
                 Game.Network.WorldEnvironmentReceived -= OnEnvironment;
             }
         }

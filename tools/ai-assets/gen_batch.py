@@ -51,6 +51,7 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
         ("weapon_charge", "short sci-fi energy weapon charging whine before firing", 1.0, False),
         ("melee_swing",   "short fast whoosh of a blade swinging through air", 1.0, False),
         ("melee_hit",     "short blade impact thud hitting a target", 1.0, False),
+        ("hurt_player",   "short human pain grunt taking damage, sci-fi suit impact", 0.7, False),
     ]
 
     # --- Movement: footsteps per surface + jump/land ---
