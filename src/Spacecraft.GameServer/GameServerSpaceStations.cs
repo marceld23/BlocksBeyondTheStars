@@ -169,6 +169,7 @@ public sealed partial class GameServer
         });
         SendPlayerState(session);
         SendInventory(session);
+        SendNpcs(session); // show the station's crew (vendor / quartermaster / dockhands)
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}'.");
     }
 
@@ -235,8 +236,46 @@ public sealed partial class GameServer
             GenerateStationMissions(station);
         }
 
+        SpawnStationNpcs(station);
+
         station.Stamped = true;
         _log.Info($"Station '{station.Name}' stamped at ({station.Origin.X}, {station.Origin.Y}, {station.Origin.Z}) with {station.Markers.Count} markers.");
+    }
+
+    /// <summary>
+    /// Populates a boarded station with crew NPCs from its markers — a vendor at the trade post, a
+    /// quartermaster at the mission board, and dockhands at the hangar/quarters. They live at the
+    /// station's (far-away) interior coordinates, so they coexist with any planet-side settlement NPCs;
+    /// only the ones near the player are visible. Deterministic from the station seed.
+    /// </summary>
+    private void SpawnStationNpcs(BoardableStation station)
+    {
+        var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
+        int added = 0;
+        foreach (var (type, pos) in station.Markers)
+        {
+            string? role = type switch
+            {
+                "vendor" => "vendor",
+                "mission_board" => "quartermaster",
+                "quarters" => "settler",
+                "hangar" => "settler", // a dockhand
+                _ => null,
+            };
+
+            if (role is null)
+            {
+                continue; // heal-tank / structural markers don't get a crew member
+            }
+
+            _npcs.Add(MakeNpc(role, "traders", robotic: false, pos, rng));
+            added++;
+        }
+
+        if (added > 0)
+        {
+            _log.Info($"Spawned {added} crew NPCs at station '{station.Name}'.");
+        }
     }
 
     private void GenerateStationMissions(BoardableStation station)

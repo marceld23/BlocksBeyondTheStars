@@ -103,6 +103,28 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void BoardStation_PopulatesItWithCrewNpcs()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            Assert.Equal(0, server.NpcCount); // no settlements in this config → no NPCs yet
+
+            BoardFirstStation(server, "Pilot");
+
+            // The station is now inhabited: at least a vendor + a quartermaster at their markers.
+            Assert.True(server.NpcCount >= 2, $"Expected station crew, got {server.NpcCount}.");
+            Assert.Contains(server.NpcSnapshots, n => n.Role == "vendor");
+            Assert.Contains(server.NpcSnapshots, n => n.Role == "quartermaster");
+
+            // The vendor crew stands at the station's vendor marker (its interior, not the surface).
+            var vendorMarker = server.SpaceStationMarkers.First(m => m.Type == "vendor");
+            Assert.Contains(server.NpcSnapshots, n => n.Role == "vendor" && n.Home.DistanceSquared(vendorMarker.Pos) < 1f);
+        }
+    }
+
+    [Fact]
     public void StationVendor_EnablesMarketBarter()
     {
         var server = Started(out var repo);
