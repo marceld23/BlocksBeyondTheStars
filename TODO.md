@@ -405,6 +405,16 @@ consumes protocol messages that already exist.
   **stations** + **hatch** + **lights** + **engine**, name the design and set its stats + blueprint cost
   + craft cost, then **save it as a ship type**; a `merge_ship.py` folds the export into `data/ships.json`
   + a voxel layout that `StampShip` stamps. Phased (editor MVP → new elements → integration → polish).
+- **(NEW, planned) Station + town/village editors + template world-gen — see [docs/STATION_SETTLEMENT_EDITOR_PLAN.md](docs/STATION_SETTLEMENT_EDITOR_PLAN.md).**
+  Like the ship editor: a **space-station editor** + a **town/village editor** (free-fly build room,
+  block palette + interaction markers, metadata, export bundle + merge), and **world-gen picks from pools
+  of hand-designed station/village/town types** in addition to procedural (a seed roll at the two placer
+  call sites; empty pools → today's behaviour). **Includes an assessment of the current procedural output:**
+  villages are a fixed 17×17 of 3–4 *identical* huts, towns 25×25 of identical 2-storey boxes (variety LOW,
+  only 2 sizes); stations vary in silhouette (random walk) but every module is the same empty 7×6×7 shell
+  (variety MEDIUM). Improvable via (1) the templates here and (2) a **procedural-enrichment** pass (P5):
+  building/roof/size/material variety, central feature/paths/walls, inhabitant+biome theming, more size
+  tiers; station type-specific interiors + module-shape + exterior detail.
 - **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
   recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
   with the ship-type editor above.
