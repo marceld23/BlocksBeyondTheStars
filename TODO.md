@@ -371,6 +371,13 @@ consumes protocol messages that already exist.
   god rays from the sun, soft shadows, animated emissive water/lava, atmospheric scattering + nicer
   skies/denser stars, particles (dust/sparks/muzzle/engine trails), camera feel (head-bob, FOV kick,
   impact shake), UI motion (transitions, holographic scanlines/glow).
+- **(NEW, planned) Advanced graphics techniques — see [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).**
+  Research + roadmap for **shell shaders** (grass/fur/turf on ground, fauna, flora), **parallax occlusion
+  mapping** (fake depth on rock/ore/metal/panel block faces), **normal maps** (highest bang-for-buck for
+  the voxel look), a **post-processing stack** (bloom/tonemap/SSAO/per-system+biome colour grade/vignette),
+  **emissive glow**, **HDR nebula skies + atmospheric scattering + god rays**, a **water/lava shader** with
+  planar reflections, **GPU detail scatter**, translucency, decals, reflection probes, AA/camera feel.
+  Phased + preset-gated; **Phase 0 = decide Built-in RP vs URP migration** (gates SSR/TAA/volumetrics).
 - **(NEW, design question) Crafting/Tech/Ships menu redesign:** the Tab menu's Crafting, Tech and Ship
   tabs are cluttered + hard to scan. **Read `plans/ux_verbesserung.md` first** (the full UX concept:
   location-based interaction, show what's possible/missing/next, previews, recipe cards w/ have-need
