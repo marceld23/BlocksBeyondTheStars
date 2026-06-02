@@ -53,7 +53,12 @@ public sealed partial class GameServer
             return; // this world has no settlement
         }
 
-        string tier = rng.NextDouble() < 0.35 ? "town" : "village";
+        // Four size tiers, tiny hamlets most-to-least common up to rare sprawling cities.
+        double tierRoll = rng.NextDouble();
+        string tier = tierRoll < 0.15 ? "hamlet"
+                    : tierRoll < 0.55 ? "village"
+                    : tierRoll < 0.85 ? "town"
+                    : "city";
         bool ruined = rng.NextDouble() < 0.30;
 
         var surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
@@ -154,10 +159,19 @@ public sealed partial class GameServer
     private static string SettlementDisplayName(string tier, bool ruined, System.Random rng)
     {
         string[] roots = { "Karth", "Vega", "Mira", "Dorn", "Ysel", "Tarn", "Olun", "Reth", "Sabik", "Cael" };
-        string[] townSuffix = { " City", " Town", " Colony", " Outpost", " Heights" };
-        string[] villageSuffix = { " Village", " Hamlet", " Cross", " Hollow", " Camp" };
+        string[] citySuffix = { " City", " Metropolis", " Prime", " Central" };
+        string[] townSuffix = { " Town", " Colony", " Outpost", " Heights" };
+        string[] hamletSuffix = { " Hamlet", " Cross", " Camp", " Rest" };
+        string[] villageSuffix = { " Village", " Hollow", " Glen", " Stead", " End" };
+        string[] suffixes = tier switch
+        {
+            "city" => citySuffix,
+            "town" => townSuffix,
+            "hamlet" => hamletSuffix,
+            _ => villageSuffix,
+        };
         string root = roots[rng.Next(roots.Length)];
-        string suffix = (tier == "town" ? townSuffix : villageSuffix)[rng.Next(5)];
+        string suffix = suffixes[rng.Next(suffixes.Length)];
         return ruined ? $"Ruins of {root}{suffix}" : $"{root}{suffix}";
     }
 

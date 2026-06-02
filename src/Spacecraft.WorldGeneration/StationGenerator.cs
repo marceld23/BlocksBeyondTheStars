@@ -80,6 +80,8 @@ public static class StationGenerator
     private const int RoomW = 7;
     private const int RoomH = 6;
     private const int RoomL = 7;
+    private const int MarginXZ = 3; // free border around the modules for exterior detail (panels/arms)
+    private const int MarginTop = 3; // head-room above the top modules for antennae + domes
 
     /// <summary>(module count, number of floors) per size tier.</summary>
     public static (int Modules, int Floors) Layout(string sizeTier) => sizeTier switch
@@ -143,9 +145,11 @@ public static class StationGenerator
 
         int sx = RoomW - 1, sy = RoomH - 1, sz = RoomL - 1;
         int gw = maxX - minX, gl = maxZ - minZ;
-        int w = gw * sx + RoomW;
-        int h = maxY * sy + RoomH;
-        int l = gl * sz + RoomL;
+        // Reserve a border (MarginXZ) around the module footprint and head-room (MarginTop) above it, so
+        // exterior greebles — solar panels, antennae, docking arms, domes — have somewhere to sit.
+        int w = gw * sx + RoomW + 2 * MarginXZ;
+        int h = maxY * sy + RoomH + MarginTop;
+        int l = gl * sz + RoomL + 2 * MarginXZ;
 
         var blocks = new ushort[w * h * l];
         void Set(int x, int y, int z, ushort b)
@@ -156,7 +160,7 @@ public static class StationGenerator
             }
         }
 
-        Vector3i OriginOf(Vector3i cell) => new((cell.X - minX) * sx, cell.Y * sy, (cell.Z - minZ) * sz);
+        Vector3i OriginOf(Vector3i cell) => new((cell.X - minX) * sx + MarginXZ, cell.Y * sy, (cell.Z - minZ) * sz + MarginXZ);
 
         // 3) Assign module types: hub at the most-connected cell; one hangar on an outer ground
         //    cell; the rest market/mission/medbay/quarters/corridor.
@@ -248,6 +252,10 @@ public static class StationGenerator
         {
             FurnishModule(Set, m.Origin, m.Type, hull, light, tank, dark);
         }
+
+        // 9) Exterior detail on exposed module faces — solar-panel wings, antennae, docking arms, and a
+        //    command dome on the hub — so the hull reads as a real station, not stacked boxes.
+        StampExterior(Set, placed, occupied, hull, glass, dark, light, rng);
 
         // Guarantee the essentials exist even on a tiny station (place them in the hub).
         var hub = placed[0];
@@ -345,6 +353,114 @@ public static class StationGenerator
                 set(o.X + 1, o.Y + 1, o.Z + 5, light);
                 set(o.X + 5, o.Y + 1, o.Z + 1, light);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Adds exterior detail to the station hull: solar-panel wings on exposed side faces, antennae on the
+    /// roofs of top modules, and a stepped command dome on the hub. Greebles sit in the reserved margin /
+    /// the empty notches of the layout; the hangar is skipped so its docking mouth stays clear.
+    /// </summary>
+    private static void StampExterior(System.Action<int, int, int, ushort> set, List<StationModule> placed,
+        HashSet<Vector3i> occupied, ushort hull, ushort glass, ushort dark, ushort light, System.Random rng)
+    {
+        foreach (var m in placed)
+        {
+            if (m.Type == "hangar")
+            {
+                continue;
+            }
+
+            var o = m.Origin;
+            var g = m.Grid;
+
+            if (!occupied.Contains(new Vector3i(g.X + 1, g.Y, g.Z)) && rng.NextDouble() < 0.55)
+            {
+                SolarPanel(set, o, 1, 0, glass, dark);
+            }
+
+            if (!occupied.Contains(new Vector3i(g.X - 1, g.Y, g.Z)) && rng.NextDouble() < 0.55)
+            {
+                SolarPanel(set, o, -1, 0, glass, dark);
+            }
+
+            if (!occupied.Contains(new Vector3i(g.X, g.Y, g.Z + 1)) && rng.NextDouble() < 0.55)
+            {
+                SolarPanel(set, o, 0, 1, glass, dark);
+            }
+
+            if (!occupied.Contains(new Vector3i(g.X, g.Y, g.Z - 1)) && rng.NextDouble() < 0.55)
+            {
+                SolarPanel(set, o, 0, -1, glass, dark);
+            }
+
+            bool top = !occupied.Contains(new Vector3i(g.X, g.Y + 1, g.Z));
+            if (top && m.Type == "hub")
+            {
+                Dome(set, o, hull, light);
+            }
+            else if (top && rng.NextDouble() < 0.6)
+            {
+                Antenna(set, o.X + 1 + rng.Next(RoomW - 2), o.Y + RoomH, o.Z + 1 + rng.Next(RoomL - 2), dark, light);
+            }
+        }
+    }
+
+    /// <summary>A flat solar-panel wing (carbon frame + glass cells) jutting 2 blocks from a wall face.</summary>
+    private static void SolarPanel(System.Action<int, int, int, ushort> set, Vector3i o, int dirX, int dirZ, ushort glass, ushort dark)
+    {
+        for (int step = 1; step <= 2; step++)
+        for (int s = 1; s <= RoomL - 2; s++)
+        for (int y = o.Y + 2; y <= o.Y + 3; y++)
+        {
+            int x, z;
+            if (dirX != 0)
+            {
+                x = (dirX > 0 ? o.X + RoomW - 1 : o.X) + dirX * step;
+                z = o.Z + s;
+            }
+            else
+            {
+                z = (dirZ > 0 ? o.Z + RoomL - 1 : o.Z) + dirZ * step;
+                x = o.X + s;
+            }
+
+            set(x, y, z, (s + step) % 2 == 0 ? glass : dark);
+        }
+    }
+
+    /// <summary>A short antenna mast with a beacon tip on a module roof.</summary>
+    private static void Antenna(System.Action<int, int, int, ushort> set, int x, int baseY, int z, ushort dark, ushort light)
+    {
+        for (int y = baseY; y < baseY + MarginTop; y++)
+        {
+            set(x, y, z, dark);
+        }
+
+        set(x, baseY + MarginTop - 1, z, light); // beacon tip
+    }
+
+    /// <summary>A stepped dome above a module's ceiling (the hub's command cupola).</summary>
+    private static void Dome(System.Action<int, int, int, ushort> set, Vector3i o, ushort hull, ushort light)
+    {
+        for (int r = 0; r < MarginTop; r++)
+        {
+            int y = o.Y + RoomH + r;
+            int x0 = o.X + 1 + r, x1 = o.X + RoomW - 2 - r, z0 = o.Z + 1 + r, z1 = o.Z + RoomL - 2 - r;
+            if (x0 > x1 || z0 > z1)
+            {
+                break;
+            }
+
+            for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+            {
+                bool edge = x == x0 || x == x1 || z == z0 || z == z1;
+                if (edge || r == MarginTop - 1)
+                {
+                    set(x, y, z, r == MarginTop - 1 ? light : hull); // glowing apex
+                }
+            }
         }
     }
 

@@ -121,5 +121,22 @@ public sealed class SettlementGenerationTests
         Assert.True(s.BuildingCount >= 1);
     }
 
+    [Fact]
+    public void FourSizeTiers_ScaleFromHamletToCity()
+    {
+        var c = Content();
+        var hamlet = SettlementGenerator.Generate("hamlet", false, 11, "stone", c);
+        var village = SettlementGenerator.Generate("village", false, 11, "stone", c);
+        var town = SettlementGenerator.Generate("town", false, 11, "stone", c);
+        var city = SettlementGenerator.Generate("city", false, 11, "stone", c);
+
+        // A hamlet is the smallest footprint; a city the largest + tallest.
+        Assert.True(hamlet.Width <= village.Width);
+        Assert.True(city.Width >= town.Width);
+        Assert.True(city.Height > town.Height, "A city is taller (more storeys) than a town.");
+        // Town-style tiers are multi-storey; village-style are single-storey huts (shorter).
+        Assert.True(town.Height > village.Height);
+    }
+
     public void Dispose() { }
 }

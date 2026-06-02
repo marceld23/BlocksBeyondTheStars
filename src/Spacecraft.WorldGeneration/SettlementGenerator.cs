@@ -78,16 +78,23 @@ public static class SettlementGenerator
     private const int FloorH = 4;    // height of one storey
     private const int RoofCap = 3;   // reserved head-room above the top storey for roofs
 
-    /// <summary>(plot columns, plot rows, floors) base per tier (size is jittered per instance).</summary>
+    /// <summary>(plot columns, plot rows, floors) base per tier (size is jittered per instance). Four
+    /// size tiers from tiny hamlets to sprawling cities; hamlet/village are village-style (biome material,
+    /// single storey), town/city are town-style (iron/glass, multi-storey).</summary>
     public static (int Cols, int Rows, int Floors) Layout(string tier) => tier switch
     {
+        "city" => (4, 4, 4),
         "town" => (3, 3, 2),
+        "hamlet" => (1, 2, 1),
         _ => (2, 2, 1), // "village"
     };
 
+    /// <summary>Town-style settlements (modern iron/glass, multi-storey) vs primitive village-style.</summary>
+    private static bool IsTownStyle(string tier) => tier == "town" || tier == "city";
+
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content)
     {
-        bool town = tier == "town";
+        bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
 
         // Use a stable hash (not string.GetHashCode, which is randomized per process) so the build
