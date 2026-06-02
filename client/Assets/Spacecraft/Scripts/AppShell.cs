@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Spacecraft.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -198,6 +198,31 @@ namespace Spacecraft.Client
 
         private GameObject _uiMenu;
         private GameObject _uiLoading;
+        private GameObject _editorRoot;
+
+        /// <summary>Opens the standalone ship-type editor (build a ship design + save it).</summary>
+        public void OpenShipEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("ShipEditor");
+            _editorRoot.AddComponent<ShipEditor>().Shell = this;
+            Phase = ShellPhase.ShipEditor;
+        }
+
+        /// <summary>Closes the ship editor and returns to the main menu.</summary>
+        public void CloseShipEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.MainMenu;
+        }
 
         /// <summary>Time-based loading progress (0..1) for the uGUI loading bar.</summary>
         public float LoadingProgress => _loading.Progress;
@@ -249,6 +274,10 @@ namespace Spacecraft.Client
                 else if (Phase == ShellPhase.Credits)
                 {
                     Phase = ShellPhase.MainMenu;
+                }
+                else if (Phase == ShellPhase.ShipEditor)
+                {
+                    CloseShipEditor();
                 }
             }
         }

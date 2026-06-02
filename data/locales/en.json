@@ -254,6 +254,7 @@
   "ui.splash.build": "PROTOTYPE / DEV BUILD",
   "ui.splash.skip": "Press any key to continue",
   "ui.menu.singleplayer": "Singleplayer / Local World",
+  "ui.menu.ship_editor": "Ship Editor",
   "ui.menu.join": "Join Server",
   "ui.menu.settings": "Settings",
   "ui.menu.credits": "Credits",

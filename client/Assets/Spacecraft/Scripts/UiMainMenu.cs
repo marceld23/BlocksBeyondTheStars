@@ -34,13 +34,14 @@ namespace Spacecraft.Client
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
             // --- Menu buttons ---
-            const float bx = 90f, bw = 440f, bh = 56f, gap = 66f;
-            float by = 330f;
+            const float bx = 90f, bw = 440f, bh = 54f, gap = 62f;
+            float by = 322f;
             UiKit.AddButton(root, bx, by, bw, bh, shell.L("ui.menu.singleplayer"), shell.StartSingleplayer, "btn_singleplayer");
             UiKit.AddButton(root, bx, by + gap, bw, bh, shell.L("ui.menu.join"), shell.StartJoin, "btn_join");
-            UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
-            UiKit.AddButton(root, bx, by + gap * 3f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
-            UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.quit"), shell.Quit, "btn_exit");
+            UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.ship_editor"), shell.OpenShipEditor, "btn_singleplayer");
+            UiKit.AddButton(root, bx, by + gap * 3f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+            UiKit.AddButton(root, bx, by + gap * 5f, bw, bh, shell.L("ui.menu.quit"), shell.Quit, "btn_exit");
 
             // --- World / server info panel (bottom-right, decorative) ---
             UiKit.AddPanel(root, 1290f, 650f, 590f, 250f, UiKit.PanelFill);

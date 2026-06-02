@@ -259,6 +259,7 @@
   "ui.splash.build": "PROTOTYP / ENTWICKLUNGSVERSION",
   "ui.splash.skip": "Beliebige Taste drücken, um fortzufahren",
   "ui.menu.singleplayer": "Einzelspieler / Lokale Welt",
+  "ui.menu.ship_editor": "Schiffseditor",
   "ui.menu.join": "Server beitreten",
   "ui.menu.settings": "Einstellungen",
   "ui.menu.credits": "Mitwirkende",
