@@ -57,6 +57,39 @@ namespace Spacecraft.Client
         public static Sprite ButtonSprite => _buttonSprite != null ? _buttonSprite : _buttonSprite = RoundedSprite(14, 2);
 
         /// <summary>Creates a screen-space overlay canvas that scales with the screen (fixes high-DPI), plus an EventSystem.</summary>
+        private static Texture2D _radar;
+
+        /// <summary>A round radar/minimap face (translucent deep-blue fill + a cyan ring, transparent
+        /// outside) for IMGUI HUD radars via <c>GUI.DrawTexture</c>. Cached.</summary>
+        public static Texture2D RadarCircle
+        {
+            get
+            {
+                if (_radar != null)
+                {
+                    return _radar;
+                }
+
+                const int n = 128;
+                _radar = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                var px = new Color[n * n];
+                float c = (n - 1) * 0.5f, r = c;
+                var fill = new Color(0.04f, 0.10f, 0.20f, 0.62f);
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                        px[y * n + x] = d > r ? new Color(0, 0, 0, 0) : (d > r - 3f ? Cyan : fill);
+                    }
+                }
+
+                _radar.SetPixels(px);
+                _radar.Apply();
+                return _radar;
+            }
+        }
+
         public static Canvas CreateCanvas(string name)
         {
             if (Object.FindFirstObjectByType<EventSystem>() == null)

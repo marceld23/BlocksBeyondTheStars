@@ -17,24 +17,18 @@ namespace Spacecraft.Client
 
         private void OnGUI()
         {
-            if (Game == null || Camera == null || !Game.InSpace || Game.Space == null)
+            if (Game == null || Camera == null || !Game.InSpace || Game.Space == null || Game.MenuOpen)
             {
-                return;
+                return; // hidden while an in-game menu is open
             }
 
             UiScale.Begin(); // scale the radar with resolution
             float cx = UiScale.Width / 2f, cy = Radius + 24f;
             var prev = GUI.color;
 
-            // Panel + cyan border.
+            // Round radar face (translucent fill + cyan ring).
             var panel = new Rect(cx - Radius - 8f, cy - Radius - 8f, (Radius + 8f) * 2f, (Radius + 8f) * 2f);
-            GUI.color = new Color(0.04f, 0.10f, 0.20f, 0.55f);
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = UiKit.Cyan;
-            GUI.DrawTexture(new Rect(panel.x, panel.y, panel.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.x, panel.yMax - 1f, panel.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.x, panel.y, 1f, panel.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.xMax - 1f, panel.y, 1f, panel.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(panel, UiKit.RadarCircle);
 
             // Ship at the centre + a forward tick.
             GUI.color = UiKit.TextCol;

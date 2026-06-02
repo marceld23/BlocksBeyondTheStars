@@ -47,6 +47,12 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // Hide the whole HUD while an in-game menu is open (on foot and in space).
+            if (Game.MenuOpen)
+            {
+                return;
+            }
+
             EnsureStyles();
             var loc = Game.Localizer;
             UiScale.Begin(); // lay out in a virtual 1080p space so the HUD scales with resolution
@@ -268,8 +274,8 @@ namespace Spacecraft.Client
         {
             const float size = 120f;
             float ox = UiScale.Width - size - 10f, oy = 10f;
-            Frame(new Rect(ox, oy, size, size));
-            GUI.Label(new Rect(ox + 8, oy + 3, size - 14, 18), loc.Get("ui.hud.ship").ToUpperInvariant(), _cyan);
+            GUI.DrawTexture(new Rect(ox, oy, size, size), UiKit.RadarCircle); // round radar face
+            GUI.Label(new Rect(ox, oy + 2, size, 18), loc.Get("ui.hud.ship").ToUpperInvariant(), _center);
 
             var center = new Vector2(ox + size / 2f, oy + size / 2f + 6f);
             float radius = size / 2f - 16f;
