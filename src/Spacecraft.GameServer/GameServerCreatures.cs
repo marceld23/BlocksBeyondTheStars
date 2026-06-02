@@ -24,9 +24,10 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const double CreatureSpawnInterval = 6.0;
+    private const double CreatureSpawnInterval = 4.0;
     private const float CreatureProximityRange = 4f;
     private const int CreatureCapPerPlayer = 4;
+    private const float CreatureDespawnRange = 70f; // creatures far from every player despawn (frees the cap)
     private const double CreatureBroadcastInterval = 0.5;  // position-sync cadence (client interpolates)
     private const double CreatureMoveDtCap = 0.25;         // cap per-step movement so big ticks can't teleport
     private const float CreatureAggroRange = 10f;          // hunters approach within this
@@ -115,6 +116,14 @@ public sealed partial class GameServer
         }
 
         MoveCreatures(targets, dt);
+
+        // Despawn creatures that drifted far from every player so the cap frees up and fauna keeps
+        // appearing around players as they explore — life is spread across the whole planet, not just
+        // stuck at the start area. (Travel clears creatures entirely via ResetWorldRuntimeState.)
+        if (PruneFarCreatures(targets))
+        {
+            BroadcastCreatures();
+        }
 
         // Position-sync cadence so clients can interpolate wandering/fleeing/hunting creatures.
         _creatureBroadcastTimer += dt;
@@ -318,6 +327,19 @@ public sealed partial class GameServer
                 }
             }
         }
+    }
+
+    /// <summary>Removes creatures farther than <see cref="CreatureDespawnRange"/> from every player.
+    /// Returns true if any were removed (so the caller re-broadcasts the list).</summary>
+    private bool PruneFarCreatures(List<PlayerSession> targets)
+    {
+        float maxSq = CreatureDespawnRange * CreatureDespawnRange;
+        int removed = _creatures.RemoveAll(c =>
+        {
+            var nearest = NearestPlayerPosition(targets, c.Position);
+            return nearest is not { } np || np.DistanceSquared(c.Position) > maxSq;
+        });
+        return removed > 0;
     }
 
     private static Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from)

@@ -154,6 +154,28 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Creatures_DespawnWhenLeftBehind_SoFaunaSpreadsAcrossThePlanet()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Ranger");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(4.0);
+            var nearby = server.Creatures.First();
+            Assert.True(nearby.Position.DistanceSquared(p.State.Position) < 70f * 70f); // spawned near the player
+
+            // Wander far away — the left-behind creature must despawn (freeing the cap for new fauna elsewhere).
+            p.State.Position = new Vector3f(600, 64, 600);
+            server.Tick(0.1);
+
+            Assert.DoesNotContain(server.Creatures, c => c.Id == nearby.Id);
+        }
+    }
+
     // ---------------- Eating (food heals, poison harms) ----------------
 
     [Fact]
