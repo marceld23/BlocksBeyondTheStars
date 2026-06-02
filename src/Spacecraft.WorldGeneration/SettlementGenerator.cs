@@ -113,11 +113,27 @@ public static class SettlementGenerator
         // Materials: a town is iron/glass; a village uses the biome's surface block (mud/stone/…).
         // The accent + lamp + garden materials theme the settlement (alien worlds look different).
         ushort B(string key, ushort fallback = 0) => content.GetBlock(key)?.NumericId.Value ?? fallback;
+        bool desert = biomeSurfaceBlock == "sand";
         ushort wall = town ? B("iron_wall") : B(biomeSurfaceBlock, B("stone"));
         ushort glass = B("glass");
         ushort ladder = B("ladder");
-        ushort flora = B(alien ? "flora_crystal" : "flora_plant", B("flora_plant"));
-        ushort path = town ? B("carbon", B("stone")) : B("stone", wall);
+        // Gardens use the biome's own flora species (alien settlements keep their crystal growths).
+        string biomeFloraKey = biomeSurfaceBlock switch
+        {
+            "sand" => "flora_cactus",
+            "ice" => "flora_frostflower",
+            "mud" => "flora_mushroom",
+            "grass" => "flora_fern",
+            "basalt" => "flora_emberbloom",
+            _ => "flora_plant",
+        };
+        ushort flora = alien ? B("flora_crystal", B("flora_plant")) : B(biomeFloraKey, B("flora_plant"));
+        // Paths take on the ground material of the biome (sandy tracks, icy lanes, …).
+        ushort path = town
+            ? B("carbon", B("stone"))
+            : desert ? B("sand", B("stone"))
+            : biomeSurfaceBlock == "ice" ? B("ice", B("stone"))
+            : B("stone", wall);
         ushort accent = alien ? B("crystal", B("carbon")) : (town ? B("glass") : B("carbon", B("stone")));
         ushort lamp = B("data_cache", glass);
         ushort fence = alien ? B("crystal", wall) : wall;
@@ -161,7 +177,8 @@ public static class SettlementGenerator
             int fp = Building - rng.Next(0, 3);                     // 4..6
             int storeys = town ? (plotIndex == 0 ? floors : 1 + rng.Next(0, floors)) : 1;
             int doorSide = rng.Next(0, 4);
-            int roofStyle = (alien || rng.NextDouble() < 0.5) ? 1 : 0; // 0 = flat parapet, 1 = pitched
+            // Desert settlements favour flat (adobe) roofs; elsewhere alien + half of houses are pitched.
+            int roofStyle = (!desert && (alien || rng.NextDouble() < 0.5)) ? 1 : 0;
             int off = (Building - fp) / 2;
             int ox = cxp * Plot + 1 + off;
             int oz = czp * Plot + 1 + off;

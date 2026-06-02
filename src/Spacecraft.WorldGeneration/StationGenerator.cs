@@ -197,10 +197,22 @@ public static class StationGenerator
             placed.Add(new StationModule(type, c, OriginOf(c)));
         }
 
-        // 4) Stamp each module as a hollow room (shell of hull + a glass viewport band).
+        // 3b) Per-module shape: the hub is a round command core; some rooms are octagonal "round"
+        //     modules (chamfered corners) — the rest are plain boxes. Drives both the room stamp and
+        //     the roof cap (solid command dome / glass observation cupola / antenna).
+        var shapeByCell = new Dictionary<Vector3i, string>();
         foreach (var m in placed)
         {
-            StampRoom(Set, m.Origin, hull, glass);
+            shapeByCell[m.Grid] = m.Type == "hub" ? "dome"
+                : (m.Type != "hangar" && rng.NextDouble() < 0.35) ? "round"
+                : "box";
+        }
+
+        // 4) Stamp each module as a hollow room (shell of hull + a glass viewport band); round/dome
+        //    modules get chamfered corners so their interior + silhouette read as rounded.
+        foreach (var m in placed)
+        {
+            StampRoom(Set, m.Origin, hull, glass, shapeByCell[m.Grid] != "box");
         }
 
         // 5) Join modules: cut a doorway in every shared wall between adjacent placed cells; cut a
@@ -255,7 +267,7 @@ public static class StationGenerator
 
         // 9) Exterior detail on exposed module faces — solar-panel wings, antennae, docking arms, and a
         //    command dome on the hub — so the hull reads as a real station, not stacked boxes.
-        StampExterior(Set, placed, occupied, hull, glass, dark, light, rng);
+        StampExterior(Set, placed, occupied, shapeByCell, hull, glass, dark, light, rng);
 
         // Guarantee the essentials exist even on a tiny station (place them in the hub).
         var hub = placed[0];
@@ -280,8 +292,10 @@ public static class StationGenerator
         return pool;
     }
 
-    /// <summary>Stamps a hollow room shell (hull walls + a glass viewport band) at a room origin.</summary>
-    private static void StampRoom(System.Action<int, int, int, ushort> set, Vector3i o, ushort hull, ushort glass)
+    /// <summary>Stamps a hollow room shell (hull walls + a glass viewport band) at a room origin. When
+    /// <paramref name="round"/>, the four corner columns are filled so the room is octagonal (a rounded
+    /// silhouette + interior) instead of a plain box; the face mid-lines (doorways) stay clear.</summary>
+    private static void StampRoom(System.Action<int, int, int, ushort> set, Vector3i o, ushort hull, ushort glass, bool round)
     {
         for (int x = 0; x < RoomW; x++)
         for (int y = 0; y < RoomH; y++)
@@ -297,6 +311,17 @@ public static class StationGenerator
             bool sideWall = x == 0 || x == RoomW - 1 || z == 0 || z == RoomL - 1;
             bool viewport = sideWall && y == 3 && x > 0 && x < RoomW - 1 && z > 0 && z < RoomL - 1;
             set(o.X + x, o.Y + y, o.Z + z, viewport ? glass : hull);
+        }
+
+        if (round)
+        {
+            // Fill the interior corner columns → an octagonal room (corners are 1 in from the shell).
+            int[,] corners = { { 1, 1 }, { 1, RoomL - 2 }, { RoomW - 2, 1 }, { RoomW - 2, RoomL - 2 } };
+            for (int i = 0; i < 4; i++)
+            for (int y = 1; y <= RoomH - 2; y++)
+            {
+                set(o.X + corners[i, 0], o.Y + y, o.Z + corners[i, 1], hull);
+            }
         }
     }
 
@@ -362,8 +387,15 @@ public static class StationGenerator
     /// the empty notches of the layout; the hangar is skipped so its docking mouth stays clear.
     /// </summary>
     private static void StampExterior(System.Action<int, int, int, ushort> set, List<StationModule> placed,
-        HashSet<Vector3i> occupied, ushort hull, ushort glass, ushort dark, ushort light, System.Random rng)
+        HashSet<Vector3i> occupied, Dictionary<Vector3i, string> shapeByCell, ushort hull, ushort glass,
+        ushort dark, ushort light, System.Random rng)
     {
+        var originByGrid = new Dictionary<Vector3i, Vector3i>();
+        foreach (var m in placed)
+        {
+            originByGrid[m.Grid] = m.Origin;
+        }
+
         foreach (var m in placed)
         {
             if (m.Type == "hangar")
@@ -395,13 +427,38 @@ public static class StationGenerator
             }
 
             bool top = !occupied.Contains(new Vector3i(g.X, g.Y + 1, g.Z));
+            string shape = shapeByCell.TryGetValue(g, out var s) ? s : "box";
             if (top && m.Type == "hub")
             {
-                Dome(set, o, hull, light);
+                Dome(set, o, hull, light, glass: 0);              // solid command cupola
+            }
+            else if (top && shape == "round")
+            {
+                Dome(set, o, hull, light, glass);                // glass observation dome
             }
             else if (top && rng.NextDouble() < 0.6)
             {
                 Antenna(set, o.X + 1 + rng.Next(RoomW - 2), o.Y + RoomH, o.Z + 1 + rng.Next(RoomL - 2), dark, light);
+            }
+
+            // Connector conduits: a pipe along the roof to a +X / +Z neighbour, when both are top modules
+            // (so the pipe runs over open roofs, not through a stacked module's floor).
+            if (top && originByGrid.TryGetValue(new Vector3i(g.X + 1, g.Y, g.Z), out var nx)
+                && !occupied.Contains(new Vector3i(g.X + 1, g.Y + 1, g.Z)))
+            {
+                for (int x = o.X + RoomW / 2; x <= nx.X + RoomW / 2; x++)
+                {
+                    set(x, o.Y + RoomH - 1, o.Z + 1, dark);
+                }
+            }
+
+            if (top && originByGrid.TryGetValue(new Vector3i(g.X, g.Y, g.Z + 1), out var nz)
+                && !occupied.Contains(new Vector3i(g.X, g.Y + 1, g.Z + 1)))
+            {
+                for (int z = o.Z + RoomL / 2; z <= nz.Z + RoomL / 2; z++)
+                {
+                    set(o.X + 1, o.Y + RoomH - 1, z, dark);
+                }
             }
         }
     }
@@ -440,9 +497,11 @@ public static class StationGenerator
         set(x, baseY + MarginTop - 1, z, light); // beacon tip
     }
 
-    /// <summary>A stepped dome above a module's ceiling (the hub's command cupola).</summary>
-    private static void Dome(System.Action<int, int, int, ushort> set, Vector3i o, ushort hull, ushort light)
+    /// <summary>A stepped dome above a module's ceiling. <paramref name="glass"/> = 0 → a solid hull
+    /// command cupola; otherwise a see-through glass observation dome. The apex is a glowing block.</summary>
+    private static void Dome(System.Action<int, int, int, ushort> set, Vector3i o, ushort hull, ushort light, ushort glass)
     {
+        ushort shell = glass != 0 ? glass : hull;
         for (int r = 0; r < MarginTop; r++)
         {
             int y = o.Y + RoomH + r;
@@ -458,7 +517,7 @@ public static class StationGenerator
                 bool edge = x == x0 || x == x1 || z == z0 || z == z1;
                 if (edge || r == MarginTop - 1)
                 {
-                    set(x, y, z, r == MarginTop - 1 ? light : hull); // glowing apex
+                    set(x, y, z, r == MarginTop - 1 ? light : shell); // glowing apex
                 }
             }
         }
