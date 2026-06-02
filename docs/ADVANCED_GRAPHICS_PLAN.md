@@ -184,7 +184,11 @@ shadow acne — tune bias per preset.
 
 - **Phase 0 (decision, optional):** evaluate URP migration. Spike: port the 3 shaders, confirm the
   always-included/build flow, measure perf. Decide go/no-go before Phase 3.
-- **Phase 1 — Post stack + emissive (highest impact, Built-in RP):** Post-Processing Stack v2: bloom,
+- **Phase 1 — Post stack + emissive (highest impact, Built-in RP):** ✅ **post stack DONE** — a code-only
+  `PostFx.cs` (no PPv2) with bloom + ACES tonemap + vignette + SSAO, preset-gated. Remaining: per-system/
+  biome **colour grading (LUT)** and richer **emissive** materials (ores/lights/engines marked emissive so
+  bloom catches them). Original outline below.
+- **Phase 1 (orig) — Post stack + emissive:** Post-Processing Stack v2: bloom,
   ACES tonemap, SSAO, per-system/biome colour grade, vignette; emissive channel for ores/lights/engines/
   beams/UI. Preset-gated. *This alone makes the game look "pro".*
 - **Phase 1.5 — Normal mapping:** normal atlas + tangent-space lighting in `BlockAtlas`/`LitColor`;

@@ -349,8 +349,10 @@ consumes protocol messages that already exist.
   SunGlow}` (persisted in GraphicsSettings always-included). **Distance fog** done (sky-coloured,
   weather-scaled; block shader fog-enabled). Also done: **creatures/NPCs no longer enter the ship**
   (server); the standalone Windows build is fixed + verified (raw-RGBA textures via
-  `LoadRawTextureData`, `build-client.ps1` now fails loudly on a bad build). Still **this pass**:
-  **post-FX** bloom/AO (needs the post package), **planet-side ship = space-ship model** (engines off,
+  `LoadRawTextureData`, `build-client.ps1` now fails loudly on a bad build). **Post-FX DONE** — a
+  code-only stack (`PostFx.cs` + `Spacecraft/Post{Bloom,Composite,AO}`): **bloom** + **ACES tonemapping**
+  + vignette + **SSAO**, preset-gated (Potato off → Low tonemap → Medium +bloom → High +SSAO). Still
+  **this pass**: **planet-side ship = space-ship model** (engines off,
   hatch open), **per-ship speed + manoeuvrability** (`ships.json`). Standing planned (tracked above, do
   not drop): **player/NPC/equipment-use animations** (see "Held tools/weapons + use animations" +
   creatures), **weapon/equipment VFX** (see Player weapons + Equipment), **weather** clouds + fog/view-
