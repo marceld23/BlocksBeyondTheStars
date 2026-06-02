@@ -14,6 +14,7 @@ namespace Spacecraft.Client
         public Camera Camera;
         public PlayerAvatar Avatar;
         public GameMenu Menu;
+        public WeaponFx Weapons;
 
         public float MoveSpeed = 6f;
         public float JumpSpeed = 7f;
@@ -149,32 +150,52 @@ namespace Spacecraft.Client
 
             PlayWeaponSound();
             string nearest = null;
+            Vector3 nearestPos = default;
             float bestSq = 6f * 6f; // attack reach
             foreach (var e in Game.PlanetEnemies)
             {
-                float d = (new Vector3(e.X, e.Y, e.Z) - transform.position).sqrMagnitude;
+                var ep = new Vector3(e.X, e.Y, e.Z);
+                float d = (ep - transform.position).sqrMagnitude;
                 if (d < bestSq)
                 {
                     bestSq = d;
                     nearest = e.Id;
+                    nearestPos = ep;
                 }
             }
 
             // Creatures (fauna) are attackable too — the server shares the hit path.
             foreach (var c in Game.Creatures)
             {
-                float d = (new Vector3(c.X, c.Y, c.Z) - transform.position).sqrMagnitude;
+                var cp = new Vector3(c.X, c.Y, c.Z);
+                float d = (cp - transform.position).sqrMagnitude;
                 if (d < bestSq)
                 {
                     bestSq = d;
                     nearest = c.Id;
+                    nearestPos = cp;
                 }
             }
 
             if (nearest != null)
             {
                 Game.Network.SendAttackEntity(nearest);
+                if (Weapons != null && Camera != null)
+                {
+                    var from = Camera.transform.position + Camera.transform.forward * 0.4f - Camera.transform.up * 0.15f;
+                    Weapons.Shoot(from, nearestPos + Vector3.up * 0.4f, WeaponColor());
+                }
             }
+        }
+
+        /// <summary>The beam/spark colour for the held weapon (energy types tint their bolts).</summary>
+        private Color WeaponColor()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
+            if (held.Contains("plasma")) return new Color(0.92f, 0.45f, 1f);
+            if (held.Contains("laser")) return new Color(1f, 0.42f, 0.36f);
+            if (held.Contains("gauss")) return new Color(0.5f, 0.9f, 1f);
+            return new Color(1f, 0.95f, 0.8f); // melee / default
         }
 
         private void LootNearestContainer()
@@ -253,12 +274,19 @@ namespace Spacecraft.Client
                 return;
             }
 
-            if (Physics.Raycast(new Ray(Camera.transform.position, Camera.transform.forward), Reach))
+            if (Physics.Raycast(new Ray(Camera.transform.position, Camera.transform.forward), out var hit, Reach))
             {
                 ClientAudio.Instance?.DrillTick();
                 Avatar?.Swing(); // keep the mining chop going while the drill is held
+                if (Weapons != null && Time.time >= _nextDrillSpark)
+                {
+                    _nextDrillSpark = Time.time + 0.07f;
+                    Weapons.Sparks(hit.point, new Color(1f, 0.85f, 0.5f), 3);
+                }
             }
         }
+
+        private float _nextDrillSpark;
 
         /// <summary>True if the selected hotbar item is a drill (its primary action mines).</summary>
         private bool HoldingDrill()

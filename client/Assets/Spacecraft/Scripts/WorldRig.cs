@@ -143,6 +143,10 @@ namespace Spacecraft.Client
             miningFx.Camera = cam;
             miningFx.Reach = pc.Reach;
 
+            // Tool/weapon VFX (beam + muzzle flash + impact sparks, drill sparks).
+            var weaponFx = root.AddComponent<WeaponFx>();
+            pc.Weapons = weaponFx;
+
             return root;
         }
 
