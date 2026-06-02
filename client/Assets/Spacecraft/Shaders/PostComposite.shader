@@ -22,6 +22,8 @@ Shader "Spacecraft/PostComposite"
             float _Exposure;
             float _Tonemap;
             float _Vignette;
+            fixed4 _Sc_GradeTint;   // per-system/biome colour grade: rgb tint, a = strength (0 = off)
+            float4 _Sc_GradeParams; // x = saturation, y = contrast
 
             // Narkowicz ACES filmic approximation.
             float3 ACES(float3 x)
@@ -43,6 +45,17 @@ Shader "Spacecraft/PostComposite"
                 if (_Tonemap > 0.5)
                 {
                     col = ACES(col);
+                }
+
+                // Per-system / biome colour grade (saturation, contrast, tint) — the "mood" LUT.
+                if (_Sc_GradeTint.a > 0.001)
+                {
+                    float3 g = col;
+                    float lum = dot(g, float3(0.299, 0.587, 0.114));
+                    g = lerp(lum.xxx, g, _Sc_GradeParams.x);              // saturation
+                    g = saturate((g - 0.5) * _Sc_GradeParams.y + 0.5);   // contrast
+                    g *= _Sc_GradeTint.rgb;                              // hue/temperature tint
+                    col = lerp(col, g, _Sc_GradeTint.a);                // strength
                 }
 
                 float2 dv = i.uv - 0.5;

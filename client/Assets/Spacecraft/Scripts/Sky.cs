@@ -19,6 +19,8 @@ namespace Spacecraft.Client
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int GradeTintId = Shader.PropertyToID("_Sc_GradeTint");
+        private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
 
         private Light _sun;
         private Transform _sunDisc;     // visible glowing sun billboard in the sky
@@ -170,6 +172,36 @@ namespace Spacecraft.Client
             }
 
             UpdateSunDisc(sunHeight, sunColor, spaceSky);
+            SetGrade(Game?.Environment?.Biome, sunColor);
+        }
+
+        /// <summary>Drives the post-FX colour grade (the per-system/biome "mood LUT"): a biome tint +
+        /// saturation/contrast, folded with the star system's sun colour as a subtle hue shift. Read by
+        /// <c>Spacecraft/PostComposite</c>; only visible when tonemapping/post is on.</summary>
+        private void SetGrade(string biome, Color sunColor)
+        {
+            var (tint, sat, contrast) = GradeFor(biome);
+            float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
+            Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
+            Color blended = tint * Color.Lerp(Color.white, norm, 0.25f);
+            blended.a = 0.7f; // grade strength
+            Shader.SetGlobalColor(GradeTintId, blended);
+            Shader.SetGlobalVector(GradeParamsId, new Vector4(sat, contrast, 0f, 0f));
+        }
+
+        /// <summary>Per-biome colour-grade mood: (tint multiply, saturation, contrast).</summary>
+        private static (Color tint, float sat, float contrast) GradeFor(string biome)
+        {
+            switch ((biome ?? string.Empty).ToLowerInvariant())
+            {
+                case "jungle": case "forest": return (new Color(0.98f, 1.05f, 0.96f), 1.12f, 1.05f);
+                case "desert": return (new Color(1.07f, 1.00f, 0.90f), 0.95f, 1.12f);
+                case "ice": case "frozen": return (new Color(0.94f, 1.00f, 1.09f), 0.90f, 1.06f);
+                case "lava": case "volcanic": return (new Color(1.10f, 0.95f, 0.86f), 1.05f, 1.14f);
+                case "swamp": return (new Color(0.97f, 1.03f, 0.95f), 0.85f, 1.03f);
+                case "crystal": return (new Color(1.04f, 0.97f, 1.09f), 1.10f, 1.05f);
+                default: return (new Color(1f, 1f, 1f), 1.00f, 1.03f);
+            }
         }
 
         /// <summary>
@@ -232,6 +264,7 @@ namespace Spacecraft.Client
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
             Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
+            Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {
