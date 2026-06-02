@@ -192,9 +192,14 @@ Add **template pools** the placers consult *before* falling back to procedural �
     exposed faces, roof antennae with beacon tips, and a stepped **command dome** on the hub. Settlements
     gained **four size tiers** (hamlet → village → town → city) chosen weighted at the placement site,
     with tier-fitting name suffixes.
-  - **Remaining:** station **module-shape** variety (genuinely different module footprints — long
-    corridors / round modules — needs the shared-wall grid to flex); docking-arm/connector tubes between
-    stations; biome-specific settlement theming beyond the base material.
+  - **DONE (slice 3):** station **module shapes** — round command hub, ~35% octagonal "round" modules
+    (chamfered corners), glass **observation domes** on round tops, **connector conduits** along the
+    roofs between adjacent top modules. Settlements got **biome theming** — biome-specific garden flora
+    (cactus/frostflower/mushroom/fern/emberbloom; alien = crystal), biome-ground paths (sand/ice), and
+    flat adobe roofs on desert worlds.
+  - **Remaining (optional):** genuinely different module *footprints* (long corridors) would need the
+    shared-wall grid to flex — deferred as higher-risk; the shape/greeble work above covers the visible
+    variety. P5 is otherwise complete.
 
 P1 delivers the requested **"world-gen picks from a list of hand-designed types in addition to
 procedural"** even before the editors exist (author a couple of templates by hand / via the ship-editor-

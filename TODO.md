@@ -418,8 +418,10 @@ consumes protocol messages that already exist.
   optional fence, and alien theming; stations got **type-specific furnished interiors** (consoles, counter,
   heal tank, bunks, crates) + ceiling lights. **P5 slice 2 DONE** (`c6f0c2c`): stations got **exterior
   detail** (solar-panel wings, roof antennae, a hub command dome) and settlements got **four size tiers**
-  (hamlet→village→town→city). **P5 remaining:** true station module-**shape** variety (different footprints
-  / round modules) + connector tubes; biome-specific settlement theming beyond material.
+  (hamlet→village→town→city). **P5 slice 3 DONE** (`3af0f86`): station **module shapes** (round command
+  hub, octagonal modules, glass observation domes, roof connector conduits) + settlement **biome theming**
+  (biome flora/paths/roofs). **P5 essentially complete** — only genuinely-different module *footprints*
+  (long corridors) deferred as higher-risk (needs the shared-wall grid to flex).
 - **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
   recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
   with the ship-type editor above.
