@@ -30,6 +30,7 @@ namespace Spacecraft.Client.EditorTools
             "Spacecraft/BlockAtlas",
             "Spacecraft/LitColor",
             "Spacecraft/SunGlow",
+            "Spacecraft/Cloud",
             "Unlit/Color",
         };
 

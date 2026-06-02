@@ -83,6 +83,14 @@ public sealed class PlanetType
     /// <summary>0..1 chance of surface flora per eligible column (0 = no plants). Bounded: one plant per cell.</summary>
     public double FloraDensity { get; set; }
 
+    /// <summary>Base cloud tint, packed 0xRRGGBB (storms darken it client-side). Ash worlds are grey-brown,
+    /// deserts sandy, ice pale blue. Used for both the surface cloud layer and the view from space.</summary>
+    public int CloudColor { get; set; } = 0xEDEFF2;
+
+    /// <summary>0..1 cloud cover: how many/how thick the clouds are (frequency + how far they cut visibility).
+    /// 0 = clear skies. Airless bodies have none.</summary>
+    public double CloudDensity { get; set; } = 0.45;
+
     /// <summary>
     /// How much life this world has: "none" (barren), "few" or "many". Drives how many
     /// procedural <see cref="CreatureSpecies"/> the world derives and the live spawn caps.

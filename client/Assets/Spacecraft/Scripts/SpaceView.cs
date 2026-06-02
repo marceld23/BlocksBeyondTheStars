@@ -29,6 +29,7 @@ namespace Spacecraft.Client
         private Transform _exhaust;
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
+        private readonly List<Transform> _cloudShells = new List<Transform>();
 
         private Transform _camPrevParent;
         private Vector3 _camPrevLocalPos;
@@ -50,6 +51,15 @@ namespace Spacecraft.Client
             if (Game == null || Camera == null)
             {
                 return;
+            }
+
+            // Drift the cloud cover slowly so planets look alive from space.
+            for (int i = 0; i < _cloudShells.Count; i++)
+            {
+                if (_cloudShells[i] != null)
+                {
+                    _cloudShells[i].Rotate(0f, Time.deltaTime * (2.5f + i * 1.5f), 0f, Space.Self);
+                }
             }
 
             if (Game.InSpace && !_active)
@@ -280,6 +290,7 @@ namespace Spacecraft.Client
         {
             _root = new GameObject("SpaceScene");
             _root.transform.position = SceneOrigin;
+            _cloudShells.Clear();
 
             var star = Unlit(new Color(0.9f, 0.95f, 1f));
             var rng = new System.Random(1234);
@@ -294,7 +305,7 @@ namespace Spacecraft.Client
 
             // Planets reflect the actual world/biome: the big one is the planet you're at, the
             // distant one a neighbouring body in the same system (from the star map). Lit + textured.
-            ResolvePlanetLooks(out var mainLook, out var secondLook);
+            ResolvePlanetLooks(out var mainLook, out var secondLook, out var mainType, out var secondType);
 
             var planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             planet.name = "Planet";
@@ -304,6 +315,10 @@ namespace Spacecraft.Client
             planet.transform.localScale = Vector3.one * 160f;
             planet.GetComponent<Renderer>().sharedMaterial = Lit(mainLook.tint, LoadTex(mainLook.tex), new Vector2(6f, 3f));
 
+            // Cloud cover over the planet you're at — its authoritative per-planet colour/density.
+            var (mainCloudCol, mainCloudDen) = MainCloudLook(mainType);
+            AddCloudShell(planet.transform, mainCloudCol, mainCloudDen);
+
             // A second, distant planet so space doesn't look empty.
             var planet2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             planet2.name = "Planet2";
@@ -312,6 +327,9 @@ namespace Spacecraft.Client
             planet2.transform.localPosition = new Vector3(-160f, 60f, 220f);
             planet2.transform.localScale = Vector3.one * 60f;
             planet2.GetComponent<Renderer>().sharedMaterial = Lit(secondLook.tint, LoadTex(secondLook.tex), new Vector2(3f, 2f));
+
+            var (secondCloudCol, secondCloudDen) = PlanetCloudLook(secondType);
+            AddCloudShell(planet2.transform, secondCloudCol, secondCloudDen);
 
             _ship = BuildShip(_root.transform);
         }
@@ -498,7 +516,8 @@ namespace Spacecraft.Client
         /// body you're at (active star-map location, falling back to the current biome), the second a
         /// neighbouring body in the same system. Both reflect their planet type's colour + texture.
         /// </summary>
-        private void ResolvePlanetLooks(out (Color tint, string tex) main, out (Color tint, string tex) second)
+        private void ResolvePlanetLooks(out (Color tint, string tex) main, out (Color tint, string tex) second,
+            out string mainTypeOut, out string secondTypeOut)
         {
             string mainType = Game?.Environment?.Biome;
             string secondType = null;
@@ -542,6 +561,8 @@ namespace Spacecraft.Client
 
             main = PlanetLook(mainType);
             second = PlanetLook(secondType ?? "rock");
+            mainTypeOut = mainType;
+            secondTypeOut = secondType ?? "rock";
         }
 
         /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
@@ -583,5 +604,103 @@ namespace Spacecraft.Client
                 0.40f + 0.45f * (float)rng.NextDouble(),
                 0.40f + 0.45f * (float)rng.NextDouble());
         }
+
+        /// <summary>Cloud colour/density for the planet you're at — the authoritative server values when
+        /// available, else the planet-type default.</summary>
+        private (Color color, float density) MainCloudLook(string type)
+        {
+            var env = Game?.Environment;
+            if (env != null && !env.SpaceSky && env.CloudDensity > 0.001f)
+            {
+                return (Rgb(env.CloudColor), env.CloudDensity);
+            }
+
+            return PlanetCloudLook(type);
+        }
+
+        /// <summary>Per planet-type cloud cover seen from space (mirrors data/planets.json).</summary>
+        private static (Color color, float density) PlanetCloudLook(string key)
+        {
+            switch ((key ?? string.Empty).ToLowerInvariant())
+            {
+                case "jungle":
+                case "forest": return (Rgb(0xF2F4F6), 0.6f);
+                case "desert": return (Rgb(0xE8D9B0), 0.3f);
+                case "ice":
+                case "frozen": return (Rgb(0xDCEAF5), 0.5f);
+                case "lava":
+                case "volcanic": return (Rgb(0x5A4A44), 0.7f);
+                case "swamp": return (Rgb(0xC8CBC0), 0.75f);
+                case "crystal": return (Rgb(0xE6D6F0), 0.4f);
+                case "rocky":
+                case "rock": return (Rgb(0xEDEFF2), 0.35f);
+                default: return (Rgb(0xEDEFF2), 0f); // barren/asteroid → no clouds
+            }
+        }
+
+        /// <summary>Adds a slowly-spinning, semi-transparent cloud shell over a planet sphere (the clouds
+        /// you see from space). Density drives how much of the planet the cover hides.</summary>
+        private void AddCloudShell(Transform planet, Color color, float density)
+        {
+            if (density <= 0.001f)
+            {
+                return;
+            }
+
+            var shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            shell.name = "CloudShell";
+            StripCollider(shell);
+            shell.transform.SetParent(planet, false);
+            shell.transform.localPosition = Vector3.zero;
+            shell.transform.localScale = Vector3.one * 1.035f; // just above the surface
+
+            var shader = Shader.Find("Spacecraft/Cloud") ?? Shader.Find("Unlit/Transparent");
+            var mat = new Material(shader) { mainTexture = CloudCoverTexture(density) };
+            mat.renderQueue = 3000;
+            var c = color;
+            c.a = Mathf.Clamp01(0.55f + density * 0.4f);
+            mat.SetColor(Shader.PropertyToID("_Color"), c);
+
+            var mr = shell.GetComponent<Renderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            _cloudShells.Add(shell.transform);
+        }
+
+        /// <summary>A wrapping cloud-cover tile: white patches with alpha gaps, coverage set by density.</summary>
+        private static Texture2D CloudCoverTexture(float density)
+        {
+            const int n = 128;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            // Sum a few sine bands (seamless across the wrap) into a soft field, then threshold by density.
+            float threshold = Mathf.Lerp(0.85f, 0.30f, Mathf.Clamp01(density));
+            var px = new Color[n * n];
+            for (int y = 0; y < n; y++)
+            {
+                for (int x = 0; x < n; x++)
+                {
+                    float u = x / (float)n * Mathf.PI * 2f, v = y / (float)n * Mathf.PI * 2f;
+                    float f = 0.5f
+                        + 0.25f * Mathf.Sin(u * 3f + Mathf.Sin(v * 2f))
+                        + 0.15f * Mathf.Sin(v * 4f + Mathf.Cos(u * 3f))
+                        + 0.10f * Mathf.Sin((u + v) * 5f);
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((f - threshold) * 3f));
+                    px[y * n + x] = new Color(1f, 1f, 1f, a);
+                }
+            }
+
+            tex.SetPixels(px);
+            tex.Apply(true);
+            return tex;
+        }
+
+        private static Color Rgb(int rgb)
+            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
     }
 }

@@ -129,6 +129,11 @@ namespace Spacecraft.Client
             sky.Game = boot;
             sky.Camera = cam;
 
+            // Surface cloud layer (per-planet colour/cover; storms darken it).
+            var clouds = root.AddComponent<Clouds>();
+            clouds.Game = boot;
+            clouds.Camera = cam;
+
             // Weather overlay (rain + lightning, M27 polish).
             var weather = root.AddComponent<WeatherFx>();
             weather.Game = boot;

@@ -27,6 +27,8 @@ public sealed partial class GameServer
     private double _weatherTimer;
     private double _sinceEnvBroadcast;
     private int _sunColor = 0xFFF6E8;
+    private int _cloudColor = 0xEDEFF2;
+    private float _cloudDensity = 0.45f;
     private bool _breathable;
     private bool _spaceSky;
     private string _biome = "rock";
@@ -52,6 +54,9 @@ public sealed partial class GameServer
         _planetWeatherMode = string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather;
         _breathable = string.Equals(planet?.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase);
         _spaceSky = planet?.SpaceSky ?? false;
+        _cloudColor = planet?.CloudColor ?? 0xEDEFF2;
+        // Airless bodies (space sky) never have clouds.
+        _cloudDensity = _spaceSky ? 0f : (float)System.Math.Clamp(planet?.CloudDensity ?? 0.45, 0.0, 1.0);
         _biome = string.IsNullOrEmpty(_meta.DefaultPlanetType) ? "rock" : _meta.DefaultPlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
         _envRng = new System.Random((int)_meta.Seed);
@@ -130,6 +135,8 @@ public sealed partial class GameServer
         Weather = _weatherState,
         Intensity = _weatherIntensity,
         SunColor = _sunColor,
+        CloudColor = _cloudColor,
+        CloudDensity = _cloudDensity,
         Breathable = _breathable,
         SpaceSky = _spaceSky,
         Biome = _biome,

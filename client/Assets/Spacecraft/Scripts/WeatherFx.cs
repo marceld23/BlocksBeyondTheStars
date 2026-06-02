@@ -77,14 +77,22 @@ namespace Spacecraft.Client
 
             if (rain && !Game.MenuOpen)
             {
-                int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.4f + env.Intensity * 0.6f));
                 float h = Screen.height, w = Screen.width, t = Time.time;
-                GUI.color = new Color(0.6f, 0.8f, 1f, 0.45f);
+
+                // A faint cool wash sells the wet, overcast air (heavier in a storm).
+                GUI.color = new Color(0.42f, 0.52f, 0.62f, 0.05f + env.Intensity * 0.07f);
+                GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
+
+                int count = Mathf.RoundToInt(Max * Mathf.Clamp01(0.45f + env.Intensity * 0.55f));
+                // Storms drive the rain harder (faster, longer, more slanted) than a light shower.
+                float speedBoost = env.Weather == "storm" ? 1.5f : 1f;
+                float slant = (env.Weather == "storm" ? 12f : 5f);
+                GUI.color = new Color(0.62f, 0.78f, 1f, 0.42f);
                 for (int i = 0; i < count; i++)
                 {
-                    float y = ((_phase[i] + t * _speed[i]) % 1f) * (h + 40f) - 20f;
-                    float x = _x[i] * w + Mathf.Sin(t + i) * 5f;
-                    GUI.DrawTexture(new Rect(x, y, 2f, _len[i]), Texture2D.whiteTexture);
+                    float y = ((_phase[i] + t * _speed[i] * speedBoost) % 1f) * (h + 40f) - 20f;
+                    float x = _x[i] * w + Mathf.Sin(t + i) * slant;
+                    GUI.DrawTexture(new Rect(x, y, 2f, _len[i] * speedBoost), Texture2D.whiteTexture);
                 }
             }
 

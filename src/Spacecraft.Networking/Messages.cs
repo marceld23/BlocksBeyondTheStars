@@ -749,6 +749,12 @@ public sealed class WorldEnvironment
     /// <summary>Sun/star light colour, packed 0xRRGGBB.</summary>
     public int SunColor { get; set; } = 0xFFF6E8;
 
+    /// <summary>Base cloud tint for this planet, packed 0xRRGGBB (storms darken it on the client).</summary>
+    public int CloudColor { get; set; } = 0xEDEFF2;
+
+    /// <summary>0..1 cloud cover for this planet (frequency + thickness; 0 = clear skies).</summary>
+    public float CloudDensity { get; set; } = 0.45f;
+
     /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool Breathable { get; set; }
 
