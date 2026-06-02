@@ -383,6 +383,11 @@ consumes protocol messages that already exist.
   the other content editors). Builds on the existing `PlayerAvatar` + per-part colour settings.
 - **(NEW, to scope) Animations status:** review existing vs planned — player (walk/mine/attack/place),
   NPC (idle/gesture/walk), equipment-use, and weapon/equipment VFX — and plan the first animation pass.
+- **(NEW, planned) Player chat via radios:** a **radio/comm device** in **3 tiers** (blueprint-unlocked,
+  each harder to craft) gates **player-to-player chat**, with range by tier: **T1 same planet → T2 same
+  system → T3 all players**. Needs a `ChatIntent`/`ChatMessage` protocol + client chat UI (open/type/
+  scrollback), server-authoritative recipient resolution by range (reuses travel/galaxy data),
+  rate-limit + length cap, bilingual strings.
 - **(NEW, planned) Content editors + merge:** a menu-based **ship-type editor** (build a ship from
   blocks — engines, cockpit glass, entry hatch, stations — set hull/shield/flightSpeed/handling/cargo
   + blueprint-unlock cost) and an **equipment/recipe editor** (new items + crafting recipes, costs,

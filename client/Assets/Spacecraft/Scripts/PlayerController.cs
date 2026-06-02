@@ -110,6 +110,7 @@ namespace Spacecraft.Client
             if (Input.GetKeyDown(KeyCode.F))
             {
                 AttackNearestEnemy();
+                Avatar?.Swing();
             }
 
             if (Input.GetKeyDown(KeyCode.G))
@@ -127,6 +128,7 @@ namespace Spacecraft.Client
             Move();
             HandleInteract();
             HandleDrillAudio();
+            UpdateGearPeriodically();
             SendMovement();
 
             // Publish local pose for the HUD minimap/compass.
@@ -201,6 +203,48 @@ namespace Spacecraft.Client
             }
         }
 
+        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack;
+        private float _gearTimer;
+
+        /// <summary>Mirrors the player's carried gear onto the third-person avatar (helmet/chest/legs/
+        /// pack), refreshed a couple of times a second so it tracks pickups/crafts without polling hard.</summary>
+        private void UpdateGearPeriodically()
+        {
+            _gearTimer -= Time.deltaTime;
+            if (_gearTimer > 0f || Avatar == null || Game?.Personal == null)
+            {
+                return;
+            }
+
+            _gearTimer = 0.5f;
+            bool helmet = HasItem("armor_helmet");
+            bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
+            bool legs = HasItem("armor_legs");
+            bool pack = HasItem("oxygen_tank_2") || HasItem("jetpack");
+
+            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack)
+            {
+                _gearHelmet = helmet;
+                _gearChest = chest;
+                _gearLegs = legs;
+                _gearPack = pack;
+                Avatar.SetGear(helmet, chest, legs, pack);
+            }
+        }
+
+        private bool HasItem(string key)
+        {
+            foreach (var s in Game.Personal)
+            {
+                if (s.Item == key && s.Count > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Keeps the drill loop alive while the player holds mine with a drill aimed at a block.</summary>
         private void HandleDrillAudio()
         {
@@ -212,6 +256,7 @@ namespace Spacecraft.Client
             if (Physics.Raycast(new Ray(Camera.transform.position, Camera.transform.forward), Reach))
             {
                 ClientAudio.Instance?.DrillTick();
+                Avatar?.Swing(); // keep the mining chop going while the drill is held
             }
         }
 
@@ -507,6 +552,7 @@ namespace Spacecraft.Client
             if (mine)
             {
                 Game.Network.SendMine(b.x, b.y, b.z);
+                Avatar?.Swing();
             }
             else
             {
@@ -518,6 +564,7 @@ namespace Spacecraft.Client
                 {
                     var t = FloorVec(hit.point + hit.normal * 0.5f);
                     Game.Network.SendPlace(t.x, t.y, t.z, item);
+                    Avatar?.Swing();
                 }
             }
         }
