@@ -38,6 +38,18 @@ ICONS = [
     ("info_mode", "a 3d cube box"),
     ("info_multiplayer", "a hexagon with three connected dot nodes"),
     ("info_procedural", "a planet with an orbit ring"),
+    # Category icons for the Crafting / Tech / Ship menu redesign.
+    ("cat_all", "a four square grid of items"),
+    ("cat_tools", "a wrench and a screwdriver crossed"),
+    ("cat_weapons", "a laser pistol"),
+    ("cat_suit", "a space helmet"),
+    ("cat_medicine", "a medical cross inside a circle"),
+    ("cat_components", "a microchip circuit board"),
+    ("cat_blocks", "a stack of three cubes"),
+    ("cat_modules", "a hexagonal ship module segment"),
+    ("cat_fleet", "two small spaceships side by side"),
+    ("cat_buildship", "a rocket with a plus sign"),
+    ("cat_tech", "a tech tree of connected nodes"),
 ]
 
 

@@ -50,6 +50,10 @@ namespace Spacecraft.Client
             {
                 SwitchTo(_tab); // refresh data for the current tab
             }
+            else
+            {
+                _ui?.Hide();
+            }
         }
 
         /// <summary>Switches tab and (re)requests server data for data-driven tabs.</summary>
@@ -66,13 +70,45 @@ namespace Spacecraft.Client
             }
         }
 
-        private void OnGUI()
+        private CraftingTechShipUI _ui;
+
+        private void EnsureUi()
         {
-            if (!_open || Game?.Localizer == null || Game.Content == null)
+            if (_ui != null)
             {
                 return;
             }
 
+            var go = new GameObject("CraftTechShipUI");
+            go.transform.SetParent(transform, false);
+            _ui = go.AddComponent<CraftingTechShipUI>();
+            _ui.Game = Game;
+            _ui.Menu = this;
+        }
+
+        /// <summary>Switches the active tab from the uGUI screen (Crafting/Tech/Ship bar).</summary>
+        public void SwitchFromUi(int tab) => SwitchTo((Tab)tab);
+
+        /// <summary>Closes the whole menu from the uGUI screen's X button.</summary>
+        public void CloseFromUi() => SetOpen(false);
+
+        private void OnGUI()
+        {
+            if (!_open || Game?.Localizer == null || Game.Content == null)
+            {
+                _ui?.Hide();
+                return;
+            }
+
+            // The Crafting / Tech / Ship tabs use the redesigned uGUI screen instead of the IMGUI body.
+            if (_tab == Tab.Crafting || _tab == Tab.Tech || _tab == Tab.Ship)
+            {
+                EnsureUi();
+                _ui.ShowMode((CraftingTechShipUI.Mode)_tab);
+                return;
+            }
+
+            _ui?.Hide();
             var loc = Game.Localizer;
             const float w = 760f, h = 560f;
 

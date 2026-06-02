@@ -350,6 +350,9 @@ public sealed class InventoryUpdate
 {
     public NetItemStack[] Personal { get; set; } = System.Array.Empty<NetItemStack>();
     public NetItemStack[] Cargo { get; set; } = System.Array.Empty<NetItemStack>();
+
+    /// <summary>Blueprint keys the player has unlocked — lets the client show craftable/locked status.</summary>
+    public string[] UnlockedBlueprints { get; set; } = System.Array.Empty<string>();
 }
 
 public sealed class PlayerStateUpdate

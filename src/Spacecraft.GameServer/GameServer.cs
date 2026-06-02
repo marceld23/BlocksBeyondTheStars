@@ -1630,6 +1630,7 @@ public sealed partial class GameServer
         {
             Personal = DumpInventory(session.State.Inventory),
             Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
+            UnlockedBlueprints = session.State.UnlockedBlueprints.ToArray(),
         });
     }
 

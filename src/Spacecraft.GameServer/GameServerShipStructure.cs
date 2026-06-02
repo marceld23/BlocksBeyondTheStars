@@ -175,6 +175,8 @@ public sealed partial class GameServer
         AddStation("workshop", cx + dx, floor, cz, "stone");           // crafting bench
         AddStation("cargo", cx - dx, floor, cz, "iron_wall");          // shared cargo hold
         AddStation("quarters", cx + dx, floor, cz - dz, "carbon");     // sleep / set respawn
+        AddStation("lab", cx - dx, floor, cz + dz, "data_cache");      // research console (Tech menu)
+        AddStation("console", cx + dx, floor, cz + dz, "data_cache");  // ship-expansion console (Ship menu)
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);

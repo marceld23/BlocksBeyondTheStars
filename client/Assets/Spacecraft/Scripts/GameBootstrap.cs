@@ -131,6 +131,9 @@ namespace Spacecraft.Client
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
+        /// <summary>Blueprint keys the player has unlocked (synced from the server) — drives craftable/locked UI.</summary>
+        public System.Collections.Generic.HashSet<string> UnlockedBlueprints { get; private set; } = new();
+
         /// <summary>Hotbar slot the player has selected (written by the player controller).</summary>
         public int SelectedHotbarSlot;
 
@@ -200,7 +203,12 @@ namespace Spacecraft.Client
             Network.ChunkReceived += OnChunk;
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
-            Network.InventoryUpdated += m => { Personal = m.Personal; Cargo = m.Cargo; };
+            Network.InventoryUpdated += m =>
+            {
+                Personal = m.Personal;
+                Cargo = m.Cargo;
+                UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+            };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.StarMapReceived += m => StarMap = m;
