@@ -238,6 +238,17 @@ public static class StationGenerator
             }
         }
 
+        // 8) Furnish each module by type — consoles, counters, heal tanks, bunks, crates + lights — so
+        //    rooms read as functional spaces instead of empty shells. All props avoid the centre column
+        //    (x=3,z=3): the door/shaft lines and the hollow-room invariant.
+        ushort light = content.GetBlock("data_cache")?.NumericId.Value ?? glass;
+        ushort tank = content.GetBlock("ice")?.NumericId.Value ?? glass;
+        ushort dark = content.GetBlock("carbon")?.NumericId.Value ?? hull;
+        foreach (var m in placed)
+        {
+            FurnishModule(Set, m.Origin, m.Type, hull, light, tank, dark);
+        }
+
         // Guarantee the essentials exist even on a tiny station (place them in the hub).
         var hub = placed[0];
         var hubFloor = new Vector3i(hub.Origin.X + 2, hub.Origin.Y + 1, hub.Origin.Z + 2);
@@ -278,6 +289,62 @@ public static class StationGenerator
             bool sideWall = x == 0 || x == RoomW - 1 || z == 0 || z == RoomL - 1;
             bool viewport = sideWall && y == 3 && x > 0 && x < RoomW - 1 && z > 0 && z < RoomL - 1;
             set(o.X + x, o.Y + y, o.Z + z, viewport ? glass : hull);
+        }
+    }
+
+    /// <summary>
+    /// Furnishes a module's interior by type with floor props + ceiling lights. Everything is placed at
+    /// the corners/edges (columns x∈{1,2,4,5}, z∈{1,2,4,5} — never the centre x=3/z=3), so it never blocks
+    /// a doorway, the vertical shaft, or the hollow-centre cell the room relies on.
+    /// </summary>
+    private static void FurnishModule(System.Action<int, int, int, ushort> set, Vector3i o, string type,
+        ushort hull, ushort light, ushort tank, ushort dark)
+    {
+        // Corner ceiling lights in every room.
+        if (light != 0)
+        {
+            set(o.X + 1, o.Y + RoomH - 2, o.Z + 1, light);
+            set(o.X + RoomW - 2, o.Y + RoomH - 2, o.Z + RoomL - 2, light);
+        }
+
+        switch (type)
+        {
+            case "hub": // a control console bank along the -X wall + a status panel
+                set(o.X + 1, o.Y + 1, o.Z + 2, dark);
+                set(o.X + 1, o.Y + 1, o.Z + 4, dark);
+                set(o.X + 1, o.Y + 2, o.Z + 2, light);
+                set(o.X + 1, o.Y + 2, o.Z + 4, light);
+                break;
+
+            case "market": // a vendor counter along the +Z wall
+                set(o.X + 2, o.Y + 1, o.Z + 5, dark);
+                set(o.X + 4, o.Y + 1, o.Z + 5, dark);
+                set(o.X + 2, o.Y + 2, o.Z + 5, light); // register / display
+                break;
+
+            case "medbay": // a glowing heal tank in a corner
+                set(o.X + 1, o.Y + 1, o.Z + 1, tank);
+                set(o.X + 1, o.Y + 2, o.Z + 1, tank);
+                set(o.X + 2, o.Y + 1, o.Z + 1, light);
+                break;
+
+            case "quarters": // two bunks against the +X wall
+                set(o.X + 5, o.Y + 1, o.Z + 1, dark);
+                set(o.X + 5, o.Y + 1, o.Z + 2, dark);
+                set(o.X + 5, o.Y + 1, o.Z + 4, dark);
+                set(o.X + 5, o.Y + 1, o.Z + 5, dark);
+                break;
+
+            case "hangar": // supply crates stacked in the corners by the mouth
+                set(o.X + 1, o.Y + 1, o.Z + 1, dark);
+                set(o.X + 1, o.Y + 2, o.Z + 1, dark);
+                set(o.X + 5, o.Y + 1, o.Z + 1, dark);
+                break;
+
+            default: // corridor / misc — floor guide lights
+                set(o.X + 1, o.Y + 1, o.Z + 5, light);
+                set(o.X + 5, o.Y + 1, o.Z + 1, light);
+                break;
         }
     }
 
