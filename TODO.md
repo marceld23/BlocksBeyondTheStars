@@ -394,9 +394,11 @@ consumes protocol messages that already exist.
   (tiered progression tree by prerequisite depth, status colours, prereqs + unlock cost in detail).
   **Ship** (module cards, fleet switch, craftable-ship cards with full stats). **Location-bound**
   (workshop/lab/console — lab + console station tiles added to the ship). Backend syncs
-  `UnlockedBlueprints` to the client; 11 AI category icons; bilingual. *Remaining polish: drawn
-  node-edge graph for Tech, "missing material → where to get it" popover, success animations, the
-  other tabs still IMGUI.*
+  `UnlockedBlueprints` to the client; 16 AI category icons; bilingual. **Then migrated the WHOLE shell to
+  uGUI** (`de9d39a`, `cec75ff`): the remaining Tab-menu tabs (Inventory/Map/Missions/Character/Space) plus
+  **Settings + Credits** — no IMGUI menus left (only the splash animation + HUD overlays stay IMGUI).
+  *Remaining polish: drawn node-edge graph for Tech, "missing material → where to get it" popover, success
+  animations.*
 - **(NEW, planned) Avatar overhaul:** appearance **reflects equipped gear** (armor chest/legs/helmet,
   suit, lamp, jetpack visible on the body + to other players); **improved avatar model + textures**
   (better proportions, skinning); **avatar animations** (idle/walk/run/jump/mine/attack/place + tool-use);
