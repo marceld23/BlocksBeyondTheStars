@@ -197,9 +197,9 @@ Add **template pools** the placers consult *before* falling back to procedural �
     roofs between adjacent top modules. Settlements got **biome theming** — biome-specific garden flora
     (cactus/frostflower/mushroom/fern/emberbloom; alien = crystal), biome-ground paths (sand/ice), and
     flat adobe roofs on desert worlds.
-  - **Remaining (optional):** genuinely different module *footprints* (long corridors) would need the
-    shared-wall grid to flex — deferred as higher-risk; the shape/greeble work above covers the visible
-    variety. P5 is otherwise complete.
+  - **Dropped:** genuinely different module *footprints* (long corridors) would need the shared-wall grid
+    to flex — decided against (higher risk, low marginal payoff; the shape/greeble work above covers the
+    visible variety). **P5 is complete.**
 
 P1 delivers the requested **"world-gen picks from a list of hand-designed types in addition to
 procedural"** even before the editors exist (author a couple of templates by hand / via the ship-editor-

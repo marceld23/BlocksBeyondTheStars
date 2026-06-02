@@ -359,16 +359,16 @@ consumes protocol messages that already exist.
 - **(NEW, planned) Local time-of-day indicator:** a small planet HUD day/night clock scaled to the
   world's day length, showing how long until night / until day (from `WorldEnvironment.TimeOfDay` +
   `DayLengthSeconds`). The visible **sun already wanders** across the sky by time of day. Bilingual.
-- **(KNOWN BUG, to fix) Space travel lands on origin:** flying from space to a different planet lands
-  the player back on the **departure** planet instead of the destination — investigate the leave-space/
-  land flow + destination/system switch + target `WorldEnvironment`. (Reported 2026-06-02.)
+- **Space travel lands on origin — FIXED.** Real inter-planet travel with **per-planet persistence**
+  (`SwitchActiveWorld` keyed by celestial-body `LocationId`, `HandleTravel`/`ResetWorldRuntimeState`,
+  `WorldReset` message); landing zones, block edits + containers persist per body. Tests cover it.
 - **World alive on entry — DONE.** Fauna is now **seeded immediately** on join + on travel arrival
   (`PopulateCreaturesNear`), spread around the player in a ring on the ground (no longer trickling in
   one every 6 s onto a single spot); flora already generates with the chunk (present on entry). Barren
   worlds stay empty. Tests cover the spread spawn + arrival population.
-- **(NEW, to verify) Space stations + NPCs:** confirm space stations are actually anchored/placed
-  in-world and reachable, and whether they are **populated with NPCs** (station NPC population is
-  currently listed as planned).
+- **Space stations + NPCs — DONE.** Stations are anchored/placed and reachable, populated with NPCs
+  (`SpawnStationNpcs`) and rendered on the client (`NpcView`). Stations are now also procedurally
+  enriched (furnished interiors, exterior detail, module shapes — see P5 above).
 - **(NEW, design question) More professional look with effects:** a polish pass to lift the overall
   look — clarify target tier + ordering first (preset-gated). Directions: post stack (bloom on
   emissives/sun, tonemap + per-biome colour grading, AO, subtle vignette/film grain), anti-aliasing,
@@ -420,8 +420,9 @@ consumes protocol messages that already exist.
   detail** (solar-panel wings, roof antennae, a hub command dome) and settlements got **four size tiers**
   (hamlet→village→town→city). **P5 slice 3 DONE** (`3af0f86`): station **module shapes** (round command
   hub, octagonal modules, glass observation domes, roof connector conduits) + settlement **biome theming**
-  (biome flora/paths/roofs). **P5 essentially complete** — only genuinely-different module *footprints*
-  (long corridors) deferred as higher-risk (needs the shared-wall grid to flex).
+  (biome flora/paths/roofs). **P5 complete** — different module *footprints* (long corridors) were
+  considered and **dropped** (higher risk, low marginal payoff). The **editors + template pools**
+  (P1–P4 of the plan) remain to be built.
 - **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
   recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
   with the ship-type editor above.
