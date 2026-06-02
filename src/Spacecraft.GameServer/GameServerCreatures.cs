@@ -166,37 +166,81 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Spawns a roster species suited to the spot near the player (habitat-gated). Returns true if one spawned.</summary>
+    private const int CreatureHardCap = 12;
+
+    // A spread of offsets around the player so fauna appears *around* them, not stacked on one spot.
+    private static readonly (int Dx, int Dz)[] SpawnRing =
+    {
+        (7, 0), (5, 5), (0, 7), (-5, 5), (-7, 0), (-5, -5), (0, -7), (5, -5),
+        (12, 4), (-4, 12), (-12, -4), (4, -12),
+    };
+
+    /// <summary>
+    /// Spawns one roster species suited to a spread-out spot around the player (habitat-gated, on the
+    /// ground). Returns true if one spawned. The rotor advances both the ring slot and the species so
+    /// repeated calls scatter different creatures around the player.
+    /// </summary>
     private bool TrySpawnCreatureNear(Shared.State.PlayerState player)
     {
-        // Rotate through the roster so different species appear; skip ones whose habitat doesn't fit here.
+        if (_creatures.Count >= CreatureHardCap)
+        {
+            return false;
+        }
+
+        var (dx, dz) = SpawnRing[_creatureSpawnRotor % SpawnRing.Length];
+        int x = (int)System.Math.Floor(player.Position.X) + dx;
+        int z = (int)System.Math.Floor(player.Position.Z) + dz;
+        int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+
         for (int n = 0; n < _speciesRoster.Length; n++)
         {
             var sp = _speciesRoster[(_creatureSpawnRotor + n) % _speciesRoster.Length];
-            float yOffset = sp.Habitat == CreatureHabitat.Air ? 2f : 0f;
-            var pos = new Vector3f(player.Position.X + 3f, player.Position.Y + yOffset, player.Position.Z);
+            float y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
+            var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
             if (!HabitatSuitable(sp, pos))
             {
                 continue;
             }
 
             _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;
-            _creatures.Add(new CombatEntity
-            {
-                Id = NextEntityId(),
-                Kind = sp.Hostile ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
-                SpeciesId = sp.Id,
-                Hostile = sp.Hostile,
-                Hull = sp.MaxHealth,
-                HullMax = sp.MaxHealth,
-                Position = pos,
-                DamagePerSecond = sp.AttackDamage,
-                Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
-            });
+            SpawnCreature(sp, pos);
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>Adds a live creature of the species at the position.</summary>
+    private void SpawnCreature(CreatureSpecies sp, Vector3f pos)
+        => _creatures.Add(new CombatEntity
+        {
+            Id = NextEntityId(),
+            Kind = sp.Hostile ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
+            SpeciesId = sp.Id,
+            Hostile = sp.Hostile,
+            Hull = sp.MaxHealth,
+            HullMax = sp.MaxHealth,
+            Position = pos,
+            DamagePerSecond = sp.AttackDamage,
+            Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
+        });
+
+    /// <summary>
+    /// Immediately seeds fauna around a spot so a world feels alive the moment a player enters or
+    /// arrives (instead of trickling in one creature every few seconds). Habitat-gated + capped; no-op
+    /// on barren worlds. The caller sends/broadcasts the creature list.
+    /// </summary>
+    private void PopulateCreaturesNear(Shared.State.PlayerState player, int count)
+    {
+        if (_speciesRoster.Length == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < count && _creatures.Count < CreatureHardCap; i++)
+        {
+            TrySpawnCreatureNear(player);
+        }
     }
 
     /// <summary>Land/air creatures spawn near the player; water/lava ones only in their fluid.</summary>

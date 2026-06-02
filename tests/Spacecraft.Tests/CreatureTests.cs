@@ -141,6 +141,9 @@ public sealed class CreatureTests : IDisposable
             var species = server.SpeciesRoster.First(s => s.Id == creature.SpeciesId);
             int before = p.State.Inventory.CountOf(species.DropItem);
 
+            // Fauna now spawns spread around the player, so step up to it before attacking.
+            p.State.Position = creature.Position;
+
             for (int i = 0; i < 6 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {
                 server.AttackEntity("Ranger", creature.Id);

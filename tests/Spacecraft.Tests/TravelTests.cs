@@ -76,6 +76,33 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void Travel_SeedsFaunaImmediately_OnALivingWorld()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            string origin = server.ActiveLocationId;
+
+            // Travel until we reach a world that actually has fauna; it must be populated on arrival
+            // (no ticking) so a freshly-entered planet feels alive instead of empty.
+            foreach (var b in server.Galaxy.AllBodies().Where(b =>
+                         b.Kind == CelestialKind.Planet
+                         && !string.IsNullOrEmpty(b.PlanetType)
+                         && _content.GetPlanet(b.PlanetType!) is not null
+                         && b.Id != origin))
+            {
+                server.Travel("Pilot", b.Id);
+                if (server.SpeciesRoster.Count > 0)
+                {
+                    Assert.NotEmpty(server.Creatures);
+                    return;
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void Travel_KeepsEachPlanetsEdits()
     {
         var server = Started(out var repo);
