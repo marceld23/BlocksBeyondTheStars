@@ -158,9 +158,13 @@ consumes protocol messages that already exist.
 - **World systems — fluids + day/night/sun/weather slices DONE; rest planned.** Water/lava flow
   ✅. **Day/night clock + sun colour + weather state** (server `WorldEnvironment`; client `Sky`
   tints the unlit world via a global shader colour, drives sky + sun) ✅; planets can be fixed
-  clear/overcast. Planned: **blocky voxel clouds** (cube clumps that float + slowly drift,
-  **pass-through/non-solid**, **per-planet colour** white/yellow/blue/…, cover scales with
-  weather), rain/storm **particles + lightning + sound**; biome-flavoured weather.
+  clear/overcast. **Clouds DONE**: a textured cloud layer — a dome of drifting cloud billboards on
+  the surface (`Clouds.cs` + `Spacecraft/Cloud` shader) **and** a spinning cloud shell over planets
+  **seen from space** (`SpaceView`); **per-planet colour + density** (`CloudColor`/`CloudDensity` in
+  `planets.json` → `WorldEnvironment`), thickened + **darkened in storms**. **Rain DONE**: wet wash +
+  harder slanted rain in storms vs a light shower (`WeatherFx`) + lightning. Planned: **view-distance**
+  scaling; 3D in-world rain/splashes + storm **sound**; AI cloud textures (procedural puffs for now);
+  biome-flavoured weather.
 - **(NEW, planned) Hyperspace travel between systems:** travel to other star systems via a
   **hyperspace jump** — every ship has a **jump-generator module** (required + later charge/cost/
   range); pick a destination on the **star map**, server validates + switches the system; client
