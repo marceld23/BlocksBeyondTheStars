@@ -231,6 +231,7 @@ namespace Spacecraft.Client
         {
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
+            Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {

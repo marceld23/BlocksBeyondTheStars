@@ -108,6 +108,15 @@ public sealed partial class GameServer
             _world.SetBlock(pos, viewport ? glass : wall);
         }
 
+        // Ceiling lights: a row of emissive panels down the centre of the roof so the cabin glows at
+        // night (the client renders data_cache as an emissive block). They stay solid hull (protected).
+        var lightBlock = _content.GetBlock("data_cache")?.NumericId ?? glass;
+        int ceiling = y0 + _shipHeight;
+        for (int z = cz - _shipHalfZ + 1; z <= cz + _shipHalfZ - 1; z += 2)
+        {
+            _world.SetBlock(new Vector3i(cx, ceiling, z), lightBlock);
+        }
+
         // Exterior silhouette so the landed ship reads like the space ship from outside: side wings,
         // rear engine nozzles (dark = engines off) and a raised glass cockpit canopy at the front.
         // The front -Z door stays the open hatch. These sit outside the interior box.
@@ -144,6 +153,17 @@ public sealed partial class GameServer
         Ext(cx, y0 + _shipHeight + 1, cz + _shipHalfZ - 1, glass);
         Ext(cx, y0 + _shipHeight + 1, cz + _shipHalfZ - 2, glass);
 
+        // Exterior lighting (emissive): navigation position lights — red to port (-X), green to
+        // starboard (+X) at the wingtips — white front headlights below the cockpit, and a tail light.
+        var lightW = _content.GetBlock("light_white")?.NumericId ?? glass;
+        var lightR = _content.GetBlock("light_red")?.NumericId ?? lightW;
+        var lightG = _content.GetBlock("light_green")?.NumericId ?? lightW;
+        Ext(cx - (_shipHalfX + 2), wingY, cz, lightR);                 // port (red)
+        Ext(cx + (_shipHalfX + 2), wingY, cz, lightG);                 // starboard (green)
+        Ext(cx - 1, y0 + 1, cz + _shipHalfZ + 1, lightW);             // front headlight
+        Ext(cx + 1, y0 + 1, cz + _shipHalfZ + 1, lightW);             // front headlight
+        Ext(cx, y0 + _shipHeight, cz - _shipHalfZ, lightW);          // tail light
+
         // Interior station markers on the floor. The whole hull is mining-protected, so these
         // stay put. The logical stations also exist as ship modules (workshop gates crafting,
         // medbay = respawn, cargo = shared hold); these tiles add interaction points.
@@ -170,6 +190,9 @@ public sealed partial class GameServer
         var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
         var glass = _content.GetBlock("glass")?.NumericId ?? wall;
         var dark = _content.GetBlock("carbon")?.NumericId ?? _content.GetBlock("basalt")?.NumericId ?? wall;
+        var lightW = _content.GetBlock("light_white")?.NumericId ?? glass;
+        var lightR = _content.GetBlock("light_red")?.NumericId ?? lightW;
+        var lightG = _content.GetBlock("light_green")?.NumericId ?? lightW;
         if (wall.IsAir)
         {
             _log.Info("Designed ship not placed: 'iron_wall' block missing from content.");
@@ -198,8 +221,20 @@ public sealed partial class GameServer
                     _world.SetBlock(p, BlockId.Air); // the entry opening
                     continue;
                 case "glass":
-                case "light": // placeholder until a real emissive light block exists (P2)
                     _world.SetBlock(p, glass);
+                    _shipExtra.Add(p);
+                    continue;
+                case "light":
+                case "headlight":
+                    _world.SetBlock(p, lightW);
+                    _shipExtra.Add(p);
+                    continue;
+                case "light_red":
+                    _world.SetBlock(p, lightR);
+                    _shipExtra.Add(p);
+                    continue;
+                case "light_green":
+                    _world.SetBlock(p, lightG);
                     _shipExtra.Add(p);
                     continue;
                 case "engine":

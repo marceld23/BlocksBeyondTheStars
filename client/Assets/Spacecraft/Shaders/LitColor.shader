@@ -25,6 +25,9 @@ Shader "Spacecraft/LitColor"
             fixed4 _Color;
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
+            float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
+            fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
 
             struct appdata
             {
@@ -38,6 +41,7 @@ Shader "Spacecraft/LitColor"
                 float4 pos : SV_POSITION;
                 float3 wn : TEXCOORD0;
                 float2 uv : TEXCOORD1;
+                float3 wp : TEXCOORD2;
             };
 
             v2f vert(appdata v)
@@ -46,16 +50,30 @@ Shader "Spacecraft/LitColor"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.wn = UnityObjectToWorldNormal(v.normal);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
                 // Fixed key light from the upper-right, toward the camera so front + top faces catch it.
+                float3 N = normalize(i.wn);
                 float3 L = normalize(float3(0.4, 0.7, -0.55));
-                float ndl = saturate(dot(normalize(i.wn), L));
+                float ndl = saturate(dot(N, L));
                 fixed3 tex = tex2D(_MainTex, i.uv).rgb;
                 fixed3 col = _Color.rgb * tex * (0.35 + 0.75 * ndl);
+
+                // Headlamp / flashlight (shared global with the block shader).
+                if (_Sc_LampColor.a > 0.5)
+                {
+                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
+                    float ld = length(toFrag);
+                    float3 dir = toFrag / max(ld, 1e-4);
+                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
+                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
+                    col += _Color.rgb * tex * _Sc_LampColor.rgb * cone * atten * atten * saturate(dot(N, -dir));
+                }
+
                 return fixed4(col, 1);
             }
             ENDCG

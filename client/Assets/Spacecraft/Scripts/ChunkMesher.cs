@@ -48,6 +48,9 @@ namespace Spacecraft.Client
                 // Per-block reflection params (gloss, metal) for the lit atlas shader.
                 var mat = BlockMaterial(content, id);
                 float matR = mat.x, matG = mat.y;
+                // Emission (ores/crystals/lava/light blocks glow — the bloom pass catches them, and they
+                // stay lit at night). Packed into the vertex-colour alpha for the atlas shader.
+                float emission = atlas != null ? BlockEmission(content, id) : 0f;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -63,7 +66,7 @@ namespace Spacecraft.Client
                     // carries material params instead: r=gloss, g=metal, b=per-face AO (subtle edge
                     // definition). Without one, fall back to the flat palette colour x face shade.
                     var col = atlas != null
-                        ? new Color(matR, matG, s, 1f)
+                        ? new Color(matR, matG, s, emission)
                         : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
                     AddFace(verts, tris, colors, uvs, new Vector3(x, y, z), f, col, uv);
                 }
@@ -113,6 +116,29 @@ namespace Spacecraft.Client
                 case "silicate": return new Vector2(0.15f, 0.0f);
                 case "basalt": return new Vector2(0.10f, 0.0f);
                 default: return new Vector2(0.05f, 0.0f); // stone, dirt, grass, sand, mud, lava, ...
+            }
+        }
+
+        /// <summary>Per-block emission (0 = none .. 1 = full glow) packed into the atlas vertex alpha:
+        /// light blocks + lava glow strongly, crystals + glowing flora medium, ores a faint sheen.</summary>
+        private static float BlockEmission(GameContent content, BlockId id)
+        {
+            switch (content.BlockById(id)?.Key)
+            {
+                case "light_white": return 1.00f;
+                case "light_red": return 1.00f;
+                case "light_green": return 1.00f;
+                case "lava": return 1.00f;
+                case "flora_emberbloom": return 0.95f;
+                case "data_cache": return 0.90f;
+                case "flora_glowcap": return 0.85f;
+                case "flora_crystal": return 0.70f;
+                case "crystal": return 0.50f;
+                case "flora_frostflower": return 0.40f;
+                case "copper_ore": return 0.28f;
+                case "titanium_ore": return 0.22f;
+                case "iron_ore": return 0.18f;
+                default: return 0f;
             }
         }
 

@@ -124,6 +124,12 @@ namespace Spacecraft.Client
                 RepairWreckCell();
             }
 
+            if (Input.GetKeyDown(KeyCode.L))
+            {
+                _lampOn = !_lampOn;
+            }
+
+            UpdateLamp();
             HandleHotbar();
             LookAround();
             Move();
@@ -250,6 +256,31 @@ namespace Spacecraft.Client
                 _gearLegs = legs;
                 _gearPack = pack;
                 Avatar.SetGear(helmet, chest, legs, pack);
+            }
+        }
+
+        private bool _lampOn;
+        private static readonly int LampPosId = Shader.PropertyToID("_Sc_LampPos");
+        private static readonly int LampDirId = Shader.PropertyToID("_Sc_LampDir");
+        private static readonly int LampColId = Shader.PropertyToID("_Sc_LampColor");
+
+        /// <summary>Feeds the suit headlamp / flashlight (toggle L) into the world shaders as globals — the
+        /// block + lit shaders run their own lighting, so the lamp is a shader spotlight cast from the
+        /// camera, not a Unity Light. Requires the <c>suit_lamp</c> equipment to be carried.</summary>
+        private void UpdateLamp()
+        {
+            bool on = _lampOn && Camera != null && HasItem("suit_lamp");
+            if (on)
+            {
+                var t = Camera.transform;
+                Vector3 p = t.position, f = t.forward;
+                Shader.SetGlobalVector(LampPosId, new Vector4(p.x, p.y, p.z, 26f));   // range
+                Shader.SetGlobalVector(LampDirId, new Vector4(f.x, f.y, f.z, 0.80f)); // cone cos (~37°)
+                Shader.SetGlobalColor(LampColId, new Color(1.6f, 1.5f, 1.3f, 1f));    // warm, HDR intensity
+            }
+            else
+            {
+                Shader.SetGlobalColor(LampColId, new Color(0f, 0f, 0f, 0f));
             }
         }
 

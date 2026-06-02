@@ -30,6 +30,9 @@ Shader "Spacecraft/BlockAtlas"
             fixed4 _Sc_Light;   // system sun colour x day brightness x weather (a>0.5 = set)
             float4 _Sc_SunDir;  // world-space direction TO the sun
             fixed4 _Sc_Sky;     // sky colour for environment reflections
+            float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
+            float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
+            fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
 
             struct appdata
             {
@@ -93,6 +96,23 @@ Shader "Spacecraft/BlockAtlas"
                 float fres = pow(1.0 - saturate(dot(N, V)), 4.0);
                 float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres;
                 col = lerp(col, reflTint, reflK);
+
+                // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they
+                // shine at night and the bloom pass picks them up. Alpha carries the emission strength.
+                col += albedo * i.mat.a * 2.0;
+
+                // Headlamp / flashlight — a custom spotlight (this shader bypasses Unity's light passes,
+                // so the lamp is fed in as globals by the player instead of a real Light).
+                if (_Sc_LampColor.a > 0.5)
+                {
+                    float3 toFrag = i.wp - _Sc_LampPos.xyz;
+                    float ld = length(toFrag);
+                    float3 dir = toFrag / max(ld, 1e-4);
+                    float cone = saturate((dot(dir, normalize(_Sc_LampDir.xyz)) - _Sc_LampDir.w) / max(1e-3, 1.0 - _Sc_LampDir.w));
+                    float atten = saturate(1.0 - ld / _Sc_LampPos.w);
+                    float ndl2 = saturate(dot(N, -dir));
+                    col += albedo * _Sc_LampColor.rgb * cone * atten * atten * ndl2;
+                }
 
                 fixed4 outc = fixed4(col, 1);
                 UNITY_APPLY_FOG(i.fogCoord, outc); // fade into the sky-coloured distance fog

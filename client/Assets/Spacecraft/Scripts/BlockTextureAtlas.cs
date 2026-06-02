@@ -279,6 +279,26 @@ namespace Spacecraft.Client
                     Speckle(ox, oy + Tile / 3, rng, new Color(0.98f, 0.52f, 0.18f), 10);
                     Speckle(ox, oy + Tile / 3, rng, new Color(1f, 0.82f, 0.34f), 6);
                     break;
+
+                case "light_white": LightLens(ox, oy, new Color(0.95f, 0.97f, 1f)); break;
+                case "light_red": LightLens(ox, oy, new Color(1f, 0.22f, 0.22f)); break;
+                case "light_green": LightLens(ox, oy, new Color(0.24f, 1f, 0.36f)); break;
+            }
+        }
+
+        /// <summary>A glowing lamp lens: a coloured tile with a dark rim and a bright hot centre.</summary>
+        private void LightLens(int ox, int oy, Color color)
+        {
+            Color rim = color * 0.45f;
+            float c = (Tile - 1) * 0.5f;
+            for (int y = 0; y < Tile; y++)
+            {
+                for (int x = 0; x < Tile; x++)
+                {
+                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
+                    Color px = d > 0.9f ? rim : Color.Lerp(Color.Lerp(Color.white, color, 0.5f), color, Mathf.Clamp01(d * 1.4f));
+                    Texture.SetPixel(ox + x, oy + y, px);
+                }
             }
         }
 
