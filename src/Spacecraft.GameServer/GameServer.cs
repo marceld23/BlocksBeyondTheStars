@@ -903,8 +903,24 @@ public sealed partial class GameServer
         return session;
     }
 
-    /// <summary>Runs the authoritative mine validator for a player (used by local play / tests).</summary>
+    /// <summary>Runs the authoritative mine validator for a player until the block breaks (used by local
+    /// play / tests). Hard blocks now need several drill hits, so this applies hits up to a safe cap.</summary>
     public void MineBlock(string playerId, int x, int y, int z)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return;
+        }
+
+        var pos = new Vector3i(x, y, z);
+        for (int i = 0; i < 32 && !_world.GetBlock(pos).IsAir; i++)
+        {
+            HandleMine(session, new MineBlockIntent { X = x, Y = y, Z = z });
+        }
+    }
+
+    /// <summary>Applies a single mining hit (for tests that need to observe per-hit progress).</summary>
+    public void MineBlockOnce(string playerId, int x, int y, int z)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
@@ -942,6 +958,9 @@ public sealed partial class GameServer
             session.State.Pitch = move.Pitch;
         }
     }
+
+    // Accumulated mining effort per block (a hard block needs several hits before it breaks).
+    private readonly Dictionary<Vector3i, float> _miningProgress = new();
 
     private void HandleMine(PlayerSession session, MineBlockIntent mine)
     {
@@ -997,9 +1016,39 @@ public sealed partial class GameServer
             return;
         }
 
-        _world.SetBlock(pos, BlockId.Air);
+        // Harder blocks need more drill effort; stronger drills apply more per hit. Soft blocks
+        // (mud/dirt) break in one hit; hard ones (stone/metal/ore) take several. Accumulate until break.
+        float hardness = System.Math.Max(0.2f, def.Hardness);
+        float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
+        float progress = (_miningProgress.TryGetValue(pos, out var prev) ? prev : 0f) + power;
+
+        if (progress + 0.0001f < hardness)
+        {
+            _miningProgress[pos] = progress;
+            Send(session, new MiningProgress { X = pos.X, Y = pos.Y, Z = pos.Z, Fraction = progress / hardness });
+            return;
+        }
 
         var pool = new MaterialPool(_content, session.State, _ship);
+        BreakBlockAt(session, pos, def, pool);
+
+        // Powerful drills clear a small area at once.
+        if (tool.MiningRadius > 0)
+        {
+            BreakArea(session, pos, tool.MiningRadius, pool);
+        }
+
+        SendInventory(session);
+    }
+
+    /// <summary>Breaks one block: clears it, banks its drops in the pool, broadcasts the change,
+    /// schedules flora regrowth and advances mining missions. Clears any accumulated mining progress.</summary>
+    private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
+    {
+        var current = _world.GetBlock(pos);
+        _world.SetBlock(pos, BlockId.Air);
+        _miningProgress.Remove(pos);
+
         foreach (var drop in def.Drops)
         {
             pool.Add(drop.Item, drop.Count);
@@ -1012,7 +1061,40 @@ public sealed partial class GameServer
         }
 
         OnBlockMined(session, def.Key);
-        SendInventory(session);
+    }
+
+    /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.</summary>
+    private void BreakArea(PlayerSession session, Vector3i center, int radius, MaterialPool pool)
+    {
+        for (int dx = -radius; dx <= radius; dx++)
+        for (int dy = -radius; dy <= radius; dy++)
+        for (int dz = -radius; dz <= radius; dz++)
+        {
+            if (dx == 0 && dy == 0 && dz == 0)
+            {
+                continue;
+            }
+
+            var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
+            var b = _world.GetBlock(p);
+            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p))
+            {
+                continue;
+            }
+
+            var d = _world.Definition(b);
+            if (d is null || !d.Mineable)
+            {
+                continue;
+            }
+
+            if (!session.State.IsAdmin && IsLandingZoneBlockedForOther(session.State.PlayerId, p))
+            {
+                continue;
+            }
+
+            BreakBlockAt(session, p, d, pool);
+        }
     }
 
     private void HandlePlace(PlayerSession session, PlaceBlockIntent place)

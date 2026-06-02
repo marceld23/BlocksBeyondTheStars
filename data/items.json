@@ -39,7 +39,7 @@
   { "key": "oxygen_extractor","nameKey": "item.oxygen_extractor.name", "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_extractor.desc" },
   { "key": "stealth_suit",    "nameKey": "item.stealth_suit.name",    "category": "component",  "maxStack": 1,  "descriptionKey": "item.stealth_suit.desc" },
   { "key": "advanced_scanner","nameKey": "item.advanced_scanner.name", "category": "tool",      "maxStack": 1,  "descriptionKey": "item.advanced_scanner.desc", "tool": { "kind": "scanner", "tier": 2, "energyPerUse": 0.3 }, "scanKnowledgeMultiplier": 2.0 },
-  { "key": "mining_beam",     "nameKey": "item.mining_beam.name",     "category": "tool",      "maxStack": 1,  "descriptionKey": "item.mining_beam.desc", "tool": { "kind": "drill", "tier": 3, "energyPerUse": 1.0 } },
+  { "key": "mining_beam",     "nameKey": "item.mining_beam.name",     "category": "tool",      "maxStack": 1,  "descriptionKey": "item.mining_beam.desc", "tool": { "kind": "drill", "tier": 3, "miningPower": 4.0, "miningRadius": 1, "energyPerUse": 1.0 } },
   { "key": "armor_chest",     "nameKey": "item.armor_chest.name",     "category": "component",  "maxStack": 1,  "descriptionKey": "item.armor_chest.desc", "armorResistance": 0.25 },
   { "key": "armor_legs",      "nameKey": "item.armor_legs.name",      "category": "component",  "maxStack": 1,  "descriptionKey": "item.armor_legs.desc", "armorResistance": 0.15 },
   { "key": "helmet",          "nameKey": "item.helmet.name",          "category": "component",  "maxStack": 1,  "descriptionKey": "item.helmet.desc", "armorResistance": 0.15 },
@@ -49,8 +49,8 @@
   { "key": "ladder",          "nameKey": "item.ladder.name",          "category": "block",      "maxStack": 99, "placesBlock": "ladder" },
   { "key": "stairs",          "nameKey": "item.stairs.name",          "category": "block",      "maxStack": 99, "placesBlock": "stairs" },
 
-  { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "energyPerUse": 0.0 } },
-  { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "energyPerUse": 0.5 } },
+  { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "miningPower": 1.0, "energyPerUse": 0.0 } },
+  { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "miningPower": 2.0, "energyPerUse": 0.5 } },
   { "key": "block_placer",    "nameKey": "item.block_placer.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.block_placer.desc", "tool": { "kind": "blockPlacer", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } },
 

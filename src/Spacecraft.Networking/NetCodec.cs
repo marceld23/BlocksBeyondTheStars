@@ -104,6 +104,7 @@ public static class NetCodec
         Register(84, typeof(NpcList));
         Register(85, typeof(WreckRepairStatus));
         Register(86, typeof(WorldReset));
+        Register(87, typeof(MiningProgress));
     }
 
     private static void Register(byte tag, Type type)

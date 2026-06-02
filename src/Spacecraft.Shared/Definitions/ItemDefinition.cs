@@ -8,6 +8,14 @@ public sealed class ToolProperties
     /// <summary>Capability tier; must be &gt;= a block's MinToolTier to mine it.</summary>
     public int Tier { get; set; } = 1;
 
+    /// <summary>Mining effort applied per hit (a drill's speed). A block breaks once accumulated effort
+    /// reaches its <c>Hardness</c>, so higher power = fewer hits. Default 1 (the basic drill).</summary>
+    public float MiningPower { get; set; } = 1f;
+
+    /// <summary>Area mining: 0 = single block; 1 = also clears the surrounding 3×3×3 when the centre
+    /// breaks (a powerful excavator drill). Subject to the same protection checks.</summary>
+    public int MiningRadius { get; set; }
+
     /// <summary>Energy consumed per use (0 = no energy cost).</summary>
     public float EnergyPerUse { get; set; }
 

@@ -238,7 +238,7 @@ namespace Spacecraft.Client
             }
 
             _gearTimer = 0.5f;
-            bool helmet = HasItem("armor_helmet");
+            bool helmet = HasItem("helmet");
             bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
             bool legs = HasItem("armor_legs");
             bool pack = HasItem("oxygen_tank_2") || HasItem("jetpack");
@@ -283,10 +283,20 @@ namespace Spacecraft.Client
                     _nextDrillSpark = Time.time + 0.07f;
                     Weapons.Sparks(hit.point, new Color(1f, 0.85f, 0.5f), 3);
                 }
+
+                // Hard blocks need several hits — keep sending mine attempts while the drill is held
+                // (the server accumulates effort until the block breaks).
+                if (Time.time >= _nextDrillMine)
+                {
+                    _nextDrillMine = Time.time + 0.18f;
+                    var b = FloorVec(hit.point - hit.normal * 0.5f);
+                    Game.Network?.SendMine(b.x, b.y, b.z);
+                }
             }
         }
 
         private float _nextDrillSpark;
+        private float _nextDrillMine;
 
         /// <summary>True if the selected hotbar item is a drill (its primary action mines).</summary>
         private bool HoldingDrill()

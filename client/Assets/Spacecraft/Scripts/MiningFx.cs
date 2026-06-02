@@ -35,6 +35,7 @@ namespace Spacecraft.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.BlockChanged += OnBlock;
+                Game.Network.MiningProgressReceived += OnMineProgress;
                 _subscribed = true;
             }
 
@@ -57,14 +58,30 @@ namespace Spacecraft.Client
             if (Physics.Raycast(ray, out var hit, Reach))
             {
                 var inside = hit.point - hit.normal * 0.5f;
-                _outline.transform.position = new Vector3(
-                    Mathf.Floor(inside.x) + 0.5f, Mathf.Floor(inside.y) + 0.5f, Mathf.Floor(inside.z) + 0.5f);
+                int bx = Mathf.FloorToInt(inside.x), by = Mathf.FloorToInt(inside.y), bz = Mathf.FloorToInt(inside.z);
+                _outline.transform.position = new Vector3(bx + 0.5f, by + 0.5f, bz + 0.5f);
                 _outline.SetActive(true);
+
+                // Tint the box from dark toward hot orange as the block cracks under the drill.
+                float frac = (bx == _crackX && by == _crackY && bz == _crackZ && Time.time - _crackAt < 0.4f) ? _crackFrac : 0f;
+                _outlineMat.color = Color.Lerp(new Color(0.05f, 0.05f, 0.06f), new Color(1f, 0.45f, 0.12f), frac);
             }
             else
             {
                 _outline.SetActive(false);
             }
+        }
+
+        private int _crackX, _crackY, _crackZ;
+        private float _crackFrac, _crackAt;
+
+        private void OnMineProgress(MiningProgress m)
+        {
+            _crackX = m.X;
+            _crackY = m.Y;
+            _crackZ = m.Z;
+            _crackFrac = Mathf.Clamp01(m.Fraction);
+            _crackAt = Time.time;
         }
 
         private void OnBlock(BlockChanged m)

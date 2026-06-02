@@ -55,7 +55,11 @@ public sealed class MissionTests : IDisposable
             {
                 var pos = new Vector3i(x, baseY, 0);
                 server.World.SetBlock(pos, oreId);
-                client.Send(NetCodec.Encode(new MineBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z }), DeliveryMode.ReliableOrdered);
+                // Iron ore is hard now — it takes several basic-drill hits to break.
+                for (int hit = 0; hit < 4; hit++)
+                {
+                    client.Send(NetCodec.Encode(new MineBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z }), DeliveryMode.ReliableOrdered);
+                }
             }
 
             server.Tick(0.1);

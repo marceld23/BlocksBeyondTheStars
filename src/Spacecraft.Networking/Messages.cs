@@ -328,6 +328,16 @@ public sealed class BlockChanged
     public ushort Block { get; set; }
 }
 
+/// <summary>Mining progress on a block (a harder block needs several drill hits): Fraction 0..1 of the
+/// way to breaking. The client shows a crack overlay; the block stays until it breaks (BlockChanged).</summary>
+public sealed class MiningProgress
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public float Fraction { get; set; }
+}
+
 /// <summary>A single item stack in an inventory update.</summary>
 public sealed class NetItemStack
 {
