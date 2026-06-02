@@ -20,6 +20,7 @@ namespace Spacecraft.Client
         /// <summary>Builds the body under <paramref name="root"/> from the descriptor.</summary>
         public void Build(GameObject root, NetCreature c)
         {
+            EnsureTextures();
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
 
@@ -34,7 +35,7 @@ namespace Spacecraft.Client
                 baseColor *= 0.6f;
             }
 
-            _bodyMat = Unlit(c.Glows ? baseColor * 1.6f : baseColor);
+            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
 
             // Body: a row of segments along +Z (forward). The front segment is the head.
             int segments = Mathf.Clamp(c.BodySegments, 1, 4);
@@ -123,6 +124,73 @@ namespace Spacecraft.Client
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
             return new Material(shader) { color = color };
+        }
+
+        // Shared (loaded once) tintable grayscale hide tiles; the body multiplies them by the species colour.
+        private static Texture2D _scales, _fur, _chitin, _hide, _slime;
+        private static bool _texLoaded;
+
+        private static void EnsureTextures()
+        {
+            if (_texLoaded)
+            {
+                return;
+            }
+
+            _texLoaded = true;
+            _scales = LoadTex("creature_scales");
+            _fur = LoadTex("creature_fur");
+            _chitin = LoadTex("creature_chitin");
+            _hide = LoadTex("creature_hide");
+            _slime = LoadTex("creature_slime");
+        }
+
+        /// <summary>Picks a hide tile for the species: glowing → slime, hostile → chitin, winged → scales,
+        /// otherwise a stable choice from the species id so each species looks consistent.</summary>
+        private static Texture2D PickHide(NetCreature c)
+        {
+            if (c.Glows && _slime != null) return _slime;
+            if (c.Hostile && _chitin != null) return _chitin;
+            if (c.HasWings && _scales != null) return _scales;
+
+            var opts = new[] { _fur, _hide, _scales };
+            int h = 0;
+            foreach (char ch in c.SpeciesId ?? string.Empty)
+            {
+                h = h * 31 + ch;
+            }
+
+            return opts[(h & 0x7fffffff) % opts.Length] ?? _hide;
+        }
+
+        private static Texture2D LoadTex(string key)
+        {
+            var asset = Resources.Load<TextAsset>("textures/" + key);
+            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
+            {
+                return null;
+            }
+
+            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point,
+            };
+            tex.LoadRawTextureData(asset.bytes);
+            tex.Apply();
+            return tex;
+        }
+
+        private static Material Lit(Color color, Texture2D tex)
+        {
+            var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(shader) { color = color };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+            }
+
+            return m;
         }
     }
 }

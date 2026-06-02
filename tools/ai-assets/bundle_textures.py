@@ -32,16 +32,18 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Bundle block textures as raw RGBA .bytes.")
     ap.add_argument("--from-out", action="store_true", help="source out/textures/*.png instead of Resources/*.bytes")
     ap.add_argument("--avatar", action="store_true", help="bundle out/avatar/*.png as Resources/textures/avatar_<key>.bytes")
+    ap.add_argument("--creatures", action="store_true", help="bundle out/creatures/*.png as Resources/textures/creature_<key>.bytes")
     args = ap.parse_args()
 
     RES.mkdir(parents=True, exist_ok=True)
     count = 0
 
-    if args.avatar:
-        for png in sorted(Path("out/avatar").glob("*.png")):
-            (RES / f"avatar_{png.stem}.bytes").write_bytes(to_raw(Image.open(png)))
+    if args.avatar or args.creatures:
+        sub, prefix = ("out/avatar", "avatar_") if args.avatar else ("out/creatures", "creature_")
+        for png in sorted(Path(sub).glob("*.png")):
+            (RES / f"{prefix}{png.stem}.bytes").write_bytes(to_raw(Image.open(png)))
             count += 1
-            print(f"avatar_{png.stem}: out/png -> raw {TILE*TILE*4} bytes")
+            print(f"{prefix}{png.stem}: out/png -> raw {TILE*TILE*4} bytes")
     elif args.from_out:
         for png in sorted(OUT.glob("*.png")):
             (RES / f"{png.stem}.bytes").write_bytes(to_raw(Image.open(png)))

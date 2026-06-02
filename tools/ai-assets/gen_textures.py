@@ -42,6 +42,8 @@ TEXTURES = [
     ("glass", "clear pale blue glass pane with a faint reflection"),
     ("lava", "dark cooled crust with glowing orange molten lava cracks"),
     ("water", "blue rippling water surface"),
+    ("flora_plant", "lush green leafy plant with fronds and small bush foliage, top-down"),
+    ("flora_crystal", "cluster of glowing cyan crystal shards growing from rock"),
 ]
 
 
