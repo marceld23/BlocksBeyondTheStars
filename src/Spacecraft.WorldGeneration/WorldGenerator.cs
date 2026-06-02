@@ -122,7 +122,7 @@ public sealed class WorldGenerator
             // one per column, no spreading), chosen by biome surface + a density roll.
             if (flora)
             {
-                var floraId = FloraForSurface(surfaceId);
+                var floraId = FloraForSurface(surfaceId, seed, worldX, worldZ);
                 int fy = surfaceY + 1;
                 int fly = fy - origin.Y;
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
@@ -201,38 +201,59 @@ public sealed class WorldGenerator
     }
 
     private bool _floraResolved;
-    private BlockId _floraPlant, _floraCrystal;
-    private System.Collections.Generic.HashSet<ushort> _plantHosts = new(), _crystalHosts = new();
+    // surface block id -> the pool of flora that may grow on it (from FloraCatalog).
+    private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
 
-    /// <summary>The flora block that grows on a given surface (Air = none).</summary>
-    private BlockId FloraForSurface(BlockId surface)
+    /// <summary>
+    /// Picks the flora block for a given surface (Air = none). Each surface has a pool of
+    /// biome-appropriate species (<see cref="Spacecraft.Shared.Definitions.FloraCatalog"/>); a per-column
+    /// noise roll selects one so a planet shows a mix rather than a single plant everywhere.
+    /// </summary>
+    private BlockId FloraForSurface(BlockId surface, long seed, int worldX, int worldZ)
     {
         if (!_floraResolved)
         {
             _floraResolved = true;
-            _floraPlant = _content.GetBlock("flora_plant")?.NumericId ?? BlockId.Air;
-            _floraCrystal = _content.GetBlock("flora_crystal")?.NumericId ?? BlockId.Air;
-            _plantHosts = HostSet("grass", "dirt", "mud");
-            _crystalHosts = HostSet("crystal", "stone", "basalt");
-        }
-
-        if (_plantHosts.Contains(surface.Value)) return _floraPlant;
-        if (_crystalHosts.Contains(surface.Value)) return _floraCrystal;
-        return BlockId.Air;
-    }
-
-    private System.Collections.Generic.HashSet<ushort> HostSet(params string[] keys)
-    {
-        var set = new System.Collections.Generic.HashSet<ushort>();
-        foreach (var k in keys)
-        {
-            if (_content.GetBlock(k) is { } d)
+            var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
+            foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
             {
-                set.Add(d.NumericId.Value);
+                if (_content.GetBlock(sp.Key) is not { } flora)
+                {
+                    continue;
+                }
+
+                foreach (var hostKey in sp.Hosts)
+                {
+                    if (_content.GetBlock(hostKey) is { } host)
+                    {
+                        if (!acc.TryGetValue(host.NumericId.Value, out var list))
+                        {
+                            acc[host.NumericId.Value] = list = new System.Collections.Generic.List<BlockId>();
+                        }
+
+                        list.Add(flora.NumericId);
+                    }
+                }
+            }
+
+            foreach (var kv in acc)
+            {
+                _floraBySurface[kv.Key] = kv.Value.ToArray();
             }
         }
 
-        return set;
+        if (_floraBySurface.TryGetValue(surface.Value, out var pool) && pool.Length > 0)
+        {
+            int idx = (int)(Noise.Value01(seed + 9101, worldX, 3, worldZ) * pool.Length);
+            if (idx >= pool.Length)
+            {
+                idx = pool.Length - 1;
+            }
+
+            return pool[idx < 0 ? 0 : idx];
+        }
+
+        return BlockId.Air;
     }
 
     private BlockId ResolveBlock(string key)

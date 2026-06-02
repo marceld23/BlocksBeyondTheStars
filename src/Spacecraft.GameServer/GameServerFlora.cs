@@ -20,17 +20,24 @@ public sealed partial class GameServer
 {
     private const double FloraRegrowSeconds = 30.0;
 
-    private ushort _floraPlantId, _floraCrystalId;
-    private HashSet<ushort> _plantHostIds = new();
-    private HashSet<ushort> _crystalHostIds = new();
+    private readonly HashSet<ushort> _floraIds = new();
+    private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
     private readonly Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow = new();
 
     private void InitFlora()
     {
-        _floraPlantId = _content.GetBlock("flora_plant")?.NumericId.Value ?? 0;
-        _floraCrystalId = _content.GetBlock("flora_crystal")?.NumericId.Value ?? 0;
-        _plantHostIds = HostIds("grass", "dirt", "mud");
-        _crystalHostIds = HostIds("crystal", "stone", "basalt");
+        _floraIds.Clear();
+        _floraHostIds.Clear();
+        foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
+        {
+            if (_content.GetBlock(sp.Key) is not { } flora || flora.NumericId.Value == 0)
+            {
+                continue;
+            }
+
+            _floraIds.Add(flora.NumericId.Value);
+            _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts);
+        }
     }
 
     private HashSet<ushort> HostIds(params string[] keys)
@@ -47,23 +54,18 @@ public sealed partial class GameServer
         return set;
     }
 
-    private bool IsFlora(ushort id) => id != 0 && (id == _floraPlantId || id == _floraCrystalId);
+    private bool IsFlora(ushort id) => id != 0 && _floraIds.Contains(id);
 
     /// <summary>True if the flora may be planted at the cell — the block below must be a valid host.</summary>
     private bool IsValidFloraHost(ushort floraId, Vector3i pos)
     {
+        if (!_floraHostIds.TryGetValue(floraId, out var hosts))
+        {
+            return false;
+        }
+
         ushort below = _world.GetBlock(new Vector3i(pos.X, pos.Y - 1, pos.Z)).Value;
-        if (floraId == _floraPlantId)
-        {
-            return _plantHostIds.Contains(below);
-        }
-
-        if (floraId == _floraCrystalId)
-        {
-            return _crystalHostIds.Contains(below);
-        }
-
-        return false;
+        return hosts.Contains(below);
     }
 
     /// <summary>Test/diagnostic: whether a flora block could be planted at a cell.</summary>

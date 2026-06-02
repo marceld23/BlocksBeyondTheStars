@@ -60,40 +60,52 @@ public sealed class FloraTests : IDisposable
         Assert.Equal("flora_plant", _content.GetItem("plant_seed")!.PlacesBlock);
     }
 
+    /// <summary>All flora block ids in this content set (from the shared catalog).</summary>
+    private HashSet<ushort> FloraIds()
+    {
+        var set = new HashSet<ushort>();
+        foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
+        {
+            if (_content.GetBlock(sp.Key) is { } b)
+            {
+                set.Add(b.NumericId.Value);
+            }
+        }
+
+        return set;
+    }
+
     [Fact]
     public void Worldgen_SeedsFlora_OnAFloraPlanet()
     {
         var planet = _content.GetPlanet("jungle")!; // grass surface, floraDensity 0.14
         var gen = new WorldGenerator(2026, _content);
-        ushort floraPlant = _content.GetBlock("flora_plant")!.NumericId.Value;
+        var floraIds = FloraIds();
 
         int found = 0;
         for (int x = 0; x < 48; x++)
         for (int z = 0; z < 48; z++)
         {
-            if (BlockAboveSurface(gen, planet, x, z) == floraPlant)
+            if (floraIds.Contains(BlockAboveSurface(gen, planet, x, z)))
             {
                 found++;
             }
         }
 
-        Assert.True(found > 0, "Expected a flora planet to seed at least one plant across a 48x48 area.");
+        Assert.True(found > 0, "Expected a flora planet to seed at least one flora block across a 48x48 area.");
     }
 
     [Fact]
     public void Worldgen_PlacesNoFlora_OnABarrenPlanet()
     {
-        var planet = _content.GetPlanet("ice")!; // no floraDensity → no flora
+        var planet = _content.GetPlanet("rocky")!; // no floraDensity → barren
         var gen = new WorldGenerator(2026, _content);
-        ushort floraPlant = _content.GetBlock("flora_plant")!.NumericId.Value;
-        ushort floraCrystal = _content.GetBlock("flora_crystal")!.NumericId.Value;
+        var floraIds = FloraIds();
 
         for (int x = 0; x < 24; x++)
         for (int z = 0; z < 24; z++)
         {
-            ushort above = BlockAboveSurface(gen, planet, x, z);
-            Assert.NotEqual(floraPlant, above);
-            Assert.NotEqual(floraCrystal, above);
+            Assert.DoesNotContain(BlockAboveSurface(gen, planet, x, z), floraIds);
         }
     }
 

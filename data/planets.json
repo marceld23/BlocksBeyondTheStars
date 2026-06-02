@@ -15,7 +15,7 @@
     "key": "ice", "nameKey": "planet.ice.name",
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
-    "caveThreshold": 0.76, "dataCacheRarity": 0.0010, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5,
+    "caveThreshold": 0.76, "dataCacheRarity": 0.0010, "floraDensity": 0.04, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5,
     "ores": [
       { "block": "silicate",     "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
       { "block": "copper_ore",   "rarity": 0.04, "minDepth": 6,  "maxDepth": 256 },
@@ -39,7 +39,7 @@
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0,
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.78, "dataCacheRarity": 0.0008,
-    "weather": "clear", "stormChance": 0.05, "dayLengthSeconds": 640, "worldRadius": 900, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5,
+    "weather": "clear", "stormChance": 0.05, "dayLengthSeconds": 640, "worldRadius": 900, "floraDensity": 0.05, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5,
     "ores": [
       { "block": "silicate", "rarity": 0.07, "minDepth": 2, "maxDepth": 256 },
       { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 256 }

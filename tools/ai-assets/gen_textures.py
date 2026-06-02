@@ -44,17 +44,36 @@ TEXTURES = [
     ("water", "blue rippling water surface"),
     ("flora_plant", "lush green leafy plant with fronds and small bush foliage, top-down"),
     ("flora_crystal", "cluster of glowing cyan crystal shards growing from rock"),
+    # Complete flora set — biome-appropriate species (full colour; the atlas tints nothing).
+    ("flora_fern", "lush green fern with feathery fronds, top-down"),
+    ("flora_flower", "small wildflowers with pink and yellow blossoms on green stems, top-down"),
+    ("flora_bush", "round leafy green bush with small red berries, top-down"),
+    ("flora_vine", "tangled green climbing vines with leaves, top-down"),
+    ("flora_mushroom", "cluster of small mushrooms with red caps and white stems, top-down"),
+    ("flora_cactus", "green desert cactus with spines and small flowers, top-down"),
+    ("flora_dryshrub", "dry brittle brown desert shrub with bare twigs, top-down"),
+    ("flora_reed", "tall thin green and teal marsh reeds and cattails, top-down"),
+    ("flora_glowcap", "bioluminescent glowing cyan mushrooms in the dark, top-down"),
+    ("flora_frostflower", "pale icy blue crystalline frost flower with frosty petals, top-down"),
+    ("flora_emberbloom", "charred dark plant with glowing orange ember blossoms, top-down"),
 ]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate the block texture set (approved batch).")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--only", default=None,
+                    help="Generate only these comma-separated keys (e.g. a single approval test tile).")
     args = ap.parse_args()
 
-    print(f"[tex] {len(TEXTURES)} textures")
+    textures = TEXTURES
+    if args.only:
+        wanted = {k.strip() for k in args.only.split(",")}
+        textures = [t for t in TEXTURES if t[0] in wanted]
+
+    print(f"[tex] {len(textures)} textures")
     if args.dry_run:
-        for i, (key, desc) in enumerate(TEXTURES, 1):
+        for i, (key, desc) in enumerate(textures, 1):
             print(f"  {i:2d}. {key:16s} {desc}")
         return
 
@@ -71,9 +90,9 @@ def main() -> None:
 
     done = skipped = failed = 0
     fails: list[str] = []
-    total = len(TEXTURES)
+    total = len(textures)
 
-    for i, (block, desc) in enumerate(TEXTURES, 1):
+    for i, (block, desc) in enumerate(textures, 1):
         out = OUT / f"{block}.png"
         if out.exists() and out.stat().st_size > 0:
             skipped += 1

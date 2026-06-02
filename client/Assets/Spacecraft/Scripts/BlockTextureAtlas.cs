@@ -207,6 +207,78 @@ namespace Spacecraft.Client
                     PaintCrystals(ox, oy, rng, new Color(0.88f, 0.96f, 1f), new Color(0.30f, 0.45f, 0.72f));
                     Speckle(ox, oy, rng, new Color(0.88f, 0.96f, 1f), 14);
                     break;
+
+                case "flora_fern":
+                    // Many fine fronds, deeper green than a plain plant.
+                    PaintBlades(ox, oy, rng, 12, Tile - 6,
+                        new Color(0.12f, 0.42f, 0.16f), new Color(0.38f, 0.72f, 0.34f));
+                    break;
+
+                case "flora_flower":
+                    // Slim stems with bright blossoms speckled across the top.
+                    PaintBlades(ox, oy, rng, 6, Tile - 8,
+                        new Color(0.18f, 0.50f, 0.22f), new Color(0.40f, 0.78f, 0.38f));
+                    Speckle(ox, oy + Tile / 2, rng, new Color(0.96f, 0.62f, 0.78f), 9);
+                    Speckle(ox, oy + Tile / 2, rng, new Color(0.98f, 0.86f, 0.36f), 6);
+                    break;
+
+                case "flora_bush":
+                    // Dense low foliage with red berries.
+                    PaintBlades(ox, oy, rng, 14, Tile / 2 + 6,
+                        new Color(0.14f, 0.40f, 0.16f), new Color(0.34f, 0.66f, 0.30f));
+                    Speckle(ox, oy, rng, new Color(0.82f, 0.18f, 0.20f), 10);
+                    break;
+
+                case "flora_vine":
+                    // Tall full-height strands.
+                    PaintBlades(ox, oy, rng, 7, Tile - 2,
+                        new Color(0.13f, 0.38f, 0.18f), new Color(0.30f, 0.60f, 0.30f));
+                    break;
+
+                case "flora_mushroom":
+                    // Capped mushrooms, warm brown stems + red caps.
+                    PaintMushrooms(ox, oy, rng, new Color(0.86f, 0.84f, 0.74f),
+                        new Color(0.74f, 0.22f, 0.18f), 4);
+                    break;
+
+                case "flora_cactus":
+                    // Thick upright columns, desert green.
+                    PaintColumns(ox, oy, rng, new Color(0.20f, 0.46f, 0.24f), new Color(0.34f, 0.62f, 0.34f), 3);
+                    Speckle(ox, oy, rng, new Color(0.92f, 0.94f, 0.70f), 6); // spines
+                    break;
+
+                case "flora_dryshrub":
+                    // Sparse brittle olive/tan twigs.
+                    PaintBlades(ox, oy, rng, 7, Tile / 2 + 4,
+                        new Color(0.42f, 0.36f, 0.18f), new Color(0.62f, 0.54f, 0.30f));
+                    break;
+
+                case "flora_reed":
+                    // Tall thin blue-green reeds.
+                    PaintBlades(ox, oy, rng, 8, Tile - 2,
+                        new Color(0.16f, 0.44f, 0.34f), new Color(0.40f, 0.74f, 0.58f));
+                    break;
+
+                case "flora_glowcap":
+                    // Bioluminescent mushrooms with cyan caps + glow specks.
+                    PaintMushrooms(ox, oy, rng, new Color(0.70f, 0.78f, 0.82f),
+                        new Color(0.30f, 0.86f, 0.92f), 4);
+                    Speckle(ox, oy, rng, new Color(0.55f, 0.95f, 1f), 12);
+                    break;
+
+                case "flora_frostflower":
+                    // Pale icy crystal bloom.
+                    PaintCrystals(ox, oy, rng, new Color(0.82f, 0.94f, 1f), new Color(0.46f, 0.62f, 0.82f));
+                    Speckle(ox, oy, rng, new Color(0.92f, 0.98f, 1f), 12);
+                    break;
+
+                case "flora_emberbloom":
+                    // Charred stems with glowing ember blossoms.
+                    PaintBlades(ox, oy, rng, 6, Tile / 2 + 6,
+                        new Color(0.18f, 0.12f, 0.10f), new Color(0.40f, 0.22f, 0.16f));
+                    Speckle(ox, oy + Tile / 3, rng, new Color(0.98f, 0.52f, 0.18f), 10);
+                    Speckle(ox, oy + Tile / 3, rng, new Color(1f, 0.82f, 0.34f), 6);
+                    break;
             }
         }
 
@@ -265,6 +337,55 @@ namespace Spacecraft.Client
                 }
 
                 PutDot(ox + cx, oy + System.Math.Min(Tile - 2, top), facet);
+            }
+        }
+
+        /// <summary>A few capped mushrooms: a short pale stem with a domed cap on top.</summary>
+        private void PaintMushrooms(int ox, int oy, System.Random rng, Color stem, Color cap, int count)
+        {
+            for (int s = 0; s < count; s++)
+            {
+                int mx = 6 + rng.Next(Tile - 12);
+                int stemTop = Tile / 3 + rng.Next(Tile / 4);
+                for (int y = 3; y < stemTop; y++)
+                {
+                    Texture.SetPixel(ox + mx, oy + y, stem);
+                    Texture.SetPixel(ox + mx + 1, oy + y, stem);
+                }
+
+                int r = 3 + rng.Next(2);
+                for (int dx = -r; dx <= r + 1; dx++)
+                {
+                    for (int dy = 0; dy <= r; dy++)
+                    {
+                        if (dx * dx + dy * dy <= (r + 1) * (r + 1))
+                        {
+                            int px = mx + dx, py = stemTop + dy;
+                            if (px >= 0 && px < Tile && py >= 0 && py < Tile)
+                            {
+                                Texture.SetPixel(ox + px, oy + py, cap);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>A few thick upright columns (e.g. cactus): a lit face and a shaded side.</summary>
+        private void PaintColumns(int ox, int oy, System.Random rng, Color shade, Color lit, int count)
+        {
+            for (int s = 0; s < count; s++)
+            {
+                int cx = 8 + rng.Next(Tile - 16);
+                int top = Tile - 4 - rng.Next(8);
+                int w = 3 + rng.Next(2);
+                for (int y = 2; y < top; y++)
+                {
+                    for (int dx = 0; dx < w; dx++)
+                    {
+                        Texture.SetPixel(ox + cx + dx, oy + y, dx == 0 ? shade : lit);
+                    }
+                }
             }
         }
 
