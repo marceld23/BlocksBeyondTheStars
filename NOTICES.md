@@ -23,6 +23,11 @@ usage terms for the generating account.
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
 
+**Avatar/creature textures:** `client/Assets/Resources/textures/avatar_*.bytes` (suit/armor/visor/skin)
+and `creature_*.bytes` (hide tiles) are **AI-generated** the same way (`gpt-image-1-mini`, grayscale
+tileable 64px tiles that the avatar/creatures tint by colour — see `tools/ai-assets/gen_avatar.py` and
+`gen_creatures.py`); same OpenAI usage terms.
+
 **No third-party models or fonts** are bundled — the rest of the visuals remain runtime-generated
 (vertex/atlas block colours, code-built avatars + logo, procedural UI panels). See
 `docs/CLIENT_SHELL_AND_ASSETS.md` for the placeholder strategy and asset folder layout.

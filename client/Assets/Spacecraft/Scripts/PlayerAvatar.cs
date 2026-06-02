@@ -30,14 +30,15 @@ namespace Spacecraft.Client
 
         public void Build(Color skin, Color torso, Color arms, Color legs)
         {
-            _skin = Unlit(skin);
-            _torso = Unlit(torso);
-            _arms = Unlit(arms);
-            _legs = Unlit(legs);
+            EnsureTextures();
+            _skin = Lit(skin, _skinTex);
+            _torso = Lit(torso, _suitTex);
+            _arms = Lit(arms, _suitTex);
+            _legs = Lit(legs, _suitTex);
 
             // Head + a dark visor strip on the front.
             _head = AddCube("Head", transform, new Vector3(0f, 1.65f, 0f), new Vector3(0.5f, 0.5f, 0.5f), _skin).transform;
-            AddCube("Visor", _head, new Vector3(0f, 0.05f, 0.26f), new Vector3(0.42f, 0.16f, 0.06f), Unlit(new Color(0.12f, 0.5f, 0.62f)));
+            AddCube("Visor", _head, new Vector3(0f, 0.05f, 0.26f), new Vector3(0.42f, 0.16f, 0.06f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex));
 
             AddCube("Torso", transform, new Vector3(0f, 1.15f, 0f), new Vector3(0.55f, 0.7f, 0.3f), _torso);
 
@@ -165,8 +166,8 @@ namespace Spacecraft.Client
 
             _gear.Clear();
 
-            var plate = Unlit(new Color(0.62f, 0.66f, 0.72f));
-            var packMat = Unlit(new Color(0.30f, 0.34f, 0.40f));
+            var plate = Lit(new Color(0.62f, 0.66f, 0.72f), _armorTex);
+            var packMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
 
             if (helmet)
             {
@@ -215,10 +216,53 @@ namespace Spacecraft.Client
             }
         }
 
-        private static Material Unlit(Color color)
+        // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin.
+        private static Texture2D _suitTex, _armorTex, _visorTex, _skinTex;
+        private static bool _texLoaded;
+
+        private static void EnsureTextures()
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
-            return new Material(shader) { color = color };
+            if (_texLoaded)
+            {
+                return;
+            }
+
+            _texLoaded = true;
+            _suitTex = LoadTex("avatar_suit");
+            _armorTex = LoadTex("avatar_armor");
+            _visorTex = LoadTex("avatar_visor");
+            _skinTex = LoadTex("avatar_skin");
+        }
+
+        private static Texture2D LoadTex(string key)
+        {
+            var asset = Resources.Load<TextAsset>("textures/" + key);
+            if (asset == null || asset.bytes.Length != 64 * 64 * 4)
+            {
+                return null;
+            }
+
+            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point,
+            };
+            tex.LoadRawTextureData(asset.bytes);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>A lit, tinted, optionally-textured material (the grayscale texture tints by the colour).</summary>
+        private static Material Lit(Color color, Texture2D tex)
+        {
+            var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(shader) { color = color };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+            }
+
+            return m;
         }
     }
 }
