@@ -249,6 +249,8 @@
   "ui.tab.missions": "Missions",
   "ui.map.loading": "Loading…",
   "ui.map.here": "you are here",
+  "ui.map.kind": "Kind",
+  "ui.map.type": "Type",
   "ui.map.travel": "Travel",
   "npc.role.vendor": "Vendor",
   "npc.role.quartermaster": "Quartermaster",

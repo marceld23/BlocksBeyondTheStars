@@ -20,7 +20,8 @@ namespace Spacecraft.Client
         public GameBootstrap Game;
         public GameMenu Menu;
 
-        public enum Mode { Crafting = 1, Tech = 2, Ship = 3 } // values match GameMenu.Tab
+        // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen.
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Space = 7 }
 
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
@@ -74,14 +75,18 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // Refresh when the authoritative inventory / unlocked set changes (cheap hash).
+            // Refresh when the authoritative data the screen shows changes (cheap hash).
             int h = (Game.Personal?.Length ?? 0) * 7 + (Game.Cargo?.Length ?? 0) * 13 + Game.UnlockedBlueprints.Count * 31
                     + (Game.Personal?.Sum(s => s.Count) ?? 0) + (Game.OwnedShips?.Length ?? 0) * 101
-                    + (string.IsNullOrEmpty(Game.NearbyStation) ? 0 : Game.NearbyStation.GetHashCode());
+                    + (string.IsNullOrEmpty(Game.NearbyStation) ? 0 : Game.NearbyStation.GetHashCode())
+                    + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
+                    + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
+                    + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0);
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
                 BuildHeader();
+                RebuildSidebar(); // map systems / sections can arrive async
                 RebuildList();
                 RebuildDetail();
             }
@@ -147,8 +152,8 @@ namespace Spacecraft.Client
 
             UiKit.AddButton(p, W - 150, 64, 110, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
 
-            // Search + craftable filter (crafting + ship lists benefit; tech uses status instead).
-            if (_mode != Mode.Tech)
+            // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
+            if (_mode == Mode.Crafting || _mode == Mode.Ship)
             {
                 AddSearchBox(p, 392, 168, 470, 44);
                 var t = UiKit.AddButton(p, 880, 168, 300, 44,
@@ -210,6 +215,35 @@ namespace Spacecraft.Client
                     list.Add(("fleet", L("ui.ship.cat_fleet"), "cat_fleet"));
                     list.Add(("build", L("ui.ship.cat_build"), "cat_buildship"));
                     break;
+                case Mode.Inventory:
+                    list.Clear();
+                    list.Add(("personal", L("ui.inventory.title"), "cat_all"));
+                    list.Add(("cargo", L("ui.cargo.title"), "cat_modules"));
+                    break;
+                case Mode.Missions:
+                    list.Clear();
+                    list.Add(("available", L("ui.missions.available"), "cat_tech"));
+                    list.Add(("active", L("ui.missions.active"), "cat_fleet"));
+                    break;
+                case Mode.Map:
+                    list.Clear();
+                    if (Game.StarMap != null)
+                    {
+                        foreach (var sys in Game.StarMap.Systems)
+                        {
+                            list.Add(("sys:" + sys.Name, "★ " + sys.Name, "cat_buildship"));
+                        }
+                    }
+
+                    break;
+                case Mode.Character:
+                    list.Clear();
+                    list.Add(("appearance", L("ui.settings.character"), "cat_suit"));
+                    break;
+                case Mode.Space:
+                    list.Clear();
+                    list.Add(("space", L("ui.tab.space"), "cat_buildship"));
+                    break;
             }
 
             return list;
@@ -225,8 +259,8 @@ namespace Spacecraft.Client
             }
 
             ClearChildren(_listContent);
-            bool atStation = AtStation();
-            _hint.text = atStation ? string.Empty : L("ui.craft.go_to_" + StationKey());
+            bool production = _mode == Mode.Crafting || _mode == Mode.Tech || _mode == Mode.Ship;
+            _hint.text = (production && !AtStation()) ? L("ui.craft.go_to_" + StationKey()) : string.Empty;
 
             float y = 0f;
             switch (_mode)
@@ -234,10 +268,15 @@ namespace Spacecraft.Client
                 case Mode.Crafting: y = BuildCraftingList(); break;
                 case Mode.Tech: y = BuildTechList(); break;
                 case Mode.Ship: y = BuildShipList(); break;
+                case Mode.Inventory: y = BuildInventoryList(); break;
+                case Mode.Map: y = BuildMapList(); break;
+                case Mode.Missions: y = BuildMissionsList(); break;
+                case Mode.Character: y = BuildCharacterList(); break;
+                case Mode.Space: y = BuildSpaceList(); break;
             }
 
             SetContentHeight(_listContent, y);
-            _footer.text = L("ui.craft.source") + "   |   " + L("ui.craft.station_" + StationKey());
+            _footer.text = production ? L("ui.craft.source") + "   |   " + L("ui.craft.station_" + StationKey()) : string.Empty;
         }
 
         private float BuildCraftingList()
@@ -383,6 +422,126 @@ namespace Spacecraft.Client
             return y;
         }
 
+        private float BuildInventoryList()
+        {
+            var items = _category == "cargo" ? Game.Cargo : Game.Personal;
+            float y = 0f;
+            if (items == null || items.Length == 0)
+            {
+                UiKit.AddText(_listContent, 8, 8, 700, 30, "—", 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return 40f;
+            }
+
+            foreach (var s in items)
+            {
+                AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); });
+                y += 88f;
+            }
+
+            return y;
+        }
+
+        private float BuildMapList()
+        {
+            var map = Game.StarMap;
+            if (map == null || map.Systems.Length == 0)
+            {
+                UiKit.AddText(_listContent, 8, 8, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return 40f;
+            }
+
+            var sys = map.Systems.FirstOrDefault(s => "sys:" + s.Name == _category)
+                      ?? map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId))
+                      ?? map.Systems[0];
+
+            float y = 0f;
+            foreach (var b in sys.Bodies)
+            {
+                bool here = b.Id == map.ActiveLocationId;
+                string status = here ? L("ui.map.here") : $"{b.Kind}  {b.Status}";
+                AddCard(y, b.Name, here ? "cat_all" : "cat_buildship", status, here ? UiKit.Cyan : UiKit.CyanDim,
+                    "body:" + b.Id, () => { _selected = "body:" + b.Id; RebuildDetail(); });
+                y += 88f;
+            }
+
+            return y;
+        }
+
+        private float BuildMissionsList()
+        {
+            var list = Game.Missions;
+            if (list == null)
+            {
+                UiKit.AddText(_listContent, 8, 8, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return 40f;
+            }
+
+            var missions = _category == "active" ? list.Active : list.Available;
+            float y = 0f;
+            foreach (var m in missions)
+            {
+                string status = m.Objectives.Length > 0 ? $"{m.Objectives[0].Progress}/{m.Objectives[0].Required}" : string.Empty;
+                AddCard(y, m.Title, "cat_tech", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
+                y += 88f;
+            }
+
+            return y;
+        }
+
+        private float BuildCharacterList()
+        {
+            float y = 0f;
+            string[] labels = { L("ui.settings.skin"), L("ui.settings.torso"), L("ui.settings.arms"), L("ui.settings.legs") };
+            Color[] cols = Menu != null && Menu.Settings != null
+                ? new[] { Menu.Settings.SkinColor, Menu.Settings.TorsoColor, Menu.Settings.ArmColor, Menu.Settings.LegColor }
+                : new[] { Color.gray, Color.gray, Color.gray, Color.gray };
+
+            for (int i = 0; i < 4; i++)
+            {
+                int which = i;
+                var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => { Menu?.CycleAppearance(which); RebuildList(); });
+                UiKit.AddText(card.transform, 16, 0, 360, 78, labels[i], 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddImage(card.transform, 420, 19, 120, 40, UiKit.SolidSprite, cols[i]);
+                UiKit.AddText(card.transform, 560, 0, 200, 78, L("ui.settings.next_color"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+                y += 88f;
+            }
+
+            return y;
+        }
+
+        private float BuildSpaceList()
+        {
+            float y = 0f;
+            var c = Game.ShipCombat;
+            if (c != null)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 28, $"{L("ui.hud.hull")}: {Mathf.RoundToInt(c.Hull)}/{Mathf.RoundToInt(c.HullMax)}    {L("ui.hud.shield")}: {Mathf.RoundToInt(c.Shield)}/{Mathf.RoundToInt(c.ShieldMax)}", 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                y += 36f;
+            }
+
+            if (!Game.InSpace)
+            {
+                UiKit.AddButton(_listContent, 0, y, 280, 56, L("ui.space.enter"), () => Game.Network?.SendEnterSpace());
+                return y + 70f;
+            }
+
+            UiKit.AddButton(_listContent, 0, y, 280, 56, L("ui.space.leave"), () => Game.Network?.SendLeaveSpace());
+            y += 70f;
+
+            var space = Game.Space;
+            if (space != null)
+            {
+                foreach (var e in space.Entities)
+                {
+                    AddCard(y, e.Kind, "cat_weapons", $"{Mathf.RoundToInt(e.Hull)}/{Mathf.RoundToInt(e.HullMax)}", new Color(1f, 0.6f, 0.5f),
+                        "ent:" + e.Id, () => { _selected = "ent:" + e.Id; RebuildDetail(); });
+                    y += 88f;
+                }
+            }
+
+            return y;
+        }
+
         private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f)
         {
             var card = UiKit.AddButton(_listContent, indent, y, 780 - indent, 78, string.Empty, onClick);
@@ -425,6 +584,10 @@ namespace Spacecraft.Client
                 case Mode.Crafting: y = DetailCrafting(); break;
                 case Mode.Tech: y = DetailTech(); break;
                 case Mode.Ship: y = DetailShip(); break;
+                case Mode.Inventory: y = DetailInventory(); break;
+                case Mode.Map: y = DetailMap(); break;
+                case Mode.Missions: y = DetailMissions(); break;
+                case Mode.Space: y = DetailSpace(); break;
             }
 
             SetContentHeight(_detail, y + 20f);
@@ -616,6 +779,119 @@ namespace Spacecraft.Client
             }
 
             return y;
+        }
+
+        private float DetailInventory()
+        {
+            string item = _selected.Substring(4);
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, ItemName(item), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 48f;
+            string desc = Desc($"item.{item}.desc");
+            if (!string.IsNullOrEmpty(desc))
+            {
+                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 84f;
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
+            return y + 36f;
+        }
+
+        private float DetailMap()
+        {
+            var map = Game.StarMap;
+            string id = _selected.Substring(5);
+            var body = map?.Systems.SelectMany(s => s.Bodies).FirstOrDefault(b => b.Id == id);
+            if (body == null)
+            {
+                return 0f;
+            }
+
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 48f;
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {body.Kind}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 32f;
+            if (!string.IsNullOrEmpty(body.PlanetType))
+            {
+                UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.type")}: {L($"planet.{body.PlanetType}.name")}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 32f;
+            }
+
+            bool here = body.Id == map.ActiveLocationId;
+            UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : body.Status, 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 40f;
+
+            if (!here && !string.IsNullOrEmpty(body.PlanetType))
+            {
+                UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.map.travel"), () => Game.Network?.SendTravel(body.Id));
+                y += 70f;
+            }
+
+            return y;
+        }
+
+        private float DetailMissions()
+        {
+            var list = Game.Missions;
+            if (list == null)
+            {
+                return 0f;
+            }
+
+            string id = _selected.Substring(4);
+            var avail = list.Available.FirstOrDefault(m => m.Id == id);
+            var active = list.Active.FirstOrDefault(m => m.Id == id);
+            var m2 = avail ?? active;
+            if (m2 == null)
+            {
+                return 0f;
+            }
+
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, m2.Title, 28, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 46f;
+            foreach (var o in m2.Objectives)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 28, $"{o.Progress}/{o.Required}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 30f;
+            }
+
+            y += 10f;
+            if (avail != null)
+            {
+                UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.accept"), () => Game.Network.SendAcceptMission(m2.Id));
+            }
+            else
+            {
+                UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.turn_in"), () => Game.Network.SendTurnInMission(m2.Id));
+            }
+
+            return y + 70f;
+        }
+
+        private float DetailSpace()
+        {
+            var e = Game.Space?.Entities.FirstOrDefault(x => x.Id == _selected.Substring(4));
+            if (e == null)
+            {
+                return 0f;
+            }
+
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, e.Kind, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 48f;
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.hud.hull")}: {Mathf.RoundToInt(e.Hull)}/{Mathf.RoundToInt(e.HullMax)}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 40f;
+            string weapon = e.Kind == "Asteroid" ? "asteroid_breaker" : "ship_cannon_1";
+            UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.fire"), () =>
+            {
+                ClientAudio.Instance?.Cue("ship_weapon");
+                Game.Network?.SendFireWeapon(weapon, e.Id);
+            });
+            return y + 70f;
         }
 
         private float ShipStats(ShipDefinition def, float y)

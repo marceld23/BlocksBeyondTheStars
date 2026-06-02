@@ -254,6 +254,8 @@
   "ui.tab.missions": "Missionen",
   "ui.map.loading": "Lädt…",
   "ui.map.here": "du bist hier",
+  "ui.map.kind": "Art",
+  "ui.map.type": "Typ",
   "ui.map.travel": "Reisen",
   "npc.role.vendor": "Händler",
   "npc.role.quartermaster": "Quartiermeister",

@@ -94,89 +94,17 @@ namespace Spacecraft.Client
 
         private void OnGUI()
         {
+            // The whole in-game Tab menu now runs on the redesigned uGUI screen (CraftingTechShipUI),
+            // which renders every tab (inventory / crafting / tech / ship / map / missions / character /
+            // space). GameMenu just drives open/close + the active tab.
             if (!_open || Game?.Localizer == null || Game.Content == null)
             {
                 _ui?.Hide();
                 return;
             }
 
-            // The Crafting / Tech / Ship tabs use the redesigned uGUI screen instead of the IMGUI body.
-            if (_tab == Tab.Crafting || _tab == Tab.Tech || _tab == Tab.Ship)
-            {
-                EnsureUi();
-                _ui.ShowMode((CraftingTechShipUI.Mode)_tab);
-                return;
-            }
-
-            _ui?.Hide();
-            var loc = Game.Localizer;
-            const float w = 760f, h = 560f;
-
-            // Resolution-independent scaling: lay the menu out in a virtual 1080p space (centred), so
-            // it is comfortably large and keeps its physical size on high-DPI / 4K screens.
-            UiScale.Begin();
-            var area = new Rect((UiScale.Width - w) / 2f, (UiScale.Height - h) / 2f, w, h);
-
-            // Themed panel (deep-blue fill + cyan border) + a cyan tint for the IMGUI controls.
-            var prevBg = GUI.backgroundColor;
-            var prevContent = GUI.contentColor;
-            var prevColor = GUI.color;
-            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.94f);
-            GUI.DrawTexture(area, Texture2D.whiteTexture);
-            GUI.color = UiKit.Cyan;
-            GUI.DrawTexture(new Rect(area.x, area.y, area.width, 2f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(area.x, area.yMax - 2f, area.width, 2f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(area.x, area.y, 2f, area.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(area.xMax - 2f, area.y, 2f, area.height), Texture2D.whiteTexture);
-            GUI.color = prevColor;
-
-            GUI.contentColor = UiKit.Cyan;
-            GUI.Label(new Rect(area.x + 14f, area.y + 5f, w - 28f, 20f), "SPACECRAFT");
-            GUI.contentColor = UiKit.TextCol;
-            GUI.backgroundColor = new Color(0.35f, 0.7f, 1f, 1f);
-
-            GUILayout.BeginArea(new Rect(area.x + 12, area.y + 28, w - 24, h - 40));
-
-            GUILayout.BeginHorizontal();
-            TabButton(loc.Get("ui.inventory.title"), Tab.Inventory);
-            TabButton(loc.Get("ui.crafting.title"), Tab.Crafting);
-            TabButton(loc.Get("ui.tab.tech"), Tab.Tech);
-            TabButton(loc.Get("ui.tab.ship"), Tab.Ship);
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button(loc.Get("ui.action.close"), GUILayout.Width(80)))
-            {
-                SetOpen(false);
-            }
-
-            GUILayout.EndHorizontal();
-            GUILayout.BeginHorizontal();
-            TabButton(loc.Get("ui.tab.map"), Tab.Map);
-            TabButton(loc.Get("ui.tab.missions"), Tab.Missions);
-            TabButton(loc.Get("ui.settings.character"), Tab.Character);
-            TabButton(loc.Get("ui.tab.space"), Tab.Space);
-            GUILayout.FlexibleSpace();
-            GUILayout.EndHorizontal();
-            GUILayout.Space(6);
-
-            _scroll = GUILayout.BeginScrollView(_scroll);
-            switch (_tab)
-            {
-                case Tab.Inventory: DrawInventory(loc); break;
-                case Tab.Crafting: DrawCrafting(loc); break;
-                case Tab.Tech: DrawTech(loc); break;
-                case Tab.Ship: DrawShip(loc); break;
-                case Tab.Map: DrawMap(loc); break;
-                case Tab.Missions: DrawMissions(loc); break;
-                case Tab.Character: DrawCharacter(loc); break;
-                case Tab.Space: DrawSpace(loc); break;
-            }
-
-            GUILayout.EndScrollView();
-            GUILayout.EndArea();
-
-            GUI.backgroundColor = prevBg;
-            GUI.contentColor = prevContent;
-            UiScale.End();
+            EnsureUi();
+            _ui.ShowMode((CraftingTechShipUI.Mode)_tab);
         }
 
         private void TabButton(string label, Tab tab)
@@ -507,6 +435,25 @@ namespace Spacecraft.Client
             Avatar?.ApplyColors(Settings);
             Settings.Save();
             Game.Network?.SendAppearance(Rgb(Settings.SkinColor), Rgb(Settings.TorsoColor), Rgb(Settings.ArmColor), Rgb(Settings.LegColor));
+        }
+
+        /// <summary>Cycles a body colour (0=skin 1=torso 2=arms 3=legs) — called from the uGUI Character tab.</summary>
+        public void CycleAppearance(int which)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            switch (which)
+            {
+                case 0: Settings.SkinColor = NextColor(Settings.SkinColor); break;
+                case 1: Settings.TorsoColor = NextColor(Settings.TorsoColor); break;
+                case 2: Settings.ArmColor = NextColor(Settings.ArmColor); break;
+                default: Settings.LegColor = NextColor(Settings.LegColor); break;
+            }
+
+            ApplyAppearance();
         }
 
         private static int Rgb(Color c)
