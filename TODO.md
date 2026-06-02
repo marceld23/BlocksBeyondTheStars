@@ -355,9 +355,11 @@ consumes protocol messages that already exist.
   **this pass**: **planet-side ship = space-ship model** (engines off,
   hatch open), **per-ship speed + manoeuvrability** (`ships.json`). Standing planned (tracked above, do
   not drop): **player/NPC/equipment-use animations** (see "Held tools/weapons + use animations" +
-  creatures), **weapon/equipment VFX** (see Player weapons + Equipment), **weather** clouds + fog/view-
-  distance + rain/lightning (see World systems), the **suit lamp/lighting** term, and a **texture audit**
-  (items/icons, creatures/NPCs, planet surfaces, ship-hull variants — generate more as needed).
+  creatures), **weapon/equipment VFX** (see Player weapons + Equipment), and a **texture audit**
+  (items/icons, creatures/NPCs, planet surfaces, ship-hull variants — generate more as needed). **DONE
+  this pass:** clouds + rain (weather), **post-FX** (bloom/tonemap/SSAO/vignette), and the **suit
+  lamp + emissive glow + ship lights** (headlamp toggle L; emissive ores/crystals/lava/lights; ship nav
+  position lights + front headlights; new emissive light blocks placeable in the ship editor).
 - **(NEW, planned) Local time-of-day indicator:** a small planet HUD day/night clock scaled to the
   world's day length, showing how long until night / until day (from `WorldEnvironment.TimeOfDay` +
   `DayLengthSeconds`). The visible **sun already wanders** across the sky by time of day. Bilingual.
