@@ -74,9 +74,14 @@ public sealed partial class GameServer
     private int _nextEntityId = 1;
 
     // Derived (from built modules); recomputed on ship load and on building a module.
+    private const float BaseRadarRange = 130f;
     private float _shipHullMax = BaseHull;
     private float _shipShieldMax;
     private float _shipShieldRegen;
+    private float _shipRadarRange = BaseRadarRange;
+
+    /// <summary>The ship's current space-radar range in world units (base + radar-module bonus).</summary>
+    public float ShipRadarRange => _shipRadarRange;
 
     private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, bool IsCombat);
 
@@ -99,6 +104,7 @@ public sealed partial class GameServer
         float hull = design?.BaseHull ?? BaseHull;
         float shield = design?.BaseShield ?? 0f;
         float regen = 0f;
+        float radar = BaseRadarRange;
         foreach (var key in _ship.Modules)
         {
             if (_content.GetShipModule(key) is not { } m)
@@ -109,11 +115,13 @@ public sealed partial class GameServer
             hull += (float)m.Stats.GetValueOrDefault("hull", 0);
             shield += (float)m.Stats.GetValueOrDefault("shield", 0);
             regen += (float)m.Stats.GetValueOrDefault("shield_regen", 0);
+            radar += (float)m.Stats.GetValueOrDefault("radar_bonus", 0);
         }
 
         _shipHullMax = hull;
         _shipShieldMax = shield;
         _shipShieldRegen = regen;
+        _shipRadarRange = radar;
 
         // A freshly created ship starts at full hull; clamp persisted values into range.
         if (_ship.Hull <= 0f || _ship.Hull > _shipHullMax)
@@ -131,6 +139,7 @@ public sealed partial class GameServer
             HullMax = _shipHullMax,
             Shield = _ship.Shield,
             ShieldMax = _shipShieldMax,
+            RadarRange = _shipRadarRange,
         });
 
     // ---------------- Build ship modules ----------------

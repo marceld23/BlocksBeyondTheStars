@@ -45,6 +45,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "energy_cell_1", "count": 6 } ]
   },
   {
+    "key": "radar_array", "nameKey": "blueprint.radar_array.name", "descriptionKey": "blueprint.radar_array.desc",
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 5,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 } ]
+  },
+  {
     "key": "hull_plating", "nameKey": "blueprint.hull_plating.name", "descriptionKey": "blueprint.hull_plating.desc",
     "category": "ShipDefense", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 10 } ]

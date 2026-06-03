@@ -161,9 +161,17 @@ namespace Spacecraft.Client
         {
             var loc = Game.Localizer;
 
-            // Location.
-            string place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName;
-            if (Game.Aboard) place += $"  ({loc.Get("ui.hud.aboard")})";
+            // Location — show the boarded station's name when on one, else the planet/system.
+            string place;
+            if (!string.IsNullOrEmpty(Game.StationName))
+            {
+                place = $"{Game.StationName}  ({loc.Get("ui.hud.station")})";
+            }
+            else
+            {
+                place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName;
+                if (Game.Aboard) place += $"  ({loc.Get("ui.hud.aboard")})";
+            }
             _locTitle.text = loc.Get("ui.hud.location").ToUpperInvariant();
             _locPlace.text = place;
 

@@ -370,6 +370,9 @@ public sealed class PlayerStateUpdate
 
     /// <summary>Whether the player is currently inside their ship (enables cargo crafting, oxygen regen).</summary>
     public bool AboardShip { get; set; }
+
+    /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
+    public string StationName { get; set; } = string.Empty;
 }
 
 public sealed class CraftResult
@@ -562,6 +565,9 @@ public sealed class ShipCombatStatus
     public float HullMax { get; set; }
     public float Shield { get; set; }
     public float ShieldMax { get; set; }
+
+    /// <summary>Space-radar range in world units (base + radar-module bonus); drives the HUD radar scale.</summary>
+    public float RadarRange { get; set; } = 130f;
 }
 
 /// <summary>Snapshot of the space instance a player is in (sent on entry and on change).</summary>

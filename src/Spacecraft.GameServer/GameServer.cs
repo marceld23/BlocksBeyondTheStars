@@ -1609,6 +1609,7 @@ public sealed partial class GameServer
             SuitEnergy = p.SuitEnergy,
             Hunger = p.Hunger,
             AboardShip = p.AboardShip,
+            StationName = CurrentStationName(p.PlayerId),
         });
     }
 

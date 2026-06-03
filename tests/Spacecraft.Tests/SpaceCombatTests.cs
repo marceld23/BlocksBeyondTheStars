@@ -246,6 +246,37 @@ public sealed class SpaceCombatTests : IDisposable
         Assert.Equal(0, state.Inventory.CountOf("iron_plate"));
     }
 
+    [Fact]
+    public void BuildShipModule_RadarArray_WidensRadarRange()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "radar"));
+        var link = new LoopbackLink();
+        using var st = new LoopbackServerTransport(link);
+        using var client = new LoopbackClientTransport(link);
+        var config = new ServerConfig { WorldName = "radar", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        float before = server.ShipRadarRange;
+
+        var state = server.Sessions[1].State;
+        state.UnlockedBlueprints.Add("radar_array");
+        state.Inventory.Add("titanium_plate", 10, 99);
+        state.Inventory.Add("cable", 10, 99);
+        state.Inventory.Add("glass", 4, 99);
+        state.Inventory.Add("energy_cell_1", 3, 99);
+
+        client.Send(NetCodec.Encode(new BuildShipModuleIntent { ModuleKey = "radar_array" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.True(server.Ship.HasModule("radar_array"));
+        Assert.Equal(before + 170f, server.ShipRadarRange); // radar_bonus stat
+    }
+
     // ---------------- Collision ----------------
 
     [Fact]

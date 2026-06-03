@@ -50,6 +50,7 @@ namespace Spacecraft.Client
 
         /// <summary>Friendly current location ("System · Planet") for the HUD.</summary>
         public string LocationName { get; private set; } = string.Empty;
+        public string StationName { get; private set; } = string.Empty; // non-empty while boarded on a station
 
         /// <summary>Whether we're currently inside the ship (authoritative; enables cargo crafting).</summary>
         public bool Aboard { get; private set; }
@@ -365,6 +366,7 @@ namespace Spacecraft.Client
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
             Aboard = m.AboardShip;
+            StationName = m.StationName;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }
 

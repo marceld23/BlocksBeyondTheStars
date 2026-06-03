@@ -50,6 +50,12 @@
     "stats": { "jump_range": 1000 }
   },
   {
+    "key": "radar_array", "nameKey": "module.radar_array.name", "descriptionKey": "module.radar_array.desc",
+    "mandatory": false, "requiredBlueprint": "radar_array",
+    "buildCost": [ { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 4 }, { "item": "energy_cell_1", "count": 3 } ],
+    "stats": { "radar_bonus": 170 }
+  },
+  {
     "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
     "mandatory": false, "requiredBlueprint": "hull_plating",
     "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 } ],

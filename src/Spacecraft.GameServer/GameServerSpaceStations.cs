@@ -40,6 +40,12 @@ public sealed partial class GameServer
     /// <summary>True while the player is walking inside a boarded station.</summary>
     public bool InStation(string playerId) => _boardedStation.ContainsKey(playerId);
 
+    /// <summary>Name of the station the player is boarded on, or empty when not on one.</summary>
+    private string CurrentStationName(string playerId)
+        => _boardedStation.TryGetValue(playerId, out var id) && _stationsById.TryGetValue(id, out var st)
+            ? st.Name
+            : string.Empty;
+
     /// <summary>Mission ids offered by station boards (test/inspection).</summary>
     public IReadOnlyCollection<string> StationMissionIds => _stationMissionIds;
 

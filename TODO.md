@@ -213,9 +213,13 @@ consumes protocol messages that already exist.
   station blocks, and enables vendor market barter + station-board missions. 10 station tests across
   generator + boarding. **Client boarding DONE:** flying near a station shows a "Press E to board
   <name>" prompt that sends `BoardStationIntent` (server validates the 70-unit range and moves the
-  player inside); stations render as a large grey hull in space. Still planned: station **interior
-  rendering polish**, station NPC population, **named station on the ship radar + location readout**,
-  and **radar scanner tiers** (gate/extend the radar by a scanner module).
+  player inside); stations render as a large grey hull in space. **Named station on the ship radar
+  DONE:** stations show a distinct cyan blip + the nearest station's name/distance under the radar.
+  **Location readout DONE:** `PlayerStateUpdate.StationName` drives the HUD location panel to show the
+  boarded station's name. **Radar scanner tiers DONE:** a buildable `radar_array` module adds a
+  `radar_bonus` that widens `ShipCombatStatus.RadarRange`, which the HUD radar now uses (base 130 + 170
+  per array); 1 test (255 total). Still planned: station **interior rendering polish**, station NPC
+  population.
 - **World variety — slice DONE.** Biome-aware `WorldGenerator`: single-biome planets + multi-biome
   worlds (surface per column from noise; **biome count randomised per world from the seed**); new
   blocks sand/mud/grass/crystal + new planet types (desert/jungle/crystal/swamp/varied);
