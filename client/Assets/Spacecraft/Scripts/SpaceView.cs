@@ -47,6 +47,12 @@ namespace Spacecraft.Client
         private float _shipSpeedMul = 1f; // cruise-speed factor from the active ship design
         private float _shipTurnMul = 1f;  // turn-rate factor from the active ship design
 
+        private float _moveSendTimer;     // throttles authoritative position reports
+        private float _hitFlash;          // red damage flash on a collision/hit
+        private float _shake;             // camera shake on a hit
+        private float _lastHull = -1f, _lastShield = -1f;
+        private bool _combatSubscribed;
+
         private void Update()
         {
             if (Game == null || Camera == null)
@@ -167,6 +173,14 @@ namespace Spacecraft.Client
             }
 
             _ship.transform.localPosition = pos;
+
+            // Report our position so the server runs authoritative collisions against asteroids/entities.
+            _moveSendTimer -= Time.deltaTime;
+            if (_moveSendTimer <= 0f)
+            {
+                _moveSendTimer = 0.08f; // ~12 Hz
+                Game.Network?.SendShipMove(_ship.transform.localPosition);
+            }
         }
 
         private void PlaceCamera()
@@ -190,6 +204,11 @@ namespace Spacecraft.Client
                 Camera.transform.localPosition = sp + rot * new Vector3(0f, 4.5f, -13f);
                 Camera.transform.localRotation = Quaternion.LookRotation((sp + Vector3.up * 0.5f) - Camera.transform.localPosition, Vector3.up);
             }
+
+            if (_shake > 0.001f)
+            {
+                Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
+            }
         }
 
         private void Enter()
@@ -203,6 +222,16 @@ namespace Spacecraft.Client
 
             ResolveShipFlight();
             BuildScene();
+
+            // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake.
+            if (Game.Network != null && !_combatSubscribed)
+            {
+                Game.Network.ShipCombatStatusChanged += OnShipCombat;
+                _combatSubscribed = true;
+            }
+
+            _lastHull = Game.ShipCombat?.Hull ?? -1f;
+            _lastShield = Game.ShipCombat?.Shield ?? -1f;
 
             // Launch roar + a looping engine bed for the flight.
             ClientAudio.Instance?.Cue("ship_launch");
@@ -251,11 +280,33 @@ namespace Spacecraft.Client
                 _engine = null;
             }
 
+            if (Game.Network != null && _combatSubscribed)
+            {
+                Game.Network.ShipCombatStatusChanged -= OnShipCombat;
+                _combatSubscribed = false;
+            }
+
             _entities.Clear();
             _ship = null;
             _exhaust = null;
             _active = false;
+            _shake = 0f;
+            _hitFlash = 0f;
             Game.SpaceViewActive = false;
+        }
+
+        private void OnShipCombat(Spacecraft.Networking.Messages.ShipCombatStatus s)
+        {
+            bool hit = (_lastShield >= 0f && s.Shield < _lastShield - 0.1f)
+                    || (_lastHull >= 0f && s.Hull < _lastHull - 0.1f);
+            if (hit && _active)
+            {
+                _hitFlash = 1f;
+                _shake = Mathf.Min(1f, _shake + 0.7f);
+            }
+
+            _lastHull = s.Hull;
+            _lastShield = s.Shield;
         }
 
         /// <summary>Reads the active ship's design (data/ships.json) so heavier ships fly slower and
@@ -397,6 +448,7 @@ namespace Spacecraft.Client
         // ── Modern uGUI overlay (replaces the IMGUI fade + hint) ─────────────────────────────
         private Canvas _ui;
         private Image _fade;
+        private Image _hit;
         private Text _hint;
 
         private void EnsureUi()
@@ -420,6 +472,18 @@ namespace Spacecraft.Client
             _fade.sprite = UiKit.SolidSprite;
             _fade.color = new Color(0f, 0f, 0f, 0f);
             _fade.raycastTarget = false;
+
+            // Red damage flash on a hit/collision.
+            var hitGo = new GameObject("Hit", typeof(RectTransform));
+            hitGo.transform.SetParent(_ui.transform, false);
+            var hrtt = hitGo.GetComponent<RectTransform>();
+            hrtt.anchorMin = Vector2.zero;
+            hrtt.anchorMax = Vector2.one;
+            hrtt.offsetMin = hrtt.offsetMax = Vector2.zero;
+            _hit = hitGo.AddComponent<Image>();
+            _hit.sprite = UiKit.SolidSprite;
+            _hit.color = new Color(1f, 0.2f, 0.2f, 0f);
+            _hit.raycastTarget = false;
 
             // Bottom-centre cruise controls hint.
             var hintGo = new GameObject("Hint", typeof(RectTransform));
@@ -452,6 +516,11 @@ namespace Spacecraft.Client
 
             EnsureUi();
             _ui.enabled = true;
+
+            // Decay the hit feedback.
+            _shake = Mathf.Max(0f, _shake - Time.deltaTime * 2.5f);
+            _hitFlash = Mathf.Max(0f, _hitFlash - Time.deltaTime * 2f);
+            _hit.color = new Color(1f, 0.2f, 0.2f, _hitFlash * 0.35f);
 
             if (_phase != Phase.Cruise)
             {
