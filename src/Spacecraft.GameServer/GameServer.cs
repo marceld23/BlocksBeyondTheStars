@@ -669,7 +669,7 @@ public sealed partial class GameServer
     private void StreamChunks()
     {
         int radius = System.Math.Max(1, _config.ViewDistanceChunks);
-        const int perTickBudget = 8;
+        const int perTickBudget = 12;
 
         foreach (var session in _sessions.Values)
         {
@@ -680,7 +680,9 @@ public sealed partial class GameServer
 
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
             int sent = 0;
-            for (int dy = -1; dy <= 1 && sent < perTickBudget; dy++)
+            // Stream a taller vertical column (esp. below, ground-first) so digging down never outruns
+            // the loaded terrain and drops the player through unstreamed space.
+            for (int dy = -3; dy <= 2 && sent < perTickBudget; dy++)
             for (int dx = -radius; dx <= radius && sent < perTickBudget; dx++)
             for (int dz = -radius; dz <= radius && sent < perTickBudget; dz++)
             {

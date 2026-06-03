@@ -103,9 +103,11 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Glass viewport: the +Z wall's middle row (excluding the corners).
-            bool viewport = z == cz + _shipHalfZ && y == y0 + 2 && x > cx - _shipHalfX && x < cx + _shipHalfX;
-            _world.SetBlock(pos, viewport ? glass : wall);
+            // Glass window panes: a band at eye height (y0+2) along the front (+Z) and both side
+            // walls (excluding the corners), so the cabin has proper windows to see out of.
+            bool frontWin = z == cz + _shipHalfZ && y == y0 + 2 && x > cx - _shipHalfX && x < cx + _shipHalfX;
+            bool sideWin = (x == cx - _shipHalfX || x == cx + _shipHalfX) && y == y0 + 2 && z > cz - _shipHalfZ && z < cz + _shipHalfZ;
+            _world.SetBlock(pos, frontWin || sideWin ? glass : wall);
         }
 
         // Ceiling lights: a row of emissive panels down the centre of the roof so the cabin glows at
