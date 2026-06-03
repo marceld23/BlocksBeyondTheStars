@@ -360,9 +360,16 @@ consumes protocol messages that already exist.
   this pass:** clouds + rain (weather), **post-FX** (bloom/tonemap/SSAO/vignette), and the **suit
   lamp + emissive glow + ship lights** (headlamp toggle L; emissive ores/crystals/lava/lights; ship nav
   position lights + front headlights; new emissive light blocks placeable in the ship editor).
-- **(NEW, planned) Local time-of-day indicator:** a small planet HUD day/night clock scaled to the
-  world's day length, showing how long until night / until day (from `WorldEnvironment.TimeOfDay` +
-  `DayLengthSeconds`). The visible **sun already wanders** across the sky by time of day. Bilingual.
+- **(NEW, planned) Toggleable world map / planet overview:** a full-screen **overlay map of the current
+  planet** (toggle key, e.g. **M**), distinct from the star map (Tab→Map = systems/travel). Shows a
+  top-down view of the **explored terrain** around the player (height/biome-shaded), the **player + ship**
+  positions + heading, and **points of interest** (landing zones, stations/settlements, known wrecks,
+  mission targets, scanned signals). Pan/zoom; click a POI for info; optional waypoint marker shown on the
+  HUD compass. Reveals as the player explores (fog-of-war), reads from streamed chunks + known markers.
+  Bilingual; uGUI (matches the new menu design). A mini version could later replace/augment the HUD compass.
+- **Local time-of-day indicator — DONE** (`b7393bc`). HUD day/night widget (top-right under the compass):
+  current phase + time until next dawn/dusk + a cycle bar with a marker (from `WorldEnvironment.TimeOfDay`
+  + `DayLengthSeconds`). Bilingual. The visible sun already wanders across the sky by time of day.
 - **Space travel lands on origin — FIXED.** Real inter-planet travel with **per-planet persistence**
   (`SwitchActiveWorld` keyed by celestial-body `LocationId`, `HandleTravel`/`ResetWorldRuntimeState`,
   `WorldReset` message); landing zones, block edits + containers persist per body. Tests cover it.
