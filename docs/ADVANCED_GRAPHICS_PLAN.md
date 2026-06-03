@@ -192,8 +192,11 @@ shadow acne — tune bias per preset.
 - **Phase 1 (orig) — Post stack + emissive:** Post-Processing Stack v2: bloom,
   ACES tonemap, SSAO, per-system/biome colour grade, vignette; emissive channel for ores/lights/engines/
   beams/UI. Preset-gated. *This alone makes the game look "pro".*
-- **Phase 1.5 — Normal mapping:** normal atlas + tangent-space lighting in `BlockAtlas`/`LitColor`;
-  per-face tangents in the chunk mesher. Bundle normal maps via `bundle_textures.py`.
+- **Phase 1.5 — Normal mapping — ✅ DONE (blocks).** Normal atlas **derived procedurally** (Sobel on the
+  colour atlas luminance, no bundled assets) + per-face tangents in the chunk mesher + tangent-space
+  lighting in `BlockAtlas` (sun, specular, Fresnel + headlamp all use the per-pixel normal). Remaining:
+  optionally the same for `LitColor` (avatar/creatures/decor), and hand-/AI-authored normal maps for key
+  blocks if the Sobel approximation isn't enough.
 - **Phase 2 — POM + shells + water:** parallax on rock/metal/panel blocks; grass shells on turf + fur
   shells on furred creatures; the water/lava shader with planar reflections.
 - **Phase 3 — Sky/atmosphere/volumetrics:** HDR per-system nebula skybox, atmospheric scattering, god

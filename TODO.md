@@ -390,7 +390,8 @@ consumes protocol messages that already exist.
   Research + roadmap for **shell shaders** (grass/fur/turf on ground, fauna, flora), **parallax occlusion
   mapping** (fake depth on rock/ore/metal/panel block faces), **normal maps** (highest bang-for-buck for
   the voxel look), a **post-processing stack** (bloom/tonemap/SSAO/per-system+biome colour grade/vignette),
-  **emissive glow**, **HDR nebula skies + atmospheric scattering + god rays**, a **water/lava shader** with
+  **emissive glow** ✅ (done), **normal maps** ✅ (done — Sobel-derived per-block, tangent-space lighting),
+  **post-FX stack** ✅ (done), **HDR nebula skies + atmospheric scattering + god rays**, a **water/lava shader** with
   planar reflections, **GPU detail scatter**, translucency, decals, reflection probes, AA/camera feel.
   Phased + preset-gated; **Phase 0 = decide Built-in RP vs URP migration** (gates SSR/TAA/volumetrics).
 - **Crafting/Tech/Ship menu redesign — DONE** (`1439713`, `ac31c1e`; plan in
