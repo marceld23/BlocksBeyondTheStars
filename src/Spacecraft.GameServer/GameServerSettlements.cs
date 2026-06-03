@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Primitives;
 using Spacecraft.WorldGeneration;
@@ -37,6 +38,24 @@ public sealed partial class GameServer
 
     /// <summary>Whether the stamped settlement is a ruin (abandoned — no NPCs, scavengeable loot).</summary>
     public bool SettlementRuined => _settlementRuined;
+
+    /// <summary>Sends the planet's points of interest (the settlement) for the world map.</summary>
+    private void SendPlanetPois(PlayerSession session)
+    {
+        var pois = new List<NetPoi>();
+        if (_settlementStamped)
+        {
+            pois.Add(new NetPoi
+            {
+                Type = _settlementRuined ? "settlement_ruin" : "settlement",
+                Name = _settlementName,
+                X = (_settlementMin.X + _settlementMax.X) * 0.5f,
+                Z = (_settlementMin.Z + _settlementMax.Z) * 0.5f,
+            });
+        }
+
+        Send(session, new PlanetPoiList { Pois = pois.ToArray() });
+    }
 
     private void StampSettlement()
     {

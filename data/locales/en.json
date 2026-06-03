@@ -258,6 +258,7 @@
   "ui.map.scale": "Scale",
   "ui.map.waypoint": "Waypoint",
   "ui.map.click_hint": "Click the map to set a waypoint.",
+  "ui.map.pois": "Points of interest",
   "ui.map.kind": "Kind",
   "ui.map.type": "Type",
   "ui.map.travel": "Travel",

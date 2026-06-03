@@ -40,6 +40,7 @@ namespace Spacecraft.Client
         public event Action<ContainerList> ContainersReceived;
         public event Action<ShipPlacement> ShipPlacementReceived;
         public event Action<ShipStations> ShipStationsReceived;
+        public event Action<PlanetPoiList> PlanetPoisReceived;
 
         // Navigation, missions & feedback (M23).
         public event Action<StarMapData> StarMapReceived;
@@ -202,6 +203,7 @@ namespace Spacecraft.Client
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
+                case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
                 case StarMapData m: StarMapReceived?.Invoke(m); break;
                 case MissionList m: MissionsReceived?.Invoke(m); break;
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;

@@ -263,6 +263,7 @@
   "ui.map.scale": "Maßstab",
   "ui.map.waypoint": "Wegpunkt",
   "ui.map.click_hint": "Klicke auf die Karte für einen Wegpunkt.",
+  "ui.map.pois": "Sehenswürdigkeiten",
   "ui.map.kind": "Art",
   "ui.map.type": "Typ",
   "ui.map.travel": "Reisen",

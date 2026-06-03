@@ -66,6 +66,9 @@ namespace Spacecraft.Client
 
         /// <summary>Interactive ship stations, and the one the player is currently next to (or empty).</summary>
         public NetShipStation[] Stations { get; private set; } = System.Array.Empty<NetShipStation>();
+
+        /// <summary>Planet points of interest (settlement, …) for the world map.</summary>
+        public NetPoi[] PlanetPois { get; private set; } = System.Array.Empty<NetPoi>();
         public string NearbyStation;
 
         // Navigation, missions & rules (M23).
@@ -215,6 +218,7 @@ namespace Spacecraft.Client
             };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
+            Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.StarMapReceived += m => StarMap = m;
             Network.MissionsReceived += m => Missions = m;
             Network.ShipCombatStatusChanged += m => ShipCombat = m;

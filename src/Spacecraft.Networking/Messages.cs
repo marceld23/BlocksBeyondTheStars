@@ -694,6 +694,21 @@ public sealed class ShipStations
     public NetShipStation[] Stations { get; set; } = System.Array.Empty<NetShipStation>();
 }
 
+/// <summary>A point of interest on the current planet (for the world map): settlement, wreck, …</summary>
+public sealed class NetPoi
+{
+    public string Type { get; set; } = string.Empty; // settlement / settlement_ruin / wreck / landing
+    public string Name { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Z { get; set; }
+}
+
+/// <summary>The known points of interest on the current planet, sent on join + world switch.</summary>
+public sealed class PlanetPoiList
+{
+    public NetPoi[] Pois { get; set; } = System.Array.Empty<NetPoi>();
+}
+
 /// <summary>Authoritative state of another player, for rendering them (avatar + nameplate).</summary>
 public sealed class PlayerPresence
 {

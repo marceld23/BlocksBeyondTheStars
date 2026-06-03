@@ -218,6 +218,28 @@ namespace Spacecraft.Client
                 Marker(Game.Waypoint.Value.x, Game.Waypoint.Value.z, 22f, new Color(1f, 0.85f, 0.3f), "✛");
             }
 
+            // World POIs (settlements, …) from the server.
+            var poiLines = new System.Text.StringBuilder();
+            if (Game.PlanetPois != null)
+            {
+                foreach (var p in Game.PlanetPois)
+                {
+                    var (glyph, col) = PoiLook(p.Type);
+                    Marker(p.X, p.Z, 22f, col, glyph);
+                    float d = Vector3.Distance(new Vector3(Game.PlayerPosition.x, 0, Game.PlayerPosition.z), new Vector3(p.X, 0, p.Z));
+                    poiLines.Append($"\n{glyph} {p.Name}  —  {Mathf.RoundToInt(d)} m");
+                }
+            }
+
+            // Ship station tiles (workshop / lab / medbay / …) as small dots.
+            if (Game.Stations != null)
+            {
+                foreach (var s in Game.Stations)
+                {
+                    Marker(s.X, s.Z, 11f, new Color(0.55f, 0.8f, 1f, 0.85f), "•");
+                }
+            }
+
             // Player arrow (rotated to heading; ▲ points north / +Z).
             var pa = Marker(Game.PlayerPosition.x, Game.PlayerPosition.z, 26f, UiKit.Cyan, "▲");
             if (pa != null)
@@ -230,13 +252,23 @@ namespace Spacecraft.Client
                 : string.Empty;
             if (_info != null)
             {
+                string pois = poiLines.Length > 0 ? $"\n\n{L("ui.map.pois")}:{poiLines}" : string.Empty;
                 _info.text =
                     $"{L("ui.map.you")}: X {Mathf.RoundToInt(Game.PlayerPosition.x)}  Z {Mathf.RoundToInt(Game.PlayerPosition.z)}\n" +
                     $"{L("ui.map.scale")}: ±{_radius} m\n" +
                     $"▲ {L("ui.map.you")}    ▣ {L("ui.hud.ship")}    ✛ {L("ui.map.waypoint")}\n" +
-                    $"{L("ui.map.click_hint")}{wp}";
+                    $"{L("ui.map.click_hint")}{wp}{pois}";
             }
         }
+
+        private static (string glyph, Color col) PoiLook(string type) => type switch
+        {
+            "settlement" => ("⌂", new Color(0.5f, 0.95f, 0.6f)),
+            "settlement_ruin" => ("⌂", new Color(0.65f, 0.6f, 0.55f)),
+            "wreck" => ("✖", new Color(1f, 0.55f, 0.3f)),
+            "landing" => ("⊕", new Color(0.5f, 0.85f, 1f)),
+            _ => ("◆", new Color(0.8f, 0.8f, 0.9f)),
+        };
 
         private Text Marker(float wx, float wz, float size, Color color, string glyph)
         {

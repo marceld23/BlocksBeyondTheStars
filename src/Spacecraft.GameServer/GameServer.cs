@@ -310,6 +310,7 @@ public sealed partial class GameServer
             SendShipCombatStatus(s);
             SendShipPlacement(s);
             SendShipStations(s);
+            SendPlanetPois(s);
             SendEnvironment(s);
             PopulateCreaturesNear(s.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
             SendCreatures(s);
@@ -840,6 +841,7 @@ public sealed partial class GameServer
         SendShipCombatStatus(session);
         SendShipPlacement(session);
         SendShipStations(session);
+        SendPlanetPois(session);
         SendOwnedShips(session);
         SendEnvironment(session);
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
