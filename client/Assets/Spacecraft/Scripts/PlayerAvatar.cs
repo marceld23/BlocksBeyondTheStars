@@ -151,7 +151,7 @@ namespace Spacecraft.Client
         /// Layers equipped gear over the body: a helmet shell, a chest plate, leg plates and a back
         /// pack/tank. Rebuilds the gear set from the flags (cheap; only call it when the set changes).
         /// </summary>
-        public void SetGear(bool helmet, bool chest, bool legs, bool pack)
+        public void SetGear(bool helmet, bool chest, bool legs, bool pack, bool lamp = false)
         {
             if (_head == null)
             {
@@ -190,6 +190,13 @@ namespace Spacecraft.Client
             if (pack)
             {
                 _gear.Add(AddCube("GearPack", transform, new Vector3(0f, 1.2f, -0.22f), new Vector3(0.4f, 0.5f, 0.2f), packMat));
+            }
+
+            if (lamp)
+            {
+                // A small bright lamp on the side of the helmet (the actual light cone is the suit lamp).
+                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.26f, 0.06f, 0.12f), new Vector3(0.1f, 0.1f, 0.12f),
+                    Lit(new Color(1f, 0.96f, 0.7f), null)));
             }
         }
 

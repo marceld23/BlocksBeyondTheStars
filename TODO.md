@@ -421,11 +421,14 @@ consumes protocol messages that already exist.
   **Settings + Credits** — no IMGUI menus left (only the splash animation + HUD overlays stay IMGUI).
   *Remaining polish: drawn node-edge graph for Tech, "missing material → where to get it" popover, success
   animations.*
-- **(NEW, planned) Avatar overhaul:** appearance **reflects equipped gear** (armor chest/legs/helmet,
-  suit, lamp, jetpack visible on the body + to other players); **improved avatar model + textures**
-  (better proportions, skinning); **avatar animations** (idle/walk/run/jump/mine/attack/place + tool-use);
-  and a **dedicated avatar texture/skin designer** (menu-based, exports skin JSON/texture, merges in like
-  the other content editors). Builds on the existing `PlayerAvatar` + per-part colour settings.
+- **Avatar overhaul — gear/held visibility DONE.** The avatar now **reflects equipped gear** to
+  yourself *and other players*: helmet/chest/legs/backpack + a **helmet lamp** layer via
+  `PlayerAvatar.SetGear`, driven locally from carried items and **networked** through
+  `PlayerPresence.Gear` (bitmask) so remotes show each other's armour. The **held tool/weapon/block**
+  is likewise networked (`PlayerPresence.Held`) so remote avatars hold what they've selected (local
+  hand + first-person viewmodel were already done). Still planned: **improved avatar model + textures**
+  (better proportions, skinning), idle/run/jump animations, and a **dedicated avatar skin designer**
+  (menu-based, exports skin JSON/texture, merges like the other content editors).
 - **Animation pass — DONE (first pass).** Player/remote/NPC avatars already self-animate (speed-scaled
   walk cycle, idle sway, tool-swing chop via `PlayerAvatar`). This pass added the **held tool/weapon in
   hand + first-person viewmodel** (above) and **procedural creature animation** (`CreatureAnimator`:

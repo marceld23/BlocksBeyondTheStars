@@ -268,7 +268,7 @@ namespace Spacecraft.Client
             }
         }
 
-        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack;
+        private bool _gearHelmet, _gearChest, _gearLegs, _gearPack, _gearLamp;
         private float _gearTimer;
 
         /// <summary>Mirrors the player's carried gear onto the third-person avatar (helmet/chest/legs/
@@ -286,14 +286,16 @@ namespace Spacecraft.Client
             bool chest = HasItem("armor_chest") || HasItem("stealth_suit");
             bool legs = HasItem("armor_legs");
             bool pack = HasItem("oxygen_tank_2") || HasItem("jetpack");
+            bool lamp = HasItem("suit_lamp");
 
-            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack)
+            if (helmet != _gearHelmet || chest != _gearChest || legs != _gearLegs || pack != _gearPack || lamp != _gearLamp)
             {
                 _gearHelmet = helmet;
                 _gearChest = chest;
                 _gearLegs = legs;
                 _gearPack = pack;
-                Avatar.SetGear(helmet, chest, legs, pack);
+                _gearLamp = lamp;
+                Avatar.SetGear(helmet, chest, legs, pack, lamp);
             }
         }
 

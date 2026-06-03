@@ -17,9 +17,12 @@ namespace Spacecraft.Client
         private sealed class Remote
         {
             public GameObject Go;
+            public PlayerAvatar Avatar;
             public string Name;
             public Vector3 Target;
             public float Yaw;
+            public int Gear = -1;          // cached so gear is only rebuilt on change
+            public string Held = "\0";     // cached held item key
         }
 
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
@@ -72,13 +75,28 @@ namespace Spacecraft.Client
                 var avatar = go.AddComponent<PlayerAvatar>();
                 avatar.Build(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs));
                 avatar.SetVisible(true);
-                r = new Remote { Go = go, Name = m.Name };
+                r = new Remote { Go = go, Avatar = avatar, Name = m.Name };
                 _remotes[m.PlayerId] = r;
             }
 
             r.Name = m.Name;
             r.Target = new Vector3(m.X, m.Y, m.Z);
             r.Yaw = m.Yaw;
+
+            // Equipped gear (helmet/chest/legs/pack/lamp) shown on the remote avatar.
+            if (m.Gear != r.Gear)
+            {
+                r.Gear = m.Gear;
+                r.Avatar.SetGear((m.Gear & 1) != 0, (m.Gear & 2) != 0, (m.Gear & 4) != 0, (m.Gear & 8) != 0, (m.Gear & 16) != 0);
+            }
+
+            // Held tool/weapon/block shown in the remote avatar's hand.
+            if (m.Held != r.Held)
+            {
+                r.Held = m.Held;
+                var (kind, tint) = HeldItem.For(Game?.Content, m.Held);
+                r.Avatar.SetHeldItem(kind, tint);
+            }
         }
 
         private void OnLeft(PlayerLeft m)

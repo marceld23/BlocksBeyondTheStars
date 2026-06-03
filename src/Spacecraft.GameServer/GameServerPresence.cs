@@ -1,4 +1,5 @@
 using Spacecraft.Networking.Messages;
+using Spacecraft.Shared.State;
 
 namespace Spacecraft.GameServer;
 
@@ -49,7 +50,34 @@ public sealed partial class GameServer
             Arms = s.ArmColor,
             Legs = s.LegColor,
             Stealthed = p.Stealthed,
+            Gear = GearMask(p),
+            Held = HeldItemKey(p),
         };
+    }
+
+    /// <summary>Equipped-gear bitmask from carried items (mirrors the local avatar gear logic).</summary>
+    private static int GearMask(PlayerState p)
+    {
+        int g = 0;
+        var inv = p.Inventory;
+        if (inv.CountOf("helmet") > 0) g |= 1;
+        if (inv.CountOf("armor_chest") > 0 || inv.CountOf("stealth_suit") > 0) g |= 2;
+        if (inv.CountOf("armor_legs") > 0) g |= 4;
+        if (inv.CountOf("oxygen_tank_2") > 0 || inv.CountOf("jetpack") > 0) g |= 8;
+        if (inv.CountOf("suit_lamp") > 0) g |= 16;
+        return g;
+    }
+
+    /// <summary>The item in the player's selected hotbar slot (shown in the avatar's hand), or empty.</summary>
+    private static string HeldItemKey(PlayerState p)
+    {
+        int slot = p.SelectedHotbarSlot;
+        if (slot >= 0 && slot < p.Inventory.SlotCount && p.Inventory.Slots[slot] is { IsEmpty: false } stack)
+        {
+            return stack.Item;
+        }
+
+        return string.Empty;
     }
 
     /// <summary>Sends the new player the presence of everyone already online.</summary>

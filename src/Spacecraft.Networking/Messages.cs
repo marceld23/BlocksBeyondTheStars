@@ -749,6 +749,12 @@ public sealed class PlayerPresence
 
     /// <summary>Stealth field active — other clients fade/hide the avatar + nameplate.</summary>
     public bool Stealthed { get; set; }
+
+    /// <summary>Equipped-gear bitmask shown on the avatar: 1=helmet, 2=chest, 4=legs, 8=pack, 16=lamp.</summary>
+    public int Gear { get; set; }
+
+    /// <summary>Item key currently held (selected hotbar slot), shown in the avatar's hand; empty if none.</summary>
+    public string Held { get; set; } = string.Empty;
 }
 
 /// <summary>A player left; the client removes their avatar.</summary>
