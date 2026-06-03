@@ -709,6 +709,19 @@ public sealed class PlanetPoiList
     public NetPoi[] Pois { get; set; } = System.Array.Empty<NetPoi>();
 }
 
+/// <summary>A player chat line (client→server). Requires a comm radio; range/rate enforced server-side.</summary>
+public sealed class ChatIntent
+{
+    public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>A broadcast chat line (server→clients).</summary>
+public sealed class ChatMessage
+{
+    public string Sender { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+}
+
 /// <summary>Authoritative state of another player, for rendering them (avatar + nameplate).</summary>
 public sealed class PlayerPresence
 {

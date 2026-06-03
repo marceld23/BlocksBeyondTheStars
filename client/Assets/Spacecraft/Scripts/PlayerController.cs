@@ -95,8 +95,8 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // A UI panel is open: don't steer/interact, just keep the player settled by gravity.
-            if (Game != null && Game.MenuOpen)
+            // A UI panel or the chat input is open: don't steer/interact, just settle by gravity.
+            if (Game != null && (Game.MenuOpen || Game.ChatTyping))
             {
                 ApplyGravityOnly();
                 return;

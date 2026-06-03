@@ -115,6 +115,11 @@
     "unlockCost": [ { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
   },
   {
+    "key": "comm_radio", "nameKey": "blueprint.comm_radio.name", "descriptionKey": "blueprint.comm_radio.desc",
+    "category": "Production", "prerequisites": [], "knowledgeCost": 2,
+    "unlockCost": [ { "item": "copper_wire", "count": 4 }, { "item": "data_fragment", "count": 1 } ]
+  },
+  {
     "key": "radar_scanner", "nameKey": "blueprint.radar_scanner.name", "descriptionKey": "blueprint.radar_scanner.desc",
     "category": "Tools", "prerequisites": [], "knowledgeCost": 8,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]

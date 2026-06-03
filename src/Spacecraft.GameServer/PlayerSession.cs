@@ -12,6 +12,9 @@ public sealed class PlayerSession
     /// <summary>True once the player has completed the join handshake.</summary>
     public bool Joined { get; set; }
 
+    /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
+    public int LastChatTick { get; set; }
+
     /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
     public HashSet<ChunkCoord> SentChunks { get; } = new();
 

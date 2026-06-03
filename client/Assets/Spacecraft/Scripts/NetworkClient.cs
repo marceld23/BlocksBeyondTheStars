@@ -41,6 +41,7 @@ namespace Spacecraft.Client
         public event Action<ShipPlacement> ShipPlacementReceived;
         public event Action<ShipStations> ShipStationsReceived;
         public event Action<PlanetPoiList> PlanetPoisReceived;
+        public event Action<ChatMessage> ChatReceived;
 
         // Navigation, missions & feedback (M23).
         public event Action<StarMapData> StarMapReceived;
@@ -92,6 +93,7 @@ namespace Spacecraft.Client
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
+        public void SendChat(string text) => Send(new ChatIntent { Text = text });
 
         public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });
 
@@ -204,6 +206,7 @@ namespace Spacecraft.Client
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
+                case ChatMessage m: ChatReceived?.Invoke(m); break;
                 case StarMapData m: StarMapReceived?.Invoke(m); break;
                 case MissionList m: MissionsReceived?.Invoke(m); break;
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;

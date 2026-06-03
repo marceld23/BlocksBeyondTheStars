@@ -89,6 +89,10 @@ namespace Spacecraft.Client
             var worldMap = root.AddComponent<WorldMap>();
             worldMap.Game = boot;
 
+            // Player chat overlay (Enter to type; needs a comm radio).
+            var chat = root.AddComponent<ChatUi>();
+            chat.Game = boot;
+
             // In-game gameplay menu (inventory / crafting / tech / ship / map / missions), Tab.
             var menu = root.AddComponent<GameMenu>();
             menu.Game = boot;

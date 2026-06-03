@@ -146,6 +146,9 @@ namespace Spacecraft.Client
         /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.</summary>
         public bool MenuOpen;
 
+        /// <summary>True while the chat input is focused; the player controller pauses look/move.</summary>
+        public bool ChatTyping;
+
         /// <summary>True while the space view owns the camera (on-foot control is frozen).</summary>
         public bool SpaceViewActive;
 

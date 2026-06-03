@@ -106,6 +106,8 @@ public static class NetCodec
         Register(86, typeof(WorldReset));
         Register(87, typeof(MiningProgress));
         Register(88, typeof(PlanetPoiList));
+        Register(89, typeof(ChatIntent));
+        Register(90, typeof(ChatMessage));
     }
 
     private static void Register(byte tag, Type type)

@@ -288,7 +288,12 @@ namespace Spacecraft.Client
             {
                 if (Phase == ShellPhase.InGame)
                 {
-                    ReturnToMenu();
+                    // Esc while typing in chat just cancels the chat input, it doesn't quit to the menu.
+                    var boot = _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
+                    if (boot == null || !boot.ChatTyping)
+                    {
+                        ReturnToMenu();
+                    }
                 }
                 else if (Phase == ShellPhase.Settings)
                 {

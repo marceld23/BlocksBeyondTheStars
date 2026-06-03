@@ -746,6 +746,7 @@ public sealed partial class GameServer
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
+            case ChatIntent chat: HandleChat(session, chat); break;
             case RequestStarMap: SendStarMap(session); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
             case RequestMissions: SendMissionList(session); break;
@@ -1544,6 +1545,37 @@ public sealed partial class GameServer
 
         _repo.SaveShip(ShipId, _ship);
         _repo.SaveMetadata(_meta);
+    }
+
+    /// <summary>Player chat (requires a comm radio; length-capped + rate-limited). Broadcast to all.</summary>
+    private void HandleChat(PlayerSession session, ChatIntent chat)
+    {
+        string text = (chat.Text ?? string.Empty).Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (text.Length > 200)
+        {
+            text = text.Substring(0, 200);
+        }
+
+        if (!session.State.Inventory.Has("comm_radio", 1))
+        {
+            Reject(session, "chat", "You need a comm radio to use comms.");
+            return;
+        }
+
+        int now = System.Environment.TickCount;
+        if (now - session.LastChatTick < 700)
+        {
+            return; // rate limit
+        }
+
+        session.LastChatTick = now;
+        string sender = string.IsNullOrEmpty(session.State.Name) ? "Pilot" : session.State.Name;
+        Broadcast(new ChatMessage { Sender = sender, Text = text });
     }
 
     private void Reject(PlayerSession session, string action, string reason)
