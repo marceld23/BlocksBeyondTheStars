@@ -405,10 +405,14 @@ public static class StationGenerator
                 set(o.X + 2, o.Y + 1, o.Z + 1, light);
                 break;
 
-            case "quarters": // two bunks against the +X wall + a planter
+            case "quarters": // two double bunks against the +X wall (2 wide x 2 long each) + a planter
+                set(o.X + 4, o.Y + 1, o.Z + 1, dark);
                 set(o.X + 5, o.Y + 1, o.Z + 1, dark);
+                set(o.X + 4, o.Y + 1, o.Z + 2, dark);
                 set(o.X + 5, o.Y + 1, o.Z + 2, dark);
+                set(o.X + 4, o.Y + 1, o.Z + 4, dark);
                 set(o.X + 5, o.Y + 1, o.Z + 4, dark);
+                set(o.X + 4, o.Y + 1, o.Z + 5, dark);
                 set(o.X + 5, o.Y + 1, o.Z + 5, dark);
                 if (plant != 0) set(o.X + 1, o.Y + 1, o.Z + 5, plant);
                 break;

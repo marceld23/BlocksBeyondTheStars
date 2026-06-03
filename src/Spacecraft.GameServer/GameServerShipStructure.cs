@@ -95,8 +95,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Door: a 1-wide, 2-tall gap in the -Z wall, centred on x.
-            bool door = z == cz - _shipHalfZ && x == cx && (y == y0 + 1 || y == y0 + 2);
+            // Hatch: a 2-wide, 2-tall gap in the -Z wall, centred on x (a hatch is never single-block).
+            bool door = z == cz - _shipHalfZ && (x == cx || x == cx - 1) && (y == y0 + 1 || y == y0 + 2);
             if (door)
             {
                 _world.SetBlock(pos, BlockId.Air);
@@ -231,7 +231,8 @@ public sealed partial class GameServer
             switch (cell.Id)
             {
                 case "hatch":
-                    _world.SetBlock(p, BlockId.Air); // the entry opening
+                    _world.SetBlock(p, BlockId.Air);                                 // the entry opening
+                    _world.SetBlock(new Vector3i(wx, wy + 1, wz), BlockId.Air);      // a hatch is never single-block: always ≥2 tall
                     continue;
                 case "glass":
                     _world.SetBlock(p, glass);
