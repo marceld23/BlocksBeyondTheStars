@@ -3,14 +3,14 @@
 Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENTATION_PLAN.md`
 (local, git-ignored). Tests: **240 passing**. Repo pushed to `origin/main` (private).
 
-## Known bugs (to fix)
+## Known bugs
 
-- **Landed-ship interior glitches:** on a ship landed on a planet, the interior often shows
-  glitches — it looks like the ship hull collides with **fauna/flora**, and something protrudes
-  **from outside into the ship**. Likely the surface ship stamp (`StampShip`) overlaps creatures/
-  flora or terrain isn't cleared around/under the hull, or flora regrows into the hull. Investigate
-  `GameServerShipStructure.StampShipLayout` + flora/creature placement vs the ship footprint
-  (clear a volume + suppress flora/creature spawn inside the hull).
+- **Landed-ship interior glitches — FIXED.** `StampShipLayout` only stamped solid cells, so terrain/
+  flora generated inside the footprint stayed and poked through the hull. Now it **clears the ship's
+  bounding box to air first** and **guarantees a flush solid floor** across the footprint; **flora
+  regrowth** and **creature spawns** are excluded from the ship interior (`ShipInteriorContains`). Also
+  **landing zones now skip the settlement footprint** (every player, multiplayer-safe) so a ship never
+  stamps onto a town. 1 new test (258 total).
 
 ## Done (committed & pushed)
 

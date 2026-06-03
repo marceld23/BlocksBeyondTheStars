@@ -44,6 +44,21 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void ShipInterior_IsHollow_NoTerrainIntrusion()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var a = server.ShipAnchorBlock;
+
+            // The interior above the floor at the ship centre is cleared to air (no terrain/flora
+            // intruding through the hull), while the floor below stays solid.
+            Assert.True(server.World.GetBlock(new Spacecraft.Shared.Geometry.Vector3i(a.X, a.Y + 1, a.Z)).IsAir);
+            Assert.False(server.World.GetBlock(a).IsAir);
+        }
+    }
+
+    [Fact]
     public void ShipHull_IsMiningProtected()
     {
         var server = Started(placeShip: true, out var repo);

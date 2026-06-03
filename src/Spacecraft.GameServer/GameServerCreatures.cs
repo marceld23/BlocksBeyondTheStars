@@ -206,9 +206,9 @@ public sealed partial class GameServer
             var sp = _speciesRoster[(_creatureSpawnRotor + n) % _speciesRoster.Length];
             float y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
             var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
-            if (!HabitatSuitable(sp, pos))
+            if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
             {
-                continue;
+                continue; // never spawn inside (or clipping into) a landed ship
             }
 
             _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;

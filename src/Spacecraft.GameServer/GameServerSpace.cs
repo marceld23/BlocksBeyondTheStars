@@ -36,11 +36,21 @@ public sealed partial class GameServer
         int index = _landingZones.Count;
         bool isProtected = Rules.PersonalLandingZoneProtection != LandingZoneProtection.Off;
 
+        // March the zone along +X, skipping any spot whose footprint would land on the settlement, so a
+        // ship (which stamps at the zone centre) never carves into a town — for every player, not just
+        // the first. Stations are in space; wrecks are placed clear of the zones already.
+        int cx = index * LandingZoneSpacing;
+        for (int guard = 0; guard < 128 && OverlapsSettlement(cx); guard++)
+        {
+            index++;
+            cx = index * LandingZoneSpacing;
+        }
+
         var zone = new LandingZone
         {
             PlayerId = playerId,
             LocationId = _world.LocationId,
-            CenterX = index * LandingZoneSpacing,
+            CenterX = cx,
             CenterZ = 0,
             Radius = LandingZoneRadius,
             Protected = isProtected,
@@ -49,6 +59,20 @@ public sealed partial class GameServer
         _landingZones[playerId] = zone;
         _repo.SaveLandingZone(zone);
         return zone;
+    }
+
+    /// <summary>True if a landing zone centred at (cx, 0) — incl. the ship footprint — would overlap the
+    /// settlement (expanded by a clearance margin). Used to keep ships from stamping onto a town.</summary>
+    private bool OverlapsSettlement(int cx)
+    {
+        if (!_settlementStamped)
+        {
+            return false;
+        }
+
+        const int margin = 16; // landing-zone radius + ship footprint slack
+        return cx >= _settlementMin.X - margin && cx <= _settlementMax.X + margin
+            && 0 >= _settlementMin.Z - margin && 0 <= _settlementMax.Z + margin;
     }
 
     /// <summary>True if the position lies in another player's protected landing zone.</summary>

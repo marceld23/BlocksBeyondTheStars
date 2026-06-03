@@ -100,8 +100,9 @@ public sealed partial class GameServer
 
             (done ??= new List<Vector3i>()).Add(pos);
 
-            // Regrow only if the cell is still air and the host below is a valid ground for it.
-            if (_world.GetBlock(pos).IsAir && IsValidFloraHost(floraId, pos))
+            // Regrow only if the cell is still air, not inside a landed ship, and the host below is a
+            // valid ground for it (so flora never grows up through the ship hull/interior).
+            if (!ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)) && _world.GetBlock(pos).IsAir && IsValidFloraHost(floraId, pos))
             {
                 _world.SetBlock(pos, new BlockId(floraId));
                 Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId });

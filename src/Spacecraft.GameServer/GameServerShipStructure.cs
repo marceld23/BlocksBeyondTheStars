@@ -212,6 +212,15 @@ public sealed partial class GameServer
         _shipIsLayout = true;
         Vector3f? medbay = null;
 
+        // Clear the ship's bounding box to air first — removes any terrain/flora that generated inside
+        // the footprint, so nothing intrudes through the hull; the layout cells are stamped on top.
+        for (int bx = 0; bx < layout.Width; bx++)
+        for (int by = 0; by <= _shipHeight; by++)
+        for (int bz = 0; bz < layout.Length; bz++)
+        {
+            _world.SetBlock(new Vector3i(ox + bx, y0 + by, oz + bz), BlockId.Air);
+        }
+
         foreach (var cell in layout.Cells)
         {
             int wx = ox + cell.X, wy = y0 + cell.Y, wz = oz + cell.Z;
@@ -260,6 +269,19 @@ public sealed partial class GameServer
             // Hull (iron_wall) and anything unknown → solid hull.
             _world.SetBlock(p, wall);
             _shipExtra.Add(p);
+        }
+
+        // Guarantee a flush, solid floor across the footprint (fills layout gaps + the cleared terrain)
+        // so the player never falls through; the pad counts as protected hull.
+        for (int fx = 0; fx < layout.Width; fx++)
+        for (int fz = 0; fz < layout.Length; fz++)
+        {
+            var fp = new Vector3i(ox + fx, y0, oz + fz);
+            if (_world.GetBlock(fp).IsAir)
+            {
+                _world.SetBlock(fp, wall);
+                _shipExtra.Add(fp);
+            }
         }
 
         _shipAnchor = new Vector3i(cx, y0, cz);
