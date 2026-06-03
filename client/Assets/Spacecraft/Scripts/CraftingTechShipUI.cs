@@ -25,7 +25,7 @@ namespace Spacecraft.Client
 
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
-        private Text _footer, _hint;
+        private Text _footer, _hint, _feedback;
         private Mode _mode = Mode.Crafting;
         private string _category = "all";
         private string _selected = string.Empty;
@@ -81,7 +81,8 @@ namespace Spacecraft.Client
                     + (string.IsNullOrEmpty(Game.NearbyStation) ? 0 : Game.NearbyStation.GetHashCode())
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
-                    + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0);
+                    + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0)
+                    + (Game.LastMessage?.GetHashCode() ?? 0);
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -125,6 +126,8 @@ namespace Spacecraft.Client
 
             _hint = UiKit.AddText(root, 392, 168, 796, 44, string.Empty, 20, new Color(1f, 0.8f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             _footer = UiKit.AddText(root, 40, 980, 1840, 36, string.Empty, 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // Server feedback (craft/unlock/build result) — shown here since the HUD toast is hidden while a menu is open.
+            _feedback = UiKit.AddText(root, 40, 1018, 1840, 30, string.Empty, 22, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             _built = true;
         }
@@ -277,6 +280,10 @@ namespace Spacecraft.Client
 
             SetContentHeight(_listContent, y);
             _footer.text = production ? L("ui.craft.source") + "   |   " + L("ui.craft.station_" + StationKey()) : string.Empty;
+            if (_feedback != null)
+            {
+                _feedback.text = Game.LastMessage ?? string.Empty;
+            }
         }
 
         private float BuildCraftingList()

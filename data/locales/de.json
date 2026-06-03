@@ -254,6 +254,8 @@
   "ui.tab.missions": "Missionen",
   "ui.map.loading": "Lädt…",
   "ui.map.here": "du bist hier",
+  "ui.hud.day": "Tag",
+  "ui.hud.night": "Nacht",
   "ui.map.kind": "Art",
   "ui.map.type": "Typ",
   "ui.map.travel": "Reisen",

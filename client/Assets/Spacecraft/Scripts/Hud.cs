@@ -97,6 +97,7 @@ namespace Spacecraft.Client
 
             DrawHotbar(loc);
             DrawShipCompass(loc);
+            DrawTimeOfDay(loc);
             DrawScanReadout(loc);
             DrawWreckPanel(loc);
             DrawLootPrompt(loc);
@@ -267,6 +268,45 @@ namespace Spacecraft.Client
             }
 
             GUI.Label(new Rect(UiScale.Width / 2f - 150, UiScale.Height / 2f + 48, 300, 22), $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})", _center);
+        }
+
+        /// <summary>A compact day/night indicator (top-right, under the compass): the current phase, the
+        /// time until the next dawn/dusk, and a cycle bar with a marker at the current time of day.</summary>
+        private void DrawTimeOfDay(Spacecraft.Shared.Localization.Localizer loc)
+        {
+            var env = Game.Environment;
+            if (env == null)
+            {
+                return;
+            }
+
+            float t = Mathf.Repeat(env.TimeOfDay, 1f);
+            bool day = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f) > 0f; // daylight ~ 0.25..0.75
+            float nextEdge = day ? 0.75f : (t < 0.25f ? 0.25f : 1.25f);
+            float frac = nextEdge - t;
+            if (frac < 0f)
+            {
+                frac += 1f;
+            }
+
+            float secs = frac * Mathf.Max(1f, env.DayLengthSeconds);
+            int mm = Mathf.FloorToInt(secs / 60f), ss = Mathf.FloorToInt(secs % 60f);
+
+            const float w = 170f, h = 56f;
+            float ox = UiScale.Width - w - 10f, oy = 140f;
+            Frame(new Rect(ox, oy, w, h));
+            GUI.Label(new Rect(ox + 10, oy + 5, w - 20, 18),
+                $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}   {mm}:{ss:00}", _cyan);
+
+            var bar = new Rect(ox + 10, oy + 32, w - 20, 12);
+            var pc = GUI.color;
+            GUI.color = new Color(0.05f, 0.08f, 0.16f, 1f);
+            GUI.DrawTexture(bar, Texture2D.whiteTexture);
+            GUI.color = new Color(0.30f, 0.55f, 0.85f, 0.85f);
+            GUI.DrawTexture(new Rect(bar.x + bar.width * 0.25f, bar.y, bar.width * 0.5f, bar.height), Texture2D.whiteTexture);
+            GUI.color = UiKit.Cyan;
+            GUI.DrawTexture(new Rect(bar.x + bar.width * t - 1f, bar.y - 2f, 2f, bar.height + 4f), Texture2D.whiteTexture);
+            GUI.color = pc;
         }
 
         /// <summary>Top-right minimap/compass that always points toward the player's ship, with the distance.</summary>
