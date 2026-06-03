@@ -14,12 +14,19 @@ Resume point for development. Full milestone breakdown lives in `plans/IMPLEMENT
 - **Material editor:** paint or load a texture for a new material, set how often it occurs and on what
   kind of world (no atmosphere / with atmosphere / one biome / multiple biomes); adapt the game
   mechanics + world-gen accordingly; + Python scripts to fold new materials into the data.
-- **Debug / admin commands + `/bump` snapshot:** an admin/debug command system; `/bump` captures and
-  **persists a precise diagnostic snapshot** of the player's situation (environment, the situation
-  before vs now, surroundings/nearby blocks + entities, recent events) plus a **player-written text
-  description** of the problem, written to a file the dev can read to reproduce + fix the bug.
+- **`/bump` debug snapshot — DONE.** A player types `/bump <description>` in chat (intercepted before
+  the comm-radio gate, so it needs no radio); the server writes a detailed JSON snapshot to
+  `<world>/bumps/bump_NNN_<utc>.json`: the player state, environment (planet/biome/weather/time/atmo),
+  active location, surrounding non-air blocks (a box around the player), nearby creatures/NPCs/players/
+  containers, ship hull/shield/modules, and a **30-second rolling history** of the player's state (the
+  situation just before). The server replies with the saved filename. 1 test (259 total). To read a
+  report: open the JSON under the world's `bumps/` folder (singleplayer: under the profile's
+  `singleplayer-saves/<world>/bumps`).
 
 ## Known bugs
+
+- **No building inside the ship — FIXED.** `HandlePlace` now rejects placing a block inside the ship's
+  interior bounding box (`ShipInteriorContains`), so the cabin stays a fixed structure.
 
 - **Landed-ship interior glitches — FIXED.** `StampShipLayout` only stamped solid cells, so terrain/
   flora generated inside the footprint stayed and poked through the hull. Now it **clears the ship's

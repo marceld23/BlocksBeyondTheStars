@@ -35,6 +35,9 @@ public readonly struct BlockEdit
 /// </summary>
 public interface IWorldRepository : IDisposable
 {
+    /// <summary>The world's save folder on disk (for sidecar files like diagnostics/bump snapshots).</summary>
+    string WorldDirectory { get; }
+
     /// <summary>Opens/creates the database and ensures the schema exists.</summary>
     void Initialize();
 

@@ -428,6 +428,7 @@ public sealed partial class GameServer
         TickCreatures(deltaSeconds);
         TickNpcs(deltaSeconds);
         StreamChunks();
+        SampleHistories(deltaSeconds);
 
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
@@ -1151,6 +1152,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // No building inside the ship — the cabin is a fixed structure.
+        if (ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)))
+        {
+            Reject(session, "place", "You can't build inside the ship.");
+            return;
+        }
+
         // Seeds / flora only take on a suitable host block (mud, grass, crystal, ...).
         if (IsFlora(blockDef.NumericId.Value) && !IsValidFloraHost(blockDef.NumericId.Value, pos))
         {
@@ -1562,6 +1570,13 @@ public sealed partial class GameServer
         string text = (chat.Text ?? string.Empty).Trim();
         if (text.Length == 0)
         {
+            return;
+        }
+
+        // Debug snapshot command — captured + persisted for the dev; works without a comm radio.
+        if (text.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
+        {
+            HandleBump(session, text.Length > 5 ? text.Substring(5).Trim() : string.Empty);
             return;
         }
 

@@ -18,6 +18,10 @@ public sealed class PlayerSession
     /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
     public HashSet<ChunkCoord> SentChunks { get; } = new();
 
+    /// <summary>Short rolling history of the player's recent state (for /bump diagnostics).</summary>
+    public List<BumpSample> History { get; } = new();
+    public double SinceHistorySample;
+
     // Avatar colours (packed 0xRRGGBB) relayed to other players. Sensible defaults until set.
     public int SkinColor { get; set; } = 0xD9AE8C;
     public int TorsoColor { get; set; } = 0x3372CC;

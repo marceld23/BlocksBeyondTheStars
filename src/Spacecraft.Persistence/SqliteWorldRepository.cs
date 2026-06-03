@@ -20,6 +20,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
     private readonly object _gate = new();
     private SqliteConnection? _connection;
 
+    public string WorldDirectory => _paths.WorldDirectory;
+
     public SqliteWorldRepository(SaveGamePaths paths)
     {
         _paths = paths;
