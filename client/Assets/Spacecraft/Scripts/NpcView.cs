@@ -96,25 +96,19 @@ namespace Spacecraft.Client
             return loc != null ? loc.Get(nd.NameKey) : nd.Role;
         }
 
-        private void OnGUI()
+        private void LateUpdate()
         {
+            // Modern uGUI nameplates via the shared label layer (replaces IMGUI GUI.Label).
             var cam = Camera.main;
             if (cam == null)
             {
                 return;
             }
 
-            var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = UiKit.Cyan } };
+            var labels = ScreenLabelLayer.Instance;
             foreach (var n in _npcs.Values)
             {
-                var head = n.Go.transform.position + Vector3.up * 2.1f;
-                var sp = cam.WorldToScreenPoint(head);
-                if (sp.z <= 0f)
-                {
-                    continue; // behind the camera
-                }
-
-                GUI.Label(new Rect(sp.x - 75f, Screen.height - sp.y - 10f, 150f, 20f), n.Label, style);
+                labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, n.Label, UiKit.Cyan);
             }
         }
 

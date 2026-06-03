@@ -90,25 +90,19 @@ namespace Spacecraft.Client
             }
         }
 
-        private void OnGUI()
+        private void LateUpdate()
         {
+            // Modern uGUI nameplates via the shared label layer (replaces IMGUI GUI.Label).
             var cam = Camera.main;
             if (cam == null)
             {
                 return;
             }
 
-            var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
+            var labels = ScreenLabelLayer.Instance;
             foreach (var r in _remotes.Values)
             {
-                var head = r.Go.transform.position + Vector3.up * 2.1f;
-                var sp = cam.WorldToScreenPoint(head);
-                if (sp.z <= 0f)
-                {
-                    continue; // behind the camera
-                }
-
-                GUI.Label(new Rect(sp.x - 75f, Screen.height - sp.y - 10f, 150f, 20f), r.Name, style);
+                labels.World(cam, r.Go.transform.position + Vector3.up * 2.1f, r.Name, UiKit.TextCol);
             }
         }
 

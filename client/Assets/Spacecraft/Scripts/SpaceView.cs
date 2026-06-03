@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Spacecraft.Client
 {
@@ -393,33 +394,78 @@ namespace Spacecraft.Client
             }
         }
 
-        private void OnGUI()
+        // ── Modern uGUI overlay (replaces the IMGUI fade + hint) ─────────────────────────────
+        private Canvas _ui;
+        private Image _fade;
+        private Text _hint;
+
+        private void EnsureUi()
         {
-            if (!_active)
+            if (_ui != null)
             {
                 return;
             }
+
+            _ui = UiKit.CreateCanvas("Space View Overlay");
+            _ui.sortingOrder = 12; // above the space HUD, below menus
+
+            // Full-screen launch/landing fade.
+            var fadeGo = new GameObject("Fade", typeof(RectTransform));
+            fadeGo.transform.SetParent(_ui.transform, false);
+            var frt = fadeGo.GetComponent<RectTransform>();
+            frt.anchorMin = Vector2.zero;
+            frt.anchorMax = Vector2.one;
+            frt.offsetMin = frt.offsetMax = Vector2.zero;
+            _fade = fadeGo.AddComponent<Image>();
+            _fade.sprite = UiKit.SolidSprite;
+            _fade.color = new Color(0f, 0f, 0f, 0f);
+            _fade.raycastTarget = false;
+
+            // Bottom-centre cruise controls hint.
+            var hintGo = new GameObject("Hint", typeof(RectTransform));
+            hintGo.transform.SetParent(_ui.transform, false);
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0f);
+            hrt.pivot = new Vector2(0.5f, 0f);
+            hrt.sizeDelta = new Vector2(560f, 24f);
+            hrt.anchoredPosition = new Vector2(0f, 20f);
+            _hint = hintGo.AddComponent<Text>();
+            _hint.font = UiKit.Font;
+            _hint.fontSize = 18;
+            _hint.color = UiKit.TextCol;
+            _hint.alignment = TextAnchor.MiddleCenter;
+            _hint.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _hint.raycastTarget = false;
+        }
+
+        private void LateUpdate()
+        {
+            if (!_active)
+            {
+                if (_ui != null && _ui.enabled)
+                {
+                    _ui.enabled = false;
+                }
+
+                return;
+            }
+
+            EnsureUi();
+            _ui.enabled = true;
 
             if (_phase != Phase.Cruise)
             {
                 float t = Mathf.Clamp01(_seq / SeqDuration);
                 float alpha = _phase == Phase.Landing ? t : 1f - t;
-                if (alpha > 0.01f)
-                {
-                    var prev = GUI.color;
-                    GUI.color = new Color(0f, 0f, 0f, alpha);
-                    GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-                    GUI.color = prev;
-                }
+                _fade.color = new Color(0f, 0f, 0f, alpha);
+                _hint.gameObject.SetActive(false);
             }
             else
             {
+                _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                string hint = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
-                var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-                UiScale.Begin();
-                GUI.Label(new Rect(UiScale.Width / 2f - 250, UiScale.Height - 28, 500, 22), hint, style);
-                UiScale.End();
+                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
+                _hint.gameObject.SetActive(true);
             }
         }
 
@@ -428,6 +474,11 @@ namespace Spacecraft.Client
             if (_active)
             {
                 Exit();
+            }
+
+            if (_ui != null)
+            {
+                Destroy(_ui.gameObject);
             }
         }
 

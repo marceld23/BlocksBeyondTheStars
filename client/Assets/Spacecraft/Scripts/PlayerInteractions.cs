@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Spacecraft.Networking.Messages;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Spacecraft.Client
 {
@@ -89,144 +90,289 @@ namespace Spacecraft.Client
             return near.Count > 0 ? near[0] : null;
         }
 
-        private void OnGUI()
+        // ── Modern uGUI build (replaces the IMGUI windows) ───────────────────────────────────
+        private Canvas _canvas;
+        private Text _hint;
+        private GameObject _dockPanel;
+        private Text _dockName;
+        private GameObject _tradePanel;
+        private Text _tradeTitle, _myStatus, _theirStatus;
+        private RectTransform _myContent, _theirContent;
+        private readonly List<OfferRow> _myRows = new List<OfferRow>();
+        private readonly List<Text> _theirRows = new List<Text>();
+
+        private sealed class OfferRow
+        {
+            public GameObject Go;
+            public Text Label;
+            public string Item;
+        }
+
+        private void LateUpdate()
         {
             if (Game?.Localizer == null)
             {
                 return;
             }
 
+            EnsureBuilt();
             var loc = Game.Localizer;
 
-            if (!string.IsNullOrEmpty(Game.PendingDockFrom))
+            bool dock = !string.IsNullOrEmpty(Game.PendingDockFrom);
+            bool trade = Game.TradeActive && Game.Trade != null;
+            _dockPanel.SetActive(dock);
+            _tradePanel.SetActive(trade);
+
+            if (dock)
             {
-                DrawDockRequest(loc);
-                return;
+                _dockName.text = Game.PendingDockFrom;
             }
 
-            if (Game.TradeActive && Game.Trade != null)
+            if (trade)
             {
-                DrawTrade(loc);
-                return;
+                RefreshTrade(loc);
             }
 
-            // Non-modal hints (no cursor): undock, or trade/dock a nearby player.
-            if (Game.MenuOpen || Game.SpaceViewActive)
+            // Non-modal centre hint (no cursor): undock, or trade/dock a nearby player.
+            string hint = null;
+            if (!dock && !trade && !Game.MenuOpen && !Game.SpaceViewActive)
             {
-                return;
+                if (Game.Dock != null && Game.Dock.Docked)
+                {
+                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get("ui.dock.undock_hint")}";
+                }
+                else
+                {
+                    string near = NearbyPlayer();
+                    if (!string.IsNullOrEmpty(near))
+                    {
+                        hint = $"{loc.Get("ui.interact.trade_dock")} {near}";
+                    }
+                }
             }
 
-            var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            if (Game.Dock != null && Game.Dock.Docked)
+            _hint.gameObject.SetActive(hint != null);
+            if (hint != null)
             {
-                string label = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get("ui.dock.undock_hint")}";
-                GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height / 2f + 72, 400, 22), label, style);
-                return;
-            }
-
-            string near = NearbyPlayer();
-            if (!string.IsNullOrEmpty(near))
-            {
-                GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height / 2f + 72, 400, 22),
-                    $"{loc.Get("ui.interact.trade_dock")} {near}", style);
+                _hint.text = hint;
             }
         }
 
-        private void DrawDockRequest(Spacecraft.Shared.Localization.Localizer loc)
+        private void OnDestroy()
         {
-            const float w = 320f, h = 120f;
-            var area = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            GUI.Box(area, loc.Get("ui.dock.title"));
-            GUILayout.BeginArea(new Rect(area.x + 14, area.y + 30, w - 28, h - 44));
-            GUILayout.Label(Game.PendingDockFrom);
-            GUILayout.Space(8);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button(loc.Get("ui.action.accept")))
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
+
+        private void EnsureBuilt()
+        {
+            if (_canvas != null)
+            {
+                return;
+            }
+
+            var loc = Game.Localizer;
+            _canvas = UiKit.CreateCanvas("Player Interactions");
+            _canvas.sortingOrder = 22; // above the HUD, below the pause/menu screens
+            var root = _canvas.transform;
+
+            // Bottom-centre hint label.
+            var hintGo = new GameObject("Hint", typeof(RectTransform));
+            hintGo.transform.SetParent(root, false);
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0.5f);
+            hrt.sizeDelta = new Vector2(700f, 26f);
+            hrt.anchoredPosition = new Vector2(0f, -120f);
+            _hint = hintGo.AddComponent<Text>();
+            _hint.font = UiKit.Font;
+            _hint.fontSize = 20;
+            _hint.color = UiKit.TextCol;
+            _hint.alignment = TextAnchor.MiddleCenter;
+            _hint.fontStyle = FontStyle.Bold;
+            _hint.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _hint.raycastTarget = false;
+            _hint.gameObject.SetActive(false);
+
+            BuildDockPanel(root, loc);
+            BuildTradePanel(root, loc);
+        }
+
+        private void BuildDockPanel(Transform root, Spacecraft.Shared.Localization.Localizer loc)
+        {
+            _dockPanel = CenterPanel(root, 380f, 150f, 0f, "Dock Request");
+            UiKit.AddText(_dockPanel.transform, 20f, 14f, 340f, 26f, loc.Get("ui.dock.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _dockName = UiKit.AddText(_dockPanel.transform, 20f, 50f, 340f, 24f, string.Empty, 20, UiKit.TextCol);
+
+            UiKit.AddButton(_dockPanel.transform, 20f, 96f, 165f, 36f, loc.Get("ui.action.accept"), () =>
             {
                 Game.Network.SendDockResponse(Game.PendingDockFrom, true);
                 Game.PendingDockFrom = string.Empty;
-            }
-
-            if (GUILayout.Button(loc.Get("ui.action.decline")))
+            });
+            UiKit.AddButton(_dockPanel.transform, 195f, 96f, 165f, 36f, loc.Get("ui.action.decline"), () =>
             {
                 Game.Network.SendDockResponse(Game.PendingDockFrom, false);
                 Game.PendingDockFrom = string.Empty;
-            }
-
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
+            });
+            _dockPanel.SetActive(false);
         }
 
-        private Vector2 _tradeScroll;
+        private void BuildTradePanel(Transform root, Spacecraft.Shared.Localization.Localizer loc)
+        {
+            const float w = 620f, h = 480f;
+            _tradePanel = CenterPanel(root, w, h, 0f, "Trade");
+            var t = _tradePanel.transform;
+            _tradeTitle = UiKit.AddText(t, 20f, 14f, w - 40f, 26f, loc.Get("ui.trade.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-        private void DrawTrade(Spacecraft.Shared.Localization.Localizer loc)
+            _myStatus = UiKit.AddText(t, 20f, 48f, 280f, 22f, loc.Get("ui.trade.your_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _theirStatus = UiKit.AddText(t, 320f, 48f, 280f, 22f, loc.Get("ui.trade.their_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            _myContent = MakeScroll(t, 16f, 78f, 292f, h - 78f - 64f);
+            _theirContent = MakeScroll(t, 316f, 78f, 288f, h - 78f - 64f);
+
+            UiKit.AddButton(t, 20f, h - 52f, 180f, 38f, loc.Get("ui.action.confirm"), () => Game.Network.SendTradeConfirm());
+            UiKit.AddButton(t, 210f, h - 52f, 180f, 38f, loc.Get("ui.action.cancel"), () => Game.Network.SendTradeCancel());
+            _tradePanel.SetActive(false);
+        }
+
+        /// <summary>Rebuilds the trade lists each frame from the authoritative offers.</summary>
+        private void RefreshTrade(Spacecraft.Shared.Localization.Localizer loc)
         {
             var trade = Game.Trade;
-            const float w = 560f, h = 420f;
-            var area = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            GUI.Box(area, $"{loc.Get("ui.trade.title")} — {trade.Partner}");
-            GUILayout.BeginArea(new Rect(area.x + 12, area.y + 28, w - 24, h - 40));
+            _tradeTitle.text = $"{loc.Get("ui.trade.title")} — {trade.Partner}";
+            _myStatus.text = $"{loc.Get("ui.trade.your_offer")}  {(trade.MyConfirmed ? loc.Get("ui.trade.ready") : string.Empty)}";
+            _theirStatus.text = $"{loc.Get("ui.trade.their_offer")}  {(trade.TheirConfirmed ? loc.Get("ui.trade.ready") : loc.Get("ui.trade.waiting"))}";
 
-            GUILayout.BeginHorizontal();
-
-            // Left column: my offer (editable) + the add-from-inventory list.
-            GUILayout.BeginVertical(GUILayout.Width(264));
-            GUILayout.Label($"{loc.Get("ui.trade.your_offer")}  {(trade.MyConfirmed ? loc.Get("ui.trade.ready") : string.Empty)}");
+            // Left column: every owned item as an adjustable offer row (offered ×N out of owned).
+            var offered = new Dictionary<string, int>();
             foreach (var it in trade.MyOffer)
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label($"{ItemName(loc, it.Item)} ×{it.Count}", GUILayout.Width(180));
-                if (GUILayout.Button("−", GUILayout.Width(28)))
-                {
-                    Adjust(it.Item, -1);
-                }
-
-                GUILayout.EndHorizontal();
+                offered[it.Item] = it.Count;
             }
 
-            GUILayout.Space(8);
-            GUILayout.Label(loc.Get("ui.trade.add"));
-            _tradeScroll = GUILayout.BeginScrollView(_tradeScroll, GUILayout.Height(180));
+            int i = 0;
             foreach (var s in Game.Personal)
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label($"{ItemName(loc, s.Item)} ×{s.Count}", GUILayout.Width(180));
-                if (GUILayout.Button("+", GUILayout.Width(28)))
-                {
-                    Adjust(s.Item, +1);
-                }
-
-                GUILayout.EndHorizontal();
+                var row = MyRow(i++);
+                row.Item = s.Item;
+                int have = offered.TryGetValue(s.Item, out var o) ? o : 0;
+                row.Label.text = have > 0
+                    ? $"{ItemName(loc, s.Item)}  ×{s.Count}   →{have}"
+                    : $"{ItemName(loc, s.Item)}  ×{s.Count}";
+                row.Go.SetActive(true);
             }
 
-            GUILayout.EndScrollView();
-            GUILayout.EndVertical();
+            for (; i < _myRows.Count; i++)
+            {
+                _myRows[i].Go.SetActive(false);
+            }
 
             // Right column: their offer (read-only).
-            GUILayout.BeginVertical(GUILayout.Width(264));
-            GUILayout.Label($"{loc.Get("ui.trade.their_offer")}  {(trade.TheirConfirmed ? loc.Get("ui.trade.ready") : loc.Get("ui.trade.waiting"))}");
+            int j = 0;
             foreach (var it in trade.TheirOffer)
             {
-                GUILayout.Label($"  {ItemName(loc, it.Item)} ×{it.Count}");
+                var txt = TheirRow(j++);
+                txt.text = $"{ItemName(loc, it.Item)}  ×{it.Count}";
+                txt.gameObject.SetActive(true);
             }
 
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-
-            GUILayout.FlexibleSpace();
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button(loc.Get("ui.action.confirm"), GUILayout.Width(120)))
+            for (; j < _theirRows.Count; j++)
             {
-                Game.Network.SendTradeConfirm();
+                _theirRows[j].gameObject.SetActive(false);
             }
+        }
 
-            if (GUILayout.Button(loc.Get("ui.action.cancel"), GUILayout.Width(120)))
+        private OfferRow MyRow(int index)
+        {
+            while (index >= _myRows.Count)
             {
-                Game.Network.SendTradeCancel();
+                var go = new GameObject("Row", typeof(RectTransform));
+                go.transform.SetParent(_myContent, false);
+                var rt = go.GetComponent<RectTransform>();
+                rt.sizeDelta = new Vector2(0f, 28f);
+                var le = go.AddComponent<LayoutElement>();
+                le.minHeight = le.preferredHeight = 28f;
+
+                var label = UiKit.AddText(go.transform, 4f, 2f, 192f, 24f, string.Empty, 17, UiKit.TextCol);
+                label.GetComponent<RectTransform>().anchoredPosition = new Vector2(4f, -2f);
+
+                var row = new OfferRow { Go = go, Label = label };
+                UiKit.AddButton(go.transform, 204f, 0f, 36f, 26f, "−", () => Adjust(row.Item, -1));
+                UiKit.AddButton(go.transform, 244f, 0f, 36f, 26f, "+", () => Adjust(row.Item, +1));
+                _myRows.Add(row);
             }
 
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
+            return _myRows[index];
+        }
+
+        private Text TheirRow(int index)
+        {
+            while (index >= _theirRows.Count)
+            {
+                var go = new GameObject("Row", typeof(RectTransform));
+                go.transform.SetParent(_theirContent, false);
+                go.AddComponent<LayoutElement>().minHeight = 26f;
+                var txt = go.AddComponent<Text>();
+                txt.font = UiKit.Font;
+                txt.fontSize = 17;
+                txt.color = UiKit.TextCol;
+                txt.alignment = TextAnchor.MiddleLeft;
+                txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+                txt.raycastTarget = false;
+                _theirRows.Add(txt);
+            }
+
+            return _theirRows[index];
+        }
+
+        /// <summary>A centred panel (anchored to screen centre) with a rounded sci-fi backdrop.</summary>
+        private static GameObject CenterPanel(Transform parent, float w, float h, float offY, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(0f, offY);
+            var img = go.AddComponent<Image>();
+            img.sprite = UiKit.PanelSprite;
+            img.type = Image.Type.Sliced;
+            img.color = UiKit.PanelFill;
+            return go;
+        }
+
+        /// <summary>A vertically-scrolling list container (viewport + masked content with a layout group).</summary>
+        private static RectTransform MakeScroll(Transform parent, float x, float y, float w, float h)
+        {
+            var viewGo = new GameObject("Viewport", typeof(RectTransform));
+            viewGo.transform.SetParent(parent, false);
+            UiKit.Place(viewGo, x, y, w, h);
+            var scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            viewGo.AddComponent<RectMask2D>();
+            var viewImg = viewGo.AddComponent<Image>();
+            viewImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewGo.transform, false);
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+            var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
+            vlg.childForceExpandHeight = false;
+            vlg.childControlHeight = false;
+            vlg.spacing = 2f;
+            vlg.padding = new RectOffset(4, 4, 4, 4);
+            var fitter = contentGo.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scroll.viewport = viewGo.GetComponent<RectTransform>();
+            scroll.content = content;
+            return content;
         }
 
         /// <summary>Rebuilds the offer from the server's authoritative <c>MyOffer</c> with one item changed, and pushes it.</summary>
