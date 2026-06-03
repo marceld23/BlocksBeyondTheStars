@@ -416,6 +416,10 @@ consumes protocol messages that already exist.
 - **Space stations + NPCs — DONE.** Stations are anchored/placed and reachable, populated with NPCs
   (`SpawnStationNpcs`) and rendered on the client (`NpcView`). Stations are now also procedurally
   enriched (furnished interiors, exterior detail, module shapes — see P5 above).
+- **Graphics polish — slice 1 DONE.** First-person **camera feel**: a subtle walking **head-bob**, a
+  small forward **FOV kick** while moving, and a decaying **shake on landing/impacts** (scaled by fall
+  speed). **Denser starfields** (menu + space view) with brighter "hero" stars. Still planned: god rays
+  from the sun, animated emissive water/lava, atmospheric dust motes, soft shadows, AA.
 - **(NEW, design question) More professional look with effects:** a polish pass to lift the overall
   look — clarify target tier + ordering first (preset-gated). Directions: post stack (bloom on
   emissives/sun, tonemap + per-biome colour grading, AO, subtle vignette/film grain), anti-aliasing,

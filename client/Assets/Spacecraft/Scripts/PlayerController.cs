@@ -40,6 +40,12 @@ namespace Spacecraft.Client
         private float _stepTimer;
         private int _lastWorldEpoch;
 
+        // Camera feel (first-person head-bob, FOV kick, landing shake).
+        private float _bobPhase;
+        private float _camShake;
+        private float _baseFov = 60f;
+        private bool _moving;
+
         private Viewmodel _viewmodel;
         private string _heldKey = "\0"; // forces the first refresh
 
@@ -51,6 +57,7 @@ namespace Spacecraft.Client
             if (Camera != null)
             {
                 _viewmodel = Camera.gameObject.AddComponent<Viewmodel>();
+                _baseFov = Camera.fieldOfView;
             }
 
             ApplyCameraMode();
@@ -172,6 +179,7 @@ namespace Spacecraft.Client
             HandleHotbar();
             LookAround();
             Move();
+            UpdateCameraFeel();
             HandleInteract();
             HandleDrillAudio();
             UpdateGearPeriodically();
@@ -555,7 +563,9 @@ namespace Spacecraft.Client
             float v = Input.GetAxis("Vertical");
             Vector3 move = (transform.right * h + transform.forward * v) * MoveSpeed;
 
+            float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
+            _moving = grounded && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
             if (grounded)
             {
                 if (Input.GetButtonDown("Jump"))
@@ -592,9 +602,42 @@ namespace Spacecraft.Client
             {
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
+                _camShake = Mathf.Max(_camShake, Mathf.Clamp01(-prevVy / 12f) * 0.7f); // impact kick
             }
 
             _wasGrounded = grounded;
+        }
+
+        /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while
+        /// moving, and a decaying shake on landing/impacts. Composed over the look pitch each frame.</summary>
+        private void UpdateCameraFeel()
+        {
+            if (Camera == null)
+            {
+                return;
+            }
+
+            float dt = Time.deltaTime;
+            _camShake = Mathf.MoveTowards(_camShake, 0f, dt * 1.8f);
+
+            if (ThirdPerson)
+            {
+                Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov, dt * 30f);
+                return;
+            }
+
+            float amt = _moving ? 1f : 0f;
+            _bobPhase += dt * (_moving ? 9f : 0f);
+            float bobY = Mathf.Sin(_bobPhase * 2f) * 0.035f * amt;
+            float bobX = Mathf.Cos(_bobPhase) * 0.025f * amt;
+            Camera.transform.localPosition = FirstPersonEye + new Vector3(bobX, bobY, 0f);
+
+            Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov + (_moving ? 4f : 0f), dt * 40f);
+
+            float s = _camShake;
+            float sp = Mathf.Sin(Time.time * 80f) * s * 3f;
+            float sr = Mathf.Cos(Time.time * 67f) * s * 2.5f;
+            Camera.transform.localEulerAngles = new Vector3(_pitch + sp, 0f, sr);
         }
 
         /// <summary>Picks the footstep clip from the block under the player's feet (key heuristic).</summary>

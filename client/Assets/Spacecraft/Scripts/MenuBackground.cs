@@ -122,14 +122,16 @@ namespace Spacecraft.Client
             root.transform.SetParent(transform, false);
             _stars = root.transform;
             var mat = Unlit(new Color(0.85f, 0.9f, 1f));
+            var bright = Unlit(new Color(1f, 0.97f, 0.9f));
             var rng = new System.Random(4242);
-            for (int i = 0; i < 240; i++)
+            for (int i = 0; i < 420; i++)
             {
                 var dir = new Vector3(
                     (float)(rng.NextDouble() * 2 - 1),
                     (float)(rng.NextDouble() * 2 - 1),
                     (float)(rng.NextDouble() * 1.4 + 0.2)).normalized;
-                Cube("Star", _stars, dir * 320f, Vector3.one * (1.2f + (float)rng.NextDouble() * 2.6f), mat);
+                bool hero = rng.NextDouble() < 0.08;
+                Cube("Star", _stars, dir * 320f, Vector3.one * (hero ? 3.2f + (float)rng.NextDouble() * 2.4f : 1.0f + (float)rng.NextDouble() * 2.2f), hero ? bright : mat);
             }
         }
 
