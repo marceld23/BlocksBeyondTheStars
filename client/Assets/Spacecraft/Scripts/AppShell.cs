@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Spacecraft.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, Editors }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -189,13 +189,14 @@ namespace Spacecraft.Client
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Phase = ShellPhase.MainMenu;
+            Phase = ShellPhase.Editors; // back to the editors submenu
         }
 
         private GameObject _uiMenu;
         private GameObject _uiLoading;
         private GameObject _uiSettings;
         private GameObject _uiCredits;
+        private GameObject _uiEditors;
         private GameObject _editorRoot;
 
         /// <summary>Opens the standalone ship-type editor (build a ship design + save it).</summary>
@@ -219,7 +220,7 @@ namespace Spacecraft.Client
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Phase = ShellPhase.MainMenu;
+            Phase = ShellPhase.Editors; // back to the editors submenu
         }
 
         /// <summary>Opens the avatar skin designer (edit per-part colours + export a skin).</summary>
@@ -243,7 +244,7 @@ namespace Spacecraft.Client
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Phase = ShellPhase.MainMenu;
+            Phase = ShellPhase.Editors; // back to the editors submenu
         }
 
         /// <summary>Opens the station / settlement structure editor (build a template + save it).</summary>
@@ -272,7 +273,7 @@ namespace Spacecraft.Client
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Phase = ShellPhase.MainMenu;
+            Phase = ShellPhase.Editors; // back to the editors submenu
         }
 
         /// <summary>Time-based loading progress (0..1) for the uGUI loading bar.</summary>
@@ -333,6 +334,16 @@ namespace Spacecraft.Client
                 _uiCredits = null;
             }
 
+            if (Phase == ShellPhase.Editors && _uiEditors == null)
+            {
+                _uiEditors = UiEditors.Build(this);
+            }
+            else if (Phase != ShellPhase.Editors && _uiEditors != null)
+            {
+                Destroy(_uiEditors);
+                _uiEditors = null;
+            }
+
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (Phase == ShellPhase.InGame)
@@ -349,6 +360,10 @@ namespace Spacecraft.Client
                     CloseSettings();
                 }
                 else if (Phase == ShellPhase.Credits)
+                {
+                    Phase = ShellPhase.MainMenu;
+                }
+                else if (Phase == ShellPhase.Editors)
                 {
                     Phase = ShellPhase.MainMenu;
                 }
