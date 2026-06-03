@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Spacecraft.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, Editors }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, Editors }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -261,6 +261,30 @@ namespace Spacecraft.Client
         public void OpenStationEditor() => OpenStructureEditor(StructureEditor.Mode.Station);
         public void OpenSettlementEditor() => OpenStructureEditor(StructureEditor.Mode.Settlement);
 
+        /// <summary>Opens the item + recipe designer.</summary>
+        public void OpenContentEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("ContentEditor");
+            _editorRoot.AddComponent<ContentEditor>().Shell = this;
+            Phase = ShellPhase.ContentEditor;
+        }
+
+        /// <summary>Closes the item + recipe designer and returns to the editors submenu.</summary>
+        public void CloseContentEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.Editors;
+        }
+
         /// <summary>Closes the structure editor and returns to the main menu.</summary>
         public void CloseStructureEditor()
         {
@@ -384,6 +408,10 @@ namespace Spacecraft.Client
                 else if (Phase == ShellPhase.StructureEditor)
                 {
                     CloseStructureEditor();
+                }
+                else if (Phase == ShellPhase.ContentEditor)
+                {
+                    CloseContentEditor();
                 }
             }
         }

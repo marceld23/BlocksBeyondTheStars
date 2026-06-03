@@ -24,7 +24,8 @@ namespace Spacecraft.Client
             UiKit.AddButton(root, bx, by + gap, bw, bh, shell.L("ui.menu.avatar_editor"), shell.OpenAvatarEditor, "btn_settings");
             UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.station_editor"), shell.OpenStationEditor, "btn_singleplayer");
             UiKit.AddButton(root, bx, by + gap * 3f, bw, bh, shell.L("ui.menu.settlement_editor"), shell.OpenSettlementEditor, "btn_singleplayer");
-            UiKit.AddButton(root, bx, by + gap * 4f + 16f, bw, bh, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
+            UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.content_editor"), shell.OpenContentEditor, "btn_settings");
+            UiKit.AddButton(root, bx, by + gap * 5f + 16f, bw, bh, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 
             // Description panel (right) explaining what the editors export.
             UiKit.AddPanel(root, 980f, 300f, 560f, 360f, UiKit.PanelFill);

@@ -506,9 +506,13 @@ consumes protocol messages that already exist.
   (biome flora/paths/roofs). **P5 complete** — different module *footprints* (long corridors) were
   considered and **dropped** (higher risk, low marginal payoff). The **editors + template pools**
   (P1–P4 of the plan) remain to be built.
-- **(NEW, planned) Equipment/recipe editor + merge:** a menu-based editor for new items + crafting
-  recipes (stats, costs, blueprint gating), exporting JSON, plus a **merge script** into `data/*`. Pairs
-  with the ship-type editor above.
+- **Equipment/recipe editor + merge — DONE.** `ContentEditor` (in the Editors submenu) is a data form
+  to define a **new item** (key/name/desc, category, max stack, places-block, tool/weapon stats —
+  kind/tier/mining-power/damage/range/energy, and carried/eaten effects — armor/oxygen/eat-health/
+  eat-hunger), its **crafting recipe** (station, output count, dynamic input rows) and optional
+  **blueprint gating** (knowledge + dynamic unlock-cost rows). **Save** writes a `content.json` bundle;
+  `tools/merge_recipe.py` folds it into `data/items.json`, `recipes.json`, `blueprints.json` + locale
+  placeholders. Bilingual. Completes the editor suite (ship / avatar / station / town / item).
 - **M28 — Windows player build — tooling DONE, needs a real build run.** `BuildScript.BuildWindows`
   (editor, generates a minimal `Launcher.unity` with one `AppShell`, builds StandaloneWindows64 →
   `Build/Windows/Spacecraft.exe`, auto-includes StreamingAssets = data + bundled server) +
