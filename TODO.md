@@ -331,7 +331,17 @@ consumes protocol messages that already exist.
   the refreshed Networking lib — re-run `scripts/sync-client-libs.ps1`.)*
 - **M26 — audio — procedural SFX DONE.** Audio module enabled; `ClientAudio` plays code-generated
   tones for mine/place/craft/reject/ship-hit via the master×SFX bus. Recorded SFX + music later.
-- **(NEW, planned) Full sound design:** menu SFX (hover/click/confirm/error), **ship ambient loop**
+- **Full sound design — procedural pass DONE.** A code-synthesis library (`ProceduralAudio`) generates
+  AudioClips for every gameplay cue, ambience bed and looping texture (mining/place, combat/impacts,
+  thunder, UI hover/click/confirm/back, **hyperspace warp**, **station-boarding airlock**, scan ping,
+  lamp toggle, ship launch/landing, biome wind beds, rain/storm, lava/water, drill + engine loops).
+  `ClientAudio` now **fills any cue lacking a bundled recording with the procedural version** (recordings
+  still win), so the game is fully audible with zero recorded assets; new hooks fire the hyperspace +
+  station-board sounds, and the lamp toggle clicks. **UI sounds** (`UiSound` + `UiHover`) play
+  hover/click on every `UiKit` button — including the shell menus (no `ClientAudio` there) — at
+  master×SFX volume. Background music (`ClientMusic`) was already procedural. Later (opt-in, paid):
+  recorded/AI SFX + a context-cross-faded score (menu/planet/space/combat).
+- **(superseded) Full sound design plan:** menu SFX (hover/click/confirm/error), **ship ambient loop**
   (aboard), **creature** calls (idle/alert/attack/hurt, varied by species), **NPC** non‑verbal
   vocalisations (grunts/chirps, **no speech**), **equipment** use clicks (tools/weapons/lamp), **ship
   systems** (stations/docking/hyperspace), and **background MIDI music** on a dedicated music bus

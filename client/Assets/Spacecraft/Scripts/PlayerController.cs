@@ -165,6 +165,7 @@ namespace Spacecraft.Client
             if (Input.GetKeyDown(KeyCode.L))
             {
                 _lampOn = !_lampOn;
+                ClientAudio.Instance?.Cue("lamp_toggle");
             }
 
             UpdateLamp();

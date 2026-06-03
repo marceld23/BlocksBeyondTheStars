@@ -270,7 +270,7 @@ namespace Spacecraft.Client
 
             // Launch roar + a looping engine bed for the flight.
             ClientAudio.Instance?.Cue("ship_launch");
-            var engClip = Resources.Load<AudioClip>("audio/engine_idle");
+            var engClip = Resources.Load<AudioClip>("audio/engine_idle") ?? ProceduralAudio.Generate("engine_idle");
             if (engClip != null)
             {
                 _engine = gameObject.AddComponent<AudioSource>();

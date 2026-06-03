@@ -229,6 +229,8 @@ namespace Spacecraft.Client
             c.selectedColor = Color.white;
             c.fadeDuration = 0.08f;
             btn.colors = c;
+            go.AddComponent<UiHover>();           // hover blip
+            btn.onClick.AddListener(UiSound.Click); // click feedback
             if (onClick != null)
             {
                 btn.onClick.AddListener(() => onClick());

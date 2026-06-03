@@ -48,6 +48,20 @@ namespace Spacecraft.Client
                 _clips[clip.name] = clip;
             }
 
+            // Fill any cue that has no bundled recording with a code-synthesized version, so the whole
+            // game is audible even with no recorded assets (recordings, when present, take priority).
+            foreach (var id in ProceduralAudio.KnownIds)
+            {
+                if (!_clips.ContainsKey(id))
+                {
+                    var c = ProceduralAudio.Generate(id);
+                    if (c != null)
+                    {
+                        _clips[id] = c;
+                    }
+                }
+            }
+
             _src = gameObject.AddComponent<AudioSource>();
             _src.playOnAwake = false;
             _src.spatialBlend = 0f;
@@ -102,6 +116,8 @@ namespace Spacecraft.Client
                 n.SpaceEntityDestroyed += _ => Cue("asteroid_break");
                 n.SpaceClosed += m => { if (m.ShipDisabled) Cue("ship_destroyed"); };
                 n.WorldEnvironmentReceived += OnEnvironment;
+                n.StationBoardedReceived += _ => Cue("station_board");
+                Game.HyperjumpStarted += () => Cue("hyperspace_jump");
                 _subscribed = true;
             }
 

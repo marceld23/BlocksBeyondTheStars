@@ -284,6 +284,12 @@ namespace Spacecraft.Client
             _splash.Update();
             _loading.Update();
 
+            // Keep the (procedural) UI click/hover volume in step with the audio settings.
+            if (Settings != null)
+            {
+                UiSound.Volume = Mathf.Clamp01(Settings.MasterVolume * Settings.SfxVolume) * 0.6f;
+            }
+
             // The main menu + loading are uGUI (M27): spawn each for its phase, tear it down otherwise.
             if (Phase == ShellPhase.MainMenu && _uiMenu == null)
             {
