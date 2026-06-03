@@ -14,6 +14,9 @@ namespace Spacecraft.Client
     public sealed class CreatureBuilder
     {
         private readonly List<Renderer> _renderers = new List<Renderer>();
+        private readonly List<Transform> _legPivots = new List<Transform>();
+        private readonly List<Transform> _wingPivots = new List<Transform>();
+        private Transform _tailPivot;
         private Material _bodyMat;
         private Light _glow;
 
@@ -59,31 +62,34 @@ namespace Spacecraft.Client
             AddPart(root, "EyeL", new Vector3(-eyeX, bodyY + unit * 0.35f, frontZ + unit * 0.25f), Vector3.one * unit * 0.16f, eyeMat);
             AddPart(root, "EyeR", new Vector3(eyeX, bodyY + unit * 0.35f, frontZ + unit * 0.25f), Vector3.one * unit * 0.16f, eyeMat);
 
-            // Legs: paired under the body along its length.
+            // Legs: paired under the body along its length, each on a hip pivot so it can swing.
             int legs = Mathf.Clamp(c.Legs, 0, 8);
             int pairs = legs / 2;
+            float legH = bodyY * 0.9f;
             for (int p = 0; p < pairs; p++)
             {
                 float z = pairs == 1 ? 0f : Mathf.Lerp(-segLen * 0.7f, segLen * 0.7f, p / (float)(pairs - 1));
-                AddPart(root, "LegL" + p, new Vector3(-unit * 0.5f, bodyY * 0.45f, z),
-                    new Vector3(unit * 0.18f, bodyY * 0.9f, unit * 0.18f), _bodyMat);
-                AddPart(root, "LegR" + p, new Vector3(unit * 0.5f, bodyY * 0.45f, z),
-                    new Vector3(unit * 0.18f, bodyY * 0.9f, unit * 0.18f), _bodyMat);
+                _legPivots.Add(AddPivotPart(root, "LegL" + p, new Vector3(-unit * 0.5f, legH, z),
+                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
+                _legPivots.Add(AddPivotPart(root, "LegR" + p, new Vector3(unit * 0.5f, legH, z),
+                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
             }
 
             if (c.HasWings)
             {
-                AddPart(root, "WingL", new Vector3(-unit * 0.9f, bodyY + unit * 0.2f, 0f),
-                    new Vector3(unit * 0.9f, unit * 0.08f, unit * 1.2f), _bodyMat);
-                AddPart(root, "WingR", new Vector3(unit * 0.9f, bodyY + unit * 0.2f, 0f),
-                    new Vector3(unit * 0.9f, unit * 0.08f, unit * 1.2f), _bodyMat);
+                float wingW = unit * 0.9f;
+                _wingPivots.Add(AddPivotPart(root, "WingL", new Vector3(-unit * 0.45f, bodyY + unit * 0.2f, 0f),
+                    new Vector3(-wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
+                _wingPivots.Add(AddPivotPart(root, "WingR", new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f),
+                    new Vector3(wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
             }
 
             if (c.HasTail)
             {
+                float tailLen = segLen * 0.9f;
                 float tailZ = -(segments - 1) * 0.5f * segLen - segLen * 0.6f;
-                AddPart(root, "Tail", new Vector3(0f, bodyY, tailZ),
-                    new Vector3(unit * 0.35f, unit * 0.35f, segLen * 0.9f), _bodyMat);
+                _tailPivot = AddPivotPart(root, "Tail", new Vector3(0f, bodyY, tailZ + tailLen * 0.5f),
+                    new Vector3(0f, 0f, -tailLen * 0.5f), new Vector3(unit * 0.35f, unit * 0.35f, tailLen), _bodyMat);
             }
 
             if (c.Glows)
@@ -98,6 +104,37 @@ namespace Spacecraft.Client
                 _glow.color = Rgb(c.ColorRgb);
                 _glow.shadows = LightShadows.None;
             }
+
+            // Procedural limb animation (leg swing while moving, wing flap, tail sway).
+            if (_legPivots.Count > 0 || _wingPivots.Count > 0 || _tailPivot != null)
+            {
+                var anim = root.AddComponent<CreatureAnimator>();
+                anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot);
+            }
+        }
+
+        /// <summary>Adds a part on its own pivot (hinge) so it can be rotated for animation. The cube hangs
+        /// at <paramref name="cubeOffset"/> from the pivot; returns the pivot transform.</summary>
+        private Transform AddPivotPart(GameObject root, string partName, Vector3 pivotPos, Vector3 cubeOffset, Vector3 scale, Material mat)
+        {
+            var pivot = new GameObject(partName).transform;
+            pivot.SetParent(root.transform, false);
+            pivot.localPosition = pivotPos;
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = partName + "Mesh";
+            var col = go.GetComponent<Collider>();
+            if (col != null)
+            {
+                Object.Destroy(col);
+            }
+
+            go.transform.SetParent(pivot, false);
+            go.transform.localPosition = cubeOffset;
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+            _renderers.Add(go.GetComponent<Renderer>());
+            return pivot;
         }
 
         private void AddPart(GameObject root, string partName, Vector3 localPos, Vector3 scale, Material mat)

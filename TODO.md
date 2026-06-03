@@ -339,10 +339,13 @@ consumes protocol messages that already exist.
   starfield/warp intro + logo reveal); **renderer overhaul** (lit block shader + per‑material
   reflectivity + emissive glow + post stack: bloom/tonemap/AO/fog, better skies/water/lava,
   particles), preset‑gated. Part of M27 + a render milestone.
-- **(NEW, planned) Held tools/weapons + use animations:** the selected tool/weapon is **visible in
-  the hand** — a **first‑person viewmodel** and on the **third‑person** avatar — with **use
-  animations** (mining swing/drill, weapon swing/fire, scanner/lamp toggle, place gesture) driven by
-  the actions and synced to other players via presence. Part of M27 + avatar animation.
+- **Held tools/weapons + use animations — DONE (local player).** The selected hotbar item is now
+  **visible in the hand**: a procedural blocky mesh (`HeldItem`: block/drill/gun/blade/scanner/tool)
+  on the **third‑person** avatar's right hand (swings with the existing arm chop) **and** a
+  **first‑person `Viewmodel`** in the lower‑right that bobs with movement and jabs forward on
+  mine/place/attack. Driven from the hotbar selection in `PlayerController`. Still planned: show
+  remote players'/NPCs' held items (needs the held item in presence), per‑tool use gestures
+  (lamp/scanner toggles), muzzle/beam from the hand.
 - **M27 — art, icons & renderer pass — in progress.** Done this pass (all code/procedural, Built-in
   RP): **block texture atlas** (17 AI tiles, runtime-decoded) + UV mapping; **lit block shader** shading
   by `normal · sun` in the **per-system sun colour** (+ tinted ambient floor); **per-material
@@ -414,8 +417,12 @@ consumes protocol messages that already exist.
   (better proportions, skinning); **avatar animations** (idle/walk/run/jump/mine/attack/place + tool-use);
   and a **dedicated avatar texture/skin designer** (menu-based, exports skin JSON/texture, merges in like
   the other content editors). Builds on the existing `PlayerAvatar` + per-part colour settings.
-- **(NEW, to scope) Animations status:** review existing vs planned — player (walk/mine/attack/place),
-  NPC (idle/gesture/walk), equipment-use, and weapon/equipment VFX — and plan the first animation pass.
+- **Animation pass — DONE (first pass).** Player/remote/NPC avatars already self-animate (speed-scaled
+  walk cycle, idle sway, tool-swing chop via `PlayerAvatar`). This pass added the **held tool/weapon in
+  hand + first-person viewmodel** (above) and **procedural creature animation** (`CreatureAnimator`:
+  leg-swing while moving, wing flap for flyers, tail sway — `CreatureBuilder` now builds legs/wings/tail
+  on pivots). Still planned: creature idle breathing + per-temperament gestures, NPC work/idle gestures,
+  equipment-use poses (lamp/scanner), networked held items for remotes, flock/path movement.
 - **(NEW, planned) Player chat via radios:** a **radio/comm device** in **3 tiers** (blueprint-unlocked,
   each harder to craft) gates **player-to-player chat**, with range by tier: **T1 same planet → T2 same
   system → T3 all players**. Needs a `ChatIntent`/`ChatMessage` protocol + client chat UI (open/type/
