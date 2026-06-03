@@ -130,16 +130,23 @@ namespace Spacecraft.Client
                 _hum.volume = Mathf.MoveTowards(_hum.volume, target, Time.deltaTime * 0.6f);
             }
 
-            // Weather bed fades to a level scaled by weather intensity.
+            // Weather bed fades to a level scaled by weather intensity; rain/storm beds are muffled
+            // (nearly silenced) when the player is under a roof or in a cave.
             if (_ambience != null && _ambience.clip != null)
             {
                 float intensity = Game?.Environment?.Intensity ?? 0.4f;
                 float target = sfx * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
+                bool weatherBed = _ambienceId == "rain_loop" || _ambienceId == "storm_loop";
+                if (weatherBed && Game != null && !Game.ExposedToSky)
+                {
+                    target *= 0.08f;
+                }
+
                 _ambience.volume = Mathf.MoveTowards(_ambience.volume, target, Time.deltaTime * 0.5f);
             }
 
-            // Occasional thunder during storms.
-            if (Game?.Environment != null && Game.Environment.Weather == "storm")
+            // Occasional thunder during storms (only with open sky overhead).
+            if (Game?.Environment != null && Game.Environment.Weather == "storm" && Game.ExposedToSky)
             {
                 _thunderTimer -= Time.deltaTime;
                 if (_thunderTimer <= 0f)

@@ -27,10 +27,38 @@ namespace Spacecraft.Client
             var tris = new List<int>();
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
+            var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
+
+            // Per-column "highest solid block" cache → a face is sky-lit only if the air cell it faces is
+            // above its column's top (so caves, building/ship interiors and overhang undersides go dark,
+            // while open ground + cliff faces stay sunlit). The sun/sky terms are scaled by this in the
+            // block shader; the headlamp + emissive blocks light regardless, so caves need a lamp/lights.
+            var colTop = new Dictionary<long, int>();
+            int Top(int wx, int wz)
+            {
+                long key = ((long)(uint)wx) | ((long)wz << 32);
+                if (colTop.TryGetValue(key, out var t))
+                {
+                    return t;
+                }
+
+                int top = int.MinValue;
+                for (int yy = origin.Y + n + 48; yy >= origin.Y - 16; yy--)
+                {
+                    if (!worldBlock(wx, yy, wz).IsAir)
+                    {
+                        top = yy;
+                        break;
+                    }
+                }
+
+                colTop[key] = top;
+                return top;
+            }
 
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
@@ -57,7 +85,8 @@ namespace Spacecraft.Client
                 for (int f = 0; f < Faces.Length; f++)
                 {
                     var dir = Faces[f];
-                    if (!worldBlock(wx + dir.X, wy + dir.Y, wz + dir.Z).IsAir)
+                    int nx = wx + dir.X, ny = wy + dir.Y, nz = wz + dir.Z;
+                    if (!worldBlock(nx, ny, nz).IsAir)
                     {
                         continue; // neighbour solid => face hidden
                     }
@@ -70,6 +99,10 @@ namespace Spacecraft.Client
                         ? new Color(matR, matG, s, emission)
                         : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
                     AddFace(verts, tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv);
+
+                    float sky = ny > Top(nx, nz) ? 1f : 0f; // the air this face looks into sees the sky?
+                    skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
+                    skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
                 }
             }
 
@@ -78,6 +111,7 @@ namespace Spacecraft.Client
             mesh.SetTriangles(tris, 0);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
+            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();

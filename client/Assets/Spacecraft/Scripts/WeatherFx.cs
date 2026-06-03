@@ -56,9 +56,9 @@ namespace Spacecraft.Client
         private void OnGUI()
         {
             var env = Game?.Environment;
-            if (env == null || Game.SpaceViewActive)
+            if (env == null || Game.SpaceViewActive || !Game.ExposedToSky)
             {
-                return;
+                return; // no rain/lightning under a roof or in a cave
             }
 
             bool rain = env.Weather == "rain" || env.Weather == "storm";

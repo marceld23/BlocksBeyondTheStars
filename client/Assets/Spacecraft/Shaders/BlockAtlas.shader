@@ -42,6 +42,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
+                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors)
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -52,6 +53,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD4; // world tangent xyz + bitangent handedness w
+                float skyl : TEXCOORD5; // skylight
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(3)
             };
@@ -64,6 +66,7 @@ Shader "Spacecraft/BlockAtlas"
                 o.wn = UnityObjectToWorldNormal(v.normal);
                 o.wt = float4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
+                o.skyl = v.sky.x;
                 o.mat = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
@@ -86,27 +89,34 @@ Shader "Spacecraft/BlockAtlas"
                 float3 V = normalize(_WorldSpaceCameraPos - i.wp);
                 float ndl = saturate(dot(N, L));
 
-                // Diffuse: ambient floor + directional term, coloured by the system sun. A subtle
-                // per-face AO (vertex blue) keeps cube edges readable even on shaded faces.
+                // Skylight: 1 in the open, ~0 underground / indoors. The sun, sky-ambient, specular and
+                // environment reflection are all gated by it, so caves + interiors are dark and rely on
+                // the headlamp + emissive light blocks (added below, unaffected by skylight).
+                float sky = saturate(i.skyl);
+
+                // Diffuse: a tiny cave-ambient floor + (sky-ambient + directional) scaled by skylight,
+                // coloured by the system sun. A subtle per-face AO keeps cube edges readable.
                 float faceAo = lerp(0.82, 1.0, i.mat.b);
-                fixed3 col = albedo * light * (0.55 + 0.55 * ndl) * faceAo;
+                float amb = lerp(0.04, 0.55, sky);
+                fixed3 col = albedo * light * (amb + 0.55 * ndl * sky) * faceAo;
 
                 float gloss = i.mat.r;
                 float metal = i.mat.g;
 
                 // Specular sun highlight (Blinn-Phong). Tighter + brighter as gloss rises; metals
-                // tint the highlight with the albedo. Gated by ndl so only sunlit faces glint.
+                // tint the highlight with the albedo. Gated by ndl + skylight (no sun glint in caves).
                 float3 H = normalize(L + V);
                 float specPow = lerp(8.0, 200.0, gloss);
-                float spec = pow(saturate(dot(N, H)), specPow) * gloss * ndl;
+                float spec = pow(saturate(dot(N, H)), specPow) * gloss * ndl * sky;
                 fixed3 specCol = lerp(fixed3(1, 1, 1), albedo, metal);
                 col += light * specCol * spec * 1.2;
 
-                // Grazing-angle environment reflection (sky colour); metals tint it by the albedo.
+                // Grazing-angle environment reflection (sky colour); metals tint it. No sky to reflect
+                // underground, so it fades with skylight too.
                 fixed3 envCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
                 fixed3 reflTint = lerp(envCol, envCol * albedo, metal);
                 float fres = pow(1.0 - saturate(dot(N, V)), 4.0);
-                float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres;
+                float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres * sky;
                 col = lerp(col, reflTint, reflK);
 
                 // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they

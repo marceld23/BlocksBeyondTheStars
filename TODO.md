@@ -416,6 +416,14 @@ consumes protocol messages that already exist.
 - **Space stations + NPCs — DONE.** Stations are anchored/placed and reachable, populated with NPCs
   (`SpawnStationNpcs`) and rendered on the client (`NpcView`). Stations are now also procedurally
   enriched (furnished interiors, exterior detail, module shapes — see P5 above).
+- **Cave realism — DONE.** **Skylight**: the chunk mesher writes a per-face skylight flag (a face is
+  lit only if the air it faces is above its column's top), passed to the block shader (`BlockAtlas`,
+  TEXCOORD1) which scales the sun + sky-ambient + specular + reflection by it — so **caves, building/
+  ship interiors and overhang undersides go dark** (a tiny ambient floor only), lit by the **headlamp +
+  emissive light blocks** (unaffected); open ground + cliff faces stay sunlit. **No weather in caves:**
+  `GameBootstrap.ExposedToSky` (scans up for a roof) gates `WeatherFx` rain/lightning and mutes the
+  rain/storm audio bed + thunder when covered. **Stone** is no longer trivially hand-mined (hardness
+  1.5 → 3.8).
 - **Graphics polish — slice 1 DONE.** First-person **camera feel**: a subtle walking **head-bob**, a
   small forward **FOV kick** while moving, and a decaying **shake on landing/impacts** (scaled by fall
   speed). **Denser starfields** (menu + space view) with brighter "hero" stars. Still planned: god rays

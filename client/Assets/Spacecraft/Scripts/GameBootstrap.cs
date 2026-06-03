@@ -270,9 +270,21 @@ namespace Spacecraft.Client
             Network.Connect(Host, Port);
         }
 
+        /// <summary>True when the player has open sky overhead (no roof/cave ceiling). Drives weather
+        /// suppression in caves / indoors. Refreshed a few times a second.</summary>
+        public bool ExposedToSky { get; private set; } = true;
+        private float _skyScanTimer;
+
         private void Update()
         {
             Network?.Poll();
+
+            _skyScanTimer -= Time.deltaTime;
+            if (_skyScanTimer <= 0f)
+            {
+                _skyScanTimer = 0.2f;
+                ExposedToSky = ComputeExposedToSky();
+            }
 
             if (Network != null && !_joinSent)
             {
@@ -313,6 +325,28 @@ namespace Spacecraft.Client
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
             World.StoreChunk(coord, m.Blocks);
             _dirty.Add(coord);
+        }
+
+        /// <summary>Scans straight up from the player's head for a roof/ceiling — false = covered (cave/indoors).</summary>
+        private bool ComputeExposedToSky()
+        {
+            if (World == null)
+            {
+                return true;
+            }
+
+            int px = Mathf.FloorToInt(PlayerPosition.x);
+            int py = Mathf.FloorToInt(PlayerPosition.y);
+            int pz = Mathf.FloorToInt(PlayerPosition.z);
+            for (int y = py + 2; y <= py + 50; y++)
+            {
+                if (!World.GetBlock(px, y, pz).IsAir)
+                {
+                    return false; // a solid block overhead = no open sky
+                }
+            }
+
+            return true;
         }
 
         /// <summary>The active world changed (travel): drop all chunks/meshes so the new planet streams in.</summary>
