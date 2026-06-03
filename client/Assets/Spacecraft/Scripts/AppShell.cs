@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Spacecraft.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -222,6 +222,30 @@ namespace Spacecraft.Client
             Phase = ShellPhase.MainMenu;
         }
 
+        /// <summary>Opens the avatar skin designer (edit per-part colours + export a skin).</summary>
+        public void OpenAvatarEditor()
+        {
+            DestroyMenuBackground();
+            _editorRoot = new GameObject("AvatarEditor");
+            _editorRoot.AddComponent<AvatarEditor>().Shell = this;
+            Phase = ShellPhase.AvatarEditor;
+        }
+
+        /// <summary>Closes the avatar editor and returns to the main menu.</summary>
+        public void CloseAvatarEditor()
+        {
+            if (_editorRoot != null)
+            {
+                Destroy(_editorRoot);
+                _editorRoot = null;
+            }
+
+            EnsureMenuBackground();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            Phase = ShellPhase.MainMenu;
+        }
+
         /// <summary>Time-based loading progress (0..1) for the uGUI loading bar.</summary>
         public float LoadingProgress => _loading.Progress;
 
@@ -302,6 +326,10 @@ namespace Spacecraft.Client
                 else if (Phase == ShellPhase.ShipEditor)
                 {
                     CloseShipEditor();
+                }
+                else if (Phase == ShellPhase.AvatarEditor)
+                {
+                    CloseAvatarEditor();
                 }
             }
         }
