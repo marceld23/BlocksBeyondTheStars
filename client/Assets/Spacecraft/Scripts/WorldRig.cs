@@ -6,7 +6,7 @@ namespace Spacecraft.Client
     /// Builds the in-game scene rig entirely in code (M21), so the only thing the launcher
     /// scene needs is an <see cref="AppShell"/>: a server link (<see cref="GameBootstrap"/>),
     /// a chunk material from the bundled vertex-colour shader, a first-person player
-    /// (CharacterController + camera + <see cref="PlayerController"/>) and the <see cref="Hud"/>.
+    /// (CharacterController + camera + <see cref="PlayerController"/>) and the <see cref="HudUi"/>.
     /// Everything is parented under one root so it can be torn down on return to the menu.
     /// </summary>
     public static class WorldRig
@@ -82,7 +82,7 @@ namespace Spacecraft.Client
             pc.ThirdPerson = shell.Settings.ThirdPerson;
 
             // Localized vitals HUD + hotbar.
-            var hud = root.AddComponent<Hud>();
+            var hud = root.AddComponent<HudUi>(); // modern uGUI HUD
             hud.Game = boot;
 
             // Toggleable full-screen planet map (key M), distinct from the star map.
