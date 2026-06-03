@@ -40,9 +40,21 @@ namespace Spacecraft.Client
         private float _stepTimer;
         private int _lastWorldEpoch;
 
+        private Viewmodel _viewmodel;
+        private string _heldKey = "\0"; // forces the first refresh
+
         private void Awake() => _controller = GetComponent<CharacterController>();
 
-        private void Start() => ApplyCameraMode();
+        private void Start()
+        {
+            // First-person viewmodel lives on the camera (shown when the avatar is hidden).
+            if (Camera != null)
+            {
+                _viewmodel = Camera.gameObject.AddComponent<Viewmodel>();
+            }
+
+            ApplyCameraMode();
+        }
 
         private void ApplyCameraMode()
         {
@@ -51,8 +63,32 @@ namespace Spacecraft.Client
                 Camera.transform.localPosition = ThirdPerson ? ThirdPersonEye : FirstPersonEye;
             }
 
-            // Show the avatar only in third-person (otherwise the camera is inside the head).
+            // Show the avatar only in third-person (otherwise the camera is inside the head); the
+            // first-person viewmodel is the opposite.
             Avatar?.SetVisible(ThirdPerson);
+            _viewmodel?.SetVisible(!ThirdPerson);
+        }
+
+        /// <summary>Plays the tool swing on both the third-person avatar and the first-person viewmodel.</summary>
+        private void TriggerSwing()
+        {
+            Avatar?.Swing();
+            _viewmodel?.Swing();
+        }
+
+        /// <summary>Mirrors the selected hotbar item into the avatar hand + viewmodel (rebuilds on change).</summary>
+        private void RefreshHeldItem()
+        {
+            string key = Game?.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
+            if (key == _heldKey)
+            {
+                return;
+            }
+
+            _heldKey = key;
+            var (kind, tint) = HeldItem.For(Game?.Content, key);
+            Avatar?.SetHeldItem(kind, tint);
+            _viewmodel?.SetHeldItem(kind, tint);
         }
 
         private void Update()
@@ -108,10 +144,12 @@ namespace Spacecraft.Client
                 ApplyCameraMode();
             }
 
+            RefreshHeldItem();
+
             if (Input.GetKeyDown(KeyCode.F))
             {
                 AttackNearestEnemy();
-                Avatar?.Swing();
+                TriggerSwing();
             }
 
             if (Input.GetKeyDown(KeyCode.G))
@@ -308,7 +346,7 @@ namespace Spacecraft.Client
             if (Physics.Raycast(new Ray(Camera.transform.position, Camera.transform.forward), out var hit, Reach))
             {
                 ClientAudio.Instance?.DrillTick();
-                Avatar?.Swing(); // keep the mining chop going while the drill is held
+                TriggerSwing(); // keep the mining chop going while the drill is held
                 if (Weapons != null && Time.time >= _nextDrillSpark)
                 {
                     _nextDrillSpark = Time.time + 0.07f;
@@ -627,7 +665,7 @@ namespace Spacecraft.Client
             if (mine)
             {
                 Game.Network.SendMine(b.x, b.y, b.z);
-                Avatar?.Swing();
+                TriggerSwing();
             }
             else
             {
@@ -639,7 +677,7 @@ namespace Spacecraft.Client
                 {
                     var t = FloorVec(hit.point + hit.normal * 0.5f);
                     Game.Network.SendPlace(t.x, t.y, t.z, item);
-                    Avatar?.Swing();
+                    TriggerSwing();
                 }
             }
         }

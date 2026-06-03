@@ -296,7 +296,7 @@ namespace Spacecraft.Client
             return t;
         }
 
-        private static Color MapColor(string key)
+        public static Color MapColor(string key)
         {
             switch (key)
             {

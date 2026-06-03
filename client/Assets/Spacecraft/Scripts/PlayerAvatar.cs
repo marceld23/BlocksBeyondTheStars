@@ -20,6 +20,8 @@ namespace Spacecraft.Client
 
         private Transform _head, _armL, _armR, _legL, _legR;
         private readonly List<GameObject> _gear = new List<GameObject>();
+        private GameObject _held;
+        private bool _visible = true;
 
         private Vector3 _lastPos;
         private bool _hasPrev;
@@ -191,6 +193,48 @@ namespace Spacecraft.Client
             }
         }
 
+        /// <summary>Shows the currently-held tool/weapon/block in the right hand (call only when it
+        /// changes). Pass <see cref="HeldItem.Kind.None"/> for empty hands. The held item swings with
+        /// the arm (walk + <see cref="Swing"/>).</summary>
+        public void SetHeldItem(HeldItem.Kind kind, Color tint)
+        {
+            if (_armR == null)
+            {
+                return;
+            }
+
+            if (_held != null)
+            {
+                Destroy(_held);
+                _held = null;
+            }
+
+            if (kind == HeldItem.Kind.None)
+            {
+                return;
+            }
+
+            _held = HeldItem.Build(_armR, kind, tint);
+            if (_held != null)
+            {
+                _held.transform.localPosition = new Vector3(0f, -0.78f, 0.05f); // at the hand, pointing forward
+                ApplyHeldVisible();
+            }
+        }
+
+        private void ApplyHeldVisible()
+        {
+            if (_held == null)
+            {
+                return;
+            }
+
+            foreach (var r in _held.GetComponentsInChildren<Renderer>(true))
+            {
+                r.enabled = _visible;
+            }
+        }
+
         /// <summary>Re-applies the per-part colours (e.g. after the player changed them in settings).</summary>
         public void ApplyColors(ClientSettings s)
         {
@@ -207,6 +251,7 @@ namespace Spacecraft.Client
 
         public void SetVisible(bool visible)
         {
+            _visible = visible;
             foreach (var r in _renderers)
             {
                 if (r != null)
@@ -214,6 +259,8 @@ namespace Spacecraft.Client
                     r.enabled = visible;
                 }
             }
+
+            ApplyHeldVisible();
         }
 
         // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin.
