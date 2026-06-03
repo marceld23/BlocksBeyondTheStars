@@ -49,6 +49,7 @@ namespace Spacecraft.Client
                 if (!_npcs.TryGetValue(nd.Id, out var n))
                 {
                     var go = new GameObject($"NPC {nd.Role}");
+                    go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
                     go.transform.position = new Vector3(nd.X, nd.Y, nd.Z);
 
                     var avatar = go.AddComponent<PlayerAvatar>();

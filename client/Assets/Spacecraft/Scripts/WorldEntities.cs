@@ -29,6 +29,7 @@ namespace Spacecraft.Client
                 if (!_cubes.TryGetValue(e.Id, out var go))
                 {
                     go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
                     var col = go.GetComponent<Collider>();
                     if (col != null)
                     {

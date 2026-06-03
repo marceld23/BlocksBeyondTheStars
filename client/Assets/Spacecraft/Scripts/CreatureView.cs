@@ -24,6 +24,8 @@ namespace Spacecraft.Client
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
             public float PrevHull;   // to detect a hull drop (hurt)
+            public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
+            public float AttackUntil; // a visible lunge window when attacking
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -43,6 +45,7 @@ namespace Spacecraft.Client
                 if (!_creatures.TryGetValue(c.Id, out var entry))
                 {
                     var root = new GameObject("Creature_" + c.SpeciesId);
+                    root.transform.SetParent(transform, true); // under the game root → destroyed on teardown (not leaked into menus/editors)
                     root.transform.position = pos;
                     new CreatureBuilder().Build(root, c);
                     entry = new Entry
@@ -52,6 +55,7 @@ namespace Spacecraft.Client
                         Bank = Bank(c),
                         Pitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f),
                         NextCall = Time.time + Random.Range(2f, 6f),
+                        Settled = pos,
                         PrevHostile = c.Hostile,
                         PrevHull = c.Hull,
                     };
@@ -59,8 +63,21 @@ namespace Spacecraft.Client
                 }
 
                 entry.Target = pos;
-                // Smoothly chase the authoritative position (creatures may wander later).
-                entry.Root.transform.position = Vector3.Lerp(entry.Root.transform.position, entry.Target, Time.deltaTime * 8f);
+                // Smoothly chase the authoritative position; a visible lunge toward the player is added
+                // on top during an attack so attacks read clearly.
+                entry.Settled = Vector3.Lerp(entry.Settled, entry.Target, Time.deltaTime * 8f);
+                Vector3 lunge = Vector3.zero;
+                if (Time.time < entry.AttackUntil)
+                {
+                    float k = 1f - (entry.AttackUntil - Time.time) / 0.22f;
+                    var to = Game.PlayerPosition - entry.Settled; to.y = 0f;
+                    if (to.sqrMagnitude > 0.04f)
+                    {
+                        lunge = to.normalized * (Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI) * 0.6f);
+                    }
+                }
+
+                entry.Root.transform.position = entry.Settled + lunge;
 
                 // Periodic idle vocalisation, spatialised at the creature, pitched by its size.
                 if (Time.time >= entry.NextCall)
@@ -89,6 +106,8 @@ namespace Spacecraft.Client
                     {
                         entry.NextAttack = Time.time + Random.Range(1.5f, 3.5f);
                         audio.At(entry.Bank + "_attack", entry.Root.transform.position, entry.Pitch);
+                        entry.AttackUntil = Time.time + 0.22f;            // lunge
+                        SpawnAttackFx(Vector3.Lerp(Game.PlayerPosition, entry.Settled, 0.35f) + Vector3.up * 0.9f);
                     }
                 }
 
@@ -122,6 +141,30 @@ namespace Spacecraft.Client
         {
             string size = c.Size < 0.8f ? "small" : c.Size < 1.6f ? "medium" : "large";
             return $"creature_{size}_{(c.Hostile ? "hostile" : "calm")}";
+        }
+
+        /// <summary>A brief red "claw slash" burst at the player so a creature's attack reads clearly.</summary>
+        private void SpawnAttackFx(Vector3 at)
+        {
+            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
+            var mat = new Material(shader) { color = new Color(1f, 0.2f, 0.15f) };
+            for (int i = 0; i < 3; i++)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "ClawFx";
+                var col = go.GetComponent<Collider>();
+                if (col != null)
+                {
+                    Destroy(col);
+                }
+
+                go.transform.SetParent(transform, true); // under the game root (no leak)
+                go.transform.position = at + new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(-0.3f, 0.3f), Random.Range(-0.4f, 0.4f));
+                go.transform.rotation = Quaternion.Euler(Random.Range(0f, 360f), Random.Range(0f, 360f), Random.Range(-40f, 40f));
+                go.transform.localScale = new Vector3(0.06f, 0.5f, 0.06f); // a thin slash mark
+                go.GetComponent<Renderer>().sharedMaterial = mat;
+                Destroy(go, 0.22f);
+            }
         }
     }
 }

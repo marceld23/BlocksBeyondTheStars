@@ -71,6 +71,7 @@ namespace Spacecraft.Client
             if (!_remotes.TryGetValue(m.PlayerId, out var r))
             {
                 var go = new GameObject($"Player {m.Name}");
+                go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
                 go.transform.position = new Vector3(m.X, m.Y, m.Z);
                 var avatar = go.AddComponent<PlayerAvatar>();
                 avatar.Build(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs));
