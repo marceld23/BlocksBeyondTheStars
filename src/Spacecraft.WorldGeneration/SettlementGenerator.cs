@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Spacecraft.Shared.Content;
+using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
 
 namespace Spacecraft.WorldGeneration;
@@ -91,6 +92,42 @@ public static class SettlementGenerator
 
     /// <summary>Town-style settlements (modern iron/glass, multi-storey) vs primitive village-style.</summary>
     private static bool IsTownStyle(string tier) => tier == "town" || tier == "city";
+
+    /// <summary>Builds a settlement structure from a hand-designed template (the editor export) — blocks
+    /// become voxels, markers become vendor/mission_board/npc points. Templates are intact (not ruined).</summary>
+    public static SettlementStructure FromTemplate(StructureTemplate t, GameContent content)
+    {
+        int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
+        var blocks = new ushort[w * h * l];
+        var markers = new List<SettlementMarker>();
+        int buildings = 0;
+
+        foreach (var cell in t.Cells)
+        {
+            if (cell.X < 0 || cell.Y < 0 || cell.Z < 0 || cell.X >= w || cell.Y >= h || cell.Z >= l)
+            {
+                continue;
+            }
+
+            if (cell.Kind == "marker")
+            {
+                markers.Add(new SettlementMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
+                if (cell.Id == "npc" || cell.Id == "vendor") buildings++;
+            }
+            else
+            {
+                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                if (id != 0)
+                {
+                    blocks[(cell.X * h + cell.Y) * l + cell.Z] = id;
+                }
+            }
+        }
+
+        if (!markers.Exists(m => m.Type == "vendor")) markers.Add(new SettlementMarker("vendor", new Vector3i(w / 2, 1, l / 2)));
+
+        return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings));
+    }
 
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content)
     {

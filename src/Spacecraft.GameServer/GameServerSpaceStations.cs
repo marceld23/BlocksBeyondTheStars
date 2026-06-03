@@ -16,6 +16,10 @@ public sealed partial class GameServer
     private const float StationBoardRange = 70f;
     private const float StationMarkerReach = 4f;
 
+    /// <summary>Chance to place a hand-designed template (when the pool is non-empty) instead of a
+    /// procedurally generated station/settlement; the rest stay procedural.</summary>
+    private const double StructureTemplateChance = 0.35;
+
     private readonly Dictionary<string, BoardableStation> _stationsById = new();
     private readonly Dictionary<string, string> _boardedStation = new();
     private readonly HashSet<string> _stationMissionIds = new();
@@ -203,7 +207,21 @@ public sealed partial class GameServer
         }
 
         long sSeed = _meta.Seed ^ WorldGenerator.StableHash("station:" + station.Id);
-        var structure = StationGenerator.Generate(station.SizeTier, sSeed, _content);
+
+        // Chance to stamp a hand-designed template from the pool (when one exists) instead of generating.
+        // The roll uses its own RNG so it never disturbs the procedural generator's determinism.
+        StationStructure structure;
+        var pool = _content.StationTemplates;
+        var roll = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
+        if (pool.Count > 0 && roll.NextDouble() < StructureTemplateChance)
+        {
+            structure = StationGenerator.FromTemplate(pool[roll.Next(pool.Count)], _content);
+        }
+        else
+        {
+            structure = StationGenerator.Generate(station.SizeTier, sSeed, _content);
+        }
+
         station.Structure = structure;
 
         for (int x = 0; x < structure.Width; x++)

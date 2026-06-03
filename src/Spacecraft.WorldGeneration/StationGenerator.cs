@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Spacecraft.Shared.Content;
+using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
 
 namespace Spacecraft.WorldGeneration;
@@ -91,6 +92,44 @@ public static class StationGenerator
         "huge" => (14, 3),
         _ => (5, 1), // "medium"
     };
+
+    /// <summary>Builds a station structure from a hand-designed template (the editor export) instead of
+    /// generating one — blocks become voxels, markers become interaction points. Unknown block keys are
+    /// skipped (air). Guarantees a vendor + mission board so the station stays functional.</summary>
+    public static StationStructure FromTemplate(StructureTemplate t, GameContent content)
+    {
+        int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
+        var blocks = new ushort[w * h * l];
+        var markers = new List<StationMarker>();
+
+        foreach (var cell in t.Cells)
+        {
+            if (cell.X < 0 || cell.Y < 0 || cell.Z < 0 || cell.X >= w || cell.Y >= h || cell.Z >= l)
+            {
+                continue;
+            }
+
+            if (cell.Kind == "marker")
+            {
+                markers.Add(new StationMarker(cell.Id, new Vector3i(cell.X, cell.Y, cell.Z)));
+            }
+            else
+            {
+                ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
+                if (id != 0)
+                {
+                    blocks[(cell.X * h + cell.Y) * l + cell.Z] = id;
+                }
+            }
+        }
+
+        var centre = new Vector3i(w / 2, 1, l / 2);
+        if (!markers.Exists(m => m.Type == "vendor")) markers.Add(new StationMarker("vendor", centre));
+        if (!markers.Exists(m => m.Type == "mission_board")) markers.Add(new StationMarker("mission_board", centre));
+        if (!markers.Exists(m => m.Type == "hangar")) markers.Add(new StationMarker("hangar", centre));
+
+        return new StationStructure(w, h, l, t.Tier, blocks, markers, new List<StationModule>());
+    }
 
     public static StationStructure Generate(string sizeTier, long seed, GameContent content)
     {

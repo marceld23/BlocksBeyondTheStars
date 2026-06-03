@@ -57,6 +57,12 @@ public static class ContentLoader
         }
 
         var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions, ships, shipLayouts);
+
+        // Optional hand-designed structure template pools (empty when the files are absent).
+        var stationTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "station_templates.json"));
+        var settlementTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "settlement_templates.json"));
+        content.SetStructureTemplates(stationTemplates, settlementTemplates);
+
         content.Validate();
         return content;
     }

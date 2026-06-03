@@ -455,9 +455,13 @@ consumes protocol messages that already exist.
   hull/glass/light + hangar/vendor/mission_board/heal_tank/quarters/console; settlement: stone/metal/
   glass/ladder/stairs/lamp + vendor/mission_board/npc), a name + **size tier** stepper, and **Save** →
   a template bundle (`structure.json` + `layout.json`) under `<kind>_exports/<key>`. `tools/merge_structure.py`
-  folds a bundle into `data/{station,settlement}_templates.json`. Bilingual. **Still pending (the
-  template-pool world-gen hook):** make `StampStation`/`StampSettlement` roll a hand-made template from
-  the pool when non-empty (else procedural). See [docs/STATION_SETTLEMENT_EDITOR_PLAN.md](docs/STATION_SETTLEMENT_EDITOR_PLAN.md).
+  folds a bundle into `data/{station,settlement}_templates.json`. Bilingual. **World-gen pool hook DONE:**
+  `ContentLoader` loads the optional pools into `GameContent.{Station,Settlement}Templates` (empty when
+  absent); `StampStation`/`StampSettlement` now **roll a 35% chance** to stamp a hand-made template
+  (`StationGenerator.FromTemplate` / `SettlementGenerator.FromTemplate` turn cells → voxels + markers)
+  when the pool is non-empty, **otherwise stay procedural**. The roll is only drawn when a pool exists,
+  so default worlds are byte-identical (all prior station/settlement tests still pass). 2 new tests
+  (257 total). See [docs/STATION_SETTLEMENT_EDITOR_PLAN.md](docs/STATION_SETTLEMENT_EDITOR_PLAN.md).
 - **Menu backdrop polish — DONE.** The start-screen ship now has **navigation lights** (red port /
   green starboard), **front headlights**, a **blinking beacon** and a **pulsing engine glow + point
   light**; the background planet got a **drifting cloud shell** (`Spacecraft/Cloud`). The ship editor

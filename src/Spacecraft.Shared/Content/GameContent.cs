@@ -37,6 +37,18 @@ public sealed class GameContent
     public IReadOnlyDictionary<string, PlanetType> Planets => _planets;
     public IReadOnlyDictionary<string, MissionDefinition> Missions => _missions;
 
+    /// <summary>Hand-designed station/settlement templates (empty unless a pool file is present);
+    /// world-gen may roll one of these instead of the procedural generator.</summary>
+    public IReadOnlyList<StructureTemplate> StationTemplates { get; private set; } = System.Array.Empty<StructureTemplate>();
+    public IReadOnlyList<StructureTemplate> SettlementTemplates { get; private set; } = System.Array.Empty<StructureTemplate>();
+
+    /// <summary>Populates the optional structure-template pools (called by the content loader).</summary>
+    public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements)
+    {
+        StationTemplates = stations ?? System.Array.Empty<StructureTemplate>();
+        SettlementTemplates = settlements ?? System.Array.Empty<StructureTemplate>();
+    }
+
     public GameContent(
         IEnumerable<BlockDefinition> blocks,
         IEnumerable<ItemDefinition> items,

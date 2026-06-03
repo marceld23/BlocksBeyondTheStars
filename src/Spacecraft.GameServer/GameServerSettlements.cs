@@ -72,16 +72,33 @@ public sealed partial class GameServer
             return; // this world has no settlement
         }
 
-        // Four size tiers, tiny hamlets most-to-least common up to rare sprawling cities.
-        double tierRoll = rng.NextDouble();
-        string tier = tierRoll < 0.15 ? "hamlet"
-                    : tierRoll < 0.55 ? "village"
-                    : tierRoll < 0.85 ? "town"
-                    : "city";
-        bool ruined = rng.NextDouble() < 0.30;
-
         var surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
-        var structure = SettlementGenerator.Generate(tier, ruined, sSeed, surface, _content);
+
+        string tier;
+        bool ruined;
+        SettlementStructure structure;
+
+        // Chance to stamp a hand-designed template from the pool (when one exists); otherwise procedural.
+        // The template roll is only drawn when the pool is non-empty, so default worlds are unchanged.
+        var pool = _content.SettlementTemplates;
+        if (pool.Count > 0 && rng.NextDouble() < StructureTemplateChance)
+        {
+            var template = pool[rng.Next(pool.Count)];
+            tier = template.Tier;
+            ruined = false;
+            structure = SettlementGenerator.FromTemplate(template, _content);
+        }
+        else
+        {
+            // Four size tiers, tiny hamlets most-to-least common up to rare sprawling cities.
+            double tierRoll = rng.NextDouble();
+            tier = tierRoll < 0.15 ? "hamlet"
+                 : tierRoll < 0.55 ? "village"
+                 : tierRoll < 0.85 ? "town"
+                 : "city";
+            ruined = rng.NextDouble() < 0.30;
+            structure = SettlementGenerator.Generate(tier, ruined, sSeed, surface, _content);
+        }
 
         // Anchor it a fixed offset from the spawn/landing zone so it doesn't overlap the ship.
         int ax = 64, az = 64;
