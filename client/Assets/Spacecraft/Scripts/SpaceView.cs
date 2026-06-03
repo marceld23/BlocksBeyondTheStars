@@ -53,6 +53,12 @@ namespace Spacecraft.Client
         private float _lastHull = -1f, _lastShield = -1f;
         private bool _combatSubscribed;
 
+        private readonly HashSet<string> _dropIds = new HashSet<string>(); // tracked ResourceDrop entities
+        private readonly List<TractorBeam> _beams = new List<TractorBeam>();
+        private float _cargoFlash;        // pulses the cargo readout when salvage is tractored in
+
+        private sealed class TractorBeam { public GameObject Go; public float Life; public float Max; }
+
         private void Update()
         {
             if (Game == null || Camera == null)
@@ -93,6 +99,7 @@ namespace Spacecraft.Client
             }
 
             SyncEntities();
+            UpdateBeams(Time.deltaTime);
 
             switch (_phase)
             {
@@ -315,11 +322,14 @@ namespace Spacecraft.Client
             }
 
             _entities.Clear();
+            _dropIds.Clear();
+            _beams.Clear(); // their GameObjects were children of _root (already destroyed)
             _ship = null;
             _exhaust = null;
             _active = false;
             _shake = 0f;
             _hitFlash = 0f;
+            _cargoFlash = 0f;
             Game.SpaceViewActive = false;
         }
 
@@ -451,6 +461,10 @@ namespace Spacecraft.Client
                     }
 
                     go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
+                    if (e.Kind == "ResourceDrop")
+                    {
+                        _dropIds.Add(e.Id);
+                    }
                 }
             }
 
@@ -467,9 +481,54 @@ namespace Spacecraft.Client
 
                 foreach (var id in stale)
                 {
+                    // A resource drop that vanished close to the ship was tractored in → beam it.
+                    if (_dropIds.Remove(id) && _ship != null)
+                    {
+                        var dropPos = _entities[id].transform.localPosition;
+                        if ((dropPos - _ship.transform.localPosition).sqrMagnitude < 14f * 14f)
+                        {
+                            SpawnTractorBeam(_ship.transform.localPosition, dropPos);
+                            _cargoFlash = 1f;
+                        }
+                    }
+
                     Destroy(_entities[id]);
                     _entities.Remove(id);
                 }
+            }
+        }
+
+        private void SpawnTractorBeam(Vector3 from, Vector3 to)
+        {
+            var go = Cube("TractorBeam", _root.transform, Vector3.zero, Vector3.one, Unlit(new Color(0.4f, 0.85f, 1f)));
+            var mid = (from + to) * 0.5f;
+            float len = Vector3.Distance(from, to);
+            go.transform.localPosition = mid;
+            go.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
+            go.transform.localScale = new Vector3(0.18f, 0.18f, len);
+            _beams.Add(new TractorBeam { Go = go, Life = 0.35f, Max = 0.35f });
+        }
+
+        private void UpdateBeams(float dt)
+        {
+            for (int i = _beams.Count - 1; i >= 0; i--)
+            {
+                var b = _beams[i];
+                b.Life -= dt;
+                if (b.Life <= 0f || b.Go == null)
+                {
+                    if (b.Go != null)
+                    {
+                        Destroy(b.Go);
+                    }
+
+                    _beams.RemoveAt(i);
+                    continue;
+                }
+
+                float k = b.Life / b.Max; // taper the beam as it fades
+                var s = b.Go.transform.localScale;
+                b.Go.transform.localScale = new Vector3(0.18f * k, 0.18f * k, s.z);
             }
         }
 
@@ -479,6 +538,7 @@ namespace Spacecraft.Client
         private Image _hit;
         private Text _hint;
         private Text _board;
+        private Text _cargo;
         private string _nearStationId;
         private string _nearStationName;
         private const float BoardRange = 66f; // just inside the server's 70-unit board range
@@ -549,6 +609,22 @@ namespace Spacecraft.Client
             _board.horizontalOverflow = HorizontalWrapMode.Overflow;
             _board.raycastTarget = false;
             _board.gameObject.SetActive(false);
+
+            // Cargo readout (top-left), pulses when salvage is tractored in.
+            var cargoGo = new GameObject("Cargo", typeof(RectTransform));
+            cargoGo.transform.SetParent(_ui.transform, false);
+            var crt = cargoGo.GetComponent<RectTransform>();
+            crt.anchorMin = crt.anchorMax = new Vector2(0f, 1f);
+            crt.pivot = new Vector2(0f, 1f);
+            crt.sizeDelta = new Vector2(320f, 26f);
+            crt.anchoredPosition = new Vector2(20f, -160f);
+            _cargo = cargoGo.AddComponent<Text>();
+            _cargo.font = UiKit.Font;
+            _cargo.fontSize = 18;
+            _cargo.color = UiKit.TextCol;
+            _cargo.alignment = TextAnchor.MiddleLeft;
+            _cargo.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _cargo.raycastTarget = false;
         }
 
         private void LateUpdate()
@@ -569,6 +645,7 @@ namespace Spacecraft.Client
             // Decay the hit feedback.
             _shake = Mathf.Max(0f, _shake - Time.deltaTime * 2.5f);
             _hitFlash = Mathf.Max(0f, _hitFlash - Time.deltaTime * 2f);
+            _cargoFlash = Mathf.Max(0f, _cargoFlash - Time.deltaTime * 1.5f);
             _hit.color = new Color(1f, 0.2f, 0.2f, _hitFlash * 0.35f);
 
             if (_phase != Phase.Cruise)
@@ -578,6 +655,7 @@ namespace Spacecraft.Client
                 _fade.color = new Color(0f, 0f, 0f, alpha);
                 _hint.gameObject.SetActive(false);
                 _board.gameObject.SetActive(false);
+                _cargo.gameObject.SetActive(false);
             }
             else
             {
@@ -594,6 +672,11 @@ namespace Spacecraft.Client
                 }
 
                 _board.gameObject.SetActive(nearStation);
+
+                string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
+                _cargo.text = $"{cargoLabel}: {Game.Cargo.Length}";
+                _cargo.color = Color.Lerp(UiKit.TextCol, UiKit.Cyan, _cargoFlash);
+                _cargo.gameObject.SetActive(true);
             }
         }
 
