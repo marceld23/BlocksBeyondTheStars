@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using Spacecraft.Shared.Geometry;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Spacecraft.Client
 {
@@ -40,10 +42,15 @@ namespace Spacecraft.Client
         private int _cargo = 48;
         private readonly List<CostRow> _craftCost = new() { new CostRow { Item = "iron_plate", Count = 20 } };
 
-        private string _status = string.Empty;
+        private string _statusText = string.Empty;
         private bool _mouseOverUi;
-        private Vector2 _palScroll, _metaScroll;
-        private GUIStyle _title, _head;
+
+        /// <summary>Setting the status also pushes it to the on-screen label.</summary>
+        private string _status
+        {
+            get => _statusText;
+            set { _statusText = value; if (_statusLabel != null) _statusLabel.text = value; }
+        }
 
         private sealed class CostRow { public string Item = string.Empty; public int Count = 1; }
 
@@ -82,6 +89,7 @@ namespace Spacecraft.Client
             _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
 
             BuildRoom();
+            BuildUi();
         }
 
         private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
@@ -156,7 +164,13 @@ namespace Spacecraft.Client
             if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
             _cam.transform.position += move * speed;
 
-            // Place (LMB) / remove (MMB) when not flying and not over a panel.
+            // Place (LMB) / remove (MMB) when not flying and not over a uGUI panel.
+            _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (_blocksLabel != null)
+            {
+                _blocksLabel.text = $"Blocks placed: {_design.Count}";
+            }
+
             if (!flying && !_mouseOverUi)
             {
                 if (Input.GetMouseButtonDown(0))
@@ -237,153 +251,241 @@ namespace Spacecraft.Client
             return m;
         }
 
-        // ----------------------------- UI -----------------------------
+        // ----------------------------- UI (modern uGUI) -----------------------------
 
-        private void OnGUI()
+        private const float PanelH = 1048f;
+
+        private Canvas _canvas;
+        private RectTransform _form;
+        private Text _statusLabel;
+        private Text _blocksLabel;
+        private readonly List<Image> _palButtons = new();
+        private readonly List<CostUi> _costPool = new();
+
+        private sealed class CostUi
         {
-            EnsureStyles();
-            UiScale.Begin();
-            float w = UiScale.Width, h = UiScale.Height;
-
-            var palRect = new Rect(12f, 12f, 230f, h - 24f);
-            var metaRect = new Rect(w - 372f, 12f, 360f, h - 24f);
-            _mouseOverUi = palRect.Contains(Event.current.mousePosition) || metaRect.Contains(Event.current.mousePosition);
-
-            DrawPalette(palRect);
-            DrawMeta(metaRect);
-
-            // Controls hint (bottom centre).
-            GUI.Label(new Rect(w / 2f - 320f, h - 30f, 640f, 22f),
-                "Hold RIGHT-MOUSE to look · WASD + Q/E (or Space/Ctrl) to fly · Shift = faster · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu",
-                _head);
-
-            UiScale.End();
+            public GameObject Go;
+            public InputField Item;
+            public InputField Count;
+            public CostRow Bound;
         }
 
-        private void DrawPalette(Rect r)
+        private void OnDestroy()
         {
-            Panel(r);
-            GUI.Label(new Rect(r.x + 12f, r.y + 8f, r.width - 20f, 24f), "BLOCKS & PARTS", _title);
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
 
-            var view = new Rect(r.x + 8f, r.y + 40f, r.width - 16f, r.height - 48f);
-            var content = new Rect(0f, 0f, view.width - 16f, _palette.Length * 34f + 4f);
-            _palScroll = GUI.BeginScrollView(view, _palScroll, content);
+        private void BuildUi()
+        {
+            _canvas = UiKit.CreateCanvas("Ship Editor UI");
+            _canvas.sortingOrder = 5;
+            var root = _canvas.transform;
+
+            // Left: block/part palette.
+            var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
+            UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, "BLOCKS & PARTS", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var palList = UiKit.ScrollList(pal.transform, 10f, 48f, 280f, PanelH - 60f);
             for (int i = 0; i < _palette.Length; i++)
             {
-                var rowR = new Rect(2f, i * 34f, content.width - 4f, 30f);
-                var prev = GUI.backgroundColor;
-                GUI.backgroundColor = i == _selected ? new Color(0.2f, 0.7f, 0.9f) : new Color(0.18f, 0.26f, 0.36f);
-                if (GUI.Button(rowR, $"   {_palette[i].Label}"))
+                AddPaletteRow(palList, i);
+            }
+
+            Select(_selected);
+
+            // Right: ship metadata + stats + cost (anchored to the top-right so it hugs the edge).
+            var meta = RightPanel(root, 380f, PanelH);
+            UiKit.AddText(meta, 16f, 12f, 348f, 26f, "SHIP TYPE", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 116f, 3f);
+            BuildForm();
+
+            // Pinned footer: status + save + back.
+            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 112f, 356f, 44f, string.Empty, 14, UiKit.Ok);
+            _statusLabel.alignment = TextAnchor.UpperLeft;
+            UiKit.AddButton(meta, 12f, PanelH - 62f, 220f, 38f, "SAVE / EXPORT", Export);
+            UiKit.AddButton(meta, 240f, PanelH - 62f, 128f, 38f, "← Back", () => Shell?.CloseShipEditor());
+
+            // Bottom-centre controls hint.
+            var hintGo = new GameObject("Hint", typeof(RectTransform));
+            hintGo.transform.SetParent(root, false);
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0f);
+            hrt.pivot = new Vector2(0.5f, 0f);
+            hrt.sizeDelta = new Vector2(1100f, 24f);
+            hrt.anchoredPosition = new Vector2(0f, 14f);
+            var hint = hintGo.AddComponent<Text>();
+            hint.font = UiKit.Font;
+            hint.fontSize = 16;
+            hint.color = UiKit.TextCol;
+            hint.alignment = TextAnchor.MiddleCenter;
+            hint.horizontalOverflow = HorizontalWrapMode.Overflow;
+            hint.raycastTarget = false;
+            hint.text = "Hold RIGHT-MOUSE to look · WASD + Q/E (or Space/Ctrl) to fly · Shift = faster · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu";
+        }
+
+        private void BuildForm()
+        {
+            FormLabel("Key (unique, slug)");
+            InputRow(_key, v => _key = v);
+            FormLabel("Name");
+            InputRow(_shipName, v => _shipName = v);
+            FormLabel("Description");
+            InputRow(_desc, v => _desc = v);
+            FormLabel("Required blueprint (blank = always)");
+            InputRow(_requiredBlueprint, v => _requiredBlueprint = v);
+
+            FormHeader("STATS");
+            Stepper("Base hull", () => _hull, v => _hull = v, 20f, 500f, 10f, "0");
+            Stepper("Base shield", () => _shield, v => _shield = v, 0f, 300f, 10f, "0");
+            Stepper("Flight speed", () => _flightSpeed, v => _flightSpeed = v, 0.4f, 2.5f, 0.05f, "0.00");
+            Stepper("Handling", () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
+            Stepper("Cargo slots", () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
+
+            _blocksLabel = FormLabel("Blocks placed: 0");
+
+            // CRAFT COST is the last section so its dynamic rows can simply append to the form.
+            var head = Row(_form, 28f);
+            UiKit.AddText(head, 4f, 0f, 240f, 28f, "CRAFT COST", 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(head, 252f, 0f, 104f, 26f, "+ add", () =>
+            {
+                _craftCost.Add(new CostRow { Item = "iron_plate", Count = 1 });
+                RefreshCostRows();
+            });
+
+            RefreshCostRows();
+        }
+
+        private void AddPaletteRow(Transform parent, int index)
+        {
+            var row = Row(parent, 36f);
+            var img = row.gameObject.AddComponent<Image>();
+            img.sprite = UiKit.ButtonSprite;
+            img.type = Image.Type.Sliced;
+
+            var btn = row.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = img;
+            int idx = index;
+            btn.onClick.AddListener(() => Select(idx));
+
+            var sw = new GameObject("Swatch", typeof(RectTransform));
+            sw.transform.SetParent(row, false);
+            UiKit.Place(sw, 10f, 9f, 18f, 18f);
+            var swImg = sw.AddComponent<Image>();
+            swImg.sprite = UiKit.SolidSprite;
+            swImg.color = _palette[index].Color;
+            swImg.raycastTarget = false;
+
+            UiKit.AddText(row, 38f, 0f, 232f, 36f, _palette[index].Label, 16, UiKit.TextCol);
+            _palButtons.Add(img);
+        }
+
+        private void Select(int index)
+        {
+            _selected = index;
+            for (int i = 0; i < _palButtons.Count; i++)
+            {
+                _palButtons[i].color = i == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
+            }
+        }
+
+        private void RefreshCostRows()
+        {
+            int i = 0;
+            foreach (var c in _craftCost)
+            {
+                var ui = i < _costPool.Count ? _costPool[i] : MakeCostRow();
+                ui.Bound = null; // suppress notify while we set the displayed text
+                ui.Item.SetTextWithoutNotify(c.Item);
+                ui.Count.SetTextWithoutNotify(c.Count.ToString());
+                ui.Bound = c;
+                ui.Go.SetActive(true);
+                i++;
+            }
+
+            for (; i < _costPool.Count; i++)
+            {
+                _costPool[i].Go.SetActive(false);
+            }
+        }
+
+        private CostUi MakeCostRow()
+        {
+            var row = Row(_form, 30f);
+            var ui = new CostUi { Go = row.gameObject };
+            ui.Item = UiKit.AddInput(row, 4f, 2f, 200f, 26f, string.Empty, null, "item id");
+            ui.Count = UiKit.AddInput(row, 210f, 2f, 72f, 26f, string.Empty, null);
+            ui.Count.contentType = InputField.ContentType.IntegerNumber;
+            UiKit.AddButton(row, 288f, 2f, 30f, 26f, "×", () =>
+            {
+                if (ui.Bound != null)
                 {
-                    _selected = i;
+                    _craftCost.Remove(ui.Bound);
+                    RefreshCostRows();
                 }
+            });
 
-                GUI.backgroundColor = prev;
-                var swatch = GUI.color;
-                GUI.color = _palette[i].Color;
-                GUI.DrawTexture(new Rect(rowR.x + 6f, rowR.y + 7f, 16f, 16f), Texture2D.whiteTexture);
-                GUI.color = swatch;
-            }
-
-            GUI.EndScrollView();
+            ui.Item.onValueChanged.AddListener(v => { if (ui.Bound != null) ui.Bound.Item = v; });
+            ui.Count.onValueChanged.AddListener(v => { if (ui.Bound != null && int.TryParse(v, out var c)) ui.Bound.Count = Mathf.Max(0, c); });
+            _costPool.Add(ui);
+            return ui;
         }
 
-        private void DrawMeta(Rect r)
+        // --- small uGUI form builders ---
+
+        private static RectTransform Row(Transform parent, float height)
         {
-            Panel(r);
-            GUI.Label(new Rect(r.x + 12f, r.y + 8f, r.width - 20f, 24f), "SHIP TYPE", _title);
-
-            var view = new Rect(r.x + 8f, r.y + 40f, r.width - 16f, r.height - 48f);
-            var content = new Rect(0f, 0f, view.width - 16f, 560f + _craftCost.Count * 26f);
-            _metaScroll = GUI.BeginScrollView(view, _metaScroll, content);
-            float x = 6f, y = 4f, fw = content.width - 12f;
-
-            _key = Field("Key (unique, slug)", x, ref y, fw, _key);
-            _shipName = Field("Name", x, ref y, fw, _shipName);
-            _desc = Field("Description", x, ref y, fw, _desc);
-            _requiredBlueprint = Field("Required blueprint (blank = always)", x, ref y, fw, _requiredBlueprint);
-
-            y += 6f;
-            GUI.Label(new Rect(x, y, fw, 20f), "STATS", _head); y += 24f;
-            _hull = Slider("Base hull", x, ref y, fw, _hull, 20f, 500f, "0");
-            _shield = Slider("Base shield", x, ref y, fw, _shield, 0f, 300f, "0");
-            _flightSpeed = Slider("Flight speed", x, ref y, fw, _flightSpeed, 0.4f, 2.5f, "0.0");
-            _handling = Slider("Handling", x, ref y, fw, _handling, 0.4f, 2.5f, "0.0");
-            _cargo = Mathf.RoundToInt(Slider("Cargo slots", x, ref y, fw, _cargo, 12f, 240f, "0"));
-
-            y += 6f;
-            GUI.Label(new Rect(x, y, fw, 20f), "CRAFT COST", _head); y += 24f;
-            for (int i = 0; i < _craftCost.Count; i++)
-            {
-                _craftCost[i].Item = GUI.TextField(new Rect(x, y, fw - 96f, 22f), _craftCost[i].Item);
-                int.TryParse(GUI.TextField(new Rect(x + fw - 90f, y, 50f, 22f), _craftCost[i].Count.ToString()), out var c);
-                _craftCost[i].Count = Mathf.Max(0, c);
-                if (GUI.Button(new Rect(x + fw - 34f, y, 30f, 22f), "×"))
-                {
-                    _craftCost.RemoveAt(i);
-                    break;
-                }
-
-                y += 26f;
-            }
-
-            if (GUI.Button(new Rect(x, y, 120f, 24f), "+ add cost")) { _craftCost.Add(new CostRow { Item = "iron_plate", Count = 1 }); }
-            y += 34f;
-
-            GUI.Label(new Rect(x, y, fw, 20f), $"Blocks placed: {_design.Count}", _head); y += 26f;
-
-            var prev = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(0.2f, 0.7f, 0.4f);
-            if (GUI.Button(new Rect(x, y, fw, 30f), "SAVE / EXPORT SHIP TYPE")) { Export(); }
-            GUI.backgroundColor = prev;
-            y += 36f;
-
-            if (!string.IsNullOrEmpty(_status))
-            {
-                GUI.Label(new Rect(x, y, fw, 60f), _status); y += 62f;
-            }
-
-            if (GUI.Button(new Rect(x, y, 120f, 26f), "← Back")) { Shell?.CloseShipEditor(); }
-
-            GUI.EndScrollView();
+            var go = new GameObject("Row", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var le = go.AddComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = height;
+            return go.GetComponent<RectTransform>();
         }
 
-        private string Field(string label, float x, ref float y, float w, string val)
+        private Text FormLabel(string text)
         {
-            GUI.Label(new Rect(x, y, w, 18f), label, _head); y += 20f;
-            val = GUI.TextField(new Rect(x, y, w, 22f), val ?? string.Empty); y += 28f;
-            return val;
+            var row = Row(_form, 22f);
+            return UiKit.AddText(row, 4f, 0f, 352f, 22f, text, 15, UiKit.TextCol);
         }
 
-        private float Slider(string label, float x, ref float y, float w, float val, float min, float max, string fmt)
+        private void FormHeader(string text)
         {
-            GUI.Label(new Rect(x, y, w, 18f), $"{label}: {val.ToString(fmt)}", _head); y += 20f;
-            val = GUI.HorizontalSlider(new Rect(x, y + 4f, w, 18f), val, min, max); y += 28f;
-            return val;
+            Row(_form, 8f); // spacer
+            var row = Row(_form, 24f);
+            UiKit.AddText(row, 4f, 0f, 352f, 24f, text, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
         }
 
-        private void Panel(Rect r)
+        private void InputRow(string value, Action<string> onChange)
         {
-            var prev = GUI.color;
-            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.92f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = UiKit.Cyan;
-            GUI.DrawTexture(new Rect(r.x, r.y, r.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.x, r.yMax - 1f, r.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.x, r.y, 1f, r.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(r.xMax - 1f, r.y, 1f, r.height), Texture2D.whiteTexture);
-            GUI.color = prev;
+            var row = Row(_form, 32f);
+            UiKit.AddInput(row, 4f, 2f, 352f, 28f, value, onChange);
         }
 
-        private void EnsureStyles()
+        private void Stepper(string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt)
         {
-            if (_title != null)
-            {
-                return;
-            }
+            var row = Row(_form, 30f);
+            UiKit.AddText(row, 4f, 0f, 156f, 30f, label, 15, UiKit.TextCol);
+            var valTxt = UiKit.AddText(row, 196f, 0f, 72f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(row, 164f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = get().ToString(fmt); });
+            UiKit.AddButton(row, 272f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = get().ToString(fmt); });
+        }
 
-            _title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
-            _head = new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = UiKit.TextCol } };
+        private static RectTransform RightPanel(Transform root, float w, float h)
+        {
+            var go = new GameObject("Panel", typeof(RectTransform));
+            go.transform.SetParent(root, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(-16f, -16f);
+            var img = go.AddComponent<Image>();
+            img.sprite = UiKit.PanelSprite;
+            img.type = Image.Type.Sliced;
+            img.color = UiKit.PanelFill;
+            return rt;
         }
 
         // ----------------------------- export -----------------------------

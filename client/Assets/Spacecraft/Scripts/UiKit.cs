@@ -244,6 +244,75 @@ namespace Spacecraft.Client
             return btn;
         }
 
+        /// <summary>Builds a themed single-line text field (background + editable text + placeholder).</summary>
+        public static InputField AddInput(Transform parent, float x, float y, float w, float h, string value,
+            System.Action<string> onChange, string placeholder = "")
+        {
+            var go = new GameObject("Input", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            Place(go, x, y, w, h);
+            var bg = go.AddComponent<Image>();
+            bg.sprite = ButtonSprite;
+            bg.type = Image.Type.Sliced;
+            bg.color = new Color(0.03f, 0.07f, 0.14f, 0.95f);
+
+            var input = go.AddComponent<InputField>();
+
+            var text = AddText(go.transform, 10f, 0f, w - 20f, h, string.Empty, 18, TextCol);
+            text.supportRichText = false;
+            var ph = AddText(go.transform, 10f, 0f, w - 20f, h, placeholder, 18, new Color(0.55f, 0.62f, 0.72f), TextAnchor.MiddleLeft, FontStyle.Italic);
+
+            input.textComponent = text;
+            input.placeholder = ph;
+            input.text = value ?? string.Empty;
+            input.caretColor = Cyan;
+            input.selectionColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.35f);
+            if (onChange != null)
+            {
+                input.onValueChanged.AddListener(v => onChange(v));
+            }
+
+            return input;
+        }
+
+        /// <summary>
+        /// A vertically-scrolling list: a masked viewport (top-left anchored rect) plus a content
+        /// child with a <see cref="VerticalLayoutGroup"/> + <see cref="ContentSizeFitter"/>. Returns the
+        /// content transform — parent pooled rows (with a <c>LayoutElement</c>) to it; inactive rows are
+        /// ignored by the layout. Modern replacement for IMGUI <c>BeginScrollView</c>.
+        /// </summary>
+        public static RectTransform ScrollList(Transform parent, float x, float y, float w, float h, float spacing = 2f)
+        {
+            var viewGo = new GameObject("Viewport", typeof(RectTransform));
+            viewGo.transform.SetParent(parent, false);
+            Place(viewGo, x, y, w, h);
+            var scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            viewGo.AddComponent<RectMask2D>();
+            var viewImg = viewGo.AddComponent<Image>();
+            viewImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            contentGo.transform.SetParent(viewGo.transform, false);
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+            var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
+            vlg.childForceExpandHeight = false;
+            vlg.childControlHeight = false;
+            vlg.spacing = spacing;
+            vlg.padding = new RectOffset(4, 4, 4, 4);
+            var fitter = contentGo.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scroll.viewport = viewGo.GetComponent<RectTransform>();
+            scroll.content = content;
+            return content;
+        }
+
         /// <summary>
         /// A rounded-rect sprite with a baked bright-cyan border and a translucent dark-blue fill,
         /// set up for 9-slicing so panels/buttons scale without distorting the corners.

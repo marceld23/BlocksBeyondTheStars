@@ -117,6 +117,15 @@ namespace Spacecraft.Client
             _log.color = new Color(0.86f, 0.93f, 1f, _typing ? 1f : 0.8f);
         }
 
+        private void OnDestroy()
+        {
+            // Top-level canvas — destroy it with the component so chat doesn't linger on the menu.
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
+
         private void EnsureBuilt()
         {
             if (_built)

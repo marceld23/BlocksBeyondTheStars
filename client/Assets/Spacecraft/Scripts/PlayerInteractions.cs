@@ -228,8 +228,8 @@ namespace Spacecraft.Client
             _myStatus = UiKit.AddText(t, 20f, 48f, 280f, 22f, loc.Get("ui.trade.your_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             _theirStatus = UiKit.AddText(t, 320f, 48f, 280f, 22f, loc.Get("ui.trade.their_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _myContent = MakeScroll(t, 16f, 78f, 292f, h - 78f - 64f);
-            _theirContent = MakeScroll(t, 316f, 78f, 288f, h - 78f - 64f);
+            _myContent = UiKit.ScrollList(t, 16f, 78f, 292f, h - 78f - 64f);
+            _theirContent = UiKit.ScrollList(t, 316f, 78f, 288f, h - 78f - 64f);
 
             UiKit.AddButton(t, 20f, h - 52f, 180f, 38f, loc.Get("ui.action.confirm"), () => Game.Network.SendTradeConfirm());
             UiKit.AddButton(t, 210f, h - 52f, 180f, 38f, loc.Get("ui.action.cancel"), () => Game.Network.SendTradeCancel());
@@ -342,38 +342,6 @@ namespace Spacecraft.Client
             return go;
         }
 
-        /// <summary>A vertically-scrolling list container (viewport + masked content with a layout group).</summary>
-        private static RectTransform MakeScroll(Transform parent, float x, float y, float w, float h)
-        {
-            var viewGo = new GameObject("Viewport", typeof(RectTransform));
-            viewGo.transform.SetParent(parent, false);
-            UiKit.Place(viewGo, x, y, w, h);
-            var scroll = viewGo.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            viewGo.AddComponent<RectMask2D>();
-            var viewImg = viewGo.AddComponent<Image>();
-            viewImg.color = new Color(0f, 0f, 0f, 0.18f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.transform.SetParent(viewGo.transform, false);
-            var content = contentGo.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
-            content.sizeDelta = Vector2.zero;
-            var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
-            vlg.childForceExpandHeight = false;
-            vlg.childControlHeight = false;
-            vlg.spacing = 2f;
-            vlg.padding = new RectOffset(4, 4, 4, 4);
-            var fitter = contentGo.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            scroll.viewport = viewGo.GetComponent<RectTransform>();
-            scroll.content = content;
-            return content;
-        }
 
         /// <summary>Rebuilds the offer from the server's authoritative <c>MyOffer</c> with one item changed, and pushes it.</summary>
         private void Adjust(string item, int delta)

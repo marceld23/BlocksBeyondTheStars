@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace Spacecraft.Client
 {
     /// <summary>
-    /// The settings screen in the new uGUI design (replacing the IMGUI <see cref="SettingsScreen"/>):
+    /// The settings screen in the new uGUI design (replacing the legacy IMGUI settings screen):
     /// graphics / audio / controls / appearance / language, bound to the local <see cref="ClientSettings"/>.
     /// Built in code on a DPI-independent canvas (UiKit) and rebuilt on each change. Numeric options use
     /// −/+ steppers with a fill bar (robust, no Slider component); booleans toggle; preset/language cycle.

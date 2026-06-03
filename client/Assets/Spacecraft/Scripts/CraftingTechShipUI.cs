@@ -95,6 +95,15 @@ namespace Spacecraft.Client
 
         // --- construction ---
 
+        private void OnDestroy()
+        {
+            // Top-level canvas — destroy it with the component so the menu doesn't linger after teardown.
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
+
         private void EnsureBuilt()
         {
             if (_built)

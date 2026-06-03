@@ -62,6 +62,16 @@ namespace Spacecraft.Client
             }
         }
 
+        private void OnDestroy()
+        {
+            // The canvas is a top-level object (not under the game root), so destroy it explicitly
+            // when the HUD is torn down — otherwise the last HUD lingers on the main menu.
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
+
         private void EnsureBuilt()
         {
             if (_canvas != null)

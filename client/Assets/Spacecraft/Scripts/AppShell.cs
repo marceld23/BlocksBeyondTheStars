@@ -32,8 +32,6 @@ namespace Spacecraft.Client
         public string PlayerName = "Pilot";
 
         private SplashScreen _splash;
-        private MainMenu _menu;
-        private SettingsScreen _settings;
         private LoadingScreen _loading;
 
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
@@ -51,8 +49,6 @@ namespace Spacecraft.Client
             // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
             // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
             _splash = new SplashScreen(this);
-            _menu = new MainMenu(this);
-            _settings = new SettingsScreen(this);
             _loading = new LoadingScreen(this);
 
             EnsureMenuBackground();
@@ -322,49 +318,5 @@ namespace Spacecraft.Client
 
         /// <summary>Returns from the credits screen to the main menu.</summary>
         public void CloseCredits() => Phase = ShellPhase.MainMenu;
-
-        private void OnGUI()
-        {
-            switch (Phase)
-            {
-                case ShellPhase.Splash: _splash.Draw(); break;
-                case ShellPhase.MainMenu: break;  // uGUI (UiMainMenu)
-                case ShellPhase.Settings: break;  // uGUI (UiSettings)
-                case ShellPhase.Credits: break;   // uGUI (UiCredits)
-                case ShellPhase.Loading: break;   // uGUI (UiLoading)
-                case ShellPhase.InGame: break;    // GameBootstrap + Hud own the screen
-            }
-        }
-
-        private GUIStyle _creditTitle;
-
-        private void DrawCredits()
-        {
-            DrawBackground();
-            UiScale.Begin();
-            _creditTitle ??= new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, normal = { textColor = UiKit.Cyan } };
-            float x = UiScale.Width / 2f - 220f, y = UiScale.Height / 2f - 90f;
-
-            // Themed panel.
-            var panel = new Rect(x - 24f, y - 22f, 488f, 220f);
-            var prev = GUI.color;
-            GUI.color = new Color(0.05f, 0.12f, 0.24f, 0.86f);
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = UiKit.Cyan;
-            GUI.DrawTexture(new Rect(panel.x, panel.y, panel.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.x, panel.yMax - 1f, panel.width, 1f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.x, panel.y, 1f, panel.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(panel.xMax - 1f, panel.y, 1f, panel.height), Texture2D.whiteTexture);
-            GUI.color = prev;
-
-            GUI.Label(new Rect(x, y, 440, 30), L("ui.credits.title"), _creditTitle);
-            GUI.Label(new Rect(x, y + 42f, 440, 100), L("ui.credits.body"));
-            if (GUI.Button(new Rect(x, y + 152f, 200, 30), L("ui.menu.back")))
-            {
-                Phase = ShellPhase.MainMenu;
-            }
-
-            UiScale.End();
-        }
     }
 }
