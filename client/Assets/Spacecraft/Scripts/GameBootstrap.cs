@@ -227,6 +227,7 @@ namespace Spacecraft.Client
             Network.ShipCombatStatusChanged += m => ShipCombat = m;
             Network.SpaceStateReceived += m => { Space = m; InSpace = true; };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = m.Reason; };
+            Network.StationBoardedReceived += m => LastMessage = $"Boarded {m.Name}.";
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
             Network.ContainersReceived += m => Containers = m.Containers;

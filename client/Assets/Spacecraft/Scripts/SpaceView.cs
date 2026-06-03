@@ -181,6 +181,34 @@ namespace Spacecraft.Client
                 _moveSendTimer = 0.08f; // ~12 Hz
                 Game.Network?.SendShipMove(_ship.transform.localPosition);
             }
+
+            // Boarding: find the nearest station in range; E boards it (the server validates the range).
+            _nearStationId = null;
+            var space = Game.Space;
+            if (space != null)
+            {
+                float best = BoardRange * BoardRange;
+                foreach (var e in space.Entities)
+                {
+                    if (e.Kind != "SpaceStation")
+                    {
+                        continue;
+                    }
+
+                    float sq = (new Vector3(e.X, e.Y, e.Z) - _ship.transform.localPosition).sqrMagnitude;
+                    if (sq < best)
+                    {
+                        best = sq;
+                        _nearStationId = e.Id;
+                        _nearStationName = e.Name;
+                    }
+                }
+            }
+
+            if (_nearStationId != null && Input.GetKeyDown(KeyCode.E))
+            {
+                Game.Network?.SendBoardStation(_nearStationId);
+            }
         }
 
         private void PlaceCamera()
@@ -450,6 +478,10 @@ namespace Spacecraft.Client
         private Image _fade;
         private Image _hit;
         private Text _hint;
+        private Text _board;
+        private string _nearStationId;
+        private string _nearStationName;
+        private const float BoardRange = 66f; // just inside the server's 70-unit board range
 
         private void EnsureUi()
         {
@@ -500,6 +532,23 @@ namespace Spacecraft.Client
             _hint.alignment = TextAnchor.MiddleCenter;
             _hint.horizontalOverflow = HorizontalWrapMode.Overflow;
             _hint.raycastTarget = false;
+
+            // "Press E to board" prompt when near a station (centre, above the crosshair).
+            var boardGo = new GameObject("BoardPrompt", typeof(RectTransform));
+            boardGo.transform.SetParent(_ui.transform, false);
+            var brt = boardGo.GetComponent<RectTransform>();
+            brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 0.5f);
+            brt.sizeDelta = new Vector2(620f, 28f);
+            brt.anchoredPosition = new Vector2(0f, -90f);
+            _board = boardGo.AddComponent<Text>();
+            _board.font = UiKit.Font;
+            _board.fontSize = 22;
+            _board.color = UiKit.Cyan;
+            _board.alignment = TextAnchor.MiddleCenter;
+            _board.fontStyle = FontStyle.Bold;
+            _board.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _board.raycastTarget = false;
+            _board.gameObject.SetActive(false);
         }
 
         private void LateUpdate()
@@ -528,6 +577,7 @@ namespace Spacecraft.Client
                 float alpha = _phase == Phase.Landing ? t : 1f - t;
                 _fade.color = new Color(0f, 0f, 0f, alpha);
                 _hint.gameObject.SetActive(false);
+                _board.gameObject.SetActive(false);
             }
             else
             {
@@ -535,6 +585,15 @@ namespace Spacecraft.Client
                 var loc = Game.Localizer;
                 _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
                 _hint.gameObject.SetActive(true);
+
+                bool nearStation = _nearStationId != null;
+                if (nearStation)
+                {
+                    string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
+                    _board.text = $"{board} {_nearStationName}";
+                }
+
+                _board.gameObject.SetActive(nearStation);
             }
         }
 
@@ -556,6 +615,8 @@ namespace Spacecraft.Client
             "Asteroid" => Vector3.one * 2.4f,
             "Ufo" => new Vector3(2.4f, 0.7f, 2.4f),
             "Cruiser" => new Vector3(3f, 1.5f, 5f),
+            "SpaceStation" => new Vector3(8f, 5f, 8f),
+            "ResourceDrop" => Vector3.one * 0.7f,
             _ => Vector3.one * 1.1f,
         };
 
@@ -564,6 +625,8 @@ namespace Spacecraft.Client
             "Asteroid" => new Color(0.45f, 0.42f, 0.38f),
             "Ufo" => new Color(0.6f, 0.35f, 0.8f),
             "Cruiser" => new Color(0.7f, 0.3f, 0.3f),
+            "SpaceStation" => new Color(0.62f, 0.66f, 0.72f),
+            "ResourceDrop" => new Color(0.5f, 0.9f, 1f),
             _ => new Color(0.85f, 0.2f, 0.2f),
         };
 

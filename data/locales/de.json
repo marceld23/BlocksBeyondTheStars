@@ -403,6 +403,7 @@
   "ui.space.enter": "In den Weltraum starten",
   "ui.space.leave": "Zur Oberfläche zurück",
   "ui.space.controls": "WASD + Maus: fliegen · V: Ansicht · L: landen",
+  "ui.space.board": "E drücken zum Andocken an",
   "ui.action.fire": "Feuern",
   "ui.ships.fleet": "Deine Schiffe",
   "ui.ships.switch": "Wechseln zu",

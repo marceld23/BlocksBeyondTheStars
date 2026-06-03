@@ -34,6 +34,7 @@ namespace Spacecraft.Client
         public event Action<SpaceState> SpaceStateReceived;
         public event Action<SpaceEntityDestroyed> SpaceEntityDestroyed;
         public event Action<SpaceClosed> SpaceClosed;
+        public event Action<StationBoarded> StationBoardedReceived;
         public event Action<PlanetEnemyList> PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
         public event Action<CreatureList> CreaturesReceived;
@@ -150,9 +151,10 @@ namespace Spacecraft.Client
 
         public void SendTradeCancel() => Send(new TradeCancelIntent());
 
-        // Reports the ship's position while flying in space (for server-side collision). Wire this
-        // once SpaceView flies in the server's entity coordinate space (M25b real-flight work).
+        // Reports the ship's position while flying in space (for server-side collision).
         public void SendShipMove(Vector3 pos) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z });
+
+        public void SendBoardStation(string stationId) => Send(new BoardStationIntent { StationId = stationId });
 
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
@@ -199,6 +201,7 @@ namespace Spacecraft.Client
                 case SpaceState m: SpaceStateReceived?.Invoke(m); break;
                 case SpaceEntityDestroyed m: SpaceEntityDestroyed?.Invoke(m); break;
                 case SpaceClosed m: SpaceClosed?.Invoke(m); break;
+                case StationBoarded m: StationBoardedReceived?.Invoke(m); break;
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;

@@ -398,6 +398,7 @@
   "ui.space.enter": "Launch into space",
   "ui.space.leave": "Return to surface",
   "ui.space.controls": "WASD + mouse: fly · V: view · L: land",
+  "ui.space.board": "Press E to board",
   "ui.action.fire": "Fire",
   "ui.ships.fleet": "Your ships",
   "ui.ships.switch": "Switch to",
