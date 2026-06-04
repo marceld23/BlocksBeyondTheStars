@@ -45,6 +45,10 @@ public sealed class ServerWorld
 
     public ChunkData GetOrLoadChunk(ChunkCoord coord)
     {
+        // Longitude wraps: a chunk a whole lap away is the same chunk. Canonicalize X so the cache and
+        // persistence stay coherent across the seam (terrain itself is generated seam-free, so generating
+        // at the canonical coord yields the identical blocks).
+        coord = WorldConstants.CanonicalChunk(coord);
         if (_loaded.TryGetValue(coord, out var cached))
         {
             return cached;
@@ -63,6 +67,7 @@ public sealed class ServerWorld
 
     public BlockId GetBlock(Vector3i world)
     {
+        world = WorldConstants.CanonicalBlock(world); // longitude wraps
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         return chunk.Get(local.X, local.Y, local.Z);
@@ -71,6 +76,7 @@ public sealed class ServerWorld
     /// <summary>Sets a block, persists the edit, and returns the previous block id.</summary>
     public BlockId SetBlock(Vector3i world, BlockId block)
     {
+        world = WorldConstants.CanonicalBlock(world); // longitude wraps: store/cache the canonical column
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);

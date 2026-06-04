@@ -54,6 +54,21 @@ public static class WorldConstants
         return m > c / 2 ? m - c : m;
     }
 
+    /// <summary>Wraps a chunk-X index into the canonical [0, ChunksAround) range (longitude wrap).</summary>
+    public static int CanonicalChunkX(int chunkX)
+    {
+        int m = chunkX % ChunksAround;
+        return m < 0 ? m + ChunksAround : m;
+    }
+
+    /// <summary>Canonicalizes a chunk coordinate's longitude (X), leaving Y/Z untouched.</summary>
+    public static ChunkCoord CanonicalChunk(ChunkCoord chunk)
+        => new(CanonicalChunkX(chunk.X), chunk.Y, chunk.Z);
+
+    /// <summary>Canonicalizes a world block position's longitude (X) into [0, Circumference).</summary>
+    public static Vector3i CanonicalBlock(Vector3i world)
+        => new(WrapX(world.X), world.Y, world.Z);
+
     /// <summary>Floor-divides a world coordinate to its chunk coordinate (handles negatives).</summary>
     public static int WorldToChunk(int world) => (int)System.Math.Floor(world / (double)ChunkSize);
 

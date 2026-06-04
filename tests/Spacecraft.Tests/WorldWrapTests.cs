@@ -95,6 +95,21 @@ public class WorldWrapTests
     }
 
     [Fact]
+    public void CanonicalChunk_And_Block_WrapLongitudeOnly()
+    {
+        // A chunk / block a whole lap away canonicalizes to the same X, leaving Y and Z untouched.
+        var chunk = WorldConstants.CanonicalChunk(new ChunkCoord(WorldConstants.ChunksAround + 2, 5, -3));
+        Assert.Equal(new ChunkCoord(2, 5, -3), chunk);
+
+        var block = WorldConstants.CanonicalBlock(new Vector3i(C + 9, 70, -40));
+        Assert.Equal(new Vector3i(9, 70, -40), block);
+
+        // The chunk straddling the seam edge maps cleanly (16 divides C, so no chunk straddles it).
+        Assert.Equal(0, WorldConstants.CanonicalChunkX(WorldConstants.ChunksAround));
+        Assert.Equal(WorldConstants.ChunksAround - 1, WorldConstants.CanonicalChunkX(-1));
+    }
+
+    [Fact]
     public void WrapX_And_WrapDeltaX_BehaveAcrossTheSeam()
     {
         Assert.Equal(0, WorldConstants.WrapX(C));
