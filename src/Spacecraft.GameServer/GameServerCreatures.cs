@@ -52,7 +52,7 @@ public sealed partial class GameServer
 
     private void InitCreatures()
     {
-        var planet = _content.GetPlanet(_meta.DefaultPlanetType);
+        var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
             : CreatureGenerator.GenerateRoster(planet, _meta.Seed).ToArray();

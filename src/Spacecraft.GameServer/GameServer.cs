@@ -1636,21 +1636,23 @@ public sealed partial class GameServer
         });
     }
 
-    /// <summary>Resolves the friendly (system, planet) names for the world's active location.</summary>
+    /// <summary>Resolves the friendly (system, planet) names for the currently active world (the Active
+    /// cursor's location), so per-world init/tick label the right body even with several worlds resident.</summary>
     private (string System, string Planet) ActiveLocationNames()
     {
+        string activeId = _worlds.Active?.LocationId ?? _meta.ActiveLocationId;
         foreach (var sys in _galaxy.Systems)
         {
             foreach (var body in sys.Bodies)
             {
-                if (body.Id == _meta.ActiveLocationId)
+                if (body.Id == activeId)
                 {
                     return (sys.Name, body.Name);
                 }
             }
         }
 
-        return (string.Empty, _meta.DefaultPlanetType);
+        return (string.Empty, _worlds.Active?.PlanetType ?? _meta.DefaultPlanetType);
     }
 
     private void SendStarMap(PlayerSession session)

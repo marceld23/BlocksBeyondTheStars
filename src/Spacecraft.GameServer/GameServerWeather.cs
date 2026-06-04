@@ -48,7 +48,7 @@ public sealed partial class GameServer
 
     private void InitWeather()
     {
-        var planet = _content.GetPlanet(_meta.DefaultPlanetType);
+        var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         _dayLength = planet?.DayLengthSeconds ?? 600.0;
         _stormChance = planet?.StormChance ?? 0.35;
         _planetWeatherMode = string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather;
@@ -57,7 +57,7 @@ public sealed partial class GameServer
         _cloudColor = planet?.CloudColor ?? 0xEDEFF2;
         // Airless bodies (space sky) never have clouds.
         _cloudDensity = _spaceSky ? 0f : (float)System.Math.Clamp(planet?.CloudDensity ?? 0.45, 0.0, 1.0);
-        _biome = string.IsNullOrEmpty(_meta.DefaultPlanetType) ? "rock" : _meta.DefaultPlanetType;
+        _biome = string.IsNullOrEmpty(_worlds.Active.PlanetType) ? "rock" : _worlds.Active.PlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
         _envRng = new System.Random((int)_meta.Seed);
         _dayFraction = 0.35;
