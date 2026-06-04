@@ -114,7 +114,7 @@ public sealed partial class GameServer
                 aboardShip = p.AboardShip, station = CurrentStationName(p.PlayerId),
                 role = p.Role.ToString(), p.GodMode, p.Fly, p.Stealthed,
             },
-            environment = BuildEnvironment(),
+            environment = BuildEnvironment(p.Position), // the player's local biome weather
             ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
             surroundings = blocks,
             nearby = new { creatures, npcs, players = others, containers },

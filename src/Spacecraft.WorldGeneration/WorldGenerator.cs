@@ -192,10 +192,21 @@ public sealed class WorldGenerator
         return list;
     }
 
-    /// <summary>Broad low-frequency noise picks a biome per column (multi-biome worlds).</summary>
+    /// <summary>The biome index at a world position (large regions), for per-biome systems like weather.</summary>
+    public int BiomeIndexAt(PlanetType planet, int worldX, int worldZ)
+    {
+        int count = ResolveBiomes(planet).Count;
+        return count <= 1 ? 0 : BiomeIndex(PlanetSeed(planet), worldX, worldZ, count);
+    }
+
+    /// <summary>How many distinct biomes this planet's world uses.</summary>
+    public int BiomeCount(PlanetType planet) => ResolveBiomes(planet).Count;
+
+    /// <summary>Broad low-frequency noise picks a biome per column (multi-biome worlds). The scale is
+    /// large so each biome is a big contiguous region (so per-biome weather covers a meaningful area).</summary>
     private static int BiomeIndex(long seed, int worldX, int worldZ, int count)
     {
-        double n = Noise.Fbm2D(seed ^ 0x0B10E, worldX / 140.0, worldZ / 140.0, octaves: 3);
+        double n = Noise.Fbm2D(seed ^ 0x0B10E, worldX / 360.0, worldZ / 360.0, octaves: 3);
         int idx = (int)(n * count);
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }

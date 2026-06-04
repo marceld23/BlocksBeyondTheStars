@@ -128,23 +128,65 @@ public sealed partial class GameServer
         _ => 0f,
     };
 
-    private WorldEnvironment BuildEnvironment() => new()
+    /// <summary>Builds the environment for a position — weather is per BIOME (a stormy biome can rain while
+    /// a neighbouring clear biome stays sunny), shifted around the world's current weather; the rest
+    /// (time, sun, clouds, atmosphere) is world-level. Empty position uses the world's base weather.</summary>
+    private WorldEnvironment BuildEnvironment(Spacecraft.Shared.Geometry.Vector3f pos = default)
     {
-        TimeOfDay = (float)_dayFraction,
-        DayLengthSeconds = (float)_dayLength,
-        Weather = _weatherState,
-        Intensity = _weatherIntensity,
-        SunColor = _sunColor,
-        CloudColor = _cloudColor,
-        CloudDensity = _cloudDensity,
-        Breathable = _breathable,
-        SpaceSky = _spaceSky,
-        Biome = _biome,
-    };
+        var (state, intensity) = BiomeWeatherAt(pos);
+        return new WorldEnvironment
+        {
+            TimeOfDay = (float)_dayFraction,
+            DayLengthSeconds = (float)_dayLength,
+            Weather = state,
+            Intensity = intensity,
+            SunColor = _sunColor,
+            CloudColor = _cloudColor,
+            CloudDensity = _cloudDensity,
+            Breathable = _breathable,
+            SpaceSky = _spaceSky,
+            Biome = _biome,
+        };
+    }
 
-    private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment());
+    /// <summary>The weather in the biome at a position: the world's weather level shifted by a persistent
+    /// per-biome offset (some biomes are always wetter/drier). Fixed-weather planets don't vary by biome.</summary>
+    private (string State, float Intensity) BiomeWeatherAt(Spacecraft.Shared.Geometry.Vector3f pos)
+    {
+        if (_planetWeatherMode != "dynamic")
+        {
+            return (_weatherState, _weatherIntensity);
+        }
 
-    private void BroadcastEnvironment() => BroadcastToWorld(BuildEnvironment());
+        int worldLevel = System.Array.IndexOf(WeatherStates, _weatherState);
+        if (worldLevel < 0)
+        {
+            worldLevel = 0;
+        }
+
+        int biomeIdx = _generator.BiomeIndexAt(_world.Planet, (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z));
+        int level = System.Math.Clamp(worldLevel + BiomeWeatherOffset(biomeIdx), 0, WeatherStates.Length - 1);
+        string state = WeatherStates[level];
+        return (state, IntensityOf(state));
+    }
+
+    /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world.</summary>
+    private int BiomeWeatherOffset(int biomeIdx)
+    {
+        long h = _meta.Seed ^ (biomeIdx * 2654435761L) ^ 0xB10;
+        return (int)((ulong)(h < 0 ? -h : h) % 4UL) - 1; // 0..3 → -1..+2
+    }
+
+    private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment(session.State.Position));
+
+    /// <summary>Each player in the world gets the weather of THEIR biome (per-player, not one broadcast).</summary>
+    private void BroadcastEnvironment()
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            SendEnvironment(s);
+        }
+    }
 
     private static int StableStringHash(string s)
     {
