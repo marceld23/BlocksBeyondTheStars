@@ -2,6 +2,7 @@ using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Primitives;
+using Spacecraft.Shared.World;
 
 namespace Spacecraft.GameServer;
 
@@ -131,7 +132,7 @@ public sealed partial class GameServer
         {
             var p = new Vector3i(x, y, z);
             _world.SetBlock(p, id);
-            _shipExtra.Add(p);
+            _shipExtra.Add(WorldConstants.CanonicalBlock(p)); // canonical so protection matches after longitude wrap
         }
 
         int wingY = y0 + System.Math.Max(1, _shipHeight / 2);   // wings at hull mid-height
@@ -237,31 +238,31 @@ public sealed partial class GameServer
                     continue;
                 case "glass":
                     _world.SetBlock(p, glass);
-                    _shipExtra.Add(p);
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                     continue;
                 case "light":
                 case "headlight":
                     _world.SetBlock(p, lightW);
-                    _shipExtra.Add(p);
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                     continue;
                 case "light_red":
                     _world.SetBlock(p, lightR);
-                    _shipExtra.Add(p);
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                     continue;
                 case "light_green":
                     _world.SetBlock(p, lightG);
-                    _shipExtra.Add(p);
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                     continue;
                 case "engine":
                     _world.SetBlock(p, dark);
-                    _shipExtra.Add(p);
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                     continue;
             }
 
             if (cell.Kind == "station")
             {
                 AddStation(cell.Id, wx, wy, wz, StationBlockKey(cell.Id));
-                _shipExtra.Add(p);
+                _shipExtra.Add(WorldConstants.CanonicalBlock(p));
                 if (cell.Id == "medbay")
                 {
                     medbay = new Vector3f(wx + 0.5f, wy + 1f, wz + 0.5f);
@@ -272,7 +273,7 @@ public sealed partial class GameServer
 
             // Hull (iron_wall) and anything unknown → solid hull.
             _world.SetBlock(p, wall);
-            _shipExtra.Add(p);
+            _shipExtra.Add(WorldConstants.CanonicalBlock(p));
         }
 
         // Guarantee a flush, solid floor across the footprint (fills layout gaps + the cleared terrain)
@@ -284,7 +285,7 @@ public sealed partial class GameServer
             if (_world.GetBlock(fp).IsAir)
             {
                 _world.SetBlock(fp, wall);
-                _shipExtra.Add(fp);
+                _shipExtra.Add(WorldConstants.CanonicalBlock(fp));
             }
         }
 
@@ -428,13 +429,18 @@ public sealed partial class GameServer
             return false;
         }
 
+        // Longitude wraps: a ship anchored near X=0 has exterior cells at negative X that persist at
+        // canonical (wrapped) coordinates, so compare X the short way round and key Extra canonically.
+        p = WorldConstants.CanonicalBlock(p);
+
         if (s.IsLayout)
         {
             return s.Extra.Contains(p); // designed ship protects exactly its placed cells
         }
 
         var a = s.Anchor;
-        bool inHull = p.X >= a.X - s.HalfX && p.X <= a.X + s.HalfX
+        int dx = WorldConstants.WrapDeltaX(p.X - a.X);
+        bool inHull = dx >= -s.HalfX && dx <= s.HalfX
                && p.Y >= a.Y && p.Y <= a.Y + s.Height
                && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ;
         return inHull || s.Extra.Contains(p);
@@ -459,7 +465,8 @@ public sealed partial class GameServer
             if (s.Stamped)
             {
                 var a = s.Anchor;
-                if (p.X >= a.X - s.HalfX && p.X <= a.X + s.HalfX
+                double dx = WorldConstants.WrapDeltaX(p.X - a.X); // longitude wraps
+                if (dx >= -s.HalfX && dx <= s.HalfX
                     && p.Y >= a.Y && p.Y <= a.Y + s.Height
                     && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ)
                 {

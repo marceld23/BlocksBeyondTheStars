@@ -379,10 +379,33 @@ namespace Spacecraft.Client
             bool show = scan != null && Time.time - Game.LastScanAt <= 8f;
             if (_scanPanel.activeSelf != show) _scanPanel.SetActive(show);
             if (!show) return;
-            _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {scan.Subject}";
+            _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
             _scanInfo.text = scan.Info;
             _scanThreat.text = $"{loc.Get("ui.scan.threat")}: {scan.Threat}";
             _scanKnow.text = $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}";
+        }
+
+        /// <summary>Resolves a scan subject key to a readable, localized name (block / item / creature)
+        /// so the readout says what it is ("Stone") rather than the raw key ("stone").</summary>
+        private string ScanSubjectName(Spacecraft.Shared.Localization.Localizer loc, string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return key;
+            }
+
+            if (Game.Content?.GetBlock(key) is { } b)
+            {
+                return loc.Get(b.NameKey);
+            }
+
+            if (Game.Content?.GetItem(key) is { } it)
+            {
+                return loc.Get(it.NameKey);
+            }
+
+            string creatureName = loc.Get($"creature.{key}.name");
+            return creatureName.StartsWith("creature.") ? key : creatureName; // fall back to the raw key
         }
 
         private void RefreshWreck(Spacecraft.Shared.Localization.Localizer loc)
