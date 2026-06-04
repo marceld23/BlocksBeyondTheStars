@@ -89,8 +89,11 @@ SQLite persistence.
    Creatures got a **head pivot** with **per-temperament idle gestures** — passive graze (head dips to the
    ground), skittish alert (head snaps up + looks around), hostile lunge (sharp aggressive thrust), asleep
    rests low; plus idle breathing and a quicker tail on hostiles (`CreatureAnimator`/`CreatureBuilder`).
-4. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
-   Missing: projectile arcs, melee swing arcs, and a visible suit-lamp cone (currently a shader spotlight).
+4. ✅ **Weapon/equipment VFX (done).** Beam/tracer, muzzle flash, impact sparks, scanner pulse — plus
+   **kinetic projectile bolts** (gauss/slug fly to the target, trail sparks, burst on arrival), **melee
+   slash arcs** (short-range weapons/fists sweep a fading arc, whiff included) and a **visible suit-lamp
+   cone** (a faint warm translucent light shaft on the `Spacecraft/Cloud` shader, parented to the camera).
+   Weapon effect picked by held item in `PlayerController.HeldWeaponFx` (`WeaponFx.Projectile`/`MeleeArc`).
 
 ### Landing + docking — reviewed (2026-06-04)
 End-to-end trace done (launch/land, same-system travel, hyperjump, space-station boarding, player↔player

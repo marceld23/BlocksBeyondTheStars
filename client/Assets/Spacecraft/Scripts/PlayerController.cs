@@ -238,12 +238,53 @@ namespace Spacecraft.Client
             if (nearest != null)
             {
                 Game.Network.SendAttackEntity(nearest);
-                if (Weapons != null && Camera != null)
+            }
+
+            if (Weapons != null && Camera != null)
+            {
+                var ct = Camera.transform;
+                var from = ct.position + ct.forward * 0.4f - ct.up * 0.15f;
+                var col = WeaponColor();
+                var kind = HeldWeaponFx();
+                if (kind == WeaponFxKind.Melee)
                 {
-                    var from = Camera.transform.position + Camera.transform.forward * 0.4f - Camera.transform.up * 0.15f;
-                    Weapons.Shoot(from, nearestPos + Vector3.up * 0.4f, WeaponColor());
+                    // A melee slash sweeps whether or not it connects (whiff still reads).
+                    Weapons.MeleeArc(from, ct.forward, ct.up, col);
+                }
+                else if (nearest != null)
+                {
+                    var target = nearestPos + Vector3.up * 0.4f;
+                    if (kind == WeaponFxKind.Projectile)
+                    {
+                        Weapons.Projectile(from, target, col); // kinetic bolt that flies + bursts
+                    }
+                    else
+                    {
+                        Weapons.Shoot(from, target, col); // instant energy beam/tracer
+                    }
                 }
             }
+        }
+
+        private enum WeaponFxKind { Beam, Projectile, Melee }
+
+        /// <summary>Classifies the held weapon's effect: kinetic guns fire a flying bolt, energy guns an
+        /// instant beam, and short-range weapons (or bare fists) a melee slash arc.</summary>
+        private WeaponFxKind HeldWeaponFx()
+        {
+            string key = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
+            if (key.Contains("gauss") || key.Contains("rail") || key.Contains("slug"))
+            {
+                return WeaponFxKind.Projectile;
+            }
+
+            if (key.Contains("laser") || key.Contains("blaster") || key.Contains("beam"))
+            {
+                return WeaponFxKind.Beam;
+            }
+
+            float range = Game.Content?.GetItem(key)?.Tool?.Range ?? 0f;
+            return range > 6f ? WeaponFxKind.Beam : WeaponFxKind.Melee;
         }
 
         /// <summary>The beam/spark colour for the held weapon (energy types tint their bolts).</summary>
@@ -314,6 +355,7 @@ namespace Spacecraft.Client
         }
 
         private bool _lampOn;
+        private GameObject _lampCone; // visible warm light shaft, shown while the lamp is on
         private static readonly int LampPosId = Shader.PropertyToID("_Sc_LampPos");
         private static readonly int LampDirId = Shader.PropertyToID("_Sc_LampDir");
         private static readonly int LampColId = Shader.PropertyToID("_Sc_LampColor");
@@ -331,11 +373,65 @@ namespace Spacecraft.Client
                 Shader.SetGlobalVector(LampPosId, new Vector4(p.x, p.y, p.z, 26f));   // range
                 Shader.SetGlobalVector(LampDirId, new Vector4(f.x, f.y, f.z, 0.80f)); // cone cos (~37°)
                 Shader.SetGlobalColor(LampColId, new Color(1.6f, 1.5f, 1.3f, 1f));    // warm, HDR intensity
+                EnsureLampCone();
             }
             else
             {
                 Shader.SetGlobalColor(LampColId, new Color(0f, 0f, 0f, 0f));
             }
+
+            if (_lampCone != null)
+            {
+                _lampCone.SetActive(on);
+            }
+        }
+
+        /// <summary>Builds the visible light shaft (a faint warm translucent cone) once, parented to the
+        /// camera so it always points where the player looks. The actual lighting is the shader spotlight
+        /// above; this is the volumetric beam you see in the dark.</summary>
+        private void EnsureLampCone()
+        {
+            if (_lampCone != null || Camera == null)
+            {
+                return;
+            }
+
+            _lampCone = new GameObject("LampCone");
+            _lampCone.transform.SetParent(Camera.transform, false);
+            _lampCone.transform.localPosition = new Vector3(0f, -0.08f, 0.4f);
+            _lampCone.transform.localRotation = Quaternion.identity;
+
+            _lampCone.AddComponent<MeshFilter>().sharedMesh = BuildConeMesh(10f, 1.9f, 24);
+            var mr = _lampCone.AddComponent<MeshRenderer>();
+            var shader = Shader.Find("Spacecraft/Cloud") ?? Shader.Find("Unlit/Color");
+            mr.sharedMaterial = new Material(shader) { color = new Color(1f, 0.94f, 0.76f, 0.06f) };
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+        }
+
+        /// <summary>A hollow cone mesh: apex at the origin opening along +Z to a base ring (light shaft).</summary>
+        private static Mesh BuildConeMesh(float length, float radius, int seg)
+        {
+            var verts = new Vector3[seg + 1];
+            var uvs = new Vector2[seg + 1];
+            verts[0] = Vector3.zero; // apex (at the lamp)
+            for (int i = 0; i < seg; i++)
+            {
+                float a = i / (float)seg * Mathf.PI * 2f;
+                verts[i + 1] = new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, length);
+            }
+
+            var tris = new int[seg * 3];
+            for (int i = 0; i < seg; i++)
+            {
+                tris[i * 3] = 0;
+                tris[i * 3 + 1] = 1 + i;
+                tris[i * 3 + 2] = 1 + (i + 1) % seg;
+            }
+
+            var m = new Mesh { vertices = verts, uv = uvs, triangles = tris };
+            m.RecalculateBounds();
+            return m;
         }
 
         private bool HasItem(string key)

@@ -25,6 +25,39 @@ namespace Spacecraft.Client
             Sparks(to, color, 8);
         }
 
+        /// <summary>Fires a travelling projectile bolt from the muzzle that flies to the target and bursts
+        /// on arrival (kinetic weapons — gauss/slug). Leaves a short tracer trail as it goes.</summary>
+        public void Projectile(Vector3 from, Vector3 to, Color color)
+        {
+            var dir = to - from;
+            var bolt = Cube("Bolt", from, new Vector3(0.09f, 0.09f, 0.5f), color);
+            bolt.transform.rotation = Quaternion.LookRotation(dir.sqrMagnitude > 1e-4f ? dir : Vector3.forward);
+            var pr = bolt.AddComponent<Bolt>();
+            pr.Target = to;
+            pr.Color = color;
+            pr.Fx = this;
+            Flash(from, color, 0.22f); // muzzle flash
+        }
+
+        /// <summary>A quick horizontal slash arc swept in front of the player (melee weapons / fists).</summary>
+        public void MeleeArc(Vector3 center, Vector3 forward, Vector3 up, Color color)
+        {
+            var parent = new GameObject("MeleeArc");
+            parent.transform.position = center;
+            parent.transform.rotation = Quaternion.LookRotation(forward, up);
+
+            const int seg = 6;
+            for (int i = 0; i < seg; i++)
+            {
+                float r = Mathf.Lerp(0.55f, 1.7f, i / (float)(seg - 1));
+                var bit = Cube("ArcBit", Vector3.zero, Vector3.one * 0.13f, color);
+                bit.transform.SetParent(parent.transform, false);
+                bit.transform.localPosition = new Vector3(0f, 0f, r); // radial streak along the look direction
+            }
+
+            parent.AddComponent<Sweep>();
+        }
+
         /// <summary>A brief muzzle/impact flash (a quickly-shrinking bright cube).</summary>
         public void Flash(Vector3 at, Color color, float size)
         {
@@ -148,6 +181,76 @@ namespace Spacecraft.Client
                 transform.position += Vel * Time.deltaTime;
                 transform.localScale = _scale0 * Mathf.Max(0f, 1f - _t / _life);
                 if (_t >= _life)
+                {
+                    Destroy(gameObject);
+                }
+            }
+        }
+
+        /// <summary>A bolt that flies straight to its target, trails sparks, and bursts on arrival.</summary>
+        private sealed class Bolt : MonoBehaviour
+        {
+            public Vector3 Target;
+            public Color Color;
+            public WeaponFx Fx;
+            public float Speed = 55f;
+            private float _t;
+            private float _trail;
+
+            private void Update()
+            {
+                _t += Time.deltaTime;
+                var pos = transform.position;
+                var to = Target - pos;
+                float step = Speed * Time.deltaTime;
+
+                if (to.magnitude <= step || _t >= 1.2f)
+                {
+                    if (Fx != null)
+                    {
+                        Fx.Flash(Target, Color, 0.26f);
+                        Fx.Sparks(Target, Color, 9);
+                    }
+
+                    Destroy(gameObject);
+                    return;
+                }
+
+                transform.position = pos + to.normalized * step;
+                transform.rotation = Quaternion.LookRotation(to);
+
+                _trail -= Time.deltaTime;
+                if (_trail <= 0f && Fx != null)
+                {
+                    _trail = 0.03f;
+                    var t = Cube("BoltTrail", pos, Vector3.one * 0.07f, Color);
+                    t.AddComponent<FadeKill>().Life = 0.12f;
+                }
+            }
+        }
+
+        /// <summary>Sweeps a melee slash arc through ~110° in front of the player, fading as it goes.</summary>
+        private sealed class Sweep : MonoBehaviour
+        {
+            private const float Life = 0.18f;
+            private float _t;
+            private Quaternion _base;
+
+            private void Start() => _base = transform.rotation;
+
+            private void Update()
+            {
+                _t += Time.deltaTime;
+                float f = Mathf.Clamp01(_t / Life);
+                transform.rotation = _base * Quaternion.Euler(0f, Mathf.Lerp(-55f, 55f, f), 0f);
+
+                float k = 0.13f * (1f - f); // shrink the streak as the swing finishes
+                foreach (Transform child in transform)
+                {
+                    child.localScale = Vector3.one * k;
+                }
+
+                if (_t >= Life)
                 {
                     Destroy(gameObject);
                 }
