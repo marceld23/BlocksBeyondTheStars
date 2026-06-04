@@ -16,6 +16,15 @@ SQLite persistence.
 
 ---
 
+## ▶ Next up — tomorrow (2026-06-06): Space stations as their own locations
+Boarding a station currently drops you onto the planet (no `WorldReset` → the player falls through; weather/
+clouds/day-night also bleed in). **Task:** make a station its own **void world** (space sky, no weather/
+clouds, fixed interior lighting, life support, NPCs) and board it via the proven travel/`WorldReset` path.
+Root-cause analysis + the full phased plan **S1–S7** are written up in
+**[docs/STATION_AS_LOCATION_PLAN.md](docs/STATION_AS_LOCATION_PLAN.md)** — start there.
+
+---
+
 ## ✅ Done
 
 ### Foundation & server (M0–M20)
