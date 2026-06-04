@@ -572,18 +572,22 @@ public static class StationGenerator
         }
     }
 
-    /// <summary>Cuts a 1-wide, 2-tall doorway in the shared wall toward a +X or +Z neighbour.</summary>
+    /// <summary>Cuts a 2-wide, 3-tall doorway in the shared wall toward a +X or +Z neighbour (a 1-wide /
+    /// 2-tall opening was too tight for the player to pass through).</summary>
     private static void CutDoor(System.Action<int, int, int, ushort> set, Vector3i o, Vector3i dir)
     {
+        int top = System.Math.Min(o.Y + 3, o.Y + RoomH - 2); // up to 3 tall, never the ceiling
         if (dir.X > 0)
         {
-            int x = o.X + RoomW - 1;
-            for (int y = o.Y + 1; y <= o.Y + 2; y++) set(x, y, o.Z + RoomL / 2, 0);
+            int x = o.X + RoomW - 1, zc = o.Z + RoomL / 2;
+            for (int y = o.Y + 1; y <= top; y++)
+            for (int dz = -1; dz <= 0; dz++) set(x, y, zc + dz, 0);
         }
         else if (dir.Z > 0)
         {
-            int z = o.Z + RoomL - 1;
-            for (int y = o.Y + 1; y <= o.Y + 2; y++) set(o.X + RoomW / 2, y, z, 0);
+            int z = o.Z + RoomL - 1, xc = o.X + RoomW / 2;
+            for (int y = o.Y + 1; y <= top; y++)
+            for (int dx = -1; dx <= 0; dx++) set(xc + dx, y, z, 0);
         }
     }
 

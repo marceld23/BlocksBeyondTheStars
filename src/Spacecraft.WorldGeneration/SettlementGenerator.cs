@@ -318,14 +318,21 @@ public static class SettlementGenerator
             }
         }
 
-        // Door: a 1-wide, 2-tall gap on the chosen wall at ground level.
+        // Door: a 2-wide, 3-tall gap on the chosen wall at ground level so the player fits through
+        // comfortably (a 1-wide / 2-tall opening was too tight to walk through).
         int mid = fp / 2;
-        switch (doorSide)
+        int w0 = System.Math.Max(1, mid - 1), w1 = mid; // two columns, kept inside the corners
+        int dy1 = 1, dy2 = System.Math.Min(height - 1, 3); // up to 3 tall, never into the ceiling
+        for (int w = w0; w <= w1; w++)
+        for (int y = dy1; y <= dy2; y++)
         {
-            case 0: set(ox + mid, 1, oz, 0); set(ox + mid, 2, oz, 0); break;                 // -Z
-            case 1: set(ox + mid, 1, oz + fp - 1, 0); set(ox + mid, 2, oz + fp - 1, 0); break; // +Z
-            case 2: set(ox, 1, oz + mid, 0); set(ox, 2, oz + mid, 0); break;                 // -X
-            default: set(ox + fp - 1, 1, oz + mid, 0); set(ox + fp - 1, 2, oz + mid, 0); break; // +X
+            switch (doorSide)
+            {
+                case 0: set(ox + w, y, oz, 0); break;             // -Z
+                case 1: set(ox + w, y, oz + fp - 1, 0); break;    // +Z
+                case 2: set(ox, y, oz + w, 0); break;             // -X
+                default: set(ox + fp - 1, y, oz + w, 0); break;   // +X
+            }
         }
 
         // Vertical access between storeys: a hole through each deck + a full-height ladder in a corner.

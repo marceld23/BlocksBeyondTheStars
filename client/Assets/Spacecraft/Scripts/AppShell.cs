@@ -194,7 +194,22 @@ namespace Spacecraft.Client
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            Phase = ShellPhase.Editors; // back to the editors submenu
+            _confirmQuit = false;
+            Phase = ShellPhase.MainMenu; // leaving the game returns to the main menu
+        }
+
+        private bool _confirmQuit; // showing the "quit to menu?" confirmation over the game
+
+        private GameBootstrap Boot() => _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
+
+        private void CancelQuit()
+        {
+            _confirmQuit = false;
+            var boot = Boot();
+            if (boot != null)
+            {
+                boot.MenuOpen = false; // hands control back to the player (re-locks the cursor)
+            }
         }
 
         private GameObject _uiMenu;
@@ -420,9 +435,25 @@ namespace Spacecraft.Client
                 {
                     // Esc while typing in chat just cancels the chat input, it doesn't quit to the menu.
                     var boot = _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
-                    if (boot == null || !boot.ChatTyping)
+                    if (boot != null && boot.ChatTyping)
                     {
-                        ReturnToMenu();
+                        // chat handles its own Esc
+                    }
+                    else if (_confirmQuit)
+                    {
+                        CancelQuit(); // Esc again dismisses the confirmation
+                    }
+                    else
+                    {
+                        // Ask before leaving the game (rather than quitting instantly).
+                        _confirmQuit = true;
+                        if (boot != null)
+                        {
+                            boot.MenuOpen = true; // freezes player control + frees the cursor for the buttons
+                        }
+
+                        Cursor.lockState = CursorLockMode.None;
+                        Cursor.visible = true;
                     }
                 }
                 else if (Phase == ShellPhase.Settings)
@@ -476,5 +507,42 @@ namespace Spacecraft.Client
 
         /// <summary>Returns from the credits screen to the main menu.</summary>
         public void CloseCredits() => Phase = ShellPhase.MainMenu;
+
+        /// <summary>The "leave the game?" confirmation drawn over the running game (Esc in-game).</summary>
+        private void OnGUI()
+        {
+            if (!_confirmQuit || Phase != ShellPhase.InGame)
+            {
+                return;
+            }
+
+            bool de = Settings != null && Settings.Language == "de";
+            string title = de ? "Spiel verlassen und zurück zum Hauptmenü?" : "Leave the game and return to the main menu?";
+            string yes = de ? "Ja, verlassen" : "Yes, leave";
+            string no = de ? "Nein, weiterspielen" : "No, keep playing";
+
+            var prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.65f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+
+            float w = 480f, h = 170f;
+            var r = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
+            GUI.Box(r, GUIContent.none);
+
+            var label = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 18, wordWrap = true };
+            GUI.Label(new Rect(r.x + 20, r.y + 18, w - 40, 56), title, label);
+
+            var btn = new GUIStyle(GUI.skin.button) { fontSize = 15 };
+            if (GUI.Button(new Rect(r.x + 30, r.y + 96, 200, 48), yes, btn))
+            {
+                ReturnToMenu();
+            }
+
+            if (GUI.Button(new Rect(r.x + w - 230, r.y + 96, 200, 48), no, btn))
+            {
+                CancelQuit();
+            }
+        }
     }
 }
