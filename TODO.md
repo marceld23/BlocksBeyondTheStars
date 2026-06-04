@@ -199,7 +199,7 @@ stays per-world (fine while each occupied world has one player; shared-world mul
 - **Texture audit** — review/expand item & icon art and creature/NPC texture variety.
 - **uGUI theme polish** — remaining icon/symbol pass on the sci-fi theme.
 - **Deferred by design** (see [docs/SPACE_COMBAT_CONCEPT.md](docs/SPACE_COMBAT_CONCEPT.md)): PvP ship
-  combat, per-player ships, large cruisers/bosses.
+  combat, large cruisers/bosses. (Per-player ships shipped in P4.)
 
 ---
 
