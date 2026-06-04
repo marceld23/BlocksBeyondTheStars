@@ -141,21 +141,17 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
   `TwoPlayers_OnDifferentPlanets_HaveIsolatedWorlds` (`3849ccb`).
 
 **✅ P3 DONE — two players can now be on different planets / systems at once with isolated terrain, edits,
-fauna and weather (261 tests).** Known interim limitation: the ship is still shared (one `_ship` stamped
-into each world) — **P4** makes it per-player.
+fauna and weather (261 tests).**
 
-**P4 status (per-player ship, no crew):** the production code is implemented and compiles on branch
-**`p4-per-player-ship-wip`** (session ship-cursor `_current`; `_ship`/`_ships`/`_activeShipId` resolve to
-the served player; per-player ship created on join + stamped into their world; per-player persistence).
-It is parked off `main` because completing it green needs a focused **migration**: (1) set the ship/world
-cursors in the ~25 public test-entry methods that bypass `OnPayload` (single-player tests already work via
-the first-joined fallback; multi-player ones don't); (2) make **docking** look up each player's own ship
-(`_ship.HasModule("docking_module")` must check both partners); (3) update ~15 tests that assume a global
-ship exists after `Start()` (add a player first; fix `TravelTests` jump-drive timing); (4) the **shared-
-world multi-ship** case (two players on one planet) needs the ship-stamp state moved from `LoadedWorld` to
-per-player (today it holds one ship per world — fine for different-planet play, the P3 requirement). A
-player still owns **multiple ships with one active** (the existing fleet, now per-player). `main` stays
-green at the P3 milestone until this migration lands.
+**✅ P4 DONE (merged to `main`, 261 tests) — one ship per player, no crew.** Each player owns their own
+**fleet (multiple ships) with exactly one active ship**, created/loaded on join, stamped into their world,
+persisted per player. Implemented with a single-threaded **ship cursor** (`_current`): `_ship`/`_ships`/
+`_activeShipId` resolve to the served player; `OnPayload` + the public entry methods (`HandleTravel` top,
+`CraftShip`, `Craft`, `RequestDock`) `Serve(session)` first; combat-stat caches recompute on cursor set.
+Persistence is per player (`ship_<playerId>`). Built on branch `p4-per-player-ship-wip` then merged.
+**Remaining edge (→ P7):** two players on the *same* planet share that world's ship-stamp state (anchor/
+heal-tank); fine for different-planet play (the requirement), needs per-player ship-stamp for shared
+worlds.
 
 **Original P4 plan:** the fleet (`_ships`/`_activeShipId` in `GameServerShips`) is
 currently global; make it per-player via a **session cursor** (`_current`) so `_ship`/`_ships`/
