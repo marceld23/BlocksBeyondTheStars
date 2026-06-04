@@ -462,6 +462,15 @@ namespace Spacecraft.Client
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
             Aboard = m.AboardShip;
+
+            // Boarding or leaving a space station is a server-side teleport (to the station interior, or
+            // back to the ship). Snap the body to the new authoritative position — otherwise the player
+            // stayed where they were and appeared to "land on the planet" instead of docking.
+            if (m.StationName != StationName)
+            {
+                RespawnTarget = new Vector3(m.X, m.Y, m.Z);
+            }
+
             StationName = m.StationName;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }
