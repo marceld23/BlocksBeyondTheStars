@@ -107,34 +107,15 @@ docking). Findings:
   /fly /god /instant /ai`, `/help` lists them). The client parses them → `AdminCommandIntent`; the server
   still gates on `IsAdmin` + `CheatsAllowed`. `/bump` stays a chat message.
 
-### Full-system flight — analyzed (planned, not started)
-Goal: replace the per-planet **arena** (±130 units, one planet) with a **system-scale** space you fly
-through, approaching/landing on any planet in the system manually. Analysis (2026-06-04):
-
-**What blocks it today**
-- **No body positions.** `CelestialBody` (`Galaxy.cs`) has no X/Y/Z within a system — only systems have
-  map coords (`MapX/MapY`). There is nowhere to "fly to". A neighbour planet in `SpaceView` is a pure
-  visual.
-- **Single active world.** The server holds one `_world` + one shared `_ship`; `SwitchActiveWorld` rebuilds
-  everything and **displaces all players** (one shared world → two players can't be on different planets).
-- **Arena bounds + destination-agnostic landing.** `LeaveSpaceIntent` has no destination; you always land
-  on the active world's landing zone. Space flight is decoupled from the voxel world (a combat layer).
-
-**Approaches**
-- **(A) Layered flight + hot world-switch (recommended, ~moderate):** add seeded per-body system
-  coordinates, enlarge the space volume, render all bodies, and when the ship reaches a body's approach
-  zone the land action targets THAT body → `SwitchActiveWorld`. Keeps the one-world invariant; multiplayer
-  still converges (all land together). Touch: `Galaxy.cs`/`UniverseGenerator` (body coords),
-  `GameServerSpaceCombat` (volume + approach detect + destination), `SpaceView` (multi-body render),
-  `LeaveSpaceIntent`/travel (carry a destination).
-- **(B) Persistent parallel worlds (high effort/risk):** `Dictionary<id, ServerWorld>` + per-player active
-  world + per-player chunk streaming; enables genuinely simultaneous different-planet play but is a partial
-  rewrite of the world lifecycle (`_world` referenced in ~100 places).
-- **(C) Server-side orbital physics (high/design risk):** server simulates ship trajectory in system space
-  with sphere-of-influence landing; changes the flight UX from arcade to macro.
-
-**Recommendation:** (A) for "fly between planets" without breaking the architecture; (B) only if truly
-simultaneous multi-location multiplayer is the goal.
+### Multi-world + system-scale flight — planned (not started) ⭐
+**Firm requirement:** in multiplayer, players can be on **different planets / different star systems**
+simultaneously, plus **fly between planets in a system and land on any of them**. This makes the
+multi-world core (per-player worlds + per-player ship) mandatory, with a system-scale flight layer on top.
+Full phased design (P1 body positions → **P2 WorldManager indirection, the keystone** → P3 multi-world +
+per-player location → P4 per-player ship → P5 system flight + land-anywhere → P6 inter-system → P7
+cross-world MP polish) in **[docs/MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN.md](docs/MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN.md)**.
+Key enabler found: persistence is already **location-scoped** (the save DB can hold many worlds; only the
+in-memory single `_world` blocks it). Largest piece is P2 (behaviour-preserving `_world` indirection).
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
@@ -147,6 +128,7 @@ simultaneous multi-location multiplayer is the goal.
 ---
 
 ## Reference docs (committed, under docs/)
-Concept/design detail for the larger systems: `SPACE_COMBAT_CONCEPT`, `CLIENT_COMPLETION_PLAN`,
-`CRAFTING_TECH_SHIP_UI_PLAN`, `STATION_SETTLEMENT_EDITOR_PLAN`, `SHIP_TYPE_EDITOR_PLAN`,
-`ADVANCED_GRAPHICS_PLAN`, `SOUND_DESIGN`, `SELF_HOSTING`, `AI_MISSION_BACKEND`, `CLIENT_SHELL_AND_ASSETS`.
+Concept/design detail for the larger systems: `MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN`, `SPACE_COMBAT_CONCEPT`,
+`CLIENT_COMPLETION_PLAN`, `CRAFTING_TECH_SHIP_UI_PLAN`, `STATION_SETTLEMENT_EDITOR_PLAN`,
+`SHIP_TYPE_EDITOR_PLAN`, `ADVANCED_GRAPHICS_PLAN`, `SOUND_DESIGN`, `SELF_HOSTING`, `AI_MISSION_BACKEND`,
+`CLIENT_SHELL_AND_ASSETS`.
