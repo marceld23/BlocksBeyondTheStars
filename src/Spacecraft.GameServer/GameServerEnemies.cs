@@ -16,7 +16,7 @@ public sealed partial class GameServer
     private const float EnemyProximityRange = 4f;
     private const float EnemyAttackReach = 6f;
 
-    private readonly List<CombatEntity> _planetEnemies = new();
+    private List<CombatEntity> _planetEnemies => _worlds.Active.PlanetEnemies;
     private double _enemySpawnTimer;
 
     /// <summary>Hostile creatures currently active on the surface.</summary>

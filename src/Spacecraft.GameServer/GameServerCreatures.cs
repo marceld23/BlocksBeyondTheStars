@@ -37,7 +37,7 @@ public sealed partial class GameServer
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
-    private readonly List<CombatEntity> _creatures = new();
+    private List<CombatEntity> _creatures => _worlds.Active.Creatures;
     private double _creatureSpawnTimer;
     private double _creatureClock;
     private double _creatureBroadcastTimer;

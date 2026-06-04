@@ -21,8 +21,8 @@ public sealed partial class GameServer
     private const int FluidUpdatesPerTick = 400;
     private const byte FluidFull = 8;
 
-    private readonly Dictionary<Vector3i, byte> _fluidLevel = new();
-    private readonly HashSet<Vector3i> _activeFluid = new();
+    private Dictionary<Vector3i, byte> _fluidLevel => _worlds.Active.FluidLevel;
+    private HashSet<Vector3i> _activeFluid => _worlds.Active.ActiveFluid;
     private double _sinceFluid;
     private ushort _waterId, _lavaId;
 

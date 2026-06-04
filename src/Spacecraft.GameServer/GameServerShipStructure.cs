@@ -24,16 +24,16 @@ public sealed partial class GameServer
 
     private const float ShipStationReach = 3f;
 
-    private Vector3i _shipAnchor;
-    private Vector3f _healTank;
-    private bool _shipStamped;
-    private bool _shipIsLayout; // true when the ship was stamped from a designed voxel layout
-    private readonly List<(string Type, Vector3f Pos)> _stations = new();
+    private Vector3i _shipAnchor { get => _worlds.Active.ShipAnchor; set => _worlds.Active.ShipAnchor = value; }
+    private Vector3f _healTank { get => _worlds.Active.HealTank; set => _worlds.Active.HealTank = value; }
+    private bool _shipStamped { get => _worlds.Active.ShipStamped; set => _worlds.Active.ShipStamped = value; }
+    private bool _shipIsLayout { get => _worlds.Active.ShipIsLayout; set => _worlds.Active.ShipIsLayout = value; } // stamped from a designed voxel layout
+    private List<(string Type, Vector3f Pos)> _stations => _worlds.Active.Stations;
 
     // Exterior cosmetic blocks (wings, rear engine nozzles, cockpit canopy) that give the landed
     // hull the space-ship silhouette. Tracked so they count as protected ship structure, but they
     // are outside the interior box so they don't affect the "aboard" check.
-    private readonly HashSet<Vector3i> _shipExtra = new();
+    private HashSet<Vector3i> _shipExtra => _worlds.Active.ShipExtra;
 
     /// <summary>The medbay heal-tank position inside the ship (respawn point), if a ship is placed.</summary>
     public Vector3f HealTank => _healTank;

@@ -17,7 +17,7 @@ namespace Spacecraft.GameServer;
 public sealed partial class GameServer
 {
     private const float LootReach = 6f;
-    private readonly List<StoredContainer> _containers = new();
+    private List<StoredContainer> _containers => _worlds.Active.Containers;
 
     /// <summary>Lootable containers on the current planet (salvage capsules / corpses).</summary>
     public IReadOnlyList<StoredContainer> Containers => _containers;

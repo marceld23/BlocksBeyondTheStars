@@ -23,7 +23,7 @@ public sealed partial class GameServer
     private WreckStructure? _wreck;
     private string _wreckName = string.Empty;
     private bool _wreckClaimed;
-    private readonly List<(string Type, Vector3f Pos)> _wreckMarkers = new();
+    private List<(string Type, Vector3f Pos)> _wreckMarkers => _worlds.Active.WreckMarkers;
 
     /// <summary>Interaction points inside the stamped wreck (loot / module / data_terminal).</summary>
     public IReadOnlyList<(string Type, Vector3f Pos)> WreckMarkers => _wreckMarkers;

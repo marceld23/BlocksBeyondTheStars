@@ -22,7 +22,7 @@ public sealed partial class GameServer
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
 
     /// <summary>A settlement inhabitant. Lives only on the server; the client sees a <c>NetNpc</c>.</summary>
-    private sealed class ServerNpc
+    internal sealed class ServerNpc
     {
         public int Id;
         public string Role = string.Empty;
@@ -38,7 +38,7 @@ public sealed partial class GameServer
         public double WanderPhase;
     }
 
-    private readonly List<ServerNpc> _npcs = new();
+    private List<ServerNpc> _npcs => _worlds.Active.Npcs;
     private double _npcBroadcastTimer;
     private int _nextNpcId = 1;
 

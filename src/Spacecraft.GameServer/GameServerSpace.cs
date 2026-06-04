@@ -14,7 +14,7 @@ public sealed partial class GameServer
     private const int LandingZoneRadius = 8;
     private const int LandingZoneSpacing = 24; // center-to-center so zones never overlap
 
-    private readonly Dictionary<string, LandingZone> _landingZones = new();
+    private Dictionary<string, LandingZone> _landingZones => _worlds.Active.LandingZones;
 
     private void LoadLandingZones()
     {

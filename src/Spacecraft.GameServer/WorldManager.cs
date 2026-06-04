@@ -1,21 +1,43 @@
+using System.Collections.Generic;
 using Spacecraft.Persistence;
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Definitions;
+using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.World;
 using Spacecraft.WorldGeneration;
 
 namespace Spacecraft.GameServer;
 
 /// <summary>
-/// One loaded voxel world for a celestial body: the <see cref="ServerWorld"/> plus the ids that identify
-/// it. This is the unit the <see cref="WorldManager"/> hands out. Per-world runtime state (fauna, flora,
-/// fluids, containers, structures) still lives on <c>GameServer</c> today; it moves here in the multi-world
-/// phase so several bodies can be resident at once (one per occupied location).
+/// One loaded voxel world for a celestial body: the <see cref="ServerWorld"/>, the ids that identify it,
+/// and its per-world runtime state (fauna, enemies, NPCs, flora, fluids, containers, stamped structures,
+/// landing zones). GameServer reaches this state through forwarding properties pointing at the active
+/// world, so several bodies can be resident at once (one per occupied location) with isolated content.
 /// </summary>
 internal sealed class LoadedWorld
 {
     public required ServerWorld World { get; init; }
     public required string LocationId { get; init; }
     public required string PlanetType { get; init; }
+
+    // Per-world runtime state (was scattered across the GameServer partials).
+    public List<CombatEntity> Creatures { get; } = new();
+    public List<CombatEntity> PlanetEnemies { get; } = new();
+    public List<GameServer.ServerNpc> Npcs { get; } = new();
+    public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new();
+    public HashSet<string> SettlementMissionIds { get; } = new();
+    public List<(string Type, Vector3f Pos)> WreckMarkers { get; } = new();
+    public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
+    public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
+    public HashSet<Vector3i> ActiveFluid { get; } = new();
+    public List<(string Type, Vector3f Pos)> Stations { get; } = new();
+    public HashSet<Vector3i> ShipExtra { get; } = new();
+    public Vector3i ShipAnchor { get; set; }
+    public bool ShipStamped { get; set; }
+    public bool ShipIsLayout { get; set; }
+    public Vector3f HealTank { get; set; }
+    public Dictionary<string, LandingZone> LandingZones { get; } = new();
+    public List<StoredContainer> Containers { get; } = new();
 }
 
 /// <summary>

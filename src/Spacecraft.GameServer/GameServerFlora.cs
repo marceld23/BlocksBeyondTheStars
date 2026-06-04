@@ -22,7 +22,7 @@ public sealed partial class GameServer
 
     private readonly HashSet<ushort> _floraIds = new();
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
-    private readonly Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow = new();
+    private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private void InitFlora()
     {

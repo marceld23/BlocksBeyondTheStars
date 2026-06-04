@@ -22,10 +22,10 @@ public sealed partial class GameServer
     private bool _settlementRuined;
     private string _settlementName = string.Empty;
     private string _settlementInhabitant = string.Empty;
-    private readonly List<(string Type, Vector3f Pos)> _settlementMarkers = new();
+    private List<(string Type, Vector3f Pos)> _settlementMarkers => _worlds.Active.SettlementMarkers;
 
     /// <summary>Mission ids offered by this settlement's board (only acceptable/turn-in-able there).</summary>
-    private readonly HashSet<string> _settlementMissionIds = new();
+    private HashSet<string> _settlementMissionIds => _worlds.Active.SettlementMissionIds;
 
     /// <summary>Interaction/spawn points inside the stamped settlement (vendor/mission_board/npc/loot).</summary>
     public IReadOnlyList<(string Type, Vector3f Pos)> SettlementMarkers => _settlementMarkers;
