@@ -130,15 +130,19 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
   **Every per-world gameplay system now has isolated state** — the foundation is complete.
 - ✅ **P3c-1** — multi-world cache scaffolding: `WorldManager.GetOrCreate/Loaded/IsLoaded/Unload` + settable
   Active cursor; per-session `CurrentLocationId` (set on join + travel). Behaviour-preserving (`c0474ae`).
-- ⏭️ **P3c-2 (next, the behaviour change)** — rework the central `Tick` to iterate occupied worlds with the
-  **Active cursor**; per-player message handling sets Active to the sender's world; scope chunk streaming +
-  presence + entity + **block-change** broadcasts per world (`BroadcastToWorld` + `JoinedInActiveWorld`
-  levers); rewrite travel as **per-player** `MovePlayerToLocation` (load dest, relocate just that player,
-  per-player `WorldReset`, unload the old world when empty). **Also relocate the weather/environment state
-  per-world** — `TickWeather`/`BroadcastEnvironment` are per-planet (day length, storm chance, atmosphere/
-  oxygen, clouds, weather RNG), so they must run per world, not globally. Add multi-world tests (two
-  sessions on two bodies: isolated edits/presence/weather, unload-on-empty). This is the step that lets two
-  players be on different planets at once.
+- ✅ **P3c-2a/b** — relocated weather/environment state per-world; per-world init reads the Active world,
+  not global `_meta` (`bf8be4c`, `b450491`).
+- ✅ **P3c-2c** — restructured the central `Tick` to iterate occupied worlds with the Active cursor; added
+  `JoinedInActiveWorld`/`BroadcastToWorld`/`OccupiedLocations`/`SetActiveWorld`; scoped chunk streaming +
+  presence + entity + block-change broadcasts per world; `OnPayload` sets Active to the sender's world
+  (`e283a88`).
+- ✅ **P3c-2d** — **per-player travel** (`HandleTravel` moves only the requester via cached `LoadWorld`,
+  per-player `WorldReset`, unload-on-empty); join/disconnect world-scoped; test
+  `TwoPlayers_OnDifferentPlanets_HaveIsolatedWorlds` (`3849ccb`).
+
+**✅ P3 DONE — two players can now be on different planets / systems at once with isolated terrain, edits,
+fauna and weather (261 tests).** Known interim limitation: the ship is still shared (one `_ship` stamped
+into each world) — **P4** makes it per-player.
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
