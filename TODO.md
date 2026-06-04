@@ -128,13 +128,17 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
   enemy/npc/fluid sim timers) into `LoadedWorld`. Weather + time-of-day stay global for now (all resident
   worlds share the sky — a known temporary limitation, refined in P7). Behaviour-preserving (`be5d48e`).
   **Every per-world gameplay system now has isolated state** — the foundation is complete.
-- ⏭️ **P3c (next, the behaviour change)** — make `WorldManager` cache multiple resident worlds (load on
-  demand, unload+save when empty, refcount); add per-session `CurrentLocationId`; rework the central `Tick`
-  to iterate occupied worlds with the **Active cursor** (set `_worlds.Active` per world) and per-player ops
-  to set Active to the player's world; scope chunk streaming + presence + entity broadcasts per world; make
-  `WorldReset` per-player; replace global `SwitchActiveWorld` with `MovePlayerToLocation`. Needs new
-  multi-world tests (two sessions, two locations: isolated edits/presence, unload-on-empty). This is the
-  step that actually lets two players be on different planets at once.
+- ✅ **P3c-1** — multi-world cache scaffolding: `WorldManager.GetOrCreate/Loaded/IsLoaded/Unload` + settable
+  Active cursor; per-session `CurrentLocationId` (set on join + travel). Behaviour-preserving (`c0474ae`).
+- ⏭️ **P3c-2 (next, the behaviour change)** — rework the central `Tick` to iterate occupied worlds with the
+  **Active cursor**; per-player message handling sets Active to the sender's world; scope chunk streaming +
+  presence + entity + **block-change** broadcasts per world (`BroadcastToWorld` + `JoinedInActiveWorld`
+  levers); rewrite travel as **per-player** `MovePlayerToLocation` (load dest, relocate just that player,
+  per-player `WorldReset`, unload the old world when empty). **Also relocate the weather/environment state
+  per-world** — `TickWeather`/`BroadcastEnvironment` are per-planet (day length, storm chance, atmosphere/
+  oxygen, clouds, weather RNG), so they must run per world, not globally. Add multi-world tests (two
+  sessions on two bodies: isolated edits/presence/weather, unload-on-empty). This is the step that lets two
+  players be on different planets at once.
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
