@@ -1287,6 +1287,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // Don't let the player wall themselves in: refuse a block in the cell they occupy (feet or head).
+        var feet = session.State.Position;
+        int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
+        if (pos.X == fx && pos.Z == fz && (pos.Y == fy || pos.Y == fy + 1))
+        {
+            Reject(session, "place", "You can't place a block where you're standing.");
+            return;
+        }
+
         if (!WithinReach(session.State, pos))
         {
             Reject(session, "place", "Out of reach.");

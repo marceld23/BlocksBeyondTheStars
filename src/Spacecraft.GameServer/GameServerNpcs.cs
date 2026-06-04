@@ -83,7 +83,10 @@ public sealed partial class GameServer
                 continue; // loot markers etc. don't get an NPC
             }
 
-            _npcs.Add(MakeNpc(role, theme, robotic, pos, rng));
+            // NPCs have no physics, so place their feet exactly on top of the settlement floor block
+            // (the marker Y sits inside it) — otherwise they render sunk into the ground.
+            var standing = new Vector3f(pos.X, _settlementMin.Y + 1f, pos.Z);
+            _npcs.Add(MakeNpc(role, theme, robotic, standing, rng));
         }
 
         _log.Info($"Spawned {_npcs.Count} NPCs at settlement '{_settlementName}'.");

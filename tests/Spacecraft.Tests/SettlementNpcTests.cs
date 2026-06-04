@@ -78,9 +78,13 @@ public sealed class SettlementNpcTests : IDisposable
                     _ => throw new Xunit.Sdk.XunitException($"Unexpected NPC role '{npc.Role}'."),
                 };
 
+                // The NPC stands on a matching marker's column (its feet are grounded on the floor top, so
+                // only the horizontal position must match the marker).
                 Assert.Contains(
                     server.SettlementMarkers,
-                    m => m.Type == markerType && m.Pos.DistanceSquared(npc.Home) < 0.001f);
+                    m => m.Type == markerType
+                         && System.Math.Abs(m.Pos.X - npc.Home.X) < 0.001f
+                         && System.Math.Abs(m.Pos.Z - npc.Home.Z) < 0.001f);
 
                 // Freshly spawned (no tick yet): the NPC sits at its home marker.
                 Assert.True(npc.Pos.DistanceSquared(npc.Home) < 0.001f);

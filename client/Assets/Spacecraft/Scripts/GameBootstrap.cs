@@ -160,6 +160,10 @@ namespace Spacecraft.Client
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
+        /// <summary>Set when the server respawns us (death) — the player controller snaps the camera/body
+        /// to this point (the ship's heal-tank) on the next frame, then clears it.</summary>
+        public Vector3? RespawnTarget;
+
         // Latest authoritative inventory (personal + ship cargo) for the UI.
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
@@ -285,7 +289,11 @@ namespace Spacecraft.Client
                 LastMessage = m.Docked ? $"Docked with {m.Partner}" : m.Reason;
             };
             Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";
-            Network.RespawnNoticeReceived += m => LastMessage = m.Reason;
+            Network.RespawnNoticeReceived += m =>
+            {
+                LastMessage = m.Reason;
+                RespawnTarget = new Vector3(m.X, m.Y, m.Z); // teleport the body to the heal-tank on respawn
+            };
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
             Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };

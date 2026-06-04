@@ -1118,12 +1118,37 @@ namespace Spacecraft.Client
             {
                 "weapon" => def.Tool?.Kind == ToolKind.Weapon,
                 "tool" => def.Category == ItemCategory.Tool && def.Tool?.Kind != ToolKind.Weapon,
-                "suit" => def.ArmorResistance > 0f || def.OxygenBonus > 0f,
+                "suit" => IsSuitGear(def),
                 "consumable" => def.Category == ItemCategory.Consumable,
-                "component" => def.Category == ItemCategory.Component || def.Category == ItemCategory.Material,
+                "component" => (def.Category == ItemCategory.Component || def.Category == ItemCategory.Material) && !IsSuitGear(def),
                 "block" => def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock),
                 _ => true,
             };
+        }
+
+        /// <summary>Suit gear: armour / oxygen items plus the wearable suit modules (lamp, jetpack,
+        /// extractors, stealth, teleporter, comms/scanners) — so the "suit" filter shows all of them, not
+        /// just armour.</summary>
+        private static bool IsSuitGear(Spacecraft.Shared.Definitions.ItemDefinition def)
+        {
+            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f)
+            {
+                return true;
+            }
+
+            switch (def.Key)
+            {
+                case "suit_lamp":
+                case "jetpack":
+                case "oxygen_extractor":
+                case "stealth_suit":
+                case "suit_teleporter":
+                case "comm_radio":
+                case "radar_scanner":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private bool MatchesSearch(string label)

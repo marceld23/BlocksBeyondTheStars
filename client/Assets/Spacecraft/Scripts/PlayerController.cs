@@ -121,6 +121,15 @@ namespace Spacecraft.Client
                 _settling = true; // hold near spawn until the ground/ship chunk streams in
             }
 
+            // On death the server respawns us at the ship's heal-tank — teleport the body there.
+            if (Game != null && Game.RespawnTarget.HasValue)
+            {
+                _spawnPos = Game.RespawnTarget.Value;
+                SnapTo(_spawnPos);
+                Game.RespawnTarget = null;
+                _settling = true; // hold near the heal-tank until its chunk is streamed
+            }
+
             // While terrain is still streaming the spawn chunk may have no collider yet, so the
             // player would fall straight through. Keep pulling them back to spawn until they land on
             // real ground — prevents spawning underground in a cave when chunks load slowly (builds).

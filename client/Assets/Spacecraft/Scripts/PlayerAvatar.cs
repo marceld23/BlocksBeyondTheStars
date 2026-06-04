@@ -55,6 +55,14 @@ namespace Spacecraft.Client
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
             AddCube("Visor", _head, new Vector3(0f, 0.03f, 0.24f), new Vector3(0.40f, 0.15f, 0.06f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex));
 
+            // Eyes so the face reads (settlement NPCs especially, who go without helmets).
+            var eyeWhite = Lit(new Color(0.93f, 0.94f, 0.98f), null);
+            var pupil = Lit(new Color(0.06f, 0.06f, 0.09f), null);
+            AddCube("EyeL", _head, new Vector3(-0.09f, 0.045f, 0.25f), new Vector3(0.10f, 0.07f, 0.03f), eyeWhite);
+            AddCube("EyeR", _head, new Vector3(0.09f, 0.045f, 0.25f), new Vector3(0.10f, 0.07f, 0.03f), eyeWhite);
+            AddCube("PupilL", _head, new Vector3(-0.09f, 0.045f, 0.266f), new Vector3(0.045f, 0.05f, 0.02f), pupil);
+            AddCube("PupilR", _head, new Vector3(0.09f, 0.045f, 0.266f), new Vector3(0.045f, 0.05f, 0.02f), pupil);
+
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);
             _armR = AddArm("ArmRight", 0.32f, out _elbowR, out _handR);
