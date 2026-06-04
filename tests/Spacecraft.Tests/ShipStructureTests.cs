@@ -60,6 +60,29 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void TwoPlayers_GetSeparateShips_AtDistinctStartPoints()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            // 'Host' was added by the helper; add a second player on the same planet.
+            server.AddLocalPlayer("Mate");
+
+            var hostAnchor = server.ShipAnchorOf("Host");
+            var mateAnchor = server.ShipAnchorOf("Mate");
+
+            // Each player's ship is stamped at its own anchor — they don't share a start point.
+            Assert.NotEqual(default, hostAnchor);
+            Assert.NotEqual(default, mateAnchor);
+            Assert.NotEqual(hostAnchor, mateAnchor);
+
+            // Both ships are mining-protected (each player's hull, not just the last-stamped one).
+            Assert.True(server.IsProtectedShipBlock(hostAnchor.X, hostAnchor.Y, hostAnchor.Z));
+            Assert.True(server.IsProtectedShipBlock(mateAnchor.X, mateAnchor.Y, mateAnchor.Z));
+        }
+    }
+
+    [Fact]
     public void ShipHull_IsMiningProtected()
     {
         var server = Started(placeShip: true, out var repo);

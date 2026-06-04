@@ -17,23 +17,27 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    // Hull half-extents, derived from the active ship design in StampShip (defaults = starter).
-    private int _shipHalfX = 2;
-    private int _shipHeight = 4;
-    private int _shipHalfZ = 3;
-
     private const float ShipStationReach = 3f;
 
-    private Vector3i _shipAnchor { get => _worlds.Active.ShipAnchor; set => _worlds.Active.ShipAnchor = value; }
-    private Vector3f _healTank { get => _worlds.Active.HealTank; set => _worlds.Active.HealTank = value; }
-    private bool _shipStamped { get => _worlds.Active.ShipStamped; set => _worlds.Active.ShipStamped = value; }
-    private bool _shipIsLayout { get => _worlds.Active.ShipIsLayout; set => _worlds.Active.ShipIsLayout = value; } // stamped from a designed voxel layout
-    private List<(string Type, Vector3f Pos)> _stations => _worlds.Active.Stations;
+    /// <summary>The ship-stamp record of the player currently being served (the ship cursor). Each player
+    /// has their own ship in their world; per-player ops (stamp, heal-tank, stations) use this one.</summary>
+    private ShipStamp CurStamp => _worlds.Active.StampFor(_current?.State.PlayerId ?? string.Empty);
+
+    // Hull half-extents, derived from the active ship design in StampShip (defaults = starter).
+    private int _shipHalfX { get => CurStamp.HalfX; set => CurStamp.HalfX = value; }
+    private int _shipHeight { get => CurStamp.Height; set => CurStamp.Height = value; }
+    private int _shipHalfZ { get => CurStamp.HalfZ; set => CurStamp.HalfZ = value; }
+
+    private Vector3i _shipAnchor { get => CurStamp.Anchor; set => CurStamp.Anchor = value; }
+    private Vector3f _healTank { get => CurStamp.HealTank; set => CurStamp.HealTank = value; }
+    private bool _shipStamped { get => CurStamp.Stamped; set => CurStamp.Stamped = value; }
+    private bool _shipIsLayout { get => CurStamp.IsLayout; set => CurStamp.IsLayout = value; } // designed voxel layout
+    private List<(string Type, Vector3f Pos)> _stations => CurStamp.Stations;
 
     // Exterior cosmetic blocks (wings, rear engine nozzles, cockpit canopy) that give the landed
     // hull the space-ship silhouette. Tracked so they count as protected ship structure, but they
     // are outside the interior box so they don't affect the "aboard" check.
-    private HashSet<Vector3i> _shipExtra => _worlds.Active.ShipExtra;
+    private HashSet<Vector3i> _shipExtra => CurStamp.Extra;
 
     /// <summary>The medbay heal-tank position inside the ship (respawn point), if a ship is placed.</summary>
     public Vector3f HealTank => _healTank;
@@ -42,13 +46,10 @@ public sealed partial class GameServer
     /// <summary>Writes the ship hull into the world at the start landing zone (idempotent enough to self-heal).</summary>
     private void StampShip()
     {
-        int cx = 0, cz = 0;
-        foreach (var zone in _landingZones.Values)
-        {
-            cx = zone.CenterX;
-            cz = zone.CenterZ;
-            break; // anchor at the first landing zone
-        }
+        // Anchor at the SERVED player's own landing zone, so two players on one planet each get their own
+        // ship at their own start point (never a shared one).
+        var zone = _current != null ? EnsureLandingZone(_current.State.PlayerId) : null;
+        int cx = zone?.CenterX ?? 0, cz = zone?.CenterZ ?? 0;
 
         int y0 = _generator.SurfaceHeight(_world.Planet, cx, cz);
         _shipAnchor = new Vector3i(cx, y0, cz);
@@ -407,23 +408,36 @@ public sealed partial class GameServer
     /// <summary>True if the cell is part of the (indestructible) ship hull/interior fittings.</summary>
     private bool IsShipBlock(Vector3i p)
     {
-        if (!_shipStamped)
+        // Protected if the block belongs to ANY player's ship in this world.
+        foreach (var s in _worlds.Active.ShipStamps.Values)
+        {
+            if (BlockInStamp(s, p))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a block belongs to one ship's structure (hull box + silhouette, or layout cells).</summary>
+    private static bool BlockInStamp(ShipStamp s, Vector3i p)
+    {
+        if (!s.Stamped)
         {
             return false;
         }
 
-        // A designed (layout) ship protects exactly its placed cells (its shape is irregular); the
-        // parametric box ship protects its whole hull box plus the exterior silhouette cells.
-        if (_shipIsLayout)
+        if (s.IsLayout)
         {
-            return _shipExtra.Contains(p);
+            return s.Extra.Contains(p); // designed ship protects exactly its placed cells
         }
 
-        int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
-        bool inHull = p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
-               && p.Y >= y0 && p.Y <= y0 + _shipHeight
-               && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
-        return inHull || _shipExtra.Contains(p);
+        var a = s.Anchor;
+        bool inHull = p.X >= a.X - s.HalfX && p.X <= a.X + s.HalfX
+               && p.Y >= a.Y && p.Y <= a.Y + s.Height
+               && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ;
+        return inHull || s.Extra.Contains(p);
     }
 
     /// <summary>Test/diagnostic accessor: whether a world cell is protected ship structure.</summary>
@@ -432,18 +446,29 @@ public sealed partial class GameServer
     /// <summary>The ship hull anchor (floor centre) block, or default if no ship is placed.</summary>
     public Vector3i ShipAnchorBlock => _shipAnchor;
 
-    /// <summary>True if the position is within the ship hull's bounding box.</summary>
+    /// <summary>A specific player's ship anchor in the active world (test/inspection) — each player has
+    /// their own ship at their own landing zone.</summary>
+    public Vector3i ShipAnchorOf(string playerId) => _worlds.Active.StampFor(playerId).Anchor;
+
+    /// <summary>True if the position is within ANY player's ship hull box in this world (so no one builds
+    /// inside a ship, no flora/creatures spawn there, and standing inside any ship counts as "aboard").</summary>
     private bool ShipInteriorContains(Vector3f p)
     {
-        if (!_shipStamped)
+        foreach (var s in _worlds.Active.ShipStamps.Values)
         {
-            return false;
+            if (s.Stamped)
+            {
+                var a = s.Anchor;
+                if (p.X >= a.X - s.HalfX && p.X <= a.X + s.HalfX
+                    && p.Y >= a.Y && p.Y <= a.Y + s.Height
+                    && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ)
+                {
+                    return true;
+                }
+            }
         }
 
-        int cx = _shipAnchor.X, y0 = _shipAnchor.Y, cz = _shipAnchor.Z;
-        return p.X >= cx - _shipHalfX && p.X <= cx + _shipHalfX
-               && p.Y >= y0 && p.Y <= y0 + _shipHeight
-               && p.Z >= cz - _shipHalfZ && p.Z <= cz + _shipHalfZ;
+        return false;
     }
 
     /// <summary>

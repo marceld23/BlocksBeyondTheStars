@@ -562,6 +562,7 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
+            SetCurrent(session); // per-player ship cursor: own heal-tank/aboard/stamp resolve correctly
             UpdateAboard(session);
 
             var p = session.State;

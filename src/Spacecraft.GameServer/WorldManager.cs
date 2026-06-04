@@ -30,14 +30,25 @@ internal sealed class LoadedWorld
     public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
-    public List<(string Type, Vector3f Pos)> Stations { get; } = new();
-    public HashSet<Vector3i> ShipExtra { get; } = new();
-    public Vector3i ShipAnchor { get; set; }
-    public bool ShipStamped { get; set; }
-    public bool ShipIsLayout { get; set; }
-    public Vector3f HealTank { get; set; }
     public Dictionary<string, LandingZone> LandingZones { get; } = new();
     public List<StoredContainer> Containers { get; } = new();
+
+    // Per-player ship structures stamped into THIS world (one per player present, each at their own
+    // landing zone). Block protection + interior checks cover every player's ship; respawn/stations use
+    // the player's own. Keyed by player id.
+    public Dictionary<string, ShipStamp> ShipStamps { get; } = new();
+
+    /// <summary>The ship-stamp record for a player in this world, created empty on first access.</summary>
+    public ShipStamp StampFor(string playerId)
+    {
+        if (!ShipStamps.TryGetValue(playerId, out var stamp))
+        {
+            stamp = new ShipStamp();
+            ShipStamps[playerId] = stamp;
+        }
+
+        return stamp;
+    }
 
     // Settlement stamp state.
     public bool SettlementStamped { get; set; }
@@ -84,6 +95,22 @@ internal sealed class LoadedWorld
     public string Biome { get; set; } = "rock";
     public double OxygenExtractability { get; set; }
     public System.Random EnvRng { get; set; } = new(1);
+}
+
+/// <summary>One player's ship stamped into a world (its hull anchor + size, heal-tank, station markers and
+/// protected blocks). Each player gets their own at their own landing zone, so two players on one planet
+/// never share a start point or ship.</summary>
+internal sealed class ShipStamp
+{
+    public bool Stamped { get; set; }
+    public bool IsLayout { get; set; }           // stamped from a designed voxel layout (irregular shape)
+    public Vector3i Anchor { get; set; }          // hull floor-centre block
+    public int HalfX { get; set; } = 2;           // hull half-extents (from the ship design)
+    public int Height { get; set; } = 4;
+    public int HalfZ { get; set; } = 3;
+    public Vector3f HealTank { get; set; }        // medbay respawn point
+    public HashSet<Vector3i> Extra { get; } = new(); // exterior/silhouette + layout cells (protected)
+    public List<(string Type, Vector3f Pos)> Stations { get; } = new();
 }
 
 /// <summary>
