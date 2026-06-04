@@ -143,10 +143,13 @@ namespace Spacecraft.Client
             {
                 var o = WorldConstants.ChunkOrigin(kv.Key);
                 var c = kv.Value;
+                // Longitude wraps: place the chunk at its scene X nearest the player so the map has no seam.
+                float sxo = Game.SceneX(o.X);
                 for (int lx = 0; lx < n; lx++)
                 for (int lz = 0; lz < n; lz++)
                 {
-                    int wx = o.X + lx, wz = o.Z + lz;
+                    float wx = sxo + lx;
+                    int wz = o.Z + lz;
                     int px = Mathf.FloorToInt((wx - _ox) / step), py = Mathf.FloorToInt((wz - _oz) / step);
                     if (px < 0 || px >= size || py < 0 || py >= size)
                     {
@@ -272,7 +275,8 @@ namespace Spacecraft.Client
 
         private Text Marker(float wx, float wz, float size, Color color, string glyph)
         {
-            float u = (wx - _ox) / _side, v = (wz - _oz) / _side;
+            // Longitude wraps: map the marker's world X to the scene X nearest the player (no seam on the map).
+            float u = (Game.SceneX(wx) - _ox) / _side, v = (wz - _oz) / _side;
             if (u < 0f || u > 1f || v < 0f || v > 1f)
             {
                 return null;

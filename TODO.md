@@ -195,10 +195,11 @@ StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
 
 ### Not started / larger future work
-- **World wrap (walk around the planet)** — make X a wrapping longitude (cylinder world) so you can walk
-  east and arrive back at the start, with a **seam-free** edge (east edge lines up exactly with west:
-  terrain/biomes/caves/structures continuous). Solved generation-side by circular-domain (periodic) noise;
-  the cost is routing every X coordinate through one wrap helper. Full plan + phasing (W0–W5) in
+- **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder
+  world), so you can walk east and arrive back at the start with a **seam-free** edge (terrain/biomes/caves/
+  ore/structures continuous across X = 0 ≡ X = 6000). Seam-free generation via circular-domain noise; server
+  + client + persistence + interaction all route X through one wrap helper. **Remaining: W5 (poles)** — bound
+  latitude (Z) with an ice-wall/barrier biome. Full plan + progress in
   [docs/WORLD_WRAP_PLAN.md](docs/WORLD_WRAP_PLAN.md).
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
   Full research in [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).

@@ -137,8 +137,12 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   system** requires a fitted **`jump_generator`** module. On arrival the world rebuilds at the destination.
 
 ### Day/night & weather
-- **Day/night is by location** — the world's X axis is a longitude, so a planet has a real day/night
-  terminator: one player can be in daylight while another, far away, is in night. The clock still advances.
+- **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings
+  you back to where you started, as if the planet were round. The seam is invisible (terrain, biomes, caves
+  and structures line up exactly). North/south (latitude) does not wrap.
+- **Day/night is by location** — because X is a longitude, a planet has a real day/night terminator: one
+  player can be in daylight while another, far away, is in night, and one lap around the world is one day.
+  The clock still advances.
 - **Weather is per biome** — a stormy biome can rain while a neighbouring clear biome stays sunny; some
   biomes are reliably wetter than others. Weather is hidden + silent in caves/underground. Admins can
   override time/weather (see §7).

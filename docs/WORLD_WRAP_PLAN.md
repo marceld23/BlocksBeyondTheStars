@@ -1,9 +1,24 @@
 # World Wrap (walk around the planet) — Plan
 
-**Status:** planned, not started. **Goal:** a player can walk continuously east (or west) and arrive
-back at their start, as if the planet were a sphere — and **the seam must be invisible: the eastern edge
-of the map must line up exactly with the western edge** (terrain height, biomes, caves, ore, structures all
-continuous across the wrap). Written in English per project doc policy.
+**Status:** W0–W4 shipped (you can walk around the world seamlessly); **W5 (poles) remaining**. **Goal:** a
+player can walk continuously east (or west) and arrive back at their start, as if the planet were a sphere —
+and **the seam must be invisible: the eastern edge of the map must line up exactly with the western edge**
+(terrain height, biomes, caves, ore, structures all continuous across the wrap). Written in English per
+project doc policy.
+
+> **Progress (2026-06-04):**
+> - ✅ **W0** — `WorldConstants.Circumference = 6000` (375 chunks around) + `WrapX`/`WrapDeltaX`/
+>   `CanonicalChunk`/`CanonicalBlock` helpers.
+> - ✅ **W1** — seam-free generation via circular-domain noise (`Noise.FbmCylX`/`ValueCylX`/`Value4D`);
+>   surface height, biomes, caves, ore all periodic across X = 0 ≡ X = C; proven by `WorldWrapTests`.
+> - ✅ **W2** — `ServerWorld`/`ClientWorld` canonicalize the block/chunk/persistence boundary.
+> - ✅ **W3** — server wraps player longitude (`HandleMove`) and streams across the seam.
+> - ✅ **W4** — client renders seamlessly (`GameBootstrap.SceneX` + per-block chunk reposition; entities/
+>   remotes/NPCs via `ScenePos`; world map wrap-aware) and interaction is cross-seam (canonical mine/place/
+>   repair, wrap-aware `WithinReach`/`LandingZone.Contains`/wreck mask).
+> - ⏳ **W5** — poles (bound latitude Z with an ice-wall/barrier biome). Not started.
+> - ⏳ **Deferred** — a rare floating-origin rebase after very many laps (float precision); the world map
+>   waypoint stays in scene space (goes stale after a full lap). Neither affects normal play.
 
 ---
 
