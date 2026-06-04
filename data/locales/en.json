@@ -98,6 +98,7 @@
   "blueprint.comm_radio.desc": "Craft a comm radio to talk to other players.",
   "ui.chat.hint": "Enter: chat",
   "ui.chat.send_hint": "Enter to send · Esc to cancel",
+  "ui.admin.help": "Admin (if allowed): /give <item> [count] [player] · /tp <x> <y> <z> · /tpp <player> · /settime <day|night> · /setweather <clear|storm> · /fly · /god · /instant · /bump <note>",
   "creature.generic.name": "Creature",
   "item.machete.name": "Machete",
   "item.machete.desc": "A heavy blade for close combat.",

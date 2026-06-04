@@ -183,26 +183,26 @@ planets get the ore: any / airless / with-atmosphere / single-biome / multi-biom
   server replies with the saved filename. Use it to capture a bug in the moment.
 
 ### Admin cheats (world admin / admin only)
-These are **server-authoritative** and gated twice: the player must be an **admin** (`IsAdmin` — the world
-creator, or a name in the server's admin list) **and** the server's `CheatsAllowed` rule must be on. Every
-use is logged (`[CHEAT] …`).
+Type these **in the chat box** (Enter to open). They are **server-authoritative** and gated twice: the
+player must be an **admin** (`IsAdmin` — the world creator, or a name in the server's admin list) **and**
+the server's `CheatsAllowed` rule must be on; otherwise the command is rejected with a message. Every use
+is logged (`[CHEAT] …`). Type **`/help`** in chat to see the list in-game.
 
 | Command | Effect |
 |---|---|
-| `give_item <item> <count> [player]` | Give an item to yourself or a target player |
-| `teleport_to_location <x> <y> <z>` | Teleport to coordinates |
-| `teleport_to_player <name>` | Teleport to a player |
-| `set_time <day\|night\|…>` | Set the world time of day |
-| `set_weather <clear\|storm\|…>` | Set the world weather |
-| `fly` | Toggle creative flight (no gravity) |
-| `godmode` | Toggle invulnerability |
-| `instant_build` | Toggle free/instant crafting |
-| `ai_mission <prompt>` | Generate an AI mission (content tool, not a cheat) |
+| `/give <item> [count] [player]` | Give an item to yourself or a target player |
+| `/tp <x> <y> <z>` | Teleport to coordinates |
+| `/tpp <player>` | Teleport to a player |
+| `/settime <day\|night\|…>` | Set the world time of day |
+| `/setweather <clear\|storm\|…>` | Set the world weather |
+| `/fly` | Toggle creative flight (no gravity) |
+| `/god` | Toggle invulnerability |
+| `/instant` | Toggle free/instant crafting |
+| `/ai <prompt>` | Generate an AI mission (content tool, not a cheat) |
+| `/help` | List the admin commands in chat |
 
-> **Note (current state):** these cheats are delivered as an `AdminCommandIntent`. There is **no in-game
-> admin console yet** to type them — only `/bump` is entered via chat. Until an admin console UI is added,
-> the cheats are reachable programmatically / via the admin backend, not from the in-game chat box. This
-> gap is tracked in [TODO.md](../TODO.md).
+The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` stays a normal chat
+message the server intercepts. Non-admins typing a command just get a rejection toast.
 
 ---
 

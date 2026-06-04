@@ -86,7 +86,7 @@ namespace Spacecraft.Client
             if (enter)
             {
                 string t = text.Trim();
-                if (t.Length > 0)
+                if (t.Length > 0 && !TryAdminCommand(t))
                 {
                     Game.Network.SendChat(t);
                 }
@@ -96,6 +96,91 @@ namespace Spacecraft.Client
             Game.ChatTyping = false;
             _input.text = string.Empty;
             _inputRow.gameObject.SetActive(false);
+            RefreshLog();
+        }
+
+        /// <summary>
+        /// Parses an admin/cheat slash-command typed in chat and sends it as an <c>AdminCommandIntent</c>
+        /// (the server validates the player is an admin and that cheats are allowed, then replies with a
+        /// toast). Returns true if the text was a command (so it isn't also broadcast as chat). <c>/bump</c>
+        /// is intentionally NOT handled here — it stays a chat message the server intercepts.
+        /// </summary>
+        private bool TryAdminCommand(string t)
+        {
+            if (t.Length == 0 || t[0] != '/')
+            {
+                return false;
+            }
+
+            var p = t.Split((char[])null, System.StringSplitOptions.RemoveEmptyEntries);
+            var net = Game.Network;
+            switch (p[0].ToLowerInvariant())
+            {
+                case "/help":
+                case "/admin":
+                    LocalLine(L("ui.admin.help"));
+                    return true;
+
+                case "/give":
+                    if (p.Length < 2) { LocalLine("usage: /give <item> [count] [player]"); return true; }
+                    int count = p.Length >= 3 && int.TryParse(p[2], out var c) ? c : 1;
+                    string who = p.Length >= 4 ? p[3].TrimStart('@') : null;
+                    net.SendAdminCommand("give_item", stringArg: p[1], intArg: count, targetPlayer: who);
+                    return true;
+
+                case "/tp":
+                    if (p.Length >= 4 && TryF(p[1], out var x) && TryF(p[2], out var y) && TryF(p[3], out var z))
+                    {
+                        net.SendAdminCommand("teleport_to_location", x: x, y: y, z: z);
+                    }
+                    else
+                    {
+                        LocalLine("usage: /tp <x> <y> <z>");
+                    }
+
+                    return true;
+
+                case "/tpp":
+                    if (p.Length < 2) { LocalLine("usage: /tpp <player>"); return true; }
+                    net.SendAdminCommand("teleport_to_player", targetPlayer: p[1]);
+                    return true;
+
+                case "/settime":
+                    if (p.Length < 2) { LocalLine("usage: /settime <day|night|dawn|dusk>"); return true; }
+                    net.SendAdminCommand("set_time", stringArg: p[1]);
+                    return true;
+
+                case "/setweather":
+                    if (p.Length < 2) { LocalLine("usage: /setweather <clear|cloudy|storm>"); return true; }
+                    net.SendAdminCommand("set_weather", stringArg: p[1]);
+                    return true;
+
+                case "/fly": net.SendAdminCommand("fly"); return true;
+                case "/god": net.SendAdminCommand("godmode"); return true;
+                case "/instant": net.SendAdminCommand("instant_build"); return true;
+
+                case "/ai":
+                case "/ai_mission":
+                    net.SendAdminCommand("ai_mission", stringArg: t.Substring(p[0].Length).Trim());
+                    return true;
+
+                default:
+                    return false; // not an admin command (e.g. /bump) → send as normal chat
+            }
+        }
+
+        private static bool TryF(string s, out float v)
+            => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v);
+
+        /// <summary>Appends a local-only system line to the chat log (command help / usage errors).</summary>
+        private void LocalLine(string s)
+        {
+            _lines.Add($"<color=#7fd4ff>{s}</color>");
+            if (_lines.Count > MaxLog)
+            {
+                _lines.RemoveAt(0);
+            }
+
             RefreshLog();
         }
 

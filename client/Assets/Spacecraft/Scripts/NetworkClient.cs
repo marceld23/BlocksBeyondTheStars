@@ -96,6 +96,15 @@ namespace Spacecraft.Client
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
         public void SendChat(string text) => Send(new ChatIntent { Text = text });
 
+        // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).
+        public void SendAdminCommand(string command, string stringArg = null, int intArg = 0,
+            string targetPlayer = null, float x = 0f, float y = 0f, float z = 0f)
+            => Send(new AdminCommandIntent
+            {
+                Command = command, StringArg = stringArg, IntArg = intArg,
+                TargetPlayer = targetPlayer, X = x, Y = y, Z = z,
+            });
+
         public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });
 
         // --- Ship docking (M18) ---

@@ -84,9 +84,6 @@ SQLite persistence.
    place gestures and richer per-temperament creature/NPC idle gestures.
 4. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
    Missing: projectile arcs, melee swing arcs, and a visible suit-lamp cone (currently a shader spotlight).
-5. **In-game admin console.** The admin cheats (`give_item`, `teleport_*`, `set_time`/`set_weather`, `fly`,
-   `godmode`, `instant_build`) exist server-side via `AdminCommandIntent` but have **no in-game UI** to
-   enter them — only `/bump` is typed in chat. Needs an admin console (typed commands → `AdminCommandIntent`).
 
 ### Landing + docking — reviewed (2026-06-04)
 End-to-end trace done (launch/land, same-system travel, hyperjump, space-station boarding, player↔player
@@ -106,6 +103,9 @@ docking). Findings:
 - **Menu closes on launch/jump** — the gameplay menu auto-closes when a launch/landing flight sequence
   begins (planet or station → `SpaceViewActive`) or a hyperspace jump starts (`HyperjumpStarted`), so the
   launch/warp animation is visible (`GameMenu`).
+- **In-game admin console** — admin cheats are now typed in chat (`/give /tp /tpp /settime /setweather
+  /fly /god /instant /ai`, `/help` lists them). The client parses them → `AdminCommandIntent`; the server
+  still gates on `IsAdmin` + `CheatsAllowed`. `/bump` stays a chat message.
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
