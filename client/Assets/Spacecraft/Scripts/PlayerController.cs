@@ -60,6 +60,7 @@ namespace Spacecraft.Client
             if (Camera != null)
             {
                 _viewmodel = Camera.gameObject.AddComponent<Viewmodel>();
+                _viewmodel.Game = Game;
                 _baseFov = Camera.fieldOfView;
             }
 
@@ -469,7 +470,7 @@ namespace Spacecraft.Client
                 // (the server accumulates effort until the block breaks).
                 if (Time.time >= _nextDrillMine)
                 {
-                    _nextDrillMine = Time.time + 0.18f;
+                    _nextDrillMine = Time.time + 0.28f; // slower, weightier mining (was 0.18)
                     var b = FloorVec(hit.point - hit.normal * 0.5f);
                     Game.Network?.SendMine(b.x, b.y, b.z);
                 }

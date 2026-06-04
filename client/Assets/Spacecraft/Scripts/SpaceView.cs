@@ -443,6 +443,7 @@ namespace Spacecraft.Client
             _entities.Clear();
             _dropIds.Clear();
             _beams.Clear(); // their GameObjects were children of _root (already destroyed)
+            _asteroidMat = null; // material lived under the destroyed view; rebuild next launch
             _ship = null;
             _exhaust = null;
             _active = false;
@@ -649,11 +650,28 @@ namespace Spacecraft.Client
                     seen.Add(e.Id);
                     if (!_entities.TryGetValue(e.Id, out var go))
                     {
-                        go = Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind)));
+                        if (e.Kind == "Asteroid")
+                        {
+                            // A rocky, slowly-tumbling chunk: stone-textured + an irregular shape so it
+                            // reads as an asteroid rather than a flat cube.
+                            go = Cube("Asteroid", _root.transform, Vector3.zero, EntityScale(e.Kind), AsteroidMat());
+                            int h = e.Id.GetHashCode();
+                            var sc = go.transform.localScale;
+                            go.transform.localScale = Vector3.Scale(sc, new Vector3(
+                                0.85f + ((h >> 2) & 7) * 0.04f,
+                                0.80f + ((h >> 5) & 7) * 0.05f,
+                                0.90f + ((h >> 8) & 7) * 0.04f));
+                            go.AddComponent<Spin>();
+                        }
+                        else
+                        {
+                            go = Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind)));
+                        }
+
                         _entities[e.Id] = go;
                     }
 
-                    go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
+                    go.transform.localPosition = new Vector3(e.X, e.Y, e.Z); // rotation is driven by Spin
                     if (e.Kind == "ResourceDrop")
                     {
                         _dropIds.Add(e.Id);
@@ -967,6 +985,26 @@ namespace Spacecraft.Client
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
             return new Material(shader) { color = c };
+        }
+
+        private Material _asteroidMat; // shared stone material for the field's asteroids (rebuilt per view)
+
+        private Material AsteroidMat()
+            => _asteroidMat ??= Lit(new Color(0.52f, 0.50f, 0.47f), LoadTex("stone"), new Vector2(2f, 2f));
+
+        /// <summary>Slowly tumbles an asteroid about a fixed random axis (purely cosmetic).</summary>
+        private sealed class Spin : MonoBehaviour
+        {
+            private Vector3 _axis = Vector3.up;
+            private float _speed = 12f;
+
+            private void Start()
+            {
+                _axis = Random.onUnitSphere;
+                _speed = Random.Range(7f, 20f); // degrees / second
+            }
+
+            private void Update() => transform.Rotate(_axis, _speed * Time.deltaTime, Space.Self);
         }
 
         /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>

@@ -269,6 +269,21 @@ namespace Spacecraft.Client
 
         private void RefreshHotbar(Spacecraft.Shared.Localization.Localizer loc)
         {
+            // No on-foot hotbar in space — you're flying the ship, not holding hand tools.
+            bool hide = Game.SpaceViewActive || Game.InSpace;
+            for (int i = 0; i < Slots; i++)
+            {
+                if (_hotbar[i].Border != null)
+                {
+                    _hotbar[i].Border.gameObject.SetActive(!hide);
+                }
+            }
+
+            if (hide)
+            {
+                return;
+            }
+
             for (int i = 0; i < Slots; i++)
             {
                 var s = _hotbar[i];

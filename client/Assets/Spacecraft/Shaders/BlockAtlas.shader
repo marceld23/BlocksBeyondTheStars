@@ -97,9 +97,11 @@ Shader "Spacecraft/BlockAtlas"
 
                 // Diffuse: a tiny cave-ambient floor + (sky-ambient + directional) scaled by skylight,
                 // coloured by the system sun. A subtle per-face AO keeps cube edges readable.
-                float faceAo = lerp(0.82, 1.0, i.mat.b);
-                float amb = lerp(0.04, 0.55, sky);
-                fixed3 col = albedo * light * (amb + 0.55 * ndl * sky) * faceAo;
+                float faceAo = lerp(0.88, 1.0, i.mat.b);
+                // Ambient fill: a brighter floor so shadowed faces / overcast aren't crushed to black
+                // (outdoors ~0.70, a small cave floor of 0.10). The directional adds the sunny side on top.
+                float amb = lerp(0.10, 0.70, sky);
+                fixed3 col = albedo * light * (amb + 0.5 * ndl * sky) * faceAo;
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).

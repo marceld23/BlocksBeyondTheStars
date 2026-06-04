@@ -58,10 +58,34 @@ namespace Spacecraft.Client
             ApplyVisible();
         }
 
+        public GameBootstrap Game; // to hide the hand viewmodel while the space view owns the camera
+        private bool _hiddenForSpace;
+
         public void SetVisible(bool visible)
         {
             _visible = visible;
             ApplyVisible();
+        }
+
+        private void Update()
+        {
+            if (Game == null || _holder == null)
+            {
+                return;
+            }
+
+            // No held tool in space — the camera is the ship's, not the player's hands.
+            bool space = Game.SpaceViewActive;
+            if (space && !_hiddenForSpace)
+            {
+                _hiddenForSpace = true;
+                _holder.gameObject.SetActive(false);
+            }
+            else if (!space && _hiddenForSpace)
+            {
+                _hiddenForSpace = false;
+                ApplyVisible();
+            }
         }
 
         private void ApplyVisible()

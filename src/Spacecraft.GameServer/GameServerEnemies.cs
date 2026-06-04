@@ -78,6 +78,17 @@ public sealed partial class GameServer
     private void SpawnPlanetEnemyNear(Shared.State.PlayerState player)
     {
         bool tougher = Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme;
+
+        // Spawn a comfortable distance away (not right on top of the player — that read as unfairly
+        // aggressive) and spread around them, then drop it onto the actual surface at that column so it
+        // never spawns buried in the terrain. The golden angle gives an even spread as more spawn.
+        int n = _planetEnemies.Count;
+        double ang = n * 2.39996323; // golden angle (radians)
+        float dist = 9f + (n % 3) * 2f; // 9..13 blocks out
+        int ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
+        int ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
+        int ey = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1; // stand on the ground, not in it
+
         _planetEnemies.Add(new CombatEntity
         {
             Id = NextEntityId(),
@@ -85,7 +96,7 @@ public sealed partial class GameServer
             Hostile = true,
             Hull = tougher ? 60f : 30f,
             HullMax = tougher ? 60f : 30f,
-            Position = new Vector3f(player.Position.X + 3f, player.Position.Y, player.Position.Z),
+            Position = new Vector3f(ex, ey, ez),
             DamagePerSecond = tougher ? 6f : 4f,
             Loot = { new ItemAmount("carbon", 2) },
         });

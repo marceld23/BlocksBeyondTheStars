@@ -72,6 +72,13 @@ public sealed class EquipmentTests : IDisposable
             armored.Inventory.Add("helmet", 1, 1);
 
             server.Tick(6.0); // spawn
+            // Enemies spawn a short distance away on the surface; put both players on it so both are in range.
+            var enemy = server.PlanetEnemies[0];
+            foreach (var s in new[] { armored, soft })
+            {
+                s.Position = new Vector3f(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
+            }
+
             server.Tick(3.0); // damage both
 
             Assert.True(soft.Health < 100f, "The unarmored player should take damage.");

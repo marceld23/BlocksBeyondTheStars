@@ -390,8 +390,13 @@ public sealed class SpaceCombatTests : IDisposable
             server.Tick(6.0); // spawn timer elapses -> 1 enemy near the player
             Assert.NotEmpty(server.PlanetEnemies);
 
+            // Enemies now spawn a short distance away on the surface (not on top of the player); step up to
+            // it so it is within proximity range and deals damage.
+            var enemy = server.PlanetEnemies[0];
+            p.State.Position = new Vector3f(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
+
             float before = p.State.Health;
-            server.Tick(3.0); // enemy at +3 is within proximity range -> damage
+            server.Tick(3.0); // now within proximity range -> damage
             Assert.True(p.State.Health < before);
         }
     }
@@ -413,6 +418,9 @@ public sealed class SpaceCombatTests : IDisposable
             server.Tick(6.0);
             var enemy = server.PlanetEnemies.First(); // Creature, hull 30
             var id = enemy.Id;
+
+            // Enemies spawn a short distance away now; close in so it is within attack reach.
+            p.State.Position = new Vector3f(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
 
             // Hand attack deals 15/hit -> a few hits to kill a 30-hull creature.
             for (int i = 0; i < 3 && server.PlanetEnemies.Any(e => e.Id == id); i++)

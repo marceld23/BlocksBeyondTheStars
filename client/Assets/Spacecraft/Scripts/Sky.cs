@@ -103,6 +103,23 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // The space view manages its own dark background + body lighting. Don't bleed the planet's
+            // day/night tint or the biome colour-grade into it — that turned the whole space view reddish.
+            if (Game.SpaceViewActive)
+            {
+                Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 1f));   // neutral, full-bright
+                Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off
+                Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
+                Shader.SetGlobalFloat(IndoorId, 0f);
+                RenderSettings.fog = false;
+                if (_sunDisc != null)
+                {
+                    _sunDisc.gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
             var env = Game.Environment;
             if (env != null)
             {
