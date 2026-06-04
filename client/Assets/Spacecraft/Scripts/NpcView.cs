@@ -17,10 +17,13 @@ namespace Spacecraft.Client
         private sealed class Npc
         {
             public GameObject Go;
+            public PlayerAvatar Avatar;
             public Vector3 Target;        // canonical world space
             public Vector3 SettledWorld;   // smoothed world position (mapped to scene for display)
             public float Yaw;
             public string Label;
+            public float GestureTimer;     // counts down to the next work gesture (mine/place/talk swing)
+            public float GestureLo, GestureHi; // cadence range from the NPC's theme/role
         }
 
         private readonly Dictionary<int, Npc> _npcs = new Dictionary<int, Npc>();
@@ -39,6 +42,15 @@ namespace Spacecraft.Client
                 n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, Time.deltaTime * 8f);
                 n.Go.transform.position = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
                 n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
+
+                // Ambient work gestures: a periodic tool/arm swing so settlement NPCs look busy (miners chip
+                // away often, settlers/builders place now and then, vendors gesture occasionally).
+                n.GestureTimer -= Time.deltaTime;
+                if (n.GestureTimer <= 0f)
+                {
+                    n.Avatar?.Swing();
+                    n.GestureTimer = Random.Range(n.GestureLo, n.GestureHi);
+                }
             }
         }
 
@@ -65,7 +77,16 @@ namespace Spacecraft.Client
                         go.transform.localScale = Vector3.one * nd.Size;
                     }
 
-                    n = new Npc { Go = go, SettledWorld = new Vector3(nd.X, nd.Y, nd.Z) };
+                    var (lo, hi) = WorkCadence(nd);
+                    n = new Npc
+                    {
+                        Go = go,
+                        Avatar = avatar,
+                        SettledWorld = new Vector3(nd.X, nd.Y, nd.Z),
+                        GestureLo = lo,
+                        GestureHi = hi,
+                        GestureTimer = Random.Range(lo, hi),
+                    };
                     _npcs[nd.Id] = n;
                 }
 
@@ -91,6 +112,25 @@ namespace Spacecraft.Client
                     _npcs.Remove(id);
                 }
             }
+        }
+
+        /// <summary>How often an NPC plays a work gesture (seconds, min/max), from its theme/role — miners
+        /// chip away often, settlers/builders place now and then, vendors/researchers gesture occasionally.</summary>
+        private static (float Lo, float Hi) WorkCadence(NetNpc nd)
+        {
+            string theme = (nd.Theme ?? string.Empty).ToLowerInvariant();
+            string role = (nd.Role ?? string.Empty).ToLowerInvariant();
+            if (theme.Contains("miner"))
+            {
+                return (1.2f, 2.4f);
+            }
+
+            if (role == "settler" || theme.Contains("settler") || theme.Contains("build"))
+            {
+                return (2.6f, 4.6f);
+            }
+
+            return (4.5f, 8.5f); // vendors / quartermasters / traders / researchers
         }
 
         private string Label(NetNpc nd)

@@ -84,8 +84,11 @@ SQLite persistence.
 2. ✅ **Weather (done).** IMGUI rain wash + lightning (`WeatherFx`), storm/rain ambience bed + thunder
    (`ClientAudio`, cave-silenced), 3D in-world rain falling around the player + storm fog/view-distance
    scaling (`WeatherFx3D`). All gated on open sky + intensity-scaled.
-3. **Animation pass (remaining).** Player + creature procedural anims are in. Missing: NPC mine/attack/
-   place gestures and richer per-temperament creature/NPC idle gestures.
+3. ✅ **Animation pass (done).** NPCs now play ambient **work gestures** (theme/role-paced arm swings —
+   miners chip often, settlers/builders place, vendors gesture occasionally; `NpcView.WorkCadence`).
+   Creatures got a **head pivot** with **per-temperament idle gestures** — passive graze (head dips to the
+   ground), skittish alert (head snaps up + looks around), hostile lunge (sharp aggressive thrust), asleep
+   rests low; plus idle breathing and a quicker tail on hostiles (`CreatureAnimator`/`CreatureBuilder`).
 4. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
    Missing: projectile arcs, melee swing arcs, and a visible suit-lamp cone (currently a shader spotlight).
 

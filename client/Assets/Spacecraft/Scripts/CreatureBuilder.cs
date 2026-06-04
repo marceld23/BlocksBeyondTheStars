@@ -17,6 +17,7 @@ namespace Spacecraft.Client
         private readonly List<Transform> _legPivots = new List<Transform>();
         private readonly List<Transform> _wingPivots = new List<Transform>();
         private Transform _tailPivot;
+        private Transform _headPivot;
         private Material _bodyMat;
         private Light _glow;
 
@@ -53,14 +54,15 @@ namespace Spacecraft.Client
             }
 
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
-            AddPart(root, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ),
-                new Vector3(unit * 0.9f, unit * 0.85f, unit * 0.8f), _bodyMat);
+            // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture.
+            _headPivot = AddPivotPart(root, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f),
+                new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.9f, unit * 0.85f, unit * 0.8f), _bodyMat);
 
-            // Eyes (small bright cubes) so it reads as a face — emissive-ish when glowing.
+            // Eyes (small bright cubes) so it reads as a face — parented to the head so they bob with it.
             var eyeMat = Unlit(c.Glows ? new Color(0.8f, 1f, 0.9f) : new Color(0.95f, 0.95f, 0.8f));
             float eyeX = unit * 0.28f;
-            AddPart(root, "EyeL", new Vector3(-eyeX, bodyY + unit * 0.35f, frontZ + unit * 0.25f), Vector3.one * unit * 0.16f, eyeMat);
-            AddPart(root, "EyeR", new Vector3(eyeX, bodyY + unit * 0.35f, frontZ + unit * 0.25f), Vector3.one * unit * 0.16f, eyeMat);
+            AddPartTo(_headPivot, "EyeL", new Vector3(-eyeX, unit * 0.15f, unit * 0.70f), Vector3.one * unit * 0.16f, eyeMat);
+            AddPartTo(_headPivot, "EyeR", new Vector3(eyeX, unit * 0.15f, unit * 0.70f), Vector3.one * unit * 0.16f, eyeMat);
 
             // Legs: paired under the body along its length, each on a hip pivot so it can swing.
             int legs = Mathf.Clamp(c.Legs, 0, 8);
@@ -105,12 +107,10 @@ namespace Spacecraft.Client
                 _glow.shadows = LightShadows.None;
             }
 
-            // Procedural limb animation (leg swing while moving, wing flap, tail sway).
-            if (_legPivots.Count > 0 || _wingPivots.Count > 0 || _tailPivot != null)
-            {
-                var anim = root.AddComponent<CreatureAnimator>();
-                anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot);
-            }
+            // Procedural limb animation (leg swing while moving, wing flap, tail sway) + per-temperament
+            // idle head gestures (graze / alert / lunge).
+            var anim = root.AddComponent<CreatureAnimator>();
+            anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, c.Hostile, c.Asleep, c.Temperament);
         }
 
         /// <summary>Adds a part on its own pivot (hinge) so it can be rotated for animation. The cube hangs
@@ -135,6 +135,24 @@ namespace Spacecraft.Client
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
             return pivot;
+        }
+
+        /// <summary>Adds a render-only cube parented to an arbitrary transform (e.g. eyes on the head pivot).</summary>
+        private void AddPartTo(Transform parent, string partName, Vector3 localPos, Vector3 scale, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = partName;
+            var col = go.GetComponent<Collider>();
+            if (col != null)
+            {
+                Object.Destroy(col);
+            }
+
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+            _renderers.Add(go.GetComponent<Renderer>());
         }
 
         private void AddPart(GameObject root, string partName, Vector3 localPos, Vector3 scale, Material mat)
