@@ -1,7 +1,8 @@
 # Spacecraft AI Mission Backend (optional)
 
 A **separate, optional** Python service that proposes missions for the game server
-(`plans/anf_mission_editor.md`). The C#/.NET game server stays authoritative: it validates,
+(see [docs/AI_MISSION_BACKEND.md](../docs/AI_MISSION_BACKEND.md)). The C#/.NET game server stays
+authoritative: it validates,
 clamps and publishes whatever this service returns, and works fine when this service is off
 or unreachable.
 

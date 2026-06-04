@@ -16,11 +16,10 @@ Spacecraft is a **father-and-son project**:
 - The **AI (Claude Code, Anthropic's Claude Opus)** produces the technical implementation
   from those requirements.
 
-> **Design docs** (German, input specs, kept locally under `plans/`): `plans/anforderungen.md`
-> (game design), `plans/technische_anforderungen.md` (technical requirements), plus the
-> `plans/anf_*.md` extension specs and `plans/IMPLEMENTATION_PLAN.md`.
-> All other docs and code comments are **English**. In-game text is **bilingual
-> (German + English)**.
+> **Status & docs:** [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in
+> [docs/USER_MANUAL.md](docs/USER_MANUAL.md); deeper design notes are under [docs/](docs/). (The
+> original German requirement specs under `plans/` were consolidated and removed.)
+> Docs and code comments are **English**. In-game text is **bilingual (German + English)**.
 
 ## Guiding principle
 
@@ -99,5 +98,6 @@ changes are needed to add content. Player-facing names use localization keys res
 
 MVP backend is implemented and tested end-to-end (join → mine → inventory → save/load,
 crafting, blueprint gating, game modes, respawn, universe, cheats, missions, admin content,
-WebSocket gateway). See `plans/IMPLEMENTATION_PLAN.md` (local) for the milestone breakdown
-and [AGENTS.md](AGENTS.md) for contributor rules.
+WebSocket gateway). See [TODO.md](TODO.md) for the current Done/Open status, the
+[user manual](docs/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
+for contributor rules.

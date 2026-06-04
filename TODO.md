@@ -1,8 +1,9 @@
 # SpaceCraft — Project Status
 
 The single source of truth for **what is built** and **what is still open**. Design notes and deep
-plans live under [docs/](docs/) (committed); this file is the high-level status. Last consolidated
-2026-06-04.
+plans live under [docs/](docs/) (committed); this file is the high-level status. Player-facing operation
+(controls, mechanics, editors, commands) is documented in [docs/USER_MANUAL.md](docs/USER_MANUAL.md) —
+keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
 **Test:** `dotnet test` — currently **259 passing**. Locale parity (en/de) is enforced by a test.
@@ -75,18 +76,31 @@ SQLite persistence.
 ## 🔧 Open / pending
 
 ### Partial — backend done, client polish/UI/VFX remaining
-1. **Repair — initiate UI.** Server (`RepairWreckIntent`) + the HUD wreck panel/progress bar exist, but
-   there is no explicit "start repair" button/affordance; repair currently begins implicitly.
-2. **Disassemble button.** Server disassembly + `SendDisassemble` exist, but the crafting/inventory detail
-   pane (`CraftingTechShipUI.DetailInventory`) shows no disassemble button.
-3. **Jetpack.** Only a gear-flag stub (`GameServerPresence` checks for a `jetpack` item); no item/recipe,
+1. **Jetpack.** Only a gear-flag stub (`GameServerPresence` checks for a `jetpack` item); no item/recipe,
    no boosted-jump/short-flight mechanics, no client VFX.
-4. **Weather (remaining).** Have: IMGUI rain overlay + lightning, cave-silenced. Missing: 3D in-world
+2. **Weather (remaining).** Have: IMGUI rain overlay + lightning, cave-silenced. Missing: 3D in-world
    rain/splash particles, storm **sound**, and weather view-distance/fog scaling.
-5. **Animation pass (remaining).** Player + creature procedural anims are in. Missing: NPC mine/attack/
+3. **Animation pass (remaining).** Player + creature procedural anims are in. Missing: NPC mine/attack/
    place gestures and richer per-temperament creature/NPC idle gestures.
-6. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
+4. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
    Missing: projectile arcs, melee swing arcs, and a visible suit-lamp cone (currently a shader spotlight).
+5. **In-game admin console.** The admin cheats (`give_item`, `teleport_*`, `set_time`/`set_weather`, `fly`,
+   `godmode`, `instant_build`) exist server-side via `AdminCommandIntent` but have **no in-game UI** to
+   enter them — only `/bump` is typed in chat. Needs an admin console (typed commands → `AdminCommandIntent`).
+
+### Known issues
+- **Ship launch leaves the menu open.** When launching with the ship, the gameplay menu currently stays
+  open, hiding the launch animation. The menu should close on launch so the animation is visible.
+
+### Queued analysis
+- **Landing + docking flow review.** Analyze how landing on planets and docking at stations work
+  end-to-end (client + server), to document/improve them.
+
+### Recently shipped (was partial → now done)
+- **Disassemble button** — Inventory detail pane shows a Disassemble button + recovered-parts preview,
+  gated on a workshop (`CraftingTechShipUI.DetailInventory`).
+- **Wreck repair hint** — the HUD wreck panel now tells the player to aim at a breach + press **R** and
+  lists the blocks still needed (`WreckRepairStatus.Needs`).
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.

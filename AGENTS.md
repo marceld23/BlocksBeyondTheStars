@@ -7,9 +7,9 @@ Read it before making changes.
 
 A block-based 3D space crafting game for Windows. The player starts with a small
 spaceship, explores procedurally generated planets, mines resources, crafts gear,
-researches blueprints, and grows the ship. See `plans/anforderungen.md` (game design,
-German) and `plans/technische_anforderungen.md` (technical requirements, German) for the
-source-of-truth specs (kept locally under `plans/`, which is git-ignored).
+researches blueprints, and grows the ship. The current status (Done/Open) lives in
+[TODO.md](TODO.md); player-facing operation in [docs/USER_MANUAL.md](docs/USER_MANUAL.md).
+(The original German requirement specs under `plans/` were consolidated and removed.)
 
 ## Golden architecture rule
 
@@ -87,4 +87,4 @@ dotnet run --project src/Spacecraft.GameServer   # start a local server
 
 ## Roadmap
 
-See `plans/IMPLEMENTATION_PLAN.md` (local) for milestones (M0–M19) and their checklists.
+See [TODO.md](TODO.md) for the current Done/Open status (the single status doc).
