@@ -58,8 +58,8 @@ Enter space by launching the ship; on foot you board/leave via the cockpit. Whil
 | **W / A / S / D** | Thrust forward / strafe / back |
 | **Mouse** | Yaw + pitch (turn). Sensitivity scales with the ship's **handling** stat |
 | **V** | Toggle cockpit / third-person camera |
-| **L** | Land (return to the surface) |
-| **E** | Board a nearby space station (within range) |
+| **L** | Land — opens a confirmation (**Enter** = yes, **Esc** = no) |
+| **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
 the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge, hull does not.

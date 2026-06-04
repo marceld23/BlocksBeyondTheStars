@@ -93,9 +93,10 @@ End-to-end trace done (launch/land, same-system travel, hyperjump, space-station
 docking). Findings:
 - **Fixed:** boarding a space station was a one-way trip — the client never sent `LeaveStationIntent`
   (server handler existed). Added `SendLeaveStation` + a **U = leave station** prompt while boarded.
-- **Remaining polish (cosmetic):** station **boarding** and **player docking** are instant logical
-  transitions with **no animation** (unlike launch/landing/warp, which are animated). A short
-  board/dock transition (fade or dock-approach) would make them feel consistent.
+- **Done:** **landing confirmation** (L opens an Enter/Esc prompt instead of dropping instantly) and a
+  **station dock-approach animation** (`Phase.Boarding`: the ship flies in + fades before boarding).
+- **Remaining polish (cosmetic):** **player↔player docking** is still an instant logical transition with
+  no animation (a dock-approach there would match the station boarding feel).
 
 ### Recently shipped (was partial → now done)
 - **Disassemble button** — Inventory detail pane shows a Disassemble button + recovered-parts preview,

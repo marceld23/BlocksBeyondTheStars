@@ -509,6 +509,7 @@
   "ui.space.enter": "In den Weltraum starten",
   "ui.space.leave": "Zur Oberfläche zurück",
   "ui.space.controls": "WASD + Maus: fliegen · V: Ansicht · L: landen",
+  "ui.space.land_confirm": "Auf diesem Planeten landen?   Enter = ja · Esc = nein",
   "ui.space.board": "E drücken zum Andocken an",
   "ui.space.cargo": "Fracht",
   "ui.action.fire": "Feuern",

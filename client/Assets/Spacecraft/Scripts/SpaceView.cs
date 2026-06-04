@@ -19,11 +19,12 @@ namespace Spacecraft.Client
 
         private static readonly Vector3 SceneOrigin = new Vector3(0f, 6000f, 0f);
         private const float SeqDuration = 1.6f;
+        private const float BoardDuration = 1.2f; // dock-approach animation before boarding a station
         private const float MoveSpeed = 14f;
         private const float LookSpeed = 2.2f;
         private const float Bounds = 130f;
 
-        private enum Phase { Launch, Cruise, Landing }
+        private enum Phase { Launch, Cruise, Landing, Boarding }
 
         private GameObject _root;
         private GameObject _ship;
@@ -46,6 +47,12 @@ namespace Spacecraft.Client
         private float _yaw, _pitch;
         private float _shipSpeedMul = 1f; // cruise-speed factor from the active ship design
         private float _shipTurnMul = 1f;  // turn-rate factor from the active ship design
+
+        private bool _confirmLand;        // L asks "land here?" — Enter confirms, Esc cancels
+        private string _boardTargetId;    // station being boarded during the dock-approach animation
+        private Vector3 _boardTargetPos, _boardStartPos;
+        private bool _boardSent;          // the board intent was sent (now waiting for the server)
+        private float _boardWait;         // safety timeout so a rejected board never leaves a black screen
 
         private float _moveSendTimer;     // throttles authoritative position reports
         private float _hitFlash;          // red damage flash on a collision/hit
@@ -85,12 +92,22 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // Server says we left → fly the landing sequence, then tear down.
-            if (!Game.InSpace && _phase != Phase.Landing)
+            // Server says we left → board teardown (we docked into a station, fade already covers the
+            // screen) or fly the landing sequence back down to the surface, then tear down.
+            if (!Game.InSpace)
             {
-                _phase = Phase.Landing;
-                _seq = 0f;
-                ClientAudio.Instance?.Cue("ship_landing");
+                if (_phase == Phase.Boarding)
+                {
+                    Exit();
+                    return;
+                }
+
+                if (_phase != Phase.Landing)
+                {
+                    _phase = Phase.Landing;
+                    _seq = 0f;
+                    ClientAudio.Instance?.Cue("ship_landing");
+                }
             }
 
             if (Input.GetKeyDown(KeyCode.V))
@@ -105,6 +122,7 @@ namespace Spacecraft.Client
             {
                 case Phase.Launch: UpdateSequence(rising: true); break;
                 case Phase.Landing: UpdateSequence(rising: false); break;
+                case Phase.Boarding: UpdateBoarding(); break;
                 default: UpdateCruise(); break;
             }
 
@@ -159,10 +177,27 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // L (or the Space-tab "Return to surface") asks the server to leave → triggers landing.
+            // Landing asks for confirmation first so you don't drop to the surface by accident.
+            if (_confirmLand)
+            {
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                {
+                    _confirmLand = false;
+                    Game.Network?.SendLeaveSpace();
+                }
+                else if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    _confirmLand = false;
+                }
+
+                return; // hold position while the land prompt is up
+            }
+
+            // L (or the Space-tab "Return to surface") opens the land confirmation.
             if (Input.GetKeyDown(KeyCode.L))
             {
-                Game.Network?.SendLeaveSpace();
+                _confirmLand = true;
+                return;
             }
 
             _yaw += Input.GetAxis("Mouse X") * LookSpeed * _shipTurnMul;
@@ -208,13 +243,57 @@ namespace Spacecraft.Client
                         best = sq;
                         _nearStationId = e.Id;
                         _nearStationName = e.Name;
+                        _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
                     }
                 }
             }
 
+            // E begins a short dock-approach animation; the board intent is sent once it completes.
             if (_nearStationId != null && Input.GetKeyDown(KeyCode.E))
             {
-                Game.Network?.SendBoardStation(_nearStationId);
+                _phase = Phase.Boarding;
+                _seq = 0f;
+                _boardSent = false;
+                _boardWait = 0f;
+                _boardTargetId = _nearStationId;
+                _boardStartPos = _ship.transform.localPosition;
+            }
+        }
+
+        /// <summary>Flies the ship in to dock with the station + fades out, then sends the board intent.
+        /// A safety timeout reverts to cruise if the server never confirms (so it can't hang on black).</summary>
+        private void UpdateBoarding()
+        {
+            _seq += Time.deltaTime;
+            float t = Mathf.Clamp01(_seq / BoardDuration);
+            float ease = 1f - (1f - t) * (1f - t);
+            if (_ship != null)
+            {
+                var dock = Vector3.Lerp(_boardTargetPos, _boardStartPos, 0.14f); // stop just short of the hull
+                _ship.transform.localPosition = Vector3.Lerp(_boardStartPos, dock, ease);
+                var dir = _boardTargetPos - _ship.transform.localPosition;
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    var look = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                    _ship.transform.localRotation = Quaternion.Slerp(_ship.transform.localRotation, look, Time.deltaTime * 4f);
+                }
+            }
+
+            if (_seq >= BoardDuration && !_boardSent)
+            {
+                _boardSent = true;
+                Game.Network?.SendBoardStation(_boardTargetId);
+            }
+
+            if (_boardSent)
+            {
+                _boardWait += Time.deltaTime;
+                if (_boardWait > 2.5f) // server didn't confirm (e.g. rejected) — recover instead of hanging
+                {
+                    _phase = Phase.Cruise;
+                    _seq = 0f;
+                    _boardSent = false;
+                }
             }
         }
 
@@ -253,6 +332,8 @@ namespace Spacecraft.Client
             _seq = 0f;
             _yaw = 0f;
             _pitch = 0f;
+            _confirmLand = false;
+            _boardSent = false;
             Game.SpaceViewActive = true;
 
             ResolveShipFlight();
@@ -652,10 +733,21 @@ namespace Spacecraft.Client
 
             if (_phase != Phase.Cruise)
             {
-                float t = Mathf.Clamp01(_seq / SeqDuration);
-                float alpha = _phase == Phase.Landing ? t : 1f - t;
+                float dur = _phase == Phase.Boarding ? BoardDuration : SeqDuration;
+                float t = Mathf.Clamp01(_seq / dur);
+                float alpha = (_phase == Phase.Landing || _phase == Phase.Boarding) ? t : 1f - t;
                 _fade.color = new Color(0f, 0f, 0f, alpha);
                 _hint.gameObject.SetActive(false);
+                _board.gameObject.SetActive(false);
+                _cargo.gameObject.SetActive(false);
+            }
+            else if (_confirmLand)
+            {
+                // Land confirmation prompt (key-driven, no cursor): Enter confirms, Esc cancels.
+                _fade.color = new Color(0f, 0f, 0f, 0f);
+                var loc = Game.Localizer;
+                _hint.text = loc != null ? loc.Get("ui.space.land_confirm") : "Land on this planet?   Enter = yes · Esc = no";
+                _hint.gameObject.SetActive(true);
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
             }
