@@ -59,6 +59,8 @@ namespace Spacecraft.Client
         private float _shake;             // camera shake on a hit
         private float _lastHull = -1f, _lastShield = -1f;
         private bool _combatSubscribed;
+        private bool _hyperjumpSubscribed;
+        private bool _hyperjumping; // a hyperspace jump is tearing down the view (warp covers it, no landing)
 
         private readonly HashSet<string> _dropIds = new HashSet<string>(); // tracked ResourceDrop entities
         private readonly List<TractorBeam> _beams = new List<TractorBeam>();
@@ -92,11 +94,12 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // Server says we left → board teardown (we docked into a station, fade already covers the
-            // screen) or fly the landing sequence back down to the surface, then tear down.
+            // Server says we left. A hyperspace jump (its full-screen warp covers the transition) or a
+            // station board tears down immediately — no surface-landing descent. Otherwise fly the
+            // landing sequence back down to the body we launched from, then tear down.
             if (!Game.InSpace)
             {
-                if (_phase == Phase.Boarding)
+                if (_hyperjumping || _phase == Phase.Boarding)
                 {
                     Exit();
                     return;
@@ -173,6 +176,13 @@ namespace Spacecraft.Client
         private void UpdateCruise()
         {
             if (_ship == null)
+            {
+                return;
+            }
+
+            // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
+            // system) so flight input doesn't fight the UI.
+            if (Game.MenuOpen)
             {
                 return;
             }
@@ -351,6 +361,7 @@ namespace Spacecraft.Client
             _pitch = 0f;
             _confirmLand = false;
             _boardSent = false;
+            _hyperjumping = false;
             _landTargetId = null;
             _landTargetName = null;
             Game.SpaceViewActive = true;
@@ -363,6 +374,14 @@ namespace Spacecraft.Client
             {
                 Game.Network.ShipCombatStatusChanged += OnShipCombat;
                 _combatSubscribed = true;
+            }
+
+            // A hyperspace jump while flying tears the view down without a surface-landing descent (its
+            // warp overlay covers the transition); the subscription is kept for the rig's lifetime.
+            if (!_hyperjumpSubscribed)
+            {
+                Game.HyperjumpStarted += OnHyperjump;
+                _hyperjumpSubscribed = true;
             }
 
             _lastHull = Game.ShipCombat?.Hull ?? -1f;
@@ -432,6 +451,8 @@ namespace Spacecraft.Client
             _cargoFlash = 0f;
             Game.SpaceViewActive = false;
         }
+
+        private void OnHyperjump() => _hyperjumping = true;
 
         private void OnShipCombat(Spacecraft.Networking.Messages.ShipCombatStatus s)
         {
@@ -887,6 +908,12 @@ namespace Spacecraft.Client
             if (_active)
             {
                 Exit();
+            }
+
+            if (_hyperjumpSubscribed && Game != null)
+            {
+                Game.HyperjumpStarted -= OnHyperjump;
+                _hyperjumpSubscribed = false;
             }
 
             if (_ui != null)
