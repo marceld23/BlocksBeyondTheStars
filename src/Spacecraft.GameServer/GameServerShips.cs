@@ -79,6 +79,8 @@ public sealed partial class GameServer
             return (false, "No such player.");
         }
 
+        Serve(session); // operate on this player's own fleet/ship
+
         var def = _content.GetShip(shipType);
         if (def is null)
         {

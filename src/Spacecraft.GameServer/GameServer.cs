@@ -329,6 +329,8 @@ public sealed partial class GameServer
 
     private void HandleTravel(PlayerSession session, TravelIntent intent)
     {
+        Serve(session); // act on the traveller's own world + ship (the jump-drive check below needs it)
+
         if (!Rules.FreeSpaceFlight)
         {
             Reject(session, "travel", "Space flight is disabled on this server.");
@@ -1079,6 +1081,7 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
+            Serve(session);
             HandleCraft(session, new CraftIntent { RecipeKey = recipeKey, Count = count });
         }
     }
