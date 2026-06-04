@@ -88,9 +88,14 @@ SQLite persistence.
    `godmode`, `instant_build`) exist server-side via `AdminCommandIntent` but have **no in-game UI** to
    enter them — only `/bump` is typed in chat. Needs an admin console (typed commands → `AdminCommandIntent`).
 
-### Queued analysis
-- **Landing + docking flow review.** Analyze how landing on planets and docking at stations work
-  end-to-end (client + server), to document/improve them.
+### Landing + docking — reviewed (2026-06-04)
+End-to-end trace done (launch/land, same-system travel, hyperjump, space-station boarding, player↔player
+docking). Findings:
+- **Fixed:** boarding a space station was a one-way trip — the client never sent `LeaveStationIntent`
+  (server handler existed). Added `SendLeaveStation` + a **U = leave station** prompt while boarded.
+- **Remaining polish (cosmetic):** station **boarding** and **player docking** are instant logical
+  transitions with **no animation** (unlike launch/landing/warp, which are animated). A short
+  board/dock transition (fade or dock-approach) would make them feel consistent.
 
 ### Recently shipped (was partial → now done)
 - **Disassemble button** — Inventory detail pane shows a Disassemble button + recovered-parts preview,

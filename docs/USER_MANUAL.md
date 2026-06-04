@@ -38,7 +38,7 @@ Last updated: 2026-06-04.
 | **E** | Use a nearby ship/station station tile (cockpit, workshop, cargo, medbay, …) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
-| **U** | Undock |
+| **U** | Undock from a player / leave a boarded space station |
 | **V** | Toggle first / third-person camera |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character) |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
@@ -113,7 +113,7 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 
 ### Stations: boarding & docking
 - **Space stations**: approach in space and press **E** to board; walk the interior (vendors, mission
-  board, heal tank, quarters). Leave to return to your ship.
+  board, heal tank, quarters). Press **U** to leave and return to your ship.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
 

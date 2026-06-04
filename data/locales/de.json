@@ -539,6 +539,7 @@
   "ui.dock.title": "Andock-Anfrage",
   "ui.dock.docked": "Angedockt an",
   "ui.dock.undock_hint": "U: abdocken",
+  "ui.station.leave_hint": "U drücken, um die Station zu verlassen",
   "ui.interact.trade_dock": "T: handeln · K: andocken an",
   "ui.trade.title": "Handel",
   "ui.trade.your_offer": "Dein Angebot",

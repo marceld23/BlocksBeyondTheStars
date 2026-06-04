@@ -156,6 +156,8 @@ namespace Spacecraft.Client
 
         public void SendBoardStation(string stationId) => Send(new BoardStationIntent { StationId = stationId });
 
+        public void SendLeaveStation() => Send(new LeaveStationIntent());
+
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
 
         // --- Navigation & missions (M23) ---

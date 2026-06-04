@@ -51,6 +51,17 @@ namespace Spacecraft.Client
                 return; // don't start new interactions while a panel/space view is up
             }
 
+            // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.
+            if (!string.IsNullOrEmpty(Game.StationName))
+            {
+                if (Input.GetKeyDown(KeyCode.U))
+                {
+                    Game.Network.SendLeaveStation();
+                }
+
+                return;
+            }
+
             // Undock (when currently docked).
             if (Game.Dock != null && Game.Dock.Docked)
             {
@@ -137,7 +148,11 @@ namespace Spacecraft.Client
             string hint = null;
             if (!dock && !trade && !Game.MenuOpen && !Game.SpaceViewActive)
             {
-                if (Game.Dock != null && Game.Dock.Docked)
+                if (!string.IsNullOrEmpty(Game.StationName))
+                {
+                    hint = loc.Get("ui.station.leave_hint");
+                }
+                else if (Game.Dock != null && Game.Dock.Docked)
                 {
                     hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get("ui.dock.undock_hint")}";
                 }

@@ -534,6 +534,7 @@
   "ui.dock.title": "Docking request",
   "ui.dock.docked": "Docked with",
   "ui.dock.undock_hint": "U: undock",
+  "ui.station.leave_hint": "Press U to leave the station",
   "ui.interact.trade_dock": "T: trade · K: dock with",
   "ui.trade.title": "Trade",
   "ui.trade.your_offer": "Your offer",
