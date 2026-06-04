@@ -783,7 +783,31 @@ public sealed partial class GameServer
 
     private void HandleEnterSpace(PlayerSession session) => EnterSpace(session.State.PlayerId);
 
-    private void HandleLeaveSpace(PlayerSession session) => LeaveSpace(session.State.PlayerId);
+    /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>
+    public void LandOnBody(string playerId, string destinationBodyId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleLeaveSpace(session, new LeaveSpaceIntent { DestinationBodyId = destinationBodyId });
+        }
+    }
+
+    /// <summary>Leaves space onto a chosen body: the current world (default) or another body in the same
+    /// system the player flew to (system-scale flight). Same-system landing is free; a body in another
+    /// system would need a hyperspace jump (offered via the star map, not from flight).</summary>
+    private void HandleLeaveSpace(PlayerSession session, LeaveSpaceIntent intent)
+    {
+        string dest = intent.DestinationBodyId ?? string.Empty;
+        if (string.IsNullOrEmpty(dest) || dest == session.CurrentLocationId)
+        {
+            LeaveSpace(session.State.PlayerId); // land back on the current world
+            return;
+        }
+
+        // Landed on a different body picked while flying — travel there (reuses the per-player travel,
+        // which leaves space, loads the destination world and relocates only this player).
+        HandleTravel(session, new TravelIntent { DestinationBodyId = dest });
+    }
 
     private void HandleFireWeapon(PlayerSession session, FireWeaponIntent intent)
         => FireWeapon(session.State.PlayerId, intent.WeaponKey, intent.TargetEntityId);

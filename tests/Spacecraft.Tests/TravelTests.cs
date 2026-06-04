@@ -105,6 +105,32 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void FlyAndLand_OnSameSystemBody_LandsThere_NoJumpNeeded()
+    {
+        var server = Started(out var repo, jumpDrive: false); // system-scale flight needs no jump drive
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            var pilot = server.Sessions.Values.First(s => s.State.PlayerId == "Pilot");
+            string origin = pilot.CurrentLocationId;
+            string sys = server.Galaxy.FindBody(origin)!.SystemId;
+
+            var sameSystem = server.Galaxy.AllBodies().FirstOrDefault(b =>
+                b.Kind == CelestialKind.Planet && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.SystemId == sys && b.Id != origin);
+            if (sameSystem is null)
+            {
+                return; // this seed's start system has a single planet — nothing to fly to
+            }
+
+            // Land on a body you flew to within the same system.
+            server.LandOnBody("Pilot", sameSystem.Id);
+            Assert.Equal(sameSystem.Id, pilot.CurrentLocationId);
+        }
+    }
+
+    [Fact]
     public void Travel_RejectsUnknownOrSameLocation()
     {
         var server = Started(out var repo);

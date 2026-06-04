@@ -113,6 +113,10 @@ public sealed class EnterSpaceIntent
 /// <summary>Client asks to leave the space instance and return to the surface/base.</summary>
 public sealed class LeaveSpaceIntent
 {
+    /// <summary>The body to land on. Empty (or the current body) = land back where you launched. A
+    /// different body in the same system = land there (you flew to it in system-scale flight). Cross-
+    /// system landing is not offered — use a hyperspace jump (the star map) instead.</summary>
+    public string DestinationBodyId { get; set; } = string.Empty;
 }
 
 /// <summary>Client asks to travel to (and land on) another celestial body, picked from the star map.</summary>

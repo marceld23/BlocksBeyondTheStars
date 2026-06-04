@@ -896,7 +896,7 @@ public sealed partial class GameServer
             case UndockIntent: HandleUndock(session); break;
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
-            case LeaveSpaceIntent: HandleLeaveSpace(session); break;
+            case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;
             case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
