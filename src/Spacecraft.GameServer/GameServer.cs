@@ -424,16 +424,36 @@ public sealed partial class GameServer
     public void Tick(double deltaSeconds)
     {
         _transport.Poll();
-        TickEnvironment(deltaSeconds);
-        TickSpace(deltaSeconds);
-        TickEnemies(deltaSeconds);
-        TickPresence(deltaSeconds);
-        TickFluids(deltaSeconds);
-        TickWeather(deltaSeconds);
-        TickFlora(deltaSeconds);
-        TickCreatures(deltaSeconds);
-        TickNpcs(deltaSeconds);
-        StreamChunks();
+        TickSpace(deltaSeconds); // space instances are keyed by location and handle their own players
+
+        // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
+        // weather/presence/chunk-streaming only touch that world's players. With a single occupied world
+        // this runs once and is identical to the old flat tick. When no world is occupied we still tick the
+        // active one (so its weather/fluids advance — and so headless tests with no players still simulate).
+        var ticking = OccupiedLocations();
+        if (ticking.Count == 0 && _worlds.Active != null)
+        {
+            ticking.Add(_worlds.Active.LocationId);
+        }
+
+        foreach (var locId in ticking)
+        {
+            if (!SetActiveWorld(locId))
+            {
+                continue;
+            }
+
+            TickEnvironment(deltaSeconds);
+            TickEnemies(deltaSeconds);
+            TickPresence(deltaSeconds);
+            TickFluids(deltaSeconds);
+            TickWeather(deltaSeconds);
+            TickFlora(deltaSeconds);
+            TickCreatures(deltaSeconds);
+            TickNpcs(deltaSeconds);
+            StreamChunks();
+        }
+
         SampleHistories(deltaSeconds);
 
         _sinceAutoSave += deltaSeconds;
@@ -450,13 +470,8 @@ public sealed partial class GameServer
 
     private void TickEnvironment(double dt)
     {
-        foreach (var session in _sessions.Values)
+        foreach (var session in JoinedInActiveWorld())
         {
-            if (!session.Joined)
-            {
-                continue;
-            }
-
             UpdateAboard(session);
 
             var p = session.State;
@@ -677,13 +692,8 @@ public sealed partial class GameServer
         int radius = System.Math.Max(1, _config.ViewDistanceChunks);
         const int perTickBudget = 12;
 
-        foreach (var session in _sessions.Values)
+        foreach (var session in JoinedInActiveWorld())
         {
-            if (!session.Joined)
-            {
-                continue;
-            }
-
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
             int sent = 0;
             // Stream a taller vertical column (esp. below, ground-first) so digging down never outruns
@@ -755,6 +765,10 @@ public sealed partial class GameServer
         {
             return; // ignore gameplay intents before joining
         }
+
+        // Operate on the sender's world: block edits, broadcasts and lookups in the handlers below all go
+        // through the Active cursor. (No-op with a single world.)
+        SetActiveWorld(session.CurrentLocationId);
 
         switch (message)
         {
@@ -1076,7 +1090,7 @@ public sealed partial class GameServer
             pool.Add(drop.Item, drop.Count);
         }
 
-        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
         if (IsFlora(current.Value))
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
@@ -1190,7 +1204,7 @@ public sealed partial class GameServer
 
         _world.SetBlock(pos, blockDef.NumericId);
 
-        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
@@ -1728,4 +1742,57 @@ public sealed partial class GameServer
 
     private void Broadcast(object message)
         => _transport.Broadcast(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+
+    // ---------------- Multi-world routing (Active cursor) ----------------
+
+    /// <summary>Joined players currently in the active cursor world. With one world this is every joined
+    /// player; with several resident worlds it is just that world's occupants.</summary>
+    private IEnumerable<PlayerSession> JoinedInActiveWorld()
+    {
+        string loc = _worlds.Active?.LocationId ?? string.Empty;
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && s.CurrentLocationId == loc)
+            {
+                yield return s;
+            }
+        }
+    }
+
+    /// <summary>Sends a world-local message (block change, entity list, environment, presence) only to the
+    /// players in the active cursor world, so a player on planet A never receives planet B's events.</summary>
+    private void BroadcastToWorld(object message)
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            Send(s, message);
+        }
+    }
+
+    /// <summary>Points the Active cursor at the resident world for a body. True if it is the current world
+    /// or a cached one; false if not loaded (an occupied world is always loaded, so it normally succeeds).</summary>
+    private bool SetActiveWorld(string locationId)
+    {
+        if (_worlds.Active != null && _worlds.Active.LocationId == locationId)
+        {
+            return true;
+        }
+
+        return _worlds.SetActive(locationId);
+    }
+
+    /// <summary>The distinct bodies that currently have at least one joined player (the worlds to tick).</summary>
+    private List<string> OccupiedLocations()
+    {
+        var seen = new List<string>();
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && !string.IsNullOrEmpty(s.CurrentLocationId) && !seen.Contains(s.CurrentLocationId))
+            {
+                seen.Add(s.CurrentLocationId);
+            }
+        }
+
+        return seen;
+    }
 }

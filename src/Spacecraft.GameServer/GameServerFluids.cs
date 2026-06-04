@@ -48,7 +48,7 @@ public sealed partial class GameServer
         {
             var pos = new Vector3i(x, y, z);
             _world.SetBlock(pos, def.NumericId);
-            Broadcast(new BlockChanged { X = x, Y = y, Z = z, Block = def.NumericId.Value });
+            BroadcastToWorld(new BlockChanged { X = x, Y = y, Z = z, Block = def.NumericId.Value });
             RegisterFluidSource(pos);
         }
     }
@@ -127,7 +127,7 @@ public sealed partial class GameServer
     {
         _world.SetBlock(pos, kind);
         _fluidLevel[pos] = level;
-        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = kind.Value });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = kind.Value });
         _activeFluid.Add(pos);
     }
 

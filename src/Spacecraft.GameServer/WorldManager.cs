@@ -154,6 +154,18 @@ internal sealed class WorldManager
         return w;
     }
 
+    /// <summary>Points the Active cursor at an already-resident world. Returns false if it isn't loaded.</summary>
+    public bool SetActive(string locationId)
+    {
+        if (_loaded.TryGetValue(locationId, out var w))
+        {
+            Active = w;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Drops a resident world from memory (its chunk edits are already persisted by the repo).
     /// No-op if it isn't loaded or is still the active cursor.</summary>
     public void Unload(string locationId)

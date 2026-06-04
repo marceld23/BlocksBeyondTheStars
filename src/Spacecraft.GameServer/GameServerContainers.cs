@@ -115,7 +115,7 @@ public sealed partial class GameServer
     };
 
     private void BroadcastContainers()
-        => Broadcast(new ContainerList { Containers = _containers.Select(ToNetContainer).ToArray() });
+        => BroadcastToWorld(new ContainerList { Containers = _containers.Select(ToNetContainer).ToArray() });
 
     private void SendContainers(PlayerSession session)
         => Send(session, new ContainerList { Containers = _containers.Select(ToNetContainer).ToArray() });

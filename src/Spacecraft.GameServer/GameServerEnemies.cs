@@ -33,8 +33,8 @@ public sealed partial class GameServer
         }
 
         // Eligible targets: joined players on the surface (outside the ship, not flying in space).
-        var targets = _sessions.Values
-            .Where(s => s.Joined && !s.State.AboardShip && !InSpace(s.State.PlayerId))
+        var targets = JoinedInActiveWorld()
+            .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))
             .ToList();
 
         if (targets.Count == 0)
@@ -175,13 +175,13 @@ public sealed partial class GameServer
         }
         else
         {
-            Broadcast(new PlanetEnemyDefeated { Id = target.Id });
+            BroadcastToWorld(new PlanetEnemyDefeated { Id = target.Id });
             BroadcastPlanetEnemies();
         }
     }
 
     private void BroadcastPlanetEnemies()
-        => Broadcast(new PlanetEnemyList { Enemies = _planetEnemies.Select(ToNet).ToArray() });
+        => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Select(ToNet).ToArray() });
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
         => AttackEntity(session.State.PlayerId, intent.EntityId);

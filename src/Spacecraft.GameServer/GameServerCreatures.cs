@@ -95,8 +95,8 @@ public sealed partial class GameServer
             return; // barren world — no life
         }
 
-        var targets = _sessions.Values
-            .Where(s => s.Joined && !s.State.AboardShip && !InSpace(s.State.PlayerId))
+        var targets = JoinedInActiveWorld()
+            .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))
             .ToList();
 
         if (targets.Count == 0)
@@ -359,7 +359,7 @@ public sealed partial class GameServer
         return best;
     }
 
-    private void BroadcastCreatures() => Broadcast(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
+    private void BroadcastCreatures() => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
 
     private void SendCreatures(PlayerSession session)
         => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });

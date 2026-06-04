@@ -131,8 +131,8 @@ public sealed partial class GameServer
             return;
         }
 
-        var targets = _sessions.Values
-            .Where(s => s.Joined && (!_shipStamped || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
+        var targets = JoinedInActiveWorld()
+            .Where(s => (!_shipStamped || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
             .ToList();
 
         if (targets.Count == 0)
@@ -177,7 +177,7 @@ public sealed partial class GameServer
         }
     }
 
-    private void BroadcastNpcs() => Broadcast(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+    private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
 
     private void SendNpcs(PlayerSession session)
         => Send(session, new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });

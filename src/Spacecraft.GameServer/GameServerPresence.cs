@@ -85,7 +85,8 @@ public sealed partial class GameServer
     {
         foreach (var other in _sessions.Values)
         {
-            if (other.Joined && other.ConnectionId != newcomer.ConnectionId)
+            if (other.Joined && other.ConnectionId != newcomer.ConnectionId
+                && other.CurrentLocationId == newcomer.CurrentLocationId)
             {
                 Send(newcomer, PresenceOf(other));
             }
@@ -103,7 +104,9 @@ public sealed partial class GameServer
 
         _sincePresence = 0;
 
-        var joined = _sessions.Values.Where(s => s.Joined).ToList();
+        // Presence is per-world: a player only sees others in the same world (the active cursor world,
+        // since TickPresence runs once per occupied world).
+        var joined = JoinedInActiveWorld().ToList();
         if (joined.Count < 2)
         {
             return; // nobody else to inform

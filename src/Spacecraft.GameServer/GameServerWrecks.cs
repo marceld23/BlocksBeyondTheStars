@@ -210,7 +210,7 @@ public sealed partial class GameServer
         }
 
         _world.SetBlock(pos, required.NumericId);
-        Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = required.NumericId.Value });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = required.NumericId.Value });
         SendInventory(session);
         SendWreckRepairStatus(session);
         return true;

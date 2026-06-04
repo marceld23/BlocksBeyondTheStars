@@ -144,7 +144,7 @@ public sealed partial class GameServer
 
     private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment());
 
-    private void BroadcastEnvironment() => Broadcast(BuildEnvironment());
+    private void BroadcastEnvironment() => BroadcastToWorld(BuildEnvironment());
 
     private static int StableStringHash(string s)
     {

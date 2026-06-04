@@ -105,7 +105,7 @@ public sealed partial class GameServer
             if (!ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)) && _world.GetBlock(pos).IsAir && IsValidFloraHost(floraId, pos))
             {
                 _world.SetBlock(pos, new BlockId(floraId));
-                Broadcast(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId });
+                BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId });
             }
         }
 
