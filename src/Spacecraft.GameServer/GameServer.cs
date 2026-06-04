@@ -311,6 +311,7 @@ public sealed partial class GameServer
                 continue;
             }
 
+            s.CurrentLocationId = body.Id;
             var zone = EnsureLandingZone(s.State.PlayerId);
             int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
             var spawn = _shipStamped ? _healTank : new Vector3f(zone.CenterX + 0.5f, surfaceY + 2f, zone.CenterZ + 0.5f);
@@ -841,7 +842,7 @@ public sealed partial class GameServer
             state.Role = PlayerRole.Admin;
         }
 
-        var session = new PlayerSession(connectionId, state) { Joined = true };
+        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
 
         var (systemName, planetName) = ActiveLocationNames();
@@ -919,7 +920,7 @@ public sealed partial class GameServer
         }
 
         int connectionId = _nextLocalConnectionId--;
-        var session = new PlayerSession(connectionId, state) { Joined = true };
+        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
         return session;
     }

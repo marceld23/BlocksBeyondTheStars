@@ -85,11 +85,21 @@ internal sealed class WorldManager
         _repo = repo;
     }
 
-    /// <summary>The currently active world (the one the single shared session pool operates on today).</summary>
-    public LoadedWorld Active { get; private set; } = null!;
+    private readonly Dictionary<string, LoadedWorld> _loaded = new();
 
-    /// <summary>(Re)builds the world for a body and makes it active. A fresh <see cref="ServerWorld"/> is
-    /// created each call (matching the prior behaviour); caching/unloading arrives with multi-world.</summary>
+    /// <summary>The world the server is currently operating on (the "Active cursor"). In the multi-world
+    /// tick it is set to each occupied world in turn, and to a player's world before handling their
+    /// messages. Settable within the assembly so the tick can move the cursor.</summary>
+    public LoadedWorld Active { get; set; } = null!;
+
+    /// <summary>All currently resident worlds (one per occupied body once multi-world is on).</summary>
+    public IEnumerable<LoadedWorld> Loaded => _loaded.Values;
+
+    /// <summary>True if a world for this body is resident in memory.</summary>
+    public bool IsLoaded(string locationId) => _loaded.ContainsKey(locationId);
+
+    /// <summary>(Re)builds the world for a body and makes it active, NOT caching it — the single-world
+    /// path (Start + travel today). Multi-world uses <see cref="GetOrCreate"/> instead.</summary>
     public LoadedWorld Activate(PlanetType planet, string locationId)
     {
         Active = new LoadedWorld
@@ -99,5 +109,38 @@ internal sealed class WorldManager
             PlanetType = planet.Key,
         };
         return Active;
+    }
+
+    /// <summary>Returns the resident world for a body, creating (and caching) a fresh one if absent. Sets
+    /// it active. <paramref name="isNew"/> tells the caller to run the one-time world init/stamp.</summary>
+    public LoadedWorld GetOrCreate(PlanetType planet, string locationId, out bool isNew)
+    {
+        if (_loaded.TryGetValue(locationId, out var w))
+        {
+            isNew = false;
+            Active = w;
+            return w;
+        }
+
+        w = new LoadedWorld
+        {
+            World = new ServerWorld(_content, _generator, _repo, planet, locationId),
+            LocationId = locationId,
+            PlanetType = planet.Key,
+        };
+        _loaded[locationId] = w;
+        isNew = true;
+        Active = w;
+        return w;
+    }
+
+    /// <summary>Drops a resident world from memory (its chunk edits are already persisted by the repo).
+    /// No-op if it isn't loaded or is still the active cursor.</summary>
+    public void Unload(string locationId)
+    {
+        if (_loaded.TryGetValue(locationId, out var w) && !ReferenceEquals(w, Active))
+        {
+            _loaded.Remove(locationId);
+        }
     }
 }

@@ -12,6 +12,11 @@ public sealed class PlayerSession
     /// <summary>True once the player has completed the join handshake.</summary>
     public bool Joined { get; set; }
 
+    /// <summary>The celestial-body id of the world this player is currently in. With multi-world, each
+    /// player can be on a different body; the server sets <c>_worlds.Active</c> to this before handling the
+    /// player's messages / streaming their chunks. Empty until the join places them.</summary>
+    public string CurrentLocationId { get; set; } = string.Empty;
+
     /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
     public int LastChatTick { get; set; }
 
