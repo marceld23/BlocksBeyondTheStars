@@ -54,8 +54,8 @@ public sealed class DetoxifierTests : IDisposable
         var server = Started(out var repo);
         using (repo)
         {
-            server.Ship.Modules.Add("detoxifier"); // install the processing station
             var p = server.AddLocalPlayer("Cook");
+            p.Ships[p.ActiveShipId].Modules.Add("detoxifier"); // install on the player's own ship
             p.State.AboardShip = true;
             p.State.Inventory.Add("toxic_gland", 1, 20);
 

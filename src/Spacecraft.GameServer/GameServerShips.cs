@@ -15,18 +15,27 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private readonly Dictionary<string, ShipState> _ships = new();
-    private string _activeShipId = ShipId;
+    private readonly Dictionary<string, ShipState> _noFleet = new();
+
+    /// <summary>The served player's owned ships (the ship cursor's fleet); empty placeholder if none.</summary>
+    private Dictionary<string, ShipState> _ships => CurrentOrFirst()?.Ships ?? _noFleet;
+
+    /// <summary>The served player's active ship id.</summary>
+    private string _activeShipId
+    {
+        get => CurrentOrFirst()?.ActiveShipId ?? string.Empty;
+        set { var s = CurrentOrFirst(); if (s != null) s.ActiveShipId = value; }
+    }
 
     public IReadOnlyDictionary<string, ShipState> OwnedShips => _ships;
     public string ActiveShipId => _activeShipId;
 
-    /// <summary>Registers the loaded/starter ship as the initial active ship (called from Start).</summary>
-    private void RegisterActiveShip(ShipState ship)
+    /// <summary>Installs a player's starter/loaded ship as their initial active ship (called on join).</summary>
+    private void RegisterActiveShip(PlayerSession session, ShipState ship)
     {
-        _ships.Clear();
-        _ships[ShipId] = ship;
-        _activeShipId = ShipId;
+        session.Ships.Clear();
+        session.Ships[ShipId] = ship;
+        session.ActiveShipId = ShipId;
     }
 
     private ShipState BuildShipFromDefinition(ShipDefinition def)
@@ -70,6 +79,8 @@ public sealed partial class GameServer
             return (false, "No such player.");
         }
 
+        Serve(session); // operate on this player's own fleet/ship
+
         var def = _content.GetShip(shipType);
         if (def is null)
         {
@@ -110,8 +121,7 @@ public sealed partial class GameServer
         }
 
         _activeShipId = shipId;
-        _ship = ship;
-        RecomputeShipCombatStats();
+        RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
         if (_shipStamped)
         {
             StampShip(); // the new design may be a different size
@@ -125,7 +135,12 @@ public sealed partial class GameServer
         => Send(session, BuildOwnedShips());
 
     private void BroadcastOwnedShips()
-        => Broadcast(BuildOwnedShips());
+    {
+        if (_current is { Joined: true })
+        {
+            Send(_current, BuildOwnedShips()); // a fleet is per-player — only its owner needs it
+        }
+    }
 
     private OwnedShips BuildOwnedShips()
     {

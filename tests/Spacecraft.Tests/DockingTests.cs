@@ -35,10 +35,15 @@ public sealed class DockingTests : IDisposable
 
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
-        server.Ship.Modules.Add("docking_module");
 
         server.AddLocalPlayer("Alice");
         server.AddLocalPlayer("Bob");
+        // Per-player ships: give each player's own ship a docking module.
+        foreach (var s in server.Sessions.Values)
+        {
+            s.Ships[s.ActiveShipId].Modules.Add("docking_module");
+        }
+
         return server;
     }
 
@@ -145,13 +150,20 @@ public sealed class DockingTests : IDisposable
 
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
-        server.Ship.Modules.Add("docking_module");
 
         // Alice joins over the (networked) loopback transport; Bob is a local session.
         client.Connect("loopback", 0);
         client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Alice" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         server.AddLocalPlayer("Bob");
+        // Per-player ships: give each joined player's own ship a docking module.
+        foreach (var s in server.Sessions.Values)
+        {
+            if (s.Joined && s.Ships.TryGetValue(s.ActiveShipId, out var sh))
+            {
+                sh.Modules.Add("docking_module");
+            }
+        }
 
         server.RequestDock("Alice", "Bob");
         Assert.True(server.AreDocked("Alice", "Bob"));

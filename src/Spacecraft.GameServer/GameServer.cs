@@ -41,8 +41,61 @@ public sealed partial class GameServer
     private WorldMetadata _meta = new();
     private WorldGenerator _generator = null!;
     private WorldManager _worlds = null!;
-    private ShipState _ship = new();
     private Galaxy _galaxy = new();
+
+    /// <summary>The session the server is currently serving (the "ship cursor"). Per-player ship state
+    /// (`_ship`/`_ships`/`_activeShipId`) resolves through this, set before each player's messages + ticks
+    /// (mirrors the world Active cursor; single-threaded). Falls back to the first joined player.</summary>
+    private PlayerSession? _current;
+
+    /// <summary>Empty placeholder returned when no player is being served (avoids null ship access).</summary>
+    private readonly ShipState _noShip = new();
+
+    private PlayerSession? CurrentOrFirst()
+    {
+        if (_current is { Joined: true })
+        {
+            return _current;
+        }
+
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined)
+            {
+                return s;
+            }
+        }
+
+        return _current;
+    }
+
+    /// <summary>The active ship of the player currently being served (the ship cursor).</summary>
+    private ShipState _ship
+    {
+        get
+        {
+            var s = CurrentOrFirst();
+            return s != null && s.Ships.TryGetValue(s.ActiveShipId, out var ship) ? ship : _noShip;
+        }
+    }
+
+    /// <summary>Points the ship cursor at a session, refreshing the derived combat stats for its ship.</summary>
+    private void SetCurrent(PlayerSession session)
+    {
+        if (!ReferenceEquals(_current, session))
+        {
+            _current = session;
+            RecomputeShipCombatStats();
+        }
+    }
+
+    /// <summary>Points BOTH cursors (world + ship) at a player before serving them — used by the public
+    /// test/util entry methods that bypass the OnPayload dispatch (which already does this).</summary>
+    private void Serve(PlayerSession session)
+    {
+        SetActiveWorld(session.CurrentLocationId);
+        SetCurrent(session);
+    }
 
     /// <summary>The active voxel world. Routed through <see cref="WorldManager"/> so multi-world can hold
     /// several resident worlds; today there is exactly one active world (behaviour unchanged).</summary>
@@ -100,11 +153,7 @@ public sealed partial class GameServer
         _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
 
-        _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
-        RegisterActiveShip(_ship);
-        RecomputeShipCombatStats();
-        _repo.SaveShip(ShipId, _ship);
-
+        // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
         BuildMissions();
 
         // Builds the active world for the start body plus all its per-world state (weather, fauna,
@@ -212,7 +261,8 @@ public sealed partial class GameServer
             return world; // already resident — keep its fauna/structures/edits
         }
 
-        // Fresh world: GetOrCreate set it active. Build its per-world state + structures.
+        // Fresh world: GetOrCreate set it active. Build its per-world state + structures. The player's own
+        // ship is stamped per-player on join/travel (not here), so each player gets their ship in their world.
         ResetWorldRuntimeState();
         InitWeather();
         InitFluids();
@@ -220,11 +270,6 @@ public sealed partial class GameServer
         InitCreatures();
         LoadLandingZones();
         LoadContainers();
-
-        if (_config.PlaceStarterShip)
-        {
-            StampShip();
-        }
 
         if (_config.PlaceSettlements)
         {
@@ -284,6 +329,8 @@ public sealed partial class GameServer
 
     private void HandleTravel(PlayerSession session, TravelIntent intent)
     {
+        Serve(session); // act on the traveller's own world + ship (the jump-drive check below needs it)
+
         if (!Rules.FreeSpaceFlight)
         {
             Reject(session, "travel", "Space flight is disabled on this server.");
@@ -319,6 +366,13 @@ public sealed partial class GameServer
         LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
         session.CurrentLocationId = body.Id;
 
+        // Stamp this player's own ship into the destination world before placing them.
+        SetCurrent(session);
+        if (_config.PlaceStarterShip)
+        {
+            StampShip();
+        }
+
         var (systemName, planetName) = ActiveLocationNames();
         var zone = EnsureLandingZone(session.State.PlayerId);
         int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
@@ -346,6 +400,29 @@ public sealed partial class GameServer
         {
             _worlds.Unload(oldLoc);
         }
+    }
+
+    /// <summary>Persistence key for a player's saved ship (one persisted ship per player; extra owned
+    /// ships in the fleet live in-memory per session for now).</summary>
+    private static string ShipSaveKey(string playerId) => "ship_" + playerId;
+
+    /// <summary>Sets up a freshly-joined player's ship: points the cursor at them, loads or creates their
+    /// own ship, registers it as their active ship, and stamps it into their (active) world. A player owns
+    /// their own fleet (multiple ships possible via crafting/wreck-claim) with exactly one active ship.</summary>
+    private void SetupPlayerShip(PlayerSession session)
+    {
+        SetActiveWorld(session.CurrentLocationId);
+        SetCurrent(session);
+        var ship = _repo.LoadShip(ShipSaveKey(session.State.PlayerId)) ?? CreateStarterShip();
+        RegisterActiveShip(session, ship);
+        RecomputeShipCombatStats();
+        if (_config.PlaceStarterShip)
+        {
+            StampShip(); // stamp this player's ship into their world
+            session.State.RespawnPoint = _healTank;
+        }
+
+        _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship);
     }
 
     private ShipState CreateStarterShip()
@@ -752,7 +829,11 @@ public sealed partial class GameServer
             LeaveStation(session.State.PlayerId);
             CancelTradesFor(session.State.PlayerId);
             _repo.SavePlayer(session.State);
-            _repo.SaveShip(ShipId, _ship);
+            SetCurrent(session);
+            if (session.Ships.TryGetValue(session.ActiveShipId, out var theirShip))
+            {
+                _repo.SaveShip(ShipSaveKey(session.State.PlayerId), theirShip);
+            }
 
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
@@ -790,9 +871,10 @@ public sealed partial class GameServer
             return; // ignore gameplay intents before joining
         }
 
-        // Operate on the sender's world: block edits, broadcasts and lookups in the handlers below all go
-        // through the Active cursor. (No-op with a single world.)
+        // Operate on the sender's world + ship: block edits, broadcasts, ship state and lookups in the
+        // handlers below all go through the Active world cursor + the ship cursor.
         SetActiveWorld(session.CurrentLocationId);
+        SetCurrent(session);
 
         switch (message)
         {
@@ -886,6 +968,7 @@ public sealed partial class GameServer
 
         var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
+        SetupPlayerShip(session); // give the player their own ship, stamped into their world
 
         var (systemName, planetName) = ActiveLocationNames();
         SendTo(connectionId, new JoinAccepted
@@ -964,6 +1047,7 @@ public sealed partial class GameServer
         int connectionId = _nextLocalConnectionId--;
         var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
+        SetupPlayerShip(session); // local/test players get their own ship too
         return session;
     }
 
@@ -997,6 +1081,7 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
+            Serve(session);
             HandleCraft(session, new CraftIntent { RecipeKey = recipeKey, Count = count });
         }
     }
@@ -1604,13 +1689,18 @@ public sealed partial class GameServer
     {
         foreach (var session in _sessions.Values)
         {
-            if (session.Joined)
+            if (!session.Joined)
             {
-                _repo.SavePlayer(session.State);
+                continue;
+            }
+
+            _repo.SavePlayer(session.State);
+            if (session.Ships.TryGetValue(session.ActiveShipId, out var ship))
+            {
+                _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship); // each player's own ship
             }
         }
 
-        _repo.SaveShip(ShipId, _ship);
         _repo.SaveMetadata(_meta);
     }
 

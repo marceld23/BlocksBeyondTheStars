@@ -27,6 +27,7 @@ public sealed class ShipStructureTests : IDisposable
         var config = new ServerConfig { WorldName = placeShip ? "withship" : "noship", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = placeShip };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
+        server.AddLocalPlayer("Host"); // ships are per-player now — a player must exist for one to be stamped
         return server;
     }
 

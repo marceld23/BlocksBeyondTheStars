@@ -59,6 +59,11 @@ public sealed partial class GameServer
             return;
         }
 
+        if (fromSession != null)
+        {
+            Serve(fromSession); // check the requester's own ship for the docking module
+        }
+
         if (!_ship.HasModule(DockingModule))
         {
             RejectDock(fromSession, "Your ship has no docking module.");

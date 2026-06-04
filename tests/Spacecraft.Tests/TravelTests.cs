@@ -55,6 +55,7 @@ public sealed class TravelTests : IDisposable
         using (repo)
         {
             server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator"); // fit on the player's own ship (per-player ships)
             var dest = OtherPlanet(server);
 
             server.Travel("Pilot", dest.Id);
@@ -77,6 +78,7 @@ public sealed class TravelTests : IDisposable
             var bob = server.Sessions.Values.First(s => s.State.PlayerId == "Bob");
             string origin = alice.CurrentLocationId;
             Assert.Equal(origin, bob.CurrentLocationId); // both start together
+            alice.Ships[alice.ActiveShipId].Modules.Add("jump_generator"); // Alice's own ship can jump
 
             var dest = OtherPlanet(server);
             server.Travel("Alice", dest.Id);
@@ -126,6 +128,7 @@ public sealed class TravelTests : IDisposable
         using (repo)
         {
             server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
             string origin = server.ActiveLocationId;
 
             // Travel until we reach a world that actually has fauna; it must be populated on arrival
@@ -153,6 +156,7 @@ public sealed class TravelTests : IDisposable
         using (repo)
         {
             server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
             string origin = server.ActiveLocationId;
             var dest = OtherPlanet(server);
 

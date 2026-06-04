@@ -27,6 +27,7 @@ public sealed class ShipFleetTests : IDisposable
         var config = new ServerConfig { WorldName = "fleet", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
+        server.AddLocalPlayer("Host"); // ships are per-player now — a player must exist to own one
         return server;
     }
 
