@@ -17,7 +17,7 @@ public sealed partial class GameServer
     private const float EnemyAttackReach = 6f;
 
     private List<CombatEntity> _planetEnemies => _worlds.Active.PlanetEnemies;
-    private double _enemySpawnTimer;
+    private double _enemySpawnTimer { get => _worlds.Active.EnemySpawnTimer; set => _worlds.Active.EnemySpawnTimer = value; }
 
     /// <summary>Hostile creatures currently active on the surface.</summary>
     public IReadOnlyList<CombatEntity> PlanetEnemies => _planetEnemies;

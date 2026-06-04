@@ -39,8 +39,8 @@ public sealed partial class GameServer
     }
 
     private List<ServerNpc> _npcs => _worlds.Active.Npcs;
-    private double _npcBroadcastTimer;
-    private int _nextNpcId = 1;
+    private double _npcBroadcastTimer { get => _worlds.Active.NpcBroadcastTimer; set => _worlds.Active.NpcBroadcastTimer = value; }
+    private int _nextNpcId { get => _worlds.Active.NextNpcId; set => _worlds.Active.NextNpcId = value; }
 
     /// <summary>Read-only view of live settlement NPCs (id/role/current/home) for tests + inspection.</summary>
     public IReadOnlyList<(int Id, string Role, Vector3f Pos, Vector3f Home)> NpcSnapshots

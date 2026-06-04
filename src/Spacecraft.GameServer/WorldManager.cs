@@ -38,6 +38,32 @@ internal sealed class LoadedWorld
     public Vector3f HealTank { get; set; }
     public Dictionary<string, LandingZone> LandingZones { get; } = new();
     public List<StoredContainer> Containers { get; } = new();
+
+    // Settlement stamp state.
+    public bool SettlementStamped { get; set; }
+    public Vector3i SettlementMin { get; set; }
+    public Vector3i SettlementMax { get; set; }
+    public bool SettlementRuined { get; set; }
+    public string SettlementName { get; set; } = string.Empty;
+    public string SettlementInhabitant { get; set; } = string.Empty;
+
+    // Wreck stamp state.
+    public bool WreckStamped { get; set; }
+    public Vector3i WreckOrigin { get; set; }
+    public WreckStructure? Wreck { get; set; }
+    public string WreckName { get; set; } = string.Empty;
+    public bool WreckClaimed { get; set; }
+
+    // Per-world simulation timers/counters (so each resident world ticks independently). Weather + time
+    // stay global for now (all resident worlds share the sky — a temporary limitation, refined in P7).
+    public double CreatureSpawnTimer { get; set; }
+    public double CreatureClock { get; set; }
+    public double CreatureBroadcastTimer { get; set; }
+    public int CreatureSpawnRotor { get; set; }
+    public double EnemySpawnTimer { get; set; }
+    public double SinceFluid { get; set; }
+    public double NpcBroadcastTimer { get; set; }
+    public int NextNpcId { get; set; } = 1;
 }
 
 /// <summary>

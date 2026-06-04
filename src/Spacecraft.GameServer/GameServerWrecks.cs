@@ -18,11 +18,11 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private bool _wreckStamped;
-    private Vector3i _wreckOrigin;
-    private WreckStructure? _wreck;
-    private string _wreckName = string.Empty;
-    private bool _wreckClaimed;
+    private bool _wreckStamped { get => _worlds.Active.WreckStamped; set => _worlds.Active.WreckStamped = value; }
+    private Vector3i _wreckOrigin { get => _worlds.Active.WreckOrigin; set => _worlds.Active.WreckOrigin = value; }
+    private WreckStructure? _wreck { get => _worlds.Active.Wreck; set => _worlds.Active.Wreck = value; }
+    private string _wreckName { get => _worlds.Active.WreckName; set => _worlds.Active.WreckName = value; }
+    private bool _wreckClaimed { get => _worlds.Active.WreckClaimed; set => _worlds.Active.WreckClaimed = value; }
     private List<(string Type, Vector3f Pos)> _wreckMarkers => _worlds.Active.WreckMarkers;
 
     /// <summary>Interaction points inside the stamped wreck (loot / module / data_terminal).</summary>

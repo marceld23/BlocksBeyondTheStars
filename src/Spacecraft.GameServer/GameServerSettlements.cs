@@ -17,11 +17,12 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private bool _settlementStamped;
-    private Vector3i _settlementMin, _settlementMax;
-    private bool _settlementRuined;
-    private string _settlementName = string.Empty;
-    private string _settlementInhabitant = string.Empty;
+    private bool _settlementStamped { get => _worlds.Active.SettlementStamped; set => _worlds.Active.SettlementStamped = value; }
+    private Vector3i _settlementMin { get => _worlds.Active.SettlementMin; set => _worlds.Active.SettlementMin = value; }
+    private Vector3i _settlementMax { get => _worlds.Active.SettlementMax; set => _worlds.Active.SettlementMax = value; }
+    private bool _settlementRuined { get => _worlds.Active.SettlementRuined; set => _worlds.Active.SettlementRuined = value; }
+    private string _settlementName { get => _worlds.Active.SettlementName; set => _worlds.Active.SettlementName = value; }
+    private string _settlementInhabitant { get => _worlds.Active.SettlementInhabitant; set => _worlds.Active.SettlementInhabitant = value; }
     private List<(string Type, Vector3f Pos)> _settlementMarkers => _worlds.Active.SettlementMarkers;
 
     /// <summary>Mission ids offered by this settlement's board (only acceptable/turn-in-able there).</summary>

@@ -23,7 +23,7 @@ public sealed partial class GameServer
 
     private Dictionary<Vector3i, byte> _fluidLevel => _worlds.Active.FluidLevel;
     private HashSet<Vector3i> _activeFluid => _worlds.Active.ActiveFluid;
-    private double _sinceFluid;
+    private double _sinceFluid { get => _worlds.Active.SinceFluid; set => _worlds.Active.SinceFluid = value; }
     private ushort _waterId, _lavaId;
 
     private void InitFluids()

@@ -38,10 +38,10 @@ public sealed partial class GameServer
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
-    private double _creatureSpawnTimer;
-    private double _creatureClock;
-    private double _creatureBroadcastTimer;
-    private int _creatureSpawnRotor;
+    private double _creatureSpawnTimer { get => _worlds.Active.CreatureSpawnTimer; set => _worlds.Active.CreatureSpawnTimer = value; }
+    private double _creatureClock { get => _worlds.Active.CreatureClock; set => _worlds.Active.CreatureClock = value; }
+    private double _creatureBroadcastTimer { get => _worlds.Active.CreatureBroadcastTimer; set => _worlds.Active.CreatureBroadcastTimer = value; }
+    private int _creatureSpawnRotor { get => _worlds.Active.CreatureSpawnRotor; set => _worlds.Active.CreatureSpawnRotor = value; }
     private ushort _creatureWaterId, _creatureLavaId;
 
     /// <summary>Live creatures on the surface (passive + hostile fauna).</summary>
