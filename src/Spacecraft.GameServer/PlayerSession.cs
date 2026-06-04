@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Spacecraft.Shared.State;
 using Spacecraft.Shared.World;
 
@@ -26,6 +27,16 @@ public sealed class PlayerSession
     /// <summary>Short rolling history of the player's recent state (for /bump diagnostics).</summary>
     public List<BumpSample> History { get; } = new();
     public double SinceHistorySample;
+
+    // --- Per-player ship fleet (P4: one ship per player, no crew) ---
+    // Each player owns their own ships and one is active (flown + stamped into their world). The server
+    // serves a player by pointing its ship cursor at this fleet. Empty until the join sets it up.
+
+    /// <summary>This player's owned ships, keyed by ship id.</summary>
+    public Dictionary<string, ShipState> Ships { get; } = new();
+
+    /// <summary>The id of this player's active ship (the one flown + stamped).</summary>
+    public string ActiveShipId { get; set; } = string.Empty;
 
     // Avatar colours (packed 0xRRGGBB) relayed to other players. Sensible defaults until set.
     public int SkinColor { get; set; } = 0xD9AE8C;

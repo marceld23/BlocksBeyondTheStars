@@ -144,6 +144,17 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
 fauna and weather (261 tests).** Known interim limitation: the ship is still shared (one `_ship` stamped
 into each world) — **P4** makes it per-player.
 
+**P4 plan (per-player ship, no crew):** the fleet (`_ships`/`_activeShipId` in `GameServerShips`) is
+currently global; make it per-player via a **session cursor** (`_current`) so `_ship`/`_ships`/
+`_activeShipId` resolve to the served player's ship (mirrors the world Active cursor; single-threaded).
+Sub-steps: **P4a** add per-player fleet to `PlayerSession` + the `_current` cursor + route `_ship`/`_ships`/
+`_activeShipId` through it (recompute the combat-stat caches `_shipHullMax/Shield/Regen/Radar` on cursor
+set); **P4b** move the ship lifecycle from Start (one shared ship) to per-join (each player loads/creates
+their own ship; persistence keyed by player id); **P4c** set `_current` in `OnPayload` + before per-player
+StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle the test/public accessors
+(`server.Ship`/`OwnedShips` → first joined player) + a two-player fleet-isolation test. Ship-stamp state
+stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
+
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
   Full research in [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).
