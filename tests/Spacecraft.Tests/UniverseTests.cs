@@ -37,6 +37,28 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void BodyPositions_AreDeterministic_AndSpreadOut()
+    {
+        var desc = new WorldDescription { StarSystemCount = 4, PlanetsPerSystemMin = 3, PlanetsPerSystemMax = 5 };
+        var a = new UniverseGenerator(42, desc, _content).Generate();
+        var b = new UniverseGenerator(42, desc, _content).Generate();
+
+        // Same seed → identical system-space coordinates.
+        var pa = a.AllBodies().Select(x => (x.SystemX, x.SystemZ)).ToList();
+        var pb = b.AllBodies().Select(x => (x.SystemX, x.SystemZ)).ToList();
+        Assert.Equal(pa, pb);
+
+        foreach (var sys in a.Systems)
+        {
+            var planets = sys.Bodies.Where(x => x.Kind == CelestialKind.Planet).ToList();
+            // Every planet sits off the star, and no two planets share a position.
+            Assert.All(planets, p => Assert.True(p.SystemX * p.SystemX + p.SystemZ * p.SystemZ > 1f));
+            var distinct = planets.Select(p => (p.SystemX, p.SystemZ)).Distinct().Count();
+            Assert.Equal(planets.Count, distinct);
+        }
+    }
+
+    [Fact]
     public void DifferentSeeds_ProduceDifferentUniverses()
     {
         var desc = new WorldDescription { StarSystemCount = 6 };

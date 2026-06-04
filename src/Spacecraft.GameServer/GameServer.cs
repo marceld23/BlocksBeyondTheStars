@@ -1662,6 +1662,9 @@ public sealed partial class GameServer
                 Kind = b.Kind.ToString(),
                 PlanetType = b.PlanetType,
                 Status = b.Status.ToString(),
+                SystemX = b.SystemX,
+                SystemY = b.SystemY,
+                SystemZ = b.SystemZ,
             }).ToArray(),
         }).ToArray();
 

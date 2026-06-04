@@ -17,6 +17,15 @@ public sealed class UniverseGenerator
     private static readonly string[] NameSuffixes =
         { "ra", "on", "is", "ar", "ex", "ia", "us", "or", "an", "yn", "el", "os" };
 
+    // System-space flight layout (the star at the origin). Planar disc; tuned so adjacent planets are a
+    // short minute-or-so cruise apart at the ship's flight speed. Used by the system-scale flight layer.
+    private const float Tau = 6.2831853f;
+    private const float BaseOrbit = 420f;   // first planet's orbit radius
+    private const float OrbitStep = 520f;   // extra radius per planet outward
+    private const float OrbitJitter = 140f; // random radial wobble so orbits aren't perfectly spaced
+    private const float MoonOrbit = 90f;    // first moon's radius around its planet
+    private const float MoonStep = 55f;     // extra radius per moon
+
     private readonly long _seed;
     private readonly WorldDescription _desc;
     private readonly List<(string key, int weight)> _planetWeights;
@@ -85,11 +94,20 @@ public sealed class UniverseGenerator
                     PlanetType = PickPlanetType(rng),
                     SystemId = system.Id,
                 };
+                // Orbit on a planar disc around the star: outer planets sit further out, at a seeded angle.
+                // Positions come from a SEPARATE hash (not rng) so the body type/name sequence — and thus
+                // existing universes — stay byte-identical.
+                float pAngle = Hash01(i, p, 101) * Tau;
+                float pRadius = BaseOrbit + p * OrbitStep + (Hash01(i, p, 102) - 0.5f) * OrbitJitter;
+                planet.SystemX = pRadius * System.MathF.Cos(pAngle);
+                planet.SystemZ = pRadius * System.MathF.Sin(pAngle);
                 system.Bodies.Add(planet);
 
                 int moons = rng.Range(_desc.MoonsPerPlanetMin, _desc.MoonsPerPlanetMax);
                 for (int m = 0; m < moons; m++)
                 {
+                    float mAngle = Hash01(i, p, 200 + m) * Tau;
+                    float mRadius = MoonOrbit + m * MoonStep;
                     system.Bodies.Add(new CelestialBody
                     {
                         Id = $"{planet.Id}-m{m}",
@@ -97,29 +115,46 @@ public sealed class UniverseGenerator
                         Kind = CelestialKind.Moon,
                         PlanetType = PickPlanetType(rng),
                         SystemId = system.Id,
+                        SystemX = planet.SystemX + mRadius * System.MathF.Cos(mAngle),
+                        SystemZ = planet.SystemZ + mRadius * System.MathF.Sin(mAngle),
                     });
                 }
             }
 
             if (rng.NextDouble() < _desc.AsteroidFields.Probability())
             {
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-a0", Name = $"{system.Name} Belt", Kind = CelestialKind.AsteroidField, SystemId = system.Id });
+                var (ax, az) = DiscPoint(i, planets, 301);
+                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-a0", Name = $"{system.Name} Belt", Kind = CelestialKind.AsteroidField, SystemId = system.Id, SystemX = ax, SystemZ = az });
             }
 
             if (rng.NextDouble() < _desc.SpaceStations.Probability())
             {
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-st", Name = $"{system.Name} Station", Kind = CelestialKind.SpaceStation, SystemId = system.Id });
+                var (sx, sz) = DiscPoint(i, planets, 302);
+                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-st", Name = $"{system.Name} Station", Kind = CelestialKind.SpaceStation, SystemId = system.Id, SystemX = sx, SystemZ = sz });
             }
 
             if (rng.NextDouble() < _desc.Wrecks.Probability())
             {
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-w", Name = $"Wreck near {system.Name}", Kind = CelestialKind.Wreck, SystemId = system.Id });
+                var (wx, wz) = DiscPoint(i, planets, 303);
+                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-w", Name = $"Wreck near {system.Name}", Kind = CelestialKind.Wreck, SystemId = system.Id, SystemX = wx, SystemZ = wz });
             }
 
             galaxy.Systems.Add(system);
         }
 
         return galaxy;
+    }
+
+    /// <summary>A 0..1 deterministic value from a separate hash (does not disturb the body-generation rng).</summary>
+    private float Hash01(long a, long b, long c)
+        => (float)((Noise.Hash(_seed, a, b, c) >> 11) * (1.0 / 9007199254740992.0));
+
+    /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>
+    private (float X, float Z) DiscPoint(int systemIndex, int planets, int salt)
+    {
+        float angle = Hash01(systemIndex, salt, 1) * Tau;
+        float radius = BaseOrbit + Hash01(systemIndex, salt, 2) * (planets * OrbitStep + OrbitStep);
+        return (radius * System.MathF.Cos(angle), radius * System.MathF.Sin(angle));
     }
 
     private string PickPlanetType(DeterministicRandom rng)

@@ -480,6 +480,11 @@ public sealed class NetBody
     public string Kind { get; set; } = string.Empty;
     public string? PlanetType { get; set; }
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>System-space coordinates (star at origin) for the system-scale flight layer.</summary>
+    public float SystemX { get; set; }
+    public float SystemY { get; set; }
+    public float SystemZ { get; set; }
 }
 
 public sealed class NetStarSystem

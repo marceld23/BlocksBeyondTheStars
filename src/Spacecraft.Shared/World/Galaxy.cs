@@ -31,6 +31,12 @@ public sealed class CelestialBody
 
     public string SystemId { get; set; } = string.Empty;
     public GenerationStatus Status { get; set; } = GenerationStatus.NotGenerated;
+
+    // System-space coordinates (the star at the origin) used by the system-scale flight layer so the
+    // ship can fly between bodies and approach them. Deterministic from the seed. Planar today (Y≈0).
+    public float SystemX { get; set; }
+    public float SystemY { get; set; }
+    public float SystemZ { get; set; }
 }
 
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>
