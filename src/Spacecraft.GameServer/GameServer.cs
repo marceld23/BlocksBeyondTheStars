@@ -75,9 +75,17 @@ public sealed partial class GameServer
     public ServerWorld World => _world;
     public ShipState Ship => _ship;
     public Galaxy Galaxy => _galaxy;
-    public string ActiveLocationId => _meta.ActiveLocationId;
+    /// <summary>The location of the active cursor world (the world being operated on). With one player/
+    /// world this is simply where they are; <c>_meta.ActiveLocationId</c> remains the default join body.</summary>
+    public string ActiveLocationId => _worlds.Active?.LocationId ?? _meta.ActiveLocationId;
     public IReadOnlyDictionary<int, PlayerSession> Sessions => _sessions;
     public WorldMetadata Metadata => _meta;
+
+    /// <summary>Number of worlds currently resident in memory (test/inspection — one per occupied body).</summary>
+    public int ResidentWorldCount => _worlds.Count;
+
+    /// <summary>The resident voxel world for a body without moving the active cursor, or null (test/inspection).</summary>
+    public ServerWorld? WorldAt(string locationId) => _worlds.Find(locationId)?.World;
 
     // ---------------- Lifecycle ----------------
 
@@ -176,11 +184,10 @@ public sealed partial class GameServer
     /// resets + re-initialises all per-world runtime state (weather, fauna, flora, fluids, landing zones,
     /// containers) and re-stamps the ship/settlement/wreck. Used at startup and on travel.
     /// </summary>
+    /// <summary>Sets the world-wide default/active body (used by new joins + the star map) and ensures its
+    /// world is resident. Called once at startup.</summary>
     private void SwitchActiveWorld(string planetTypeKey, string locationId)
     {
-        var planet = _content.GetPlanet(planetTypeKey)
-                     ?? throw new InvalidOperationException($"Unknown planet type '{planetTypeKey}'.");
-
         _meta.DefaultPlanetType = planetTypeKey;
         _meta.ActiveLocationId = locationId;
         if (_ship is not null)
@@ -188,11 +195,25 @@ public sealed partial class GameServer
             _ship.CurrentLocationId = locationId;
         }
 
-        _worlds.Activate(planet, locationId);
+        LoadWorld(planetTypeKey, locationId);
+        _repo.SaveMetadata(_meta);
+    }
 
+    /// <summary>Ensures the world for a body is resident (creating + initialising it the first time) and
+    /// makes it the active cursor. Cached: a revisited world keeps its in-memory state. Returns the world.</summary>
+    private LoadedWorld LoadWorld(string planetTypeKey, string locationId)
+    {
+        var planet = _content.GetPlanet(planetTypeKey)
+                     ?? throw new InvalidOperationException($"Unknown planet type '{planetTypeKey}'.");
+
+        var world = _worlds.GetOrCreate(planet, locationId, out bool isNew);
+        if (!isNew)
+        {
+            return world; // already resident — keep its fauna/structures/edits
+        }
+
+        // Fresh world: GetOrCreate set it active. Build its per-world state + structures.
         ResetWorldRuntimeState();
-
-        // Per-world systems read the new planet type / seed.
         InitWeather();
         InitFluids();
         InitFlora();
@@ -200,7 +221,6 @@ public sealed partial class GameServer
         LoadLandingZones();
         LoadContainers();
 
-        // (Re)stamp structures for this body (settlement/wreck are guarded against duplicate loot).
         if (_config.PlaceStarterShip)
         {
             StampShip();
@@ -216,7 +236,6 @@ public sealed partial class GameServer
             StampWreck();
         }
 
-        // Mark the destination visited.
         var body = _galaxy?.FindBody(locationId);
         if (body is not null && body.Status != GenerationStatus.Visited)
         {
@@ -224,7 +243,7 @@ public sealed partial class GameServer
             _repo.SetLocationStatus(body.Id, body.Status.ToString());
         }
 
-        _repo.SaveMetadata(_meta);
+        return world;
     }
 
     /// <summary>Clears all per-world runtime state so a freshly switched world doesn't keep the old
@@ -278,14 +297,14 @@ public sealed partial class GameServer
             return;
         }
 
-        if (body.Id == _meta.ActiveLocationId)
+        if (body.Id == session.CurrentLocationId)
         {
             Reject(session, "travel", "You are already there.");
             return;
         }
 
         // A jump to a different star system is a hyperspace jump — it needs a jump generator fitted.
-        var origin = _galaxy?.FindBody(_meta.ActiveLocationId);
+        var origin = _galaxy?.FindBody(session.CurrentLocationId);
         bool hyperjump = origin is null || origin.SystemId != body.SystemId;
         if (hyperjump && (_ship is null || !_ship.HasModule("jump_generator")))
         {
@@ -293,45 +312,39 @@ public sealed partial class GameServer
             return;
         }
 
-        // Take everyone out of the (old world's) space instance before switching worlds.
-        foreach (var pid in _playerInstance.Keys.ToList())
-        {
-            LeaveSpace(pid);
-        }
+        // Per-player travel: only THIS player moves. Other players stay on their own worlds.
+        string oldLoc = session.CurrentLocationId;
+        LeaveSpace(session.State.PlayerId);
 
-        SwitchActiveWorld(body.PlanetType, body.Id);
+        LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
+        session.CurrentLocationId = body.Id;
 
         var (systemName, planetName) = ActiveLocationNames();
+        var zone = EnsureLandingZone(session.State.PlayerId);
+        int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
+        var spawn = _shipStamped ? _healTank : new Vector3f(zone.CenterX + 0.5f, surfaceY + 2f, zone.CenterZ + 0.5f);
+        session.State.Position = spawn;
+        session.State.RespawnPoint = _shipStamped ? _healTank : spawn;
+        session.State.AboardShip = true;
+        session.SentChunks.Clear();
 
-        // Relocate every joined player to the new world's landing zone / ship and reload their chunks.
-        foreach (var s in _sessions.Values)
+        Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
+        SendPlayerState(session);
+        SendShipCombatStatus(session);
+        SendShipPlacement(session);
+        SendShipStations(session);
+        SendPlanetPois(session);
+        SendEnvironment(session);
+        PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
+        SendCreatures(session);
+        SendContainers(session);
+        SendStarMap(session);
+        Send(session, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
+
+        // Drop the old world from memory if this was the last player there (edits are already persisted).
+        if (!string.IsNullOrEmpty(oldLoc) && oldLoc != body.Id && !OccupiedLocations().Contains(oldLoc))
         {
-            if (!s.Joined)
-            {
-                continue;
-            }
-
-            s.CurrentLocationId = body.Id;
-            var zone = EnsureLandingZone(s.State.PlayerId);
-            int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
-            var spawn = _shipStamped ? _healTank : new Vector3f(zone.CenterX + 0.5f, surfaceY + 2f, zone.CenterZ + 0.5f);
-            s.State.Position = spawn;
-            s.State.RespawnPoint = _shipStamped ? _healTank : spawn;
-            s.State.AboardShip = true;
-            s.SentChunks.Clear();
-
-            Send(s, new WorldReset { PlanetType = _meta.DefaultPlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
-            SendPlayerState(s);
-            SendShipCombatStatus(s);
-            SendShipPlacement(s);
-            SendShipStations(s);
-            SendPlanetPois(s);
-            SendEnvironment(s);
-            PopulateCreaturesNear(s.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
-            SendCreatures(s);
-            SendContainers(s);
-            SendStarMap(s);
-            Send(s, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
+            _worlds.Unload(oldLoc);
         }
     }
 
@@ -740,10 +753,21 @@ public sealed partial class GameServer
             CancelTradesFor(session.State.PlayerId);
             _repo.SavePlayer(session.State);
             _repo.SaveShip(ShipId, _ship);
-            Broadcast(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar elsewhere
+
+            string loc = session.CurrentLocationId;
+            _sessions.Remove(connectionId);
+            SetActiveWorld(loc);
+            BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
+            if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
+            {
+                _worlds.Unload(loc); // last player left this body — drop it from memory (edits persisted)
+            }
+        }
+        else
+        {
+            _sessions.Remove(connectionId);
         }
 
-        _sessions.Remove(connectionId);
         _log.Info($"Connection {connectionId} closed.");
     }
 
@@ -847,6 +871,10 @@ public sealed partial class GameServer
             SendTo(connectionId, new JoinRejected { Reason = "Server is full." });
             return;
         }
+
+        // Ensure the join world (the default/start body) is resident + the active cursor before placing
+        // the player and sending them world data — it may have been unloaded if everyone had left it.
+        LoadWorld(_meta.DefaultPlanetType, _meta.ActiveLocationId);
 
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
 
@@ -1690,7 +1718,7 @@ public sealed partial class GameServer
             }).ToArray(),
         }).ToArray();
 
-        Send(session, new StarMapData { Systems = systems, ActiveLocationId = _meta.ActiveLocationId });
+        Send(session, new StarMapData { Systems = systems, ActiveLocationId = session.CurrentLocationId }); // the player's own location
     }
 
     private void SendRules(PlayerSession session)

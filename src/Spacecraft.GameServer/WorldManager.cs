@@ -118,6 +118,12 @@ internal sealed class WorldManager
     /// <summary>True if a world for this body is resident in memory.</summary>
     public bool IsLoaded(string locationId) => _loaded.ContainsKey(locationId);
 
+    /// <summary>The resident world for a body without changing the Active cursor, or null if not loaded.</summary>
+    public LoadedWorld? Find(string locationId) => _loaded.TryGetValue(locationId, out var w) ? w : null;
+
+    /// <summary>How many worlds are currently resident.</summary>
+    public int Count => _loaded.Count;
+
     /// <summary>(Re)builds the world for a body and makes it active, NOT caching it — the single-world
     /// path (Start + travel today). Multi-world uses <see cref="GetOrCreate"/> instead.</summary>
     public LoadedWorld Activate(PlanetType planet, string locationId)

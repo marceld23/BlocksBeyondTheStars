@@ -65,6 +65,44 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void TwoPlayers_OnDifferentPlanets_HaveIsolatedWorlds()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Alice");
+            server.AddLocalPlayer("Bob");
+
+            var alice = server.Sessions.Values.First(s => s.State.PlayerId == "Alice");
+            var bob = server.Sessions.Values.First(s => s.State.PlayerId == "Bob");
+            string origin = alice.CurrentLocationId;
+            Assert.Equal(origin, bob.CurrentLocationId); // both start together
+
+            var dest = OtherPlanet(server);
+            server.Travel("Alice", dest.Id);
+
+            // Only Alice moved; Bob stays on the origin world.
+            Assert.Equal(dest.Id, alice.CurrentLocationId);
+            Assert.Equal(origin, bob.CurrentLocationId);
+
+            // Both worlds are resident at once.
+            Assert.True(server.ResidentWorldCount >= 2);
+            Assert.NotNull(server.WorldAt(dest.Id));
+            Assert.NotNull(server.WorldAt(origin));
+
+            // Edits on one world do not bleed into the other.
+            var pos = new Vector3i(6, 100, 6); // air on both unless edited
+            var stone = _content.GetBlock("stone")!.NumericId;
+            server.WorldAt(dest.Id)!.SetBlock(pos, stone);
+            Assert.Equal(stone.Value, server.WorldAt(dest.Id)!.GetBlock(pos).Value);
+            Assert.NotEqual(stone.Value, server.WorldAt(origin)!.GetBlock(pos).Value);
+
+            // Ticking simulates both occupied worlds without error.
+            server.Tick(0.1);
+        }
+    }
+
+    [Fact]
     public void Travel_RejectsUnknownOrSameLocation()
     {
         var server = Started(out var repo);
