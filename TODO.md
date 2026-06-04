@@ -143,6 +143,12 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
 **✅ P3 DONE — two players can now be on different planets / systems at once with isolated terrain, edits,
 fauna and weather (261 tests).**
 
+**✅ P6 DONE — inter-system travel via hyperspace jump.** Jumping between systems is the existing
+`TravelIntent` + `jump_generator` from the star map (Tab → Map), reachable mid-flight. Fixed the rough
+edge: jumping *from* flight no longer plays the old planet's landing descent under the warp — `SpaceView`
+tears down on `HyperjumpStarted` and the full-screen warp covers the transition; the ship holds position
+while the map is open. So you **fly within a system** and **jump between systems** (`ec59a31`).
+
 **✅ P5 DONE (262 tests) — system-scale flight + land anywhere in the system.** In space you now fly
 between the system's planets/moons (rendered at their P1 system coordinates, relative to the body you
 launched from; the flight clamp spans the system). The nearest body in approach range is the land target —
