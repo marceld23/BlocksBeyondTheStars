@@ -18,22 +18,22 @@ public sealed partial class GameServer
     private const double WeatherChangeInterval = 25.0;
     private const double EnvBroadcastInterval = 5.0;
 
-    private double _dayFraction = 0.35;
-    private double _dayLength = 600.0;
-    private double _stormChance = 0.35;
-    private string _planetWeatherMode = "dynamic";
-    private string _weatherState = "clear";
-    private float _weatherIntensity;
-    private double _weatherTimer;
-    private double _sinceEnvBroadcast;
-    private int _sunColor = 0xFFF6E8;
-    private int _cloudColor = 0xEDEFF2;
-    private float _cloudDensity = 0.45f;
-    private bool _breathable;
-    private bool _spaceSky;
-    private string _biome = "rock";
-    private double _oxygenExtractability;
-    private System.Random _envRng = new(1);
+    private double _dayFraction { get => _worlds.Active.DayFraction; set => _worlds.Active.DayFraction = value; }
+    private double _dayLength { get => _worlds.Active.DayLength; set => _worlds.Active.DayLength = value; }
+    private double _stormChance { get => _worlds.Active.StormChance; set => _worlds.Active.StormChance = value; }
+    private string _planetWeatherMode { get => _worlds.Active.PlanetWeatherMode; set => _worlds.Active.PlanetWeatherMode = value; }
+    private string _weatherState { get => _worlds.Active.WeatherState; set => _worlds.Active.WeatherState = value; }
+    private float _weatherIntensity { get => _worlds.Active.WeatherIntensity; set => _worlds.Active.WeatherIntensity = value; }
+    private double _weatherTimer { get => _worlds.Active.WeatherTimer; set => _worlds.Active.WeatherTimer = value; }
+    private double _sinceEnvBroadcast { get => _worlds.Active.SinceEnvBroadcast; set => _worlds.Active.SinceEnvBroadcast = value; }
+    private int _sunColor { get => _worlds.Active.SunColor; set => _worlds.Active.SunColor = value; }
+    private int _cloudColor { get => _worlds.Active.CloudColor; set => _worlds.Active.CloudColor = value; }
+    private float _cloudDensity { get => _worlds.Active.CloudDensity; set => _worlds.Active.CloudDensity = value; }
+    private bool _breathable { get => _worlds.Active.Breathable; set => _worlds.Active.Breathable = value; }
+    private bool _spaceSky { get => _worlds.Active.SpaceSky; set => _worlds.Active.SpaceSky = value; }
+    private string _biome { get => _worlds.Active.Biome; set => _worlds.Active.Biome = value; }
+    private double _oxygenExtractability { get => _worlds.Active.OxygenExtractability; set => _worlds.Active.OxygenExtractability = value; }
+    private System.Random _envRng { get => _worlds.Active.EnvRng; set => _worlds.Active.EnvRng = value; }
 
     // Public accessors (HUD / tests).
     public float TimeOfDay => (float)_dayFraction;

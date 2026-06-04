@@ -64,6 +64,26 @@ internal sealed class LoadedWorld
     public double SinceFluid { get; set; }
     public double NpcBroadcastTimer { get; set; }
     public int NextNpcId { get; set; } = 1;
+
+    // Per-world weather/environment (TickWeather + BroadcastEnvironment are per-planet: day length, storm
+    // chance, atmosphere/oxygen, clouds, weather RNG). time-of-day fraction included; admin time/weather
+    // strings stay global on GameServer for now.
+    public double DayFraction { get; set; } = 0.35;
+    public double DayLength { get; set; } = 600.0;
+    public double StormChance { get; set; } = 0.35;
+    public string PlanetWeatherMode { get; set; } = "dynamic";
+    public string WeatherState { get; set; } = "clear";
+    public float WeatherIntensity { get; set; }
+    public double WeatherTimer { get; set; }
+    public double SinceEnvBroadcast { get; set; }
+    public int SunColor { get; set; } = 0xFFF6E8;
+    public int CloudColor { get; set; } = 0xEDEFF2;
+    public float CloudDensity { get; set; } = 0.45f;
+    public bool Breathable { get; set; }
+    public bool SpaceSky { get; set; }
+    public string Biome { get; set; } = "rock";
+    public double OxygenExtractability { get; set; }
+    public System.Random EnvRng { get; set; } = new(1);
 }
 
 /// <summary>
