@@ -150,9 +150,14 @@ namespace Spacecraft.Client
             clouds.Game = boot;
             clouds.Camera = cam;
 
-            // Weather overlay (rain + lightning, M27 polish).
+            // Weather overlay (screen wash + lightning, M27 polish).
             var weather = root.AddComponent<WeatherFx>();
             weather.Game = boot;
+
+            // In-world 3D rain + storm fog (P7 weather rest).
+            var weather3d = root.AddComponent<WeatherFx3D>();
+            weather3d.Game = boot;
+            weather3d.Cam = cam;
 
             // Procedural creatures / fauna (World systems §12).
             var creatures = root.AddComponent<CreatureView>();

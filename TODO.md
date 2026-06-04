@@ -78,8 +78,9 @@ SQLite persistence.
 ### Partial — backend done, client polish/UI/VFX remaining
 1. **Jetpack.** Only a gear-flag stub (`GameServerPresence` checks for a `jetpack` item); no item/recipe,
    no boosted-jump/short-flight mechanics, no client VFX.
-2. **Weather (remaining).** Have: IMGUI rain overlay + lightning, cave-silenced. Missing: 3D in-world
-   rain/splash particles, storm **sound**, and weather view-distance/fog scaling.
+2. ✅ **Weather (done).** IMGUI rain wash + lightning (`WeatherFx`), storm/rain ambience bed + thunder
+   (`ClientAudio`, cave-silenced), 3D in-world rain falling around the player + storm fog/view-distance
+   scaling (`WeatherFx3D`). All gated on open sky + intensity-scaled.
 3. **Animation pass (remaining).** Player + creature procedural anims are in. Missing: NPC mine/attack/
    place gestures and richer per-temperament creature/NPC idle gestures.
 4. **Weapon/equipment VFX (remaining).** Have: beam/tracer, muzzle flash, impact sparks, scanner pulse.
