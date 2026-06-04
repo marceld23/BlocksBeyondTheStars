@@ -793,7 +793,9 @@ public sealed partial class GameServer
             for (int dx = -radius; dx <= radius && sent < perTickBudget; dx++)
             for (int dz = -radius; dz <= radius && sent < perTickBudget; dz++)
             {
-                var coord = new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz);
+                // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
+                // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
+                var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz));
                 if (session.SentChunks.Contains(coord))
                 {
                     continue;
@@ -1103,7 +1105,9 @@ public sealed partial class GameServer
         // MVP: trust position but clamp to sane finite values. (Full movement validation later.)
         if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
         {
-            session.State.Position = new Vector3f(move.X, move.Y, move.Z);
+            // Longitude wraps: the client transform runs unbounded as it laps the world, but the
+            // authoritative X is canonical [0, Circumference). Z (latitude) is not wrapped.
+            session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X), move.Y, move.Z);
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
         }

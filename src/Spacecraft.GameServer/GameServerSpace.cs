@@ -39,11 +39,11 @@ public sealed partial class GameServer
         // March the zone along +X, skipping any spot whose footprint would land on the settlement, so a
         // ship (which stamps at the zone centre) never carves into a town — for every player, not just
         // the first. Stations are in space; wrecks are placed clear of the zones already.
-        int cx = index * LandingZoneSpacing;
+        int cx = WorldConstants.WrapX(index * LandingZoneSpacing); // canonical longitude (wraps the world)
         for (int guard = 0; guard < 128 && OverlapsSettlement(cx); guard++)
         {
             index++;
-            cx = index * LandingZoneSpacing;
+            cx = WorldConstants.WrapX(index * LandingZoneSpacing);
         }
 
         var zone = new LandingZone

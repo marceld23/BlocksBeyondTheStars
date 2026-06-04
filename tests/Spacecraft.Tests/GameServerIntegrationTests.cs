@@ -170,6 +170,45 @@ public sealed class GameServerIntegrationTests : IDisposable
         Assert.Equal(0, player.Inventory.CountOf("titanium_drill"));
     }
 
+    [Fact]
+    public void WalkingPastTheSeam_WrapsLongitude_AndBlocksRoundTripAcrossIt()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "wrap"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+
+        var config = Config();
+        config.WorldName = "wrap";
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Walker");
+        var session = server.Sessions[1];
+
+        const int C = Spacecraft.Shared.World.WorldConstants.Circumference;
+
+        // Walk a full lap plus 50 east: the authoritative longitude wraps back into [0, C).
+        client.Send(NetCodec.Encode(new MoveIntent { X = C + 50, Y = session.State.Position.Y, Z = 0 }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.Equal(50f, session.State.Position.X, 3);
+
+        // A column reached the long way round (x = C + 7) is the identical block as its canonical twin
+        // (x = 7) — proving GetBlock canonicalizes and generation is seam-free.
+        int y = (int)System.Math.Floor(session.State.Position.Y);
+        int solidY = y;
+        while (solidY > y - 40 && server.World.GetBlock(new Vector3i(7, solidY, 0)).IsAir)
+        {
+            solidY--;
+        }
+
+        Assert.Equal(server.World.GetBlock(new Vector3i(7, solidY, 0)),
+                     server.World.GetBlock(new Vector3i(C + 7, solidY, 0)));
+
+        // Digging at the wrapped coordinate edits the canonical column (shared cache + persistence key).
+        server.World.SetBlock(new Vector3i(C + 7, solidY, 0), Spacecraft.Shared.Primitives.BlockId.Air);
+        Assert.True(server.World.GetBlock(new Vector3i(7, solidY, 0)).IsAir);
+    }
+
     private static LoopbackLink NewLink(out LoopbackLink link)
     {
         link = new LoopbackLink();
