@@ -87,8 +87,8 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // Day brightness (mirrors Sky): clouds darken at night.
-            float sunHeight = Mathf.Sin((env.TimeOfDay - 0.25f) * Mathf.PI * 2f);
+            // Day brightness (mirrors Sky): clouds darken at night — uses the player's local time.
+            float sunHeight = Mathf.Sin((Game.LocalTimeOfDay - 0.25f) * Mathf.PI * 2f);
             float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
 
             // Cover: per-planet base raised by the live weather; storms darken the tint heavily.

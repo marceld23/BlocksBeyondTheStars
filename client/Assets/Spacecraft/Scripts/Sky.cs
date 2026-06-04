@@ -104,16 +104,19 @@ namespace Spacecraft.Client
             var env = Game.Environment;
             if (env != null)
             {
+                // Local time-of-day: the server's global day fraction shifted by the player's longitude
+                // (world X), so the planet has a day/night terminator across its surface.
+                float localTime = Game.LocalTimeOfDay;
                 if (!_haveEnv)
                 {
-                    _time = env.TimeOfDay;
+                    _time = localTime;
                     _haveEnv = true;
                 }
 
                 _dayLength = Mathf.Max(10f, env.DayLengthSeconds);
 
-                // Re-sync toward the server time (it broadcasts periodically); advance locally too.
-                _time = Mathf.LerpAngle(_time * 360f, env.TimeOfDay * 360f, 0.02f) / 360f;
+                // Re-sync toward the local time (server broadcasts + the player's longitude); advance locally.
+                _time = Mathf.LerpAngle(_time * 360f, localTime * 360f, 0.02f) / 360f;
             }
 
             _time = Mathf.Repeat(_time + Time.deltaTime / _dayLength, 1f);

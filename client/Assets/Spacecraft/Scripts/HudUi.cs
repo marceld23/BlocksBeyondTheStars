@@ -348,7 +348,7 @@ namespace Spacecraft.Client
             }
 
             _todText.transform.parent.gameObject.SetActive(true);
-            float t = Mathf.Repeat(env.TimeOfDay, 1f);
+            float t = Game.LocalTimeOfDay; // the player's local time (longitude-shifted), already 0..1
             bool day = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f) > 0f;
             float nextEdge = day ? 0.75f : (t < 0.25f ? 0.25f : 1.25f);
             float frac = nextEdge - t; if (frac < 0f) frac += 1f;

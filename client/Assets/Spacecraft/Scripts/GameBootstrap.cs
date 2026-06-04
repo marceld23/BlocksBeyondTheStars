@@ -95,6 +95,17 @@ namespace Spacecraft.Client
         /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
         public WorldEnvironment Environment { get; private set; }
 
+        /// <summary>World-X span over which the local time-of-day shifts a full cycle. Treating X as a
+        /// longitude gives the planet a real day/night terminator: a player far east can be in daylight
+        /// while one far west is in night, on the same world.</summary>
+        public const float DayCircumference = 6000f;
+
+        /// <summary>Time-of-day at the player's position — the server's global day fraction shifted by the
+        /// player's longitude (world X), wrapped to 0..1. Drives the sky + HUD clock, so two players at
+        /// different X see different times (one's day side, the other's night side).</summary>
+        public float LocalTimeOfDay
+            => Mathf.Repeat((Environment != null ? Environment.TimeOfDay : 0.5f) + PlayerPosition.x / DayCircumference, 1f);
+
         /// <summary>Most recent handheld/ship scan readout for the HUD, and when it arrived (for auto-hide).</summary>
         public ScanResult LastScan { get; private set; }
         public float LastScanAt { get; private set; }
