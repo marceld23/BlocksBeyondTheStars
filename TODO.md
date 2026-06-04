@@ -123,15 +123,18 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
 - ✅ **P2** — `WorldManager`/`LoadedWorld` seam; the active world is routed through it, behaviour-preserving
   (`f45bd41`).
 - ✅ **P3a** — relocated the per-world runtime state (fauna/enemies/npcs/flora/fluids/containers/
-  structures/landing zones) from the `GameServer` partials into `LoadedWorld` via forwarding properties to
-  `_worlds.Active`; behaviour-preserving (`e4e251a`).
-- ⏭️ **P3b/c (next, the behaviour change)** — move the remaining per-world stragglers (settlement/wreck
-  scalar state, sim timers; weather/time stay global for now); make `WorldManager` cache multiple resident
-  worlds (load on demand, unload+save when empty, refcount); add per-session `CurrentLocationId`; use the
-  **single-threaded "Active cursor"** pattern — set `_worlds.Active` to the relevant world before each
-  per-player op and per-world tick — so existing subsystem code is reused without signature churn; make
-  `WorldReset` per-player and scope presence/entities per world. This is the step that lets two players be
-  on different planets at once.
+  structures/landing zones) into `LoadedWorld` via forwarding properties to `_worlds.Active` (`e4e251a`).
+- ✅ **P3b** — relocated the remaining per-world stragglers (settlement/wreck stamp scalars, creature/
+  enemy/npc/fluid sim timers) into `LoadedWorld`. Weather + time-of-day stay global for now (all resident
+  worlds share the sky — a known temporary limitation, refined in P7). Behaviour-preserving (`be5d48e`).
+  **Every per-world gameplay system now has isolated state** — the foundation is complete.
+- ⏭️ **P3c (next, the behaviour change)** — make `WorldManager` cache multiple resident worlds (load on
+  demand, unload+save when empty, refcount); add per-session `CurrentLocationId`; rework the central `Tick`
+  to iterate occupied worlds with the **Active cursor** (set `_worlds.Active` per world) and per-player ops
+  to set Active to the player's world; scope chunk streaming + presence + entity broadcasts per world; make
+  `WorldReset` per-player; replace global `SwitchActiveWorld` with `MovePlayerToLocation`. Needs new
+  multi-world tests (two sessions, two locations: isolated edits/presence, unload-on-empty). This is the
+  step that actually lets two players be on different planets at once.
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
