@@ -122,6 +122,10 @@ namespace Spacecraft.Client
 
         public void SendLeaveSpace() => Send(new LeaveSpaceIntent());
 
+        /// <summary>Leave space and land on a specific body (the one flown to in system-scale flight);
+        /// empty = land back on the current body.</summary>
+        public void SendLeaveSpace(string destinationBodyId) => Send(new LeaveSpaceIntent { DestinationBodyId = destinationBodyId });
+
         public void SendFireWeapon(string weaponKey, string targetEntityId)
             => Send(new FireWeaponIntent { WeaponKey = weaponKey, TargetEntityId = targetEntityId });
 

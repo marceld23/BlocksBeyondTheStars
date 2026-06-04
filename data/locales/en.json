@@ -506,6 +506,8 @@
   "ui.space.leave": "Return to surface",
   "ui.space.controls": "WASD + mouse: fly · V: view · L: land",
   "ui.space.land_confirm": "Land on this planet?   Enter = yes · Esc = no",
+  "ui.space.land_on": "Land on",
+  "ui.space.land_prompt": "Press L to land on",
   "ui.space.board": "Press E to board",
   "ui.space.cargo": "Cargo",
   "ui.action.fire": "Fire",

@@ -177,13 +177,14 @@ namespace Spacecraft.Client
                 return;
             }
 
-            // Landing asks for confirmation first so you don't drop to the surface by accident.
+            // Landing asks for confirmation first so you don't drop to the surface by accident. The target
+            // is the body you flew up to (if any) — otherwise you land back on the body you launched from.
             if (_confirmLand)
             {
                 if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     _confirmLand = false;
-                    Game.Network?.SendLeaveSpace();
+                    Game.Network?.SendLeaveSpace(_landTargetId ?? string.Empty);
                 }
                 else if (Input.GetKeyDown(KeyCode.Escape))
                 {
@@ -209,12 +210,28 @@ namespace Spacecraft.Client
             float strafe = Input.GetAxis("Horizontal");
             var move = rot * (Vector3.forward * fwd + Vector3.right * strafe) * (MoveSpeed * _shipSpeedMul * Time.deltaTime);
             var pos = _ship.transform.localPosition + move;
-            if (pos.magnitude > Bounds)
+            if (pos.magnitude > _bounds)
             {
-                pos = pos.normalized * Bounds;
+                pos = pos.normalized * _bounds;
             }
 
             _ship.transform.localPosition = pos;
+
+            // System-scale flight: the nearest other body within approach range is the land target; press L
+            // to land on it. With none in range, L returns you to the body you launched from.
+            _landTargetId = null;
+            _landTargetName = null;
+            float bestLand = LandApproachRange * LandApproachRange;
+            foreach (var body in _landables)
+            {
+                float sq = (body.Pos - pos).sqrMagnitude;
+                if (sq < bestLand)
+                {
+                    bestLand = sq;
+                    _landTargetId = body.Id;
+                    _landTargetName = body.Name;
+                }
+            }
 
             // Report our position so the server runs authoritative collisions against asteroids/entities.
             _moveSendTimer -= Time.deltaTime;
@@ -334,6 +351,8 @@ namespace Spacecraft.Client
             _pitch = 0f;
             _confirmLand = false;
             _boardSent = false;
+            _landTargetId = null;
+            _landTargetName = null;
             Game.SpaceViewActive = true;
 
             ResolveShipFlight();
@@ -504,7 +523,77 @@ namespace Spacecraft.Client
             var (secondCloudCol, secondCloudDen) = PlanetCloudLook(secondType);
             AddCloudShell(planet2.transform, secondCloudCol, secondCloudDen);
 
+            BuildSystemBodies(); // the rest of the system's planets/moons, flyable + landable
             _ship = BuildShip(_root.transform);
+        }
+
+        /// <summary>Places the other bodies of the current star system at their (scaled) system coordinates,
+        /// relative to the body you launched from, so you can fly between them and land on any one.</summary>
+        private void BuildSystemBodies()
+        {
+            _landables.Clear();
+            _bounds = Bounds;
+
+            var map = Game?.StarMap;
+            if (map?.Systems == null)
+            {
+                return;
+            }
+
+            Spacecraft.Networking.Messages.NetBody current = null;
+            Spacecraft.Networking.Messages.NetStarSystem system = null;
+            foreach (var sys in map.Systems)
+            {
+                foreach (var b in sys.Bodies)
+                {
+                    if (b.Id == map.ActiveLocationId)
+                    {
+                        current = b;
+                        system = sys;
+                        break;
+                    }
+                }
+
+                if (system != null)
+                {
+                    break;
+                }
+            }
+
+            if (current == null || system == null)
+            {
+                return;
+            }
+
+            float maxDist = 0f;
+            foreach (var b in system.Bodies)
+            {
+                if (b.Id == current.Id || string.IsNullOrEmpty(b.PlanetType))
+                {
+                    continue; // only landable planets/moons (skip the current body, stations, the star)
+                }
+
+                if (b.Kind != "Planet" && b.Kind != "Moon")
+                {
+                    continue;
+                }
+
+                var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
+                maxDist = Mathf.Max(maxDist, pos.magnitude);
+
+                var look = PlanetLook(b.PlanetType);
+                var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                sphere.name = "SystemBody_" + b.Id;
+                StripCollider(sphere);
+                sphere.transform.SetParent(_root.transform, false);
+                sphere.transform.localPosition = pos;
+                sphere.transform.localScale = Vector3.one * (b.Kind == "Moon" ? 28f : 46f);
+                sphere.GetComponent<Renderer>().sharedMaterial = Lit(look.tint, LoadTex(look.tex), new Vector2(3f, 2f));
+
+                _landables.Add((b.Id, b.Name, pos));
+            }
+
+            _bounds = Mathf.Max(Bounds, maxDist + 140f); // keep the whole system reachable
         }
 
         private GameObject BuildShip(Transform parent)
@@ -626,6 +715,16 @@ namespace Spacecraft.Client
         private string _nearStationName;
         private const float BoardRange = 66f; // just inside the server's 70-unit board range
 
+        // System-scale flight: the other bodies of the current system, placed at their (scaled) system
+        // coordinates so you can fly between them and land on any one. The body nearest within
+        // LandApproachRange is the land target; if none, landing returns you to the current body.
+        private readonly List<(string Id, string Name, Vector3 Pos)> _landables = new();
+        private string _landTargetId;   // body the ship is close enough to land on (null = the current world)
+        private string _landTargetName;
+        private float _bounds = Bounds; // flight clamp, enlarged to span the resident system
+        private const float SystemViewScale = 0.30f; // system units → flight-view units
+        private const float LandApproachRange = 55f; // within this of a body you can land on it
+
         private void EnsureUi()
         {
             if (_ui != null)
@@ -743,10 +842,12 @@ namespace Spacecraft.Client
             }
             else if (_confirmLand)
             {
-                // Land confirmation prompt (key-driven, no cursor): Enter confirms, Esc cancels.
+                // Land confirmation prompt (key-driven, no cursor): Enter confirms, Esc cancels. Names the
+                // body you flew to, or the body you launched from when nothing is in approach range.
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                _hint.text = loc != null ? loc.Get("ui.space.land_confirm") : "Land on this planet?   Enter = yes · Esc = no";
+                string baseText = loc != null ? loc.Get("ui.space.land_confirm") : "Land on this planet?   Enter = yes · Esc = no";
+                _hint.text = string.IsNullOrEmpty(_landTargetName) ? baseText : $"{(loc != null ? loc.Get("ui.space.land_on") : "Land on")} {_landTargetName}?   Enter = yes · Esc = no";
                 _hint.gameObject.SetActive(true);
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
@@ -758,14 +859,21 @@ namespace Spacecraft.Client
                 _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
                 _hint.gameObject.SetActive(true);
 
+                // Prompt: board a station (E) if one is close, else land on a body (L) you've flown up to.
                 bool nearStation = _nearStationId != null;
+                bool nearBody = !nearStation && _landTargetId != null;
                 if (nearStation)
                 {
                     string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
                     _board.text = $"{board} {_nearStationName}";
                 }
+                else if (nearBody)
+                {
+                    string land = loc != null ? loc.Get("ui.space.land_prompt") : "Press L to land on";
+                    _board.text = $"{land} {_landTargetName}";
+                }
 
-                _board.gameObject.SetActive(nearStation);
+                _board.gameObject.SetActive(nearStation || nearBody);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
                 _cargo.text = $"{cargoLabel}: {Game.Cargo.Length}";
