@@ -86,6 +86,37 @@ namespace Spacecraft.Client
         /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
         public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
 
+        /// <summary>Settlement / station NPCs (vendors, quartermasters, settlers) near the player.</summary>
+        public NetNpc[] Npcs { get; private set; } = System.Array.Empty<NetNpc>();
+
+        /// <summary>True when a settlement/station vendor stands within trading reach — enables market
+        /// barter at their stall (the server also allows it aboard your ship).</summary>
+        public bool NearVendor
+        {
+            get
+            {
+                var p = PlayerPosition;
+                foreach (var n in Npcs)
+                {
+                    if (n.Role != "vendor")
+                    {
+                        continue;
+                    }
+
+                    var np = ScenePos(n.X, n.Y, n.Z);
+                    if ((np - p).sqrMagnitude <= 3.6f * 3.6f)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>Whether the player can barter at a market right now (aboard ship or at a vendor).</summary>
+        public bool MarketAvailable => Aboard || NearVendor;
+
         /// <summary>Lootable containers on the planet (salvage capsules / corpses).</summary>
         public NetContainer[] Containers { get; private set; } = System.Array.Empty<NetContainer>();
 
@@ -261,6 +292,7 @@ namespace Spacecraft.Client
             Network.StationBoardedReceived += m => LastMessage = $"Boarded {m.Name}.";
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
+            Network.NpcsReceived += m => Npcs = m.Npcs;
             Network.ContainersReceived += m => Containers = m.Containers;
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m => Environment = m;

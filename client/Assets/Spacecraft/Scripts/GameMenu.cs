@@ -65,6 +65,14 @@ namespace Spacecraft.Client
         public void OpenMap() => OpenAt(Tab.Map);
         public void OpenMissions() => OpenAt(Tab.Missions);
 
+        /// <summary>Opens the crafting panel straight on the market/barter category (vendor trading).</summary>
+        public void OpenMarket()
+        {
+            EnsureUi();
+            _ui.RequestCategory("market");
+            OpenAt(Tab.Crafting);
+        }
+
         private void OpenAt(Tab tab)
         {
             SwitchTo(tab);

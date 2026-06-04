@@ -35,7 +35,7 @@ Last updated: 2026-06-04.
 | **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
-| **E** | Use a nearby ship/station station tile (cockpit, workshop, cargo, medbay, …) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …) or **trade with a vendor** (opens the Market) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
@@ -126,8 +126,12 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   are still needed. When fully repaired, **Claim ship** adds it to your fleet.
 
 ### Trade
-- Press **T** near a player to open a modal trade. Each side stages an offer (+/−) and confirms; the swap
-  executes atomically once both confirm.
+- **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and
+  confirms; the swap executes atomically once both confirm.
+- **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
+  (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
+  resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
+  ship's trade console — so you can trade without a vendor too.
 
 ### Scanning & knowledge
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**

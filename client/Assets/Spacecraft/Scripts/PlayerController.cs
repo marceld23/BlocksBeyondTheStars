@@ -578,6 +578,11 @@ namespace Spacecraft.Client
         private void HandleStations()
         {
             Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
+            if (string.IsNullOrEmpty(Game.NearbyStation) && Game.NearVendor)
+            {
+                Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market
+            }
+
             if (string.IsNullOrEmpty(Game.NearbyStation) || !Input.GetKeyDown(KeyCode.E))
             {
                 return;
@@ -588,6 +593,7 @@ namespace Spacecraft.Client
             {
                 case "cockpit": Menu?.OpenMap(); break;
                 case "workshop": Menu?.OpenCrafting(); break;
+                case "market": Menu?.OpenMarket(); break;
                 case "cargo": Menu?.OpenInventory(); break;
                 default:
                     if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");

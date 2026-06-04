@@ -48,7 +48,8 @@ namespace Spacecraft.Client
             }
 
             _mode = mode;
-            _category = "all";
+            _category = string.IsNullOrEmpty(_pendingCategory) ? "all" : _pendingCategory;
+            _pendingCategory = null;
             _selected = string.Empty;
             _search = string.Empty;
             _craftableOnly = false;
@@ -58,6 +59,24 @@ namespace Spacecraft.Client
             RebuildSidebar();
             RebuildList();
             RebuildDetail();
+        }
+
+        private string _pendingCategory; // a category to select when the mode next opens (e.g. "market")
+
+        /// <summary>Requests a category be selected when this panel opens (used to jump straight to the
+        /// market when the player talks to a vendor).</summary>
+        public void RequestCategory(string category)
+        {
+            _pendingCategory = category;
+            if (_canvas != null && _canvas.enabled && !string.IsNullOrEmpty(category))
+            {
+                _category = category;
+                _pendingCategory = null;
+                _selected = string.Empty;
+                RebuildSidebar();
+                RebuildList();
+                RebuildDetail();
+            }
         }
 
         public void Hide()
@@ -214,6 +233,7 @@ namespace Spacecraft.Client
                     list.Add(("consumable", L("ui.craft.cat_consumable"), "cat_medicine"));
                     list.Add(("component", L("ui.craft.cat_components"), "cat_components"));
                     list.Add(("block", L("ui.craft.cat_blocks"), "cat_blocks"));
+                    list.Add(("market", L("ui.craft.cat_market"), "cat_cargo"));
                     break;
                 case Mode.Tech:
                     foreach (var c in Game.Content.Blueprints.Values.Select(b => b.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct())
@@ -306,7 +326,16 @@ namespace Spacecraft.Client
                     continue;
                 }
 
-                if (!MatchesCategory(outItem.Item) || !MatchesSearch(ItemName(outItem.Item)))
+                // Market (barter) recipes live only under the "market" category; everything else hides them.
+                bool isMarket = r.Station == Spacecraft.Shared.Definitions.CraftingStation.Market;
+                if (_category == "market")
+                {
+                    if (!isMarket || !MatchesSearch(ItemName(outItem.Item)))
+                    {
+                        continue;
+                    }
+                }
+                else if (isMarket || !MatchesCategory(outItem.Item) || !MatchesSearch(ItemName(outItem.Item)))
                 {
                     continue;
                 }
@@ -1072,7 +1101,17 @@ namespace Spacecraft.Client
                 return false;
             }
 
-            if (!AtStation())
+            // Market (barter) trades need a vendor (or your ship's trade console); everything else needs
+            // the mode's crafting station.
+            if (r.Station == Spacecraft.Shared.Definitions.CraftingStation.Market)
+            {
+                if (!Game.MarketAvailable)
+                {
+                    reason = L("ui.craft.need_market");
+                    return false;
+                }
+            }
+            else if (!AtStation())
             {
                 reason = L("ui.craft.go_to_" + StationKey());
                 return false;
