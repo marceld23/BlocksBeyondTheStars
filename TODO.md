@@ -195,6 +195,11 @@ StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
 
 ### Not started / larger future work
+- **World wrap (walk around the planet)** — make X a wrapping longitude (cylinder world) so you can walk
+  east and arrive back at the start, with a **seam-free** edge (east edge lines up exactly with west:
+  terrain/biomes/caves/structures continuous). Solved generation-side by circular-domain (periodic) noise;
+  the cost is routing every X coordinate through one wrap helper. Full plan + phasing (W0–W5) in
+  [docs/WORLD_WRAP_PLAN.md](docs/WORLD_WRAP_PLAN.md).
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
   Full research in [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).
 - **Texture audit** — review/expand item & icon art and creature/NPC texture variety.
@@ -205,7 +210,7 @@ stays per-world (fine while each occupied world has one player; shared-world mul
 ---
 
 ## Reference docs (committed, under docs/)
-Concept/design detail for the larger systems: `MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN`, `SPACE_COMBAT_CONCEPT`,
+Concept/design detail for the larger systems: `WORLD_WRAP_PLAN`, `MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN`, `SPACE_COMBAT_CONCEPT`,
 `CLIENT_COMPLETION_PLAN`, `CRAFTING_TECH_SHIP_UI_PLAN`, `STATION_SETTLEMENT_EDITOR_PLAN`,
 `SHIP_TYPE_EDITOR_PLAN`, `ADVANCED_GRAPHICS_PLAN`, `SOUND_DESIGN`, `SELF_HOSTING`, `AI_MISSION_BACKEND`,
 `CLIENT_SHELL_AND_ASSETS`.
