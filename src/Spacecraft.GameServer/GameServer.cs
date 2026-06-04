@@ -40,9 +40,13 @@ public sealed partial class GameServer
 
     private WorldMetadata _meta = new();
     private WorldGenerator _generator = null!;
-    private ServerWorld _world = null!;
+    private WorldManager _worlds = null!;
     private ShipState _ship = new();
     private Galaxy _galaxy = new();
+
+    /// <summary>The active voxel world. Routed through <see cref="WorldManager"/> so multi-world can hold
+    /// several resident worlds; today there is exactly one active world (behaviour unchanged).</summary>
+    private ServerWorld _world => _worlds.Active.World;
 
     private double _sinceAutoSave;
     private volatile bool _running;
@@ -85,6 +89,7 @@ public sealed partial class GameServer
         _repo.SaveMetadata(_meta);
 
         _generator = new WorldGenerator(_meta.Seed, _content);
+        _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
 
         _ship = _repo.LoadShip(ShipId) ?? CreateStarterShip();
@@ -183,7 +188,7 @@ public sealed partial class GameServer
             _ship.CurrentLocationId = locationId;
         }
 
-        _world = new ServerWorld(_content, _generator, _repo, planet, locationId);
+        _worlds.Activate(planet, locationId);
 
         ResetWorldRuntimeState();
 
