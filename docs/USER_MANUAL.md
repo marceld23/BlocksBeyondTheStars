@@ -58,8 +58,10 @@ Enter space by launching the ship; on foot you board/leave via the cockpit. Whil
 | **W / A / S / D** | Thrust forward / strafe / back |
 | **Mouse** | Yaw + pitch (turn). Sensitivity scales with the ship's **handling** stat |
 | **V** | Toggle cockpit / third-person camera |
-| **L** | Land — opens a confirmation (**Enter** = yes, **Esc** = no) |
+| **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
+| **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
 | **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
+| **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
 the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge, hull does not.

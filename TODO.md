@@ -143,6 +143,14 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
 **✅ P3 DONE — two players can now be on different planets / systems at once with isolated terrain, edits,
 fauna and weather (261 tests).**
 
+**✅ P5 DONE (262 tests) — system-scale flight + land anywhere in the system.** In space you now fly
+between the system's planets/moons (rendered at their P1 system coordinates, relative to the body you
+launched from; the flight clamp spans the system). The nearest body in approach range is the land target —
+the HUD prompts "Press L to land on <name>" and the confirm names it; `LeaveSpaceIntent.DestinationBodyId`
+makes the server land you there (per-player travel; same-system = free). With nothing in range, L returns
+you to where you launched. **Inter-system travel stays the hyperspace jump** (star map + `jump_generator`),
+per the requirement. (`8fdfcdc` server, `c582afb` client.)
+
 **✅ P4 DONE (merged to `main`, 261 tests) — one ship per player, no crew.** Each player owns their own
 **fleet (multiple ships) with exactly one active ship**, created/loaded on join, stamped into their world,
 persisted per player. Implemented with a single-threaded **ship cursor** (`_current`): `_ship`/`_ships`/
