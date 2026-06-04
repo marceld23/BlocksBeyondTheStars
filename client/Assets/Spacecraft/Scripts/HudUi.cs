@@ -38,7 +38,7 @@ namespace Spacecraft.Client
 
         // Scan / wreck panels.
         private GameObject _scanPanel, _wreckPanel;
-        private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg;
+        private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
         private Image _wreckBar;
         private Button _wreckClaim;
 
@@ -146,7 +146,7 @@ namespace Spacecraft.Client
             _scanKnow = UiKit.AddText(_scanPanel.transform, 10, 68, 270, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
             // Wreck panel (right).
-            _wreckPanel = Panel(root, W - 260f, 140, 250, 100).gameObject;
+            _wreckPanel = Panel(root, W - 260f, 140, 250, 150).gameObject;
             _wreckName = UiKit.AddText(_wreckPanel.transform, 10, 26, 230, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddText(_wreckPanel.transform, 10, 6, 230, 18, "WRECK", 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(_wreckPanel.transform, 10, 48, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
@@ -154,7 +154,9 @@ namespace Spacecraft.Client
             _wreckBar.type = Image.Type.Filled;
             _wreckBar.fillMethod = Image.FillMethod.Horizontal;
             _wreckProg = UiKit.AddText(_wreckPanel.transform, 12, 47, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _wreckClaim = UiKit.AddButton(_wreckPanel.transform, 10, 70, 230, 24, string.Empty, () => Game.Network?.SendClaimWreck());
+            _wreckHint = UiKit.AddText(_wreckPanel.transform, 10, 68, 230, 50, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _wreckHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _wreckClaim = UiKit.AddButton(_wreckPanel.transform, 10, 120, 230, 24, string.Empty, () => Game.Network?.SendClaimWreck());
         }
 
         private void Refresh()
@@ -384,6 +386,25 @@ namespace Spacecraft.Client
             {
                 var t = _wreckClaim.GetComponentInChildren<Text>();
                 if (t != null) t.text = loc.Get("ui.action.claim");
+            }
+
+            // While there are breaches left, tell the player how to repair + which blocks are still needed.
+            _wreckHint.gameObject.SetActive(!claim);
+            if (!claim)
+            {
+                string needs = string.Empty;
+                if (!string.IsNullOrEmpty(wreck.Needs))
+                {
+                    var keys = wreck.Needs.Split(',');
+                    for (int i = 0; i < keys.Length; i++)
+                    {
+                        keys[i] = loc.Get($"block.{keys[i]}.name");
+                    }
+
+                    needs = "  " + string.Join(", ", keys);
+                }
+
+                _wreckHint.text = loc.Get("ui.wreck.repair_hint") + needs;
             }
         }
 

@@ -325,6 +325,7 @@ public sealed partial class GameServer
             Total = WreckRepairTotal,
             Claimable = _wreckStamped && !_wreckClaimed && WreckRepairRemaining == 0,
             Claimed = _wreckClaimed,
+            Needs = string.Join(",", WreckRepairCells().Select(c => c.BlockKey).Distinct()),
         });
 
     private void HandleRepairWreck(PlayerSession session, RepairWreckIntent intent)

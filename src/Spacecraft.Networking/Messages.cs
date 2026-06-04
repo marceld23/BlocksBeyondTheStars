@@ -612,6 +612,9 @@ public sealed class WreckRepairStatus
     public int Total { get; set; }
     public bool Claimable { get; set; }
     public bool Claimed { get; set; }
+
+    /// <summary>Comma-separated distinct block keys still needed to repair the wreck (for the HUD hint).</summary>
+    public string Needs { get; set; } = string.Empty;
 }
 
 /// <summary>Snapshot of hostile entities near the player on the planet surface.</summary>

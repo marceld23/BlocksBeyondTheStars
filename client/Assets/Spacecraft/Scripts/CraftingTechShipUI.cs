@@ -812,7 +812,73 @@ namespace Spacecraft.Client
             }
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
-            return y + 36f;
+            y += 40f;
+
+            // Disassembly: if a (non-market) recipe builds this item, offer to break one back down into a
+            // portion of its components at a workshop. Mirrors GameServer.Disassemble.
+            var (recipe, perCraft) = DisassembleRecipe(item);
+            if (recipe != null)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 26, L("ui.craft.disassemble_yields"), 18, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
+                y += 30f;
+                bool anyYield = false;
+                foreach (var inp in recipe.Inputs)
+                {
+                    int recovered = Mathf.FloorToInt(inp.Count * DisassemblyRecoveryRate / perCraft);
+                    if (recovered <= 0)
+                    {
+                        continue;
+                    }
+
+                    anyYield = true;
+                    UiKit.AddText(_detail, 24, y, 600, 24, $"{ItemName(inp.Item)}  ×{recovered}", 18, UiKit.TextCol, TextAnchor.UpperLeft);
+                    y += 26f;
+                }
+
+                if (!anyYield)
+                {
+                    UiKit.AddText(_detail, 24, y, 600, 24, L("ui.craft.disassemble_nothing"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    y += 26f;
+                }
+
+                y += 8f;
+                bool atWorkshop = (Game.NearbyStation ?? string.Empty) == "workshop";
+                bool can = anyYield && atWorkshop && Owned(item) >= 1;
+                var btn = UiKit.AddButton(_detail, 8, y, 280, 50, L("ui.action.disassemble"), () => { Game.Network.SendDisassemble(item); });
+                SetInteractable(btn, can);
+                y += 56f;
+                if (anyYield && !atWorkshop)
+                {
+                    UiKit.AddText(_detail, 8, y, 620, 24, L("ui.craft.go_to_workshop"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    y += 28f;
+                }
+            }
+
+            return y;
+        }
+
+        /// <summary>Fraction of a crafted item's recipe inputs recovered on disassembly (mirrors the server).</summary>
+        private const float DisassemblyRecoveryRate = 0.5f;
+
+        /// <summary>The non-market crafting recipe that produces <paramref name="item"/> (so it can be
+        /// disassembled), plus its per-craft output count; (null, 1) when the item isn't craftable.</summary>
+        private (RecipeDefinition, int) DisassembleRecipe(string item)
+        {
+            foreach (var r in Game.Content.Recipes.Values)
+            {
+                if (r.Station == CraftingStation.Market || r.Inputs.Count == 0)
+                {
+                    continue;
+                }
+
+                var output = r.Outputs.FirstOrDefault(o => o.Item == item);
+                if (output != null)
+                {
+                    return (r, Mathf.Max(1, output.Count));
+                }
+            }
+
+            return (null, 1);
         }
 
         private float DetailMap()
