@@ -143,6 +143,21 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
 **✅ P3 DONE — two players can now be on different planets / systems at once with isolated terrain, edits,
 fauna and weather (261 tests).**
 
+**✅ P7 DONE — cross-world MP polish (263 tests).** Four parts:
+- **Per-player ship-stamp** (`a*`) — two players on one planet get **separate ships at distinct start
+  points** (ship structure is per-player in each world; `StampShip` anchors at the served player's own
+  landing zone; protection/interior cover everyone's ships). Test
+  `TwoPlayers_GetSeparateShips_AtDistinctStartPoints`.
+- **Position-based day/night** (`d1debb0`) — world X is a longitude: `GameBootstrap.LocalTimeOfDay` shifts
+  the global day fraction by `playerX / 6000`, so one player can be on the **day side** while another is on
+  the **night side** of the same planet (sky/clouds/HUD clock use local time).
+- **Per-biome weather + larger biomes** (`a6a88dd`) — weather is per **biome** (a stormy biome rains while a
+  clear one stays sunny), shifted by a persistent per-biome offset; the env broadcast is per-player. Biome
+  noise scale 140 → 360 so each biome is a large region.
+- **Star map shows the party** (`afd4ad9`) — `StarMapData.Players` lists who is on each body ("◈ Alice, Bob").
+
+**🎉 The whole multi-world + system-flight plan (P1–P7) is complete.**
+
 **✅ P6 DONE — inter-system travel via hyperspace jump.** Jumping between systems is the existing
 `TravelIntent` + `jump_generator` from the star map (Tab → Map), reachable mid-flight. Fixed the rough
 edge: jumping *from* flight no longer plays the old planet's landing descent under the warp — `SpaceView`

@@ -137,8 +137,13 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   system** requires a fitted **`jump_generator`** module. On arrival the world rebuilds at the destination.
 
 ### Day/night & weather
-- Worlds have a day/night cycle and weather (clear/storm/…). Weather is hidden + silent in caves and
-  underground. Both can be overridden by an admin (see §7).
+- **Day/night is by location** — the world's X axis is a longitude, so a planet has a real day/night
+  terminator: one player can be in daylight while another, far away, is in night. The clock still advances.
+- **Weather is per biome** — a stormy biome can rain while a neighbouring clear biome stays sunny; some
+  biomes are reliably wetter than others. Weather is hidden + silent in caves/underground. Admins can
+  override time/weather (see §7).
+- **Multiplayer:** players can be on **different planets / star systems at once**, each with their own ship
+  and start point. The star map (Tab → Map) shows where everyone is ("◈ Alice, Bob").
 
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
