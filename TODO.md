@@ -75,7 +75,7 @@ SQLite persistence.
 
 ## 🔧 Open / pending
 
-### Partial — backend done, client polish/UI/VFX remaining
+### ✅ Done (was "partial — client polish/VFX")
 1. ✅ **Jetpack (done).** Craftable item + blueprint + recipe (`jetpack`, workshop, gated). Hold Space in
    the air to thrust up (`PlayerController`); server-authoritative suit-energy drain + force-off when empty
    (`SetJetpackIntent` → `HandleSetJetpack`/`TickJetpack`), suit energy recharges aboard ship. VFX: twin
@@ -94,6 +94,23 @@ SQLite persistence.
    slash arcs** (short-range weapons/fists sweep a fading arc, whiff included) and a **visible suit-lamp
    cone** (a faint warm translucent light shaft on the `Spacecraft/Cloud` shader, parented to the camera).
    Weapon effect picked by held item in `PlayerController.HeldWeaponFx` (`WeaponFx.Projectile`/`MeleeArc`).
+
+### ✅ Playtest fixes (2026-06-04)
+A large wave of playtest bugs, all fixed + committed:
+- **Space view:** asteroids textured + slowly tumbling; reddish tint (planet day/night + biome grade leaked
+  in) neutralised; on-foot hotbar + hand viewmodel hidden in space.
+- **World/feel:** crushed-dark shadows lifted; monsters spawn on the surface 9–13 blocks away (not buried /
+  on top); mining slowed; blocks can't be placed in the cell you stand in.
+- **Ship:** the −X side was mineable (wrap-canonicalisation mismatch in the ship-stamp protection) — fixed;
+  respawn snaps you to the ship heal-tank; **boarding a station no longer drops you on the planet** (client
+  never moved to the station spawn).
+- **NPCs/structures:** NPCs got faces (eyes) + stand on the ground; settlement + station doorways widened
+  from 1×2 to 2×3.
+- **UI:** Esc shows a DE/EN quit confirmation and returns to the **main** menu (was the editor submenu);
+  hotkeys (M/Tab/T/K/U) no longer fire while typing in chat; scanner shows the localized material name;
+  "suit" inventory filter includes suit gear.
+- **Vendor trading (new feature):** E next to a vendor (or aboard ship) opens the **Market** category to
+  barter resources for goods. Possible extension: vendor *selling* (goods → resources) + a priced shop UI.
 
 ### Landing + docking — reviewed (2026-06-04)
 End-to-end trace done (launch/land, same-system travel, hyperjump, space-station boarding, player↔player
