@@ -28,7 +28,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.M))
+            if (Input.GetKeyDown(KeyCode.M) && !Game.ChatTyping)
             {
                 if (_open)
                 {

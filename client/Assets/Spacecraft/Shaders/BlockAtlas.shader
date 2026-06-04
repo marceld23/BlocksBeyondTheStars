@@ -35,6 +35,7 @@ Shader "Spacecraft/BlockAtlas"
             float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
             float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
             fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
+            float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
 
             struct appdata
             {
@@ -99,6 +100,10 @@ Shader "Spacecraft/BlockAtlas"
                 float faceAo = lerp(0.82, 1.0, i.mat.b);
                 float amb = lerp(0.04, 0.55, sky);
                 fixed3 col = albedo * light * (amb + 0.55 * ndl * sky) * faceAo;
+
+                // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
+                // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).
+                col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
                 float gloss = i.mat.r;
                 float metal = i.mat.g;

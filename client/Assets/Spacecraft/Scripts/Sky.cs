@@ -21,6 +21,8 @@ namespace Spacecraft.Client
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int GradeTintId = Shader.PropertyToID("_Sc_GradeTint");
         private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
+        private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
+        private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
 
         private Light _sun;
         private Transform _sunDisc;     // visible glowing sun billboard in the sky
@@ -138,6 +140,14 @@ namespace Spacecraft.Client
             Color tint = sunColor * (brightness * weatherDim);
             tint.a = 1f; // marks the global as "set" for the shaders
             Shader.SetGlobalColor(LightId, tint);
+
+            // Ship interior lighting: the block shader darkens indoors/underground by skylight occlusion
+            // (so caves need a lamp). The ship is your home, though, so feed an "indoor fill" the shader
+            // adds to skylight-occluded faces only — lighting the cabin (day or night) without touching the
+            // sunlit outdoors seen through the windows. Smoothed so boarding/leaving fades.
+            float indoorTarget = Game != null && Game.Aboard ? 1f : 0f;
+            _indoor = Mathf.MoveTowards(_indoor, indoorTarget, Time.deltaTime * 3f);
+            Shader.SetGlobalFloat(IndoorId, _indoor);
 
             // Sky colour: drives both the camera background and the global the lit shader samples
             // for grazing-angle environment reflections (glossy/metallic blocks).
@@ -268,6 +278,7 @@ namespace Spacecraft.Client
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
             Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
+            Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {

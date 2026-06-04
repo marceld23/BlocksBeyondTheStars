@@ -46,9 +46,9 @@ namespace Spacecraft.Client
                 _managedCursor = false;
             }
 
-            if (modal || Game.MenuOpen || Game.SpaceViewActive)
+            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping)
             {
-                return; // don't start new interactions while a panel/space view is up
+                return; // don't start new interactions while a panel/space view/chat is up
             }
 
             // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.

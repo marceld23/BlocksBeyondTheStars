@@ -5,6 +5,7 @@ using Spacecraft.Persistence;
 using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.State;
 using Xunit;
 using SvGameServer = Spacecraft.GameServer.GameServer;
 
@@ -78,8 +79,8 @@ public sealed class MiningTests : IDisposable
         {
             var p = server.AddLocalPlayer("Miner");
             p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
-            p.State.Inventory.Add("mining_beam", 1, 1); // tier 3, power 4, radius 1 -> first free slot (3)
-            p.State.SelectedHotbarSlot = 3;
+            p.State.Inventory.SetSlot(6, new ItemStack("mining_beam", 1)); // tier 3, power 4, radius 1
+            p.State.SelectedHotbarSlot = 6;
 
             var stone = _content.GetBlock("stone")!.NumericId;
             var center = new Vector3i(0, 64, 0);

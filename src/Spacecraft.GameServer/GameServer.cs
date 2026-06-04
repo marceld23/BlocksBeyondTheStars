@@ -1033,10 +1033,12 @@ public sealed partial class GameServer
                 : (_config.AdminPlayers.Contains(name) ? PlayerRole.Admin : PlayerRole.Player),
         };
 
-        // Starter kit: a basic drill, a block placer and a hand scanner in the first hotbar slots.
+        // Starter kit: a basic drill, a block placer and a hand scanner in the first hotbar slots,
+        // plus a suit lamp so the player can light up caves / the ship at night (toggle with L).
         state.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
         state.Inventory.SetSlot(1, new ItemStack("block_placer", 1));
         state.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
+        state.Inventory.SetSlot(3, new ItemStack("suit_lamp", 1));
         _repo.SavePlayer(state);
         return state;
     }

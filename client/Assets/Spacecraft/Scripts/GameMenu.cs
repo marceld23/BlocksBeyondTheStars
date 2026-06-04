@@ -42,7 +42,7 @@ namespace Spacecraft.Client
 
                 _wasInSpaceView = Game.SpaceViewActive;
 
-                if (Input.GetKeyDown(KeyCode.Tab))
+                if (Input.GetKeyDown(KeyCode.Tab) && (Game == null || !Game.ChatTyping))
                 {
                     SetOpen(!_open);
                 }
