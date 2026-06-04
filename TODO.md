@@ -122,12 +122,16 @@ in-memory single `_world` blocks it). **Decision: one ship per player, no crew.*
   deterministic, existing universes unchanged (`0e4162c`).
 - ✅ **P2** — `WorldManager`/`LoadedWorld` seam; the active world is routed through it, behaviour-preserving
   (`f45bd41`).
-- ⏭️ **P3 (next, the core change)** — make `WorldManager` cache multiple resident worlds (load on demand,
-  unload+save when empty); add per-session `CurrentLocationId`; relocate per-world runtime state
-  (fauna/enemies/npcs/flora/fluids/containers/structures) from `GameServer` into `LoadedWorld`; tick each
-  resident world; stream chunks + run mine/place from the player's world; scope presence/entities per
-  world; make `WorldReset` per-player. This is the large, multi-step refactor that actually enables
-  different planets at once.
+- ✅ **P3a** — relocated the per-world runtime state (fauna/enemies/npcs/flora/fluids/containers/
+  structures/landing zones) from the `GameServer` partials into `LoadedWorld` via forwarding properties to
+  `_worlds.Active`; behaviour-preserving (`e4e251a`).
+- ⏭️ **P3b/c (next, the behaviour change)** — move the remaining per-world stragglers (settlement/wreck
+  scalar state, sim timers; weather/time stay global for now); make `WorldManager` cache multiple resident
+  worlds (load on demand, unload+save when empty, refcount); add per-session `CurrentLocationId`; use the
+  **single-threaded "Active cursor"** pattern — set `_worlds.Active` to the relevant world before each
+  per-player op and per-world tick — so existing subsystem code is reused without signature churn; make
+  `WorldReset` per-player and scope presence/entities per world. This is the step that lets two players be
+  on different planets at once.
 
 ### Not started / larger future work
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
