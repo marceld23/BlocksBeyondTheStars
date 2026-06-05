@@ -517,7 +517,7 @@
   "ui.space.enter": "In den Weltraum starten",
   "ui.space.leave": "Zur Oberfläche zurück",
   "ui.space.controls": "WASD + Maus: fliegen · V: Ansicht · E: landen/andocken · L: zurück",
-  "ui.space.land_confirm": "Auf diesem Planeten landen?   Enter = ja · Esc = nein",
+  "ui.space.land_confirm": "Zurück zur Startoberfläche?   Enter = ja · Esc = nein",
   "ui.space.land_on": "Landen auf",
   "ui.space.land_prompt": "E drücken, um zu landen auf",
   "ui.space.board": "E drücken zum Andocken an",

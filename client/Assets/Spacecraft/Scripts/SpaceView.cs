@@ -209,17 +209,17 @@ namespace Spacecraft.Client
                 if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
                 {
                     _confirmLand = false;
-                    Game.Network?.SendLeaveSpace(_landTargetId ?? string.Empty);
+                    Game.Network?.SendLeaveSpace(string.Empty); // L always returns to the body you launched from
                 }
                 else if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     _confirmLand = false;
                 }
 
-                return; // hold position while the land prompt is up
+                return; // hold position while the prompt is up
             }
 
-            // L (or the Space-tab "Return to surface") opens the land confirmation.
+            // L opens the "return to the body you launched from" confirmation (landing on a nearby body is E).
             if (Input.GetKeyDown(KeyCode.L))
             {
                 _confirmLand = true;
@@ -240,12 +240,26 @@ namespace Spacecraft.Client
                 pos = pos.normalized * _bounds;
             }
 
+            // Keep-out: never let the ship penetrate a body — push it back out to the sphere surface, so it
+            // slides around the planet instead of flying in. This is the "auto-adjust the flight direction"
+            // that stops you from getting too close / accidentally dropping onto the planet.
+            foreach (var ob in _keepOut)
+            {
+                Vector3 d = pos - ob.Pos;
+                float dist = d.magnitude;
+                if (dist < ob.Radius && dist > 0.0001f)
+                {
+                    pos = ob.Pos + d / dist * ob.Radius;
+                }
+            }
+
             _ship.transform.localPosition = pos;
 
-            // System-scale flight: the nearest other body within approach range is the land target; press L
+            // System-scale flight: the nearest other body within approach range is the land target; press E
             // to land on it. With none in range, L returns you to the body you launched from.
             _landTargetId = null;
             _landTargetName = null;
+            _landTargetSq = float.MaxValue;
             float bestLand = LandApproachRange * LandApproachRange;
             foreach (var body in _landables)
             {
@@ -255,6 +269,7 @@ namespace Spacecraft.Client
                     bestLand = sq;
                     _landTargetId = body.Id;
                     _landTargetName = body.Name;
+                    _landTargetSq = sq;
                 }
             }
 
@@ -268,6 +283,7 @@ namespace Spacecraft.Client
 
             // Boarding: find the nearest station in range; E boards it (the server validates the range).
             _nearStationId = null;
+            _nearStationSq = float.MaxValue;
             var space = Game.Space;
             if (space != null)
             {
@@ -286,6 +302,7 @@ namespace Spacecraft.Client
                         _nearStationId = e.Id;
                         _nearStationName = e.Name;
                         _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
+                        _nearStationSq = sq;
                     }
                 }
             }
@@ -295,7 +312,9 @@ namespace Spacecraft.Client
             // "return to the body you launched from" shortcut.
             if (Input.GetKeyDown(KeyCode.E))
             {
-                if (_nearStationId != null)
+                // Whichever you're closest to wins: dock the station or land on the body.
+                bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
+                if (stationCloser)
                 {
                     _phase = Phase.Boarding; // short dock-approach animation; board intent sent on completion
                     _seq = 0f;
@@ -534,6 +553,7 @@ namespace Spacecraft.Client
             _root = new GameObject("SpaceScene");
             _root.transform.position = SceneOrigin;
             _cloudShells.Clear();
+            _keepOut.Clear();
 
             var star = Unlit(new Color(0.9f, 0.95f, 1f));
             var bright = Unlit(new Color(1f, 0.98f, 0.92f));
@@ -561,6 +581,7 @@ namespace Spacecraft.Client
             planet.transform.localPosition = new Vector3(20f, -120f, 70f);
             planet.transform.localScale = Vector3.one * 160f;
             planet.GetComponent<Renderer>().sharedMaterial = Lit(mainLook.tint, LoadTex(mainLook.tex), new Vector2(6f, 3f));
+            _keepOut.Add((planet.transform.localPosition, 80f + KeepOutMargin)); // radius 80 (Ø160)
 
             // Cloud cover over the planet you're at — its authoritative per-planet colour/density.
             var (mainCloudCol, mainCloudDen) = MainCloudLook(mainType);
@@ -574,6 +595,7 @@ namespace Spacecraft.Client
             planet2.transform.localPosition = new Vector3(-160f, 60f, 220f);
             planet2.transform.localScale = Vector3.one * 60f;
             planet2.GetComponent<Renderer>().sharedMaterial = Lit(secondLook.tint, LoadTex(secondLook.tex), new Vector2(3f, 2f));
+            _keepOut.Add((planet2.transform.localPosition, 30f + KeepOutMargin)); // radius 30 (Ø60)
 
             var (secondCloudCol, secondCloudDen) = PlanetCloudLook(secondType);
             AddCloudShell(planet2.transform, secondCloudCol, secondCloudDen);
@@ -637,15 +659,18 @@ namespace Spacecraft.Client
                 maxDist = Mathf.Max(maxDist, pos.magnitude);
 
                 var look = PlanetLook(b.PlanetType);
+                float diameter = b.Kind == "Moon" ? 28f : 46f;
                 var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 sphere.name = "SystemBody_" + b.Id;
                 StripCollider(sphere);
                 sphere.transform.SetParent(_root.transform, false);
                 sphere.transform.localPosition = pos;
-                sphere.transform.localScale = Vector3.one * (b.Kind == "Moon" ? 28f : 46f);
+                sphere.transform.localScale = Vector3.one * diameter;
                 sphere.GetComponent<Renderer>().sharedMaterial = Lit(look.tint, LoadTex(look.tex), new Vector2(3f, 2f));
 
-                _landables.Add((b.Id, b.Name, pos));
+                float bodyRadius = diameter * 0.5f;
+                _landables.Add((b.Id, b.Name, pos, bodyRadius));
+                _keepOut.Add((pos, bodyRadius + KeepOutMargin)); // can't fly into it — slide + press E to land
             }
 
             _bounds = Mathf.Max(Bounds, maxDist + 140f); // keep the whole system reachable
@@ -864,12 +889,19 @@ namespace Spacecraft.Client
         // System-scale flight: the other bodies of the current system, placed at their (scaled) system
         // coordinates so you can fly between them and land on any one. The body nearest within
         // LandApproachRange is the land target; if none, landing returns you to the current body.
-        private readonly List<(string Id, string Name, Vector3 Pos)> _landables = new();
+        private readonly List<(string Id, string Name, Vector3 Pos, float Radius)> _landables = new();
+        // Every body (landable + decorative) as a keep-out sphere: the ship slides along it instead of
+        // flying into the planet, so there is no "fell into the planet / auto-landed" — you stop at the
+        // approach distance and press E to land. (Pos, keep-out radius.)
+        private readonly List<(Vector3 Pos, float Radius)> _keepOut = new();
         private string _landTargetId;   // body the ship is close enough to land on (null = the current world)
         private string _landTargetName;
+        private float _landTargetSq;    // squared distance to the land target (for station-vs-body priority)
+        private float _nearStationSq;   // squared distance to the near station
         private float _bounds = Bounds; // flight clamp, enlarged to span the resident system
         private const float SystemViewScale = 0.30f; // system units → flight-view units
         private const float LandApproachRange = 55f; // within this of a body you can land on it
+        private const float KeepOutMargin = 10f;     // how far outside a body's surface the ship is held
 
         private void EnsureUi()
         {
@@ -1058,12 +1090,10 @@ namespace Spacecraft.Client
             }
             else if (_confirmLand)
             {
-                // Land confirmation prompt (key-driven, no cursor): Enter confirms, Esc cancels. Names the
-                // body you flew to, or the body you launched from when nothing is in approach range.
+                // Return-to-launch-body confirmation (key-driven, no cursor): Enter confirms, Esc cancels.
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                string baseText = loc != null ? loc.Get("ui.space.land_confirm") : "Land on this planet?   Enter = yes · Esc = no";
-                _hint.text = string.IsNullOrEmpty(_landTargetName) ? baseText : $"{(loc != null ? loc.Get("ui.space.land_on") : "Land on")} {_landTargetName}?   Enter = yes · Esc = no";
+                _hint.text = loc != null ? loc.Get("ui.space.land_confirm") : "Return to the surface?   Enter = yes · Esc = no";
                 _hint.gameObject.SetActive(true);
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
@@ -1072,24 +1102,27 @@ namespace Spacecraft.Client
             {
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · L land";
+                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return";
                 _hint.gameObject.SetActive(true);
 
-                // Prompt: board a station (E) if one is close, else land on a body (L) you've flown up to.
-                bool nearStation = _nearStationId != null;
-                bool nearBody = !nearStation && _landTargetId != null;
-                if (nearStation)
+                // Prompt whichever you're closest to: dock a station (E) or land on a body (E) you've flown up to.
+                bool haveStation = _nearStationId != null;
+                bool haveBody = _landTargetId != null;
+                bool stationCloser = haveStation && (!haveBody || _nearStationSq <= _landTargetSq);
+                bool showStation = haveStation && stationCloser;
+                bool showBody = haveBody && !stationCloser;
+                if (showStation)
                 {
                     string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
                     _board.text = $"{board} {_nearStationName}";
                 }
-                else if (nearBody)
+                else if (showBody)
                 {
-                    string land = loc != null ? loc.Get("ui.space.land_prompt") : "Press L to land on";
+                    string land = loc != null ? loc.Get("ui.space.land_prompt") : "Press E to land on";
                     _board.text = $"{land} {_landTargetName}";
                 }
 
-                _board.gameObject.SetActive(nearStation || nearBody);
+                _board.gameObject.SetActive(showStation || showBody);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
                 _cargo.text = $"{cargoLabel}: {Game.Cargo.Length}";

@@ -512,7 +512,7 @@
   "ui.space.enter": "Launch into space",
   "ui.space.leave": "Return to surface",
   "ui.space.controls": "WASD + mouse: fly · V: view · E: land/dock · L: return",
-  "ui.space.land_confirm": "Land on this planet?   Enter = yes · Esc = no",
+  "ui.space.land_confirm": "Return to the surface you launched from?   Enter = yes · Esc = no",
   "ui.space.land_on": "Land on",
   "ui.space.land_prompt": "Press E to land on",
   "ui.space.board": "Press E to board",

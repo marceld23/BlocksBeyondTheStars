@@ -16,6 +16,21 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): No fly-into-planet / auto-land; E-land prompt actually shows
+Follow-up to the E-landing change:
+- **Keep-out barrier around every body** (landables + the two decorative planets): the ship slides along a
+  body's keep-out sphere instead of flying into it (radial push-out each frame in `UpdateCruise`). No more
+  "flew into the planet / dropped onto it" — you stop at the approach distance and press **E** to land.
+- **Prompt + E priority by distance:** the land/dock prompt now shows whichever you're **closest** to (was
+  station-always-wins, so the planet prompt never appeared when a station sat near the body cluster). E acts
+  on the closer of the two.
+- **L = return to the launch body only** (`SendLeaveSpace("")`) — it no longer lands you on a nearby body
+  (that's E now), so there's no surprise drop. Confirm reworded to "Return to the surface…".
+- Note: a likely extra cause of "auto-landing near planets" was the ship being **disabled by off-screen
+  drone fire** (now range-gated) → `DisableShip` forces you out of space onto the base.
+
+---
+
 ## ✅ Done (2026-06-06): Land on a planet with E (like docking a station)
 Flying near a planet/moon now shows **"Press E to land on \<name\>"** and **E lands** there — the same
 proximity → E flow as station docking (was "Press L" + an Enter/Esc confirm). In `SpaceView.UpdateCruise`,
