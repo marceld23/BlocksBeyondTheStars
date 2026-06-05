@@ -174,6 +174,9 @@ public sealed partial class GameServer
         // Inhabited settlements are populated with NPCs at their vendor/board/npc markers.
         SpawnSettlementNpcs(rng);
 
+        // Doorways get real doors: sci-fi sliders for cities/towns, hinged doors for villages/hamlets.
+        RegisterDoors();
+
         _log.Info($"Settlement '{_settlementName}' ({tier}{(ruined ? ", ruined" : "")}) stamped at ({ax}, {groundY}, {az}) with {_settlementMarkers.Count} markers.");
     }
 

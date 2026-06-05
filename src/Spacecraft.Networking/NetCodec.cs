@@ -66,6 +66,7 @@ public static class NetCodec
         Register(43, typeof(ClaimWreckIntent));
         Register(44, typeof(TravelIntent));
         Register(45, typeof(SetJetpackIntent));
+        Register(46, typeof(DoorInteractIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
@@ -111,6 +112,7 @@ public static class NetCodec
         Register(90, typeof(ChatMessage));
         Register(91, typeof(SaveGameIntent));
         Register(92, typeof(TractorPullIntent));
+        Register(93, typeof(DoorList));
     }
 
     private static void Register(byte tag, Type type)

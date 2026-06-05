@@ -237,6 +237,19 @@ public static class SettlementGenerator
                     _ => "npc",
                 };
                 markers.Add(new SettlementMarker(role, centre));
+
+                // A real door fills this building's doorway: a sci-fi slider for towns/cities, a hinged
+                // door for villages/hamlets. Placed on the lower door column; the server probes the gap to
+                // centre + size the door. (Ruins are abandoned — their doorways stay open.)
+                int mid = fp / 2, w0 = System.Math.Max(1, mid - 1);
+                var doorCell = doorSide switch
+                {
+                    0 => new Vector3i(ox + w0, 1, oz),
+                    1 => new Vector3i(ox + w0, 1, oz + fp - 1),
+                    2 => new Vector3i(ox, 1, oz + w0),
+                    _ => new Vector3i(ox + fp - 1, 1, oz + w0),
+                };
+                markers.Add(new SettlementMarker(town ? "door_slide" : "door_hinge", doorCell));
             }
             else if (plotIndex == 0 || rng.NextDouble() < 0.6)
             {

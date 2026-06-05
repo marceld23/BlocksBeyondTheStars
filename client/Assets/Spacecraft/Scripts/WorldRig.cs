@@ -112,6 +112,10 @@ namespace Spacecraft.Client
             var npcs = root.AddComponent<NpcView>();
             npcs.Game = boot;
 
+            // Render + collide doors (sci-fi sliders auto-open; village hinge doors toggle on E).
+            var doors = root.AddComponent<DoorView>();
+            doors.Game = boot;
+
             // Player-to-player docking + trade UI (M24).
             var interactions = root.AddComponent<PlayerInteractions>();
             interactions.Game = boot;

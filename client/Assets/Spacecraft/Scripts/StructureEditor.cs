@@ -95,6 +95,8 @@ namespace Spacecraft.Client
             P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),
             P("mission_board", "Mission board", "marker", new Color(0.4f, 0.7f, 0.95f)),
             P("npc", "Inhabitant", "marker", new Color(0.85f, 0.6f, 0.5f)),
+            P("door_slide", "Slide door", "marker", new Color(0.40f, 0.85f, 0.95f)),
+            P("door_hinge", "Hinge door", "marker", new Color(0.60f, 0.40f, 0.20f)),
         };
 
         private void BuildRoom()

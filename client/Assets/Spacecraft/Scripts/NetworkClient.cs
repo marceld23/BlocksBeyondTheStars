@@ -58,6 +58,7 @@ namespace Spacecraft.Client
         public event Action<WorldEnvironment> WorldEnvironmentReceived;
         public event Action<WorldReset> WorldResetReceived;
         public event Action<NpcList> NpcsReceived;
+        public event Action<DoorList> DoorsReceived;
         public event Action<MiningProgress> MiningProgressReceived;
 
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
@@ -180,6 +181,7 @@ namespace Spacecraft.Client
         public void SendLeaveStation() => Send(new LeaveStationIntent());
 
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
+        public void SendDoorInteract(int doorId) => Send(new DoorInteractIntent { DoorId = doorId });
 
         // --- Navigation & missions (M23) ---
         public void SendRequestStarMap() => Send(new RequestStarMap());
@@ -244,6 +246,7 @@ namespace Spacecraft.Client
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m: WorldResetReceived?.Invoke(m); break;
                 case NpcList m: NpcsReceived?.Invoke(m); break;
+                case DoorList m: DoorsReceived?.Invoke(m); break;
                 case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
                 case ScanResult m: ScanResultReceived?.Invoke(m); break;
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;

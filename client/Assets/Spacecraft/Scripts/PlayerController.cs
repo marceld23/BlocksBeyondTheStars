@@ -602,8 +602,20 @@ namespace Spacecraft.Client
                 Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market
             }
 
-            if (string.IsNullOrEmpty(Game.NearbyStation) || !Input.GetKeyDown(KeyCode.E))
+            if (!Input.GetKeyDown(KeyCode.E))
             {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(Game.NearbyStation))
+            {
+                // No station here — maybe a hinge door to open/close (sci-fi sliders open themselves).
+                int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
+                if (door != 0)
+                {
+                    Game.Network?.SendDoorInteract(door);
+                }
+
                 return;
             }
 

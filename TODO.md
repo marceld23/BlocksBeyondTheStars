@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **288 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **291 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
@@ -15,6 +15,29 @@ scene authoring). One shared world; contractless MessagePack networking; determi
 SQLite persistence.
 
 ---
+
+## ✅ Done (2026-06-06): Doors (settlements) — D1–D5
+Settlement doorways now hold real, server-authoritative doors (rendered + collided client-side, since
+movement is client-side). Three bespoke **ElevenLabs** SFX: `door_slide_open`, `door_slide_close`,
+`door_hinge`.
+- **D1 — server `GameServerDoors`:** a per-world `ServerDoor` registry built from `door_slide`/`door_hinge`
+  markers on stamp; the wall axis + gap width are **inferred by probing the surrounding blocks**, so doors
+  line up regardless of facing. `TickDoors` auto-opens slide doors for a player within range and auto-closes
+  them a moment after the last one leaves; `HandleDoorInteract` toggles a hinge door a player stands at.
+  Cleared in `ResetWorldRuntimeState`; sent on join/travel (`SendDoors`) + broadcast on change. Messages:
+  `DoorInteractIntent` (46), `DoorList` (93).
+- **D2 — client `DoorView`:** renders each door from `DoorList` (slide = two panels swoosh apart; hinge =
+  a leaf swings ~96°), with a `BoxCollider` that blocks the `CharacterController` while closed and lifts
+  while open. Plays the slide/hinge SFX on state change; shows an "E" hint over a reachable hinge door.
+- **D3 — generator places doors:** the settlement generator emits a door marker at each (non-ruined)
+  building's doorway — **slide** for towns/cities, **hinge** for villages/hamlets; the opening stays air.
+- **D4 — editor:** the settlement editor palette gained **Slide door** + **Hinge door** markers (they flow
+  through `StructureTemplate` cells → the D1 registry).
+- **D5 — localization + tests:** `ui.door.hint` (en/de); 3 server tests — a slide door auto-opens on approach
+  + auto-closes, a hinge door toggles on interact (and not from afar), doors register at real doorways.
+- **Remaining (follow-up):** auto-doors for **orbital stations + the ship** (their doorways are cut as air
+  but don't yet emit door markers — the registry already accepts them once they do); station/ship editor
+  door palette entries.
 
 ## ✅ Done (2026-06-06): JuMaVe Games studio splash + moon-overlap fix
 - **Studio splash:** a new `StudioSplash` (+ `ShellPhase.Studio`, now the first phase) shows the **JuMaVe
@@ -449,10 +472,12 @@ can see by day + night. Cosmetic, client-side (mirrors `Sky`/`Starfield`/the sun
 - Phasing: **O1** render neighbours + stations from the star map; **O2** slow orbital drift; **O3** per-type
   look + stations-of-this-body shown nearer/bigger; **O4** optional labels on look/scan.
 
-### Doors — planned (not started) ⭐ (next up, 2026-06-06)
-Two door kinds, server-authoritative state, rendered + collided client-side (movement is client-side, so a
-door must be a **dynamic GameObject with a toggleable collider**, not baked into the static chunk mesh —
-mirrors `NpcView`/the NPC model):
+### Doors — ✅ shipped for settlements (see the Done entry above); stations/ship still open
+**Settlement doors are done** (D1–D5 — slide for towns/cities, hinge for villages/hamlets, with the three
+ElevenLabs SFX). **Still open:** auto-doors for **orbital stations + the ship** — their doorways are cut as
+air but don't yet emit `door_slide` markers; the `GameServerDoors` registry already accepts them once the
+station/ship stamp adds the markers (plus station/ship editor palette entries). Original plan kept below for
+that remaining work:
 - **Sci-fi sliding doors** — auto open/close: the server opens them when a player is within range and
   auto-closes them after a short delay. For **stations + cities/towns** (and the **ship**).
 - **Hinged "normal" doors** — manual: press **E** to toggle. For **villages/hamlets**.

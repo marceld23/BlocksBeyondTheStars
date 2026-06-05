@@ -81,6 +81,7 @@ restore → **~7**, procedural cues (alarms/tones).
 |---|---|---|---|
 | hull ambience hum loop ✓ | aboard | 1 | proc ✓ |
 | door / airlock open-close | enter/exit | 2 | EL |
+| world doors: slide open/close (sci-fi), hinge creak (village) ✓ | `DoorView` open/close | 3 | EL ✓ |
 | station use: heal-tank, cockpit, workshop, cargo, quarters | `UseStation` | 5 | proc |
 
 ## 7. Ship systems & space — *ElevenLabs + procedural*

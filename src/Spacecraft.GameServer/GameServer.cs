@@ -307,6 +307,7 @@ public sealed partial class GameServer
         _speciesRoster = System.Array.Empty<Shared.Definitions.CreatureSpecies>();
         _planetEnemies.Clear();
         _npcs.Clear();
+        _doors.Clear();
         _settlementMarkers.Clear();
         _settlementMissionIds.Clear();
         _wreckMarkers.Clear();
@@ -401,6 +402,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
         SendCreatures(session);
+        SendDoors(session);
         SendContainers(session);
         SendStarMap(session);
         Send(session, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
@@ -551,6 +553,7 @@ public sealed partial class GameServer
             TickFlora(deltaSeconds);
             TickCreatures(deltaSeconds);
             TickNpcs(deltaSeconds);
+            TickDoors(deltaSeconds);
             StreamChunks();
         }
 
@@ -932,6 +935,7 @@ public sealed partial class GameServer
             case RequestStarMap: SendStarMap(session); break;
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case TractorPullIntent: HandleTractorPull(session); break;
+            case DoorInteractIntent door: HandleDoorInteract(session, door); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
             case RequestMissions: SendMissionList(session); break;
             case AcceptMissionIntent accept: HandleAcceptMission(session, accept.MissionId); break;
@@ -1037,6 +1041,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
         SendCreatures(session);
+        SendDoors(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
 
