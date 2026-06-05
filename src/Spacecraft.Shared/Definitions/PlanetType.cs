@@ -122,4 +122,11 @@ public sealed class PlanetType
     /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
     /// </summary>
     public bool Selectable { get; set; } = true;
+
+    /// <summary>
+    /// When true the world generates as pure empty space (all air, no terrain/caves/ore/flora). Used by
+    /// orbital space stations, which exist as their own free-floating location with only their stamped
+    /// structure in the void (space sky, life support — see the station planet type).
+    /// </summary>
+    public bool Void { get; set; }
 }

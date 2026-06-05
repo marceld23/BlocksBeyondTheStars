@@ -563,6 +563,7 @@
   "planet.swamp.name": "Swamp Planet",
   "planet.varied.name": "Varied World",
   "planet.asteroid.name": "Large Asteroid",
+  "planet.orbital_station.name": "Orbital Station",
 
   "mission.first_iron.name": "First Iron",
   "mission.first_iron.desc": "Mine 10 iron ore to get your workshop going.",

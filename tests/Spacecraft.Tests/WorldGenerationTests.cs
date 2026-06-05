@@ -27,6 +27,25 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void VoidPlanet_GeneratesEmptySpace()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("orbital_station")!; // Void=true
+        var gen = new WorldGenerator(123, content);
+
+        // A void world (an orbital station's own location) is pure air — only its stamped structure lives
+        // there, so every generated cell across a vertical span is empty.
+        for (int cy = 0; cy <= 6; cy++)
+        {
+            var chunk = gen.Generate(planet, new ChunkCoord(0, cy, 0));
+            foreach (var b in chunk.RawBlocks)
+            {
+                Assert.Equal(BlockId.AirValue, b);
+            }
+        }
+    }
+
+    [Fact]
     public void DifferentSeeds_ProduceDifferentTerrain()
     {
         var content = Content();

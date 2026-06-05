@@ -54,6 +54,13 @@ public sealed class WorldGenerator
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
+
+        // Void worlds (orbital stations) are pure empty space — only their stamped structure exists.
+        if (planet.Void)
+        {
+            return chunk; // all air
+        }
+
         long seed = PlanetSeed(planet);
 
         var biomes = ResolveBiomes(planet);

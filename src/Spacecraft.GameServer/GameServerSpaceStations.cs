@@ -20,8 +20,14 @@ public sealed partial class GameServer
     /// procedurally generated station/settlement; the rest stay procedural.</summary>
     private const double StructureTemplateChance = 0.35;
 
+    /// <summary>Planet type of the void world that backs every orbital station (space sky, life support,
+    /// no terrain/weather/clouds). See data/planets.json.</summary>
+    private const string StationPlanetType = "orbital_station";
+
     private readonly Dictionary<string, BoardableStation> _stationsById = new();
     private readonly Dictionary<string, string> _boardedStation = new();
+    // Where to send a player back when they leave a station: (planet location id, planet type key).
+    private readonly Dictionary<string, (string Loc, string Type)> _boardedReturn = new();
     private readonly HashSet<string> _stationMissionIds = new();
 
     private sealed class BoardableStation
@@ -112,9 +118,9 @@ public sealed partial class GameServer
             Name = string.IsNullOrWhiteSpace(name) ? "Orbital Station" : name,
             SizeTier = tier,
             SpacePosition = new Vector3f(0f, 0f, 42f + index * 30f),
-            // High orbit: well above any terrain so the planet surface is beyond view distance and never
-            // streams — the station reads as a free-floating unit in space (space sky all around).
-            Origin = new Vector3i(900 + index * 120, 400, 900),
+            // The station lives in its own void world now, so a clean grounded origin is fine (the void
+            // gives it the free-floating-in-space look; no planet terrain anywhere near).
+            Origin = new Vector3i(8, 64, 8),
         };
         _stationsById[id] = station;
         return station;
@@ -161,16 +167,35 @@ public sealed partial class GameServer
             return;
         }
 
-        StampStation(station);
-
+        // Remember the planet to return to, then leave the space instance.
+        _boardedReturn[playerId] = (session.CurrentLocationId, _world.PlanetKey);
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
-        _boardedStation[playerId] = station.Id;
 
+        // Boarding is a world transition into the station's own free-floating void world (space all around,
+        // life support, no weather) — the same robust WorldReset path planet travel uses, so the player no
+        // longer falls through to the planet.
+        string stationLoc = "station:" + station.Id;
+        LoadWorld(StationPlanetType, stationLoc); // loads/creates the void world + sets the Active cursor
+        SetCurrent(session);
+        StampStation(station);                     // stamps the structure once (persisted); computes Spawn
+        if (_npcs.Count == 0)
+        {
+            SpawnStationNpcs(station);             // (re)populate the crew when the station world is fresh
+        }
+
+        _boardedStation[playerId] = station.Id;
+        session.CurrentLocationId = stationLoc;
         session.State.Position = station.Spawn;
         session.State.AboardShip = false;
+        session.SentChunks.Clear();
 
         Send(session, new SpaceClosed { Reason = "Docked with station.", ShipDisabled = false });
+        Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = string.Empty, Hyperjump = false });
+        SendPlayerState(session);
+        SendEnvironment(session);
+        SendInventory(session);
+        SendNpcs(session); // the station's crew (vendor / quartermaster / dockhands)
         Send(session, new StationBoarded
         {
             StationId = station.Id,
@@ -179,13 +204,11 @@ public sealed partial class GameServer
             Y = station.Spawn.Y,
             Z = station.Spawn.Z,
         });
-        SendPlayerState(session);
-        SendInventory(session);
-        SendNpcs(session); // show the station's crew (vendor / quartermaster / dockhands)
-        _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}'.");
+        _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
     }
 
-    /// <summary>Leaves a boarded station and returns the player to the ship's respawn point.</summary>
+    /// <summary>Leaves a boarded station and travels back to the planet the player launched from, at their
+    /// ship — the reverse of the world transition that boarding performs.</summary>
     public void LeaveStation(string playerId)
     {
         var session = FindSessionByPlayerId(playerId);
@@ -194,11 +217,43 @@ public sealed partial class GameServer
             return;
         }
 
+        string stationLoc = session.CurrentLocationId; // the station world being left
+        var (returnLoc, returnType) = _boardedReturn.TryGetValue(playerId, out var r)
+            ? r
+            : (_meta.ActiveLocationId, _meta.DefaultPlanetType);
+        _boardedReturn.Remove(playerId);
+
+        // Travel back into the planet world (the proven arrival path) and place the player at their ship.
+        LoadWorld(returnType, returnLoc);
+        SetCurrent(session);
+        if (_config.PlaceStarterShip)
+        {
+            StampShip();
+        }
+
+        session.CurrentLocationId = returnLoc;
         session.State.Position = _shipStamped ? _healTank : session.State.RespawnPoint;
         session.State.AboardShip = true;
-        Send(session, new ServerMessage { Text = "Returned to your ship." });
+        session.SentChunks.Clear();
+
+        var (systemName, planetName) = ActiveLocationNames();
+        Send(session, new WorldReset { PlanetType = returnType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
         SendPlayerState(session);
+        SendShipPlacement(session);
+        SendShipStations(session);
+        SendPlanetPois(session);
+        SendEnvironment(session);
+        SendCreatures(session);
+        SendContainers(session);
+        SendNpcs(session);
         SendInventory(session);
+        Send(session, new ServerMessage { Text = "Returned to your ship." });
+
+        // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
+        if (!OccupiedLocations().Contains(stationLoc))
+        {
+            _worlds.Unload(stationLoc);
+        }
     }
 
     private void StampStation(BoardableStation station)
@@ -278,8 +333,8 @@ public sealed partial class GameServer
             GenerateStationMissions(station);
         }
 
-        SpawnStationNpcs(station);
-
+        // NPCs are runtime (cleared when the station world reloads), so the caller (BoardStation) spawns
+        // them per visit rather than here in the one-time structure stamp.
         station.Stamped = true;
         _log.Info($"Station '{station.Name}' stamped at ({station.Origin.X}, {station.Origin.Y}, {station.Origin.Z}) with {station.Markers.Count} markers.");
     }

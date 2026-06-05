@@ -265,20 +265,27 @@ public sealed partial class GameServer
         // ship is stamped per-player on join/travel (not here), so each player gets their ship in their world.
         ResetWorldRuntimeState();
         InitWeather();
-        InitFluids();
-        InitFlora();
-        InitCreatures();
-        LoadLandingZones();
-        LoadContainers();
 
-        if (_config.PlaceSettlements)
+        // A void world (an orbital station) has no terrain, so it gets none of the planet-surface content —
+        // no fauna/flora/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives there
+        // (the caller stamps it). Weather is initialised above so the env reads its clear/space-sky settings.
+        if (!planet.Void)
         {
-            StampSettlement();
-        }
+            InitFluids();
+            InitFlora();
+            InitCreatures();
+            LoadLandingZones();
+            LoadContainers();
 
-        if (_config.PlaceWrecks)
-        {
-            StampWreck();
+            if (_config.PlaceSettlements)
+            {
+                StampSettlement();
+            }
+
+            if (_config.PlaceWrecks)
+            {
+                StampWreck();
+            }
         }
 
         var body = _galaxy?.FindBody(locationId);
