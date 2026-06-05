@@ -16,6 +16,17 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): menu/editor/polish wave
+- **Craft quantity** stepper (− [n] + / Max), server clamps batch 1..999.
+- **Delete singleplayer worlds** from the save picker (with a confirm dialog).
+- **Editors load saved designs** — ship + structure editors gained a LOAD button (lists exports, rebuilds
+  the chosen design to keep editing).
+- **Connect-to-server** dialog (editable IP/port) on the menu's Join button (remote MP was already wired).
+- **Round background stars** in space (removed the blocky star cubes; the Starfield dome provides them).
+- **Fall damage** on hard landings (client reports impact speed → server applies armor-reduced damage; a
+  lethal fall respawns with the death flash). New `FallDamageIntent` (47).
+- **Credits** rewritten to the JuMaVe Games family project (+ community call), en/de.
+
 ## ✅ Done (2026-06-06): bug-fix wave — glass, space, combat, death feedback
 - **Milky glass** (transparent shader: non-emissive glass alpha 0.72 + white frost; fields stay see-through);
   ship-editor glass relabelled **Window**.
