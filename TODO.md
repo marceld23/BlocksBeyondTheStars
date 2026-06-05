@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **293 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **300 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
@@ -566,6 +566,20 @@ collider closes the gap when shut). Phased plan:
   Markers flow through `StructureTemplate` cells (kind="marker", id="door_slide"/"door_hinge") → D1 registry.
 - **D5 — localization + tests:** en/de names; tests: a slide door opens when a player steps within range +
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
+
+### ▶ Next up (resume 2026-06-07)
+The **water arc** is now three-quarters done: seas generate, you can **mine water/lava with the beam** (bodies
+refill until drained), the world **muffles underwater**, and aquatic creatures **swim + dive**. What's left:
+
+1. **Aquatic fauna + water flora** ← *recommended next* — the swim animation + dive + seas are all in place,
+   so this is the natural follow-on: make creatures actually **spawn in the water bodies** as swimmers, and
+   add **water flora** (reeds / kelp / lilies). See the planned item below for scope. This finishes the arc.
+2. **Flora re-tint per species × biome × planet** — the user's emphasized *"ganz wichtig"* engine task (random
+   final colour on top of the texture, uniform per flora type within a biome/planet). Bigger: needs a tint-UV
+   channel in `ChunkMesher` + a `BlockAtlas` shader change + grayscale flora tiles. Full plan in the item below.
+3. **Multiplayer player-name reservation** — server-side name claim so two clients can't collide.
+
+Everything builds + **300 tests pass** as of the last commit (`93321aa`).
 
 ### Planned — requested 2026-06-06 (für später)
 - ✅ **Mineable water/lava (with the mining beam) + source logic** (done 2026-06-06) — water/lava are now
