@@ -6,13 +6,32 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **280 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **281 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
 Architecture: Unity 6 (Built-in RP) client + authoritative .NET 8 server, everything built in code (no
 scene authoring). One shared world; contractless MessagePack networking; deterministic seed world-gen;
 SQLite persistence.
+
+---
+
+## ✅ Done (2026-06-06): Station/space polish wave — undock, NPCs, sun, windows
+- **Undock returns to flight:** leaving a station now relaunches you into the **space instance (ship view)**
+  around the orbited planet instead of dropping you onto the surface (`LeaveStation` restores the planet
+  world underneath, then `EnterSpace`). Test `LeaveStation_UndocksBackIntoSpaceFlight`.
+- **Station crew stands on the deck:** station NPCs snapped their feet to the floor grid (the marker sits
+  +0.5 centred in the air cell) — they no longer float. Settlement NPCs already snapped (verified). Test
+  `StationCrew_StandsOnTheDeck_NotFloating`.
+- **Ship no longer "wobbles" in space:** the only continuous motion on the ship was the thruster exhaust
+  flicker (`Sin(t·28)·0.12`, ~4.5 Hz) — tamed to a slow gentle shimmer; the launch animation itself is a
+  clean ease.
+- **The system sun, in its colour:** space view now renders the star as a bright additive billboard tinted
+  by `Environment.SunColor`, plus a **screen-space lens flare** that blooms as you turn to look into it.
+- **Real station windows + a view out:** the viewport band is now 2 blocks tall (proper windows, see-through
+  via the transparent pass); a new `StationBackdrop` shows the **orbited planet + the sun** outside while you
+  walk the station, so looking out a window shows the solar system (stars already showed through). Editor
+  already carries the glass "Viewport".
 
 ---
 
@@ -258,6 +277,33 @@ their own ship; persistence keyed by player id); **P4c** set `_current` in `OnPa
 StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle the test/public accessors
 (`server.Ship`/`OwnedShips` → first joined player) + a two-player fleet-isolation test. Ship-stamp state
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
+
+### Doors — planned (not started) ⭐ (next up, 2026-06-06)
+Two door kinds, server-authoritative state, rendered + collided client-side (movement is client-side, so a
+door must be a **dynamic GameObject with a toggleable collider**, not baked into the static chunk mesh —
+mirrors `NpcView`/the NPC model):
+- **Sci-fi sliding doors** — auto open/close: the server opens them when a player is within range and
+  auto-closes them after a short delay. For **stations + cities/towns** (and the **ship**).
+- **Hinged "normal" doors** — manual: press **E** to toggle. For **villages/hamlets**.
+
+Doors are **markers**, not voxel blocks (a 2×3 doorway opening stays air; the door entity fills it; its
+collider closes the gap when shut). Phased plan:
+- **D1 — server `GameServerDoors`:** a per-world `ServerDoor { Id, Type(slide/hinge), Pos, Facing, Open,
+  AutoCloseTimer }` registry built from structure markers on stamp; `TickDoors` auto-opens slide doors near
+  players + auto-closes after a delay; `HandleDoorInteract` toggles a hinge door the player faces;
+  broadcast `DoorList`/`DoorStateChanged` per world (via `BroadcastToWorld`). Cleared in
+  `ResetWorldRuntimeState`.
+- **D2 — client `DoorView`:** renders each door from `DoorList`; slide = two panels that swoosh apart,
+  hinge = a leaf that swings ~90°; a `BoxCollider` enabled while ~closed, disabled while open; sci-fi
+  swoosh vs. wood creak SFX (`ClientAudio`). Mirrors `NpcView`.
+- **D3 — generators place doors at doorways:** `StationGenerator.CutDoor` → a slide-door marker; settlement
+  generator picks **slide** for city/town, **hinge** for village/hamlet; `StationGenerator`/ship hull
+  doorways → slide. Keep the opening air so the entity shows through.
+- **D4 — editors:** add door markers to the palettes — **station editor** (slide), **settlement editor**
+  (both slide + hinge so the designer picks; generator still auto-picks by tier), **ship editor** (slide).
+  Markers flow through `StructureTemplate` cells (kind="marker", id="door_slide"/"door_hinge") → D1 registry.
+- **D5 — localization + tests:** en/de names; tests: a slide door opens when a player steps within range +
+  auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
 ### Not started / larger future work
 - **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder

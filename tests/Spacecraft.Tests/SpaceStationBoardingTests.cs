@@ -177,7 +177,7 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
-    public void LeaveStation_TravelsBackToThePlanet()
+    public void LeaveStation_UndocksBackIntoSpaceFlight()
     {
         var server = Started(out var repo);
         using (repo)
@@ -190,8 +190,31 @@ public sealed class SpaceStationBoardingTests : IDisposable
             server.LeaveStation("Pilot");
 
             Assert.False(server.InStation("Pilot"));
-            Assert.Equal(planetLoc, pilot.CurrentLocationId); // back on the planet we launched from
+            Assert.True(server.InSpace("Pilot"));               // back in the ship's space view, not on foot
+            Assert.Equal(planetLoc, pilot.CurrentLocationId);   // the world underneath is the orbited planet
             Assert.True(pilot.State.AboardShip);
+        }
+    }
+
+    [Fact]
+    public void StationCrew_StandsOnTheDeck_NotFloating()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+
+            // Every crew member's feet sit exactly on the floor grid (integer Y, no +0.5 hover) with solid
+            // deck directly below — i.e. standing on the deck, never floating above it.
+            foreach (var npc in server.NpcSnapshots)
+            {
+                Assert.True(npc.Home.Y == (float)System.Math.Floor(npc.Home.Y),
+                    $"NPC {npc.Role} Y {npc.Home.Y} should sit on the floor grid, not the centred marker.");
+                var feet = npc.Home.ToBlock();
+                Assert.False(server.World.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir,
+                    $"NPC {npc.Role} should have solid deck under its feet.");
+            }
         }
     }
 

@@ -207,8 +207,10 @@ public sealed partial class GameServer
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
     }
 
-    /// <summary>Leaves a boarded station and travels back to the planet the player launched from, at their
-    /// ship — the reverse of the world transition that boarding performs.</summary>
+    /// <summary>Leaves a boarded station and undocks straight back into <b>space flight</b> around the
+    /// planet the station orbits — you return to your ship's view, not to the planet surface. The planet
+    /// world is restored underneath (so a later landing drops you there), then the player relaunches into
+    /// the system's space instance near where they docked.</summary>
     public void LeaveStation(string playerId)
     {
         var session = FindSessionByPlayerId(playerId);
@@ -223,7 +225,8 @@ public sealed partial class GameServer
             : (_meta.ActiveLocationId, _meta.DefaultPlanetType);
         _boardedReturn.Remove(playerId);
 
-        // Travel back into the planet world (the proven arrival path) and place the player at their ship.
+        // Restore the planet world the station orbits (the proven arrival path) and place the player at
+        // their ship, so that if they later land from space they touch down here.
         LoadWorld(returnType, returnLoc);
         SetCurrent(session);
         if (_config.PlaceStarterShip)
@@ -247,13 +250,17 @@ public sealed partial class GameServer
         SendContainers(session);
         SendNpcs(session);
         SendInventory(session);
-        Send(session, new ServerMessage { Text = "Returned to your ship." });
 
         // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
         if (!OccupiedLocations().Contains(stationLoc))
         {
             _worlds.Unload(stationLoc);
         }
+
+        // Undock into space flight: relaunch into the system's space instance (the ship view) instead of
+        // walking out onto the planet. Boarding came from space, so this returns you to where you were.
+        EnterSpace(playerId);
+        Send(session, new ServerMessage { Text = "Undocked into space." });
     }
 
     private void StampStation(BoardableStation station)
@@ -371,7 +378,10 @@ public sealed partial class GameServer
                 continue; // heal-tank / structural markers don't get a crew member
             }
 
-            _npcs.Add(MakeNpc(role, "traders", robotic: false, pos, rng));
+            // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
+            // floor surface (the integer Y) so the crew stands on the deck instead of floating over it.
+            var standing = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z);
+            _npcs.Add(MakeNpc(role, "traders", robotic: false, standing, rng));
             added++;
         }
 
@@ -382,7 +392,7 @@ public sealed partial class GameServer
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
             var b = spots[rng.Next(spots.Count)];
-            var home = new Vector3f(b.X + (float)(rng.NextDouble() * 4 - 2), b.Y, b.Z + (float)(rng.NextDouble() * 4 - 2));
+            var home = new Vector3f(b.X + (float)(rng.NextDouble() * 4 - 2), (float)System.Math.Floor(b.Y), b.Z + (float)(rng.NextDouble() * 4 - 2));
             bool robot = rng.NextDouble() < 0.3; // ~30% androids
             var npc = MakeNpc("settler", "traders", robot, home, rng);
             npc.Size = 0.9f + (float)rng.NextDouble() * 0.22f;

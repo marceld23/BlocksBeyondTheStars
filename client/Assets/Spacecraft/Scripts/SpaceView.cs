@@ -66,6 +66,18 @@ namespace Spacecraft.Client
         private readonly List<TractorBeam> _beams = new List<TractorBeam>();
         private float _cargoFlash;        // pulses the cargo readout when salvage is tractored in
 
+        // System sun: a bright billboard far off in a fixed direction, tinted by the star's colour, plus a
+        // screen-space lens flare that blooms when you look toward it.
+        private Transform _sun;
+        private Material _sunMat;
+        private Color _sunColor = new Color(1f, 0.96f, 0.88f);
+        private static readonly Vector3 SunDir = new Vector3(-0.45f, 0.32f, 1f).normalized;
+        private readonly List<Image> _flare = new List<Image>();
+        private Sprite _glowSprite;
+        private static readonly float[] FlareT = { 0f, 0.35f, 0.62f, 1.0f, 1.32f };       // 0 = at sun … 1 = screen centre
+        private static readonly float[] FlareSize = { 300f, 70f, 120f, 48f, 90f };
+        private static readonly float[] FlareAlpha = { 0.6f, 0.22f, 0.16f, 0.20f, 0.13f };
+
         private sealed class TractorBeam { public GameObject Go; public float Life; public float Max; }
 
         private void Update()
@@ -130,6 +142,7 @@ namespace Spacecraft.Client
             }
 
             PlaceCamera();
+            BillboardSun();
 
             // Engine loop: swells in cruise, throttle nudges the pitch.
             if (_engine != null)
@@ -138,11 +151,13 @@ namespace Spacecraft.Client
                 _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(Input.GetAxis("Vertical")));
             }
 
-            // Thruster exhaust stretches + flickers with throttle.
+            // Thruster exhaust stretches with throttle + a gentle flame shimmer. The flicker is kept small
+            // and low-frequency so the flame breathes rather than buzzing — a fast/large pulse here read as
+            // the whole ship "wobbling". The front face stays anchored at the engine; only the tail grows.
             if (_exhaust != null)
             {
                 float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(Input.GetAxis("Vertical")) : 0.15f;
-                float len = 0.6f + throttle * 2.6f + Mathf.Sin(Time.time * 28f) * 0.12f;
+                float len = 0.6f + throttle * 2.6f + Mathf.Sin(Time.time * 8f) * 0.04f;
                 _exhaust.localScale = new Vector3(0.6f, 0.6f, len);
                 _exhaust.localPosition = new Vector3(0f, 0f, -2.0f - len * 0.5f);
             }
@@ -446,6 +461,8 @@ namespace Spacecraft.Client
             _asteroidMat = null; // material lived under the destroyed view; rebuild next launch
             _ship = null;
             _exhaust = null;
+            _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
+            _sunMat = null;
             _active = false;
             _shake = 0f;
             _hitFlash = 0f;
@@ -516,6 +533,8 @@ namespace Spacecraft.Client
                 bool hero = rng.NextDouble() < 0.07;
                 Cube("Star", _root.transform, dir * 280f, Vector3.one * (hero ? 3f + (float)rng.NextDouble() * 2f : 1.1f + (float)rng.NextDouble() * 1.8f), hero ? bright : star);
             }
+
+            BuildSun(); // the system's star, in its own colour (lens flare added in LateUpdate)
 
             // Planets reflect the actual world/biome: the big one is the planet you're at, the
             // distant one a neighbouring body in the same system (from the star map). Lit + textured.
@@ -637,6 +656,67 @@ namespace Spacecraft.Client
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, -2.4f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
             return ship;
+        }
+
+        /// <summary>Builds the system's star as a bright additive billboard in its own colour. It sits far
+        /// off in a fixed direction so it reads as a real sun you can fly toward and look into.</summary>
+        private void BuildSun()
+        {
+            _sunColor = Game?.Environment != null ? Rgb(Game.Environment.SunColor) : new Color(1f, 0.96f, 0.88f);
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = "Sun";
+            StripCollider(go);
+            go.transform.SetParent(_root.transform, false);
+
+            var shader = Shader.Find("Spacecraft/SunGlow") ?? Shader.Find("Unlit/Color");
+            _sunMat = new Material(shader) { mainTexture = GenerateGlowTexture() };
+            _sunMat.SetColor("_Color", _sunColor);
+
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _sunMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            _sun = go.transform;
+        }
+
+        /// <summary>Keeps the sun at a fixed direction + far distance from the camera (so it stays at the
+        /// "horizon" of space) and faces it square-on as a billboard.</summary>
+        private void BillboardSun()
+        {
+            if (_sun == null || Camera == null)
+            {
+                return;
+            }
+
+            _sun.localPosition = Camera.transform.localPosition + SunDir * 1500f;
+            _sun.rotation = Quaternion.LookRotation(_sun.position - Camera.transform.position, Vector3.up);
+            _sun.localScale = Vector3.one * 240f;
+        }
+
+        /// <summary>A soft radial glow (bright core → transparent rim) for the sun billboard + flare sprites.</summary>
+        private static Texture2D GenerateGlowTexture()
+        {
+            const int n = 128;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
+                float core = Mathf.Clamp01(1f - d * 4f);
+                float halo = Mathf.Pow(Mathf.Clamp01(1f - d), 2.5f);
+                px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(core * 0.85f + halo * 0.6f));
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
         }
 
         private void SyncEntities()
@@ -848,6 +928,75 @@ namespace Spacecraft.Client
             _cargo.raycastTarget = false;
         }
 
+        /// <summary>Creates the chain of lens-flare sprites once (a big bloom at the sun + ghosts that march
+        /// through the screen centre). Positioned + tinted each frame by <see cref="UpdateLensFlare"/>.</summary>
+        private void EnsureFlare()
+        {
+            if (_flare.Count > 0 || _ui == null)
+            {
+                return;
+            }
+
+            if (_glowSprite == null)
+            {
+                var tex = GenerateGlowTexture();
+                _glowSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            }
+
+            for (int i = 0; i < FlareT.Length; i++)
+            {
+                var go = new GameObject("Flare" + i, typeof(RectTransform));
+                go.transform.SetParent(_ui.transform, false);
+                var img = go.AddComponent<Image>();
+                img.sprite = _glowSprite;
+                img.raycastTarget = false;
+                img.rectTransform.sizeDelta = new Vector2(FlareSize[i], FlareSize[i]);
+                img.enabled = false;
+                _flare.Add(img);
+            }
+        }
+
+        /// <summary>Screen-space lens flare: a bloom on the sun plus ghost discs strung through the screen
+        /// centre, brightening as you turn to look into the star. Hidden when the sun is off-screen/behind.</summary>
+        private void UpdateLensFlare()
+        {
+            EnsureFlare();
+            if (_sun == null || _flare.Count == 0)
+            {
+                return;
+            }
+
+            Vector3 sc = Camera.WorldToScreenPoint(_sun.position);
+            bool onScreen = sc.z > 0f && sc.x >= 0f && sc.x <= Screen.width && sc.y >= 0f && sc.y <= Screen.height;
+            if (!onScreen)
+            {
+                foreach (var g in _flare)
+                {
+                    g.enabled = false;
+                }
+
+                return;
+            }
+
+            var sun = new Vector2(sc.x, sc.y);
+            var centre = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            float maxD = new Vector2(Screen.width, Screen.height).magnitude * 0.5f;
+            float look = Mathf.Clamp01(1f - Vector2.Distance(sun, centre) / maxD); // 1 = looking straight at it
+
+            for (int i = 0; i < _flare.Count; i++)
+            {
+                var g = _flare[i];
+                Vector2 p = sun + (centre - sun) * FlareT[i]; // ghosts ride the sun→centre axis
+                g.rectTransform.position = new Vector3(p.x, p.y, 0f);
+                // The sun bloom (i==0) is always visible on-screen; the ghost chain swells as you look at it.
+                float a = i == 0 ? FlareAlpha[0] * (0.5f + 0.5f * look) : FlareAlpha[i] * Mathf.Pow(look, 1.4f);
+                var col = _sunColor;
+                col.a = a;
+                g.color = col;
+                g.enabled = a > 0.004f;
+            }
+        }
+
         private void LateUpdate()
         {
             if (!_active)
@@ -918,6 +1067,19 @@ namespace Spacecraft.Client
                 _cargo.text = $"{cargoLabel}: {Game.Cargo.Length}";
                 _cargo.color = Color.Lerp(UiKit.TextCol, UiKit.Cyan, _cargoFlash);
                 _cargo.gameObject.SetActive(true);
+            }
+
+            // Lens flare only during free flight (hidden behind the launch/landing/boarding fades).
+            if (_phase == Phase.Cruise)
+            {
+                UpdateLensFlare();
+            }
+            else
+            {
+                foreach (var g in _flare)
+                {
+                    g.enabled = false;
+                }
             }
         }
 

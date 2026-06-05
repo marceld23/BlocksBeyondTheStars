@@ -150,6 +150,11 @@ namespace Spacecraft.Client
             starfield.Game = boot;
             starfield.Camera = cam;
 
+            // The planet + sun seen outside an orbital station's windows (only while boarded).
+            var backdrop = root.AddComponent<StationBackdrop>();
+            backdrop.Game = boot;
+            backdrop.Camera = cam;
+
             // Surface cloud layer (per-planet colour/cover; storms darken it).
             var clouds = root.AddComponent<Clouds>();
             clouds.Game = boot;

@@ -352,7 +352,10 @@ public static class StationGenerator
             }
 
             bool sideWall = x == 0 || x == RoomW - 1 || z == 0 || z == RoomL - 1;
-            bool viewport = sideWall && y == 3 && x > 0 && x < RoomW - 1 && z > 0 && z < RoomL - 1;
+            // A tall glazed viewport band (eye-level, 2 blocks high) along the side walls so every room
+            // has real windows onto space; corners stay solid hull. Now that glass renders see-through,
+            // these are proper windows you look the planet/stars through.
+            bool viewport = sideWall && (y == 2 || y == 3) && x > 0 && x < RoomW - 1 && z > 0 && z < RoomL - 1;
             set(o.X + x, o.Y + y, o.Z + z, viewport ? glass : hull);
         }
 
