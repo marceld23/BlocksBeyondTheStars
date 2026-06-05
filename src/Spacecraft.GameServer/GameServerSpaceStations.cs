@@ -179,6 +179,7 @@ public sealed partial class GameServer
         LoadWorld(StationPlanetType, stationLoc); // loads/creates the void world + sets the Active cursor
         SetCurrent(session);
         StampStation(station);                     // stamps the structure once (persisted); computes Spawn
+        RegisterStationDoors(station.Markers);     // sliding doors fill the station's module doorways
         if (_npcs.Count == 0)
         {
             SpawnStationNpcs(station);             // (re)populate the crew when the station world is fresh
@@ -196,6 +197,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         SendInventory(session);
         SendNpcs(session); // the station's crew (vendor / quartermaster / dockhands)
+        SendDoors(session); // the station's sliding doors
         Send(session, new StationBoarded
         {
             StationId = station.Id,

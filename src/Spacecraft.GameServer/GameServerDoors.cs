@@ -78,6 +78,21 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>(Re)builds the active (station) world's door registry from a station's door markers — called
+    /// when a player boards, since a station is its own void world (no settlement/ship doors there).</summary>
+    private void RegisterStationDoors(System.Collections.Generic.IEnumerable<(string Type, Vector3f Pos)> markers)
+    {
+        _doors.Clear();
+        _nextDoorId = 1;
+        foreach (var (type, pos) in markers)
+        {
+            if (type == "door_slide" || type == "door_hinge")
+            {
+                _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
+            }
+        }
+    }
+
     /// <summary>Builds a door at a marker, probing the surrounding blocks to find the wall axis and the full
     /// width of the air gap so the panel/collider lines up with the doorway regardless of how it was cut.</summary>
     private ServerDoor MakeDoor(string kind, Vector3f markerPos)

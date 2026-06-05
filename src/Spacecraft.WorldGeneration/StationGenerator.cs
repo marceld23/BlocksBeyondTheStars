@@ -255,7 +255,8 @@ public static class StationGenerator
         }
 
         // 5) Join modules: cut a doorway in every shared wall between adjacent placed cells; cut a
-        //    floor shaft between vertically stacked cells.
+        //    floor shaft between vertically stacked cells. Each doorway gets a sci-fi sliding door.
+        var doorCells = new List<Vector3i>();
         foreach (var m in placed)
         {
             foreach (var d in dirs)
@@ -264,6 +265,9 @@ public static class StationGenerator
                 if (occupied.Contains(nb) && (d.X > 0 || d.Z > 0)) // cut each shared wall once
                 {
                     CutDoor(Set, m.Origin, d);
+                    doorCells.Add(d.X > 0
+                        ? new Vector3i(m.Origin.X + RoomW - 1, m.Origin.Y + 1, m.Origin.Z + RoomL / 2 - 1)
+                        : new Vector3i(m.Origin.X + RoomW / 2 - 1, m.Origin.Y + 1, m.Origin.Z + RoomL - 1));
                 }
             }
 
@@ -294,6 +298,12 @@ public static class StationGenerator
                 case "medbay": markers.Add(new StationMarker("heal_tank", c)); break;
                 case "quarters": markers.Add(new StationMarker("quarters", c)); break;
             }
+        }
+
+        // Sci-fi sliding doors fill each cut doorway between modules.
+        foreach (var dc in doorCells)
+        {
+            markers.Add(new StationMarker("door_slide", dc));
         }
 
         // 8) Furnish each module by type — consoles, counters, heal tanks, bunks, crates + lights — so

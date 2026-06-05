@@ -100,9 +100,9 @@ movement is client-side). Three bespoke **ElevenLabs** SFX: `door_slide_open`, `
   through `StructureTemplate` cells → the D1 registry).
 - **D5 — localization + tests:** `ui.door.hint` (en/de); 3 server tests — a slide door auto-opens on approach
   + auto-closes, a hinge door toggles on interact (and not from afar), doors register at real doorways.
-- **Remaining (follow-up):** auto-doors for **orbital stations + the ship** (their doorways are cut as air
-  but don't yet emit door markers — the registry already accepts them once they do); station/ship editor
-  door palette entries.
+- **Follow-up DONE (2026-06-06):** auto-doors for **orbital stations** (each cut module doorway emits a
+  `door_slide` marker → `RegisterStationDoors` on board) and **the box starter ship's hatch** (now a sliding
+  door); designed ships already had editor door cells.
 
 ## ✅ Done (2026-06-06): JuMaVe Games studio splash + moon-overlap fix
 - **Studio splash:** a new `StudioSplash` (+ `ShellPhase.Studio`, now the first phase) shows the **JuMaVe
@@ -567,6 +567,10 @@ collider closes the gap when shut). Phased plan:
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
 ### Planned — requested 2026-06-06 (für später)
+- **Shadowed blocks too dark in holes/caves** — blocks in shadow/unlit spots on a planet read **almost black**;
+  it's too harsh. Analyse the block lighting (`BlockAtlas` shader ambient/skylight term + `ChunkMesher` AO)
+  and **raise the minimum/ambient floor** so shadowed blocks stay readable instead of crushing to black.
+  Requested 2026-06-06.
 - **Mineable water/lava (with the mining beam) + source logic** — water/lava should be **harvestable**, but
   only with the **mining beam** (not the drill); and once the **source block / last cells** are removed it
   must **stop reflowing** (don't infinitely regenerate). Ties into the fluid sim (`FluidLevel`/`ActiveFluid`)

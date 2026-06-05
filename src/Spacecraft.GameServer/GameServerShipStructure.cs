@@ -188,9 +188,14 @@ public sealed partial class GameServer
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
 
+        // A sci-fi sliding door fills the hatch (the 2-wide opening in the -Z wall) so the box ship has a
+        // real door like designed ships, not just an open hole.
+        CurStamp.Doors.Clear();
+        CurStamp.Doors.Add(new Vector3f(cx - 0.5f, y0 + 1f, cz - _shipHalfZ + 0.5f));
+
         _shipStamped = true;
         _log.Info($"Ship hull placed at ({cx}, {y0}, {cz}) with {_stations.Count} stations.");
-        RegisterDoors(); // box ships use an open hatch, but keep the registry in sync (settlement doors, etc.)
+        RegisterDoors(); // pick up the hatch door (+ keep settlement/other-ship doors in sync)
     }
 
     /// <summary>Stamps a designed voxel ship (from the ship editor) centred on the landing zone: places
