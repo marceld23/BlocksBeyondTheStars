@@ -56,6 +56,12 @@ public sealed class SpaceInstance
     /// <summary>The (shared) ship's authoritative position in this instance, and last tick's, for collision/speed.</summary>
     public Vector3f ShipPosition { get; set; }
     public Vector3f ShipLastPosition { get; set; }
+
+    /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
+    public double AsteroidRespawnTimer { get; set; }
+
+    /// <summary>Spreads successive respawned asteroids so they don't stack on one spot.</summary>
+    public int AsteroidSpawnRotor { get; set; }
 }
 
 /// <summary>
@@ -709,7 +715,38 @@ public sealed partial class GameServer
                 // Out of combat: shield recharges.
                 _ship.Shield = System.Math.Min(_shipShieldMax, _ship.Shield + (float)(_shipShieldRegen * dt));
             }
+
+            // A mined-out asteroid field slowly replenishes over the session (positions stay deterministic).
+            RespawnAsteroids(instance, dt);
         }
+    }
+
+    private const int AsteroidFieldTarget = 3;            // large-equivalent asteroids the field tends toward
+    private const double AsteroidRespawnInterval = 40.0;  // seconds between replenishing spawns
+
+    /// <summary>Slowly refills a mined-out asteroid field back toward its target so it isn't barren for the
+    /// rest of the session (a fresh field is still generated on each space entry).</summary>
+    private void RespawnAsteroids(SpaceInstance instance, double dt)
+    {
+        int count = instance.Entities.Count(e => e.Kind == CombatEntityKind.Asteroid);
+        if (count >= AsteroidFieldTarget)
+        {
+            instance.AsteroidRespawnTimer = 0;
+            return;
+        }
+
+        instance.AsteroidRespawnTimer += dt;
+        if (instance.AsteroidRespawnTimer < AsteroidRespawnInterval)
+        {
+            return;
+        }
+
+        instance.AsteroidRespawnTimer = 0;
+        int r = instance.AsteroidSpawnRotor++;
+        // Spread successive rocks around the field, away from the launch point.
+        var pos = new Vector3f(20f + (r % 4) * 14f, ((r % 3) - 1) * 8f, 26f + (r % 5) * 12f);
+        instance.Entities.Add(MakeAsteroid(LargeAsteroidTier, pos));
+        BroadcastSpaceState(instance);
     }
 
     /// <summary>Damage hits the shield first, then the hull.</summary>
