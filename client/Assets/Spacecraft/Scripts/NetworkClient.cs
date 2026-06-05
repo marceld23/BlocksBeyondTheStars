@@ -131,6 +131,9 @@ namespace Spacecraft.Client
 
         public void SendAttackEntity(string entityId) => Send(new AttackEntityIntent { EntityId = entityId });
 
+        /// <summary>Asks the server to save the world + players to disk now (explicit save).</summary>
+        public void SendSaveGame() => Send(new SaveGameIntent());
+
         public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
 
         public void SendLoadRation(string itemKey, int count) => Send(new LoadRationIntent { ItemKey = itemKey, Count = count });

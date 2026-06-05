@@ -516,6 +516,14 @@ namespace Spacecraft.Client
                 && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Scanner;
         }
 
+        /// <summary>True if the selected hotbar item is a weapon (its primary action attacks, like F).</summary>
+        private bool HoldingWeapon()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return !string.IsNullOrEmpty(held)
+                && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Weapon;
+        }
+
         /// <summary>Scans the nearest creature (threat assessment) or, failing that, the block in view.</summary>
         private void ScanTarget()
         {
@@ -864,6 +872,15 @@ namespace Spacecraft.Client
             if (mine && HoldingScanner())
             {
                 ScanTarget();
+                return;
+            }
+
+            // Holding a weapon turns the primary action (left-click) into an attack — the same swing as F —
+            // so a melee weapon like the machete actually hits creatures instead of trying to mine a block.
+            if (mine && HoldingWeapon())
+            {
+                AttackNearestEnemy();
+                TriggerSwing();
                 return;
             }
 

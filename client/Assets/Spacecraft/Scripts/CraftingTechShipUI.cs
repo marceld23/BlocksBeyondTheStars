@@ -166,7 +166,7 @@ namespace Spacecraft.Client
             ClearChildren(_header);
             var p = _header;
 
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.settings.character", "ui.tab.space" };
+            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.space" };
             float x = 40f;
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -562,7 +562,37 @@ namespace Spacecraft.Client
                 y += 88f;
             }
 
+            // Master volume — − / + adjust the audio bus live (and persist).
+            int pct = Mathf.RoundToInt((Menu?.Settings?.MasterVolume ?? 0.8f) * 100f);
+            UiKit.AddText(_listContent, 16, y, 380, 78, $"{L("ui.settings.volume")}: {pct}%", 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(_listContent, 420, y + 11, 80, 56, "−", () => { AdjustVolume(-0.1f); RebuildList(); });
+            UiKit.AddButton(_listContent, 510, y + 11, 80, 56, "+", () => { AdjustVolume(0.1f); RebuildList(); });
+            y += 96f;
+
+            // Explicit save (on top of the periodic autosave).
+            var save = UiKit.AddButton(_listContent, 0, y, 780, 78, L("ui.settings.save_game"), () =>
+            {
+                Game.Network?.SendSaveGame();
+                if (_feedback != null) _feedback.text = L("ui.settings.saved");
+            });
+            save.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+            y += 96f;
+
             return y;
+        }
+
+        /// <summary>Nudges master volume and applies + persists it immediately.</summary>
+        private void AdjustVolume(float delta)
+        {
+            var s = Menu?.Settings;
+            if (s == null)
+            {
+                return;
+            }
+
+            s.MasterVolume = Mathf.Clamp01(s.MasterVolume + delta);
+            s.Apply(); // pushes AudioListener.volume
+            s.Save();
         }
 
         private float BuildSpaceList()

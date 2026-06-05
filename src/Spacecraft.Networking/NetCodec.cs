@@ -109,6 +109,7 @@ public static class NetCodec
         Register(88, typeof(PlanetPoiList));
         Register(89, typeof(ChatIntent));
         Register(90, typeof(ChatMessage));
+        Register(91, typeof(SaveGameIntent));
     }
 
     private static void Register(byte tag, Type type)

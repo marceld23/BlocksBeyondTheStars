@@ -110,6 +110,12 @@ public sealed class EnterSpaceIntent
 {
 }
 
+/// <summary>Client asks the server to flush the world + all players to disk now (an explicit save, on top
+/// of the periodic autosave).</summary>
+public sealed class SaveGameIntent
+{
+}
+
 /// <summary>Client asks to leave the space instance and return to the surface/base.</summary>
 public sealed class LeaveSpaceIntent
 {

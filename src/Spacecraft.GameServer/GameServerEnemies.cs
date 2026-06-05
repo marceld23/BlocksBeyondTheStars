@@ -138,8 +138,11 @@ public sealed partial class GameServer
         var tool = ActiveTool(p);
         bool isWeapon = tool.Kind == ToolKind.Weapon;
 
-        // A crafted weapon's own range governs reach (melee = short, ranged = long); else default.
-        float reach = isWeapon && tool.Range > 0f ? tool.Range : EnemyAttackReach;
+        // A ranged weapon's longer reach extends the default; a melee weapon never *reduces* it below the
+        // default swing reach (the client targets any creature within EnemyAttackReach, so a short melee
+        // range like the machete's must not silently reject those hits — equipping a weapon must never make
+        // you worse than bare fists).
+        float reach = isWeapon ? System.Math.Max(tool.Range, EnemyAttackReach) : EnemyAttackReach;
         if (p.Position.DistanceSquared(target.Position) > reach * reach)
         {
             Reject(session, "attack", "Target is out of reach.");

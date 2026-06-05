@@ -99,6 +99,32 @@ public sealed class WeaponTests : IDisposable
     }
 
     [Fact]
+    public void Machete_HitsCreature_WithinDefaultReach_EvenBeyondItsShortRange()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Slasher");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First();
+            creature.Position = new Vector3f(0, 64, 5); // 5 blocks: past the machete's 3.5 range, within the 6 swing reach
+            Equip(p.State, "machete");
+
+            float before = creature.Hull;
+            server.AttackEntity("Slasher", creature.Id);
+
+            // Equipping a melee weapon must never make you worse than fists: the swing lands within the
+            // default reach even though the machete's own range is short.
+            bool hit = server.Creatures.All(c => c.Id != creature.Id)
+                       || server.Creatures.First(c => c.Id == creature.Id).Hull < before;
+            Assert.True(hit, "The machete should hit a creature within the default swing reach.");
+        }
+    }
+
+    [Fact]
     public void EnergyWeapon_RejectsFireWhenSuitEnergyEmpty()
     {
         var server = Started(out var repo);

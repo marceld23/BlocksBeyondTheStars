@@ -930,6 +930,7 @@ public sealed partial class GameServer
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case ChatIntent chat: HandleChat(session, chat); break;
             case RequestStarMap: SendStarMap(session); break;
+            case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
             case RequestMissions: SendMissionList(session); break;
             case AcceptMissionIntent accept: HandleAcceptMission(session, accept.MissionId); break;

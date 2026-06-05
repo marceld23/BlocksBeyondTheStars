@@ -16,6 +16,18 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): Machete actually hits + in-game Settings tab
+- **Melee attack fixed:** equipping the machete *reduced* your reach (the server used the weapon's short
+  range 3.5 while the client targets within the 6-block swing reach, so hits at 3.5–6 silently rejected). A
+  weapon now never reaches *less* than the default swing (`reach = Max(weaponRange, EnemyAttackReach)`), and
+  **left-click attacks** when a weapon is held (same swing as F). Test
+  `Machete_HitsCreature_WithinDefaultReach_EvenBeyondItsShortRange`.
+- **In-game Settings tab:** the Tab menu's old "Character" tab is now **Settings** — keeps the appearance
+  rows and adds **master volume** (− / +, applied + persisted live) and an explicit **Save game now** button
+  (new `SaveGameIntent` → server `SaveAll()`). en/de.
+
+---
+
 ## ✅ Done (2026-06-06): Starter weapons + ship weapons finished (W1–W5)
 - **W1 — starter melee weapon:** new players spawn with a **machete** (the existing melee attack +
   slash-arc VFX already worked). Test `StarterKit_IncludesASimpleMeleeWeapon`.
