@@ -6,9 +6,9 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (98 files, incl. the splash intro, the
-`jumave_sting` studio-splash whoosh-tada and the door SFX `door_slide_open`/`door_slide_close`/
-`door_hinge`) are **AI-generated** with the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (100 files, incl. the splash intro, the
+`jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
+and the death cues `space_death`/`player_death`) are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**

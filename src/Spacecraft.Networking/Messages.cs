@@ -557,6 +557,10 @@ public sealed class RespawnNotice
     public float Z { get; set; }
     public string Reason { get; set; } = string.Empty;
     public bool SalvageCapsuleDropped { get; set; }
+
+    /// <summary>True when this respawn follows an actual death (drives the client's red death flash + sound);
+    /// false for non-death relocations like the void-fall rescue.</summary>
+    public bool Died { get; set; }
 }
 
 // --- Ship docking (anf_space_flight.md §13) ---

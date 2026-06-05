@@ -116,6 +116,10 @@ namespace Spacecraft.Client
             var doors = root.AddComponent<DoorView>();
             doors.Game = boot;
 
+            // Death feedback: red flash + sound on planet death, explosion glare on ship destruction.
+            var deathFx = root.AddComponent<DeathFx>();
+            deathFx.Game = boot;
+
             // Player-to-player docking + trade UI (M24).
             var interactions = root.AddComponent<PlayerInteractions>();
             interactions.Game = boot;

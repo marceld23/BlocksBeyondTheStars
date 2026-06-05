@@ -16,6 +16,21 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): bug-fix wave — glass, space, combat, death feedback
+- **Milky glass** (transparent shader: non-emissive glass alpha 0.72 + white frost; fields stay see-through);
+  ship-editor glass relabelled **Window**.
+- **Space:** planets/moons now never overlap (a relaxation/separation pass de-overlaps the whole set, not
+  just a moon vs. its own parent); render planets even when `PlanetType` is missing; **station keep-out** so
+  you slide around a station instead of flying through (still dockable with E); radar no longer paints a
+  phantom red blip at the rim for an out-of-range enemy; **asteroid fields slowly respawn** over a session.
+- **Combat/vendor:** machete 30→12 damage (no longer one-shots most animals, HP≈14–36); pressing **E at a
+  vendor opens the market/trade view** (OpenMarket reordered so the category sticks).
+- **Death feedback:** planet death → **red screen flash + `player_death` sound**; ship destroyed in space →
+  **explosion glare + `space_death` sound** (new `DeathFx`; `RespawnNotice.Died` distinguishes a death from
+  the void-rescue). Two new ElevenLabs cues.
+- Persistence analysed: planet/moon/station positions are deterministic from the seed (stable across
+  land/relaunch); only asteroids weren't replenishing — now they do.
+
 ## ✅ Done (2026-06-06): Void-fall fix, ship-editor doors, NPC walls/animation, studio rename
 - **Infinite-fall fix (the "PC2 falls forever" bug):** root-caused — the world has no bedrock floor, so a
   player below the terrain with nothing under them falls forever; their position is **persisted and restored
@@ -543,6 +558,14 @@ collider closes the gap when shut). Phased plan:
   and route through the existing fluid system (`FluidLevel`/`ActiveFluid` + the client fluid render). **When
   picking this up, analyse the terrain pass + fluid sim precisely first**, then implement.
 
+- **Ship is always oxygenated** — being inside the ship should keep the air breathable and **steadily
+  refill the player's suit-oxygen reserve** (like a breathable atmosphere / a heal-tank for O2). Analyse the
+  vitals tick (`GameServer` oxygen drain/regen around the heal-tank + `AboardShip`) and ensure aboard-ship =
+  no drain + active refill. Requested 2026-06-06.
+- **Don't spawn over a cave** — a player can apparently fall into a cave right after spawning. Analyse: the
+  spawn/landing-zone surface height vs. caves carved under it (and the client settle-freeze releasing before
+  the floor collider streams in). Likely fix: pick a landing-zone column with solid ground under the surface
+  (no cave directly below) and/or cap the fall during the settle window. Requested 2026-06-06.
 - **Varied terrain types per world/biome** — today terrain height is one global noise profile. Plan:
   per-world **terrain archetypes** (flat, rolling hills, mountainous, canyons) blended across the surface;
   each **biome** rolls a random *number* of terrain types it can contain, so worlds differ in ruggedness.

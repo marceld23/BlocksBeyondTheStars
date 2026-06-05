@@ -793,6 +793,7 @@ public sealed partial class GameServer
             Z = p.RespawnPoint.Z,
             Reason = reason,
             SalvageCapsuleDropped = salvaged,
+            Died = true, // an actual death → client plays the red death flash + sound
         });
         SendInventory(session);
         SendPlayerState(session);

@@ -124,7 +124,7 @@ namespace Spacecraft.Client
                 n.ShipCombatStatusChanged += OnShip;
                 n.PlayerStateUpdated += OnPlayerHealth;
                 n.SpaceEntityDestroyed += _ => Cue("asteroid_break");
-                n.SpaceClosed += m => { if (m.ShipDisabled) Cue("ship_destroyed"); };
+                n.SpaceClosed += m => { if (m.ShipDisabled) Cue("space_death"); };
                 n.WorldEnvironmentReceived += OnEnvironment;
                 n.StationBoardedReceived += _ => Cue("station_board");
                 Game.HyperjumpStarted += () => Cue("hyperspace_jump");
