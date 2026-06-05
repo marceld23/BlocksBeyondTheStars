@@ -16,6 +16,17 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): New-world spawn fall-through — nearest-first chunk streaming
+Spawning on a fresh planet dropped you **below the surface**. Cause: `StreamChunks` streamed a fixed
+bottom-up column (`dy=-3` first), so with a large view distance + a new world's slow first-gen the **surface
+chunk (your floor) arrived only after many ticks** — past the client's settle-freeze timeout, which then
+released and let you fall through. Fix: stream **nearest-first** (sort the view column by distance to the
+player), so your own chunk (its floor) loads before anything else and the freeze releases onto solid ground
+immediately; the freeze timeout was also raised 8s→12s as a margin. Same spirit as the station floor pad.
+Test `StreamChunks_SendsThePlayersOwnChunkFirst_SoSpawnGetsGroundFast`.
+
+---
+
 ## ✅ Done (2026-06-06): Land on moons + real textured station/enemy models
 - **E-to-land did nothing on some bodies because moons were rejected.** `HandleTravel` only allowed
   `CelestialKind.Planet`, but the space view offers landing on **planets and moons** — flying to a moon
@@ -358,6 +369,28 @@ their own ship; persistence keyed by player id); **P4c** set `_current` in `OnPa
 StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle the test/public accessors
 (`server.Ship`/`OwnedShips` → first joined player) + a two-player fleet-isolation test. Ship-stamp state
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
+
+### Starter weapons + finish ship weapons — planned (not started) ⭐ (2026-06-06)
+**State today:** the starter kit (`CreateNewPlayer`) is drill/placer/scanner/lamp — **no melee weapon**. Ship
+weapons exist server-side (blueprints `ship_cannon_1`; modules: a mining laser `weapon_class:0` + combat
+cannons `weapon_class:1`; `FireWeapon` validates combat-vs-mining + `AsteroidDestruction`), but you can only
+fire them from the **tech-UI target list** (`CraftingTechShipUI`), **not in flight**, and there are **no
+space firing SFX/VFX**. Goal:
+- **W1 — starter melee weapon:** add a simple melee item (e.g. `combat_knife`/`vibroblade`) to the starter
+  kit; verify on-foot melee damages creatures/enemies; it already has a slash-arc VFX (`WeaponFx.MeleeArc`)
+  + needs a swing/hit SFX. Bilingual name + icon.
+- **W2 — starter ship laser (mining AND combat):** a `ship_laser_basic` module fitted on the starter ship by
+  default that breaks asteroids **and** damages hostiles. Cleanest: a dual `weapon_class` (or allow the
+  starter laser against both targets regardless of `AsteroidDestruction`/`ShipWeapons` so it always works).
+  Blueprint + recipe so a lost one is re-craftable.
+- **W3 — fire in flight:** fire from the **space view** (crosshair / nearest-in-range target, a key to
+  fire), with cooldown + suit/ship energy, instead of the tech-UI list. Show the locked target.
+- **W4 — SFX + VFX in space:** a laser **beam** from the ship to the target, an **impact spark**, asteroid
+  **break debris**, and a distinct **mining** beam vs **combat** bolt; laser-fire + impact + mining sounds
+  (`ClientAudio`/`ProceduralAudio`). Reuse/extend `WeaponFx` for the space scene.
+- **W5 — editor + craft:** verify weapon modules are placeable in the **ship editor** palette (add them if
+  not); confirm the blueprints are craftable at the right station. Tests: starter kit has the melee weapon;
+  the starter ship laser breaks an asteroid AND damages a drone; firing respects cooldown/energy.
 
 ### Orbital bodies in the planet sky — planned (not started) ⭐ (2026-06-06)
 On a planet's surface, the **other nearby bodies of the system** (neighbouring planets/moons) and the

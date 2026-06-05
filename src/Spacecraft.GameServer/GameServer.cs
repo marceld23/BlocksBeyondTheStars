@@ -804,12 +804,17 @@ public sealed partial class GameServer
         foreach (var session in JoinedInActiveWorld())
         {
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
-            int sent = 0;
-            // Stream a taller vertical column (esp. below, ground-first) so digging down never outruns
-            // the loaded terrain and drops the player through unstreamed space.
-            for (int dy = -3; dy <= 2 && sent < perTickBudget; dy++)
-            for (int dx = -radius; dx <= radius && sent < perTickBudget; dx++)
-            for (int dz = -radius; dz <= radius && sent < perTickBudget; dz++)
+
+            // Collect the not-yet-sent chunks in the view column and stream them NEAREST-FIRST. The player's
+            // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
+            // gets solid ground under them immediately instead of falling through while a fixed bottom-up
+            // order slowly works up toward the surface (which, on a fresh world's slow first-gen + a large
+            // view distance, could outlast the client's settle-freeze and drop them below the terrain). A
+            // taller vertical span (esp. below) is still covered so digging down never outruns the terrain.
+            var pending = new List<(ChunkCoord Coord, int DistSq)>();
+            for (int dy = -3; dy <= 2; dy++)
+            for (int dx = -radius; dx <= radius; dx++)
+            for (int dz = -radius; dz <= radius; dz++)
             {
                 // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
                 // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
@@ -817,6 +822,24 @@ public sealed partial class GameServer
                 if (session.SentChunks.Contains(coord))
                 {
                     continue;
+                }
+
+                pending.Add((coord, dx * dx + dy * dy + dz * dz));
+            }
+
+            pending.Sort((a, b) => a.DistSq.CompareTo(b.DistSq));
+
+            int sent = 0;
+            foreach (var (coord, _) in pending)
+            {
+                if (sent >= perTickBudget)
+                {
+                    break;
+                }
+
+                if (session.SentChunks.Contains(coord))
+                {
+                    continue; // two view offsets can map to the same wrapped chunk — send it once
                 }
 
                 var chunk = _world.GetOrLoadChunk(coord);

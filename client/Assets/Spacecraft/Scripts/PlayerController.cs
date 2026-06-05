@@ -145,7 +145,7 @@ namespace Spacecraft.Client
                 // Solid ground loaded somewhere below the spawn? (the chunk's MeshCollider exists)
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
                                    && gHit.collider != _controller;
-                if (groundBelow || _settleTimer > 8f)
+                if (groundBelow || _settleTimer > 12f)
                 {
                     _settling = false;
                     _settleTimer = 0f;

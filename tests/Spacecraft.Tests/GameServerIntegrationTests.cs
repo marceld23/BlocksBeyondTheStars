@@ -171,6 +171,33 @@ public sealed class GameServerIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void StreamChunks_SendsThePlayersOwnChunkFirst_SoSpawnGetsGroundFast()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "stream"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+
+        var chunks = new System.Collections.Generic.List<ChunkDataMessage>();
+        client.PayloadReceived += payload =>
+        {
+            if (NetCodec.Decode(payload) is ChunkDataMessage c) chunks.Add(c);
+        };
+
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Pilot");
+        client.Poll();
+
+        Assert.NotEmpty(chunks);
+        // Nearest-first streaming: the very first chunk a fresh spawn receives is its own chunk (its floor),
+        // so it gets solid ground under it immediately instead of falling through while terrain loads.
+        var center = Spacecraft.Shared.World.WorldConstants.WorldToChunk(server.Sessions[1].State.Position.ToBlock());
+        Assert.Equal(center.X, chunks[0].Cx);
+        Assert.Equal(center.Y, chunks[0].Cy);
+        Assert.Equal(center.Z, chunks[0].Cz);
+    }
+
+    [Fact]
     public void WalkingPastTheSeam_WrapsLongitude_AndBlocksRoundTripAcrossIt()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "wrap"));
