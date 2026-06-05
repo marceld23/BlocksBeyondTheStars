@@ -293,6 +293,124 @@ namespace Spacecraft.Client
             }
         }
 
+        private GameObject _loadPicker;
+
+        private string ExportsRoot => Path.Combine(Application.persistentDataPath,
+            (EditorMode == Mode.Station ? "station" : "settlement") + "_exports");
+
+        /// <summary>Lists saved designs of the current mode and lets you load one back in to keep editing.</summary>
+        private void OpenLoadPicker()
+        {
+            if (_loadPicker != null)
+            {
+                Destroy(_loadPicker);
+            }
+
+            var keys = new List<string>();
+            if (Directory.Exists(ExportsRoot))
+            {
+                foreach (var d in Directory.GetDirectories(ExportsRoot))
+                {
+                    if (File.Exists(Path.Combine(d, "layout.json")))
+                    {
+                        keys.Add(Path.GetFileName(d));
+                    }
+                }
+            }
+
+            var panel = UiKit.AddPanel(_canvas.transform, 700f, 260f, 520f, 520f, UiKit.Panel);
+            _loadPicker = panel.gameObject;
+            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            if (keys.Count == 0)
+            {
+                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.save.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            }
+            else
+            {
+                for (int i = 0; i < Mathf.Min(keys.Count, 11); i++)
+                {
+                    string k = keys[i];
+                    UiKit.AddButton(panel.transform, 20f, 54f + i * 38f, 480f, 34f, "▸  " + k, () => LoadDesign(k));
+                }
+            }
+
+            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, L("ui.menu.back"), () => { Destroy(_loadPicker); _loadPicker = null; });
+        }
+
+        /// <summary>Clears the current build and rebuilds it (+ the form) from a saved design.</summary>
+        private void LoadDesign(string key)
+        {
+            string dir = Path.Combine(ExportsRoot, key);
+            string layoutPath = Path.Combine(dir, "layout.json");
+            if (!File.Exists(layoutPath))
+            {
+                SetStatus("Design not found.");
+                return;
+            }
+
+            try
+            {
+                var layout = JsonUtility.FromJson<LayoutJson>(File.ReadAllText(layoutPath));
+
+                foreach (var go in _cells.Values)
+                {
+                    Destroy(go);
+                }
+
+                _cells.Clear();
+                _design.Clear();
+
+                if (layout?.cells != null)
+                {
+                    foreach (var c in layout.cells)
+                    {
+                        var cell = new Vector3i(c.x, c.y, c.z);
+                        var pal = System.Array.Find(_palette, p => p.Id == c.id);
+                        if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
+                        {
+                            continue;
+                        }
+
+                        PlaceCell(cell, pal);
+                    }
+                }
+
+                string metaPath = Path.Combine(dir, "structure.json");
+                if (File.Exists(metaPath) && JsonUtility.FromJson<MetaJson>(File.ReadAllText(metaPath)) is { } meta)
+                {
+                    _key = string.IsNullOrEmpty(meta.key) ? key : meta.key;
+                    _name = string.IsNullOrEmpty(meta.name) ? _name : meta.name;
+                    int ti = System.Array.IndexOf(_tiers, meta.tier);
+                    if (ti >= 0) _tier = ti;
+                }
+                else
+                {
+                    _key = key;
+                }
+
+                _status = $"Loaded '{key}' ({_design.Count} cells).";
+                RebuildUi();
+            }
+            catch (Exception e)
+            {
+                SetStatus("Load failed: " + e.Message);
+            }
+        }
+
+        /// <summary>Rebuilds the editor UI so the key/name/tier fields reflect a freshly loaded design (the
+        /// placed cells live under the editor transform, not the canvas, so they survive the rebuild).</summary>
+        private void RebuildUi()
+        {
+            _loadPicker = null; // destroyed along with the old canvas
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+
+            BuildUi();
+            SetStatus(_status);
+        }
+
         private static string Slug(string s)
         {
             if (string.IsNullOrWhiteSpace(s))
@@ -386,8 +504,9 @@ namespace Spacecraft.Client
             // Footer.
             _statusLabel = UiKit.AddText(meta, 16f, PanelH - 150f, 352f, 70f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(meta, 16f, PanelH - 70f, 220f, 40f, L("ui.struct.save"), Export);
-            UiKit.AddButton(meta, 244f, PanelH - 70f, 120f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
+            UiKit.AddButton(meta, 16f, PanelH - 70f, 150f, 40f, L("ui.struct.save"), Export);
+            UiKit.AddButton(meta, 172f, PanelH - 70f, 86f, 40f, L("ui.struct.load"), OpenLoadPicker);
+            UiKit.AddButton(meta, 264f, PanelH - 70f, 100f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
 
             // Controls hint.
             var hintGo = new GameObject("Hint", typeof(RectTransform));

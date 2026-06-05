@@ -447,6 +447,7 @@
   "ui.struct.name": "Name",
   "ui.struct.tier": "Größe",
   "ui.struct.save": "SPEICHERN / EXPORT",
+  "ui.struct.load": "LADEN",
   "ui.struct.hint": "RECHTE MAUS halten zum Umsehen · WASD + Q/E fliegen · Shift = schneller · LINKSKLICK setzen · MITTELKLICK entfernen · Esc = Menü",
   "ui.avatar.title": "AVATAR-DESIGNER",
   "ui.avatar.colors": "KÖRPERFARBEN",

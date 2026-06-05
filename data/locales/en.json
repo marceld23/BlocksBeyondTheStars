@@ -442,6 +442,7 @@
   "ui.struct.name": "Name",
   "ui.struct.tier": "Size tier",
   "ui.struct.save": "SAVE / EXPORT",
+  "ui.struct.load": "LOAD",
   "ui.struct.hint": "Hold RIGHT-MOUSE to look · WASD + Q/E to fly · Shift = faster · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu",
   "ui.avatar.title": "AVATAR DESIGNER",
   "ui.avatar.colors": "BODY COLOURS",

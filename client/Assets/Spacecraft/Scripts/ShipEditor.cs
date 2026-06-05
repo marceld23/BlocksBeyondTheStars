@@ -308,8 +308,9 @@ namespace Spacecraft.Client
             // Pinned footer: status + save + back.
             _statusLabel = UiKit.AddText(meta, 12f, PanelH - 112f, 356f, 44f, string.Empty, 14, UiKit.Ok);
             _statusLabel.alignment = TextAnchor.UpperLeft;
-            UiKit.AddButton(meta, 12f, PanelH - 62f, 220f, 38f, "SAVE / EXPORT", Export);
-            UiKit.AddButton(meta, 240f, PanelH - 62f, 128f, 38f, "← Back", () => Shell?.CloseShipEditor());
+            UiKit.AddButton(meta, 12f, PanelH - 62f, 150f, 38f, "SAVE / EXPORT", Export);
+            UiKit.AddButton(meta, 168f, PanelH - 62f, 96f, 38f, "LOAD", OpenLoadPicker);
+            UiKit.AddButton(meta, 270f, PanelH - 62f, 98f, 38f, "← Back", () => Shell?.CloseShipEditor());
 
             // Bottom-centre controls hint.
             var hintGo = new GameObject("Hint", typeof(RectTransform));
@@ -562,6 +563,131 @@ namespace Spacecraft.Client
             {
                 _status = "Export failed: " + e.Message;
             }
+        }
+
+        private GameObject _loadPicker;
+
+        /// <summary>Lists the saved ship designs (under <c>ship_exports/</c>) and lets you load one back in to
+        /// keep editing it.</summary>
+        private void OpenLoadPicker()
+        {
+            if (_loadPicker != null)
+            {
+                Destroy(_loadPicker);
+            }
+
+            var keys = new List<string>();
+            string root = Path.Combine(Application.persistentDataPath, "ship_exports");
+            if (Directory.Exists(root))
+            {
+                foreach (var d in Directory.GetDirectories(root))
+                {
+                    if (File.Exists(Path.Combine(d, "layout.json")))
+                    {
+                        keys.Add(Path.GetFileName(d));
+                    }
+                }
+            }
+
+            var panel = UiKit.AddPanel(_canvas.transform, 700f, 280f, 520f, 520f, UiKit.Panel);
+            _loadPicker = panel.gameObject;
+            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, "LOAD DESIGN", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            if (keys.Count == 0)
+            {
+                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, "No saved ship designs yet.", 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            }
+            else
+            {
+                for (int i = 0; i < Mathf.Min(keys.Count, 11); i++)
+                {
+                    string k = keys[i];
+                    UiKit.AddButton(panel.transform, 20f, 54f + i * 38f, 480f, 34f, "▸  " + k, () =>
+                    {
+                        LoadDesign(k);
+                        Destroy(_loadPicker);
+                        _loadPicker = null;
+                    });
+                }
+            }
+
+            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, "Close", () => { Destroy(_loadPicker); _loadPicker = null; });
+        }
+
+        /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
+        private void LoadDesign(string key)
+        {
+            string dir = Path.Combine(Application.persistentDataPath, "ship_exports", key);
+            string layoutPath = Path.Combine(dir, "layout.json");
+            if (!File.Exists(layoutPath))
+            {
+                _status = "Design not found.";
+                if (_statusLabel != null) _statusLabel.text = _status;
+                return;
+            }
+
+            try
+            {
+                var layout = JsonUtility.FromJson<ExportLayoutJson>(File.ReadAllText(layoutPath));
+
+                foreach (var go in _cells.Values)
+                {
+                    Destroy(go);
+                }
+
+                _cells.Clear();
+                _design.Clear();
+
+                if (layout?.cells != null)
+                {
+                    foreach (var c in layout.cells)
+                    {
+                        var cell = new Vector3i(c.x, c.y, c.z);
+                        var pal = System.Array.Find(_palette, p => p.Id == c.id);
+                        if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
+                        {
+                            continue; // unknown palette id or out of bounds
+                        }
+
+                        PlaceCell(cell, pal);
+                    }
+                }
+
+                string shipPath = Path.Combine(dir, "ship.json");
+                if (File.Exists(shipPath) && JsonUtility.FromJson<ExportShipJson>(File.ReadAllText(shipPath)) is { } ship)
+                {
+                    _key = string.IsNullOrEmpty(ship.key) ? key : ship.key;
+                    _shipName = string.IsNullOrEmpty(ship.name) ? _shipName : ship.name;
+                }
+                else
+                {
+                    _key = key;
+                }
+
+                _status = $"Loaded '{key}' ({_design.Count} blocks).";
+                RebuildForm();
+            }
+            catch (Exception e)
+            {
+                _status = "Load failed: " + e.Message;
+                if (_statusLabel != null) _statusLabel.text = _status;
+            }
+        }
+
+        /// <summary>Rebuilds the right-hand form (key/name + stats) so it reflects a freshly loaded design.</summary>
+        private void RebuildForm()
+        {
+            if (_form == null)
+            {
+                return;
+            }
+
+            for (int i = _form.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_form.GetChild(i).gameObject);
+            }
+
+            BuildForm();
+            if (_statusLabel != null) _statusLabel.text = _status;
         }
 
         private static string Slug(string s)
