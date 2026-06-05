@@ -486,7 +486,7 @@ namespace Spacecraft.Client
             "carbon" => new Color(0.16f, 0.16f, 0.18f),
             "titanium_ore" => new Color(0.58f, 0.60f, 0.66f),
             "data_cache" => new Color(0.18f, 0.40f, 0.55f),
-            "glass" => new Color(0.70f, 0.90f, 0.95f),
+            "glass" => new Color(0.82f, 0.91f, 0.95f), // milky/frosted, not clear (you can tell it's glass)
             "force_field" => new Color(0.35f, 0.80f, 1f),
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
             "water" => new Color(0.20f, 0.42f, 0.85f),

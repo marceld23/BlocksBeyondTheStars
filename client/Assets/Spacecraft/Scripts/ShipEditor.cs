@@ -59,7 +59,7 @@ namespace Spacecraft.Client
             _palette = new[]
             {
                 P("iron_wall", "Hull", "block", new Color(0.55f, 0.57f, 0.62f)),
-                P("glass", "Viewport", "block", new Color(0.45f, 0.8f, 0.95f)),
+                P("glass", "Window", "block", new Color(0.45f, 0.8f, 0.95f)),
                 P("light", "Light", "element", new Color(1f, 0.95f, 0.55f)),
                 P("headlight", "Headlight", "element", new Color(0.95f, 0.97f, 1f)),
                 P("light_red", "Port Light (red)", "element", new Color(1f, 0.3f, 0.3f)),

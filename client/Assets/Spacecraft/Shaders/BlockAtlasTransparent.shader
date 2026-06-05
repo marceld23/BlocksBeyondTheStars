@@ -73,8 +73,12 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 fixed3 col = albedo * light * (0.55 + 0.45 * ndl) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)
 
-                // Stay see-through: emissive fields read a touch denser than plain glass, but never opaque.
-                float alpha = saturate(_BaseAlpha + emission * 0.2);
+                // Plain glass (no emission) reads as a frosted, milky pane — clearly glass, not an open hole —
+                // while emissive energy fields stay an airy, see-through curtain.
+                float isField = saturate(emission * 4.0);              // ~0 for glass, ~1 for energy fields
+                col = lerp(col + light * 0.16, col, isField);          // a soft white frost on glass only
+                float alpha = lerp(0.72, _BaseAlpha, isField);         // milky glass vs. see-through field
+                alpha = saturate(alpha + emission * 0.15);
 
                 fixed4 outc = fixed4(col, alpha);
                 UNITY_APPLY_FOG(i.fogCoord, outc);

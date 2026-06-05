@@ -793,13 +793,16 @@ namespace Spacecraft.Client
                 };
                 foreach (var b in system.Bodies)
                 {
-                    if (b.Id == current.Id || b.Kind != "Planet" || string.IsNullOrEmpty(b.PlanetType))
+                    // Render every real planet in the system — even one whose PlanetType string didn't come
+                    // through (fall back to the home type for colour); only skip the body you launched from.
+                    if (b.Id == current.Id || b.Kind != "Planet")
                     {
                         continue;
                     }
 
+                    string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    Place(b.Id, b.Name, pos, PlanetDiameter, b.PlanetType);
+                    Place(b.Id, b.Name, pos, PlanetDiameter, type);
                     planets.Add((b.SystemX, b.SystemZ, pos, PlanetDiameter * 0.5f));
                 }
 
@@ -808,11 +811,12 @@ namespace Spacecraft.Client
                 // sink a moon inside its planet (the overlap bug).
                 foreach (var b in system.Bodies)
                 {
-                    if (b.Id == current.Id || b.Kind != "Moon" || string.IsNullOrEmpty(b.PlanetType))
+                    if (b.Id == current.Id || b.Kind != "Moon")
                     {
                         continue;
                     }
 
+                    string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var parent = planets[0];
                     float bestSq = float.MaxValue;
                     foreach (var p in planets)
@@ -830,7 +834,7 @@ namespace Spacecraft.Client
                         rel = dir * minClear;
                     }
 
-                    Place(b.Id, b.Name, parent.Render + rel, MoonDiameter, b.PlanetType);
+                    Place(b.Id, b.Name, parent.Render + rel, MoonDiameter, type);
                 }
             }
 
