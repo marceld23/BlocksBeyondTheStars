@@ -16,6 +16,17 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): Only real bodies in space — every planet is landable
+You couldn't land on a planet you flew to because it was a **decorative** sphere (`planet2`) not in the
+landable set — the land prompt never appeared. Removed the two decorative planets entirely; the space view
+now renders **only real celestial bodies**: the planet you launched from (rendered "below" you, landable →
+E returns home) and the system's actual planets/moons at their scaled orbit coords (from the star map), all
+lit + textured + landable via a shared `SpawnBody`. `EnterSpace` now also `SendStarMap` so the system's
+bodies are always available when the space scene builds. Per-body land approach already shows "Press E to
+land" just outside each body's keep-out.
+
+---
+
 ## ✅ Done (2026-06-06): Safe launch + reach the system — combat was killing you on spawn
 The real cause of "I take continuous hull damage then suddenly respawn on the planet":
 - **Hostile drones/UFOs spawned ~25u from the launch point**, inside `ShipEngageRange` — so a combat preset

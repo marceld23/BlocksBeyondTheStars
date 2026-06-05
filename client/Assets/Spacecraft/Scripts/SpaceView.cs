@@ -569,42 +569,9 @@ namespace Spacecraft.Client
 
             BuildSun(); // the system's star, in its own colour (lens flare added in LateUpdate)
 
-            // Planets reflect the actual world/biome: the big one is the planet you're at, the
-            // distant one a neighbouring body in the same system (from the star map). Lit + textured.
-            ResolvePlanetLooks(out var mainLook, out var secondLook, out var mainType, out var secondType);
-
-            var planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            planet.name = "Planet";
-            StripCollider(planet);
-            planet.transform.SetParent(_root.transform, false);
-            planet.transform.localPosition = new Vector3(20f, -120f, 70f);
-            planet.transform.localScale = Vector3.one * 160f;
-            planet.GetComponent<Renderer>().sharedMaterial = Lit(mainLook.tint, LoadTex(mainLook.tex), new Vector2(6f, 3f));
-            _keepOut.Add((planet.transform.localPosition, 80f + KeepOutMargin)); // radius 80 (Ø160)
-
-            // Cloud cover over the planet you're at — its authoritative per-planet colour/density.
-            var (mainCloudCol, mainCloudDen) = MainCloudLook(mainType);
-            AddCloudShell(planet.transform, mainCloudCol, mainCloudDen);
-
-            // A second, distant planet so space doesn't look empty.
-            var planet2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            planet2.name = "Planet2";
-            StripCollider(planet2);
-            planet2.transform.SetParent(_root.transform, false);
-            planet2.transform.localPosition = new Vector3(-160f, 60f, 220f);
-            planet2.transform.localScale = Vector3.one * 60f;
-            planet2.GetComponent<Renderer>().sharedMaterial = Lit(secondLook.tint, LoadTex(secondLook.tex), new Vector2(3f, 2f));
-            _keepOut.Add((planet2.transform.localPosition, 30f + KeepOutMargin)); // radius 30 (Ø60)
-
-            var (secondCloudCol, secondCloudDen) = PlanetCloudLook(secondType);
-            AddCloudShell(planet2.transform, secondCloudCol, secondCloudDen);
-
-            BuildSystemBodies(); // the rest of the system's planets/moons, flyable + landable
-
-            // The planet you launched from is landable too: fly back to it and press E to return home (id ""
-            // = the body you came from). Always present, even with no star map, so there's always a planet to
-            // land on — not just the station.
-            _landables.Add((string.Empty, Game?.LocationName ?? "home", new Vector3(20f, -120f, 70f), 80f));
+            // Only REAL bodies: the planet you launched from + the system's actual planets/moons (from the
+            // star map), all textured + landable. No decorative filler planets.
+            BuildSystemBodies();
 
             _ship = BuildShip(_root.transform);
         }
@@ -617,68 +584,84 @@ namespace Spacecraft.Client
             _bounds = Bounds;
 
             var map = Game?.StarMap;
-            if (map?.Systems == null)
-            {
-                return;
-            }
-
             Spacecraft.Networking.Messages.NetBody current = null;
             Spacecraft.Networking.Messages.NetStarSystem system = null;
-            foreach (var sys in map.Systems)
+            if (map?.Systems != null)
             {
-                foreach (var b in sys.Bodies)
+                foreach (var sys in map.Systems)
                 {
-                    if (b.Id == map.ActiveLocationId)
+                    foreach (var b in sys.Bodies)
                     {
-                        current = b;
-                        system = sys;
+                        if (b.Id == map.ActiveLocationId)
+                        {
+                            current = b;
+                            system = sys;
+                            break;
+                        }
+                    }
+
+                    if (system != null)
+                    {
                         break;
                     }
                 }
-
-                if (system != null)
-                {
-                    break;
-                }
             }
 
-            if (current == null || system == null)
+            // The planet you launched from: a real body, rendered "below" you (you rose off its surface),
+            // landable (E returns home). Always present, even without a star map, so there is always a real
+            // planet to fly back to — never a decorative filler.
+            string homeType = !string.IsNullOrEmpty(current?.PlanetType) ? current.PlanetType : Game?.Environment?.Biome;
+            var homePos = new Vector3(0f, -150f, -20f);
+            const float homeDiameter = 150f;
+            SpawnBody("HomePlanet", homePos, homeDiameter, homeType);
+            _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
+            _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
+            float maxDist = homePos.magnitude;
+
+            // The system's other planets/moons at their (scaled) orbit coords, relative to home — all real,
+            // all landable. Fly out to one and press E to land.
+            if (current != null && system != null)
             {
-                return;
-            }
-
-            float maxDist = 0f;
-            foreach (var b in system.Bodies)
-            {
-                if (b.Id == current.Id || string.IsNullOrEmpty(b.PlanetType))
+                foreach (var b in system.Bodies)
                 {
-                    continue; // only landable planets/moons (skip the current body, stations, the star)
+                    if (b.Id == current.Id || string.IsNullOrEmpty(b.PlanetType))
+                    {
+                        continue; // skip the home body (rendered above), stations, the star
+                    }
+
+                    if (b.Kind != "Planet" && b.Kind != "Moon")
+                    {
+                        continue;
+                    }
+
+                    var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
+                    float diameter = b.Kind == "Moon" ? 28f : 46f;
+                    SpawnBody("SystemBody_" + b.Id, pos, diameter, b.PlanetType);
+
+                    float bodyRadius = diameter * 0.5f;
+                    _landables.Add((b.Id, b.Name, pos, bodyRadius));
+                    _keepOut.Add((pos, bodyRadius + KeepOutMargin)); // can't fly into it — slide + press E to land
+                    maxDist = Mathf.Max(maxDist, pos.magnitude);
                 }
-
-                if (b.Kind != "Planet" && b.Kind != "Moon")
-                {
-                    continue;
-                }
-
-                var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                maxDist = Mathf.Max(maxDist, pos.magnitude);
-
-                var look = PlanetLook(b.PlanetType);
-                float diameter = b.Kind == "Moon" ? 28f : 46f;
-                var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                sphere.name = "SystemBody_" + b.Id;
-                StripCollider(sphere);
-                sphere.transform.SetParent(_root.transform, false);
-                sphere.transform.localPosition = pos;
-                sphere.transform.localScale = Vector3.one * diameter;
-                sphere.GetComponent<Renderer>().sharedMaterial = Lit(look.tint, LoadTex(look.tex), new Vector2(3f, 2f));
-
-                float bodyRadius = diameter * 0.5f;
-                _landables.Add((b.Id, b.Name, pos, bodyRadius));
-                _keepOut.Add((pos, bodyRadius + KeepOutMargin)); // can't fly into it — slide + press E to land
             }
 
             _bounds = Mathf.Max(Bounds, maxDist + 140f); // keep the whole system reachable
+        }
+
+        /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.</summary>
+        private void SpawnBody(string name, Vector3 pos, float diameter, string planetType)
+        {
+            var look = PlanetLook(planetType);
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.name = name;
+            StripCollider(sphere);
+            sphere.transform.SetParent(_root.transform, false);
+            sphere.transform.localPosition = pos;
+            sphere.transform.localScale = Vector3.one * diameter;
+            sphere.GetComponent<Renderer>().sharedMaterial = Lit(look.tint, LoadTex(look.tex), new Vector2(3f, 2f));
+
+            var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
+            AddCloudShell(sphere.transform, cloudCol, cloudDen);
         }
 
         private GameObject BuildShip(Transform parent)
@@ -1272,60 +1255,6 @@ namespace Spacecraft.Client
             return tex;
         }
 
-        /// <summary>
-        /// Picks the look of the two space-view planets from the actual world: the main planet is the
-        /// body you're at (active star-map location, falling back to the current biome), the second a
-        /// neighbouring body in the same system. Both reflect their planet type's colour + texture.
-        /// </summary>
-        private void ResolvePlanetLooks(out (Color tint, string tex) main, out (Color tint, string tex) second,
-            out string mainTypeOut, out string secondTypeOut)
-        {
-            string mainType = Game?.Environment?.Biome;
-            string secondType = null;
-
-            var map = Game?.StarMap;
-            if (map?.Systems != null)
-            {
-                object activeSys = null;
-                foreach (var sys in map.Systems)
-                {
-                    foreach (var b in sys.Bodies)
-                    {
-                        if (b.Id == map.ActiveLocationId)
-                        {
-                            activeSys = sys;
-                            if (!string.IsNullOrEmpty(b.PlanetType))
-                            {
-                                mainType = b.PlanetType;
-                            }
-
-                            break;
-                        }
-                    }
-
-                    if (activeSys != null)
-                    {
-                        // Use a different body in the same system for the distant planet.
-                        foreach (var b in sys.Bodies)
-                        {
-                            if (b.Id != map.ActiveLocationId && b.Kind != "star" && !string.IsNullOrEmpty(b.PlanetType))
-                            {
-                                secondType = b.PlanetType;
-                                break;
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
-
-            main = PlanetLook(mainType);
-            second = PlanetLook(secondType ?? "rock");
-            mainTypeOut = mainType;
-            secondTypeOut = secondType ?? "rock";
-        }
-
         /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
         /// keys get a stable hash-derived colour so every world type still looks distinct.</summary>
         private static (Color tint, string tex) PlanetLook(string key)
@@ -1364,19 +1293,6 @@ namespace Spacecraft.Client
                 0.40f + 0.45f * (float)rng.NextDouble(),
                 0.40f + 0.45f * (float)rng.NextDouble(),
                 0.40f + 0.45f * (float)rng.NextDouble());
-        }
-
-        /// <summary>Cloud colour/density for the planet you're at — the authoritative server values when
-        /// available, else the planet-type default.</summary>
-        private (Color color, float density) MainCloudLook(string type)
-        {
-            var env = Game?.Environment;
-            if (env != null && !env.SpaceSky && env.CloudDensity > 0.001f)
-            {
-                return (Rgb(env.CloudColor), env.CloudDensity);
-            }
-
-            return PlanetCloudLook(type);
         }
 
         /// <summary>Per planet-type cloud cover seen from space (mirrors data/planets.json).</summary>

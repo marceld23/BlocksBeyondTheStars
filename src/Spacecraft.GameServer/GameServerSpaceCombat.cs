@@ -240,6 +240,7 @@ public sealed partial class GameServer
         {
             SendSpaceState(session, instance);
             SendShipCombatStatus(session);
+            SendStarMap(session); // the space view needs the system's bodies to render + land on them
         }
     }
 
