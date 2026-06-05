@@ -558,6 +558,16 @@ collider closes the gap when shut). Phased plan:
   and route through the existing fluid system (`FluidLevel`/`ActiveFluid` + the client fluid render). **When
   picking this up, analyse the terrain pass + fluid sim precisely first**, then implement.
 
+- **Faces / eyes** — the player avatar and NPCs have **no face**, and creatures have **no eyes**. Give the
+  avatar + NPCs a simple face (eyes), and give creatures **optional, procedurally-random eyes** (some species
+  none, others 2+ — random count/placement) that are actually visible. Requested 2026-06-06.
+- **Ship station prompt is always "Workshop"** — the in-ship "E — <station>" prompt shows *workshop*
+  regardless of which station you look at. Analyse `NearbyStation`/`NearestStationType` + the station marker
+  the prompt reads vs. the one E uses (they've diverged). Requested 2026-06-06.
+- **Creature death drops + rare material substitute** — analyse how far creature loot is implemented: dying
+  creatures should drop **edible meat** (or **toxic** flesh the player must detox, for toxic species), and
+  **rarely** a drop should substitute for a random crafting material. (`CombatEntity.Loot` exists +
+  `creature_meat`/`toxic_gland` items — verify it fires + add the rare-material roll.) Requested 2026-06-06.
 - **More procedural creature variety** — analyse how fauna/flora species are organised + generated
   (`CreatureGenerator`, `CreatureSpecies`, the species roster per planet) and add **more procedural
   randomness so creatures look visibly different** (body proportions, limbs, colours/patterns, size). Today

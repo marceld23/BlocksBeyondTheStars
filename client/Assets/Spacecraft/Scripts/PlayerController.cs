@@ -19,6 +19,7 @@ namespace Spacecraft.Client
         public float MoveSpeed = 6f;
         public float JumpSpeed = 7f;
         public float Gravity = 20f;
+        public float SafeFallSpeed = 14f; // impact speed you can land at unharmed (~5 blocks); faster hurts
         public float JetpackAccel = 26f;   // upward acceleration while the jetpack fires
         public float JetpackMaxRise = 6.5f; // cap on jetpack-driven rise speed
         public float MouseSensitivity = 2f;
@@ -792,6 +793,13 @@ namespace Spacecraft.Client
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
                 _camShake = Mathf.Max(_camShake, Mathf.Clamp01(-prevVy / 12f) * 0.7f); // impact kick
+
+                // A hard landing hurts: report the impact speed so the server (which owns health) applies
+                // fall damage. Small drops/jumps stay below the safe threshold and do nothing.
+                if (-prevVy > SafeFallSpeed)
+                {
+                    Game?.Network?.SendFallDamage(-prevVy);
+                }
             }
 
             _wasGrounded = grounded;

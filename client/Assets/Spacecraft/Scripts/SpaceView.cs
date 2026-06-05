@@ -729,19 +729,9 @@ namespace Spacecraft.Client
             _cloudShells.Clear();
             _keepOut.Clear();
 
-            var star = Unlit(new Color(0.9f, 0.95f, 1f));
-            var bright = Unlit(new Color(1f, 0.98f, 0.92f));
-            var rng = new System.Random(1234);
-            for (int i = 0; i < 460; i++)
-            {
-                var dir = new Vector3(
-                    (float)(rng.NextDouble() * 2 - 1),
-                    (float)(rng.NextDouble() * 2 - 1),
-                    (float)(rng.NextDouble() * 2 - 1)).normalized;
-                bool hero = rng.NextDouble() < 0.07;
-                Cube("Star", _root.transform, dir * 280f, Vector3.one * (hero ? 3f + (float)rng.NextDouble() * 2f : 1.1f + (float)rng.NextDouble() * 1.8f), hero ? bright : star);
-            }
-
+            // Background stars are drawn by the shared Starfield dome (soft round dots, varied colours, a
+            // gentle twinkle) which follows the camera and is at full brightness in space — so the space view
+            // no longer spawns its own blocky star cubes.
             BuildSun(); // the system's star, in its own colour (lens flare added in LateUpdate)
 
             // Only REAL bodies: the planet you launched from + the system's actual planets/moons (from the

@@ -938,6 +938,7 @@ public sealed partial class GameServer
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case TractorPullIntent: HandleTractorPull(session); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
+            case FallDamageIntent fall: HandleFallDamage(session, fall); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
             case RequestMissions: SendMissionList(session); break;
             case AcceptMissionIntent accept: HandleAcceptMission(session, accept.MissionId); break;
@@ -1171,6 +1172,43 @@ public sealed partial class GameServer
 
     // Accumulated mining effort per block (a hard block needs several hits before it breaks).
     private readonly Dictionary<Vector3i, float> _miningProgress = new();
+
+    private const float FallSafeImpactSpeed = 14f;  // matches the client; below this a landing is harmless
+    private const float FallDamagePerSpeed = 4.5f;  // health lost per unit of impact speed over the safe cap
+
+    /// <summary>Applies fall damage from a hard landing the client reported (it owns on-foot movement),
+    /// scaled by how far over a safe impact speed it was and reduced by armor. A lethal fall respawns the
+    /// player at the heal-tank (with the death flag → the client's death flash).</summary>
+    private void HandleFallDamage(PlayerSession session, FallDamageIntent intent)
+    {
+        var p = session.State;
+        if (InSpace(p.PlayerId) || !float.IsFinite(intent.ImpactSpeed))
+        {
+            return; // piloting in space — there is no on-foot fall to take
+        }
+
+        float over = intent.ImpactSpeed - FallSafeImpactSpeed;
+        if (over <= 0f)
+        {
+            return;
+        }
+
+        float damage = Mitigate(p, System.Math.Min(120f, over * FallDamagePerSpeed));
+        if (damage <= 0f)
+        {
+            return;
+        }
+
+        p.Health = System.Math.Max(0f, p.Health - damage);
+        if (p.Health <= 0f)
+        {
+            RespawnPlayer(session, "You did not survive the fall.");
+        }
+        else
+        {
+            SendPlayerState(session);
+        }
+    }
 
     private void HandleMine(PlayerSession session, MineBlockIntent mine)
     {

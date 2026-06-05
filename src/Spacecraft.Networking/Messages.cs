@@ -45,6 +45,13 @@ public sealed class CraftIntent
     public int Count { get; set; } = 1;
 }
 
+/// <summary>The client (which owns on-foot movement) reports a hard landing; the server applies fall damage
+/// scaled by how far over a safe impact speed it was.</summary>
+public sealed class FallDamageIntent
+{
+    public float ImpactSpeed { get; set; }
+}
+
 public sealed class UnlockBlueprintIntent
 {
     public string BlueprintKey { get; set; } = string.Empty;

@@ -93,6 +93,7 @@ namespace Spacecraft.Client
 
         public void SendCraft(string recipeKey, int count = 1)
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
+        public void SendFallDamage(float impactSpeed) => Send(new FallDamageIntent { ImpactSpeed = impactSpeed });
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
         public void SendChat(string text) => Send(new ChatIntent { Text = text });
