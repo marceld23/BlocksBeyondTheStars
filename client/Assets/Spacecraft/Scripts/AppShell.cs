@@ -205,6 +205,7 @@ namespace Spacecraft.Client
         }
 
         private bool _confirmQuit; // showing the "quit to menu?" confirmation over the game
+        private bool _chatTypingPrev; // chat focus last frame (so closing chat with Esc doesn't pop quit)
         private GameObject _quitDialog;
 
         private GameBootstrap Boot() => _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
@@ -437,15 +438,21 @@ namespace Spacecraft.Client
                 _uiSaveSelect = null;
             }
 
+            // Track chat focus across frames: an Esc that closes the chat clears ChatTyping in the SAME
+            // frame (the InputField's end-edit), so by the time we read it here it may already be false.
+            // Remembering the previous frame's state keeps that Esc from also popping the quit dialog.
+            var igBoot = Phase == ShellPhase.InGame && _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
+            bool chatActive = (igBoot != null && igBoot.ChatTyping) || _chatTypingPrev;
+            _chatTypingPrev = igBoot != null && igBoot.ChatTyping;
+
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (Phase == ShellPhase.InGame)
                 {
-                    // Esc while typing in chat just cancels the chat input, it doesn't quit to the menu.
-                    var boot = _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
-                    if (boot != null && boot.ChatTyping)
+                    var boot = igBoot;
+                    if (chatActive)
                     {
-                        // chat handles its own Esc
+                        // The chat handled its own Esc (or just closed) — don't quit to the menu.
                     }
                     else if (_confirmQuit)
                     {

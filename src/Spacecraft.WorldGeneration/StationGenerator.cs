@@ -285,6 +285,7 @@ public static class StationGenerator
             var c = new Vector3i(m.Origin.X + RoomW / 2, m.Origin.Y + 1, m.Origin.Z + RoomL / 2);
             switch (m.Type)
             {
+                case "hub": markers.Add(new StationMarker("spawn", c)); break; // enclosed centre = safe arrival point
                 case "hangar": markers.Add(new StationMarker("hangar", c)); break;
                 case "market": markers.Add(new StationMarker("vendor", c)); break;
                 case "mission": markers.Add(new StationMarker("mission_board", c)); break;

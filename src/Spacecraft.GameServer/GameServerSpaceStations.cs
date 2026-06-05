@@ -306,11 +306,17 @@ public sealed partial class GameServer
             }
         }
 
-        station.Spawn = station.Markers.FirstOrDefault(m => m.Type == "hangar").Pos;
-        if (station.Spawn.Equals(Vector3f.Zero))
+        // Arrive in the enclosed central hub (solid floor, no open wall), NOT the hangar — the hangar's
+        // -Z wall is opened to space, so spawning there can drop the player out into the void.
+        var spawnMarker = station.Markers.FirstOrDefault(m => m.Type == "spawn");
+        if (spawnMarker.Pos.Equals(Vector3f.Zero))
         {
-            station.Spawn = new Vector3f(station.Origin.X + 3.5f, station.Origin.Y + 2f, station.Origin.Z + 3.5f);
+            spawnMarker = station.Markers.FirstOrDefault(m => m.Type == "vendor" || m.Type == "heal_tank" || m.Type == "quarters");
         }
+
+        station.Spawn = !spawnMarker.Pos.Equals(Vector3f.Zero)
+            ? spawnMarker.Pos
+            : new Vector3f(station.Origin.X + 3.5f, station.Origin.Y + 2f, station.Origin.Z + 3.5f);
 
         // Guarantee solid ground + headroom at the spawn so the player can never fall straight through the
         // station into the void (some markers sit in an open bay). A small hull pad does the job.

@@ -146,18 +146,20 @@ namespace Spacecraft.Client
             // and treat it like a lit, life-supported interior — independent of the planet far below.
             bool boarded = !string.IsNullOrEmpty(Game.StationName);
             bool spaceSky = (env != null && env.SpaceSky) || boarded;
-            ApplyLighting(_time, intensity, sun, spaceSky);
+            ApplyLighting(_time, intensity, sun, spaceSky, constantLight: boarded);
         }
 
-        private void ApplyLighting(float time, float weatherIntensity, Color sunColor, bool spaceSky)
+        private void ApplyLighting(float time, float weatherIntensity, Color sunColor, bool spaceSky, bool constantLight = false)
         {
             // Sun height: peaks at noon (0.5), lowest at midnight (0/1).
             float sunHeight = Mathf.Sin((time - 0.25f) * Mathf.PI * 2f);
             float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
-            float brightness = Mathf.Lerp(0.20f, 1f, day);            // night floor → noon
-            float weatherDim = Mathf.Lerp(1f, 0.5f, weatherIntensity); // storms darken
+            // Inside an orbital station there is no day/night — it's lit by its own constant lighting.
+            float brightness = constantLight ? 1f : Mathf.Lerp(0.20f, 1f, day); // night floor → noon
+            float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.5f, weatherIntensity); // storms darken
 
-            Color tint = sunColor * (brightness * weatherDim);
+            // Stations use a clean neutral interior light (not the system sun's tint).
+            Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : sunColor * (brightness * weatherDim);
             tint.a = 1f; // marks the global as "set" for the shaders
             Shader.SetGlobalColor(LightId, tint);
 
