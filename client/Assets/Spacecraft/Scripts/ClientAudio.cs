@@ -28,6 +28,13 @@ namespace Spacecraft.Client
         private AudioSource _drill;     // looping drill while mining
         private AudioSource _jet;       // looping jetpack thrust while firing
 
+        // Underwater muffle: a low-pass on this GameObject filters every source on it — and ClientMusic lives
+        // on the same object, so the music ducks too. Engages when the player's head is inside a fluid block.
+        private const float UnderwaterCutoff = 680f;   // Hz — heavily muffled while submerged
+        private const float OpenCutoff = 22000f;        // Hz — effectively off above water
+        private AudioLowPassFilter _lowpass;
+        private bool _submerged;                        // true while the head is in water/lava (for 3D one-shots)
+
         private AudioClip _ok, _err, _blip; // procedural fallbacks (no recorded equivalent)
 
         private bool _subscribed;
@@ -110,6 +117,10 @@ namespace Spacecraft.Client
             _ok = Tone(660f, 0.12f, 0.4f);
             _err = Tone(110f, 0.20f, 0.5f);
             _blip = Tone(900f, 0.06f, 0.35f);
+
+            _lowpass = gameObject.AddComponent<AudioLowPassFilter>();
+            _lowpass.cutoffFrequency = OpenCutoff; // starts open (above water)
+            _lowpass.lowpassResonanceQ = 1f;
         }
 
         private void Update()
@@ -180,6 +191,15 @@ namespace Spacecraft.Client
                 _jet.volume = Mathf.MoveTowards(_jet.volume, on ? sfx * 0.5f : 0f, Time.deltaTime * 5f);
             }
 
+            // Underwater muffle: sweep the low-pass toward a heavy cut while the head is submerged, back to
+            // open above water. Sampled per frame (one block lookup) so a quick dunk responds promptly.
+            if (_lowpass != null)
+            {
+                _submerged = HeadInFluid();
+                float target = _submerged ? UnderwaterCutoff : OpenCutoff;
+                _lowpass.cutoffFrequency = Mathf.MoveTowards(_lowpass.cutoffFrequency, target, Time.deltaTime * 45000f);
+            }
+
             // Lava/water ambience when near a fluid (throttled block scan around the player).
             _fluidScanTimer -= Time.deltaTime;
             if (_fluidScanTimer <= 0f)
@@ -221,6 +241,21 @@ namespace Spacecraft.Client
 
             clip.SetData(data, 0);
             return clip;
+        }
+
+        /// <summary>True when the player's head (≈ the camera/ears, ~1.5 above the player root) sits inside a
+        /// water or lava block — the cue to muffle the world underwater.</summary>
+        private bool HeadInFluid()
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            var p = Game.PlayerPosition;
+            string k = Game.Content.BlockById(Game.World.GetBlock(
+                Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y + 1.5f), Mathf.FloorToInt(p.z)))?.Key ?? string.Empty;
+            return k.Contains("water") || k.Contains("lava");
         }
 
         private void UpdateFluidAmbience()
@@ -294,6 +329,11 @@ namespace Spacecraft.Client
             src.maxDistance = 45f;
             src.pitch = pitch;
             src.volume = Mathf.Clamp01(vol * SfxVol());
+            if (_submerged)
+            {
+                go.AddComponent<AudioLowPassFilter>().cutoffFrequency = UnderwaterCutoff; // muffle 3D one-shots too
+            }
+
             src.Play();
             Destroy(go, clip.length / Mathf.Max(0.1f, pitch) + 0.2f);
         }
