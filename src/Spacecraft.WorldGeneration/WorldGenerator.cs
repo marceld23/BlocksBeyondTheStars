@@ -108,16 +108,18 @@ public sealed class WorldGenerator
         double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
         double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.55 : 0.0);
 
+        // Sea level sits BELOW the average surface (BaseHeight) so only genuine low ground floods (valleys,
+        // canyon floors, basins) — not half the world. A higher abundance raises it toward more water.
         if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
         {
-            int level = planet.BaseHeight + (int)System.Math.Round((waterAb - 0.65) * planet.Amplitude);
+            int level = planet.BaseHeight + (int)System.Math.Round((waterAb - 0.95) * planet.Amplitude);
             return (level, water.NumericId);
         }
 
         // Watery worlds get no surface lava; only dry volcanic/airless worlds pool lava in their basins.
         if (waterAb <= 0.0 && lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
         {
-            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.78) * planet.Amplitude);
+            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.8) * planet.Amplitude);
             return (level, lava.NumericId);
         }
 

@@ -211,13 +211,24 @@ namespace Spacecraft.Client
             post.transform.localScale = new Vector3(0.14f, Height + 0.1f, Thickness * 2.2f);
         }
 
+        private static Shader _doorShader;
+
         private static void Paint(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
-            if (r != null)
+            if (r == null)
             {
-                r.material.color = c;
+                return;
             }
+
+            // Use a project shader (always in the build); the primitives' default Standard material gets
+            // stripped from player builds and renders bright pink/magenta.
+            if (_doorShader == null)
+            {
+                _doorShader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
+            }
+
+            r.sharedMaterial = new Material(_doorShader) { color = c };
         }
 
         private static void StripCollider(GameObject go)
