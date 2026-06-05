@@ -552,6 +552,12 @@ collider closes the gap when shut). Phased plan:
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
 ### Planned — requested 2026-06-06 (für später)
+- **Mineable water/lava (with the mining beam) + source logic** — water/lava should be **harvestable**, but
+  only with the **mining beam** (not the drill); and once the **source block / last cells** are removed it
+  must **stop reflowing** (don't infinitely regenerate). Ties into the fluid sim (`FluidLevel`/`ActiveFluid`)
+  and tool gating (`ToolCanMine`). Requested 2026-06-06.
+- **Multiplayer player-name reservation** — a player name must be **reserved on the server** so two clients
+  can't collide on the same name/identity. (Today join takes any name.) Requested 2026-06-06.
 - **Tree-like flora (trunk + crown)** — today flora is **single-block only**: the generator drops one plant
   in the air cell directly above the surface ([WorldGenerator.cs](src/Spacecraft.WorldGeneration/WorldGenerator.cs)
   `FloraForSurface`, gated by `planet.FloraDensity`). There are **no multi-block trees**. Plan: add a "tree"

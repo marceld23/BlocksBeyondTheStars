@@ -97,6 +97,33 @@ public sealed class WorldGenerator
         return (a0.Amp + (a1.Amp - a0.Amp) * f, a0.Ridged + (a1.Ridged - a0.Ridged) * f);
     }
 
+    /// <summary>The world's surface sea: which fluid fills its basins and up to what world-Y level. Water on
+    /// worlds with an atmosphere, lava on volcanic / airless worlds (never both); a higher abundance raises
+    /// the level so more low ground floods. Returns (int.MinValue, Air) for a dry world.</summary>
+    private (int Level, BlockId Fluid) ResolveSeaFluid(PlanetType planet)
+    {
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
+
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.55 : 0.0);
+
+        if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
+        {
+            int level = planet.BaseHeight + (int)System.Math.Round((waterAb - 0.65) * planet.Amplitude);
+            return (level, water.NumericId);
+        }
+
+        // Watery worlds get no surface lava; only dry volcanic/airless worlds pool lava in their basins.
+        if (waterAb <= 0.0 && lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
+        {
+            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.78) * planet.Amplitude);
+            return (level, lava.NumericId);
+        }
+
+        return (int.MinValue, BlockId.Air);
+    }
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
@@ -113,6 +140,11 @@ public sealed class WorldGenerator
         var deepId = ResolveBlock(planet.DeepBlock);
         var dataCacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
         bool flora = planet.FloraDensity > 0;
+
+        // Surface seas: water fills terrain basins on worlds with an atmosphere; lava fills them on
+        // volcanic / airless worlds (never both). A higher abundance raises the sea level so more low
+        // ground floods — the basin's depth + any rises become shallow water / deep water / islands.
+        var (fluidLevel, fluidId) = ResolveSeaFluid(planet);
 
         var origin = WorldConstants.ChunkOrigin(coord);
 
@@ -133,7 +165,12 @@ public sealed class WorldGenerator
                 int worldY = origin.Y + ly;
                 if (worldY > surfaceY)
                 {
-                    continue; // air above the surface
+                    if (worldY <= fluidLevel)
+                    {
+                        chunk.Set(lx, ly, lz, fluidId); // sea fill in a basin below the world's sea level
+                    }
+
+                    continue; // else air above the surface
                 }
 
                 int depth = surfaceY - worldY;
@@ -172,8 +209,9 @@ public sealed class WorldGenerator
             }
 
             // Surface flora: one plant in the air cell directly above the surface (bounded —
-            // one per column, no spreading), chosen by biome surface + a density roll.
-            if (flora)
+            // one per column, no spreading), chosen by biome surface + a density roll. Skip columns that are
+            // under the sea (land plants don't grow underwater — aquatic flora is a separate future feature).
+            if (flora && surfaceY + 1 > fluidLevel)
             {
                 var floraId = FloraForSurface(surfaceId, seed, worldX, worldZ);
                 int fy = surfaceY + 1;

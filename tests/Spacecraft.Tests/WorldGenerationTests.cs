@@ -147,6 +147,8 @@ public class WorldGenerationTests
         allowed.Add(content.GetBlock(planet.SubSurfaceBlock)!.NumericId.Value);
         allowed.Add(content.GetBlock(planet.DeepBlock)!.NumericId.Value);
         allowed.Add(content.GetBlock("data_cache")!.NumericId.Value);
+        allowed.Add(content.GetBlock("water")!.NumericId.Value); // surface seas fill basins below sea level
+        allowed.Add(content.GetBlock("lava")!.NumericId.Value);
         foreach (var ore in planet.Ores)
         {
             allowed.Add(content.GetBlock(ore.Block)!.NumericId.Value);
@@ -160,5 +162,57 @@ public class WorldGenerationTests
                 Assert.Contains(b, allowed);
             }
         }
+    }
+
+    private static int CountBlock(WorldGenerator gen, Spacecraft.Shared.Definitions.PlanetType planet, ushort block)
+    {
+        int n = 0;
+        for (int cx = 0; cx < 8; cx++)
+        for (int cz = 0; cz < 8; cz++)
+        for (int cy = 3; cy <= 5; cy++) // a wide span around typical sea levels (Y ≈ 48..95)
+        {
+            var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
+            foreach (var b in chunk.RawBlocks)
+            {
+                if (b == block) n++;
+            }
+        }
+
+        return n;
+    }
+
+    [Fact]
+    public void AtmosphereWorld_FillsBasinsWithWater()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!; // breathable atmosphere → water seas
+        var gen = new WorldGenerator(777, content);
+        ushort water = content.GetBlock("water")!.NumericId.Value;
+
+        Assert.True(CountBlock(gen, planet, water) > 0, "An atmosphere world should pool water in its basins.");
+    }
+
+    [Fact]
+    public void AirlessWorld_HasNoWater()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("asteroid")!; // no atmosphere → no water anywhere
+        var gen = new WorldGenerator(777, content);
+        ushort water = content.GetBlock("water")!.NumericId.Value;
+
+        Assert.Equal(0, CountBlock(gen, planet, water));
+    }
+
+    [Fact]
+    public void VolcanicWorld_FillsBasinsWithLava()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("lava")!; // airless + basalt → lava seas, no water
+        var gen = new WorldGenerator(777, content);
+        ushort lava = content.GetBlock("lava")!.NumericId.Value;
+        ushort water = content.GetBlock("water")!.NumericId.Value;
+
+        Assert.True(CountBlock(gen, planet, lava) > 0, "A volcanic world should pool lava in its basins.");
+        Assert.Equal(0, CountBlock(gen, planet, water));
     }
 }

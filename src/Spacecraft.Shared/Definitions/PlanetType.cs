@@ -83,6 +83,14 @@ public sealed class PlanetType
     /// <summary>0..1 chance of surface flora per eligible column (0 = no plants). Bounded: one plant per cell.</summary>
     public double FloraDensity { get; set; }
 
+    /// <summary>0..1 — how much surface water this world has (raises the sea level so more basins flood); only
+    /// worlds with an atmosphere get water. <c>null</c> = auto (atmosphere worlds get a moderate amount).</summary>
+    public double? WaterAbundance { get; set; }
+
+    /// <summary>0..1 — how much surface lava this world has (lava seas in basins on volcanic/airless worlds).
+    /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no surface lava.</summary>
+    public double? LavaAbundance { get; set; }
+
     /// <summary>Base cloud tint, packed 0xRRGGBB (storms darken it client-side). Ash worlds are grey-brown,
     /// deserts sandy, ice pale blue. Used for both the surface cloud layer and the view from space.</summary>
     public int CloudColor { get; set; } = 0xEDEFF2;
