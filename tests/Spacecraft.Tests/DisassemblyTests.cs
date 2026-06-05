@@ -48,6 +48,7 @@ public sealed class DisassemblyTests : IDisposable
         {
             // The starter ship has a workshop module; AddLocalPlayer is aboard by default.
             var p = server.AddLocalPlayer("Tinker");
+            p.State.Inventory.Remove("machete", p.State.Inventory.CountOf("machete")); // drop the starter melee weapon for a deterministic count
             p.State.Inventory.Add("machete", 1, 1); // recipe: iron_plate x3 + carbon x2 -> machete
 
             server.Disassemble("Tinker", "machete");
@@ -81,6 +82,7 @@ public sealed class DisassemblyTests : IDisposable
         {
             var p = server.AddLocalPlayer("Tinker");
             p.State.AboardShip = false; // no workshop reachable outside the ship
+            p.State.Inventory.Remove("machete", p.State.Inventory.CountOf("machete")); // drop the starter melee weapon for a deterministic count
             p.State.Inventory.Add("machete", 1, 1);
 
             server.Disassemble("Tinker", "machete");

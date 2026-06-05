@@ -6,13 +6,34 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **282 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **287 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
 Architecture: Unity 6 (Built-in RP) client + authoritative .NET 8 server, everything built in code (no
 scene authoring). One shared world; contractless MessagePack networking; deterministic seed world-gen;
 SQLite persistence.
+
+---
+
+## ✅ Done (2026-06-06): Starter weapons + ship weapons finished (W1–W5)
+- **W1 — starter melee weapon:** new players spawn with a **machete** (the existing melee attack +
+  slash-arc VFX already worked). Test `StarterKit_IncludesASimpleMeleeWeapon`.
+- **W2 — dual ship laser:** a new **`ship_laser_basic`** module (`weapon_class: 2`) fitted on every starter
+  ship (starter/scout/hauler). A new dual class means **one laser both mines asteroids AND fights hostiles**
+  (`WeaponSpec` now carries `IsCombat` + `CanMine`; `weapon_class` 0=mining, 1=combat, 2=dual). Tests
+  `StarterShip_HasADualLaser_ThatMinesAsteroids`, `…DualLaser_AlsoDamagesHostiles`.
+- **W3 — fire in flight:** hold **LMB / Space** in the space view to fire — it auto-locks the best target
+  in range ahead (a centre crosshair brightens cyan on lock), rate-limited by the weapon cooldown. (Was only
+  fireable from a tech-UI list before.)
+- **W4 — SFX + VFX:** a laser **bolt** from the ship to the target + an **impact flash** (amber for mining,
+  cyan for combat), with new procedural **`ship_laser`/`ship_mine`** sounds (the old `ship_weapon` cue never
+  existed, so firing was silent).
+- **W5 — craft + editor:** weapon modules are built/fitted from the ship tech UI (craftable; cannons keep
+  their blueprints, the starter laser is always buildable) and the **ship editor palette** now carries a
+  Laser Cannon + Ship Cannon. Controls hint updated (en/de).
+- **Follow-ups:** fire-in-flight always uses the starter laser (could auto-pick the best fitted weapon);
+  cooldown/energy are client-side only (no server-side rate/energy gate yet).
 
 ---
 
@@ -370,27 +391,7 @@ StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle
 (`server.Ship`/`OwnedShips` → first joined player) + a two-player fleet-isolation test. Ship-stamp state
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
 
-### Starter weapons + finish ship weapons — planned (not started) ⭐ (2026-06-06)
-**State today:** the starter kit (`CreateNewPlayer`) is drill/placer/scanner/lamp — **no melee weapon**. Ship
-weapons exist server-side (blueprints `ship_cannon_1`; modules: a mining laser `weapon_class:0` + combat
-cannons `weapon_class:1`; `FireWeapon` validates combat-vs-mining + `AsteroidDestruction`), but you can only
-fire them from the **tech-UI target list** (`CraftingTechShipUI`), **not in flight**, and there are **no
-space firing SFX/VFX**. Goal:
-- **W1 — starter melee weapon:** add a simple melee item (e.g. `combat_knife`/`vibroblade`) to the starter
-  kit; verify on-foot melee damages creatures/enemies; it already has a slash-arc VFX (`WeaponFx.MeleeArc`)
-  + needs a swing/hit SFX. Bilingual name + icon.
-- **W2 — starter ship laser (mining AND combat):** a `ship_laser_basic` module fitted on the starter ship by
-  default that breaks asteroids **and** damages hostiles. Cleanest: a dual `weapon_class` (or allow the
-  starter laser against both targets regardless of `AsteroidDestruction`/`ShipWeapons` so it always works).
-  Blueprint + recipe so a lost one is re-craftable.
-- **W3 — fire in flight:** fire from the **space view** (crosshair / nearest-in-range target, a key to
-  fire), with cooldown + suit/ship energy, instead of the tech-UI list. Show the locked target.
-- **W4 — SFX + VFX in space:** a laser **beam** from the ship to the target, an **impact spark**, asteroid
-  **break debris**, and a distinct **mining** beam vs **combat** bolt; laser-fire + impact + mining sounds
-  (`ClientAudio`/`ProceduralAudio`). Reuse/extend `WeaponFx` for the space scene.
-- **W5 — editor + craft:** verify weapon modules are placeable in the **ship editor** palette (add them if
-  not); confirm the blueprints are craftable at the right station. Tests: starter kit has the melee weapon;
-  the starter ship laser breaks an asteroid AND damages a drone; firing respects cooldown/energy.
+_(Done 2026-06-06 — see the "Starter weapons + ship weapons finished (W1–W5)" entry above.)_
 
 ### Orbital bodies in the planet sky — planned (not started) ⭐ (2026-06-06)
 On a planet's surface, the **other nearby bodies of the system** (neighbouring planets/moons) and the

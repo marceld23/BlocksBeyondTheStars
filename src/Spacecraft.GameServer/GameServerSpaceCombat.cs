@@ -83,7 +83,10 @@ public sealed partial class GameServer
     /// <summary>The ship's current space-radar range in world units (base + radar-module bonus).</summary>
     public float ShipRadarRange => _shipRadarRange;
 
-    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, bool IsCombat);
+    // weapon_class: 0 = mining tool (breaks asteroids, can't hit hostiles), 1 = combat weapon (hits
+    // hostiles; breaks asteroids only where AsteroidDestruction allows weapons), 2 = dual laser (does both —
+    // the starter ship laser, so one weapon mines AND fights).
+    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, bool IsCombat, bool CanMine);
 
     /// <summary>True while the player is flying in a space instance.</summary>
     public bool InSpace(string playerId) => _playerInstance.ContainsKey(playerId);
@@ -461,7 +464,9 @@ public sealed partial class GameServer
                 return false;
             }
 
-            if (weapon.IsCombat && Rules.AsteroidDestruction != AsteroidDestructionMode.WeaponsAllowed)
+            // Mining tools + dual lasers always break asteroids; a pure combat cannon only where the
+            // server allows weapons against rocks.
+            if (!weapon.CanMine && Rules.AsteroidDestruction != AsteroidDestructionMode.WeaponsAllowed)
             {
                 reason = "Only mining tools may break asteroids on this server.";
                 return false;
@@ -511,11 +516,13 @@ public sealed partial class GameServer
             return false;
         }
 
+        int weaponClass = (int)def.Stats.GetValueOrDefault("weapon_class", 1);
         spec = new WeaponSpec(
             Damage: (float)def.Stats.GetValueOrDefault("weapon_damage", 10),
             Range: (float)def.Stats.GetValueOrDefault("weapon_range", 50),
             Cooldown: def.Stats.GetValueOrDefault("weapon_cooldown", 1.0),
-            IsCombat: (int)def.Stats.GetValueOrDefault("weapon_class", 1) == 1);
+            IsCombat: weaponClass >= 1,                  // combat weapons + dual lasers can hit hostiles
+            CanMine: weaponClass == 0 || weaponClass == 2); // mining tools + dual lasers can break asteroids
         return true;
     }
 

@@ -66,6 +66,13 @@ namespace Spacecraft.Client
         private readonly List<TractorBeam> _beams = new List<TractorBeam>();
         private float _cargoFlash;        // pulses the cargo readout when salvage is tractored in
 
+        // Fire the ship laser in flight (LMB / Space): the starter dual laser mines asteroids + fights.
+        private float _fireCd;            // shot cooldown
+        private string _fireTargetId;     // the entity currently in the firing solution (for the reticle)
+        private const string FlightWeapon = "ship_laser_basic";
+        private const float WeaponRange = 45f;  // matches ship_laser_basic weapon_range
+        private const float FireRate = 0.45f;   // seconds between shots
+
         // System sun: a bright billboard far off in a fixed direction, tinted by the star's colour, plus a
         // screen-space lens flare that blooms when you look toward it.
         private Transform _sun;
@@ -327,6 +334,85 @@ namespace Spacecraft.Client
                     Game.Network?.SendLeaveSpace(_landTargetId); // land on the nearby body
                 }
             }
+
+            // Fire the ship laser (hold LMB or Space): auto-locks the best target in range ahead — mines
+            // asteroids and fights hostiles with the same dual laser. Rate-limited so it can't be spammed.
+            _fireCd -= Time.deltaTime;
+            var fireTarget = BestFireTarget();
+            _fireTargetId = fireTarget?.Id;
+            if (fireTarget != null && _fireCd <= 0f && (Input.GetMouseButton(0) || Input.GetKey(KeyCode.Space)))
+            {
+                _fireCd = FireRate;
+                FireAt(fireTarget);
+            }
+        }
+
+        /// <summary>The best entity to fire on: the nearest asteroid/hostile within weapon range that's
+        /// roughly ahead of the ship (so you aim by pointing the nose at it).</summary>
+        private Spacecraft.Networking.Messages.NetCombatEntity BestFireTarget()
+        {
+            var space = Game.Space;
+            if (space == null || _ship == null)
+            {
+                return null;
+            }
+
+            Vector3 shipPos = _ship.transform.localPosition;
+            Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
+            Spacecraft.Networking.Messages.NetCombatEntity best = null;
+            float bestScore = 0.25f; // require at least this much forward alignment
+            foreach (var e in space.Entities)
+            {
+                if (e.Kind != "Asteroid" && e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser")
+                {
+                    continue;
+                }
+
+                Vector3 to = new Vector3(e.X, e.Y, e.Z) - shipPos;
+                float dist = to.magnitude;
+                if (dist > WeaponRange || dist < 0.001f)
+                {
+                    continue;
+                }
+
+                float align = Vector3.Dot(to / dist, fwd);          // 1 = dead ahead
+                float score = align - (dist / WeaponRange) * 0.25f;  // prefer aligned + close
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = e;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>Sends the fire intent + plays the laser beam, impact flash and sound. Mining (asteroid)
+        /// reads amber; combat reads cyan.</summary>
+        private void FireAt(Spacecraft.Networking.Messages.NetCombatEntity target)
+        {
+            Game.Network?.SendFireWeapon(FlightWeapon, target.Id);
+            bool mining = target.Kind == "Asteroid";
+            Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
+
+            Vector3 muzzle = _ship.transform.localPosition + _ship.transform.localRotation * new Vector3(0f, 0f, 2.2f);
+            Vector3 hit = new Vector3(target.X, target.Y, target.Z);
+            SpawnLaserBeam(muzzle, hit, col);
+            ClientAudio.Instance?.Cue(mining ? "ship_mine" : "ship_laser");
+        }
+
+        /// <summary>A bright laser bolt from the ship to the target plus an impact flash, both fading fast.</summary>
+        private void SpawnLaserBeam(Vector3 from, Vector3 to, Color color)
+        {
+            var beam = Cube("LaserBolt", _root.transform, Vector3.zero, Vector3.one, Unlit(color));
+            float len = Vector3.Distance(from, to);
+            beam.transform.localPosition = (from + to) * 0.5f;
+            beam.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
+            beam.transform.localScale = new Vector3(0.16f, 0.16f, len);
+            _beams.Add(new TractorBeam { Go = beam, Life = 0.1f, Max = 0.1f });
+
+            var flash = Cube("LaserImpact", _root.transform, to, Vector3.one * 1.4f, Unlit(color));
+            _beams.Add(new TractorBeam { Go = flash, Life = 0.14f, Max = 0.14f });
         }
 
         /// <summary>Flies the ship in to dock with the station + fades out, then sends the board intent.
@@ -971,6 +1057,7 @@ namespace Spacecraft.Client
         private Canvas _ui;
         private Image _fade;
         private Image _hit;
+        private Image _crosshair;
         private Text _hint;
         private Text _board;
         private Text _cargo;
@@ -1077,6 +1164,18 @@ namespace Spacecraft.Client
             _cargo.alignment = TextAnchor.MiddleLeft;
             _cargo.horizontalOverflow = HorizontalWrapMode.Overflow;
             _cargo.raycastTarget = false;
+
+            // Aiming dot at screen centre — brightens cyan when the laser has a target locked.
+            var chGo = new GameObject("Crosshair", typeof(RectTransform));
+            chGo.transform.SetParent(_ui.transform, false);
+            var chrt = chGo.GetComponent<RectTransform>();
+            chrt.anchorMin = chrt.anchorMax = chrt.pivot = new Vector2(0.5f, 0.5f);
+            chrt.sizeDelta = new Vector2(10f, 10f);
+            chrt.anchoredPosition = Vector2.zero;
+            _crosshair = chGo.AddComponent<Image>();
+            _crosshair.sprite = UiKit.SolidSprite;
+            _crosshair.color = new Color(0.6f, 0.7f, 0.8f, 0.35f);
+            _crosshair.raycastTarget = false;
         }
 
         /// <summary>Creates the chain of lens-flare sprites once (a big bloom at the sun + ghosts that march
@@ -1232,6 +1331,19 @@ namespace Spacecraft.Client
                 foreach (var g in _flare)
                 {
                     g.enabled = false;
+                }
+            }
+
+            // Aiming dot: shown in free flight, cyan when the laser has a target locked.
+            if (_crosshair != null)
+            {
+                bool show = _phase == Phase.Cruise && !_confirmLand;
+                _crosshair.enabled = show;
+                if (show)
+                {
+                    _crosshair.color = _fireTargetId != null
+                        ? new Color(0.5f, 1f, 1f, 0.9f)
+                        : new Color(0.6f, 0.7f, 0.8f, 0.35f);
                 }
             }
         }

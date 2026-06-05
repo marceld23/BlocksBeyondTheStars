@@ -20,6 +20,7 @@ namespace Spacecraft.Client
             "mine_stone", "mine_metal", "mine_crystal", "mine_dirt", "place_block",
             // combat / damage
             "asteroid_break", "ship_destroyed", "ship_shield_hit", "ship_hull_hit", "hurt_player",
+            "ship_laser", "ship_mine",
             "thunder_1", "thunder_2", "thunder_3",
             // ui
             "ui_hover", "ui_click", "ui_confirm", "ui_back",
@@ -39,6 +40,8 @@ namespace Spacecraft.Client
             "mine_crystal" => Clang("mine_crystal", 1100f, 0.30f, 0.32f),
             "place_block" => Thud("place_block", 0.14f, 0.45f),
             "asteroid_break" => Explosion("asteroid_break", 0.55f, 0.5f),
+            "ship_laser" => Zap("ship_laser", 0.16f, 0.5f),       // a quick combat laser "pew"
+            "ship_mine" => Zap("ship_mine", 0.26f, 0.35f),        // a steadier mining beam zap
             "ship_destroyed" => Explosion("ship_destroyed", 1.3f, 0.7f),
             "ship_shield_hit" => Zap("ship_shield_hit", 0.28f, 0.5f),
             "ship_hull_hit" => Clang("ship_hull_hit", 200f, 0.3f, 0.5f),

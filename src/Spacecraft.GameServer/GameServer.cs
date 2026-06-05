@@ -444,7 +444,7 @@ public sealed partial class GameServer
         }
 
         var ship = new ShipState { CurrentLocationId = _meta.DefaultPlanetType };
-        foreach (var key in new[] { "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic" })
+        foreach (var key in new[] { "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "ship_laser_basic" })
         {
             if (_content.GetShipModule(key) is not null)
             {
@@ -1072,6 +1072,7 @@ public sealed partial class GameServer
         state.Inventory.SetSlot(1, new ItemStack("block_placer", 1));
         state.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
         state.Inventory.SetSlot(3, new ItemStack("suit_lamp", 1));
+        state.Inventory.SetSlot(4, new ItemStack("machete", 1)); // a simple starter melee weapon
         _repo.SavePlayer(state);
         return state;
     }

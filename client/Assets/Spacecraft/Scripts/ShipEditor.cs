@@ -74,6 +74,8 @@ namespace Spacecraft.Client
                 P("quarters", "Quarters", "station", new Color(0.6f, 0.45f, 0.8f)),
                 P("cargo", "Cargo Hold", "station", new Color(0.7f, 0.6f, 0.45f)),
                 P("hangar", "Hangar", "station", new Color(0.35f, 0.4f, 0.46f)),
+                P("ship_laser_basic", "Laser Cannon", "station", new Color(0.45f, 1f, 1f)),
+                P("ship_cannon_1", "Ship Cannon", "station", new Color(0.95f, 0.55f, 0.4f)),
             };
 
             var camGo = new GameObject("EditorCamera");

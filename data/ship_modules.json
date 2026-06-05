@@ -74,6 +74,12 @@
     "stats": { "weapon_class": 0, "weapon_damage": 25, "weapon_range": 40, "weapon_cooldown": 1.5, "weapon_energy": 2 }
   },
   {
+    "key": "ship_laser_basic", "nameKey": "module.ship_laser_basic.name", "descriptionKey": "module.ship_laser_basic.desc",
+    "mandatory": false,
+    "buildCost": [ { "item": "iron_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ],
+    "stats": { "weapon_class": 2, "weapon_damage": 14, "weapon_range": 45, "weapon_cooldown": 0.6, "weapon_energy": 1 }
+  },
+  {
     "key": "ship_cannon_1", "nameKey": "module.ship_cannon_1.name", "descriptionKey": "module.ship_cannon_1.desc",
     "mandatory": false, "requiredBlueprint": "ship_cannon_1",
     "buildCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 } ],

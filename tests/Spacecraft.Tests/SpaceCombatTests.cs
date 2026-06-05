@@ -192,6 +192,64 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    [Fact]
+    public void StarterShip_HasADualLaser_ThatMinesAsteroids()
+    {
+        var server = NewServer("laser_mine", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.AsteroidDestruction = AsteroidDestructionMode.MiningOnly; // a pure cannon couldn't, but the dual laser can
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            Assert.True(server.Ship.HasModule("ship_laser_basic")); // fitted on every starter ship
+            server.EnterSpace("Pilot");
+
+            var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
+            server.ShipMove("Pilot", ast.Position.X, ast.Position.Y, ast.Position.Z); // close enough to fire
+            float before = ast.Hull;
+            server.FireWeapon("Pilot", "ship_laser_basic", ast.Id);
+
+            Assert.True(ast.Hull < before, "The dual laser should mine asteroids even in MiningOnly mode.");
+        }
+    }
+
+    [Fact]
+    public void StarterShip_DualLaser_AlsoDamagesHostiles()
+    {
+        var server = NewServer("laser_fight", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Rare;
+            r.ShipWeapons = ShipWeaponMode.NpcsOnly;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
+            float before = drone.Hull;
+            server.FireWeapon("Pilot", "ship_laser_basic", drone.Id);
+
+            Assert.True(drone.Hull < before, "The dual laser should also fight hostiles.");
+        }
+    }
+
+    [Fact]
+    public void StarterKit_IncludesASimpleMeleeWeapon()
+    {
+        var server = NewServer("kit", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            Assert.True(pilot.State.Inventory.CountOf("machete") >= 1, "A new player should start with a melee weapon.");
+        }
+    }
+
     // ---------------- Ship defeat = no permanent loss ----------------
 
     [Fact]
