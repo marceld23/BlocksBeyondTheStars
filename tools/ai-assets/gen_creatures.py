@@ -31,6 +31,11 @@ TEXTURES = [
     ("chitin", "insectoid chitin shell, hard segmented carapace plates"),
     ("hide", "thick leathery wrinkled animal hide"),
     ("slime", "wet translucent slimy amphibian skin with bumps"),
+    ("feathers", "soft layered bird feathers and plumage"),
+    ("spots", "animal skin with leopard-like dark spots and rosettes"),
+    ("stripes", "animal skin with bold tiger-like stripes"),
+    ("warty", "bumpy warty toad amphibian skin with knobbly lumps"),
+    ("plated", "armored bony plates and scutes like a crocodile back"),
 ]
 
 

@@ -77,6 +77,16 @@ public sealed class CreatureSpecies
     public int BodySegments { get; set; } = 1;
     public int ColorRgb { get; set; } = 0xFFFFFF;
 
+    /// <summary>Number of eyes on the head — optional (0 = eyeless) and often, but not always, two; some
+    /// species have three or more. Random per species for visual variety.</summary>
+    public int Eyes { get; set; } = 2;
+
+    /// <summary>Number of horns/spikes on the head/back (0 = none) — silhouette variety.</summary>
+    public int Horns { get; set; }
+
+    /// <summary>Secondary/belly accent colour (packed RGB) for a two-tone body, for more visible variety.</summary>
+    public int BellyRgb { get; set; } = 0xFFFFFF;
+
     /// <summary>Bioluminescent — glows in the dark (ties into the lighting system).</summary>
     public bool Glows { get; set; }
 

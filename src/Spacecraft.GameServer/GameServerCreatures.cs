@@ -396,6 +396,9 @@ public sealed partial class GameServer
             BodySegments = sp?.BodySegments ?? 1,
             ColorRgb = sp?.ColorRgb ?? 0xFFFFFF,
             Glows = sp?.Glows ?? false,
+            Eyes = sp?.Eyes ?? 2,
+            Horns = sp?.Horns ?? 0,
+            BellyRgb = sp?.BellyRgb ?? (sp?.ColorRgb ?? 0xFFFFFF),
         };
     }
 

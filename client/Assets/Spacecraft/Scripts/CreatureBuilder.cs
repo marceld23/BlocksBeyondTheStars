@@ -27,6 +27,14 @@ namespace Spacecraft.Client
             EnsureTextures();
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
             Color baseColor = Rgb(c.ColorRgb);
+            Color bellyColor = Rgb(c.BellyRgb);
+
+            // Per-species proportion jitter (from the id) so two species with the same parts still differ in
+            // build — lanky vs squat, big-headed vs small, slim vs broad.
+            int idh = StableIdHash(c.SpeciesId);
+            float headScale = 0.75f + ((idh >> 2) & 7) / 7f * 0.65f; // 0.75..1.40
+            float bodyWide = 0.85f + ((idh >> 5) & 7) / 7f * 0.55f;  // 0.85..1.40
+            float legLong = 0.75f + ((idh >> 8) & 7) / 7f * 0.65f;   // 0.75..1.40
 
             // Hostiles read a touch more aggressive; sleepers are dimmed.
             if (c.Hostile)
@@ -50,24 +58,55 @@ namespace Spacecraft.Client
                 float z = (i - (segments - 1) * 0.5f) * segLen;
                 float taper = 1f - 0.12f * i; // slimmer toward the tail
                 AddPart(root, "Body" + i, new Vector3(0f, bodyY, z),
-                    new Vector3(unit * 1.1f * taper, unit * 0.95f * taper, segLen), _bodyMat);
+                    new Vector3(unit * 1.1f * taper * bodyWide, unit * 0.95f * taper, segLen), _bodyMat);
             }
+
+            // Two-tone underside: a flatter belly slab in the accent colour, so the body isn't one flat hue.
+            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+            AddPart(root, "Belly", new Vector3(0f, bodyY - unit * 0.42f, 0f),
+                new Vector3(unit * 1.02f * bodyWide, unit * 0.32f, segments * segLen * 0.9f), bellyMat);
 
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
             // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture.
             _headPivot = AddPivotPart(root, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f),
-                new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.9f, unit * 0.85f, unit * 0.8f), _bodyMat);
+                new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.9f * headScale, unit * 0.85f * headScale, unit * 0.8f * headScale), _bodyMat);
 
-            // Eyes (small bright cubes) so it reads as a face — parented to the head so they bob with it.
-            var eyeMat = Unlit(c.Glows ? new Color(0.8f, 1f, 0.9f) : new Color(0.95f, 0.95f, 0.8f));
-            float eyeX = unit * 0.28f;
-            AddPartTo(_headPivot, "EyeL", new Vector3(-eyeX, unit * 0.15f, unit * 0.70f), Vector3.one * unit * 0.16f, eyeMat);
-            AddPartTo(_headPivot, "EyeR", new Vector3(eyeX, unit * 0.15f, unit * 0.70f), Vector3.one * unit * 0.16f, eyeMat);
+            // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
+            // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
+            int eyes = Mathf.Clamp(c.Eyes, 0, 8);
+            if (eyes > 0)
+            {
+                var eyeMat = Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.85f));
+                var pupilMat = Unlit(new Color(0.06f, 0.06f, 0.08f));
+                float eyeSize = unit * 0.24f * headScale;
+                float spread = unit * headScale * (0.30f + 0.05f * eyes); // wider span the more eyes there are
+                for (int e = 0; e < eyes; e++)
+                {
+                    float fx = eyes == 1 ? 0f : Mathf.Lerp(-spread, spread, e / (float)(eyes - 1));
+                    var pos = new Vector3(fx, unit * 0.16f * headScale, unit * 0.70f * headScale);
+                    AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat);
+                    AddPartTo(_headPivot, "Pupil" + e, pos + new Vector3(0f, 0f, eyeSize * 0.45f), Vector3.one * (eyeSize * 0.5f), pupilMat);
+                }
+            }
+
+            // Horns/spikes on top of the head — silhouette variety.
+            int horns = Mathf.Clamp(c.Horns, 0, 4);
+            if (horns > 0)
+            {
+                var hornMat = Lit(new Color(0.20f, 0.17f, 0.15f), null);
+                float hornH = unit * 0.5f * headScale;
+                for (int hn = 0; hn < horns; hn++)
+                {
+                    float hx = horns == 1 ? 0f : Mathf.Lerp(-unit * 0.30f * headScale, unit * 0.30f * headScale, hn / (float)(horns - 1));
+                    AddPartTo(_headPivot, "Horn" + hn, new Vector3(hx, unit * (0.5f * headScale + 0.25f * legLong), unit * 0.05f),
+                        new Vector3(unit * 0.13f, hornH, unit * 0.13f), hornMat);
+                }
+            }
 
             // Legs: paired under the body along its length, each on a hip pivot so it can swing.
             int legs = Mathf.Clamp(c.Legs, 0, 8);
             int pairs = legs / 2;
-            float legH = bodyY * 0.9f;
+            float legH = bodyY * 0.9f * legLong;
             for (int p = 0; p < pairs; p++)
             {
                 float z = pairs == 1 ? 0f : Mathf.Lerp(-segLen * 0.7f, segLen * 0.7f, p / (float)(pairs - 1));
@@ -175,6 +214,17 @@ namespace Spacecraft.Client
         private static Color Rgb(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
+        private static int StableIdHash(string s)
+        {
+            int h = 0;
+            foreach (char ch in s ?? string.Empty)
+            {
+                h = h * 31 + ch;
+            }
+
+            return h & 0x7fffffff;
+        }
+
         private static Material Unlit(Color color)
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Spacecraft/VertexColorOpaque");
@@ -183,6 +233,7 @@ namespace Spacecraft.Client
 
         // Shared (loaded once) tintable grayscale hide tiles; the body multiplies them by the species colour.
         private static Texture2D _scales, _fur, _chitin, _hide, _slime;
+        private static Texture2D _feathers, _spots, _stripes, _warty, _plated;
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -198,24 +249,30 @@ namespace Spacecraft.Client
             _chitin = LoadTex("creature_chitin");
             _hide = LoadTex("creature_hide");
             _slime = LoadTex("creature_slime");
+            _feathers = LoadTex("creature_feathers");
+            _spots = LoadTex("creature_spots");
+            _stripes = LoadTex("creature_stripes");
+            _warty = LoadTex("creature_warty");
+            _plated = LoadTex("creature_plated");
         }
 
-        /// <summary>Picks a hide tile for the species: glowing → slime, hostile → chitin, winged → scales,
-        /// otherwise a stable choice from the species id so each species looks consistent.</summary>
+        /// <summary>Picks a hide tile for the species: glowing → slime, winged → feathers, hostile → chitin/
+        /// plated, otherwise a stable choice from a wide pool keyed off the species id (so each species looks
+        /// consistent but the world's fauna spans many skins).</summary>
         private static Texture2D PickHide(NetCreature c)
         {
             if (c.Glows && _slime != null) return _slime;
-            if (c.Hostile && _chitin != null) return _chitin;
-            if (c.HasWings && _scales != null) return _scales;
+            if (c.HasWings && _feathers != null) return _feathers;
 
-            var opts = new[] { _fur, _hide, _scales };
-            int h = 0;
-            foreach (char ch in c.SpeciesId ?? string.Empty)
+            int h = StableIdHash(c.SpeciesId);
+            if (c.Hostile)
             {
-                h = h * 31 + ch;
+                var hostileOpts = new[] { _chitin, _plated, _scales };
+                return hostileOpts[h % hostileOpts.Length] ?? _chitin ?? _hide;
             }
 
-            return opts[(h & 0x7fffffff) % opts.Length] ?? _hide;
+            var opts = new[] { _fur, _hide, _scales, _spots, _stripes, _warty, _plated };
+            return opts[h % opts.Length] ?? _hide;
         }
 
         private static Texture2D LoadTex(string key)

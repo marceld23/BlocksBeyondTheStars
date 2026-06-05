@@ -710,6 +710,9 @@ public sealed class NetCreature
     public int BodySegments { get; set; } = 1;
     public int ColorRgb { get; set; } = 0xFFFFFF;
     public bool Glows { get; set; }
+    public int Eyes { get; set; } = 2;
+    public int Horns { get; set; }
+    public int BellyRgb { get; set; } = 0xFFFFFF;
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

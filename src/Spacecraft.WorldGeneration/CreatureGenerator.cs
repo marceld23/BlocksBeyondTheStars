@@ -82,6 +82,9 @@ public static class CreatureGenerator
             HasTail = rng.NextDouble() < 0.5,
             BodySegments = 1 + rng.Next(3),
             ColorRgb = PickColor(rng, habitat),
+            BellyRgb = PickColor(rng, habitat), // a second tone → two-tone bodies
+            Eyes = Weighted(rng, 0, 12, 2, 50, 3, 18, 4, 14, 6, 6),   // eyeless / two / three / four / six
+            Horns = Weighted(rng, 0, 55, 1, 18, 2, 15, 3, 12),         // none / one / two / three
             Glows = habitat == CreatureHabitat.Lava || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
 
             DropItem = dropItem,
@@ -133,9 +136,15 @@ public static class CreatureGenerator
 
     private static int PickColor(System.Random rng, CreatureHabitat habitat)
     {
-        // Habitat-tinted base hue + jitter, packed RGB.
+        // ~1 in 4 species is a vivid, fully-random colour (a striking outlier); the rest are a habitat-tinted
+        // base hue with a wide jitter — so a world's fauna spans subtle naturals to bold exotics.
+        if (rng.NextDouble() < 0.25)
+        {
+            return (Clamp8(rng.Next(40, 256)) << 16) | (Clamp8(rng.Next(40, 256)) << 8) | Clamp8(rng.Next(40, 256));
+        }
+
         int r, g, b;
-        int j() => rng.Next(-30, 31);
+        int j() => rng.Next(-55, 56);
         switch (habitat)
         {
             case CreatureHabitat.Water: r = 60; g = 130; b = 200; break;
@@ -144,10 +153,7 @@ public static class CreatureGenerator
             default: r = 110; g = 150; b = 80; break; // land
         }
 
-        r = Clamp8(r + j());
-        g = Clamp8(g + j());
-        b = Clamp8(b + j());
-        return (r << 16) | (g << 8) | b;
+        return (Clamp8(r + j()) << 16) | (Clamp8(g + j()) << 8) | Clamp8(b + j());
     }
 
     private static int Clamp8(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
