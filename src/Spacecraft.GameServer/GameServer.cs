@@ -304,6 +304,7 @@ public sealed partial class GameServer
     private void ResetWorldRuntimeState()
     {
         _creatures.Clear();
+        _speciesRoster = System.Array.Empty<Shared.Definitions.CreatureSpecies>();
         _planetEnemies.Clear();
         _npcs.Clear();
         _settlementMarkers.Clear();

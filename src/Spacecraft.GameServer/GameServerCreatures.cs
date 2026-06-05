@@ -90,6 +90,12 @@ public sealed partial class GameServer
 
     private void TickCreatures(double dt)
     {
+        // Orbital stations (void worlds) have no wildlife at all — only peaceful NPCs.
+        if (_world.Planet.Void)
+        {
+            return;
+        }
+
         if (_speciesRoster.Length == 0)
         {
             return; // barren world — no life

@@ -274,9 +274,11 @@ public static class StationGenerator
             }
         }
 
-        // 6) Hangar mouth: open the outer -Z wall of the hangar module to space.
+        // 6) Hangar mouth: glaze the outer -Z wall of the hangar module with an energy field — you see
+        //    space through it, but it seals the hull so nobody can walk out into the void.
+        ushort field = content.GetBlock("force_field")?.NumericId.Value ?? glass;
         var hangar = placed.Find(p => p.Type == "hangar");
-        OpenHangar(Set, hangar.Origin);
+        OpenHangar(Set, hangar.Origin, field);
 
         // 7) Markers per module type, at the room's interior floor centre.
         var markers = new List<StationMarker>();
@@ -603,13 +605,14 @@ public static class StationGenerator
         }
     }
 
-    /// <summary>Opens the outer -Z wall of the hangar module to space (the docking mouth).</summary>
-    private static void OpenHangar(System.Action<int, int, int, ushort> set, Vector3i o)
+    /// <summary>Glazes the outer -Z wall of the hangar module with an energy field (the docking mouth):
+    /// transparent so space shows through, but solid so the player can't fall out into the void.</summary>
+    private static void OpenHangar(System.Action<int, int, int, ushort> set, Vector3i o, ushort field)
     {
         for (int x = o.X + 1; x < o.X + RoomW - 1; x++)
         for (int y = o.Y + 1; y <= o.Y + 3 && y < o.Y + RoomH - 1; y++)
         {
-            set(x, y, o.Z, 0);
+            set(x, y, o.Z, field);
         }
     }
 }

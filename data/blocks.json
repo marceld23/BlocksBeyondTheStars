@@ -11,6 +11,7 @@
   { "key": "data_cache",   "nameKey": "block.data_cache.name",   "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "data_fragment", "count": 1 } ] },
   { "key": "glass",        "nameKey": "block.glass.name",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass", "count": 1 } ] },
   { "key": "iron_wall",    "nameKey": "block.iron_wall.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] },
+  { "key": "force_field",  "nameKey": "block.force_field.name",  "hardness": 100, "requiredTool": "none",  "minToolTier": 0, "mineable": false, "drops": [] },
   { "key": "light_white",  "nameKey": "block.light_white.name",  "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [] },
   { "key": "light_red",    "nameKey": "block.light_red.name",    "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [] },
   { "key": "light_green",  "nameKey": "block.light_green.name",  "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [] },

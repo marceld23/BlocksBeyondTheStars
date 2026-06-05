@@ -74,6 +74,7 @@ namespace Spacecraft.Client
         {
             P("iron_wall", "Hull", "block", new Color(0.55f, 0.57f, 0.62f)),
             P("glass", "Viewport", "block", new Color(0.45f, 0.8f, 0.95f)),
+            P("force_field", "Energy field", "block", new Color(0.35f, 0.8f, 1f)),
             P("light", "Light", "block", new Color(1f, 0.95f, 0.55f)),
             P("hangar", "Hangar marker", "marker", new Color(0.35f, 0.4f, 0.46f)),
             P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),

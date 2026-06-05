@@ -81,7 +81,8 @@ public sealed partial class GameServer
 
     private void TickFlora(double dt)
     {
-        if (_floraRegrow.Count == 0)
+        // Stations (void worlds) grow no flora; nothing to regrow there.
+        if (_world.Planet.Void || _floraRegrow.Count == 0)
         {
             return;
         }

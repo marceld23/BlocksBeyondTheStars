@@ -192,6 +192,20 @@ namespace Spacecraft.Client
                     }
                     break;
 
+                case "force_field":
+                    // Energy curtain: bright horizontal scan-bands + a few drifting sparks over the cyan base.
+                    for (int yy = 0; yy < Tile; yy++)
+                    {
+                        if (yy % 3 != 0) continue;
+                        for (int xx = 0; xx < Tile; xx++)
+                        {
+                            Texture.SetPixel(ox + xx, oy + yy, new Color(0.65f, 0.96f, 1f));
+                        }
+                    }
+
+                    Speckle(ox, oy, rng, new Color(0.85f, 1f, 1f), 8);
+                    break;
+
                 case "water":
                     // Horizontal wave crests (a few lighter bands that ripple along x).
                     {
@@ -473,6 +487,7 @@ namespace Spacecraft.Client
             "titanium_ore" => new Color(0.58f, 0.60f, 0.66f),
             "data_cache" => new Color(0.18f, 0.40f, 0.55f),
             "glass" => new Color(0.70f, 0.90f, 0.95f),
+            "force_field" => new Color(0.35f, 0.80f, 1f),
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
             "water" => new Color(0.20f, 0.42f, 0.85f),
             "lava" => new Color(0.90f, 0.35f, 0.10f),

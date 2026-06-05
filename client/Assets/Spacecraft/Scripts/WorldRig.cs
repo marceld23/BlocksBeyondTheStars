@@ -145,6 +145,11 @@ namespace Spacecraft.Client
             sky.Game = boot;
             sky.Camera = cam;
 
+            // Twinkling stars behind the world (space, airless skies, station windows, planet nights).
+            var starfield = root.AddComponent<Starfield>();
+            starfield.Game = boot;
+            starfield.Camera = cam;
+
             // Surface cloud layer (per-planet colour/cover; storms darken it).
             var clouds = root.AddComponent<Clouds>();
             clouds.Game = boot;

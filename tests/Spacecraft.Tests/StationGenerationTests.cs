@@ -98,6 +98,35 @@ public sealed class StationGenerationTests
     }
 
     [Fact]
+    public void HangarMouth_IsSealedWithAForceField_NotOpenToSpace()
+    {
+        var c = Content();
+        ushort field = c.GetBlock("force_field")!.NumericId.Value;
+        ushort air = 0;
+
+        // Across several seeds, the hangar's outer -Z wall (the docking mouth) must be glazed with the
+        // force field — never left as an open air gap you could walk out into space through.
+        for (long seed = 1; seed <= 6; seed++)
+        {
+            var s = StationGenerator.Generate("large", seed, c);
+            var hangar = s.Modules.First(m => m.Type == "hangar");
+            var o = hangar.Origin;
+
+            int glazed = 0, holes = 0;
+            for (int x = o.X + 1; x <= o.X + 5; x++)
+            for (int y = o.Y + 1; y <= o.Y + 3; y++)
+            {
+                ushort b = s.Get(x, y, o.Z);
+                if (b == field) glazed++;
+                else if (b == air) holes++;
+            }
+
+            Assert.True(glazed > 0, $"Seed {seed}: hangar mouth should be glazed with a force field.");
+            Assert.Equal(0, holes); // no open gap to the void anywhere in the mouth
+        }
+    }
+
+    [Fact]
     public void Station_HasVendorAndMissionBoardMarkers()
     {
         var c = Content();

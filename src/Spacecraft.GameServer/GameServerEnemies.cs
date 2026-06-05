@@ -32,6 +32,12 @@ public sealed partial class GameServer
             return;
         }
 
+        // Orbital stations (void worlds) are safe havens: only peaceful NPCs live there, never hostiles.
+        if (_world.Planet.Void)
+        {
+            return;
+        }
+
         // Eligible targets: joined players on the surface (outside the ship, not flying in space).
         var targets = JoinedInActiveWorld()
             .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))

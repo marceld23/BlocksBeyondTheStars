@@ -154,6 +154,29 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void Station_NeverSpawnsHostilesOrWildlife_OnlyPeacefulNpcs()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // Hostile aliens fully enabled — they would normally spawn near a player on a surface.
+            var pilot = server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+            Assert.True(server.InStation("Pilot"));
+
+            // Tick well past any spawn interval while standing on the station (a void world).
+            for (int i = 0; i < 10; i++)
+            {
+                server.TickForTest(60.0);
+            }
+
+            Assert.Empty(server.PlanetEnemies); // no hostile aliens aboard the station
+            Assert.Empty(server.Creatures);     // no wandering wildlife either
+            Assert.True(server.NpcCount > 0);   // only the peaceful station crew lives here
+        }
+    }
+
+    [Fact]
     public void LeaveStation_TravelsBackToThePlanet()
     {
         var server = Started(out var repo);

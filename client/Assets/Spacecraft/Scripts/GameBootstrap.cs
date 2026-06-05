@@ -26,6 +26,7 @@ namespace Spacecraft.Client
 
         [Header("Rendering")]
         public Material ChunkMaterial;
+        public Material ChunkMaterialTransparent; // submesh 1: see-through glass + energy fields
 
         // Our avatar colours (packed 0xRRGGBB), set by WorldRig; sent to the server on join.
         public int SkinRgb = 0xD9AE8C;
@@ -256,6 +257,13 @@ namespace Spacecraft.Client
             {
                 ChunkMaterial = new Material(atlasShader) { mainTexture = Atlas.Texture };
                 ChunkMaterial.SetTexture("_NormalTex", Atlas.NormalTexture); // per-pixel normal mapping
+
+                // Alpha-blended material for the see-through submesh (glass viewports + energy fields).
+                var transparentShader = Shader.Find("Spacecraft/BlockAtlasTransparent");
+                if (transparentShader != null)
+                {
+                    ChunkMaterialTransparent = new Material(transparentShader) { mainTexture = Atlas.Texture };
+                }
             }
             else
             {
@@ -551,7 +559,11 @@ namespace Spacecraft.Client
                 go.transform.position = new Vector3(SceneX(origin.X), origin.Y, origin.Z); // seam-aware (longitude wraps)
                 go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
-                mr.sharedMaterial = ChunkMaterial;
+                // Submesh 0 → opaque atlas, submesh 1 → see-through atlas (glass/fields). Fall back to a
+                // single material if the transparent shader is missing (the spare submesh just won't draw).
+                mr.sharedMaterials = ChunkMaterialTransparent != null
+                    ? new[] { ChunkMaterial, ChunkMaterialTransparent }
+                    : new[] { ChunkMaterial };
                 go.AddComponent<MeshCollider>();
                 _chunkObjects[coord] = go;
             }

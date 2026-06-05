@@ -24,7 +24,8 @@ namespace Spacecraft.Client
         public static Mesh Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null)
         {
             var verts = new List<Vector3>();
-            var tris = new List<int>();
+            var tris = new List<int>();   // submesh 0: opaque blocks
+            var trisT = new List<int>();  // submesh 1: see-through blocks (glass / force fields)
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
             var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
@@ -70,6 +71,10 @@ namespace Spacecraft.Client
                     continue;
                 }
 
+                // See-through blocks (glass, force fields) render in a separate alpha-blended submesh and
+                // don't hide the world behind them, so windows + energy barriers show space through.
+                bool transparent = IsTransparent(content, id);
+
                 // With an atlas, the texture carries the colour and vertex colour is just the
                 // per-face shade; without one, fall back to the flat palette × shade.
                 Color baseColor = atlas == null ? BlockColor(content, id) : Color.white;
@@ -86,9 +91,14 @@ namespace Spacecraft.Client
                 {
                     var dir = Faces[f];
                     int nx = wx + dir.X, ny = wy + dir.Y, nz = wz + dir.Z;
-                    if (!worldBlock(nx, ny, nz).IsAir)
+                    var nb = worldBlock(nx, ny, nz);
+                    // Opaque blocks hide faces behind solid neighbours but still draw faces behind glass/
+                    // fields (so you see the wall through the window). See-through blocks only draw their
+                    // faces toward open air — that culls glass↔glass seams + the hidden side against a wall.
+                    bool drawFace = transparent ? nb.IsAir : (nb.IsAir || IsTransparent(content, nb));
+                    if (!drawFace)
                     {
-                        continue; // neighbour solid => face hidden
+                        continue; // face hidden
                     }
 
                     float s = FaceShade(f);
@@ -98,7 +108,7 @@ namespace Spacecraft.Client
                     var col = atlas != null
                         ? new Color(matR, matG, s, emission)
                         : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
-                    AddFace(verts, tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv);
+                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv);
 
                     float sky = ny > Top(nx, nz) ? 1f : 0f; // the air this face looks into sees the sky?
                     skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
@@ -108,7 +118,12 @@ namespace Spacecraft.Client
 
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.SetVertices(verts);
+            // Two submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
+            // (BlockAtlasTransparent). The renderer is given both materials in the same order. Submesh 1
+            // is empty for chunks with no glass/fields — an empty submesh just draws nothing.
+            mesh.subMeshCount = 2;
             mesh.SetTriangles(tris, 0);
+            mesh.SetTriangles(trisT, 1);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
             mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x
@@ -146,6 +161,7 @@ namespace Spacecraft.Client
             switch (def?.Key)
             {
                 case "glass": return new Vector2(0.90f, 0.0f);
+                case "force_field": return new Vector2(0.60f, 0.0f);
                 case "ice": return new Vector2(0.85f, 0.0f);
                 case "water": return new Vector2(0.80f, 0.0f);
                 case "crystal": return new Vector2(0.95f, 0.15f);
@@ -173,6 +189,7 @@ namespace Spacecraft.Client
 
             switch (def?.Key)
             {
+                case "force_field": return 0.85f; // glowing energy barrier
                 case "light_white": return 1.00f;
                 case "light_red": return 1.00f;
                 case "light_green": return 1.00f;
@@ -188,6 +205,19 @@ namespace Spacecraft.Client
                 case "iron_ore": return 0.18f;
                 default: return 0f;
             }
+        }
+
+        /// <summary>See-through blocks: rendered in the alpha-blended submesh and treated like air when
+        /// culling neighbouring opaque faces, so the world behind shows through (windows, energy fields).</summary>
+        private static bool IsTransparent(GameContent content, BlockId id)
+        {
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            var def = content.BlockById(id);
+            return def?.Key is "glass" or "force_field";
         }
 
         private static Color BlockColor(GameContent content, BlockId id)
@@ -219,6 +249,7 @@ namespace Spacecraft.Client
                 case "titanium_ore": return new Color(0.60f, 0.62f, 0.68f);
                 case "data_cache": return new Color(0.20f, 0.70f, 0.90f);
                 case "glass": return new Color(0.70f, 0.90f, 0.95f);
+                case "force_field": return new Color(0.35f, 0.80f, 1f);
                 case "iron_wall": return new Color(0.55f, 0.57f, 0.62f);
             }
 

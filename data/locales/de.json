@@ -11,6 +11,7 @@
   "block.data_cache.name": "Datenspeicher",
   "block.glass.name": "Glasblock",
   "block.iron_wall.name": "Eisenwand",
+  "block.force_field.name": "Kraftfeld",
   "block.water.name": "Wasser",
   "block.lava.name": "Lava",
   "block.sand.name": "Sand",

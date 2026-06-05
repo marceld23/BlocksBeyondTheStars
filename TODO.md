@@ -6,13 +6,29 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **259 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **280 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
 Architecture: Unity 6 (Built-in RP) client + authoritative .NET 8 server, everything built in code (no
 scene authoring). One shared world; contractless MessagePack networking; deterministic seed world-gen;
 SQLite persistence.
+
+---
+
+## ✅ Done (2026-06-06): Station safety + see-through fields + a twinkling starfield
+- **Stations are peaceful:** void worlds now hard-skip `TickEnemies`/`TickCreatures`/`TickFlora`, and
+  `ResetWorldRuntimeState` clears the species roster on every world switch — so no hostile aliens or
+  wandering wildlife ever spawn aboard a station; only the peaceful crew NPCs live there.
+- **No more holes to space:** the hangar mouth is glazed with a new **`force_field`** block (unbreakable,
+  `mineable:false`) instead of an open air gap — you can't walk out into the void.
+- **Real see-through rendering:** glass + force fields render in a second, alpha-blended chunk submesh
+  (`Spacecraft/BlockAtlasTransparent`) with transparency-aware face culling, so station **viewports and the
+  hangar energy field actually show space** (and stars) through them. Force fields glow cyan. Added to the
+  station editor palette ("Energy field").
+- **Twinkling starfield:** `Starfield` + `Spacecraft/Starfield` shader draw an additive star dome behind the
+  world that follows the camera and fades in for space, airless skies, station interiors (seen through the
+  windows) and **planet nights**, fading out toward noon. Each star pulses on its own phase.
 
 ---
 
