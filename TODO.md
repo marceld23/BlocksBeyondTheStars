@@ -29,7 +29,8 @@ Done in the user's reconsidered order (terrain shapes the basins → fluids fill
   `PlanetType.TreeDensity` (null = auto). 5 new world-gen tests; 297 pass.
 - **Two earlier bugs**: ship-station prompt is now look-based (not "always Workshop"); ships fill caves
   under their footprint + the spawn holds longer so you can't fall into a cave on load.
-- Follow-ups noted (für später): aquatic fauna + water flora; mineable water/lava (beam + source logic).
+- Follow-ups noted (für später): aquatic fauna + water flora. (Mineable water/lava — beam + source logic —
+  shipped 2026-06-06; see the planned-list ✅ below.)
 
 ## ✅ Done (2026-06-06): menu/editor/polish wave
 - **Craft quantity** stepper (− [n] + / Max), server clamps batch 1..999.
@@ -567,10 +568,14 @@ collider closes the gap when shut). Phased plan:
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
 ### Planned — requested 2026-06-06 (für später)
-- **Mineable water/lava (with the mining beam) + source logic** — water/lava should be **harvestable**, but
-  only with the **mining beam** (not the drill); and once the **source block / last cells** are removed it
-  must **stop reflowing** (don't infinitely regenerate). Ties into the fluid sim (`FluidLevel`/`ActiveFluid`)
-  and tool gating (`ToolCanMine`). Requested 2026-06-06.
+- ✅ **Mineable water/lava (with the mining beam) + source logic** (done 2026-06-06) — water/lava are now
+  `mineable` but `requiredTool: drill` + `minToolTier: 3`, so **only the mining beam** clears them (the
+  basic/titanium drills can't); each drops its placeable item. Removing a fluid cell calls `OnFluidRemoved`,
+  which **wakes the surrounding fluid** so a body refills the hole — worldgen sea cells act as full sources,
+  so you can only drain a **finite pool** by taking its last feeding cells. A settle guard in `TickFluids`
+  (`HasAirNeighbor`) lets calm full cells go dormant, so a big sea doesn't keep every cell active. Tests:
+  `WaterAndLava_AreMineable_OnlyByTheMiningBeam`, `Water_BasicDrillCannot_MiningBeamCan`,
+  `WaterBody_RefillsAMinedHole`.
 - **Multiplayer player-name reservation** — a player name must be **reserved on the server** so two clients
   can't collide on the same name/identity. (Today join takes any name.) Requested 2026-06-06.
 - **Creature swim undulation + dive** — terrain/water-following Y now ships (`AdjustHabitatHeight`: land/lava

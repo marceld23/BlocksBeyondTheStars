@@ -106,8 +106,10 @@ public sealed partial class GameServer
                 Spread(new Vector3i(pos.X, pos.Y, pos.Z - 1), kind, level, ref changed);
             }
 
-            // Keep sources (and cells that still flowed) active so the flow continues next step.
-            if (level >= FluidFull || changed)
+            // Keep a cell active while it still has somewhere to flow: it changed this step, or it's a full
+            // source with an open neighbour. A settled full cell (a calm body of water) goes dormant, so a big
+            // sea doesn't keep every cell active forever — mining wakes the frontier again via OnFluidRemoved.
+            if (changed || (level >= FluidFull && HasAirNeighbor(pos)))
             {
                 _activeFluid.Add(pos);
             }
@@ -129,6 +131,41 @@ public sealed partial class GameServer
         _fluidLevel[pos] = level;
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = kind.Value });
         _activeFluid.Add(pos);
+    }
+
+    private bool IsAirAt(int x, int y, int z) => _world.GetBlock(new Vector3i(x, y, z)).IsAir;
+
+    /// <summary>True if a cell has any neighbour it could flow into (sideways or down) — used to let settled
+    /// full cells go dormant, so a big body of fluid doesn't keep every cell active forever.</summary>
+    private bool HasAirNeighbor(Vector3i p)
+        => IsAirAt(p.X + 1, p.Y, p.Z) || IsAirAt(p.X - 1, p.Y, p.Z)
+        || IsAirAt(p.X, p.Y, p.Z + 1) || IsAirAt(p.X, p.Y, p.Z - 1)
+        || IsAirAt(p.X, p.Y - 1, p.Z);
+
+    /// <summary>When a fluid cell is removed (mined), wake the surrounding fluid so it flows back into the
+    /// hole. Worldgen sea cells are untracked → treated as full sources, so digging into a body refills; a
+    /// finite pool only stops once its last feeding cells are gone. Bounded by the per-tick budget + the
+    /// settle guard in <see cref="TickFluids"/>.</summary>
+    private void OnFluidRemoved(Vector3i pos)
+    {
+        Wake(new Vector3i(pos.X + 1, pos.Y, pos.Z));
+        Wake(new Vector3i(pos.X - 1, pos.Y, pos.Z));
+        Wake(new Vector3i(pos.X, pos.Y, pos.Z + 1));
+        Wake(new Vector3i(pos.X, pos.Y, pos.Z - 1));
+        Wake(new Vector3i(pos.X, pos.Y + 1, pos.Z)); // fluid directly above falls into the hole
+    }
+
+    private void Wake(Vector3i p)
+    {
+        if (IsFluid(_world.GetBlock(p).Value))
+        {
+            if (!_fluidLevel.ContainsKey(p))
+            {
+                _fluidLevel[p] = FluidFull; // a worldgen sea cell acts as a full source
+            }
+
+            _activeFluid.Add(p);
+        }
     }
 
     /// <summary>True if the player is standing in or directly on lava (for contact damage).</summary>

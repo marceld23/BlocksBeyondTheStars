@@ -1309,6 +1309,10 @@ public sealed partial class GameServer
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
         }
+        else if (IsFluid(current.Value))
+        {
+            OnFluidRemoved(pos); // wake the surrounding fluid so a body refills the hole until its source is gone
+        }
 
         OnBlockMined(session, def.Key);
     }
