@@ -97,6 +97,10 @@ public sealed class WorldGenerator
         return (a0.Amp + (a1.Amp - a0.Amp) * f, a0.Ridged + (a1.Ridged - a0.Ridged) * f);
     }
 
+    /// <summary>The world's surface sea level (world Y) — the height water/lava fills basins to, or
+    /// int.MinValue if the world has no surface fluid. Used to keep aquatic creatures in the water.</summary>
+    public int SeaLevel(PlanetType planet) => ResolveSeaFluid(planet).Level;
+
     /// <summary>The world's surface sea: which fluid fills its basins and up to what world-Y level. Water on
     /// worlds with an atmosphere, lava on volcanic / airless worlds (never both); a higher abundance raises
     /// the level so more low ground floods. Returns (int.MinValue, Air) for a dry world.</summary>

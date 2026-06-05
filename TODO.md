@@ -573,13 +573,10 @@ collider closes the gap when shut). Phased plan:
   and tool gating (`ToolCanMine`). Requested 2026-06-06.
 - **Multiplayer player-name reservation** — a player name must be **reserved on the server** so two clients
   can't collide on the same name/identity. (Today join takes any name.) Requested 2026-06-06.
-- **Creature movement: terrain/water-following + swim/dive** — creature roam keeps the **spawn Y fixed**
-  (`CreatureBehaviour.Step` moves X/Z only), so as they wander they don't follow the ground (land creatures
-  float/clip), fliers don't hover above terrain, and swimmers don't track the water surface. Plan: recompute
-  Y per step by habitat (land/lava → surface+1; air → surface+altitude; water → stay submerged at the sea
-  level), add a proper **swim undulation** (body on a pivot, not just tail-sway) and an optional **dive**
-  behaviour for aquatic species. Requested 2026-06-06. (Fliers already flap; water hides + per-species
-  voices shipped.)
+- **Creature swim undulation + dive** — terrain/water-following Y now ships (`AdjustHabitatHeight`: land/lava
+  on the ground, fliers hover, swimmers stay submerged between seabed and sea level). Still want a proper
+  **swim undulation** (the body on a pivot, not just the tail-sway) and an optional **dive** behaviour for
+  aquatic species. Requested 2026-06-06.
 - **Underwater sound filter** — when the player is submerged, run audio through a **low-pass / muffled
   filter** so it sounds underwater (`ClientAudio` + an AudioListener low-pass; detect the player is in a
   water block). Requested 2026-06-06.

@@ -306,8 +306,37 @@ public sealed partial class GameServer
                 creature.Position, temperament, sp.Speed, SpeciesActive(sp),
                 nearest, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
 
+            // Follow the world as they roam: land/lava walkers track the ground, fliers hover above it, and
+            // swimmers stay submerged in the water (instead of all keeping their fixed spawn height).
+            next = AdjustHabitatHeight(sp, next);
+
             // Creatures don't walk into the player's ship — hold position at the hull.
             creature.Position = EntityBlockedByShip(next) ? creature.Position : next;
+        }
+    }
+
+    private const float CreatureFlyAltitude = 5f; // how high above the ground fliers hover
+
+    /// <summary>Snaps a creature's Y to suit its habitat as it roams: land/lava walk on the ground, fliers
+    /// hover above it, swimmers stay submerged between the seabed and the sea surface.</summary>
+    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p)
+    {
+        int surface = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z));
+        switch (sp.Habitat)
+        {
+            case CreatureHabitat.Air:
+                return new Vector3f(p.X, surface + CreatureFlyAltitude, p.Z);
+            case CreatureHabitat.Water:
+                int sea = _generator.SeaLevel(_world.Planet);
+                if (sea > surface + 1)
+                {
+                    float lo = surface + 1f, hi = sea - 0.5f;
+                    return new Vector3f(p.X, p.Y < lo ? lo : (p.Y > hi ? hi : p.Y), p.Z);
+                }
+
+                return new Vector3f(p.X, surface + 1f, p.Z); // no water in this column → rest on the bed
+            default:
+                return new Vector3f(p.X, surface + 1f, p.Z); // land / lava follow the ground
         }
     }
 
