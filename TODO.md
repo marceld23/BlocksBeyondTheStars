@@ -16,6 +16,18 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): Station boarding fall-through — the real root cause
+The "dock and fall **immediately** into space" bug survived every prior fix because the settle-freeze was
+being released by a **ghost collider**. `OnWorldReset` removed the old world's chunks with `Destroy(go)`,
+but Unity defers `Destroy` to frame-end — so the old planet chunk colliders still existed the same frame the
+player snapped to the station spawn. The freeze's downward raycast hit one, decided "ground is here",
+released instantly; then frame-end destroyed those colliders and the player dropped through into the void
+before the station floor had streamed. Fix: `OnWorldReset` now `SetActive(false)` on each chunk **before**
+`Destroy` (deactivation is immediate), so the freeze raycast can't see stale colliders and holds the player
+until the real station floor chunk streams in. Also hardens normal planet-to-planet travel.
+
+---
+
 ## ✅ Done (2026-06-05): Space stations as their own locations
 Boarding a station is now a real world transition (the proven `WorldReset` path): each station is its **own
 void world** (space sky, no weather/clouds, lit interior, life support, NPCs), so you land **inside** the

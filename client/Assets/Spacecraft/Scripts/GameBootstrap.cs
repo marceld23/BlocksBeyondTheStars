@@ -452,6 +452,11 @@ namespace Spacecraft.Client
             {
                 if (go != null)
                 {
+                    // SetActive(false) takes effect immediately; Destroy is deferred to frame end. Without
+                    // this the settle-freeze raycast (PlayerController) could still hit a stale collider from
+                    // the *old* world this frame, "find ground", release early, and drop the player into the
+                    // void before the new world's floor chunk has streamed in (the station-boarding fall).
+                    go.SetActive(false);
                     Destroy(go);
                 }
             }
