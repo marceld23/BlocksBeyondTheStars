@@ -38,6 +38,7 @@ namespace Spacecraft.Client
         private bool _spawned;
         private Vector3 _spawnPos;
         private bool _settling;
+        private float _settleTimer; // how long we've been frozen at spawn waiting for the floor to stream
         private bool _wasGrounded = true;
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
@@ -118,7 +119,8 @@ namespace Spacecraft.Client
                 _spawnPos = Game.ServerSpawn.Value;
                 SnapTo(_spawnPos);
                 _spawned = true;
-                _settling = true; // hold near spawn until the ground/ship chunk streams in
+                _settling = true; // hold at spawn until the ground/ship chunk streams in
+                _settleTimer = 0f;
             }
 
             // On death the server respawns us at the ship's heal-tank — teleport the body there.
@@ -127,21 +129,30 @@ namespace Spacecraft.Client
                 _spawnPos = Game.RespawnTarget.Value;
                 SnapTo(_spawnPos);
                 Game.RespawnTarget = null;
-                _settling = true; // hold near the heal-tank until its chunk is streamed
+                _settling = true; // hold at the heal-tank until its chunk is streamed
+                _settleTimer = 0f;
             }
 
-            // While terrain is still streaming the spawn chunk may have no collider yet, so the
-            // player would fall straight through. Keep pulling them back to spawn until they land on
-            // real ground — prevents spawning underground in a cave when chunks load slowly (builds).
+            // Hold the player frozen at the spawn (no gravity, no control, no movement sent) until the
+            // floor chunk's collider has actually streamed in below them — then release. Reacting only
+            // after a fall let a far teleport (boarding a station, travel) drop through while chunks loaded.
             if (_settling && Game != null)
             {
-                if (_controller.isGrounded)
+                transform.position = _spawnPos;
+                _verticalVelocity = 0f;
+                _settleTimer += Time.deltaTime;
+
+                // Solid ground loaded somewhere below the spawn? (the chunk's MeshCollider exists)
+                bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
+                                   && gHit.collider != _controller;
+                if (groundBelow || _settleTimer > 8f)
                 {
                     _settling = false;
+                    _settleTimer = 0f;
                 }
-                else if (transform.position.y < _spawnPos.y - 3f)
+                else
                 {
-                    SnapTo(_spawnPos);
+                    return; // stay frozen this frame
                 }
             }
 
