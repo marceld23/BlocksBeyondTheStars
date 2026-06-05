@@ -797,18 +797,23 @@ namespace Spacecraft.Client
             if (current != null && system != null)
             {
                 const float PlanetDiameter = 46f, MoonDiameter = 28f;
+                const float BodyGap = 8f; // clear space kept between two bodies' surfaces
 
-                void Place(string id, string name, Vector3 pos, float diameter, string type)
+                // Plan every body first (positions + radii), then nudge any overlaps apart, THEN spawn — so no
+                // two planets/moons ever clip into each other at the compact view scale.
+                var ids = new List<string>();
+                var names = new List<string>();
+                var positions = new List<Vector3>();
+                var radii = new List<float>();
+                var bodyTypes = new List<string>();
+
+                void Plan(string id, string name, Vector3 pos, float diameter, string type)
                 {
-                    SpawnBody("SystemBody_" + id, pos, diameter, type);
-                    float r = diameter * 0.5f;
-                    _landables.Add((id, name, pos, r));
-                    _keepOut.Add((pos, r + KeepOutMargin)); // can't fly into it — slide + press E to land
-                    maxDist = Mathf.Max(maxDist, pos.magnitude);
+                    ids.Add(id); names.Add(name); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
                 }
 
-                // Pass 1: the planets (incl. the home body, which is drawn "below" you). Record their system
-                // + render positions so each moon can be pushed clear of its parent planet's surface.
+                // Pass 1: planets at their scaled orbit coords. Keep system coords + render pos so each moon
+                // can be parented to its nearest planet.
                 var planets = new List<(float Sx, float Sz, Vector3 Render, float Radius)>
                 {
                     (current.SystemX, current.SystemZ, homePos, homeDiameter * 0.5f),
@@ -824,13 +829,11 @@ namespace Spacecraft.Client
 
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    Place(b.Id, b.Name, pos, PlanetDiameter, type);
+                    Plan(b.Id, b.Name, pos, PlanetDiameter, type);
                     planets.Add((b.SystemX, b.SystemZ, pos, PlanetDiameter * 0.5f));
                 }
 
-                // Pass 2: the moons — each placed relative to its parent planet (nearest in system space) and
-                // pushed OUT to orbit just outside that planet's surface, so the compact view scale can't ever
-                // sink a moon inside its planet (the overlap bug).
+                // Pass 2: moons, each placed just outside its nearest parent planet's surface.
                 foreach (var b in system.Bodies)
                 {
                     if (b.Id == current.Id || b.Kind != "Moon")
@@ -849,14 +852,54 @@ namespace Spacecraft.Client
                     }
 
                     var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
-                    float minClear = parent.Radius + MoonDiameter * 0.5f + 6f; // outside the planet's surface
+                    float minClear = parent.Radius + MoonDiameter * 0.5f + BodyGap; // outside the planet's surface
                     if (rel.magnitude < minClear)
                     {
                         Vector3 dir = rel.sqrMagnitude > 0.0001f ? rel.normalized : Vector3.right;
                         rel = dir * minClear;
                     }
 
-                    Place(b.Id, b.Name, parent.Render + rel, MoonDiameter, type);
+                    Plan(b.Id, b.Name, parent.Render + rel, MoonDiameter, type);
+                }
+
+                // Separation pass: relax any overlapping pair apart in the x-z plane until every body has a
+                // clear gap to every other. (Home is excluded — it sits far "below" you and never overlaps.)
+                for (int iter = 0; iter < 24; iter++)
+                {
+                    bool moved = false;
+                    for (int a = 0; a < positions.Count; a++)
+                    {
+                        for (int c = a + 1; c < positions.Count; c++)
+                        {
+                            Vector3 d = positions[a] - positions[c];
+                            d.y = 0f;
+                            float dist = d.magnitude;
+                            float need = radii[a] + radii[c] + BodyGap;
+                            if (dist < need)
+                            {
+                                Vector3 dir = dist > 0.0001f ? d / dist
+                                    : new Vector3(Mathf.Cos(a * 2.39996f), 0f, Mathf.Sin(a * 2.39996f)); // co-located → spread by a golden angle
+                                float push = (need - dist) * 0.5f;
+                                positions[a] += dir * push;
+                                positions[c] -= dir * push;
+                                moved = true;
+                            }
+                        }
+                    }
+
+                    if (!moved)
+                    {
+                        break;
+                    }
+                }
+
+                // Spawn the separated bodies + register them as landable / keep-out.
+                for (int k = 0; k < positions.Count; k++)
+                {
+                    SpawnBody("SystemBody_" + ids[k], positions[k], radii[k] * 2f, bodyTypes[k]);
+                    _landables.Add((ids[k], names[k], positions[k], radii[k]));
+                    _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
+                    maxDist = Mathf.Max(maxDist, positions[k].magnitude);
                 }
             }
 
