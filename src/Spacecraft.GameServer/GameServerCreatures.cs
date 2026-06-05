@@ -331,7 +331,12 @@ public sealed partial class GameServer
                 if (sea > surface + 1)
                 {
                     float lo = surface + 1f, hi = sea - 0.5f;
-                    return new Vector3f(p.X, p.Y < lo ? lo : (p.Y > hi ? hi : p.Y), p.Z);
+                    // Dive: drift slowly up and down the water column over time (per-creature phase seeded from
+                    // the position) so swimmers porpoise between the seabed and just under the surface instead
+                    // of holding a single depth. Clamped to the column, so shallow water just keeps them low.
+                    double dive = System.Math.Sin(_creatureClock * 0.22 + p.X * 0.7 + p.Z * 0.5);
+                    float target = lo + (hi - lo) * (float)(0.5 + 0.45 * dive);
+                    return new Vector3f(p.X, target, p.Z);
                 }
 
                 return new Vector3f(p.X, surface + 1f, p.Z); // no water in this column → rest on the bed

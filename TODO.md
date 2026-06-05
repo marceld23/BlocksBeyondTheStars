@@ -578,10 +578,12 @@ collider closes the gap when shut). Phased plan:
   `WaterBody_RefillsAMinedHole`.
 - **Multiplayer player-name reservation** — a player name must be **reserved on the server** so two clients
   can't collide on the same name/identity. (Today join takes any name.) Requested 2026-06-06.
-- **Creature swim undulation + dive** — terrain/water-following Y now ships (`AdjustHabitatHeight`: land/lava
-  on the ground, fliers hover, swimmers stay submerged between seabed and sea level). Still want a proper
-  **swim undulation** (the body on a pivot, not just the tail-sway) and an optional **dive** behaviour for
-  aquatic species. Requested 2026-06-06.
+- ✅ **Creature swim undulation + dive** (done 2026-06-06) — `CreatureBuilder` now hangs every part off a
+  `BodyRig` pivot; for aquatic species (`Habitat == "Water"`) `CreatureAnimator` undulates that rig (a yaw
+  weave that lags the tail beat + a counter-roll + a slow vertical glide), beats the tail faster/wider, and
+  drops the legs to a fin-flutter instead of a stride. Server **dive**: `AdjustHabitatHeight` porpoises
+  swimmers up and down the water column over time (`sin(_creatureClock·0.22 + pos)`), clamped to the column,
+  instead of holding one depth. (Earlier: terrain/water-following Y — land/lava walk, fliers hover.)
 - ✅ **Underwater sound filter** (done 2026-06-06) — `ClientAudio` adds an `AudioLowPassFilter` to its own
   GameObject (which also hosts `ClientMusic`), so when the player's **head sits inside a water/lava block**
   (`HeadInFluid`: sample the block ~1.5 above the player root) the cutoff sweeps to ~680 Hz and the whole

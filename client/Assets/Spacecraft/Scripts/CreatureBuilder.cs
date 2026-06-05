@@ -49,6 +49,11 @@ namespace Spacecraft.Client
 
             _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
 
+            // All parts hang off a body rig (a child of the root) so the animator can undulate the whole
+            // creature for swimming without disturbing the root's movement-driven facing.
+            var body = new GameObject("BodyRig");
+            body.transform.SetParent(root.transform, false);
+
             // Body: a row of segments along +Z (forward). The front segment is the head.
             int segments = Mathf.Clamp(c.BodySegments, 1, 4);
             float segLen = unit * 1.1f;
@@ -57,18 +62,18 @@ namespace Spacecraft.Client
             {
                 float z = (i - (segments - 1) * 0.5f) * segLen;
                 float taper = 1f - 0.12f * i; // slimmer toward the tail
-                AddPart(root, "Body" + i, new Vector3(0f, bodyY, z),
+                AddPart(body, "Body" + i, new Vector3(0f, bodyY, z),
                     new Vector3(unit * 1.1f * taper * bodyWide, unit * 0.95f * taper, segLen), _bodyMat);
             }
 
             // Two-tone underside: a flatter belly slab in the accent colour, so the body isn't one flat hue.
             var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-            AddPart(root, "Belly", new Vector3(0f, bodyY - unit * 0.42f, 0f),
+            AddPart(body, "Belly", new Vector3(0f, bodyY - unit * 0.42f, 0f),
                 new Vector3(unit * 1.02f * bodyWide, unit * 0.32f, segments * segLen * 0.9f), bellyMat);
 
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
             // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture.
-            _headPivot = AddPivotPart(root, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f),
+            _headPivot = AddPivotPart(body, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f),
                 new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.9f * headScale, unit * 0.85f * headScale, unit * 0.8f * headScale), _bodyMat);
 
             // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
@@ -110,18 +115,18 @@ namespace Spacecraft.Client
             for (int p = 0; p < pairs; p++)
             {
                 float z = pairs == 1 ? 0f : Mathf.Lerp(-segLen * 0.7f, segLen * 0.7f, p / (float)(pairs - 1));
-                _legPivots.Add(AddPivotPart(root, "LegL" + p, new Vector3(-unit * 0.5f, legH, z),
+                _legPivots.Add(AddPivotPart(body, "LegL" + p, new Vector3(-unit * 0.5f, legH, z),
                     new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
-                _legPivots.Add(AddPivotPart(root, "LegR" + p, new Vector3(unit * 0.5f, legH, z),
+                _legPivots.Add(AddPivotPart(body, "LegR" + p, new Vector3(unit * 0.5f, legH, z),
                     new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
             }
 
             if (c.HasWings)
             {
                 float wingW = unit * 0.9f;
-                _wingPivots.Add(AddPivotPart(root, "WingL", new Vector3(-unit * 0.45f, bodyY + unit * 0.2f, 0f),
+                _wingPivots.Add(AddPivotPart(body, "WingL", new Vector3(-unit * 0.45f, bodyY + unit * 0.2f, 0f),
                     new Vector3(-wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
-                _wingPivots.Add(AddPivotPart(root, "WingR", new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f),
+                _wingPivots.Add(AddPivotPart(body, "WingR", new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f),
                     new Vector3(wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
             }
 
@@ -129,14 +134,14 @@ namespace Spacecraft.Client
             {
                 float tailLen = segLen * 0.9f;
                 float tailZ = -(segments - 1) * 0.5f * segLen - segLen * 0.6f;
-                _tailPivot = AddPivotPart(root, "Tail", new Vector3(0f, bodyY, tailZ + tailLen * 0.5f),
+                _tailPivot = AddPivotPart(body, "Tail", new Vector3(0f, bodyY, tailZ + tailLen * 0.5f),
                     new Vector3(0f, 0f, -tailLen * 0.5f), new Vector3(unit * 0.35f, unit * 0.35f, tailLen), _bodyMat);
             }
 
             if (c.Glows)
             {
                 var go = new GameObject("Glow");
-                go.transform.SetParent(root.transform, false);
+                go.transform.SetParent(body.transform, false);
                 go.transform.localPosition = new Vector3(0f, bodyY, 0f);
                 _glow = go.AddComponent<Light>();
                 _glow.type = LightType.Point;
@@ -147,9 +152,10 @@ namespace Spacecraft.Client
             }
 
             // Procedural limb animation (leg swing while moving, wing flap, tail sway) + per-temperament
-            // idle head gestures (graze / alert / lunge).
+            // idle head gestures (graze / alert / lunge); aquatic species also undulate the body rig (swim).
             var anim = root.AddComponent<CreatureAnimator>();
-            anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, c.Hostile, c.Asleep, c.Temperament);
+            anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, body.transform,
+                c.Hostile, c.Asleep, c.Habitat == "Water", c.Temperament);
         }
 
         /// <summary>Adds a part on its own pivot (hinge) so it can be rotated for animation. The cube hangs

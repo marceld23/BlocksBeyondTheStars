@@ -16,6 +16,8 @@ namespace Spacecraft.Client
         private Transform[] _wings;
         private Transform _tail;
         private Transform _head;
+        private Transform _body;   // the body rig — undulated for swimming
+        private bool _aquatic;     // swimmers undulate + flutter instead of striding
 
         private float _phase;     // per-creature offset so they don't move in lockstep
         private float _walk;      // leg-swing phase
@@ -31,15 +33,17 @@ namespace Spacecraft.Client
         private float _gestureDur;
         private float _gestureLook;    // a random look direction for the alert gesture
 
-        public void Init(Transform[] legs, Transform[] wings, Transform tail, Transform head,
-            bool hostile, bool asleep, string temperament)
+        public void Init(Transform[] legs, Transform[] wings, Transform tail, Transform head, Transform body,
+            bool hostile, bool asleep, bool aquatic, string temperament)
         {
             _legs = legs;
             _wings = wings;
             _tail = tail;
             _head = head;
+            _body = body;
             _hostile = hostile;
             _asleep = asleep;
+            _aquatic = aquatic;
             _phase = (GetInstanceID() & 0x3ff) * 0.1f; // stable pseudo-random offset
 
             // Map the species temperament to its resting idle gesture.
@@ -75,10 +79,11 @@ namespace Spacecraft.Client
             _walk += dt * (3f + speed * 2.2f);
             float t = Time.time + _phase;
 
-            // Legs: alternate front/back, amplitude scales with speed (plus a tiny idle shuffle).
+            // Legs: alternate front/back, amplitude scales with speed (plus a tiny idle shuffle). Aquatic
+            // species barely stride — their limbs read as fins paddling, so the swing stays small.
             if (_legs != null)
             {
-                float amp = Mathf.Lerp(2f, 32f, moving);
+                float amp = Mathf.Lerp(2f, _aquatic ? 12f : 32f, moving);
                 for (int i = 0; i < _legs.Length; i++)
                 {
                     if (_legs[i] == null)
@@ -106,11 +111,25 @@ namespace Spacecraft.Client
                 }
             }
 
-            // Tail: a slow side-to-side sway, a touch livelier on the move (and quicker on hostiles).
+            // Tail: a slow side-to-side sway, a touch livelier on the move (and quicker on hostiles). For a
+            // swimmer the tail is the motor — it beats faster and wider, leading the body's undulation.
             if (_tail != null)
             {
-                float sway = Mathf.Sin(t * (_hostile ? 2.6f : 1.8f)) * Mathf.Lerp(8f, 18f, moving);
+                float rate = _aquatic ? 3.4f : (_hostile ? 2.6f : 1.8f);
+                float sway = Mathf.Sin(t * rate) * Mathf.Lerp(8f, _aquatic ? 34f : 18f, moving);
                 _tail.localRotation = Quaternion.Euler(0f, sway, 0f);
+            }
+
+            // Swim: undulate the whole body rig — a yaw weave (the tail leads, the body follows a beat behind),
+            // a gentle counter-roll and a slow vertical glide. Present even while drifting, stronger on the move.
+            if (_aquatic && _body != null)
+            {
+                float sp = t * 3.4f;
+                float weave = Mathf.Sin(sp - 0.7f) * Mathf.Lerp(5f, 15f, moving); // body lags the tail beat
+                float roll = Mathf.Sin(sp - 1.2f) * Mathf.Lerp(2f, 7f, moving);
+                float glide = Mathf.Sin(t * 1.1f) * 0.05f;                          // slow rise/sink bob
+                _body.localRotation = Quaternion.Euler(0f, weave, roll);
+                _body.localPosition = new Vector3(0f, glide, 0f);
             }
 
             // Head: breathing + a per-temperament idle gesture (graze / alert / lunge) while stationary.
