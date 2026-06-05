@@ -138,8 +138,11 @@ public sealed partial class GameServer
             return;
         }
 
+        // Any player on foot (incl. someone standing inside their ship at the hatch) opens a slide door near
+        // them; only players piloting in space are excluded. (The old NPC-style aboard-ship filter kept the
+        // ship's own hatch from ever opening for the player inside it.)
         var targets = JoinedInActiveWorld()
-            .Where(s => (!_shipStamped || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
+            .Where(s => !InSpace(s.State.PlayerId))
             .Select(s => s.State.Position)
             .ToList();
 
