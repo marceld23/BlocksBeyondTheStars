@@ -567,7 +567,9 @@ collider closes the gap when shut). Phased plan:
   scaling with abundance (none → dry, high → seas). (2) **Lava**: add a `LavaAbundance` field; generate lava
   pools in deep layers / volcanic (basalt) regions at a frequency from that field. Both must be deterministic
   and route through the existing fluid system (`FluidLevel`/`ActiveFluid` + the client fluid render). **When
-  picking this up, analyse the terrain pass + fluid sim precisely first**, then implement.
+  picking this up, analyse the terrain pass + fluid sim precisely first**, then implement. **Also include:**
+  **water creatures / aquatic fauna** (species that live in/under water — spawn in water bodies, swim) and
+  **water flora** (reeds/kelp/lilies growing in or at the edge of water). Requested 2026-06-06.
 
 - **Faces / eyes** — the player avatar and NPCs have **no face**, and creatures have **no eyes**. Give the
   avatar + NPCs a simple face (eyes), and give creatures **optional, procedurally-random eyes** (some species

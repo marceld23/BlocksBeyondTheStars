@@ -43,12 +43,58 @@ public sealed class WorldGenerator
 
     private long PlanetSeed(PlanetType planet) => _worldSeed ^ StableHash(planet.Key);
 
+    // Terrain archetypes (amplitude multiplier, ridged amount): flats, rolling plains, hills, mountains,
+    // canyons. A world uses a seed-picked subset, varied across the surface by a large-scale field, so areas
+    // read as flat / rolling / mountainous and (high end) carve into canyons.
+    private static readonly (double Amp, double Ridged)[] TerrainArchetypes =
+    {
+        (0.18, 0.0),  // flats
+        (0.55, 0.0),  // rolling plains
+        (1.00, 0.0),  // hills
+        (1.90, 0.12), // mountains
+        (1.30, 0.65), // canyons
+    };
+
     /// <summary>Computes the surface height (world Y) of a column for a planet.</summary>
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
         long seed = PlanetSeed(planet);
         double n = Noise.FbmCylX(seed, worldX, worldZ, WorldConstants.Circumference, planet.TerrainScale, octaves: 4);
-        return planet.BaseHeight + (int)System.Math.Round((n - 0.5) * 2.0 * planet.Amplitude);
+        double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
+
+        // Regional terrain character: a large-scale field selects how rugged this area is (a blend across the
+        // world's archetype subset), so the surface varies between flat plains, hills, mountains and canyons.
+        var (amp, ridged) = TerrainProfile(planet, seed, worldX, worldZ);
+        if (ridged > 0.0)
+        {
+            double r = (1.0 - System.Math.Abs(h)) * 2.0 - 1.0; // ridged: turn smooth swells into sharp valleys/ridges
+            h = h * (1.0 - ridged) + r * ridged;
+        }
+
+        return planet.BaseHeight + (int)System.Math.Round(h * planet.Amplitude * amp);
+    }
+
+    /// <summary>The terrain archetype blend for a column: a large-scale region field picks among the world's
+    /// seed-chosen subset of archetypes (deterministic, seam-free across the X wrap) and blends neighbours.</summary>
+    private (double Amp, double Ridged) TerrainProfile(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        int pool = TerrainArchetypes.Length;
+        long s = seed ^ 0x7E44A1;
+        ulong us = (ulong)(s < 0 ? -s : s);
+        int count = 2 + (int)(us % (ulong)(pool - 1)); // this world uses 2..pool archetypes
+        int rot = (int)((us >> 8) % (ulong)pool);       // …starting at a seed-rotated offset in the list
+
+        // A broad field (much larger than the base terrain) picks a position across the subset + blends it.
+        double rug = Noise.FbmCylX(s, worldX, worldZ, WorldConstants.Circumference, planet.TerrainScale * 6.0, octaves: 3);
+        double pos = (rug < 0 ? 0 : (rug > 0.9999 ? 0.9999 : rug)) * count; // [0, count)
+        int i0 = (int)pos;
+        int i1 = i0 + 1 < count ? i0 + 1 : count - 1;
+        double t = pos - i0;
+        double f = t * t * (3.0 - 2.0 * t); // smoothstep blend between adjacent archetypes
+
+        var a0 = TerrainArchetypes[(rot + i0) % pool];
+        var a1 = TerrainArchetypes[(rot + i1) % pool];
+        return (a0.Amp + (a1.Amp - a0.Amp) * f, a0.Ridged + (a1.Ridged - a0.Ridged) * f);
     }
 
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
