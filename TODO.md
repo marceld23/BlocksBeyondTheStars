@@ -567,10 +567,6 @@ collider closes the gap when shut). Phased plan:
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
 ### Planned — requested 2026-06-06 (für später)
-- **Shadowed blocks too dark in holes/caves** — blocks in shadow/unlit spots on a planet read **almost black**;
-  it's too harsh. Analyse the block lighting (`BlockAtlas` shader ambient/skylight term + `ChunkMesher` AO)
-  and **raise the minimum/ambient floor** so shadowed blocks stay readable instead of crushing to black.
-  Requested 2026-06-06.
 - **Mineable water/lava (with the mining beam) + source logic** — water/lava should be **harvestable**, but
   only with the **mining beam** (not the drill); and once the **source block / last cells** are removed it
   must **stop reflowing** (don't infinitely regenerate). Ties into the fluid sim (`FluidLevel`/`ActiveFluid`)
@@ -599,17 +595,6 @@ collider closes the gap when shut). Phased plan:
   **tint UV channel** (e.g. TEXCOORD2 RGB) in `ChunkMesher` — white for normal blocks, a per-(species,
   planet[, biome]) colour for flora; (3) the `BlockAtlas` shader multiplies albedo by it. Needs the planet
   seed (+ a client-side biome-index for multi-biome worlds) plumbed to the mesher. Requested 2026-06-06.
-- **Faces / eyes** — the player avatar and NPCs have **no face**, and creatures have **no eyes**. Give the
-  avatar + NPCs a simple face (eyes), and give creatures **optional, procedurally-random eyes** (some species
-  none, others 2+ — random count/placement) that are actually visible. Requested 2026-06-06.
-- **Creature death drops + rare material substitute** — analyse how far creature loot is implemented: dying
-  creatures should drop **edible meat** (or **toxic** flesh the player must detox, for toxic species), and
-  **rarely** a drop should substitute for a random crafting material. (`CombatEntity.Loot` exists +
-  `creature_meat`/`toxic_gland` items — verify it fires + add the rare-material roll.) Requested 2026-06-06.
-- **More procedural creature variety** — analyse how fauna/flora species are organised + generated
-  (`CreatureGenerator`, `CreatureSpecies`, the species roster per planet) and add **more procedural
-  randomness so creatures look visibly different** (body proportions, limbs, colours/patterns, size). Today
-  species are fairly templated; want wider visual variance per species/instance. Requested 2026-06-06.
 
 ### Not started / larger future work
 - **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder

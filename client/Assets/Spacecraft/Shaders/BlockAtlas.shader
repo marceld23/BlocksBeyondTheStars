@@ -99,9 +99,11 @@ Shader "Spacecraft/BlockAtlas"
                 // coloured by the system sun. A subtle per-face AO keeps cube edges readable.
                 float faceAo = lerp(0.88, 1.0, i.mat.b);
                 // Ambient fill: a brighter floor so shadowed faces / overcast aren't crushed to black
-                // (outdoors ~0.70, a small cave floor of 0.10). The directional adds the sunny side on top.
-                float amb = lerp(0.10, 0.70, sky);
-                fixed3 col = albedo * light * (amb + 0.5 * ndl * sky) * faceAo;
+                // (outdoors ~0.70, a readable cave floor of 0.24). The directional adds the sunny side on top.
+                // A small flat term (sun/sky-independent) guarantees a minimum readable level, so blocks in a
+                // dark hole or deep cave are dim but never pure black.
+                float amb = lerp(0.24, 0.70, sky);
+                fixed3 col = albedo * (light * (amb + 0.5 * ndl * sky) + 0.05) * faceAo;
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).

@@ -53,15 +53,19 @@ namespace Spacecraft.Client
             // Neck + head + a dark visor strip on the front.
             AddCube("Neck", transform, new Vector3(0f, 1.69f, 0f), new Vector3(0.18f, 0.14f, 0.18f), _skin);
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
-            AddCube("Visor", _head, new Vector3(0f, 0.03f, 0.24f), new Vector3(0.40f, 0.15f, 0.06f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex));
+            // Visor as a lower-face breather strip (sits BELOW the eyes so it no longer covers them — that's
+            // why the face read as blank before).
+            AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.235f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex));
 
-            // Eyes so the face reads (settlement NPCs especially, who go without helmets).
-            var eyeWhite = Lit(new Color(0.93f, 0.94f, 0.98f), null);
-            var pupil = Lit(new Color(0.06f, 0.06f, 0.09f), null);
-            AddCube("EyeL", _head, new Vector3(-0.09f, 0.045f, 0.25f), new Vector3(0.10f, 0.07f, 0.03f), eyeWhite);
-            AddCube("EyeR", _head, new Vector3(0.09f, 0.045f, 0.25f), new Vector3(0.10f, 0.07f, 0.03f), eyeWhite);
-            AddCube("PupilL", _head, new Vector3(-0.09f, 0.045f, 0.266f), new Vector3(0.045f, 0.05f, 0.02f), pupil);
-            AddCube("PupilR", _head, new Vector3(0.09f, 0.045f, 0.266f), new Vector3(0.045f, 0.05f, 0.02f), pupil);
+            // Eyes (whites + pupils + a brow) so the face reads clearly — settlement NPCs especially.
+            var eyeWhite = Lit(new Color(0.95f, 0.96f, 1f), null);
+            var pupil = Lit(new Color(0.05f, 0.05f, 0.08f), null);
+            var brow = Lit(new Color(0.20f, 0.16f, 0.13f), null);
+            AddCube("EyeL", _head, new Vector3(-0.10f, 0.07f, 0.245f), new Vector3(0.13f, 0.10f, 0.04f), eyeWhite);
+            AddCube("EyeR", _head, new Vector3(0.10f, 0.07f, 0.245f), new Vector3(0.13f, 0.10f, 0.04f), eyeWhite);
+            AddCube("PupilL", _head, new Vector3(-0.10f, 0.06f, 0.27f), new Vector3(0.06f, 0.07f, 0.02f), pupil);
+            AddCube("PupilR", _head, new Vector3(0.10f, 0.06f, 0.27f), new Vector3(0.06f, 0.07f, 0.02f), pupil);
+            AddCube("Brow", _head, new Vector3(0f, 0.155f, 0.245f), new Vector3(0.34f, 0.04f, 0.04f), brow);
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);
