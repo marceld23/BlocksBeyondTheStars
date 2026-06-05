@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **291 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **293 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
@@ -15,6 +15,30 @@ scene authoring). One shared world; contractless MessagePack networking; determi
 SQLite persistence.
 
 ---
+
+## ✅ Done (2026-06-06): Void-fall fix, ship-editor doors, NPC walls/animation, studio rename
+- **Infinite-fall fix (the "PC2 falls forever" bug):** root-caused — the world has no bedrock floor, so a
+  player below the terrain with nothing under them falls forever; their position is **persisted and restored
+  verbatim on join** ([GameServer.cs](src/Spacecraft.GameServer/GameServer.cs) `LoadPlayer ?? CreateNewPlayer`,
+  and `SetupPlayerShip` doesn't reset Position), so one fall **poisons the save** and every launch drops them
+  again — machine-specific because each PC has its own `singleplayer-saves`. New `GameServerSpawnSafety`:
+  `EnsureSafeSpawn` validates a joining player's position (snaps a void position — and a poisoned respawn
+  point — back to safe ground), and `TickVoidRescue` recovers anyone plummeting at runtime before the fall
+  can be saved. "In the void" = well below the column's terrain surface with nothing solid within reach.
+  2 tests.
+- **Studio rename:** Unity `companyName` → **"JuMaVe Games"** (productName stays "Spacecraft"). Note: this
+  moves `persistentDataPath` to `…/LocalLow/JuMaVe Games/Spacecraft/` — old singleplayer saves live under the
+  former `…/Spacecraft/Spacecraft/` path.
+- **Ship-editor doors:** the **ship editor** palette gained a **Door**; designed-ship `door_slide`/`door_hinge`
+  cells are opened (3 tall) and registered as sci-fi slide doors by the door registry (now rebuilt from every
+  settlement **and** ship stamp in the world). Settlement editor already had slide+hinge doors.
+- **NPCs no longer walk through walls:** `MoveNpcs` only checked the ship before; it now also rejects a step
+  into a solid block (`BlockedByWorld`) — inhabitants stay inside their building (doorway openings stay
+  passable). Tighter wander leash (2.5 → 1.6).
+- **Smoother NPC motion + walk animation:** NPC position broadcast 0.5 s → 0.2 s and the client interpolates
+  without fully catching up (lerp 8 → 5), so NPCs glide instead of stop-start jerking; the shared avatar
+  walk cycle reaches a full stride a little sooner so slow strolls read as walking (helps the player avatar
+  too).
 
 ## ✅ Done (2026-06-06): Doors (settlements) — D1–D5
 Settlement doorways now hold real, server-authoritative doors (rendered + collided client-side, since
@@ -500,6 +524,24 @@ collider closes the gap when shut). Phased plan:
   Markers flow through `StructureTemplate` cells (kind="marker", id="door_slide"/"door_hinge") → D1 registry.
 - **D5 — localization + tests:** en/de names; tests: a slide door opens when a player steps within range +
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
+
+### Planned — requested 2026-06-06 (für später)
+- **Tree-like flora (trunk + crown)** — today flora is **single-block only**: the generator drops one plant
+  in the air cell directly above the surface ([WorldGenerator.cs](src/Spacecraft.WorldGeneration/WorldGenerator.cs)
+  `FloraForSurface`, gated by `planet.FloraDensity`). There are **no multi-block trees**. Plan: add a "tree"
+  flora kind that stamps a vertical trunk (N blocks, e.g. a `log`/`wood` block) topped with a leaf/crystal
+  **crown** (a small canopy blob), placed on suitable biomes at a per-planet density. Needs: a tree block
+  (trunk) + canopy block, a small stamp routine in the surface pass, and seam/chunk-boundary safety (a tree
+  near a chunk edge must place across chunks). Keep deterministic from the seed.
+- **Water + lava bodies with per-planet frequency** — today terrain generation places **no water or lava at
+  all** (only `CreatureGenerator` references "lava"/"basalt" as a *habitat*, never as placed blocks; there is
+  no sea level / fluid fill). `PlanetType` has `Atmosphere`, `FloraDensity`, `CreatureAbundance`, `OreVeins`
+  — but **no water/lava abundance**. Plan: (1) **Water** only on worlds with an atmosphere (skip `none`):
+  add a `WaterAbundance` (0..1) field; fill low terrain below a per-planet sea level with `water`, the amount
+  scaling with abundance (none → dry, high → seas). (2) **Lava**: add a `LavaAbundance` field; generate lava
+  pools in deep layers / volcanic (basalt) regions at a frequency from that field. Both must be deterministic
+  and route through the existing fluid system (`FluidLevel`/`ActiveFluid` + the client fluid render). **When
+  picking this up, analyse the terrain pass + fluid sim precisely first**, then implement.
 
 ### Not started / larger future work
 - **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder

@@ -45,27 +45,36 @@ public sealed partial class GameServer
     /// <summary>Number of doors registered in the active world.</summary>
     public int DoorCount => _doors.Count;
 
-    /// <summary>(Re)builds the door registry for the active world from the structure markers stamped into it
-    /// (settlement buildings today). Slide vs hinge comes from the marker type; the wall axis + gap width are
-    /// inferred from the blocks around the opening. Deterministic — same world, same doors.</summary>
+    /// <summary>(Re)builds the door registry for the active world from every structure stamped into it:
+    /// settlement buildings (slide for towns/cities, hinge for villages) and designed ships (slide doors from
+    /// the ship editor). Slide vs hinge comes from the marker; the wall axis + gap width are inferred from the
+    /// blocks around the opening. Idempotent — safe to call after any settlement/ship stamp.</summary>
     private void RegisterDoors()
     {
         _doors.Clear();
         _nextDoorId = 1;
 
+        // Settlement doorways.
         foreach (var (type, pos) in _settlementMarkers)
         {
-            if (type != "door_slide" && type != "door_hinge")
+            if (type == "door_slide" || type == "door_hinge")
             {
-                continue;
+                _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
             }
+        }
 
-            _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
+        // Designed-ship doorways (every player's ship stamped into this world — sci-fi sliders).
+        foreach (var stamp in _worlds.Active.ShipStamps.Values)
+        {
+            foreach (var pos in stamp.Doors)
+            {
+                _doors.Add(MakeDoor("slide", pos));
+            }
         }
 
         if (_doors.Count > 0)
         {
-            _log.Info($"Registered {_doors.Count} doors in '{_settlementName}'.");
+            _log.Info($"Registered {_doors.Count} doors in the active world.");
         }
     }
 

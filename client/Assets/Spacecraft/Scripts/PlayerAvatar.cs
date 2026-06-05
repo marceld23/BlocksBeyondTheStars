@@ -142,7 +142,7 @@ namespace Spacecraft.Client
             _prevY = pos.y;
             _hasPrev = true;
 
-            float moving = Mathf.Clamp01(speed / 4.5f);
+            float moving = Mathf.Clamp01(speed / 3.2f); // legs reach a full stride a bit sooner (slow NPC strolls read as walking)
             float run = Mathf.Clamp01((speed - 4.5f) / 4f); // extra emphasis once sprinting
             _walkPhase += dt * (4f + speed * 1.4f);
             float t = Time.time + _phase;
@@ -153,7 +153,7 @@ namespace Spacecraft.Client
             float headYaw = 0f;
 
             bool airborne = Mathf.Abs(vy) > 2.6f;
-            bool idle = moving < 0.04f && !airborne;
+            bool idle = moving < 0.03f && !airborne;
 
             if (airborne)
             {

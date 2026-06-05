@@ -127,7 +127,7 @@ namespace Spacecraft.Client.EditorTools
         /// </summary>
         public static void EnsureAppIcon()
         {
-            PlayerSettings.companyName = "Spacecraft";
+            PlayerSettings.companyName = "JuMaVe Games";
             PlayerSettings.productName = "Spacecraft";
 
             string absPath = Path.Combine(Application.dataPath, "Spacecraft", "Icon", "spacecraft_icon.png");

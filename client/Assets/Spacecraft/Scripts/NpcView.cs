@@ -39,7 +39,9 @@ namespace Spacecraft.Client
 
             foreach (var n in _npcs.Values)
             {
-                n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, Time.deltaTime * 8f);
+                // Track the latest target without fully catching up before the next snapshot arrives, so the
+                // NPC keeps gliding (and its walk cycle keeps running) instead of stop-start jerking.
+                n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, Time.deltaTime * 5f);
                 n.Go.transform.position = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
                 n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
 

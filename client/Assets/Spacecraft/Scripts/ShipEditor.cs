@@ -66,6 +66,7 @@ namespace Spacecraft.Client
                 P("light_green", "Starboard Light (green)", "element", new Color(0.3f, 1f, 0.4f)),
                 P("engine", "Engine", "element", new Color(1f, 0.55f, 0.2f)),
                 P("hatch", "Hatch", "element", new Color(0.7f, 0.5f, 0.3f)),
+                P("door_slide", "Door", "element", new Color(0.4f, 0.85f, 0.95f)),
                 P("cockpit", "Cockpit", "station", new Color(0.3f, 0.6f, 0.95f)),
                 P("reactor", "Reactor", "station", new Color(0.9f, 0.35f, 0.3f)),
                 P("life_support", "Life Support", "station", new Color(0.4f, 0.85f, 0.55f)),

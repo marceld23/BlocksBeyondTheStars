@@ -63,6 +63,7 @@ public sealed partial class GameServer
         if (layout != null && layout.Cells.Count > 0)
         {
             StampShipLayout(cx, cz, y0, layout);
+            RegisterDoors(); // pick up any door cells the designed ship carries
             return;
         }
 
@@ -187,6 +188,7 @@ public sealed partial class GameServer
 
         _shipStamped = true;
         _log.Info($"Ship hull placed at ({cx}, {y0}, {cz}) with {_stations.Count} stations.");
+        RegisterDoors(); // box ships use an open hatch, but keep the registry in sync (settlement doors, etc.)
     }
 
     /// <summary>Stamps a designed voxel ship (from the ship editor) centred on the landing zone: places
@@ -213,6 +215,7 @@ public sealed partial class GameServer
         _shipHeight = System.Math.Max(3, layout.Height);
         _shipExtra.Clear();
         _stations.Clear();
+        CurStamp.Doors.Clear();
         _shipIsLayout = true;
         Vector3f? medbay = null;
 
@@ -235,6 +238,15 @@ public sealed partial class GameServer
                 case "hatch":
                     _world.SetBlock(p, BlockId.Air);                                 // the entry opening
                     _world.SetBlock(new Vector3i(wx, wy + 1, wz), BlockId.Air);      // a hatch is never single-block: always ≥2 tall
+                    continue;
+                case "door_slide":
+                case "door_hinge":
+                    // A real door fills this opening: clear it (3 tall) so the panel shows + the player fits,
+                    // and record the doorway so RegisterDoors builds a server-authoritative door here.
+                    _world.SetBlock(p, BlockId.Air);
+                    _world.SetBlock(new Vector3i(wx, wy + 1, wz), BlockId.Air);
+                    _world.SetBlock(new Vector3i(wx, wy + 2, wz), BlockId.Air);
+                    CurStamp.Doors.Add(new Vector3f(wx + 0.5f, wy, wz + 0.5f));
                     continue;
                 case "glass":
                     _world.SetBlock(p, glass);

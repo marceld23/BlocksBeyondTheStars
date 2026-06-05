@@ -554,6 +554,7 @@ public sealed partial class GameServer
             TickCreatures(deltaSeconds);
             TickNpcs(deltaSeconds);
             TickDoors(deltaSeconds);
+            TickVoidRescue(deltaSeconds);
             StreamChunks();
         }
 
@@ -1020,6 +1021,7 @@ public sealed partial class GameServer
         var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
+        EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
 
         var (systemName, planetName) = ActiveLocationNames();
         SendTo(connectionId, new JoinAccepted
@@ -1103,6 +1105,7 @@ public sealed partial class GameServer
         var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = _meta.ActiveLocationId };
         _sessions[connectionId] = session;
         SetupPlayerShip(session); // local/test players get their own ship too
+        EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         return session;
     }
 

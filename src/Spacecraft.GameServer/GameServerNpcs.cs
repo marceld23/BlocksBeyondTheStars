@@ -15,8 +15,8 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const double NpcBroadcastInterval = 0.5;  // position-sync cadence (client interpolates)
-    private const float NpcWanderLeash = 2.5f;        // how far an NPC drifts from its home marker
+    private const double NpcBroadcastInterval = 0.2;  // position-sync cadence (client interpolates between)
+    private const float NpcWanderLeash = 1.6f;        // how far an NPC drifts from its home marker
     private const double NpcWanderSpeed = 0.4;        // idle-stroll angular speed
     private const float NpcFaceRange = 6f;            // turn to face a player within this range
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
@@ -164,8 +164,8 @@ public sealed partial class GameServer
             float oz = (float)System.Math.Sin(npc.WanderPhase * 0.7) * NpcWanderLeash;
             var next = new Vector3f(npc.Home.X + ox, npc.Home.Y, npc.Home.Z + oz);
 
-            // NPCs don't wander into the player's ship.
-            npc.Pos = EntityBlockedByShip(next) ? npc.Pos : next;
+            // NPCs don't wander into the player's ship — or through their building's walls/doors.
+            npc.Pos = EntityBlockedByShip(next) || BlockedByWorld(next) ? npc.Pos : next;
 
             // Face the nearest player if one is close, else look along the stroll heading.
             var nearest = NearestPlayerPosition(targets, npc.Pos);
@@ -178,6 +178,17 @@ public sealed partial class GameServer
                 npc.Facing = (float)npc.WanderPhase;
             }
         }
+    }
+
+    /// <summary>True if an NPC's body (feet + head) would sit inside a solid block at this position — a wall,
+    /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.</summary>
+    private bool BlockedByWorld(Vector3f pos)
+    {
+        int x = (int)System.Math.Floor(pos.X);
+        int y = (int)System.Math.Floor(pos.Y);
+        int z = (int)System.Math.Floor(pos.Z);
+        return !_world.GetBlock(new Vector3i(x, y, z)).IsAir       // feet
+            || !_world.GetBlock(new Vector3i(x, y + 1, z)).IsAir;  // head
     }
 
     private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });

@@ -113,6 +113,7 @@ internal sealed class ShipStamp
     public Vector3f HealTank { get; set; }        // medbay respawn point
     public HashSet<Vector3i> Extra { get; } = new(); // exterior/silhouette + layout cells (protected)
     public List<(string Type, Vector3f Pos)> Stations { get; } = new();
+    public List<Vector3f> Doors { get; } = new(); // designed-ship doorway markers (sci-fi slide doors)
 }
 
 /// <summary>
