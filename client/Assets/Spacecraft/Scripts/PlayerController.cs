@@ -146,7 +146,7 @@ namespace Spacecraft.Client
                 // Solid ground loaded somewhere below the spawn? (the chunk's MeshCollider exists)
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
                                    && gHit.collider != _controller;
-                if (groundBelow || _settleTimer > 12f)
+                if (groundBelow || _settleTimer > 20f) // hold longer so a slow chunk-load can't drop us into a cave
                 {
                     _settling = false;
                     _settleTimer = 0f;
@@ -597,7 +597,14 @@ namespace Spacecraft.Client
 
         private void HandleStations()
         {
-            Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
+            // Prefer the station you're looking at; fall back to the nearest one you're standing by. (Pure
+            // proximity made a cramped ship always read as the central station, "whatever you looked at".)
+            Game.NearbyStation = Game.LookedStationType(Camera, Reach);
+            if (string.IsNullOrEmpty(Game.NearbyStation))
+            {
+                Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
+            }
+
             if (string.IsNullOrEmpty(Game.NearbyStation) && Game.NearVendor)
             {
                 Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market

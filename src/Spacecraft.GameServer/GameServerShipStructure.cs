@@ -113,6 +113,8 @@ public sealed partial class GameServer
             _world.SetBlock(pos, frontWin || sideWin ? glass : wall);
         }
 
+        FillShipFoundation(cx - _shipHalfX, cz - _shipHalfZ, 2 * _shipHalfX + 1, 2 * _shipHalfZ + 1, y0);
+
         // Ceiling lights: a row of emissive panels down the centre of the roof so the cabin glows at
         // night (the client renders data_cache as an emissive block). They stay solid hull (protected).
         var lightBlock = _content.GetBlock("data_cache")?.NumericId ?? glass;
@@ -301,6 +303,8 @@ public sealed partial class GameServer
             }
         }
 
+        FillShipFoundation(ox, oz, layout.Width, layout.Length, y0);
+
         _shipAnchor = new Vector3i(cx, y0, cz);
         _healTank = medbay ?? new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
         _shipStamped = true;
@@ -324,6 +328,31 @@ public sealed partial class GameServer
         }
 
         _stations.Add((type, new Vector3f(x + 0.5f, y, z + 0.5f)));
+    }
+
+    private const int ShipFoundationDepth = 6; // plug caves this deep under the ship so you can't fall into one
+
+    /// <summary>Fills any cave/void directly under the ship's footprint with solid ground, so a player who
+    /// falls through the floor while its chunk collider is still streaming lands at the surface — not deep in
+    /// a cavern ("spawning into a cave").</summary>
+    private void FillShipFoundation(int ox, int oz, int width, int length, int y0)
+    {
+        var fill = _content.GetBlock("stone")?.NumericId ?? _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
+        if (fill.IsAir)
+        {
+            return;
+        }
+
+        for (int fx = 0; fx < width; fx++)
+        for (int fz = 0; fz < length; fz++)
+        for (int dy = 1; dy <= ShipFoundationDepth; dy++)
+        {
+            var p = new Vector3i(ox + fx, y0 - dy, oz + fz);
+            if (_world.GetBlock(p).IsAir)
+            {
+                _world.SetBlock(p, fill);
+            }
+        }
     }
 
     private void SendShipStations(PlayerSession session)

@@ -189,6 +189,33 @@ namespace Spacecraft.Client
             return best;
         }
 
+        /// <summary>The station the player is looking AT: raycast forward and return the station nearest the
+        /// hit point (so a cramped ship's many stations don't all read as the one you happen to stand on).
+        /// Empty if the aim doesn't land on a station. Used in preference to <see cref="NearestStationType"/>.</summary>
+        public string LookedStationType(Camera cam, float range)
+        {
+            if (cam == null || Stations.Length == 0
+                || !Physics.Raycast(cam.transform.position, cam.transform.forward, out var hit, range))
+            {
+                return string.Empty;
+            }
+
+            string best = string.Empty;
+            float bestSq = 1.6f * 1.6f; // the hit must land on (or right next to) a station tile
+            foreach (var s in Stations)
+            {
+                float dx = (float)WorldConstants.WrapDeltaX(s.X - hit.point.x), dy = s.Y - hit.point.y, dz = s.Z - hit.point.z;
+                float d = dx * dx + dy * dy + dz * dz;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = s.Type;
+                }
+            }
+
+            return best;
+        }
+
         /// <summary>The authoritative spawn the server reported for us; the rig snaps to it once.</summary>
         public Vector3? ServerSpawn { get; private set; }
 
