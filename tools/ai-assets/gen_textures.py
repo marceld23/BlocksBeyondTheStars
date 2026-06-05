@@ -37,6 +37,8 @@ TEXTURES = [
     ("titanium_ore", "grey stone with silvery white titanium ore flecks"),
     ("silicate", "pale sandy silicate mineral rock"),
     ("carbon", "black carbon coal rock with shiny flecks"),
+    ("wood_log", "brown tree bark wood log surface with vertical wood grain"),
+    ("tree_leaves", "dense leafy green tree foliage canopy with small overlapping leaves, top-down"),
     ("iron_wall", "grey sci-fi metal hull plate with rivets and panel seams"),
     ("crystal", "pale glowing blue crystal facets"),
     ("glass", "clear pale blue glass pane with a faint reflection"),
