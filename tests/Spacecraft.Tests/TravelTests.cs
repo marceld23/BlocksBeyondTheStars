@@ -66,6 +66,28 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void Travel_LandsOnAMoon_NotJustPlanets()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
+            var moon = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.Moon
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.Id != server.ActiveLocationId);
+
+            server.Travel("Pilot", moon.Id);
+
+            // Moons are landable surfaces too — the space view offers them, so travel must accept them.
+            Assert.Equal(moon.Id, server.ActiveLocationId);
+            Assert.Equal(moon.Id, server.World.LocationId);
+        }
+    }
+
+    [Fact]
     public void TwoPlayers_OnDifferentPlanets_HaveIsolatedWorlds()
     {
         var server = Started(out var repo);

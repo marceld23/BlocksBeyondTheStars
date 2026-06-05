@@ -346,9 +346,11 @@ public sealed partial class GameServer
         }
 
         var body = _galaxy?.FindBody(intent.DestinationBodyId);
-        if (body is null || body.Kind != CelestialKind.Planet || string.IsNullOrEmpty(body.PlanetType))
+        if (body is null || (body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || string.IsNullOrEmpty(body.PlanetType))
         {
-            Reject(session, "travel", "You can only travel to a planet.");
+            // Planets AND moons are landable surfaces (the space view offers both); stations/belts/wrecks
+            // are not "travel" destinations (you dock/visit those differently).
+            Reject(session, "travel", "You can only land on a planet or moon.");
             return;
         }
 

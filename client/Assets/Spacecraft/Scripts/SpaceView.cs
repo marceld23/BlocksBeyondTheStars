@@ -685,6 +685,102 @@ namespace Spacecraft.Client
             return ship;
         }
 
+        /// <summary>Lit material textured with a bundled block texture (white-ish tint so the texture reads).</summary>
+        private static Material LitTex(string texKey, Color tint, float tile = 2f) => Lit(tint, LoadTex(texKey), new Vector2(tile, tile));
+
+        /// <summary>A real station model: an iron hull hub with a glass viewport collar, docking arms with end
+        /// pods, solar wings and a beacon mast — textured (iron/carbon/glass), not a flat cube.</summary>
+        private GameObject BuildStationModel(Transform parent)
+        {
+            var root = new GameObject("Station");
+            root.transform.SetParent(parent, false);
+            var hull = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f));
+            var dark = LitTex("carbon", new Color(0.72f, 0.72f, 0.76f));
+            var glass = LitTex("glass", new Color(0.7f, 0.9f, 1f));
+            var panel = Unlit(new Color(0.18f, 0.34f, 0.68f)); // solar cells
+            var light = Unlit(new Color(1f, 0.85f, 0.4f));
+
+            Cube("Hub", root.transform, Vector3.zero, new Vector3(4f, 4f, 4f), hull);
+            Cube("Collar", root.transform, Vector3.zero, new Vector3(5.6f, 1f, 5.6f), dark);
+            Cube("Viewband", root.transform, new Vector3(0f, 0.5f, 0f), new Vector3(4.2f, 1f, 4.2f), glass);
+            Cube("ArmX", root.transform, Vector3.zero, new Vector3(11f, 0.8f, 0.8f), dark);
+            Cube("ArmZ", root.transform, Vector3.zero, new Vector3(0.8f, 0.8f, 11f), dark);
+            Cube("PodXp", root.transform, new Vector3(5f, 0f, 0f), new Vector3(1.8f, 1.8f, 1.8f), hull);
+            Cube("PodXn", root.transform, new Vector3(-5f, 0f, 0f), new Vector3(1.8f, 1.8f, 1.8f), hull);
+            Cube("PodZp", root.transform, new Vector3(0f, 0f, 5f), new Vector3(1.8f, 1.8f, 1.8f), hull);
+            Cube("PodZn", root.transform, new Vector3(0f, 0f, -5f), new Vector3(1.8f, 1.8f, 1.8f), hull);
+            Cube("SolarL", root.transform, new Vector3(-7.4f, 0f, 0f), new Vector3(3.2f, 0.15f, 5.2f), panel);
+            Cube("SolarR", root.transform, new Vector3(7.4f, 0f, 0f), new Vector3(3.2f, 0.15f, 5.2f), panel);
+            Cube("Mast", root.transform, new Vector3(0f, 2.8f, 0f), new Vector3(0.4f, 2.6f, 0.4f), dark);
+            Cube("Beacon", root.transform, new Vector3(0f, 4.4f, 0f), new Vector3(0.7f, 0.7f, 0.7f), light);
+            root.AddComponent<Spin>().Configure(Vector3.up, 3f); // a slow, stately rotation
+            return root;
+        }
+
+        /// <summary>A real drone model: an angular carbon body with a glowing red sensor eye and side pods.</summary>
+        private GameObject BuildDroneModel(Transform parent)
+        {
+            var root = new GameObject("Drone");
+            root.transform.SetParent(parent, false);
+            var body = LitTex("carbon", new Color(0.55f, 0.5f, 0.58f));
+            var trim = LitTex("iron_wall", new Color(0.6f, 0.5f, 0.55f));
+
+            Cube("Core", root.transform, Vector3.zero, new Vector3(1.3f, 0.9f, 1.3f), body);
+            Cube("Eye", root.transform, new Vector3(0f, 0f, 0.8f), new Vector3(0.45f, 0.45f, 0.4f), Unlit(new Color(1f, 0.25f, 0.2f)));
+            Cube("PodL", root.transform, new Vector3(-0.9f, 0f, -0.1f), new Vector3(0.4f, 0.4f, 1f), trim);
+            Cube("PodR", root.transform, new Vector3(0.9f, 0f, -0.1f), new Vector3(0.4f, 0.4f, 1f), trim);
+            Cube("Fin", root.transform, new Vector3(0f, 0.7f, -0.3f), new Vector3(0.2f, 0.7f, 0.8f), trim);
+            root.AddComponent<Spin>().Configure(Vector3.up, 18f); // restless hover spin
+            return root;
+        }
+
+        /// <summary>A real UFO model: a flattened metal saucer with a glass dome and glowing underside lights.</summary>
+        private GameObject BuildUfoModel(Transform parent)
+        {
+            var root = new GameObject("Ufo");
+            root.transform.SetParent(parent, false);
+
+            var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            disc.name = "Saucer";
+            StripCollider(disc);
+            disc.transform.SetParent(root.transform, false);
+            disc.transform.localScale = new Vector3(2.6f, 0.22f, 2.6f); // wide + flat
+            disc.GetComponent<Renderer>().sharedMaterial = LitTex("titanium_ore", new Color(0.8f, 0.82f, 0.88f), 1.5f);
+
+            var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            dome.name = "Dome";
+            StripCollider(dome);
+            dome.transform.SetParent(root.transform, false);
+            dome.transform.localPosition = new Vector3(0f, 0.35f, 0f);
+            dome.transform.localScale = new Vector3(1.3f, 0.9f, 1.3f);
+            dome.GetComponent<Renderer>().sharedMaterial = LitTex("glass", new Color(0.6f, 0.95f, 0.8f));
+
+            Cube("LightF", root.transform, new Vector3(0f, -0.2f, 1f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
+            Cube("LightB", root.transform, new Vector3(0f, -0.2f, -1f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
+            Cube("LightL", root.transform, new Vector3(-1f, -0.2f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
+            Cube("LightR", root.transform, new Vector3(1f, -0.2f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
+            root.AddComponent<Spin>().Configure(Vector3.up, 40f); // a fast saucer spin
+            return root;
+        }
+
+        /// <summary>A real cruiser model: an elongated iron hull with a glass bridge and twin glowing engines.</summary>
+        private GameObject BuildCruiserModel(Transform parent)
+        {
+            var root = new GameObject("Cruiser");
+            root.transform.SetParent(parent, false);
+            var hull = LitTex("iron_wall", new Color(0.7f, 0.55f, 0.55f));
+            var dark = LitTex("carbon", new Color(0.6f, 0.5f, 0.5f));
+
+            Cube("Hull", root.transform, Vector3.zero, new Vector3(2f, 1.2f, 5f), hull);
+            Cube("Spine", root.transform, new Vector3(0f, 0.8f, -0.5f), new Vector3(0.8f, 0.6f, 3f), dark);
+            Cube("Bridge", root.transform, new Vector3(0f, 0.7f, 1.8f), new Vector3(1f, 0.7f, 1.2f), LitTex("glass", new Color(0.6f, 0.8f, 1f)));
+            Cube("EngineL", root.transform, new Vector3(-0.7f, 0f, -2.6f), new Vector3(0.7f, 0.7f, 0.9f), dark);
+            Cube("EngineR", root.transform, new Vector3(0.7f, 0f, -2.6f), new Vector3(0.7f, 0.7f, 0.9f), dark);
+            Cube("GlowL", root.transform, new Vector3(-0.7f, 0f, -3.1f), new Vector3(0.4f, 0.4f, 0.3f), Unlit(new Color(1f, 0.5f, 0.3f)));
+            Cube("GlowR", root.transform, new Vector3(0.7f, 0f, -3.1f), new Vector3(0.4f, 0.4f, 0.3f), Unlit(new Color(1f, 0.5f, 0.3f)));
+            return root;
+        }
+
         /// <summary>Builds the system's star far off in a fixed direction as stacked additive billboards: a
         /// coloured corona (the star tint) with a white-hot core on top, so even a deep-red or blue star
         /// reads as a real bright sun disc you can fly toward — not a vague coloured wash.</summary>
@@ -785,7 +881,15 @@ namespace Spacecraft.Client
                         }
                         else
                         {
-                            go = Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind)));
+                            // Real textured multi-cube models (mirrors the ship) instead of a flat colour cube.
+                            go = e.Kind switch
+                            {
+                                "SpaceStation" => BuildStationModel(_root.transform),
+                                "Drone" => BuildDroneModel(_root.transform),
+                                "Ufo" => BuildUfoModel(_root.transform),
+                                "Cruiser" => BuildCruiserModel(_root.transform),
+                                _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
+                            };
                         }
 
                         _entities[e.Id] = go;
@@ -1208,9 +1312,23 @@ namespace Spacecraft.Client
         {
             private Vector3 _axis = Vector3.up;
             private float _speed = 12f;
+            private bool _configured;
+
+            /// <summary>Pins a fixed axis + speed (deg/s); otherwise a random tumble is chosen on Start.</summary>
+            public void Configure(Vector3 axis, float speed)
+            {
+                _axis = axis.sqrMagnitude > 0.0001f ? axis.normalized : Vector3.up;
+                _speed = speed;
+                _configured = true;
+            }
 
             private void Start()
             {
+                if (_configured)
+                {
+                    return;
+                }
+
                 _axis = Random.onUnitSphere;
                 _speed = Random.Range(7f, 20f); // degrees / second
             }

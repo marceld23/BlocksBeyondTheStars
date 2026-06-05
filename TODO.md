@@ -16,6 +16,21 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): Land on moons + real textured station/enemy models
+- **E-to-land did nothing on some bodies because moons were rejected.** `HandleTravel` only allowed
+  `CelestialKind.Planet`, but the space view offers landing on **planets and moons** — flying to a moon
+  showed "Press E to land" and the server silently rejected it. Now both are accepted. Test
+  `Travel_LandsOnAMoon_NotJustPlanets`. (Worlds generate on demand in `LoadWorld`, so an unvisited body was
+  never the blocker.)
+- **Asteroids/stations/enemies — textures.** Asteroids were already stone-textured; stations + space enemies
+  were flat colour cubes. They're now **real textured multi-cube models** (mirrors the ship), built from the
+  bundled block textures: a station (iron hull hub + glass viewport collar + docking arms/pods + solar wings
+  + beacon, slow spin), a drone (carbon body + glowing eye + pods), a UFO (titanium saucer + glass dome +
+  underside lights, fast spin) and a cruiser (iron hull + glass bridge + twin glowing engines). `Spin` got a
+  `Configure(axis, speed)` for the fixed rotations. No external art needed.
+
+---
+
 ## ✅ Done (2026-06-06): Only real bodies in space — every planet is landable
 You couldn't land on a planet you flew to because it was a **decorative** sphere (`planet2`) not in the
 landable set — the land prompt never appeared. Removed the two decorative planets entirely; the space view
@@ -343,6 +358,19 @@ their own ship; persistence keyed by player id); **P4c** set `_current` in `OnPa
 StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle the test/public accessors
 (`server.Ship`/`OwnedShips` → first joined player) + a two-player fleet-isolation test. Ship-stamp state
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
+
+### Orbital bodies in the planet sky — planned (not started) ⭐ (2026-06-06)
+On a planet's surface, the **other nearby bodies of the system** (neighbouring planets/moons) and the
+**space stations orbiting this planet** should be visible as **small objects in the sky** — like a moon you
+can see by day + night. Cosmetic, client-side (mirrors `Sky`/`Starfield`/the sun disc):
+- A `SkyBodies` component that, only while on a planet surface (not in space / not boarded), places small
+  **lit sphere billboards** for the system's neighbours and small **station icons** for stations orbiting
+  the current body, in the sky dome — direction derived from the star map's relative system coords
+  (`Game.StarMap`, already client-side), distance scaled to the far plane, following the camera like the
+  starfield. Tint/size from each body's planet type; stations read as tiny metallic specks/cross shapes.
+- Visible day + night (a touch brighter at night); a very slow drift so they feel like they orbit.
+- Phasing: **O1** render neighbours + stations from the star map; **O2** slow orbital drift; **O3** per-type
+  look + stations-of-this-body shown nearer/bigger; **O4** optional labels on look/scan.
 
 ### Doors — planned (not started) ⭐ (next up, 2026-06-06)
 Two door kinds, server-authoritative state, rendered + collided client-side (movement is client-side, so a
