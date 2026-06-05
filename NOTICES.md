@@ -6,7 +6,8 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (94 files, incl. the splash intro) are **AI-generated** with the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (95 files, incl. the splash intro and the
+`jumave_sting` studio-splash whoosh-tada) are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**

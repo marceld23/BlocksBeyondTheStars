@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Spacecraft.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -21,7 +21,7 @@ namespace Spacecraft.Client
     {
         public const string Version = "0.20.0-dev";
 
-        public ShellPhase Phase { get; private set; } = ShellPhase.Splash;
+        public ShellPhase Phase { get; private set; } = ShellPhase.Studio; // studio splash → SPACECRAFT splash → menu
         public ClientSettings Settings { get; private set; }
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
@@ -32,6 +32,7 @@ namespace Spacecraft.Client
         public string PlayerName = "Pilot";
 
         private SplashScreen _splash;
+        private StudioSplash _studio;
         private LoadingScreen _loading;
 
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
@@ -49,6 +50,7 @@ namespace Spacecraft.Client
             // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
             // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
             _splash = new SplashScreen(this);
+            _studio = new StudioSplash(this);
             _loading = new LoadingScreen(this);
 
             EnsureMenuBackground();
@@ -79,6 +81,28 @@ namespace Spacecraft.Client
         private void PlaySplashSound()
         {
             var clip = Resources.Load<AudioClip>("audio/splash_intro");
+            if (clip == null)
+            {
+                return;
+            }
+
+            if (FindFirstObjectByType<AudioListener>() == null)
+            {
+                gameObject.AddComponent<AudioListener>();
+            }
+
+            var src = gameObject.AddComponent<AudioSource>();
+            src.spatialBlend = 0f;
+            src.volume = Mathf.Clamp01(Settings?.MasterVolume ?? 0.8f);
+            src.PlayOneShot(clip);
+        }
+
+        /// <summary>Plays the developer-studio splash whoosh→tada sting (the bespoke ElevenLabs sound when
+        /// bundled, else the intro sting as a fallback so the screen is never silent).</summary>
+        public void PlayStudioSting()
+        {
+            var clip = Resources.Load<AudioClip>("audio/jumave_sting")
+                       ?? Resources.Load<AudioClip>("audio/splash_intro");
             if (clip == null)
             {
                 return;
@@ -359,6 +383,7 @@ namespace Spacecraft.Client
 
         private void Update()
         {
+            _studio.Update();
             _splash.Update();
             _loading.Update();
 

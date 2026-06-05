@@ -771,30 +771,66 @@ namespace Spacecraft.Client
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
 
-            // The system's other planets/moons at their (scaled) orbit coords, relative to home — all real,
-            // all landable. Fly out to one and press E to land.
+            // The system's other planets/moons at their (scaled) orbit coords — all real, all landable.
             if (current != null && system != null)
             {
+                const float PlanetDiameter = 46f, MoonDiameter = 28f;
+
+                void Place(string id, string name, Vector3 pos, float diameter, string type)
+                {
+                    SpawnBody("SystemBody_" + id, pos, diameter, type);
+                    float r = diameter * 0.5f;
+                    _landables.Add((id, name, pos, r));
+                    _keepOut.Add((pos, r + KeepOutMargin)); // can't fly into it — slide + press E to land
+                    maxDist = Mathf.Max(maxDist, pos.magnitude);
+                }
+
+                // Pass 1: the planets (incl. the home body, which is drawn "below" you). Record their system
+                // + render positions so each moon can be pushed clear of its parent planet's surface.
+                var planets = new List<(float Sx, float Sz, Vector3 Render, float Radius)>
+                {
+                    (current.SystemX, current.SystemZ, homePos, homeDiameter * 0.5f),
+                };
                 foreach (var b in system.Bodies)
                 {
-                    if (b.Id == current.Id || string.IsNullOrEmpty(b.PlanetType))
-                    {
-                        continue; // skip the home body (rendered above), stations, the star
-                    }
-
-                    if (b.Kind != "Planet" && b.Kind != "Moon")
+                    if (b.Id == current.Id || b.Kind != "Planet" || string.IsNullOrEmpty(b.PlanetType))
                     {
                         continue;
                     }
 
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    float diameter = b.Kind == "Moon" ? 28f : 46f;
-                    SpawnBody("SystemBody_" + b.Id, pos, diameter, b.PlanetType);
+                    Place(b.Id, b.Name, pos, PlanetDiameter, b.PlanetType);
+                    planets.Add((b.SystemX, b.SystemZ, pos, PlanetDiameter * 0.5f));
+                }
 
-                    float bodyRadius = diameter * 0.5f;
-                    _landables.Add((b.Id, b.Name, pos, bodyRadius));
-                    _keepOut.Add((pos, bodyRadius + KeepOutMargin)); // can't fly into it — slide + press E to land
-                    maxDist = Mathf.Max(maxDist, pos.magnitude);
+                // Pass 2: the moons — each placed relative to its parent planet (nearest in system space) and
+                // pushed OUT to orbit just outside that planet's surface, so the compact view scale can't ever
+                // sink a moon inside its planet (the overlap bug).
+                foreach (var b in system.Bodies)
+                {
+                    if (b.Id == current.Id || b.Kind != "Moon" || string.IsNullOrEmpty(b.PlanetType))
+                    {
+                        continue;
+                    }
+
+                    var parent = planets[0];
+                    float bestSq = float.MaxValue;
+                    foreach (var p in planets)
+                    {
+                        float dx = b.SystemX - p.Sx, dz = b.SystemZ - p.Sz;
+                        float dsq = dx * dx + dz * dz;
+                        if (dsq < bestSq) { bestSq = dsq; parent = p; }
+                    }
+
+                    var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
+                    float minClear = parent.Radius + MoonDiameter * 0.5f + 6f; // outside the planet's surface
+                    if (rel.magnitude < minClear)
+                    {
+                        Vector3 dir = rel.sqrMagnitude > 0.0001f ? rel.normalized : Vector3.right;
+                        rel = dir * minClear;
+                    }
+
+                    Place(b.Id, b.Name, parent.Render + rel, MoonDiameter, b.PlanetType);
                 }
             }
 

@@ -16,6 +16,21 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): JuMaVe Games studio splash + moon-overlap fix
+- **Studio splash:** a new `StudioSplash` (+ `ShellPhase.Studio`, now the first phase) shows the **JuMaVe
+  Games** developer-studio screen for **5 s** right after the "Made with Unity" screen, before the SPACECRAFT
+  title splash. Code-built uGUI: an assembling block-cluster emblem inside a sweeping orbit ring (a little
+  rocket circling it + twinkling stars + a glow pulse), the gradient wordmark (**Ju** cyan · **Ma** white ·
+  **Ve** orange) with "GAMES", the slogan **"Built from imagination."**, and a reveal flash. Skippable after
+  a moment. A whoosh→tada sting lands on the reveal (`AppShell.PlayStudioSting`) — falls back to the intro
+  sting until the bespoke **ElevenLabs** `audio/jumave_sting` is bundled (proposed for approval).
+- **Moon overlap fixed:** the compact `SystemViewScale` (0.16) had sunk moons *inside* their planets (moon
+  orbit 90 system-units × 0.16 = 14 flight units < a planet's 23-unit radius). `BuildSystemBodies` now places
+  each moon relative to its **parent planet** (nearest in system space) and pushes it **out past the planet's
+  surface**, so moons orbit clear of their planet at any view scale.
+
+---
+
 ## ✅ Done (2026-06-06): Closer planets, radar bearings, ship-systems quick-bar
 - **Planets closer together:** flight distance = orbit spacing (~520 system units between adjacent orbits)
   × `SystemViewScale`. That was 0.30 → ~156 flight units (~11 s cruise) between neighbours; lowered to **0.16
