@@ -183,6 +183,7 @@ public sealed class SpaceCombatTests : IDisposable
             server.EnterSpace("Pilot");
 
             var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z); // close to fire (range from ship)
             server.FireWeapon("Pilot", "ship_cannon_1", drone.Id); // 40 -> 20
             server.FireWeapon("Pilot", "ship_cannon_1", drone.Id); // destroyed
 
@@ -207,6 +208,10 @@ public sealed class SpaceCombatTests : IDisposable
             var pilot = server.AddLocalPlayer("Pilot");
             server.EnterSpace("Pilot");
             Assert.True(server.InSpace("Pilot"));
+
+            // Drones now spawn far from the launch point (safe launch); fly into their midst to be engaged.
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
 
             server.Tick(12.0); // 120 damage > 100 hull (no shield)
 

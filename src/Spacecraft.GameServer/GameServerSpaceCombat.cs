@@ -286,6 +286,9 @@ public sealed partial class GameServer
         bool combatEnabled = Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both;
         if (combatEnabled)
         {
+            // Spawn hostiles FAR from the launch point (well beyond ShipEngageRange) so launching/docking is
+            // safe and combat is opt-in — you choose to fly out to them. They used to spawn ~25u away and
+            // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
             int drones = ActivityCount(Rules.SpaceNpcEnemies);
             for (int i = 0; i < drones; i++)
             {
@@ -296,7 +299,7 @@ public sealed partial class GameServer
                     Hostile = true,
                     Hull = 40f,
                     HullMax = 40f,
-                    Position = new Vector3f(-8 - i * 4, 5, 22 + i * 5),
+                    Position = new Vector3f(150f + i * 16f, 10f, -130f - i * 20f),
                     DamagePerSecond = 5f,
                     Loot = { new ItemAmount("data_fragment", 1) },
                 });
@@ -311,7 +314,7 @@ public sealed partial class GameServer
                     Hostile = true,
                     Hull = 70f,
                     HullMax = 70f,
-                    Position = new Vector3f(0, -6, 30),
+                    Position = new Vector3f(-170f, 14f, 150f),
                     DamagePerSecond = 8f,
                     Loot = { new ItemAmount("data_fragment", 3) },
                 });
@@ -348,7 +351,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (target.Position.DistanceSquared(Vector3f.Zero) > weapon.Range * weapon.Range)
+        if (target.Position.DistanceSquared(instance.ShipPosition) > weapon.Range * weapon.Range)
         {
             RejectSpace(session, "Target is out of weapon range.");
             return;
@@ -524,7 +527,7 @@ public sealed partial class GameServer
     // Hostiles only fire on the ship once they're within engagement range — so a distant drone can't plink
     // you forever (which read as the ship being shaken + flashing red with no visible attacker), and flying
     // clear of the fight actually stops the damage and lets the shield recharge.
-    private const float ShipEngageRange = 85f;
+    private const float ShipEngageRange = 70f;
 
     private const string TractorModule = "tractor_beam";
     private const float TractorRange = 8f;

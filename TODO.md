@@ -16,6 +16,23 @@ SQLite persistence.
 
 ---
 
+## ✅ Done (2026-06-06): Safe launch + reach the system — combat was killing you on spawn
+The real cause of "I take continuous hull damage then suddenly respawn on the planet":
+- **Hostile drones/UFOs spawned ~25u from the launch point**, inside `ShipEngageRange` — so a combat preset
+  (coop-survival/dangerous/pvp) hammered the ship the instant it launched, destroyed it, and `DisableShip`
+  respawned you at base. They now spawn **far** (≥150u) → launching/docking is safe, combat is opt-in.
+- **Ship weapon range was measured from the origin** (0,0,0), not the ship — so you literally couldn't
+  shoot anything you flew out to. Now measured from `instance.ShipPosition`; engage range tightened 85→70 to
+  sit near the weapon ranges (40–70).
+- **System flight reachable:** with combat no longer spawn-camping you, the system's other planets (placed
+  at their scaled orbit coords, ~156u+ out) are flyable + landable again. Per-body land approach (radius +
+  margin + band) shows "Press E to land" just outside each body's keep-out, and the **launch planet is now
+  landable too** (E returns you home) so there's always a planet to land on, not only the station.
+- Tests updated (drones now spawn far): `NpcDrones_DisableShip…`, `ShipCannon_DestroysDrone…` fly the ship
+  to the drones first; `DistantHostile_DoesNotDamageShip_UntilWithinRange` covers the range gate.
+
+---
+
 ## ✅ Done (2026-06-06): No fly-into-planet / auto-land; E-land prompt actually shows
 Follow-up to the E-landing change:
 - **Keep-out barrier around every body** (landables + the two decorative planets): the ship slides along a

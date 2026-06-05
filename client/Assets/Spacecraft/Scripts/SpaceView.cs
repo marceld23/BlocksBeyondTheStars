@@ -260,13 +260,12 @@ namespace Spacecraft.Client
             _landTargetId = null;
             _landTargetName = null;
             _landTargetSq = float.MaxValue;
-            float bestLand = LandApproachRange * LandApproachRange;
             foreach (var body in _landables)
             {
+                float approach = body.Radius + KeepOutMargin + LandBand; // just outside its keep-out shell
                 float sq = (body.Pos - pos).sqrMagnitude;
-                if (sq < bestLand)
+                if (sq <= approach * approach && sq < _landTargetSq)
                 {
-                    bestLand = sq;
                     _landTargetId = body.Id;
                     _landTargetName = body.Name;
                     _landTargetSq = sq;
@@ -601,6 +600,12 @@ namespace Spacecraft.Client
             AddCloudShell(planet2.transform, secondCloudCol, secondCloudDen);
 
             BuildSystemBodies(); // the rest of the system's planets/moons, flyable + landable
+
+            // The planet you launched from is landable too: fly back to it and press E to return home (id ""
+            // = the body you came from). Always present, even with no star map, so there's always a planet to
+            // land on — not just the station.
+            _landables.Add((string.Empty, Game?.LocationName ?? "home", new Vector3(20f, -120f, 70f), 80f));
+
             _ship = BuildShip(_root.transform);
         }
 
@@ -900,8 +905,8 @@ namespace Spacecraft.Client
         private float _nearStationSq;   // squared distance to the near station
         private float _bounds = Bounds; // flight clamp, enlarged to span the resident system
         private const float SystemViewScale = 0.30f; // system units → flight-view units
-        private const float LandApproachRange = 55f; // within this of a body you can land on it
         private const float KeepOutMargin = 10f;     // how far outside a body's surface the ship is held
+        private const float LandBand = 40f;          // land prompt shows within (body radius + margin + band)
 
         private void EnsureUi()
         {
