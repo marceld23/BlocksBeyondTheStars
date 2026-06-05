@@ -18,8 +18,9 @@ namespace Spacecraft.Client
         {
             public GameObject Root;
             public Vector3 Target;
-            public string Bank;   // creature_{size}_{disposition} voice bank
-            public float Pitch;   // shifted by body size for per-creature variety
+            public string Bank;   // creature_{size}_{disposition} voice bank (hurt/alert/attack/die)
+            public string Call;   // this species' signature idle call (creature_call_*)
+            public float Pitch;   // per-species voice pitch (size + a per-species offset)
             public float NextCall; // Time.time of the next idle vocalisation
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
@@ -48,12 +49,18 @@ namespace Spacecraft.Client
                     root.transform.SetParent(transform, true); // under the game root → destroyed on teardown (not leaked into menus/editors)
                     root.transform.position = Game.ScenePos(pos.x, pos.y, pos.z); // seam-aware (longitude wraps)
                     new CreatureBuilder().Build(root, c);
+                    int idh = SpeciesHash(c.SpeciesId);
+                    float sizePitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f);
+                    float speciesOffset = 0.82f + (idh % 37) / 37f * 0.45f; // 0.82..1.27, consistent per species
                     entry = new Entry
                     {
                         Root = root,
                         Target = pos,
                         Bank = Bank(c),
-                        Pitch = Mathf.Clamp(1.5f - 0.35f * c.Size, 0.7f, 1.6f),
+                        // The signature call gives each species a distinct voice; the size+species pitch keeps
+                        // it consistent across all individuals of that species (never random per individual).
+                        Call = Calls[idh % Calls.Length],
+                        Pitch = Mathf.Clamp(sizePitch * speciesOffset, 0.6f, 1.85f),
                         NextCall = Time.time + Random.Range(2f, 6f),
                         Settled = pos,
                         PrevHostile = c.Hostile,
@@ -84,7 +91,7 @@ namespace Spacecraft.Client
                 if (Time.time >= entry.NextCall)
                 {
                     entry.NextCall = Time.time + Random.Range(5f, 12f);
-                    ClientAudio.Instance?.At(entry.Bank + "_idle", entry.Root.transform.position, entry.Pitch, 0.8f);
+                    ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch, 0.8f);
                 }
 
                 // React to authoritative state: hurt on a hull drop, alert on turning hostile,
@@ -142,6 +149,21 @@ namespace Spacecraft.Client
         {
             string size = c.Size < 0.8f ? "small" : c.Size < 1.6f ? "medium" : "large";
             return $"creature_{size}_{(c.Hostile ? "hostile" : "calm")}";
+        }
+
+        // Signature idle calls — each species picks one (by id), so a world's fauna sounds varied.
+        private static readonly string[] Calls =
+            { "creature_call_chirp", "creature_call_croak", "creature_call_growl", "creature_call_screech", "creature_call_warble", "creature_call_hoot" };
+
+        private static int SpeciesHash(string id)
+        {
+            int h = 0;
+            foreach (char ch in id ?? string.Empty)
+            {
+                h = h * 31 + ch;
+            }
+
+            return h & 0x7fffffff;
         }
 
         /// <summary>A brief red "claw slash" burst at the player so a creature's attack reads clearly.</summary>
