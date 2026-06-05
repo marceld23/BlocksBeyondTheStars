@@ -71,8 +71,11 @@ Start-Sleep -Seconds 2 # let the final log lines flush
 $succeeded   = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Spacecraft build: Succeeded' -Quiet)
 $compileFail = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Scripts have compiler errors' -Quiet)
 
-if ($unityExit -ne 0 -or $compileFail -or -not $succeeded) {
-    $why = if ($compileFail) { 'script compile errors' } elseif (-not $succeeded) { 'no success marker in log' } else { "unity exit $unityExit" }
+# The success marker + no compile errors is authoritative (per the comment above); the raw exit code is NOT
+# trusted — Unity often relaunches a child to compile/build, leaving $LASTEXITCODE null/non-zero even on a
+# clean success. So only fail on a real compile error or a missing success marker.
+if ($compileFail -or -not $succeeded) {
+    $why = if ($compileFail) { 'script compile errors' } else { 'no success marker in log' }
     Write-Error "Build FAILED ($why). See $log"
 }
 

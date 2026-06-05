@@ -234,6 +234,7 @@ namespace Spacecraft.Client
         // Shared (loaded once) tintable grayscale hide tiles; the body multiplies them by the species colour.
         private static Texture2D _scales, _fur, _chitin, _hide, _slime;
         private static Texture2D _feathers, _spots, _stripes, _warty, _plated;
+        private static Texture2D _finned, _tentacled;
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -254,6 +255,8 @@ namespace Spacecraft.Client
             _stripes = LoadTex("creature_stripes");
             _warty = LoadTex("creature_warty");
             _plated = LoadTex("creature_plated");
+            _finned = LoadTex("creature_finned");
+            _tentacled = LoadTex("creature_tentacled");
         }
 
         /// <summary>Picks a hide tile for the species: glowing → slime, winged → feathers, hostile → chitin/
@@ -265,6 +268,12 @@ namespace Spacecraft.Client
             if (c.HasWings && _feathers != null) return _feathers;
 
             int h = StableIdHash(c.SpeciesId);
+            if (c.Habitat == "Water")
+            {
+                var aquatic = new[] { _finned, _tentacled, _slime, _scales };
+                return aquatic[h % aquatic.Length] ?? _finned ?? _hide;
+            }
+
             if (c.Hostile)
             {
                 var hostileOpts = new[] { _chitin, _plated, _scales };

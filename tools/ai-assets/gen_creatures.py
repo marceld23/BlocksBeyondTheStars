@@ -36,6 +36,8 @@ TEXTURES = [
     ("stripes", "animal skin with bold tiger-like stripes"),
     ("warty", "bumpy warty toad amphibian skin with knobbly lumps"),
     ("plated", "armored bony plates and scutes like a crocodile back"),
+    ("finned", "sleek wet fish skin with fine shiny scales and a smooth sheen"),
+    ("tentacled", "smooth glossy cephalopod octopus skin with soft suckers"),
 ]
 
 

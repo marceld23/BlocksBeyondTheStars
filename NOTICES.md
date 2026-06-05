@@ -26,7 +26,7 @@ usage terms for the generating account.
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
 
 **Avatar/creature textures:** `client/Assets/Resources/textures/avatar_*.bytes` (suit/armor/visor/skin)
-and `creature_*.bytes` (10 hide tiles: scales/fur/chitin/hide/slime/feathers/spots/stripes/warty/plated) are **AI-generated** the same way (`gpt-image-1-mini`, grayscale
+and `creature_*.bytes` (12 hide tiles: scales/fur/chitin/hide/slime/feathers/spots/stripes/warty/plated/finned/tentacled) are **AI-generated** the same way (`gpt-image-1-mini`, grayscale
 tileable 64px tiles that the avatar/creatures tint by colour — see `tools/ai-assets/gen_avatar.py` and
 `gen_creatures.py`); same OpenAI usage terms.
 
