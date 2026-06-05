@@ -521,6 +521,10 @@ public sealed partial class GameServer
     private const float ShipCollisionMinSpeed = 3f;
     private const float ShipCollisionDamageFactor = 0.8f;
     private const float ShipCollisionMaxDamage = 50f;
+    // Hostiles only fire on the ship once they're within engagement range — so a distant drone can't plink
+    // you forever (which read as the ship being shaken + flashing red with no visible attacker), and flying
+    // clear of the fight actually stops the damage and lets the shield recharge.
+    private const float ShipEngageRange = 85f;
 
     private const string TractorModule = "tractor_beam";
     private const float TractorRange = 8f;
@@ -644,7 +648,9 @@ public sealed partial class GameServer
 
             instance.ShipLastPosition = instance.ShipPosition;
 
-            float incoming = instance.Entities.Where(e => e.Hostile).Sum(e => e.DamagePerSecond);
+            float incoming = instance.Entities
+                .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
+                .Sum(e => e.DamagePerSecond);
             if (incoming > 0f)
             {
                 ApplyShipDamage((float)(incoming * dt));

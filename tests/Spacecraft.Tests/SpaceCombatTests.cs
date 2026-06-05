@@ -312,6 +312,34 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    [Fact]
+    public void DistantHostile_DoesNotDamageShip_UntilWithinRange()
+    {
+        var server = NewServer("engage", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Rare; // 1 drone
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+
+            // Parked far away, the drone can't touch the ship (no relentless off-screen plinking).
+            drone.Position = new Vector3f(500f, 0f, 0f);
+            float before = server.Ship.Hull;
+            server.Tick(3.0);
+            Assert.Equal(before, server.Ship.Hull);
+
+            // Brought within engagement range, it deals damage as usual.
+            drone.Position = new Vector3f(12f, 0f, 0f);
+            server.Tick(2.0);
+            Assert.True(server.Ship.Hull < before, "A hostile within engagement range should damage the ship.");
+        }
+    }
+
     // ---------------- Tractor beam (salvage) ----------------
 
     [Fact]

@@ -6,13 +6,27 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **281 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **282 passing**. Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 `Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
 
 Architecture: Unity 6 (Built-in RP) client + authoritative .NET 8 server, everything built in code (no
 scene authoring). One shared world; contractless MessagePack networking; deterministic seed world-gen;
 SQLite persistence.
+
+---
+
+## ✅ Done (2026-06-06): Space follow-ups — no relentless shake, a real sun disc
+- **The "ship being shaken" + red screen was continuous damage feedback.** `incoming` ship damage summed
+  **all** hostiles in the instance with **no range check**, so a distant/off-screen drone plinked the ship
+  every tick → permanent `_shake` + red `_hit` overlay. Now hostiles only fire within `ShipEngageRange`
+  (85u), so flying clear stops the damage + recharges the shield. Client feedback is now **proportional and
+  set-not-accumulated**: chip damage is a faint rumble, a real hit is a sharp jolt (no more max-pinned
+  shake/flash). Test `DistantHostile_DoesNotDamageShip_UntilWithinRange`.
+- **The sun now reads as a sun.** The single additive billboard in the raw star colour looked like a vague
+  red/blue wash (and an orange-red star is in the palette). It's now layered — a coloured corona + a
+  **white-hot core** — so the star is a clear bright disc in any colour; the lens flare is much subtler +
+  desaturated (no red screen wash).
 
 ---
 

@@ -75,8 +75,8 @@ namespace Spacecraft.Client
         private readonly List<Image> _flare = new List<Image>();
         private Sprite _glowSprite;
         private static readonly float[] FlareT = { 0f, 0.35f, 0.62f, 1.0f, 1.32f };       // 0 = at sun … 1 = screen centre
-        private static readonly float[] FlareSize = { 300f, 70f, 120f, 48f, 90f };
-        private static readonly float[] FlareAlpha = { 0.6f, 0.22f, 0.16f, 0.20f, 0.13f };
+        private static readonly float[] FlareSize = { 150f, 42f, 66f, 30f, 52f };
+        private static readonly float[] FlareAlpha = { 0.30f, 0.10f, 0.08f, 0.10f, 0.06f };
 
         private sealed class TractorBeam { public GameObject Go; public float Life; public float Max; }
 
@@ -474,12 +474,17 @@ namespace Spacecraft.Client
 
         private void OnShipCombat(Spacecraft.Networking.Messages.ShipCombatStatus s)
         {
-            bool hit = (_lastShield >= 0f && s.Shield < _lastShield - 0.1f)
-                    || (_lastHull >= 0f && s.Hull < _lastHull - 0.1f);
-            if (hit && _active)
+            // Scale the jolt + red flash to how hard we were hit, and *set* (not accumulate) them — so a
+            // steady trickle of chip damage is a faint rumble, while a real hit is a sharp jolt. Accumulating
+            // every tick made continuous fire pin the shake/flash at maximum (the ship "being shaken").
+            float shieldDrop = _lastShield >= 0f ? Mathf.Max(0f, _lastShield - s.Shield) : 0f;
+            float hullDrop = _lastHull >= 0f ? Mathf.Max(0f, _lastHull - s.Hull) : 0f;
+            float drop = Mathf.Max(shieldDrop, hullDrop);
+            if (drop > 0.05f && _active)
             {
-                _hitFlash = 1f;
-                _shake = Mathf.Min(1f, _shake + 0.7f);
+                float mag = Mathf.Clamp01(drop / 8f); // a full jolt only for a big single hit (~8 dmg)
+                _hitFlash = Mathf.Max(_hitFlash, 0.2f + 0.6f * mag);
+                _shake = Mathf.Max(_shake, 0.08f + 0.6f * mag);
             }
 
             _lastHull = s.Hull;
@@ -658,30 +663,43 @@ namespace Spacecraft.Client
             return ship;
         }
 
-        /// <summary>Builds the system's star as a bright additive billboard in its own colour. It sits far
-        /// off in a fixed direction so it reads as a real sun you can fly toward and look into.</summary>
+        /// <summary>Builds the system's star far off in a fixed direction as stacked additive billboards: a
+        /// coloured corona (the star tint) with a white-hot core on top, so even a deep-red or blue star
+        /// reads as a real bright sun disc you can fly toward — not a vague coloured wash.</summary>
         private void BuildSun()
         {
             _sunColor = Game?.Environment != null ? Rgb(Game.Environment.SunColor) : new Color(1f, 0.96f, 0.88f);
 
-            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            go.name = "Sun";
-            StripCollider(go);
+            var go = new GameObject("Sun");
             go.transform.SetParent(_root.transform, false);
+            _sun = go.transform;
+
+            _sunMat = MakeSunLayer(_sun, _sunColor, 320f);                          // outer corona (star colour)
+            MakeSunLayer(_sun, Color.Lerp(_sunColor, Color.white, 0.85f), 150f);    // hot near-white core
+            MakeSunLayer(_sun, Color.white, 64f);                                   // blazing white centre
+        }
+
+        private Material MakeSunLayer(Transform parent, Color color, float size)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = "SunLayer";
+            StripCollider(go);
+            go.transform.SetParent(parent, false);
+            go.transform.localScale = Vector3.one * size;
 
             var shader = Shader.Find("Spacecraft/SunGlow") ?? Shader.Find("Unlit/Color");
-            _sunMat = new Material(shader) { mainTexture = GenerateGlowTexture() };
-            _sunMat.SetColor("_Color", _sunColor);
+            var mat = new Material(shader) { mainTexture = GenerateGlowTexture() };
+            mat.SetColor("_Color", color);
 
             var mr = go.GetComponent<MeshRenderer>();
-            mr.sharedMaterial = _sunMat;
+            mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
-            _sun = go.transform;
+            return mat;
         }
 
         /// <summary>Keeps the sun at a fixed direction + far distance from the camera (so it stays at the
-        /// "horizon" of space) and faces it square-on as a billboard.</summary>
+        /// "horizon" of space) and faces it square-on as a billboard (its layers keep their own sizes).</summary>
         private void BillboardSun()
         {
             if (_sun == null || Camera == null)
@@ -691,7 +709,7 @@ namespace Spacecraft.Client
 
             _sun.localPosition = Camera.transform.localPosition + SunDir * 1500f;
             _sun.rotation = Quaternion.LookRotation(_sun.position - Camera.transform.position, Vector3.up);
-            _sun.localScale = Vector3.one * 240f;
+            _sun.localScale = Vector3.one;
         }
 
         /// <summary>A soft radial glow (bright core → transparent rim) for the sun billboard + flare sprites.</summary>
@@ -990,7 +1008,8 @@ namespace Spacecraft.Client
                 g.rectTransform.position = new Vector3(p.x, p.y, 0f);
                 // The sun bloom (i==0) is always visible on-screen; the ghost chain swells as you look at it.
                 float a = i == 0 ? FlareAlpha[0] * (0.5f + 0.5f * look) : FlareAlpha[i] * Mathf.Pow(look, 1.4f);
-                var col = _sunColor;
+                // Desaturate toward white so the flare reads as glare, not a coloured screen wash.
+                var col = Color.Lerp(_sunColor, Color.white, 0.5f);
                 col.a = a;
                 g.color = col;
                 g.enabled = a > 0.004f;
