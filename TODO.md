@@ -558,6 +558,10 @@ collider closes the gap when shut). Phased plan:
   and route through the existing fluid system (`FluidLevel`/`ActiveFluid` + the client fluid render). **When
   picking this up, analyse the terrain pass + fluid sim precisely first**, then implement.
 
+- **More procedural creature variety** — analyse how fauna/flora species are organised + generated
+  (`CreatureGenerator`, `CreatureSpecies`, the species roster per planet) and add **more procedural
+  randomness so creatures look visibly different** (body proportions, limbs, colours/patterns, size). Today
+  species are fairly templated; want wider visual variance per species/instance. Requested 2026-06-06.
 - **Ship is always oxygenated** — being inside the ship should keep the air breathable and **steadily
   refill the player's suit-oxygen reserve** (like a breathable atmosphere / a heal-tank for O2). Analyse the
   vitals tick (`GameServer` oxygen drain/regen around the heal-tank + `AboardShip`) and ensure aboard-ship =

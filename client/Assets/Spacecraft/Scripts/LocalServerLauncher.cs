@@ -50,6 +50,35 @@ namespace Spacecraft.Client
             return dirs.ConvertAll(Path.GetFileName).ToArray();
         }
 
+        /// <summary>Permanently deletes a singleplayer world's save folder (its whole directory). Returns true
+        /// if it was removed. Guards against empty names / paths outside the saves root.</summary>
+        public static bool DeleteWorld(string worldName)
+        {
+            if (string.IsNullOrWhiteSpace(worldName))
+            {
+                return false;
+            }
+
+            try
+            {
+                string dir = Path.GetFullPath(Path.Combine(SavesRoot, worldName));
+                // Only ever delete a direct child of the saves root (never escape it via ".." etc.).
+                if (Path.GetDirectoryName(dir) != Path.GetFullPath(SavesRoot) || !Directory.Exists(dir))
+                {
+                    return false;
+                }
+
+                Directory.Delete(dir, recursive: true);
+                Debug.Log($"Deleted singleplayer world '{worldName}'.");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Failed to delete world '{worldName}': {e.Message}");
+                return false;
+            }
+        }
+
         public bool Start(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0)
         {
             if (IsRunning)

@@ -23,6 +23,11 @@ namespace Spacecraft.Client
             var left = UiKit.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.PanelFill).transform;
             UiKit.AddText(left, 20f, 16f, 680f, 26f, shell.L("ui.save.existing"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
+            // Delete-confirmation dialog (built below, shown on demand) — captured by the row buttons.
+            GameObject confirm = null;
+            Text confirmText = null;
+            string[] target = { null };
+
             var worlds = LocalServerLauncher.ListWorlds();
             if (worlds.Length == 0)
             {
@@ -34,7 +39,13 @@ namespace Spacecraft.Client
                 for (int i = 0; i < shown; i++)
                 {
                     string w = worlds[i];
-                    UiKit.AddButton(left, 20f, 56f + i * 62f, 680f, 54f, $"▸  {w}", () => shell.StartSingleplayerWorld(w), "btn_singleplayer");
+                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, $"▸  {w}", () => shell.StartSingleplayerWorld(w), "btn_singleplayer");
+                    UiKit.AddButton(left, 640f, 56f + i * 62f, 60f, 54f, "✕", () =>
+                    {
+                        target[0] = w;
+                        if (confirmText != null) confirmText.text = shell.L("ui.save.delete_confirm").Replace("{world}", w);
+                        if (confirm != null) confirm.SetActive(true);
+                    }, "btn_exit");
                 }
             }
 
@@ -51,6 +62,25 @@ namespace Spacecraft.Client
             UiKit.AddText(right, 20f, 210f, 660f, 120f, shell.L("ui.save.hint"), 15, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
 
             UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
+
+            // ── Delete confirmation (added last so it draws on top; hidden until a ✕ is pressed) ──────
+            var dim = UiKit.AddImage(root, 0f, 0f, 1920f, 1080f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.6f));
+            confirm = dim.gameObject;
+            dim.raycastTarget = true; // swallow clicks behind the dialog
+            var panel = UiKit.AddPanel(confirm.transform, 610f, 420f, 700f, 250f, UiKit.Panel).transform;
+            confirmText = UiKit.AddText(panel.transform, 30f, 30f, 640f, 80f, string.Empty, 20, UiKit.TextCol, TextAnchor.MiddleCenter);
+            confirmText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiKit.AddButton(panel.transform, 40f, 160f, 290f, 58f, shell.L("ui.save.delete_yes"), () =>
+            {
+                if (!string.IsNullOrEmpty(target[0]))
+                {
+                    LocalServerLauncher.DeleteWorld(target[0]);
+                }
+
+                shell.GoTo(ShellPhase.SaveSelect); // rebuild the screen with the refreshed world list
+            }, "btn_exit");
+            UiKit.AddButton(panel.transform, 370f, 160f, 290f, 58f, shell.L("ui.save.delete_no"), () => confirm.SetActive(false), "btn_singleplayer");
+            confirm.SetActive(false);
 
             return canvas.gameObject;
         }
