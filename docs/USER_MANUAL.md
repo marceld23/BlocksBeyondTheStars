@@ -115,8 +115,10 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   loss in the current PvE slice.
 
 ### Stations: boarding & docking
-- **Space stations**: approach in space and press **E** to board; walk the interior (vendors, mission
-  board, heal tank, quarters). Press **U** to leave and return to your ship.
+- **Space stations**: approach in space and press **E** to board. A station is its **own place in orbit** —
+  you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
+  interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
+  travel back down to your ship on the planet.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
 

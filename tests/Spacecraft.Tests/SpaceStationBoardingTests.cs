@@ -103,6 +103,31 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void BoardStation_PutsPlayerInOwnVoidWorld_OnSolidGround_WithLifeSupport()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            BoardFirstStation(server, "Pilot");
+
+            // The station is now its OWN location (a void world), not the planet.
+            Assert.StartsWith("station:", pilot.CurrentLocationId);
+            Assert.StartsWith("station:", server.World.LocationId);
+
+            // Solid floor directly under the spawn (the floor pad) — the player can't fall through.
+            var feet = pilot.State.Position.ToBlock();
+            Assert.False(server.World.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir,
+                "Expected solid ground directly below the station spawn.");
+
+            // Life support: oxygen does not drain inside the station.
+            pilot.State.Oxygen = 80f;
+            server.TickForTest(2.0);
+            Assert.True(pilot.State.Oxygen >= 80f, "Oxygen should not drain inside a station (life support).");
+        }
+    }
+
+    [Fact]
     public void BoardStation_PopulatesItWithCrewNpcs()
     {
         var server = Started(out var repo);
@@ -125,6 +150,25 @@ public sealed class SpaceStationBoardingTests : IDisposable
             // Beyond the marker crew, the station is populated with extra wandering civilians.
             Assert.True(server.NpcCount >= 4, $"Expected extra civilians, got {server.NpcCount}.");
             Assert.Contains(server.NpcSnapshots, n => n.Role == "settler");
+        }
+    }
+
+    [Fact]
+    public void LeaveStation_TravelsBackToThePlanet()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            string planetLoc = pilot.CurrentLocationId;
+            BoardFirstStation(server, "Pilot");
+            Assert.True(server.InStation("Pilot"));
+
+            server.LeaveStation("Pilot");
+
+            Assert.False(server.InStation("Pilot"));
+            Assert.Equal(planetLoc, pilot.CurrentLocationId); // back on the planet we launched from
+            Assert.True(pilot.State.AboardShip);
         }
     }
 

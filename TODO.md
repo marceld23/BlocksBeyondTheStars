@@ -16,12 +16,14 @@ SQLite persistence.
 
 ---
 
-## ▶ Next up — tomorrow (2026-06-06): Space stations as their own locations
-Boarding a station currently drops you onto the planet (no `WorldReset` → the player falls through; weather/
-clouds/day-night also bleed in). **Task:** make a station its own **void world** (space sky, no weather/
-clouds, fixed interior lighting, life support, NPCs) and board it via the proven travel/`WorldReset` path.
-Root-cause analysis + the full phased plan **S1–S7** are written up in
-**[docs/STATION_AS_LOCATION_PLAN.md](docs/STATION_AS_LOCATION_PLAN.md)** — start there.
+## ✅ Done (2026-06-05): Space stations as their own locations
+Boarding a station is now a real world transition (the proven `WorldReset` path): each station is its **own
+void world** (space sky, no weather/clouds, lit interior, life support, NPCs), so you land **inside** the
+station floating in space instead of falling through to the planet. Implemented S1–S7 of
+**[docs/STATION_AS_LOCATION_PLAN.md](docs/STATION_AS_LOCATION_PLAN.md)** (`PlanetType.Void` + all-air gen,
+`orbital_station` type, `LoadWorld` skips surface content for void worlds, `BoardStation`/`LeaveStation`
+travel in/out, station NPCs per-world). Tests: `BoardStation_PutsPlayerInOwnVoidWorld_OnSolidGround_…`,
+`LeaveStation_TravelsBackToThePlanet`, `VoidPlanet_GeneratesEmptySpace`.
 
 ---
 
@@ -230,11 +232,6 @@ StampShip in join/travel + per-player in the space-combat tick; **P4d** untangle
 stays per-world (fine while each occupied world has one player; shared-world multi-ship is P7).
 
 ### Not started / larger future work
-- **Space stations as their own locations** ⭐ — boarding a station currently stamps it into the planet
-  world and teleports there without a `WorldReset`, so the player falls through to the planet (and weather/
-  clouds/day-night bleed in). Plan: make a station its own **void world** (space sky, no weather/clouds,
-  fixed interior lighting, life support, NPCs) and board it via the proven travel/`WorldReset` path. Full
-  analysis + phased plan (S1–S7) in [docs/STATION_AS_LOCATION_PLAN.md](docs/STATION_AS_LOCATION_PLAN.md).
 - **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder
   world), so you can walk east and arrive back at the start with a **seam-free** edge (terrain/biomes/caves/
   ore/structures continuous across X = 0 ≡ X = 6000). Seam-free generation via circular-domain noise; server

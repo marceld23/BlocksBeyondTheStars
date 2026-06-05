@@ -1,5 +1,10 @@
 # Space stations as their own locations — Plan
 
+**Status: ✅ shipped (2026-06-05).** S1–S7 implemented: boarding is a real `WorldReset` world transition into
+the station's own void world; you land inside on solid ground with NPCs + life support, no planet visible.
+Tests: `BoardStation_PutsPlayerInOwnVoidWorld_OnSolidGround_WithLifeSupport`,
+`LeaveStation_TravelsBackToThePlanet`, `VoidPlanet_GeneratesEmptySpace`.
+
 **Goal:** boarding a space station puts the player **inside the station, floating in space as its own
 place** — no planet visible, no weather, no clouds, constant interior lighting (no time-of-day), breathable
 (life support), walkable, with NPCs (vendor / quartermaster / dockhands). Written in English per project
