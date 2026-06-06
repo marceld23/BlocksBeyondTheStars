@@ -10,7 +10,10 @@ namespace Spacecraft.Shared.Definitions;
 /// </summary>
 public static class FloraCatalog
 {
-    public sealed record Species(string Key, string[] Hosts);
+    /// <param name="Aquatic">True for in-water plants (kelp/lily): world gen places these directly in the
+    /// submerged columns, so they are excluded from the land surface-flora pool even though their hosts
+    /// (seabed blocks / water) overlap dry-land surfaces.</param>
+    public sealed record Species(string Key, string[] Hosts, bool Aquatic = false);
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -28,6 +31,10 @@ public static class FloraCatalog
         // Swamp / wetland (mud).
         new Species("flora_reed",        new[] { "mud" }),
         new Species("flora_glowcap",     new[] { "mud" }),
+        // Aquatic — kelp roots on the seabed, lily pads float on the water surface (world gen places these
+        // under/at the sea; the host lets harvested plants regrow on the same spot, like land flora).
+        new Species("flora_kelp",        new[] { "sand", "dirt", "mud", "stone" }, Aquatic: true),
+        new Species("flora_lily",        new[] { "water" }, Aquatic: true),
         // Harsh worlds.
         new Species("flora_frostflower", new[] { "ice" }),
         new Species("flora_emberbloom",  new[] { "basalt" }),

@@ -499,6 +499,8 @@ namespace Spacecraft.Client
             "crystal" => new Color(0.55f, 0.75f, 0.95f),
             "flora_plant" => new Color(0.25f, 0.70f, 0.30f),
             "flora_crystal" => new Color(0.60f, 0.85f, 1f),
+            "flora_kelp" => new Color(0.15f, 0.45f, 0.32f),  // deep sea-green stalk
+            "flora_lily" => new Color(0.30f, 0.62f, 0.34f),  // lily-pad green
             _ => new Color(0.6f, 0.6f, 0.62f),
         };
     }

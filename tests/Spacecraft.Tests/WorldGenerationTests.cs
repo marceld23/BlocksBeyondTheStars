@@ -193,6 +193,31 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void AtmosphereWorld_GrowsAquaticFlora()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!; // water seas + flora → kelp on the seabed, lilies on top
+        var gen = new WorldGenerator(777, content);
+        ushort kelp = content.GetBlock("flora_kelp")!.NumericId.Value;
+        ushort lily = content.GetBlock("flora_lily")!.NumericId.Value;
+
+        Assert.True(CountBlock(gen, planet, kelp) + CountBlock(gen, planet, lily) > 0,
+            "A watery flora world should grow kelp or lily pads in its seas.");
+    }
+
+    [Fact]
+    public void AirlessFloraWorld_GrowsNoAquaticFlora()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("lava")!; // lava seas, never water → no kelp/lily
+        var gen = new WorldGenerator(777, content);
+        ushort kelp = content.GetBlock("flora_kelp")!.NumericId.Value;
+        ushort lily = content.GetBlock("flora_lily")!.NumericId.Value;
+
+        Assert.Equal(0, CountBlock(gen, planet, kelp) + CountBlock(gen, planet, lily));
+    }
+
+    [Fact]
     public void FloraWorld_GrowsTrees()
     {
         var content = Content();

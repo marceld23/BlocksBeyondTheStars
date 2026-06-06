@@ -135,6 +135,16 @@ public sealed partial class GameServer
 
     private bool IsAirAt(int x, int y, int z) => _world.GetBlock(new Vector3i(x, y, z)).IsAir;
 
+    /// <summary>True if any of the cell's 6 neighbours is a fluid — i.e. a hole opened here (e.g. by mining
+    /// an underwater rock or kelp) would have a sea/lava body to refill it.</summary>
+    private bool HasFluidNeighbor(Vector3i p)
+        => IsFluid(_world.GetBlock(new Vector3i(p.X + 1, p.Y, p.Z)).Value)
+        || IsFluid(_world.GetBlock(new Vector3i(p.X - 1, p.Y, p.Z)).Value)
+        || IsFluid(_world.GetBlock(new Vector3i(p.X, p.Y, p.Z + 1)).Value)
+        || IsFluid(_world.GetBlock(new Vector3i(p.X, p.Y, p.Z - 1)).Value)
+        || IsFluid(_world.GetBlock(new Vector3i(p.X, p.Y + 1, p.Z)).Value)
+        || IsFluid(_world.GetBlock(new Vector3i(p.X, p.Y - 1, p.Z)).Value);
+
     /// <summary>True if a cell has any neighbour it could flow into (sideways or down) — used to let settled
     /// full cells go dormant, so a big body of fluid doesn't keep every cell active forever.</summary>
     private bool HasAirNeighbor(Vector3i p)

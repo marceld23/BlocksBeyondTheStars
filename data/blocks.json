@@ -36,6 +36,8 @@
   { "key": "flora_glowcap","nameKey": "block.flora_glowcap.name","hardness": 0.2, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "crystal", "count": 1 } ] },
   { "key": "flora_frostflower","nameKey": "block.flora_frostflower.name","hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "crystal", "count": 1 } ] },
   { "key": "flora_emberbloom","nameKey": "block.flora_emberbloom.name","hardness": 0.5, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "crystal", "count": 1 } ] },
+  { "key": "flora_kelp",   "nameKey": "block.flora_kelp.name",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
+  { "key": "flora_lily",   "nameKey": "block.flora_lily.name",   "hardness": 0.2, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "berries", "count": 1 } ] },
   { "key": "ladder",       "nameKey": "block.ladder.name",       "hardness": 0.4, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "ladder", "count": 1 } ] },
   { "key": "stairs",       "nameKey": "block.stairs.name",       "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "stairs", "count": 1 } ] }
 ]

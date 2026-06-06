@@ -1309,9 +1309,12 @@ public sealed partial class GameServer
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
         }
-        else if (IsFluid(current.Value))
+
+        // Wake adjacent fluid so a hole opened in or under a body of water/lava refills — whether the mined
+        // block was the fluid itself or a rock/kelp surrounded by it (a finite pool still drains to its last cells).
+        if (IsFluid(current.Value) || HasFluidNeighbor(pos))
         {
-            OnFluidRemoved(pos); // wake the surrounding fluid so a body refills the hole until its source is gone
+            OnFluidRemoved(pos);
         }
 
         OnBlockMined(session, def.Key);

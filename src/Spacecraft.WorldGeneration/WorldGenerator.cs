@@ -1,5 +1,6 @@
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Definitions;
+using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Primitives;
 using Spacecraft.Shared.World;
 
@@ -158,6 +159,13 @@ public sealed class WorldGenerator
         var leafId = _content.GetBlock("tree_leaves")?.NumericId ?? BlockId.Air;
         bool trees = treeDensity > 0.0 && !logId.IsAir && !leafId.IsAir;
 
+        // Aquatic flora: kelp stalks rooted on the seabed + lily pads on the surface, only where the sea is
+        // water (never lava). World gen places them directly in the submerged columns below.
+        var kelpId = _content.GetBlock("flora_kelp")?.NumericId ?? BlockId.Air;
+        var lilyId = _content.GetBlock("flora_lily")?.NumericId ?? BlockId.Air;
+        var seaWaterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        bool waterFlora = flora && !kelpId.IsAir && !lilyId.IsAir && fluidId == seaWaterId && !seaWaterId.IsAir;
+
         var origin = WorldConstants.ChunkOrigin(coord);
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
@@ -220,9 +228,9 @@ public sealed class WorldGenerator
                 chunk.Set(lx, ly, lz, block);
             }
 
-            // Surface flora: one plant in the air cell directly above the surface (bounded —
-            // one per column, no spreading), chosen by biome surface + a density roll. Skip columns that are
-            // under the sea (land plants don't grow underwater — aquatic flora is a separate future feature).
+            // Surface flora: one plant in the air cell directly above the surface (bounded — one per column,
+            // no spreading), chosen by biome surface + a density roll. Columns that lie under the sea grow
+            // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
             if (flora && surfaceY + 1 > fluidLevel)
             {
                 var floraId = FloraForSurface(surfaceId, seed, worldX, worldZ);
@@ -233,6 +241,11 @@ public sealed class WorldGenerator
                 {
                     chunk.Set(lx, fly, lz, floraId);
                 }
+            }
+            else if (waterFlora && surfaceY + 1 <= fluidLevel)
+            {
+                StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, surfaceY, fluidLevel,
+                    kelpId, lilyId, planet.FloraDensity);
             }
         }
 
@@ -390,6 +403,44 @@ public sealed class WorldGenerator
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }
 
+    /// <summary>Places aquatic flora in one submerged column: a short kelp stalk rooted on the seabed (a few
+    /// water cells turned to kelp, leaving the top open water) and, less often, a lily pad on the surface.
+    /// Per-column + deterministic from the seed, so no cross-chunk margin is needed (unlike trees).</summary>
+    private void StampWaterFlora(ChunkData chunk, Vector3i origin, int lx, int lz, long seed,
+        int worldX, int worldZ, int surfaceY, int fluidLevel, BlockId kelpId, BlockId lilyId, double floraDensity)
+    {
+        int columnDepth = fluidLevel - surfaceY; // water cells above the seabed (>= 1 here)
+        double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX), 11, worldZ);
+
+        // Kelp needs at least a little depth; it grows from the seabed up a few cells, capped just below the
+        // surface so the top of the column stays open water.
+        if (columnDepth >= 2 && roll < floraDensity * 1.6)
+        {
+            int height = 2 + (int)(roll * 997) % 3; // 2..4 cells
+            int top = System.Math.Min(fluidLevel - 1, surfaceY + height);
+            for (int wy = surfaceY + 1; wy <= top; wy++)
+            {
+                int kly = wy - origin.Y;
+                if (kly >= 0 && kly < WorldConstants.ChunkSize)
+                {
+                    chunk.Set(lx, kly, lz, kelpId);
+                }
+            }
+
+            return;
+        }
+
+        // Otherwise an occasional lily pad floating on the topmost water cell.
+        if (roll > 1.0 - floraDensity * 0.6)
+        {
+            int lily = fluidLevel - origin.Y;
+            if (lily >= 0 && lily < WorldConstants.ChunkSize)
+            {
+                chunk.Set(lx, lily, lz, lilyId);
+            }
+        }
+    }
+
     private bool _floraResolved;
     // surface block id -> the pool of flora that may grow on it (from FloraCatalog).
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
@@ -407,9 +458,9 @@ public sealed class WorldGenerator
             var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
             foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
             {
-                if (_content.GetBlock(sp.Key) is not { } flora)
+                if (sp.Aquatic || _content.GetBlock(sp.Key) is not { } flora)
                 {
-                    continue;
+                    continue; // aquatic flora are placed directly in submerged columns, not on land surfaces
                 }
 
                 foreach (var hostKey in sp.Hosts)
