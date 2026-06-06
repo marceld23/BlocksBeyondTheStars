@@ -161,6 +161,32 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void TwoPilotsInTheSameSystem_SeeEachOtherInSpace()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Ann");
+            server.AddLocalPlayer("Bob");
+            server.EnterSpace("Ann");
+            server.EnterSpace("Bob"); // same start world → same space instance
+
+            server.ShipMove("Ann", 10f, 0f, 5f, 1.2f);
+            server.ShipMove("Bob", -8f, 0f, 3f, 0.4f);
+
+            var annSees = server.OtherSpacePlayers("Ann");
+            var bobSees = server.OtherSpacePlayers("Bob");
+
+            Assert.Single(annSees);
+            Assert.Equal("Bob", annSees[0].Name);
+            Assert.False(annSees[0].Eva); // piloting, not floating
+
+            Assert.Single(bobSees);
+            Assert.Equal("Ann", bobSees[0].Name);
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);

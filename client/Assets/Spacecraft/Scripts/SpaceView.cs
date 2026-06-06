@@ -34,6 +34,12 @@ namespace Spacecraft.Client
         private Transform _exhaust;
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
+
+        // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; }
+        private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
+        private readonly HashSet<string> _remoteSeen = new HashSet<string>();
+        private readonly List<string> _remoteRemove = new List<string>();
         private readonly List<Transform> _cloudShells = new List<Transform>();
 
         private Transform _camPrevParent;
@@ -154,6 +160,7 @@ namespace Spacecraft.Client
             }
 
             SyncEntities();
+            SyncRemotePlayers();
             UpdateBeams(Time.deltaTime);
 
             // EVA is server-driven now (you step out through the ship's airlock): mirror its InEva state so
@@ -334,12 +341,13 @@ namespace Spacecraft.Client
                 }
             }
 
-            // Report our position so the server runs authoritative collisions against asteroids/entities.
+            // Report our position so the server runs authoritative collisions against asteroids/entities and
+            // the other players in this instance can see our ship.
             _moveSendTimer -= Time.deltaTime;
             if (_moveSendTimer <= 0f)
             {
                 _moveSendTimer = 0.08f; // ~12 Hz
-                Game.Network?.SendShipMove(_ship.transform.localPosition);
+                Game.Network?.SendShipMove(_ship.transform.localPosition, _yaw);
             }
 
             // Boarding: find the nearest station in range; E boards it (the server validates the range).
@@ -590,6 +598,15 @@ namespace Spacecraft.Client
                 {
                     _evaPos = ob.Pos + d / dist * ob.Radius;
                 }
+            }
+
+            // Report the suit's pose so the other players in this instance see us floating (the server tags it
+            // as an EVA from our InEva state).
+            _moveSendTimer -= Time.deltaTime;
+            if (_moveSendTimer <= 0f)
+            {
+                _moveSendTimer = 0.08f;
+                Game.Network?.SendShipMove(_evaPos, _evaYaw);
             }
 
             // Board targets: the parked ship, or the nearest station in range (whichever is closer wins on E).
@@ -844,6 +861,7 @@ namespace Spacecraft.Client
             _active = false;
             _eva = false;
             _enteringInterior = false;
+            _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
             _shake = 0f;
             _hitFlash = 0f;
             _cargoFlash = 0f;
@@ -1298,6 +1316,68 @@ namespace Spacecraft.Client
             tex.SetPixels(px);
             tex.Apply();
             return tex;
+        }
+
+        /// <summary>Draws the other players in this space instance — a ship for a pilot, a small suit for an
+        /// EVA — from the server's per-player poses (R2). Pooled by player id; stale ones are removed.</summary>
+        private void SyncRemotePlayers()
+        {
+            _remoteSeen.Clear();
+            var players = Game.Space?.Players;
+            if (players != null && _root != null)
+            {
+                foreach (var rp in players)
+                {
+                    if (string.IsNullOrEmpty(rp.PlayerId))
+                    {
+                        continue;
+                    }
+
+                    _remoteSeen.Add(rp.PlayerId);
+                    if (!_remotePlayers.TryGetValue(rp.PlayerId, out var av) || av.Root == null)
+                    {
+                        av = BuildRemoteAvatar();
+                        _remotePlayers[rp.PlayerId] = av;
+                    }
+
+                    av.Root.transform.localPosition = new Vector3(rp.X, rp.Y, rp.Z);
+                    av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
+                    av.Ship.SetActive(!rp.Eva);
+                    av.Suit.SetActive(rp.Eva);
+                }
+            }
+
+            if (_remotePlayers.Count > _remoteSeen.Count)
+            {
+                _remoteRemove.Clear();
+                foreach (var kv in _remotePlayers)
+                {
+                    if (!_remoteSeen.Contains(kv.Key))
+                    {
+                        _remoteRemove.Add(kv.Key);
+                    }
+                }
+
+                foreach (var id in _remoteRemove)
+                {
+                    if (_remotePlayers[id].Root != null)
+                    {
+                        Destroy(_remotePlayers[id].Root);
+                    }
+
+                    _remotePlayers.Remove(id);
+                }
+            }
+        }
+
+        private RemoteAvatar BuildRemoteAvatar()
+        {
+            var root = new GameObject("RemotePlayer");
+            root.transform.SetParent(_root.transform, false);
+            var ship = Cube("Ship", root.transform, Vector3.zero, new Vector3(2.4f, 1.1f, 3.6f), Unlit(new Color(0.55f, 0.75f, 1f)));
+            var suit = Cube("Suit", root.transform, Vector3.zero, new Vector3(0.55f, 0.9f, 0.55f), Unlit(new Color(1f, 0.8f, 0.45f)));
+            suit.SetActive(false);
+            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit };
         }
 
         private void SyncEntities()

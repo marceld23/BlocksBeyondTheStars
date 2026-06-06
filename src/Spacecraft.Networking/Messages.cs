@@ -184,6 +184,10 @@ public sealed class ShipMoveIntent
     public float X { get; set; }
     public float Y { get; set; }
     public float Z { get; set; }
+
+    /// <summary>Heading of the ship (or the floating EVA suit) so other players in the instance can see which
+    /// way you face.</summary>
+    public float Yaw { get; set; }
 }
 
 /// <summary>Client dismantles a crafted item at the workshop, recovering some of its components.</summary>
@@ -654,6 +658,25 @@ public sealed class SpaceState
     /// <summary>True when the flight view should appear without the take-off sequence — you were already in
     /// space (e.g. taking the helm again from inside the ship), so there is no launch from a surface.</summary>
     public bool SkipLaunch { get; set; }
+
+    /// <summary>The OTHER players sharing this space instance (excludes the recipient) — their ship or floating
+    /// EVA suit, so everyone can see each other out here.</summary>
+    public NetSpacePlayer[] Players { get; set; } = System.Array.Empty<NetSpacePlayer>();
+}
+
+/// <summary>A remote player's presence in a space instance: their ship (or floating EVA suit) position +
+/// heading, for the flight view to render. Server → client, inside <see cref="SpaceState"/>.</summary>
+public sealed class NetSpacePlayer
+{
+    public string PlayerId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public float Yaw { get; set; }
+
+    /// <summary>True = a floating suit on an EVA; false = piloting a ship.</summary>
+    public bool Eva { get; set; }
 }
 
 /// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>

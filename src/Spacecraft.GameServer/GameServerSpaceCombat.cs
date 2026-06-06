@@ -58,12 +58,19 @@ public sealed class SpaceInstance
     public Vector3f ShipPosition { get; set; }
     public Vector3f ShipLastPosition { get; set; }
 
+    /// <summary>Each present player's pose (ship or floating EVA suit) so everyone in the instance can be drawn
+    /// for the others. Visibility only — the shared <see cref="ShipPosition"/> still drives collision.</summary>
+    public Dictionary<string, SpacePlayerPose> PlayerPoses { get; } = new();
+
     /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
     public double AsteroidRespawnTimer { get; set; }
 
     /// <summary>Spreads successive respawned asteroids so they don't stack on one spot.</summary>
     public int AsteroidSpawnRotor { get; set; }
 }
+
+/// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
+public readonly record struct SpacePlayerPose(Vector3f Pos, float Yaw, bool Eva);
 
 /// <summary>
 /// Free space flight and ship combat (technical requirements / `anf_space_flight.md` §6-11).
@@ -647,7 +654,7 @@ public sealed partial class GameServer
     private void HandleTractorPull(PlayerSession session) => TractorPull(session.State.PlayerId);
 
     /// <summary>Sets the player's ship position in its space instance (trusted + finite-clamped, like on-foot move).</summary>
-    public void ShipMove(string playerId, float x, float y, float z)
+    public void ShipMove(string playerId, float x, float y, float z, float yaw = 0f)
     {
         if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
             !_spaceInstances.TryGetValue(instanceId, out var instance))
@@ -655,16 +662,21 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z))
+        if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z) || !float.IsFinite(yaw))
         {
             return; // ignore garbage
         }
 
-        instance.ShipPosition = new Vector3f(x, y, z);
+        var pos = new Vector3f(x, y, z);
+        instance.ShipPosition = pos; // shared, for collision (the acting player's ship)
+
+        // Per-player pose for visibility — so the others in this instance can render this ship / EVA suit.
+        bool eva = FindSessionByPlayerId(playerId)?.State.InEva ?? false;
+        instance.PlayerPoses[playerId] = new SpacePlayerPose(pos, yaw, eva);
     }
 
     private void HandleShipMove(PlayerSession session, ShipMoveIntent move)
-        => ShipMove(session.State.PlayerId, move.X, move.Y, move.Z);
+        => ShipMove(session.State.PlayerId, move.X, move.Y, move.Z, move.Yaw);
 
     // ---------------- Space simulation tick ----------------
 
@@ -851,7 +863,42 @@ public sealed partial class GameServer
             Kind = instance.Kind,
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
+            Players = OtherPlayersInSpace(session.State.PlayerId, instance),
         });
+
+    /// <summary>The other players this one currently sees in its space instance (ships + EVA suits).</summary>
+    public NetSpacePlayer[] OtherSpacePlayers(string playerId)
+        => _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst)
+            ? OtherPlayersInSpace(playerId, inst)
+            : System.Array.Empty<NetSpacePlayer>();
+
+    /// <summary>The other players currently sharing this instance (excludes the recipient), as ship/EVA poses
+    /// for the flight view to render.</summary>
+    private NetSpacePlayer[] OtherPlayersInSpace(string recipientId, SpaceInstance instance)
+    {
+        List<NetSpacePlayer> others = null;
+        foreach (var kv in instance.PlayerPoses)
+        {
+            if (kv.Key == recipientId || !instance.Players.Contains(kv.Key))
+            {
+                continue; // skip self + stale poses of players who already left the instance
+            }
+
+            var pose = kv.Value;
+            (others ??= new List<NetSpacePlayer>()).Add(new NetSpacePlayer
+            {
+                PlayerId = kv.Key,
+                Name = FindSessionByPlayerId(kv.Key)?.State.Name ?? string.Empty,
+                X = pose.Pos.X,
+                Y = pose.Pos.Y,
+                Z = pose.Pos.Z,
+                Yaw = pose.Yaw,
+                Eva = pose.Eva,
+            });
+        }
+
+        return others is null ? System.Array.Empty<NetSpacePlayer>() : others.ToArray();
+    }
 
     private void BroadcastSpaceState(SpaceInstance instance)
     {

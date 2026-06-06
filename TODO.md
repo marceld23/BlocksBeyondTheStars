@@ -99,7 +99,7 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      locale files). Station boardings read *Betrete Station* / *Entering station*.
 
    No change to the landing/chunk/settle logic itself — purely an overlay + one readiness flag + one event.
-5. 🔄 **Bug/feature — in-space movement: pilot ↔ inside ship ↔ EVA** (reopened 2026-06-07 for a redesign).
+5. ✅ **Bug/feature — in-space movement: pilot ↔ inside ship ↔ EVA** (done 2026-06-07; in-editor pass pending).
    Original: the player must **not fall in space** — float in the suit, get back into the ship, dock a station.
    Stages 1–3 shipped a pilot↔EVA float (oxygen drain + 6-DOF + board) but that **skipped a state the user
    wants**.
@@ -190,9 +190,19 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
        restored, ship position restored, no take-off) instead of re-launching. The client keeps `InEva` set
        through the dock so the server knows. Test
        `DockingAStationOnAnEva_KeepsTheShipFloating_AndUndockReturnsToEva`. (326 pass.)
-   - ⏳ **Stage 8 — R2: multiplayer visibility in space.** Broadcast each player's ship position + EVA/in-ship
-     state to others in the same space instance; render remote ships and floating EVA players in the flight
-     view. (The flight view renders only your own ship today — this is new networking + rendering.)
+   - ✅ **Stage 8 — R2: multiplayer visibility in space (done 2026-06-07; needs an in-engine 2-player test).**
+     Additive (visibility only — the shared `ShipPosition` still drives collision). Server: `SpaceInstance.
+     PlayerPoses` tracks each player's pose (pos + yaw + EVA flag, from `InEva`), updated on `ShipMove`;
+     `SpaceState.Players` (new `NetSpacePlayer[]`) carries the OTHER players in the instance, filled in
+     `SendSpaceState` (already broadcast every space tick). `ShipMoveIntent` gained `Yaw`. Client: the flight
+     view + EVA now report yaw (and EVA reports the suit pose); `SyncRemotePlayers` pools a remote avatar per
+     player — a ship cube when piloting, a small suit cube on an EVA — placed from the broadcast poses. Test
+     `TwoPilotsInTheSameSystem_SeeEachOtherInSpace` (327 pass). *(Single shared ship position for collision is
+     a pre-existing limitation, untouched.)*
+
+   **✅ Item 5 complete** (stages 1–8 + R1–R4): pilot ⇄ walkable ship interior ⇄ EVA, oxygen, board/dock,
+   asteroid-only EVA landing, ship stays put, death recovers with the ship, and other players are visible in
+   space. The Unity client parts across these stages still want one in-editor pass.
 
    **Interim (committed before the redesign):** the pilot↔EVA float (stages 1–3) + the EVA-boarding UX fix ship
    now, so the current build is usable/clearer while the redesign is built on top.

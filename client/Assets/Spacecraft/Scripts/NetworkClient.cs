@@ -181,7 +181,7 @@ namespace Spacecraft.Client
         public void SendTradeCancel() => Send(new TradeCancelIntent());
 
         // Reports the ship's position while flying in space (for server-side collision).
-        public void SendShipMove(Vector3 pos) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z });
+        public void SendShipMove(Vector3 pos, float yaw = 0f) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw });
 
         public void SendBoardStation(string stationId) => Send(new BoardStationIntent { StationId = stationId });
 
