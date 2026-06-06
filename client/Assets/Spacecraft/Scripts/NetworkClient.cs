@@ -122,6 +122,10 @@ namespace Spacecraft.Client
 
         public void SendEnterSpace() => Send(new EnterSpaceIntent());
 
+        public void SendEnterShip() => Send(new EnterShipIntent());
+
+        public void SendExitShip() => Send(new ExitShipIntent());
+
         public void SendLeaveSpace() => Send(new LeaveSpaceIntent());
 
         /// <summary>Leave space and land on a specific body (the one flown to in system-scale flight);

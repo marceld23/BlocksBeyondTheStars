@@ -117,6 +117,16 @@ public sealed class EnterSpaceIntent
 {
 }
 
+/// <summary>Client steps from the flight view (or an EVA) into the ship's walkable interior in space.</summary>
+public sealed class EnterShipIntent
+{
+}
+
+/// <summary>Client takes the helm from inside the ship — back to the flight view at the parked ship.</summary>
+public sealed class ExitShipIntent
+{
+}
+
 /// <summary>Client asks the server to flush the world + all players to disk now (an explicit save, on top
 /// of the periodic autosave).</summary>
 public sealed class SaveGameIntent

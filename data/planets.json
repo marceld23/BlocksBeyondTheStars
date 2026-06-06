@@ -114,5 +114,12 @@
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.0, "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 600, "floraDensity": 0.0,
     "creatureAbundance": "none", "atmosphere": "breathable", "spaceSky": true, "selectable": false, "void": true
+  },
+  {
+    "key": "ship_interior", "nameKey": "planet.ship_interior.name", "cloudColor": 0, "cloudDensity": 0.0,
+    "baseHeight": 64, "amplitude": 0, "terrainScale": 48.0,
+    "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.0, "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 600, "floraDensity": 0.0,
+    "creatureAbundance": "none", "atmosphere": "breathable", "spaceSky": true, "selectable": false, "void": true
   }
 ]

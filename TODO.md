@@ -142,12 +142,19 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    visibility (R2) is in scope now.**
 
    **Staged build (server-first, testable; client parts need an in-editor pass):**
-   - ⏳ **Stage 4 — board your own ship (walkable interior in space).** Server: an "enter ship" path that loads
-     the ship interior as a void world with the ship stamped (mirror `GameServerSpaceStations.BoardStation` /
-     `StampShip`), spawns the player on foot inside, and **keeps the ship in its space instance + position**.
-     Intents `EnterShipIntent` (from the flight view) and a helm/airlock interaction. Place a **helm** marker
-     (→ flight view, skip-launch) and an **airlock** marker (→ EVA) in the ship stamp. Client: a flight-view
-     key/prompt to go inside; on-foot prompts at the helm + airlock.
+   - 🔄 **Stage 4 — board your own ship (walkable interior in space).**
+     - ✅ **Server (done 2026-06-07).** New `GameServerShipInterior.cs`: `EnterShipInterior` loads a
+       **`ship_interior`** void world (new planet type, clone of `orbital_station`) and **stamps the existing
+       ship** into it via the same `StampShip` used on planets (the user's point: the interior already exists),
+       spawns the player on foot at the heal-tank, `AboardShip=true`. `ExitShipToFlight` (helm) restores the
+       planet world + re-enters the flight view with the ship **put back exactly where it was parked**
+       (`ShipPosition` saved across the visit, even though the empty instance unloads). Intents
+       `EnterShipIntent`/`ExitShipIntent` + dispatch + `SendEnterShip`/`SendExitShip`; cleared on respawn. Tests
+       `EnterShipInterior_ThenHelm_RoundTripsThroughTheFlightView`, `EnterShipInterior_OnlyWorksFromSpace`
+       (321 pass).
+     - ⏳ **Client (next).** Flight-view prompt/key to step inside (`SendEnterShip`); on-foot **helm console**
+       (E → `SendExitShip`, flight view) and **airlock** (E → EVA) prompts inside the ship; skip the take-off
+       animation when returning to the helm.
    - ⏳ **Stage 5 — move EVA to the airlock.** EVA starts from the airlock (inside the ship), not from cruise
      `G`; reuse stages 1–2 (float + oxygen + board-back). EVA → board returns you to the ship **interior** at
      the airlock. Update the cruise hint (no more `G EVA`).

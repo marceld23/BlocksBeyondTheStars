@@ -810,6 +810,7 @@ public sealed partial class GameServer
         p.Hunger = 100f;
         p.Stealthed = false;
         p.InEva = false; // a death ends any spacewalk
+        _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         p.Position = p.RespawnPoint;
         p.AboardShip = true;
 
@@ -976,6 +977,8 @@ public sealed partial class GameServer
             case UndockIntent: HandleUndock(session); break;
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
+            case EnterShipIntent: EnterShipInterior(session.State.PlayerId); break;
+            case ExitShipIntent: ExitShipToFlight(session.State.PlayerId); break;
             case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;
             case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
