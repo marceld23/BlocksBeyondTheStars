@@ -67,6 +67,12 @@ namespace Spacecraft.Client
             var postFx = camGo.AddComponent<PostFx>();
             postFx.ApplyPreset(shell.Settings.Preset, shell.Settings.ReducedEffects);
 
+            // Holographic visor HUD: render the diegetic HUD through a UI camera + a Spacecraft/Visor pass.
+            // Created before the HUD components so UiKit.HudCamera is set when they build their canvases.
+            var visor = root.AddComponent<VisorHud>();
+            visor.MainCamera = cam;
+            visor.ApplyPreset(shell.Settings.Preset, shell.Settings.ReducedEffects);
+
             // Blocky avatar (shown in third-person), coloured from the player's settings.
             var avatarGo = new GameObject("Avatar");
             avatarGo.transform.SetParent(player.transform, false);

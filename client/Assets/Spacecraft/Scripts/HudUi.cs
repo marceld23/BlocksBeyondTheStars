@@ -79,7 +79,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            _canvas = UiKit.CreateCanvas("HudUI");
+            _canvas = UiKit.CreateDiegeticCanvas("HudUI"); // routed through the visor HUD camera when active
             _canvas.sortingOrder = 10;
             var root = _canvas.transform;
 

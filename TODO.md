@@ -441,10 +441,27 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    6. Build + client rebuild (icons are `Resources`, picked up by the player build).
 
    **Open questions for the user → see chat.**
-9. **Feature — holographic visor HUD.** *(Analysis + plan only — do NOT implement yet.)* Can the in-game UI be
-   adapted to look like a **holographic HUD projected onto the inside of an outward-curved visor glass**? Which
-   effects achieve it (curvature/parallax, fresnel/rim glow, scanlines, chromatic-edge fringing, bloom/glow,
-   subtle distortion + reflections)?
+9. ✅ **Feature — holographic visor HUD (done 2026-06-07).** The diegetic HUD now reads as a hologram projected
+   onto the inside of the suit visor. **Decisions (user):** (a) **direct true HUD projection** (B1, not the mild
+   whole-frame option); (b) **always on**; (c) **reflections yes**.
+   - **B1 pipeline:** the diegetic HUD canvases (HudUI + Space radar) render through a dedicated **UI camera**
+     (`VisorHud`) on a new **`VisorHud` layer (8)** into an ARGB32 **render texture**; the main camera excludes
+     that layer. A new `VisorComposite` (after `PostFx`) runs a fullscreen **`Spacecraft/Visor`** pass over the
+     post-processed world: **barrel curvature**, **chromatic-edge fringe**, **scanlines + flicker**, a 4-tap
+     **glow**, a faux-**fresnel rim glow**, and a faint **world reflection** (the requested reflections). **Head
+     parallax** lags the projection slightly via the camera's yaw/pitch delta.
+   - **Safe + idiomatic:** menus/dialogs/map/loading/death stay flat screen-space overlays (readability); the
+     diegetic HUD is non-interactive so no raycast remap is needed; `HudLayerEnforcer` keeps dynamic children on
+     the layer. **Degrades gracefully** — if the layer or shader is missing, `UiKit.HudCamera` stays null and the
+     HUD falls back to a normal overlay (never lost). New shader registered in `m_AlwaysIncludedShaders`
+     (see [[shaders-must-be-always-included]]). Always on; gentler under the reduced-effects preset.
+   - Files: `Shaders/Visor.shader`, `Scripts/VisorHud.cs` (+ `VisorComposite`, `HudLayerEnforcer`),
+     `UiKit.CreateDiegeticCanvas`, wired in `WorldRig`; `HudUi`/`SpaceRadar` use the diegetic canvas. *(Space
+     overlay systems bar left as flat overlay — it shares the canvas with the full-screen launch fade.)*
+
+   ### Original ask + analysis (kept for reference)
+   *(Analysis was: can the UI look like a holographic HUD on a curved visor; which effects — curvature/parallax,
+   fresnel/rim glow, scanlines, chromatic fringe, bloom/glow, distortion + reflections.)*
 
    ### Analysis (2026-06-07)
    - **All UI is `RenderMode.ScreenSpaceOverlay`** (`UiKit.CreateCanvas`), across ~11 canvases ordered by

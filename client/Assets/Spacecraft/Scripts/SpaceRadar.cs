@@ -31,7 +31,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            _canvas = UiKit.CreateCanvas("Space Radar");
+            _canvas = UiKit.CreateDiegeticCanvas("Space Radar"); // visor HUD camera when active
             _canvas.sortingOrder = 10; // HUD level
             var root = _canvas.transform;
 

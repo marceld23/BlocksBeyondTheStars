@@ -90,6 +90,32 @@ namespace Spacecraft.Client
             }
         }
 
+        /// <summary>The visor HUD camera (set by <see cref="VisorHud"/> when the holographic pipeline is
+        /// active); null = no visor, diegetic canvases render as a plain screen-space overlay.</summary>
+        public static Camera HudCamera;
+
+        /// <summary>Layer the diegetic HUD renders on so only the visor camera (not the main camera) sees
+        /// it; -1 until the visor pipeline is set up.</summary>
+        public static int HudLayer = -1;
+
+        /// <summary>Creates a canvas for the **diegetic HUD**: routed through the visor HUD camera (so the
+        /// <c>Spacecraft/Visor</c> pass can curve/glow it) when that pipeline is up, otherwise a normal
+        /// screen-space overlay. Menus/dialogs must keep using <see cref="CreateCanvas"/> (stay flat).</summary>
+        public static Canvas CreateDiegeticCanvas(string name)
+        {
+            var canvas = CreateCanvas(name);
+            if (HudCamera != null && HudLayer >= 0)
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = HudCamera;
+                canvas.planeDistance = 1f;
+                canvas.gameObject.layer = HudLayer;
+                canvas.gameObject.AddComponent<HudLayerEnforcer>().Layer = HudLayer;
+            }
+
+            return canvas;
+        }
+
         public static Canvas CreateCanvas(string name)
         {
             if (Object.FindFirstObjectByType<EventSystem>() == null)
