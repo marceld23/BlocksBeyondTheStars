@@ -101,8 +101,58 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    No change to the landing/chunk/settle logic itself — purely an overlay + one readiness flag + one event.
 5. **Bug — the player must not fall in space.** If the player is ever in space **without a ship**, they must
    **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
-   able to **get back into their ship** when it's there, or **dock at a station**. Analyse precisely, plan, ask
-   questions, then implement. (Relates to item 10 — building up into space.)
+   able to **get back into their ship** when it's there (**incl. while already in space** — board/enter the ship
+   from a float), or **dock at a station**. Also: the **Launch button** in the menu must **not trigger the
+   launch (take-off) animation when the player is already in space** — boarding the ship from a float should go
+   straight to the flight view. Analyse precisely, plan, ask questions, then implement. (Relates to item 10 —
+   building up into space.)
+
+   ### Analysis (2026-06-07)
+   **Today there is no "on foot in space" state at all.** "In space" only ever means *piloting the ship* in the
+   flight view:
+   - **Gravity / falling** — `PlayerController.Move()` does `_verticalVelocity -= Gravity * dt` whenever the
+     player is in the air (`PlayerController.cs:~779`, `Gravity = 20f`). Gravity is only skipped while:
+     `SpaceViewActive` (on-foot control frozen entirely, `:168-171`), a menu/chat is open (gravity-only,
+     `:175-179`), the spawn **settle-freeze** (`:146-164`), or **swimming** (buoyant branch, `:760-766`).
+   - **Jetpack** — hold Jump in the air to thrust up; needs the `jetpack` item **and** `SuitEnergy > 0`
+     (`CanJetpack()` `:724`); server drains energy in `GameServerEquipment.TickJetpack` (~9/s). Caps rise at
+     `JetpackMaxRise`. This is the closest existing "suit thrust" code.
+   - **"In space" state** — `GameBootstrap.InSpace` flips true on `SpaceStateReceived`, false on `SpaceClosed`.
+     Server-side a player is "in space" iff they have a space-instance id. `EnterSpace` (`GameServerSpaceCombat
+     .cs:217`) **requires `AboardShip`** ("Board your ship before launching into space.") — so you can only be
+     in space *as the ship*.
+   - **Launch** — the **`ui.space.enter`** button in the ship tab (`CraftingTechShipUI.cs:612`) → `SendEnterSpace`
+     → server `EnterSpace` → `SpaceState` → client `InSpace=true` → `SpaceView.Update` (`:112`,
+     `if (Game.InSpace && !_active) Enter()`) → `Enter()` **always** starts `Phase.Launch` — the rising take-off
+     animation + `ship_launch` roar + `SpaceViewActive=true` (`SpaceView.cs:573-619`). There is no "skip the
+     take-off" path.
+   - **Docking** already exists: in the flight view, E near a station → `Phase.Boarding` dock animation →
+     `SendBoardStation` → `GameServerSpaceStations.BoardStation` (range 70). On-planet there's also
+     `HandleStations` (E to board a nearby station). `LeaveStation` relaunches you as the ship into space.
+
+   ### Plan (subsystems — exact behaviour pending the questions below)
+   1. **New state: on-foot in space (zero-g).** Add a server/player flag (e.g. `InSpaceOnFoot`) distinct from
+      the ship's space instance, mirrored to the client (`WorldEnvironment`/a small message). While set:
+      - **No gravity** — add it to the list of gravity-skip conditions in `PlayerController.Move()`; replace the
+        fall path with a **float/drift** path (zero vertical pull; velocity damps to 0 when no input).
+      - **Suit float movement** — *(feel TBD, see Q)* either full 6-DOF (mouse-look + WASD + ascend/descend, like
+        the ship's `UpdateCruise`) or on-foot WASD + jetpack-style up/down with no ground. Slow, "floaty" accel +
+        drag, not walk speed.
+      - **Oxygen/energy** — *(TBD, see Q)* either drains suit oxygen like being submerged (risk → must get back),
+        or free.
+   2. **Board your ship from space (no take-off animation).** A "board/enter ship" action available while
+      floating → transitions straight into the **flight view at `Phase.Cruise`** (skip `Phase.Launch`). Implement
+      by passing a flag on `SpaceState` (e.g. `SkipLaunch`/`AlreadyInSpace`) so `SpaceView.Enter()` starts at
+      Cruise with no `ship_launch` roar. **Launch button fix:** when the player is already in space (on foot),
+      the `ui.space.enter` action must use this no-animation path (and read "Board ship" rather than "Launch").
+      *(Where the ship is / how you reach it — see Q.)*
+   3. **Dock at a station from a float** — reuse the existing station-boarding path (range-gated `BoardStation`)
+      from the on-foot-in-space state, not only from the flight view.
+   4. **Reverse (EVA) — leave the ship into a float** — *(only if wanted, see Q)* a "step out / EVA" action from
+      the flight view that drops you into the on-foot zero-g state next to the ship.
+
+   No world-gen or persistence changes expected beyond the new flag; mostly `PlayerController` (gravity + float
+   movement), `SpaceView.Enter` (skip-launch), one server flag + message field, and the launch-button label/branch.
 6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
    be saved too, so on **loading the save I'm back there** (not just the last/home world).
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player

@@ -7,12 +7,13 @@ self-hosting come naturally.
 
 ## About this project
 
-Spacecraft is a **father-and-son project**:
+Spacecraft is a **family project**:
 
 - **Justus (age 10)** is the **Product Owner** — he comes up with the game and writes the
   user requirements.
 - **Marcel (papa)** is the **technical translator** — he turns Justus's ideas into precise
   technical requirements.
+- **Verena (mama)** is the **game tester** — she plays the game and gives feedback.
 - The **AI (Claude Code, Anthropic's Claude Opus)** produces the technical implementation
   from those requirements.
 
