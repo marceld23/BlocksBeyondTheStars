@@ -141,7 +141,7 @@ namespace Spacecraft.Client
             _time = Mathf.Repeat(_time + Time.deltaTime / _dayLength, 1f);
 
             float intensity = env?.Intensity ?? 0f;
-            Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.9f);
+            Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback
             // Boarded on an orbital station: it floats free in space, so show the space sky (black, no fog)
             // and treat it like a lit, life-supported interior — independent of the planet far below.
             bool boarded = !string.IsNullOrEmpty(Game.StationName);

@@ -43,13 +43,18 @@ public sealed class WorldEnvironmentTests : IDisposable
     }
 
     [Fact]
-    public void SunColour_IsFromPalette_AndWeatherValid()
+    public void SunColour_IsAPlausibleStarColour_AndWeatherValid()
     {
         var server = Started(out var repo);
         using (repo)
         {
-            int[] palette = { 0xFFF6E8, 0xFFE08A, 0x9FC0FF, 0xFF9E80, 0xFFC070 };
-            Assert.Contains(server.SunColor, palette);
+            int c = server.SunColor;
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            // Sampled from the hot→cool stellar ramp (blue-white → white → yellow → orange → red): always a
+            // bright, warm-to-cool star tint — never a dim, green-dominant or near-black "sun".
+            Assert.InRange(r, 0xC0, 0xFF);
+            Assert.InRange(g, 0xA0, 0xFF);
+            Assert.InRange(b, 0x60, 0xFF);
             Assert.Contains(server.Weather, new[] { "clear", "clouds", "rain", "storm" });
         }
     }

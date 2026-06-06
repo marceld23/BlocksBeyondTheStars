@@ -12,7 +12,18 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private static readonly int[] SunPalette = { 0xFFF6E8, 0xFFE08A, 0x9FC0FF, 0xFF9E80, 0xFFC070 };
+    // Stellar colour anchors from hot to cool (blue-white → white → yellow → orange → red), each with a weight
+    // so most systems land near a natural sun-like white/yellow and blue/red stars are the rarer extremes.
+    private static readonly (int Rgb, int Weight)[] StarRamp =
+    {
+        (0xC9D4FF, 7),   // blue-white (hot O/B/A)
+        (0xFFF6F0, 15),  // white (F)
+        (0xFFF1CE, 30),  // yellow-white, sun-like (G)
+        (0xFFE6A0, 22),  // yellow (early K)
+        (0xFFC97E, 14),  // orange (late K)
+        (0xFFB074, 8),   // red-orange (M)
+    };
+
     private static readonly string[] WeatherStates = { "clear", "clouds", "rain", "storm" };
 
     private const double WeatherChangeInterval = 25.0;
@@ -65,7 +76,7 @@ public sealed partial class GameServer
         _sinceEnvBroadcast = 0;
 
         var (system, _) = ActiveLocationNames();
-        _sunColor = SunPalette[(int)((uint)StableStringHash(system) % (uint)SunPalette.Length)];
+        _sunColor = StarColor(system);
 
         // Fixed-weather planets: lock the state; dynamic ones start clear.
         _weatherState = _planetWeatherMode switch
@@ -197,5 +208,53 @@ public sealed partial class GameServer
         }
 
         return h;
+    }
+
+    /// <summary>A deterministic, continuously-varying star colour for a system: the system's hash picks a
+    /// weighted anchor on the hot→cool stellar ramp and a second hash blends it toward a neighbour, so colours
+    /// span the full ramp (not just a handful of fixed swatches) while clustering on natural sun-like hues.</summary>
+    private static int StarColor(string system)
+    {
+        uint h = (uint)StableStringHash(system);
+        int total = 0;
+        foreach (var (_, w) in StarRamp)
+        {
+            total += w;
+        }
+
+        int roll = (int)(h % (uint)total);
+        int i = 0;
+        for (; i < StarRamp.Length; i++)
+        {
+            roll -= StarRamp[i].Weight;
+            if (roll < 0)
+            {
+                break;
+            }
+        }
+
+        if (i >= StarRamp.Length)
+        {
+            i = StarRamp.Length - 1;
+        }
+
+        int j = i + 1 < StarRamp.Length ? i + 1 : i - 1;
+        if (j < 0)
+        {
+            j = 0;
+        }
+
+        float f = ((h >> 8) & 0xFF) / 255f * 0.5f; // up to halfway toward the neighbouring anchor
+        return LerpRgb(StarRamp[i].Rgb, StarRamp[j].Rgb, f);
+    }
+
+    private static int LerpRgb(int a, int b, float t)
+    {
+        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
+        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        int r = (int)(ar + (br - ar) * t + 0.5f);
+        int g = (int)(ag + (bg - ag) * t + 0.5f);
+        int bl = (int)(ab + (bb - ab) * t + 0.5f);
+        return (r << 16) | (g << 8) | bl;
     }
 }
