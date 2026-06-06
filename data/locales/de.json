@@ -283,6 +283,8 @@
   "ui.tab.map": "Karte",
   "ui.tab.missions": "Missionen",
   "ui.map.loading": "Lädt…",
+  "ui.loading.world": "Lade Welt",
+  "ui.loading.station": "Betrete Station",
   "ui.map.here": "du bist hier",
   "ui.hud.day": "Tag",
   "ui.hud.night": "Nacht",

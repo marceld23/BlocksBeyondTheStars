@@ -97,6 +97,10 @@ namespace Spacecraft.Client
             var warp = root.AddComponent<HyperspaceWarp>();
             warp.Game = boot;
 
+            // Loading curtain over the world build-up on join / landing / station boarding.
+            var loading = root.AddComponent<WorldLoadingOverlay>();
+            loading.Game = boot;
+
             // In-game gameplay menu (inventory / crafting / tech / ship / map / missions), Tab.
             var menu = root.AddComponent<GameMenu>();
             menu.Game = boot;

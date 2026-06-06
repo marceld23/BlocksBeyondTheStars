@@ -156,6 +156,7 @@ namespace Spacecraft.Client
                 {
                     _settling = false;
                     _settleTimer = 0f;
+                    Game.NotifyWorldReady(); // ground is under us — let the loading overlay reveal the world
                 }
                 else
                 {

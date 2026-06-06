@@ -278,6 +278,8 @@
   "ui.tab.map": "Map",
   "ui.tab.missions": "Missions",
   "ui.map.loading": "Loading…",
+  "ui.loading.world": "Loading world",
+  "ui.loading.station": "Entering station",
   "ui.map.here": "you are here",
   "ui.hud.day": "Day",
   "ui.hud.night": "Night",

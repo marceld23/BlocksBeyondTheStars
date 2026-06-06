@@ -61,10 +61,44 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    `m_AlwaysIncludedShaders` restored the frosted glass — confirmed by the user). The shader's milky/water logic
    was correct all along; it just wasn't in the build. See [[glass-milky-not-transparent]] +
    [[shaders-must-be-always-included]].
-4. **Bug — landing pop-in; want a loading screen.** When I land on a planet or station I can see the planet/
-   station **building up before my ship appears** (for stations, before everything is finished). Instead I want
-   a **loading screen that disappears once everything is ready**. Analyse precisely, then make a plan; only then
-   start implementing.
+4. ✅ **Bug — landing pop-in; want a loading screen** (done 2026-06-07). When I land on a planet or station I
+   can see the planet/station **building up before my ship appears** (for stations, before everything is
+   finished). Instead I want a **loading screen that disappears once everything is ready**. Analyse precisely,
+   then make a plan; only then start implementing.
+
+   ### Analysis + Plan (2026-06-07)
+   **Flow:** land (`SpaceView` descent) / board → server sends **`WorldReset`** + the new world's chunks
+   (`GameServer.HandleTravel` / `GameServerSpaceStations.BoardStation`). Client `OnWorldReset` drops old chunks,
+   clears the world, **bumps `WorldEpoch`** (`GameBootstrap.cs:511`) and nulls `ServerSpawn`. Chunks then stream
+   in + mesh (`OnChunk`→`RebuildChunk`, all dirty chunks meshed per frame). `PlayerController` watches
+   `WorldEpoch` (`:116`), re-snaps to `ServerSpawn`, and holds a **settle-freeze** (`_settling`) until a downward
+   raycast finds the ground collider below spawn (`:146-157`) or a 20 s timeout. **Why the build-up shows:**
+   nothing covers the window between `WorldReset` (old world gone, new streaming) and the ground being ready —
+   so you watch chunks/the ship/station assemble. `WorldReset.Hyperjump` already marks jumps (those are covered
+   by the `HyperspaceWarp` overlay). There's a clean uGUI overlay pattern to reuse (`HyperspaceWarp`,
+   `UiKit.CreateCanvas`).
+
+   **Decisions (user):** (a) **show the destination name** (planet/station) + type + a spinner/progress feel;
+   (b) the overlay **also covers the very first spawn** at app launch.
+
+   **Implemented:** new **`WorldLoadingOverlay`** (`client/Assets/Spacecraft/Scripts/WorldLoadingOverlay.cs`,
+   pure uGUI on a DPI-scaled canvas, sortingOrder 75, fade in/out) wired in `WorldRig.Build` next to the warp.
+   - **Trigger:** `GameBootstrap` raises a new **`WorldLoadStarted`** event on `JoinAccepted` (first spawn) and
+     on non-hyperjump `OnWorldReset` (landing / station boarding / same-system travel). Hyperjumps keep firing
+     `HyperjumpStarted` instead, so the warp VFX (not this veil) covers those.
+   - **Don't veil the descent:** the overlay only *arms* on the event and waits while `SpaceViewActive` (the
+     ship's landing descent plays in the space scene, which already hides the surface). It raises the veil the
+     moment we're back on the surface — and skips it entirely if the world already streamed in during the
+     descent (`WorldReady` already true).
+   - **Ready signal:** `GameBootstrap.WorldReady` (reset false on join/reset) is set true by `PlayerController`
+     the instant the **settle-freeze releases** (ground collider exists below spawn). Veil fades out then, after
+     a **0.7 s min-show**; a **25 s max-show** safety guarantees it can never trap the player.
+   - **Content:** big destination title (`LocationName`), localized world-type subtitle (reuses the existing
+     `planet.<type>.name` keys, e.g. *Felsplanet* / *Orbitalstation*), a 12-dot comet-tail spinner, and a
+     localized footer with animated dots — new keys `ui.loading.world` / `ui.loading.station` (DE+EN, all four
+     locale files). Station boardings read *Betrete Station* / *Entering station*.
+
+   No change to the landing/chunk/settle logic itself — purely an overlay + one readiness flag + one event.
 5. **Bug — the player must not fall in space.** If the player is ever in space **without a ship**, they must
    **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
    able to **get back into their ship** when it's there, or **dock at a station**. Analyse precisely, plan, ask

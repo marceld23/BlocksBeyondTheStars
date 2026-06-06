@@ -307,6 +307,9 @@ namespace Spacecraft.Client
                     ? m.PlanetName
                     : $"{m.SystemName} · {m.PlanetName}";
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
+                LoadingPlanetType = m.PlanetType;
+                WorldReady = false;          // hold the loading overlay until we settle onto the first world
+                WorldLoadStarted?.Invoke();
             };
             Network.JoinRejected += m => Debug.LogWarning($"Join rejected: {m.Reason}");
             Network.ChunkReceived += OnChunk;
@@ -511,14 +514,39 @@ namespace Spacecraft.Client
             WorldEpoch++;
             LastMessage = m.Hyperjump ? $"Hyperjump → {m.PlanetName}…" : $"Arriving at {m.PlanetName}…";
 
+            LoadingPlanetType = m.PlanetType;
+            WorldReady = false; // hold the loading overlay until the player settles onto the new world
+
             if (m.Hyperjump)
             {
-                HyperjumpStarted?.Invoke();
+                HyperjumpStarted?.Invoke(); // the warp VFX masks the build-up for jumps
+            }
+            else
+            {
+                WorldLoadStarted?.Invoke(); // landings & station boardings get the loading overlay
             }
         }
 
         /// <summary>Raised when a hyperspace jump to another star system begins (drives the warp VFX).</summary>
         public event System.Action HyperjumpStarted;
+
+        /// <summary>Planet-type key of the world currently streaming in (e.g. "rocky", "orbital_station").
+        /// Drives the loading overlay's destination label.</summary>
+        public string LoadingPlanetType { get; private set; } = string.Empty;
+
+        /// <summary>False while a new world streams in after a join/landing/boarding; set true by
+        /// <see cref="PlayerController"/> once the player has settled onto solid ground. Drives the
+        /// loading overlay's dismiss so the world is only revealed when it is ready.</summary>
+        public bool WorldReady { get; private set; } = true;
+
+        /// <summary>Called by <see cref="PlayerController"/> when the settle-freeze releases (solid ground
+        /// is under the player) — tells the loading overlay the world is ready to reveal.</summary>
+        public void NotifyWorldReady() => WorldReady = true;
+
+        /// <summary>Raised when a non-hyperspace world load begins (join, landing, station boarding) —
+        /// drives the loading overlay. Hyperspace jumps fire <see cref="HyperjumpStarted"/> instead, since
+        /// the warp VFX already masks those.</summary>
+        public event System.Action WorldLoadStarted;
 
         private static readonly (int X, int Y, int Z)[] _faceDirs =
         {
