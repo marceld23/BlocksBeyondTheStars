@@ -595,8 +595,10 @@ ElevenLabs sounds — no further per-batch confirmation needed; keys are in `too
   bundled `flora_kelp` + `flora_lily` (OpenAI), so **all 15 `flora_*` blocks now have tiles** (audit confirmed
   flora 15/15 + creature hides 12/12 covered; only special blocks — lights/force-field/ladder/stairs/data-cache
   — use BaseColor, by design). Grayscale regen is unnecessary — the Phase-2 shader re-tints by luminance, so
-  the existing colour tiles already work. ⏳ **still to do:** (b) more creature hides only if new body parts
-  are added; (c) **more ElevenLabs creature call variants** for sound variety.
+  the existing colour tiles already work. ✅ **(c) more creature calls**: generated 6 new ElevenLabs signature
+  calls (trill / click / rumble / bellow / hiss / chitter) → `CreatureView.Calls[]` now has **12** (audio
+  106 → 112), so a world's fauna sounds far more varied. ⏳ **still to do:** (b) more creature hides only if
+  new body parts are added.
 
 Also still in the backlog: **multiplayer player-name reservation**.
 

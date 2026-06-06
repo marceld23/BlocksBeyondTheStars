@@ -153,7 +153,11 @@ namespace Spacecraft.Client
 
         // Signature idle calls — each species picks one (by id), so a world's fauna sounds varied.
         private static readonly string[] Calls =
-            { "creature_call_chirp", "creature_call_croak", "creature_call_growl", "creature_call_screech", "creature_call_warble", "creature_call_hoot" };
+        {
+            "creature_call_chirp", "creature_call_croak", "creature_call_growl", "creature_call_screech",
+            "creature_call_warble", "creature_call_hoot", "creature_call_trill", "creature_call_click",
+            "creature_call_rumble", "creature_call_bellow", "creature_call_hiss", "creature_call_chitter",
+        };
 
         private static int SpeciesHash(string id)
         {

@@ -6,7 +6,7 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (106 files, incl. the splash intro, the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (112 files, incl. the splash intro, the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
 the death cues `space_death`/`player_death` and the per-species creature calls `creature_call_*`) are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
