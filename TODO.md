@@ -157,6 +157,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 - **Task 3 — Shadows & darkness on planets.** Analyse how shadow-casting + darkness work. A **cave entrance
   currently looks like a black wall** — change it so the entrance reads as **softly lit**. Shadows should be
   **softer**, not so **hard-edged**.
+
+  ### Task 3 — Analysis + Plan (2026-06-07)
+  **There is no real shadow-mapping.** "Shadow"/darkness comes from a per-face **skylight** flag the mesher
+  bakes into `TEXCOORD1.x`: `sky = ny > Top(nx,nz) ? 1 : 0` (`ChunkMesher.cs:128`) — 1 if the air cell the face
+  looks into is above its column's highest solid (open to the sky), else 0. `BlockAtlas.shader` turns it into
+  `amb = lerp(0.24, 0.70, sky)` and `col = albedo*(light*(amb + 0.5*ndl*sky) + 0.05)*faceAo`
+  (`BlockAtlas.shader:107-117`). So an open face is ~0.70 + sun; an occluded face (cave/overhang/indoor) is a
+  flat **0.24** (+0.05 floor). **Root cause of both symptoms = the binary skylight:** one block into a cave
+  jumps 0.70→0.24, so the mouth is an abrupt dark wall and overhang shadows have hard edges. The shader already
+  consumes a *continuous* `sky`, so the fix is mesher-side only. (The `ndl` sun term is already smooth; there's
+  no sun shadow-casting at all, just the dark side of blocks + the skylight occlusion.)
+
+  **Implications elsewhere:** the same skylight gates ship/station interiors (compensated by `_Sc_Indoor`),
+  overhangs, cliff undersides and tree shade — softening it improves all of them, and bleeds a little light
+  into doorways/windows (a plus). It does **not** touch night-on-planet (that's the day/night `light` term).
+
+  **Plan (mesher-only):** replace the binary `sky` with a **smooth sky-occlusion** 0..1 — average the
+  open-to-sky test (`ny > Top`) over a small horizontal kernel (e.g. 3×3 or 5×5 columns) around the air cell,
+  blended with the cell's own openness. A face at a cave mouth (some open neighbours) gets a partial value → a
+  soft gradient instead of a wall; a **deep** cave (no open neighbours) stays ~0, so it still needs a lamp.
+  `Top()` is column-cached, so this is a few extra dict lookups per drawn face at **mesh time** (not per
+  frame). Optionally nudge the cave-ambient floor (0.24) up slightly. No shader change required.
+
+  **Questions (before implementing):** (a) keep **deep** caves dark (lamp required) and only soften+light the
+  **entrance**, or brighten caves overall? (b) how soft — subtle (3×3 kernel) or strong (5×5, lighter floor)?
 - **Task 4 — Appealing icons for everything pickup-able / hand-held.** Current icons are crude and off-style.
   Plan: **materials** → a downscaled in-game **texture** (like the harvested-plant icon), generated from game
   content. **Meat** → a steak icon (green if toxic, else normal). **Items + tools** → same style as the in-game
