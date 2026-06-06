@@ -441,10 +441,60 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    6. Build + client rebuild (icons are `Resources`, picked up by the player build).
 
    **Open questions for the user → see chat.**
-9. **Feature — holographic visor HUD.** Analyse + plan: can the in-game UI be adapted so it looks like a
-   **holographic HUD projected onto the inside of an outward-curved glass** (the space-suit visor glass)? Look
-   at which **effects** can be used to achieve it (e.g. curvature/parallax, a fresnel/rim glow on the visor,
-   scanlines, chromatic-edge fringing, bloom/glow, subtle distortion + reflections). Analyse + plan only for now.
+9. **Feature — holographic visor HUD.** *(Analysis + plan only — do NOT implement yet.)* Can the in-game UI be
+   adapted to look like a **holographic HUD projected onto the inside of an outward-curved visor glass**? Which
+   effects achieve it (curvature/parallax, fresnel/rim glow, scanlines, chromatic-edge fringing, bloom/glow,
+   subtle distortion + reflections)?
+
+   ### Analysis (2026-06-07)
+   - **All UI is `RenderMode.ScreenSpaceOverlay`** (`UiKit.CreateCanvas`), across ~11 canvases ordered by
+     `sortingOrder`: diegetic HUD (Nameplates 8, **HudUI 10**, Space radar 10, **Space overlay 12**) vs.
+     interactive chrome (Interactions 22, Chat 25, **Crafting/Tech/Ship 50**, Map 60, Warp 70, Loading 75,
+     Death 80). **Key constraint:** overlay canvases draw *after* the camera, so the existing `OnRenderImage`
+     post-FX **cannot** touch them — a visor look on the HUD needs the HUD rendered through a camera/RT first.
+   - **A real post-FX pipeline already exists** — `PostFx.OnRenderImage` (on the main camera, `WorldRig.cs:67`)
+     chains SSAO → **bloom** → composite (ACES tonemap + exposure + **vignette**), via `Spacecraft/PostBloom`,
+     `PostComposite`, `PostAO`. So bloom/glow + vignette + a final fullscreen blit hook are **already there** to
+     build on; the holographic glow is largely free.
+   - **Full-screen overlays today:** `WeatherFx` uses IMGUI `OnGUI`/`GUI.DrawTexture` washes (underwater/rain/
+     lightning) *behind* the HUD; `DeathFx` uses a high-order canvas `Image`. Both are independent layers.
+   - **Single main camera** (reparented only by SpaceView); no UI camera. Custom shaders are `Shader.Find`-loaded
+     with fallbacks — **a new visor shader must be added to GraphicsSettings `m_AlwaysIncludedShaders`** or it
+     strips from the build (see [[shaders-must-be-always-included]]). Settings tab + a `ReducedEffects` preset
+     already exist (accessibility/perf toggle hooks).
+   - **Effect feasibility** (all cheap, one fullscreen pass): curvature = barrel UV-warp; chromatic fringe =
+     radius-scaled R/G/B UV offset; scanlines = `sin(uv.y*N)`; distortion = animated noise UV nudge; rim glow =
+     faux-fresnel radial gradient brightening toward the visor edge; glow = reuse bloom; parallax = offset the
+     HUD-sample UV by the camera's frame-to-frame yaw/pitch delta; reflections = a faint additive static
+     smudge/streak texture (optionally tinted by the world frame). True 3D fresnel/parallax only comes with the
+     world-space-mesh variant (B2).
+
+   ### Plan (when greenlit)
+   - **Scope split (important):** apply the visor look ONLY to the **diegetic always-on HUD** (crosshair, vitals,
+     hotbar, compass, location, toasts, scan, space systems bar + space overlay) — **NOT** to menus/dialogs/map/
+     loading (those stay flat + crisp for readability). Conveniently the diegetic HUD is mostly **non-interactive**
+     (hotbar is number-key selected), so routing it through a render texture needs **no raycast remapping**.
+   - **Recommended mechanism — HUD → RenderTexture → visor composite (B1):**
+     1. Render the diegetic HUD canvases via a dedicated **UI camera** (own "HUD" layer, transparent clear) into a
+        screen-sized, **full-res** RT (keep text crisp); menus keep their own overlay canvases untouched. (UiKit
+        gains a `CreateHudCanvas` that targets the UI camera in Screen-Space-Camera mode.)
+     2. New **`Spacecraft/Visor` shader** — one fullscreen pass over the world frame that samples the HUD RT and
+        applies barrel curvature + chromatic fringe + scanlines + noise distortion + faux-fresnel rim glow +
+        emissive bloom + faint reflection, then composites over the crisp world. Hooked as the **final step in
+        `PostFx`** (or a Blit right after). Uniforms: `_Time` (scanline/flicker), camera angular velocity
+        (parallax), `_Intensity` (settings). Register it in `m_AlwaysIncludedShaders`.
+     3. **Settings + accessibility:** a "Visor HUD" on/off + intensity in the Settings tab; **auto-off under
+        `ReducedEffects`**; subtle by default (legibility first — kids play this).
+   - **Lighter alternative (B0, ship-first option):** skip the RT/second camera; add mild **whole-frame** barrel +
+     edge chromatic fringe + faint scanlines + stronger vignette inside `PostComposite`. Reads as "inside a
+     helmet", touches no canvas, near-zero risk — but warps the world view slightly and isn't a true "projected
+     hologram". Could ship as Phase 1, with B1 as Phase 2.
+   - **World-space-mesh variant (B2, most immersive, most work):** map the HUD RT onto a curved spherical-section
+     mesh in front of the camera with a holographic additive material — gives real curvature + head parallax +
+     true fresnel, but adds mesh gen, depth/occlusion handling and is the heaviest. Defer unless B1 isn't enough.
+   - **Open decisions for greenlight:** (a) B0 mild-whole-frame vs B1 true HUD-projection (recommended B1, with B0
+     as a quick first pass); (b) default intensity / always-on vs only-in-EVA-or-space; (c) include faked
+     reflections or keep it clean.
 10. **Feature — build high enough to leave the atmosphere into space.** Analyse + plan thoroughly: it should be
    theoretically possible, on a world / moon / asteroid, to **build a structure tall enough that it leaves the
    atmosphere** (if there is one) and you are **in space**. Analyse precisely, then plan, ask questions, only
