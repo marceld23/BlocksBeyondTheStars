@@ -284,6 +284,24 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      net:** `GameBootstrap.OnFootInSpace` + a float branch in `PlayerController.Move` — above the atmosphere
      there's no gravity, so the player floats (Jump rises, Ctrl/C sinks, else drifts to a stop) instead of
      falling. Nothing sets the flag yet (a no-op until item 10 flips it) — the "must not fall in space" net.
+
+   ### Item 5 follow-ups (in-space / EVA polish — added 2026-06-07, do before the bigger tasks below)
+   These refine the just-shipped pilot ↔ ship-interior ↔ EVA feature (user feedback after testing).
+   - **5b — Player ship exterior textures (URGENT).** The **outside** of player ships urgently needs textures —
+     both the ship you pilot in the flight view and the remote-player avatars (`SpaceView.SyncRemotePlayers`)
+     are plain coloured cubes right now. Generate/apply hull textures so ships read as real ships from space.
+   - **5c — Show the ship's entry hatch while on an EVA.** On a spacewalk the ship's **entry hatch** isn't
+     marked, so it's unclear where to board back in. Make the hatch visibly stand out (a marker / glow / label)
+     when floating in EVA so the player can find the way back inside.
+   - **5d — EVA must not fly *into* the ship.** While in EVA the suit can pass straight through the hull. It
+     should **bounce off / be deflected** by a ship keep-out shell (like the station keep-out in
+     `SpaceView.UpdateCruise`/`UpdateEva`), so you slide around the hull and approach the hatch instead.
+   - **5e — Bug: "Launch into space" from inside the ship plays the take-off animation.** After stepping inside
+     the ship with **F** in space, the menu's **Launch into space** (`ui.space.enter`) replays the *planet*
+     take-off animation (because `Game.InSpace` is false in the on-foot ship-interior void world). From the ship
+     interior, returning to the flight view must use the **helm (cockpit, no animation)** — the menu launch
+     button should **not** offer the animated launch there (hide it, or route it through the skip-launch helm
+     path). Also clarify in-game that the cockpit/helm is the way back to piloting.
 6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
    be saved too, so on **loading the save I'm back there** (not just the last/home world).
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
