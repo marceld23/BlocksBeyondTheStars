@@ -292,9 +292,10 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      (`LitTex` with `iron_wall` hull, `glass` cockpit, `carbon` engine) + wingtip nav lights, instead of flat
      `Unlit` cubes. Reuses the existing `Lit` material/path (already in the build for stations), so ships read
      as real textured hulls from space.
-   - **5c — Show the ship's entry hatch while on an EVA.** On a spacewalk the ship's **entry hatch** isn't
-     marked, so it's unclear where to board back in. Make the hatch visibly stand out (a marker / glow / label)
-     when floating in EVA so the player can find the way back inside.
+   - ✅ **5c — Show the ship's entry hatch while on an EVA (done 2026-06-07).** `BuildShip` now has a glowing
+     cyan **hatch marker** on the ship's tail (where the voxel hatch is); it glows steady normally and **pulses
+     strongly while on an EVA** (`_hatchMat` pulse in `LateUpdate`) so you can spot where to board back in from
+     a distance.
    - ✅ **5d — EVA must not fly *into* the ship (done 2026-06-07).** `SpaceView.UpdateEva` now bounces the suit
      off a `ShipKeepOut` (3.5) shell around the parked ship and slides it along the hull (like the station
      keep-out); the board range (11) is larger so you still drift to the hatch and press E.

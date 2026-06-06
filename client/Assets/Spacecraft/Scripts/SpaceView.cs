@@ -33,6 +33,7 @@ namespace Spacecraft.Client
         private GameObject _root;
         private GameObject _ship;
         private Transform _exhaust;
+        private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
 
@@ -868,6 +869,7 @@ namespace Spacecraft.Client
             _exhaust = null;
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
+            _hatchMat = null; // hatch marker material lived under the destroyed ship
             _active = false;
             _eva = false;
             _enteringInterior = false;
@@ -1157,6 +1159,11 @@ namespace Spacecraft.Client
             // Navigation lights at the wingtips (port red / starboard green), like the landed ship.
             Cube("NavL", ship.transform, new Vector3(-1.85f, 0f, -0.3f), new Vector3(0.22f, 0.22f, 0.22f), Unlit(new Color(1f, 0.25f, 0.2f)));
             Cube("NavR", ship.transform, new Vector3(1.85f, 0f, -0.3f), new Vector3(0.22f, 0.22f, 0.22f), Unlit(new Color(0.3f, 1f, 0.3f)));
+
+            // Entry hatch on the tail (where the voxel hatch is) — a glowing cyan frame so you can find where
+            // to board back in. It pulses brightly while you're on an EVA (see the hatch pulse in LateUpdate).
+            _hatchMat = Unlit(new Color(0.2f, 0.85f, 1f));
+            Cube("Hatch", ship.transform, new Vector3(0f, -0.32f, -1.6f), new Vector3(0.95f, 0.5f, 0.18f), _hatchMat);
 
             // Glowing thruster exhaust (stretches with throttle in Update).
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, -2.4f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
@@ -1746,6 +1753,14 @@ namespace Spacecraft.Client
 
             EnsureUi();
             _ui.enabled = true;
+
+            // Entry-hatch beacon: a steady cyan glow normally, a strong pulse while on an EVA so you can find
+            // your way back to the ship's hatch from a distance.
+            if (_hatchMat != null)
+            {
+                float b = _eva ? 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4.5f)) : 0.7f;
+                _hatchMat.color = new Color(0.15f * b + 0.05f, 0.85f * b, 1f * b);
+            }
 
             // Decay the hit feedback.
             _shake = Mathf.Max(0f, _shake - Time.deltaTime * 2.5f);
