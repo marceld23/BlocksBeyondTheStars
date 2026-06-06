@@ -1142,15 +1142,21 @@ namespace Spacecraft.Client
             var ship = new GameObject("Ship");
             ship.transform.SetParent(parent, false);
 
-            var hull = Unlit(new Color(0.6f, 0.62f, 0.68f));
-            var glass = Unlit(new Color(0.5f, 0.85f, 0.95f));
-            var engine = Unlit(new Color(0.9f, 0.55f, 0.2f));
+            // Same block textures as the ship you walk on a planet: iron_wall hull, glass canopy, carbon
+            // engine nozzles (the station model already uses these), so it reads as a real hull, not a flat cube.
+            var hull = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f));
+            var glass = LitTex("glass", new Color(0.7f, 0.9f, 1f));
+            var engine = LitTex("carbon", new Color(0.78f, 0.78f, 0.82f));
 
             Cube("Body", ship.transform, new Vector3(0f, 0f, 0f), new Vector3(1.6f, 0.9f, 3.4f), hull);
             Cube("WingL", ship.transform, new Vector3(-1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), hull);
             Cube("WingR", ship.transform, new Vector3(1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), hull);
             Cube("Cockpit", ship.transform, new Vector3(0f, 0.5f, 1.2f), new Vector3(0.9f, 0.6f, 1.0f), glass);
             Cube("Engine", ship.transform, new Vector3(0f, 0f, -1.9f), new Vector3(1.0f, 0.7f, 0.5f), engine);
+
+            // Navigation lights at the wingtips (port red / starboard green), like the landed ship.
+            Cube("NavL", ship.transform, new Vector3(-1.85f, 0f, -0.3f), new Vector3(0.22f, 0.22f, 0.22f), Unlit(new Color(1f, 0.25f, 0.2f)));
+            Cube("NavR", ship.transform, new Vector3(1.85f, 0f, -0.3f), new Vector3(0.22f, 0.22f, 0.22f), Unlit(new Color(0.3f, 1f, 0.3f)));
 
             // Glowing thruster exhaust (stretches with throttle in Update).
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, -2.4f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
@@ -1384,7 +1390,14 @@ namespace Spacecraft.Client
         {
             var root = new GameObject("RemotePlayer");
             root.transform.SetParent(_root.transform, false);
-            var ship = Cube("Ship", root.transform, Vector3.zero, new Vector3(2.4f, 1.1f, 3.6f), Unlit(new Color(0.55f, 0.75f, 1f)));
+
+            // Ship: a small textured hull + glass cockpit (same block textures as your own ship), so other
+            // players read as real ships out here rather than flat cubes.
+            var ship = new GameObject("Ship");
+            ship.transform.SetParent(root.transform, false);
+            Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), LitTex("iron_wall", new Color(0.78f, 0.82f, 0.9f)));
+            Cube("Cockpit", ship.transform, new Vector3(0f, 0.45f, 1.1f), new Vector3(0.85f, 0.55f, 0.95f), LitTex("glass", new Color(0.7f, 0.9f, 1f)));
+
             var suit = Cube("Suit", root.transform, Vector3.zero, new Vector3(0.55f, 0.9f, 0.55f), Unlit(new Color(1f, 0.8f, 0.45f)));
             suit.SetActive(false);
             return new RemoteAvatar { Root = root, Ship = ship, Suit = suit };

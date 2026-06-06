@@ -287,9 +287,11 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
    ### Item 5 follow-ups (in-space / EVA polish — added 2026-06-07, do before the bigger tasks below)
    These refine the just-shipped pilot ↔ ship-interior ↔ EVA feature (user feedback after testing).
-   - **5b — Player ship exterior textures (URGENT).** The **outside** of player ships urgently needs textures —
-     both the ship you pilot in the flight view and the remote-player avatars (`SpaceView.SyncRemotePlayers`)
-     are plain coloured cubes right now. Generate/apply hull textures so ships read as real ships from space.
+   - ✅ **5b — Player ship exterior textures (done 2026-06-07).** No new assets — `SpaceView.BuildShip` and the
+     remote avatars (`BuildRemoteAvatar`) now use the **same block textures as the on-planet/station hull**
+     (`LitTex` with `iron_wall` hull, `glass` cockpit, `carbon` engine) + wingtip nav lights, instead of flat
+     `Unlit` cubes. Reuses the existing `Lit` material/path (already in the build for stations), so ships read
+     as real textured hulls from space.
    - **5c — Show the ship's entry hatch while on an EVA.** On a spacewalk the ship's **entry hatch** isn't
      marked, so it's unclear where to board back in. Make the hatch visibly stand out (a marker / glow / label)
      when floating in EVA so the player can find the way back inside.
