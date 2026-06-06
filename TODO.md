@@ -568,9 +568,23 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      view — a later "launch pad to flight view" could bridge to item 5's space instance if wanted.
 
    **Open questions → see chat.**
-11. **Feature — trade knowledge points.** Trade knowledge for materials/equipment; knowledge **never goes away**
-   (a threshold, not spent), and **each point can only be passed to a given player once** (track cumulative
-   given-per-pair) so there's no endless back-and-forth. *(Analysis done; questions in chat; implement after.)*
+11. ✅ **Feature — trade knowledge points (done 2026-06-07).** Trade knowledge for materials/equipment; knowledge
+   **never goes away** and each point can only be passed to a given player once. **Decisions (user):** unlock is a
+   **threshold (knowledge not spent), material cost stays**; anti-abuse rule = **"teach up to your level"**.
+   - **Knowledge is now a permanent threshold:** `HandleUnlock` no longer does `KnowledgePoints -= KnowledgeCost`
+     — it only checks `>=` (materials still consumed). Knowledge is synced to the client via `InventoryUpdate`.
+   - **Knowledge in a trade (giver keeps points):** `TradeSession` gains `KnowledgeA/B`; new `TradeKnowledgeIntent`
+     (NetCodec tag **97**), `TradeUpdate` carries each side's offer + my total + my teach-cap. On commit the
+     **giver keeps** their knowledge and the **receiver gains** it, alongside the atomic item swap — so you trade
+     **knowledge ⇄ materials/equipment**.
+   - **Loop-proof give-once ledger:** `PlayerState.KnowledgeGivenTo` (receiverId→points, persisted). The teachable
+     amount = `min(myKnowledge − alreadyGivenToThem, myKnowledge − theirKnowledge)` ≥ 0 — you can't lift anyone
+     above your own level and can't out-give what you know, so the same points can't be cycled to inflate totals.
+   - **Client:** a "Knowledge →N/max" row on each side of the trade panel (− / + / Max), bilingual
+     (`ui.trade.knowledge` / `ui.trade.max`).
+   - **Tested:** giver keeps + receiver gains for goods; can't exceed giver's level; give-once blocks
+     back-and-forth inflation; threshold unlock no longer deducts (materials still spent) — full suite **340
+     green**. Client + bundled server rebuilt.
 
    ### Analysis (2026-06-07)
    - **⚠️ Premise mismatch with the current code.** Knowledge is stored as `PlayerState.KnowledgePoints` (int,

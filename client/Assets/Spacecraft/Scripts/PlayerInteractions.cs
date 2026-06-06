@@ -108,6 +108,7 @@ namespace Spacecraft.Client
         private Text _dockName;
         private GameObject _tradePanel;
         private Text _tradeTitle, _myStatus, _theirStatus;
+        private Text _myKnow, _theirKnow; // item 11: knowledge offered on each side
         private RectTransform _myContent, _theirContent;
         private readonly List<OfferRow> _myRows = new List<OfferRow>();
         private readonly List<Text> _theirRows = new List<Text>();
@@ -243,8 +244,15 @@ namespace Spacecraft.Client
             _myStatus = UiKit.AddText(t, 20f, 48f, 280f, 22f, loc.Get("ui.trade.your_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             _theirStatus = UiKit.AddText(t, 320f, 48f, 280f, 22f, loc.Get("ui.trade.their_offer"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _myContent = UiKit.ScrollList(t, 16f, 78f, 292f, h - 78f - 64f);
-            _theirContent = UiKit.ScrollList(t, 316f, 78f, 288f, h - 78f - 64f);
+            // Knowledge row (item 11): teach knowledge for goods. My side adjustable; theirs read-only.
+            _myKnow = UiKit.AddText(t, 20f, 76f, 150f, 22f, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleLeft);
+            UiKit.AddButton(t, 172f, 74f, 26f, 24f, "−", () => AdjustKnowledge(-1));
+            UiKit.AddButton(t, 200f, 74f, 26f, 24f, "+", () => AdjustKnowledge(+1));
+            UiKit.AddButton(t, 230f, 74f, 60f, 24f, loc.Get("ui.trade.max"), () => SetKnowledgeMax());
+            _theirKnow = UiKit.AddText(t, 320f, 76f, 280f, 22f, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleLeft);
+
+            _myContent = UiKit.ScrollList(t, 16f, 104f, 292f, h - 104f - 64f);
+            _theirContent = UiKit.ScrollList(t, 316f, 104f, 288f, h - 104f - 64f);
 
             UiKit.AddButton(t, 20f, h - 52f, 180f, 38f, loc.Get("ui.action.confirm"), () => Game.Network.SendTradeConfirm());
             UiKit.AddButton(t, 210f, h - 52f, 180f, 38f, loc.Get("ui.action.cancel"), () => Game.Network.SendTradeCancel());
@@ -258,6 +266,11 @@ namespace Spacecraft.Client
             _tradeTitle.text = $"{loc.Get("ui.trade.title")} — {trade.Partner}";
             _myStatus.text = $"{loc.Get("ui.trade.your_offer")}  {(trade.MyConfirmed ? loc.Get("ui.trade.ready") : string.Empty)}";
             _theirStatus.text = $"{loc.Get("ui.trade.their_offer")}  {(trade.TheirConfirmed ? loc.Get("ui.trade.ready") : loc.Get("ui.trade.waiting"))}";
+
+            // Knowledge offered each way: "Knowledge →N / max" on my side, "Knowledge →N" on theirs.
+            string know = loc.Get("ui.trade.knowledge");
+            _myKnow.text = $"{know} →{trade.MyKnowledgeOffered}/{trade.MyKnowledgeMax}";
+            _theirKnow.text = trade.TheirKnowledgeOffered > 0 ? $"{know} →{trade.TheirKnowledgeOffered}" : string.Empty;
 
             // Left column: every owned item as an adjustable offer row (offered ×N out of owned).
             var offered = new Dictionary<string, int>();
@@ -385,6 +398,15 @@ namespace Spacecraft.Client
 
             Game.Network.SendTradeOffer(offer.ToArray());
         }
+
+        /// <summary>Nudges the knowledge offered to teach this partner (server clamps to the give-once cap).</summary>
+        private void AdjustKnowledge(int delta)
+        {
+            int next = Mathf.Clamp(Game.Trade.MyKnowledgeOffered + delta, 0, Game.Trade.MyKnowledgeMax);
+            Game.Network.SendTradeKnowledge(next);
+        }
+
+        private void SetKnowledgeMax() => Game.Network.SendTradeKnowledge(Game.Trade.MyKnowledgeMax);
 
         private string ItemName(Spacecraft.Shared.Localization.Localizer loc, string itemKey) => loc.Get($"item.{itemKey}.name");
     }

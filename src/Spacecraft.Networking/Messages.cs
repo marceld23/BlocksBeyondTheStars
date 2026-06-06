@@ -294,6 +294,13 @@ public sealed class TradeOfferIntent
     public NetTradeItem[] Items { get; set; } = System.Array.Empty<NetTradeItem>();
 }
 
+/// <summary>Client sets the knowledge points it offers to teach on its side of the open trade (item 11).
+/// The giver never loses points; the server caps it to what may still be taught to this partner.</summary>
+public sealed class TradeKnowledgeIntent
+{
+    public int Amount { get; set; }
+}
+
 /// <summary>Client confirms ("ready") the current trade; the swap happens when both sides confirm.</summary>
 public sealed class TradeConfirmIntent { }
 
@@ -308,6 +315,15 @@ public sealed class TradeUpdate
     public NetTradeItem[] TheirOffer { get; set; } = System.Array.Empty<NetTradeItem>();
     public bool MyConfirmed { get; set; }
     public bool TheirConfirmed { get; set; }
+
+    /// <summary>Knowledge points each side is teaching in this trade (item 11; the giver keeps theirs).</summary>
+    public int MyKnowledgeOffered { get; set; }
+    public int TheirKnowledgeOffered { get; set; }
+
+    /// <summary>My current knowledge total, and the most I can still teach this partner (give-once cap +
+    /// can't raise them above my own level) — drives the trade panel's knowledge control.</summary>
+    public int MyKnowledge { get; set; }
+    public int MyKnowledgeMax { get; set; }
 }
 
 /// <summary>A trade ended — completed (items swapped) or cancelled.</summary>
@@ -404,6 +420,9 @@ public sealed class InventoryUpdate
 
     /// <summary>Blueprint keys the player has unlocked — lets the client show craftable/locked status.</summary>
     public string[] UnlockedBlueprints { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The player's current knowledge total (kept in sync so the HUD/menu/trade panel show it).</summary>
+    public int KnowledgePoints { get; set; }
 }
 
 public sealed class PlayerStateUpdate

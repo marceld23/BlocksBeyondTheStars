@@ -239,6 +239,9 @@ namespace Spacecraft.Client
         /// <summary>Blueprint keys the player has unlocked (synced from the server) — drives craftable/locked UI.</summary>
         public System.Collections.Generic.HashSet<string> UnlockedBlueprints { get; private set; } = new();
 
+        /// <summary>Current knowledge total, kept in sync via inventory updates (item 11 — shown in the trade UI).</summary>
+        public int Knowledge { get; private set; }
+
         /// <summary>Hotbar slot the player has selected (written by the player controller).</summary>
         public int SelectedHotbarSlot;
 
@@ -327,6 +330,7 @@ namespace Spacecraft.Client
                 Personal = m.Personal;
                 Cargo = m.Cargo;
                 UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+                Knowledge = m.KnowledgePoints;
             };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;

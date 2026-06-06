@@ -116,11 +116,13 @@ public sealed class ScanningTests : IDisposable
             server.UnlockBlueprint("Eng", "detoxifier");
             Assert.DoesNotContain("detoxifier", p.State.UnlockedBlueprints);
 
-            // Research enough, then it unlocks and the knowledge is spent.
+            // Research enough, then it unlocks. Knowledge is a permanent THRESHOLD (item 11): it gates the
+            // unlock but is NOT spent — only the research materials are consumed.
             p.State.KnowledgePoints = 6;
             server.UnlockBlueprint("Eng", "detoxifier");
             Assert.Contains("detoxifier", p.State.UnlockedBlueprints);
-            Assert.Equal(0, p.State.KnowledgePoints);
+            Assert.Equal(6, p.State.KnowledgePoints);              // knowledge never goes away
+            Assert.Equal(0, p.State.Inventory.CountOf("cable"));   // but the materials are spent
         }
     }
 

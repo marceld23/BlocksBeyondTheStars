@@ -176,6 +176,8 @@ namespace Spacecraft.Client
 
         public void SendTradeOffer(NetTradeItem[] items) => Send(new TradeOfferIntent { Items = items });
 
+        public void SendTradeKnowledge(int amount) => Send(new TradeKnowledgeIntent { Amount = amount });
+
         public void SendTradeConfirm() => Send(new TradeConfirmIntent());
 
         public void SendTradeCancel() => Send(new TradeCancelIntent());

@@ -165,6 +165,86 @@ public sealed class TradeTests : IDisposable
         }
     }
 
+    // ---------------- Knowledge trading (item 11) ----------------
+
+    [Fact]
+    public void KnowledgeTrade_TeachesReceiver_ForGoods_WithoutCostingTheGiver()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (a, b) = TwoTradersTogether(server);
+            a.KnowledgePoints = 50;
+            b.KnowledgePoints = 0;
+            OpenTrade(server);
+
+            server.SetTradeKnowledge("Alice", 30);                              // Alice teaches 30 knowledge
+            server.SetTradeOffer("Bob", new[] { new ItemAmount("carbon", 2) }); // for 2 carbon
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob");
+
+            Assert.Equal(50, a.KnowledgePoints);            // the giver keeps everything (never goes away)
+            Assert.Equal(30, b.KnowledgePoints);            // the receiver learned 30
+            Assert.Equal(2, a.Inventory.CountOf("carbon")); // and Alice got the goods
+            Assert.Equal(30, a.KnowledgeGivenTo["Bob"]);    // ledger recorded the gift
+        }
+    }
+
+    [Fact]
+    public void KnowledgeTrade_CannotRaiseReceiverAboveTheGiversLevel()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (a, b) = TwoTradersTogether(server);
+            a.KnowledgePoints = 20;
+            b.KnowledgePoints = 15;
+            OpenTrade(server);
+
+            server.SetTradeKnowledge("Alice", 50); // asks to give far more than allowed
+            Assert.Equal(5, server.ActiveTrade("Alice")!.KnowledgeA); // clamped to (20 − 15)
+
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob");
+            Assert.Equal(20, b.KnowledgePoints); // raised only up to Alice's level
+            Assert.Equal(20, a.KnowledgePoints); // Alice unchanged
+        }
+    }
+
+    [Fact]
+    public void KnowledgeTrade_IsGiveOnce_NoBackAndForthInflation()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (a, b) = TwoTradersTogether(server);
+            a.KnowledgePoints = 50;
+            b.KnowledgePoints = 0;
+
+            // Alice teaches Bob everything she knows.
+            OpenTrade(server);
+            server.SetTradeKnowledge("Alice", 50);
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob");
+            Assert.Equal(50, b.KnowledgePoints);
+            Assert.Equal(50, a.KnowledgePoints);
+
+            // Now Bob can't hand it back to inflate Alice — they're level, so nothing flows.
+            OpenTrade(server);
+            server.SetTradeKnowledge("Bob", 50);
+            Assert.Equal(0, server.ActiveTrade("Bob")!.KnowledgeB); // clamped to 0
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob");
+            Assert.Equal(50, a.KnowledgePoints); // no inflation
+            Assert.Equal(50, b.KnowledgePoints);
+
+            // And Alice can't re-teach Bob the same points either (give-once cap reached).
+            OpenTrade(server);
+            server.SetTradeKnowledge("Alice", 50);
+            Assert.Equal(0, server.ActiveTrade("Alice")!.KnowledgeA);
+        }
+    }
+
     public void Dispose()
     {
         try

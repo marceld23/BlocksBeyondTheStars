@@ -19,11 +19,17 @@ public sealed class TradeSession
     public bool ConfirmA { get; set; }
     public bool ConfirmB { get; set; }
 
+    /// <summary>Knowledge points each side offers to teach (item 11; the giver keeps theirs).</summary>
+    public int KnowledgeA { get; set; }
+    public int KnowledgeB { get; set; }
+
     public bool Involves(string p) => p == A || p == B;
     public string Other(string p) => p == A ? B : A;
     public List<ItemAmount> OfferOf(string p) => p == A ? OfferA : OfferB;
     public bool ConfirmOf(string p) => p == A ? ConfirmA : ConfirmB;
     public void SetConfirm(string p, bool v) { if (p == A) ConfirmA = v; else ConfirmB = v; }
+    public int KnowledgeOf(string p) => p == A ? KnowledgeA : KnowledgeB;
+    public void SetKnowledge(string p, int v) { if (p == A) KnowledgeA = v; else KnowledgeB = v; }
 }
 
 public sealed partial class GameServer
@@ -126,6 +132,36 @@ public sealed partial class GameServer
         SendTradeUpdate(session);
     }
 
+    /// <summary>The most knowledge <paramref name="giver"/> may still teach <paramref name="receiver"/> right
+    /// now: never more than they know in total minus what they've already given (give-once), and never enough to
+    /// raise the receiver above the giver's own level — so the same knowledge can't be cycled to inflate totals.</summary>
+    private static int KnowledgeTeachable(Shared.State.PlayerState giver, Shared.State.PlayerState receiver)
+    {
+        int alreadyGiven = giver.KnowledgeGivenTo.TryGetValue(receiver.PlayerId, out var g) ? g : 0;
+        int cumulativeBudget = giver.KnowledgePoints - alreadyGiven;        // can't out-give what you know
+        int levelBudget = giver.KnowledgePoints - receiver.KnowledgePoints; // can't lift them past your level
+        return System.Math.Max(0, System.Math.Min(cumulativeBudget, levelBudget));
+    }
+
+    public void SetTradeKnowledge(string player, int amount)
+    {
+        var session = ActiveTrade(player);
+        var s = FindSessionByPlayerId(player);
+        if (session is null || s is null)
+        {
+            return;
+        }
+
+        var partner = FindSessionByPlayerId(session.Other(player));
+        int cap = partner is null ? 0 : KnowledgeTeachable(s.State, partner.State);
+        session.SetKnowledge(player, System.Math.Clamp(amount, 0, cap));
+
+        // Any change to an offer voids both ready states.
+        session.ConfirmA = false;
+        session.ConfirmB = false;
+        SendTradeUpdate(session);
+    }
+
     public void ConfirmTrade(string player)
     {
         var session = ActiveTrade(player);
@@ -193,8 +229,25 @@ public sealed partial class GameServer
             if (leftover > 0) poolB.Add(item.Item, leftover);
         }
 
+        // Knowledge transfer (item 11): the giver KEEPS their points; the receiver gains, capped by the
+        // teach-up-to-your-level + give-once rule. Both credits are computed from the pre-transfer state so a
+        // mutual teach in one trade is symmetric, then applied and recorded in each giver's give-once ledger.
+        int creditAtoB = System.Math.Min(session.KnowledgeA, KnowledgeTeachable(sa.State, sb.State));
+        int creditBtoA = System.Math.Min(session.KnowledgeB, KnowledgeTeachable(sb.State, sa.State));
+        if (creditAtoB > 0)
+        {
+            sb.State.KnowledgePoints += creditAtoB;
+            sa.State.KnowledgeGivenTo[sb.State.PlayerId] = (sa.State.KnowledgeGivenTo.TryGetValue(sb.State.PlayerId, out var ga) ? ga : 0) + creditAtoB;
+        }
+
+        if (creditBtoA > 0)
+        {
+            sa.State.KnowledgePoints += creditBtoA;
+            sb.State.KnowledgeGivenTo[sa.State.PlayerId] = (sb.State.KnowledgeGivenTo.TryGetValue(sa.State.PlayerId, out var gb) ? gb : 0) + creditBtoA;
+        }
+
         _trades.Remove(session);
-        SendInventory(sa);
+        SendInventory(sa); // carries the (possibly updated) knowledge total to each client
         SendInventory(sb);
         CloseTrade(session, completed: true, "Trade complete.");
     }
@@ -228,6 +281,7 @@ public sealed partial class GameServer
             return;
         }
 
+        var partner = FindSessionByPlayerId(session.Other(player));
         Send(s, new TradeUpdate
         {
             Partner = session.Other(player),
@@ -235,6 +289,10 @@ public sealed partial class GameServer
             TheirOffer = session.OfferOf(session.Other(player)).Select(ToNetTradeItem).ToArray(),
             MyConfirmed = session.ConfirmOf(player),
             TheirConfirmed = session.ConfirmOf(session.Other(player)),
+            MyKnowledgeOffered = session.KnowledgeOf(player),
+            TheirKnowledgeOffered = session.KnowledgeOf(session.Other(player)),
+            MyKnowledge = s.State.KnowledgePoints,
+            MyKnowledgeMax = partner is null ? 0 : KnowledgeTeachable(s.State, partner.State),
         });
     }
 
@@ -259,6 +317,9 @@ public sealed partial class GameServer
 
     private void HandleTradeOffer(PlayerSession session, TradeOfferIntent intent)
         => SetTradeOffer(session.State.PlayerId, intent.Items.Select(i => new ItemAmount(i.Item, i.Count)));
+
+    private void HandleTradeKnowledge(PlayerSession session, TradeKnowledgeIntent intent)
+        => SetTradeKnowledge(session.State.PlayerId, intent.Amount);
 
     private void HandleTradeConfirm(PlayerSession session) => ConfirmTrade(session.State.PlayerId);
 

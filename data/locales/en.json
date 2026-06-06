@@ -588,6 +588,8 @@
   "ui.trade.add": "Add from inventory",
   "ui.trade.ready": "READY",
   "ui.trade.waiting": "waiting…",
+  "ui.trade.knowledge": "Knowledge",
+  "ui.trade.max": "Max",
 
   "planet.rocky.name": "Rocky Planet",
   "planet.ice.name": "Ice Planet",

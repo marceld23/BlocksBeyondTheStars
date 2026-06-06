@@ -593,6 +593,8 @@
   "ui.trade.add": "Aus Inventar hinzufügen",
   "ui.trade.ready": "BEREIT",
   "ui.trade.waiting": "wartet…",
+  "ui.trade.knowledge": "Wissen",
+  "ui.trade.max": "Max",
 
   "planet.rocky.name": "Felsplanet",
   "planet.ice.name": "Eisplanet",

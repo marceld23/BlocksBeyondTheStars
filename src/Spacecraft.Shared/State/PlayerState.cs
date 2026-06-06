@@ -49,8 +49,14 @@ public sealed class PlayerState
     /// <summary>Blueprint keys the player has unlocked (gates crafting/building).</summary>
     public HashSet<string> UnlockedBlueprints { get; set; } = new();
 
-    /// <summary>Research currency earned by scanning new things; spent (with materials) on blueprints.</summary>
+    /// <summary>Research knowledge earned by scanning new things. A permanent <b>threshold</b> — unlocking a
+    /// blueprint needs <c>KnowledgePoints &gt;= KnowledgeCost</c> but never spends it (item 11), and it can be
+    /// taught to other players without losing any.</summary>
     public int KnowledgePoints { get; set; }
+
+    /// <summary>Per-recipient cumulative knowledge this player has already taught (receiverId → points given),
+    /// so the same knowledge can't be handed back and forth to inflate totals (item 11). Persisted.</summary>
+    public Dictionary<string, int> KnowledgeGivenTo { get; set; } = new();
 
     /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
     public HashSet<string> Scanned { get; set; } = new();

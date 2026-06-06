@@ -1103,6 +1103,7 @@ public sealed partial class GameServer
             case TradeRequestIntent tradeReq: HandleTradeRequest(session, tradeReq); break;
             case TradeRespondIntent tradeResp: HandleTradeRespond(session, tradeResp); break;
             case TradeOfferIntent tradeOffer: HandleTradeOffer(session, tradeOffer); break;
+            case TradeKnowledgeIntent tradeKnow: HandleTradeKnowledge(session, tradeKnow); break;
             case TradeConfirmIntent: HandleTradeConfirm(session); break;
             case TradeCancelIntent: HandleTradeCancel(session); break;
             case ScanIntent scan: HandleScan(session, scan); break;
@@ -1780,8 +1781,9 @@ public sealed partial class GameServer
             return;
         }
 
+        // Knowledge is a permanent threshold (item 11): it gates the unlock but is never spent — only the
+        // research materials are consumed. (Knowledge can also be taught to others without losing any.)
         pool.Remove(bp.UnlockCost);
-        session.State.KnowledgePoints -= bp.KnowledgeCost;
         session.State.UnlockedBlueprints.Add(bp.Key);
 
         Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
@@ -2155,6 +2157,7 @@ public sealed partial class GameServer
             Personal = DumpInventory(session.State.Inventory),
             Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
             UnlockedBlueprints = session.State.UnlockedBlueprints.ToArray(),
+            KnowledgePoints = session.State.KnowledgePoints,
         });
     }
 

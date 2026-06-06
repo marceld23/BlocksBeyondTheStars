@@ -119,6 +119,9 @@ public static class NetCodec
         Register(94, typeof(SetEvaIntent));
         Register(95, typeof(EnterShipIntent));
         Register(96, typeof(ExitShipIntent));
+
+        // Client -> Server (item 11: knowledge trading).
+        Register(97, typeof(TradeKnowledgeIntent));
     }
 
     private static void Register(byte tag, Type type)
