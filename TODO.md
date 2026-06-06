@@ -568,12 +568,47 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      view — a later "launch pad to flight view" could bridge to item 5's space instance if wanted.
 
    **Open questions → see chat.**
-11. **Feature — trade knowledge points.** Players should be able to **trade knowledge points**. Key constraint:
-   knowledge **never goes away** — unlocking blueprints only needs a knowledge **threshold**, no points are
-   spent; so trading must **not deduct** knowledge points either. But it must be ensured that **each knowledge
-   point can only be passed to another player once** — track how many points you've **already given to a given
-   other player**, so no endless back-and-forth trade is possible. It should be possible to **offer knowledge
-   for materials or for equipment** in a trade. Analyse precisely, then plan, ask questions, only then implement.
+11. **Feature — trade knowledge points.** Trade knowledge for materials/equipment; knowledge **never goes away**
+   (a threshold, not spent), and **each point can only be passed to a given player once** (track cumulative
+   given-per-pair) so there's no endless back-and-forth. *(Analysis done; questions in chat; implement after.)*
+
+   ### Analysis (2026-06-07)
+   - **⚠️ Premise mismatch with the current code.** Knowledge is stored as `PlayerState.KnowledgePoints` (int,
+     persisted in `Snapshots`), earned on **first-time scans** (`GameServerScanning` — hostile 5 / creature 3 /
+     block 1 / asteroid 4, ×`ScanKnowledgeMultiplier`). **But unlocking a blueprint currently SPENDS it**:
+     `GameServer.cs:1783-1785` does `pool.Remove(bp.UnlockCost); KnowledgePoints -= bp.KnowledgeCost;` — i.e.
+     knowledge is a *consumed cost today*, not a permanent threshold. The task's "knowledge never goes away / no
+     points spent" describes a **different model** → this feature must also change unlock to **threshold-only**
+     (check `KnowledgePoints >= KnowledgeCost`, don't subtract) for the premise to hold. (Material cost is
+     separate — see Q.)
+   - **Trade system is a solid base to extend.** `GameServerTrade` already does a proximity-gated (8 blocks)
+     request→accept→offer→both-confirm→**atomic commit** handshake with `TradeSession { A,B, OfferA, OfferB,
+     ConfirmA, ConfirmB }`; `MaterialPool.Remove/Add` move items with spill-back. Messages
+     (`TradeRequest/Respond/Offer/Confirm/Cancel` Intents, `TradeUpdate`/`TradeClosed`) are registered in
+     `NetCodec` (tags 30-34, 80-81). Client UI in `PlayerInteractions` (±buttons per item, two offer columns).
+   - **No per-pair ledger exists.** Nothing tracks who gave whom what. Need a persisted, per-pair cumulative
+     "knowledge already given to X" record (add `Dictionary<string,int> KnowledgeGivenTo` to `PlayerState` +
+     persist in `Snapshots`).
+
+   ### Plan (recommended — confirm via questions)
+   - **Make knowledge permanent (threshold-only unlock):** drop the `KnowledgePoints -= KnowledgeCost` deduction;
+     keep the `>=` gate. Knowledge becomes a non-spent stat (matches "never goes away"). *(Update the PlayerState
+     comment + the unlock path + any test asserting deduction.)*
+   - **Knowledge in a trade (no deduction from the giver):** extend `TradeSession` with `KnowledgeA/KnowledgeB`
+     and `TradeUpdate`/a new `TradeKnowledgeIntent` (register in NetCodec!). On commit, the **giver keeps** their
+     points; the **receiver gains** the offered amount — gated by the give-once rule below. Items still swap
+     atomically alongside, so you can offer **knowledge ⇄ materials/equipment**.
+   - **Give-once / anti-inflation ledger (loop-proof — see Q for the exact rule):** persist
+     `KnowledgeGivenTo[receiver]` on the giver. Recommended rule: a gift may only **raise the receiver up to the
+     giver's own current level** (`credit = min(offered, giverKnowledge − receiverKnowledge)`), and the
+     cumulative `givenTo` may never exceed the giver's knowledge — so the same knowledge can't be handed back and
+     forth to inflate totals (once equal, nothing flows). The giver never loses points.
+   - **Client:** add a "Knowledge" line to each side of the trade panel (a number with ±, like an item row),
+     show the per-pair remaining you can still teach this partner; bilingual locale keys (DE+EN).
+   - **Tests:** giver keeps knowledge + receiver gains; can't raise receiver above giver; cumulative cap per pair
+     (no back-and-forth inflation); threshold-only unlock no longer deducts; knowledge⇄items swap is atomic.
+
+   **Open questions → see chat.**
 12. **Feature — NPCs should have names.** Give NPCs a name too. Build a **random name generator** with as many
    random name **combinations** as possible. (Mirror the existing syllable-based flora/creature `NameGenerator`
    approach so names are deterministic per NPC.) — *Foundation for items 14 + 15.*
