@@ -3,7 +3,9 @@
     "allow": [
       "Bash(dotnet test *)",
       "Bash(dotnet build *)",
-      "Bash(uv run *)"
+      "Bash(uv run *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'feat\\(render\\): soft sky-occlusion — lit cave mouths + softer shadows \\(Task 3\\) *)"
     ]
   }
 }

@@ -65,6 +65,34 @@ namespace Spacecraft.Client
                 return top;
             }
 
+            // Soft skylight for an air cell a face looks into: 1 if it sees the open sky directly, otherwise a
+            // smooth 0..1 from how much of a 5x5 horizontal neighbourhood is open at this height. This turns the
+            // old hard 0/1 edge into a gradient, so a cave MOUTH (some open neighbours) is softly lit and
+            // overhang shadows feather, while a DEEP cave (no open neighbours) stays ~0 and still needs a lamp.
+            const int SkyKernel = 2; // 5x5 (radius 2)
+            float Skylight(int wx, int wy, int wz)
+            {
+                if (wy > Top(wx, wz))
+                {
+                    return 1f; // open straight up to the sky
+                }
+
+                int open = 0, total = 0;
+                for (int ox = -SkyKernel; ox <= SkyKernel; ox++)
+                for (int oz = -SkyKernel; oz <= SkyKernel; oz++)
+                {
+                    total++;
+                    if (wy > Top(wx + ox, wz + oz))
+                    {
+                        open++;
+                    }
+                }
+
+                // Linear fraction: a mouth (≈half its neighbourhood open) lands mid-bright and softly lit, a
+                // couple of blocks deeper falls off to the dark cave floor — a smooth gradient, deep stays ~0.
+                return open / (float)total;
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -125,7 +153,7 @@ namespace Spacecraft.Client
                         colliderTris.Add(faceBase); colliderTris.Add(faceBase + 2); colliderTris.Add(faceBase + 3);
                     }
 
-                    float sky = ny > Top(nx, nz) ? 1f : 0f; // the air this face looks into sees the sky?
+                    float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                 }

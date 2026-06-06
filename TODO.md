@@ -21,8 +21,10 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-1. **Task 3 — softer shadows + lit cave mouths.** (Detailed in the task list below.) Cave entrances read as a
-   black wall; make them softly lit, and soften the hard-edged shadows.
+1. ✅ **Task 3 — softer shadows + lit cave mouths** (done 2026-06-07). The mesher's hard binary skylight is now
+   a **soft sky-occlusion** (5×5 horizontal kernel): cave mouths feather into a soft-lit gradient and overhang
+   shadows soften, while deep caves stay dark (lamp needed). Mesher-only; the shader already took a continuous
+   sky. See the Task 3 plan below.
 2. **Bug — no stars in the space background.** Analyse: in the space view there are **no background stars** —
    I see the system's sun but no stars behind it; there should be stars. *This was already attempted once* —
    analyse precisely and find the actual cause. Check whether the cause has **further implications** elsewhere,
@@ -180,8 +182,11 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   `Top()` is column-cached, so this is a few extra dict lookups per drawn face at **mesh time** (not per
   frame). Optionally nudge the cave-ambient floor (0.24) up slightly. No shader change required.
 
-  **Questions (before implementing):** (a) keep **deep** caves dark (lamp required) and only soften+light the
-  **entrance**, or brighten caves overall? (b) how soft — subtle (3×3 kernel) or strong (5×5, lighter floor)?
+  **Decisions:** only soften+light the **entrance** (deep caves stay dark, lamp required); **strong (5×5)**.
+  ✅ **Implemented 2026-06-07:** `ChunkMesher.Skylight(wx,wy,wz)` returns 1 if the cell sees open sky, else the
+  fraction of a 5×5 horizontal column-neighbourhood open at that height — a smooth gradient feeding the shader's
+  existing `lerp(0.24,0.70,sky)`. `Top()` is column-cached so the extra lookups are mesh-time only. No shader
+  change.
 - **Task 4 — Appealing icons for everything pickup-able / hand-held.** Current icons are crude and off-style.
   Plan: **materials** → a downscaled in-game **texture** (like the harvested-plant icon), generated from game
   content. **Meat** → a steak icon (green if toxic, else normal). **Items + tools** → same style as the in-game
