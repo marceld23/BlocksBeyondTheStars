@@ -584,9 +584,14 @@ ElevenLabs sounds — no further per-batch confirmation needed; keys are in `too
   global `_Sc_FloraTint`; `BlockAtlas.shader` **desaturates the flora tile to its luminance and re-tints it**
   by the hue. No tile regen + no re-mesh needed (it's a live shader global, off in space/stations). Grayscale
   flora tiles (Phase 5a) become optional polish now. Test: `FloraTint_IsAColourfulPlanetHue`.
-- ⏳ **Phase 3 — FloraGenerator + names** — random flora species per world/biome (archetype-based: tuft / bush
-  / stalk / frond / cap …) with properties (edible/toxic, drops) + look (shape, size). A **procedural name
-  generator** for flora.
+- ✅ **Phase 3 — FloraGenerator + names** (done 2026-06-07) — a new `FloraGenerator.GenerateRoster(planet,
+  seed)` derives a per-world flora roster: each archetype block (`FloraCatalog`) becomes a named species
+  (`NameGenerator.Flora`) with an edible/**toxic** trait, deterministic from seed+planet. The server maps
+  block→species (`FloraSpeciesForBlock`); **scanning a plant now shows its coined name + Edible/Toxic** (the
+  block branch in `GameServerScanning`). Per-world identity = the Phase-2 hue + the coined names + toxicity
+  over the shared archetype blocks (no dynamic blocks needed). Tests: `FloraRoster_NamesEveryArchetype_…`,
+  `FloraRoster_IsEmpty_OnABarrenWorld`. *(Possible follow-ups: per-world archetype subsetting; toxic flora
+  food actually harming on eat.)*
 - ◑ **Phase 4 — fauna polish + names** — ✅ **names + colours done** (`3c1500c`): a shared `NameGenerator`
   coins per-species names (shown on scan as the readout subject; rides `NetCreature.Name`); `PickColor` now
   makes ~half of species vivid exotics (HSV hues → pink/violet/yellow/teal). ⏳ **still to do:** per-**biome**

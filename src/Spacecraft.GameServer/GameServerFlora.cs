@@ -22,6 +22,7 @@ public sealed partial class GameServer
 
     private readonly HashSet<ushort> _floraIds = new();
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
+    private readonly Dictionary<ushort, Spacecraft.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock = new();
     private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private void InitFlora()
@@ -38,7 +39,27 @@ public sealed partial class GameServer
             _floraIds.Add(flora.NumericId.Value);
             _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts);
         }
+
+        // Per-world flora roster: each archetype block gets this world's coined name + edible/toxic trait
+        // (deterministic from seed + planet), surfaced when the player scans the plant.
+        _floraSpeciesByBlock.Clear();
+        var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        if (planet != null)
+        {
+            foreach (var fs in Spacecraft.WorldGeneration.FloraGenerator.GenerateRoster(planet, _meta.Seed))
+            {
+                if (_content.GetBlock(fs.BlockKey) is { } b && b.NumericId.Value != 0)
+                {
+                    _floraSpeciesByBlock[b.NumericId.Value] = fs;
+                }
+            }
+        }
     }
+
+    /// <summary>This world's generated flora species for a block key (name + toxic trait), or null if the
+    /// block isn't flora here. Used by the scanner to name + classify a scanned plant.</summary>
+    public Spacecraft.Shared.Definitions.FloraSpecies? FloraSpeciesForBlock(string blockKey)
+        => _content.GetBlock(blockKey) is { } b && _floraSpeciesByBlock.TryGetValue(b.NumericId.Value, out var fs) ? fs : null;
 
     private HashSet<ushort> HostIds(params string[] keys)
     {

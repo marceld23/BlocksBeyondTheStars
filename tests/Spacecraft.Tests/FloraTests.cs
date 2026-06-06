@@ -76,6 +76,35 @@ public sealed class FloraTests : IDisposable
     }
 
     [Fact]
+    public void FloraRoster_NamesEveryArchetype_IsDeterministic_AndHasToxicVariety()
+    {
+        var planet = _content.GetPlanet("jungle")!; // floraDensity > 0 → a real roster
+        var a = FloraGenerator.GenerateRoster(planet, 4242);
+        var b = FloraGenerator.GenerateRoster(planet, 4242);
+
+        Assert.NotEmpty(a);
+        Assert.Equal(a.Count, FloraCatalog.All.Count); // one species per archetype
+        for (int i = 0; i < a.Count; i++)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(a[i].Name), "every flora species is named");
+            Assert.Equal(a[i].Name, b[i].Name);     // deterministic from seed + planet
+            Assert.Equal(a[i].Toxic, b[i].Toxic);
+            Assert.Equal(a[i].BlockKey, b[i].BlockKey);
+        }
+
+        // A world has both edible and toxic plants (not all one classification).
+        Assert.Contains(a, s => s.Toxic);
+        Assert.Contains(a, s => !s.Toxic);
+    }
+
+    [Fact]
+    public void FloraRoster_IsEmpty_OnABarrenWorld()
+    {
+        var planet = _content.GetPlanet("asteroid")!; // no flora
+        Assert.Empty(FloraGenerator.GenerateRoster(planet, 4242));
+    }
+
+    [Fact]
     public void Worldgen_SeedsFlora_OnAFloraPlanet()
     {
         var planet = _content.GetPlanet("jungle")!; // grass surface, floraDensity 0.14

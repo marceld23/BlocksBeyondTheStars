@@ -42,7 +42,18 @@ public sealed partial class GameServer
         else if (subjectType == "block" && _content.GetBlock(subjectKey) is { } block)
         {
             var drops = string.Join(", ", block.Drops.Select(d => $"{d.Item}×{d.Count}"));
-            info = drops.Length > 0 ? $"Yields: {drops}" : "No yield.";
+            // Flora reads as a named species with an edible/toxic classification; other blocks report yield.
+            if (FloraSpeciesForBlock(subjectKey) is { } flora)
+            {
+                info = drops.Length > 0 ? $"Yields: {drops}" : "Harvestable flora.";
+                threat = flora.Toxic ? "Toxic" : "Edible";
+                display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
+            }
+            else
+            {
+                info = drops.Length > 0 ? $"Yields: {drops}" : "No yield.";
+            }
+
             value = KnowledgeBlock;
         }
         else
