@@ -337,10 +337,20 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      `SaveAll` + a log) is called when the player lands on a body (`HandleTravel`; `HandleLeaveSpace` return-to-
      surface) and when docking a station (`BoardStation`) — the natural checkpoints, so item 6's per-planet
      position is captured there, not only on the autosave timer / explicit save.
-7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
-   constantly**. After a while, pursuing/attacking creatures should **leave the player alone**. Also: **where do
-   creatures spawn?** Make sure they **don't only spawn at the ship** but are **distributed across their biomes**.
-   Analyse precisely, then make a plan, ask questions, only then implement.
+7. ✅ **Bug — creatures chase forever + spawn only at the ship (done 2026-06-07).** Creatures seem to **follow
+   the player constantly**. After a while, pursuing/attacking creatures should **leave the player alone**. Also:
+   creatures **shouldn't only spawn at the ship** but be **distributed across their biomes**.
+   - **(a) Give-up leash (done).** `CombatEntity` gained `ChaseTimer` + `GiveUpTimer`. In `MoveCreatures` an
+     aggressor (Aggressive/PackHunter, or a provoked territorial one) within aggro range accumulates `ChaseTimer`;
+     past `CreatureChaseGiveUpSeconds` (**7 s**) it gives up — sets `GiveUpTimer` = `CreatureGiveUpCooldownSeconds`
+     (**15 s**), during which `Step` gets `null` (it wanders off) **and** the damage loop skips it (no biting).
+     `ChaseTimer` decays when not chasing; after the cooldown it can re-engage. New `WithinAggro` mirrors `Step`'s
+     2D test. (User pick: "Kürzer & milder ~7 s → ~15 s".)
+   - **(b) Spread spawns (done).** `SpawnRing` widened from a tight 7–13 block circle to **~18–45 blocks**,
+     scattered across mixed radii/angles (inner/mid/outer bands), so fauna populates the surrounding biomes out of
+     immediate sight instead of clustering on the ship. Biome-native gating kept. (User pick: "weiter weg +
+     verstreut".)
+   - Tested: new `Aggressor_GivesUpAfterChasingTooLong_ThenItsCooldownDecays`; full suite 329 green.
 
    ### Analysis (2026-06-07)
    - **(a) Chase never ends.** `MoveCreatures` (`GameServerCreatures.cs:290`) feeds the nearest player into

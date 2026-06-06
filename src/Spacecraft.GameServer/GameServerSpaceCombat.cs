@@ -33,6 +33,12 @@ public sealed class CombatEntity
     /// <summary>Seconds a (territorial) creature stays provoked after being attacked (hunts + bites back).</summary>
     public double ProvokeTimer { get; set; }
 
+    /// <summary>Seconds an aggressor has been actively chasing a player (drives the give-up leash).</summary>
+    public double ChaseTimer { get; set; }
+
+    /// <summary>Seconds an aggressor that gave up will ignore the player (wanders off, won't chase or attack).</summary>
+    public double GiveUpTimer { get; set; }
+
     /// <summary>For asteroids: size tier (2 = large, 1 = medium, 0 = small). Large ones split when destroyed.</summary>
     public int AsteroidTier { get; set; }
     public float Hull { get; set; }

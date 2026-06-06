@@ -34,6 +34,8 @@ public sealed partial class GameServer
     private const float CreatureFleeRange = 6f;            // skittish flee within this
     private const double CreatureProvokeSeconds = 12.0;    // how long a provoked creature retaliates
     private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this
+    private const double CreatureChaseGiveUpSeconds = 7.0;     // an aggressor gives up after chasing this long
+    private const double CreatureGiveUpCooldownSeconds = 15.0; // ...then leaves you alone (no chase/attack) for this
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
@@ -160,6 +162,12 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // A creature that has given up the chase backs off and won't bite until its cooldown lapses.
+            if (creature.GiveUpTimer > 0)
+            {
+                continue;
+            }
+
             foreach (var session in targets)
             {
                 var p = session.State;
@@ -183,11 +191,14 @@ public sealed partial class GameServer
 
     private const int CreatureHardCap = 12;
 
-    // A spread of offsets around the player so fauna appears *around* them, not stacked on one spot.
+    // Offsets scattered around the player at ~18-45 blocks so fauna appears spread out across the
+    // surroundings — not stacked on one spot and not right on top of the player's ship/landing site.
+    // Mixed radii and angles (an inner, a mid and an outer band) keep encounters from feeling ringed.
     private static readonly (int Dx, int Dz)[] SpawnRing =
     {
-        (7, 0), (5, 5), (0, 7), (-5, 5), (-7, 0), (-5, -5), (0, -7), (5, -5),
-        (12, 4), (-4, 12), (-12, -4), (4, -12),
+        (18, 5), (13, 16), (3, 22), (-12, 18), (-21, 7), (-19, -12), (-9, -20), (8, -19),
+        (28, 10), (15, 27), (-8, 31), (-30, 16), (-33, -14), (-14, -30),
+        (12, -32), (34, -18), (40, 12), (-24, 38), (-42, -16), (16, -41),
     };
 
     /// <summary>
@@ -312,10 +323,35 @@ public sealed partial class GameServer
             // A provoked territorial creature hunts like an aggressor until it calms down.
             var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
+
+            // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
+            // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
+            bool aggressor = temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+            if (creature.GiveUpTimer > 0)
+            {
+                creature.GiveUpTimer = System.Math.Max(0, creature.GiveUpTimer - dt);
+            }
+            else if (aggressor && nearest is { } np && WithinAggro(creature.Position, np))
+            {
+                creature.ChaseTimer += dt;
+                if (creature.ChaseTimer >= CreatureChaseGiveUpSeconds)
+                {
+                    creature.GiveUpTimer = CreatureGiveUpCooldownSeconds;
+                    creature.ChaseTimer = 0;
+                }
+            }
+            else
+            {
+                creature.ChaseTimer = System.Math.Max(0, creature.ChaseTimer - dt); // decay when not chasing
+            }
+
+            // While giving up, the aggressor ignores the player (no target → it wanders off).
+            Vector3f? stepTarget = aggressor && creature.GiveUpTimer > 0 ? null : nearest;
+
             double phase = _creatureClock * 0.8 + (StableStringHash(creature.Id) % 360) * (System.Math.PI / 180.0);
             var next = CreatureBehaviour.Step(
                 creature.Position, temperament, sp.Speed, SpeciesActive(sp),
-                nearest, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
+                stepTarget, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
 
             // Follow the world as they roam: land/lava walkers track the ground, fliers hover above it, and
             // swimmers stay submerged in the water (instead of all keeping their fixed spawn height).
@@ -324,6 +360,13 @@ public sealed partial class GameServer
             // Creatures don't walk into the player's ship — hold position at the hull.
             creature.Position = EntityBlockedByShip(next) ? creature.Position : next;
         }
+    }
+
+    /// <summary>2D (x,z) distance check matching <see cref="CreatureBehaviour"/>'s aggro test.</summary>
+    private static bool WithinAggro(Vector3f from, Vector3f to)
+    {
+        float dx = to.X - from.X, dz = to.Z - from.Z;
+        return dx * dx + dz * dz <= CreatureAggroRange * CreatureAggroRange;
     }
 
     private const float CreatureFlyAltitude = 5f; // how high above the ground fliers hover

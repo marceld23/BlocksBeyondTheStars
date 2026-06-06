@@ -398,6 +398,46 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    // ---------------- Give-up leash (aggressors don't hound the player forever) ----------------
+
+    [Fact]
+    public void Aggressor_GivesUpAfterChasingTooLong_ThenItsCooldownDecays()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Prey");
+            p.State.AboardShip = false;
+            p.State.GodMode = true; // stay alive + in place so we observe the chase, not a death
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0); // seed fauna
+            var hostile = server.SpeciesRoster.First(s => s.Hostile); // Aggressive/PackHunter -> an aggressor
+            var creature = server.Creatures.First();
+            creature.SpeciesId = hostile.Id;
+            creature.Position = new Vector3f(2, 64, 0); // right next to the player (well within aggro)
+            creature.ChaseTimer = 0;
+            creature.GiveUpTimer = 0;
+
+            // Hold the prey still and let the aggressor chase past the give-up cap (~7s).
+            for (int i = 0; i < 100 && creature.GiveUpTimer <= 0; i++)
+            {
+                p.State.Position = new Vector3f(0, 64, 0);
+                server.Tick(0.2);
+            }
+
+            Assert.True(creature.GiveUpTimer > 0, "An aggressor should give up after chasing too long.");
+            Assert.Equal(0.0, creature.ChaseTimer); // reset when it backed off
+
+            // The give-up cooldown ticks down and eventually lapses so the creature can re-engage later.
+            for (int i = 0; i < 120 && creature.GiveUpTimer > 0; i++)
+            {
+                server.Tick(0.2);
+            }
+            Assert.Equal(0.0, creature.GiveUpTimer);
+        }
+    }
+
     public void Dispose()
     {
         try
