@@ -14,6 +14,10 @@ namespace Spacecraft.Client
     {
         public Camera MainCamera;
 
+        /// <summary>Free layer the diegetic HUD renders on (matches the "VisorHud" entry in TagManager, but
+        /// used by index so it works even when a batch build hasn't baked the layer name).</summary>
+        private const int HudLayerIndex = 8;
+
         private Camera _hudCam;
         private RenderTexture _rt;
         private VisorComposite _composite;
@@ -41,12 +45,18 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // Prefer the named layer (nice in the Editor) but fall back to a fixed free index: a batch build
+            // doesn't always bake a freshly-added layer NAME, yet the index works the same for cull masks.
             int layer = LayerMask.NameToLayer("VisorHud");
-            var shader = Shader.Find("Spacecraft/Visor");
-            if (layer < 0 || shader == null)
+            if (layer < 0)
             {
-                // No visor pipeline — diegetic canvases fall back to a plain overlay (HUD never lost).
-                Debug.LogWarning($"[VisorHud] disabled — falling back to a flat HUD (layer={layer}, shaderFound={shader != null}).");
+                layer = HudLayerIndex;
+            }
+
+            var shader = Shader.Find("Spacecraft/Visor");
+            if (shader == null)
+            {
+                Debug.LogWarning("[VisorHud] disabled — Spacecraft/Visor shader not found; flat HUD fallback.");
                 enabled = false;
                 return;
             }
