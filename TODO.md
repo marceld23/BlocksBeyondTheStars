@@ -512,10 +512,47 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    - **Open decisions for greenlight:** (a) B0 mild-whole-frame vs B1 true HUD-projection (recommended B1, with B0
      as a quick first pass); (b) default intensity / always-on vs only-in-EVA-or-space; (c) include faked
      reflections or keep it clean.
-10. **Feature — build high enough to leave the atmosphere into space.** Analyse + plan thoroughly: it should be
-   theoretically possible, on a world / moon / asteroid, to **build a structure tall enough that it leaves the
-   atmosphere** (if there is one) and you are **in space**. Analyse precisely, then plan, ask questions, only
-   then implement. (Ties into item 5 and the sphere analysis 18.)
+10. **Feature — build high enough to leave the atmosphere into space.** Build a structure tall enough that you
+   leave the atmosphere (if there is one) and are **in space**. *(Analysis done; questions in chat; implement
+   after answers.)*
+
+   ### Analysis (2026-06-07)
+   - **The world is vertically unbounded** — `ChunkCoord` has a real Y axis, chunks stream in 3D
+     (`GameServer` load loop `dy=-radius..radius`), and there is **no build ceiling**: `HandlePlace` only checks
+     air/reach (`MaxReach` 8) — no max-Y. So a tall tower is fully representable; terrain tops out ~Y 80-98.
+   - **Atmosphere is binary per planet, with no altitude logic anywhere.** `PlanetType.Atmosphere`
+     (`breathable`/`toxic`/`none`), `SpaceSky` (always-space sky on airless bodies), `OxygenExtractability`.
+     Oxygen in `TickEnvironment` regenerates (breathable + on-surface + not EVA) or drains; **nothing thins air
+     with height** and the sky/starfield never fade with altitude.
+   - **Groundwork already exists (dormant).** Client `GameBootstrap.OnFootInSpace` + `PlayerController` already
+     implement **zero-g on foot** (Jump rises, Ctrl/C sinks, otherwise drifts to a stop) — *"nothing sets it yet,
+     so it's a no-op until item 10 lands."* So the float is wired; only a trigger + sky + oxygen are missing.
+   - **The transition pattern is established and reusable.** `TickEnvironment` runs a per-tick spatial check and
+     flips state — `SteppedOutOfShipHull(pos)` → `StartEvaFromShip` is the exact template. Oxygen already drains
+     in EVA regardless of the body. So an `AboveAtmosphere(pos)` check + a state flip mirrors existing code.
+
+   ### Plan (recommended — confirm via questions)
+   - **Mechanic (server-authoritative):** add a per-body **atmosphere height** (`AtmosphereHeight` on
+     `PlanetType`, from `planets.json`; absolute Y). In `TickEnvironment`, for an on-foot player on a real planet
+     (not aboard / not EVA / not ship-interior / not station), when `Position.Y` rises above it, flip a new
+     `PlayerState.AboveAtmosphere = true`; drop it when descending below `height - margin` (hysteresis, like the
+     hull check). Broadcast the flag in the player-state message.
+   - **In-space-on-foot effects (reuse, same voxel world — you stay by your tower, can climb back down):**
+     1. **Zero-g** — client sets `OnFootInSpace` from the flag → the existing `PlayerController` float kicks in.
+     2. **Oxygen drains** — add `AboveAtmosphere` to the drain branch (you're above the air, even on a breathable
+        world), so you need a tank/jetpack; running out suffocates via the existing death/recovery.
+     3. **Space sky** — `Sky`/`Starfield` show black + stars + the sun when `OnFootInSpace` (an altitude fade
+        into space), independent of the per-planet `SpaceSky`.
+     4. **Feedback** — a bilingual toast on crossing up ("You have left the atmosphere — zero gravity") and down
+        ("Re-entering atmosphere"); locale keys (DE+EN) per the parity rule.
+   - **Per-body heights:** thick/breathable worlds sit high (a big tower); thin/toxic mid; **airless / `SpaceSky`
+     bodies very low** (a short climb reaches space — fits "an asteroid barely has atmosphere"). Default sensibly.
+   - **Tests:** climbing above the height sets `AboveAtmosphere` + drains O₂ even on a breathable world;
+     descending clears it; hysteresis doesn't flicker; airless bodies trip at a low height.
+   - **Out of scope (note):** this keeps you **on foot in the same world** (zero-g), NOT the flight/EVA combat
+     view — a later "launch pad to flight view" could bridge to item 5's space instance if wanted.
+
+   **Open questions → see chat.**
 11. **Feature — trade knowledge points.** Players should be able to **trade knowledge points**. Key constraint:
    knowledge **never goes away** — unlocking blueprints only needs a knowledge **threshold**, no points are
    spent; so trading must **not deduct** knowledge points either. But it must be ensured that **each knowledge
