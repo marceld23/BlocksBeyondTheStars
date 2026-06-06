@@ -534,6 +534,9 @@ public sealed class NetMission
     public string Status { get; set; } = string.Empty;
     public NetMissionObjective[] Objectives { get; set; } = System.Array.Empty<NetMissionObjective>();
     public NetReward[] Rewards { get; set; } = System.Array.Empty<NetReward>();
+
+    /// <summary>Mission-giver NPC's name (item 13) — shown as "Mission from {GiverName}"; empty if none.</summary>
+    public string GiverName { get; set; } = string.Empty;
 }
 
 public sealed class MissionList

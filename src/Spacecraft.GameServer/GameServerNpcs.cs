@@ -87,7 +87,13 @@ public sealed partial class GameServer
             // NPCs have no physics, so place their feet exactly on top of the settlement floor block
             // (the marker Y sits inside it) — otherwise they render sunk into the ground.
             var standing = new Vector3f(pos.X, _settlementMin.Y + 1f, pos.Z);
-            _npcs.Add(MakeNpc(role, theme, robotic, standing, rng));
+            var npc = MakeNpc(role, theme, robotic, standing, rng);
+            if (role == "quartermaster")
+            {
+                npc.Name = CoinGiverName(_settlementName); // the mission-giver's name matches its missions (item 13)
+            }
+
+            _npcs.Add(npc);
         }
 
         _log.Info($"Spawned {_npcs.Count} NPCs at settlement '{_settlementName}'.");

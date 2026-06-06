@@ -539,7 +539,7 @@ namespace Spacecraft.Client
             foreach (var m in missions)
             {
                 string status = m.Objectives.Length > 0 ? $"{m.Objectives[0].Progress}/{m.Objectives[0].Required}" : string.Empty;
-                AddCard(y, m.Title, "cat_mission", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
+                AddCard(y, L(m.Title), "cat_mission", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
                 y += 88f;
             }
 
@@ -1065,8 +1065,15 @@ namespace Spacecraft.Client
             }
 
             float y = 0f;
-            UiKit.AddText(_detail, 8, y, 620, 40, m2.Title, 28, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            UiKit.AddText(_detail, 8, y, 620, 40, L(m2.Title), 28, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 46f;
+            // Mission-giver NPC (item 13): "Mission from {Name}".
+            if (!string.IsNullOrEmpty(m2.GiverName))
+            {
+                UiKit.AddText(_detail, 8, y, 620, 24, $"{L("ui.missions.giver")} {m2.GiverName}", 16, UiKit.Cyan, TextAnchor.UpperLeft);
+                y += 28f;
+            }
+
             foreach (var o in m2.Objectives)
             {
                 UiKit.AddText(_detail, 8, y, 620, 28, $"{o.Progress}/{o.Required}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);

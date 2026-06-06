@@ -4,6 +4,7 @@ using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
 using Spacecraft.Shared.Missions;
 using Spacecraft.Shared.State;
+using Spacecraft.WorldGeneration;
 
 namespace Spacecraft.GameServer;
 
@@ -278,10 +279,150 @@ public sealed partial class GameServer
         _repo.DeleteContainer(depot.Id);
     }
 
+    // ---- Mission-giver boards: never run dry (item 13) ----
+    // A giver offers an endless, deterministic sequence of procedural missions (slot 0,1,2,…). A player is
+    // always shown the lowest BoardWindow slots they haven't taken yet, so the board never empties; the slots
+    // are coined deterministically from (boardKey, slot) so they survive a reload without being persisted.
+
+    private const int BoardWindow = 3;
+
+    private static readonly (string Need, int Target, string Reward, int RewardN)[] GiverMissionTemplates =
+    {
+        ("iron_ore", 10, "iron_plate", 3),
+        ("carbon", 8, "cable", 2),
+        ("silicate", 8, "energy_cell_1", 1),
+        ("copper_ore", 10, "cable", 3),
+        ("crystal", 5, "titanium_plate", 2),
+        ("titanium_ore", 6, "titanium_plate", 2),
+        ("data_fragment", 3, "medpack", 1),
+    };
+
+    /// <summary>A mission-giver's coined name, deterministic per board so it matches the quartermaster NPC.</summary>
+    private static string CoinGiverName(string boardKey)
+        => Spacecraft.WorldGeneration.NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + boardKey))));
+
+    /// <summary>Deterministically coins one board mission for a slot (stable across reloads, no persistence).</summary>
+    private MissionDefinition BuildBoardMission(string id, string boardKey, int slot, string giverName)
+    {
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:mission:{slot}")));
+        var tpl = GiverMissionTemplates[rng.Next(GiverMissionTemplates.Length)];
+        // Fall back to the first template if a content item is missing.
+        if (_content.GetItem(tpl.Need) is null || _content.GetItem(tpl.Reward) is null)
+        {
+            tpl = GiverMissionTemplates[0];
+        }
+
+        int required = System.Math.Max(3, tpl.Target + rng.Next(-2, 4));
+        int rewardN = System.Math.Max(1, tpl.RewardN + rng.Next(0, 2));
+        return new MissionDefinition
+        {
+            Id = id,
+            Source = MissionSource.System,
+            NameKey = "mission.settlement.gather.title",
+            DescriptionKey = "mission.settlement.gather.desc",
+            GiverName = giverName,
+            Objectives = { new MissionObjective { Type = MissionObjectiveType.Deliver, Target = tpl.Need, Required = required } },
+            Rewards = { new ItemAmount(tpl.Reward, rewardN) },
+            Active = true,
+        };
+    }
+
+    /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
+    /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
+    /// Collects the ids this board currently offers into <paramref name="currentBoardIds"/>.</summary>
+    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds)
+    {
+        var taken = new HashSet<int>();
+        foreach (var m in player.Missions)
+        {
+            if (!m.MissionId.StartsWith(idPrefix) || !int.TryParse(m.MissionId[idPrefix.Length..], out var s))
+            {
+                continue;
+            }
+
+            taken.Add(s);
+            if (m.Status != MissionStatus.TurnedIn && !_missionDefs.ContainsKey(m.MissionId))
+            {
+                _missionDefs[m.MissionId] = BuildBoardMission(m.MissionId, boardKey, s, giverName); // turn-in-able after reload
+            }
+
+            idSet.Add(m.MissionId);
+            currentBoardIds.Add(m.MissionId);
+        }
+
+        int offered = 0;
+        for (int slot = 0; offered < BoardWindow && slot <= taken.Count + BoardWindow; slot++)
+        {
+            if (taken.Contains(slot))
+            {
+                continue;
+            }
+
+            string id = idPrefix + slot;
+            if (!_missionDefs.ContainsKey(id))
+            {
+                _missionDefs[id] = BuildBoardMission(id, boardKey, slot, giverName);
+            }
+
+            idSet.Add(id);
+            currentBoardIds.Add(id);
+            offered++;
+        }
+    }
+
+    /// <summary>Keeps the current settlement's mission board stocked for this player.</summary>
+    private void EnsureSettlementWindow(PlayerState player, HashSet<string> currentBoardIds)
+    {
+        if (!_settlementStamped || _settlementRuined || string.IsNullOrEmpty(_settlementName))
+        {
+            return;
+        }
+
+        string prefix = $"settle_{(uint)WorldGenerator.StableHash(_settlementName) % 100000u}_";
+        EnsureBoardWindow(player, prefix, _settlementName, _settlementMissionIds, CoinGiverName(_settlementName), currentBoardIds);
+    }
+
+    /// <summary>Keeps the boarded station's mission board stocked for this player.</summary>
+    private void EnsureStationWindow(PlayerState player, HashSet<string> currentBoardIds)
+    {
+        if (!_boardedStation.TryGetValue(player.PlayerId, out var stationId))
+        {
+            return;
+        }
+
+        string prefix = $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}_";
+        EnsureBoardWindow(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds);
+    }
+
+    /// <summary>A board (giver) mission id — settlement or station — vs. a system/player mission.</summary>
+    private static bool IsBoardMissionId(string id) => id.StartsWith("settle_") || id.StartsWith("station_");
+
+    /// <summary>Seeds a giver board's first window (slots 0..BoardWindow-1) at stamp time, so the board offers
+    /// missions even before any player has opened the list; the per-player window then slides as they take them.</summary>
+    private void StockBoard(string idPrefix, string boardKey, HashSet<string> idSet, string giverName)
+    {
+        for (int slot = 0; slot < BoardWindow; slot++)
+        {
+            string id = idPrefix + slot;
+            if (!_missionDefs.ContainsKey(id))
+            {
+                _missionDefs[id] = BuildBoardMission(id, boardKey, slot, giverName);
+            }
+
+            idSet.Add(id);
+        }
+    }
+
     private void SendMissionList(PlayerSession session)
     {
         var player = session.State;
         var pool = new MaterialPool(_content, player, _ship);
+
+        // Refill the giver boards the player can reach so they never run dry (item 13); only the boards the
+        // player is currently at offer their (board) missions — others (left behind) aren't shown.
+        var currentBoardIds = new HashSet<string>();
+        EnsureSettlementWindow(player, currentBoardIds);
+        EnsureStationWindow(player, currentBoardIds);
 
         var available = new List<NetMission>();
         foreach (var def in _missionDefs.Values)
@@ -289,6 +430,11 @@ public sealed partial class GameServer
             if (!def.Active || player.Missions.Any(m => m.MissionId == def.Id))
             {
                 continue; // already accepted / turned in (non-repeatable) is hidden
+            }
+
+            if (IsBoardMissionId(def.Id) && !currentBoardIds.Contains(def.Id))
+            {
+                continue; // a board mission belonging to a board the player isn't standing at
             }
 
             available.Add(BuildNetMission(def, null, pool));
@@ -339,11 +485,30 @@ public sealed partial class GameServer
             Status = pr?.Status.ToString() ?? "Available",
             Objectives = objectives,
             Rewards = def.Rewards.Select(r => new NetReward { Item = r.Item, Count = r.Count }).ToArray(),
+            GiverName = def.GiverName,
         };
     }
 
     private void MissionFail(PlayerSession session, string missionId, string reason)
         => Send(session, new MissionResult { Success = false, MissionId = missionId, Reason = reason });
+
+    /// <summary>The board (giver) mission ids currently available to a player — runs the giver window so it
+    /// reflects the never-run-dry refill (test/inspection).</summary>
+    public IReadOnlyList<string> AvailableBoardMissions(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        var ids = new HashSet<string>();
+        EnsureSettlementWindow(session.State, ids);
+        EnsureStationWindow(session.State, ids);
+        return ids.Where(id => session.State.Missions.All(m => m.MissionId != id)).ToList();
+    }
+
+    /// <summary>The mission-giver name coined for a mission (test/inspection); empty for non-board missions.</summary>
+    public string MissionGiverName(string missionId) => GetMissionDef(missionId)?.GiverName ?? string.Empty;
 
     /// <summary>Accepts a mission for a player (used by local play / tests).</summary>
     public void AcceptMission(string playerId, string missionId)

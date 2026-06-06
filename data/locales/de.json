@@ -309,6 +309,7 @@
   "npc.theme.researchers": "Forscher",
   "ui.missions.available": "Verfügbar",
   "ui.missions.active": "Aktiv",
+  "ui.missions.giver": "Auftrag von",
   "ui.crafting.title": "Herstellung",
   "ui.craft.craftable_now": "Jetzt baubar",
   "ui.craft.cat_all": "Alle",

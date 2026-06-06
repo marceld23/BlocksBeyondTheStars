@@ -304,6 +304,7 @@
   "npc.theme.researchers": "Researcher",
   "ui.missions.available": "Available",
   "ui.missions.active": "Active",
+  "ui.missions.giver": "Mission from",
   "ui.crafting.title": "Crafting",
   "ui.craft.craftable_now": "Craftable now",
   "ui.craft.cat_all": "All",

@@ -656,8 +656,21 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    - `NpcView.Label` shows the name (format = the display question), falling back to the role label if empty.
    - Names are procedural → identical in DE/EN (no locale change); the role label stays localized.
    - Tests: `Person`/`Robot` deterministic for the same seed, varied across seeds, non-empty, two-part for Person.
-13. **Feature — mission-giver NPCs that always have a mission on offer.** NPCs that offer missions and **never
-   run dry**. *(Analysis done; questions in chat; implement after answers.)*
+13. ✅ **Feature — mission-giver NPCs that always have a mission on offer (done 2026-06-07).** The quartermaster
+   is a mission-giver that never runs dry. **Decisions (user):** refill-on-take; keep **~3** available.
+   - **Never dry (deterministic rolling window):** a giver offers an endless sequence of procedural missions
+     (slot 0,1,2,…). `SendMissionList` shows a player the lowest **`BoardWindow` (3)** slots they haven't taken;
+     accepting one slides the window so a fresh one appears — `EnsureBoardWindow`/`EnsureSettlementWindow`/
+     `EnsureStationWindow`. Slots are coined deterministically from `(boardKey, slot)` (`BuildBoardMission`) so
+     they **survive a reload without persistence**; `StockBoard` seeds the first window at stamp time. Old
+     boards' missions are scoped out of the list (only the board you're at offers its jobs).
+   - **Mission ↔ giver NPC:** `MissionDefinition.GiverName` (+ `NetMission.GiverName`); the settlement/station
+     **quartermaster** NPC is named via `CoinGiverName(boardKey)` so its name matches its missions. Client shows
+     **"Mission from {Name}"** in the detail (bilingual `ui.missions.giver`); mission titles are now localized.
+   - Replaced the old fixed 1-2/2 pools (`GenerateSettlement/StationMissions` removed). Foundation for items 14/15.
+   - **Tested:** `Board_NeverRunsDry_KeepsMissionsAvailable_AsYouKeepAccepting` (≥3 after 12 accepts),
+     `BoardMissions_CarryAGiverName`; existing board accept/turn-in still green — full suite **346 green**.
+     Client + bundled server rebuilt.
 
    ### Analysis (2026-06-07)
    - **Missions CAN run dry today.** `MissionDefinition` (id, source, nameKey/title, objectives[Collect/Mine/

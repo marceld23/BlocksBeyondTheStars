@@ -106,15 +106,52 @@ public sealed class MissionBoardTests : IDisposable
             server.AcceptMission("Courier", id);
 
             // Supply plenty of every possible required resource so whatever the mission needs is covered.
-            foreach (var need in new[] { "iron_ore", "carbon", "silicate", "copper_ore", "crystal" })
+            foreach (var need in new[] { "iron_ore", "carbon", "silicate", "copper_ore", "crystal", "titanium_ore", "data_fragment" })
             {
-                p.State.Inventory.Add(need, 20, 99);
+                p.State.Inventory.Add(need, 30, 99);
             }
 
             server.TurnInMission("Courier", id);
 
             var prog = p.State.Missions.First(m => m.MissionId == id);
             Assert.Equal(MissionStatus.TurnedIn, prog.Status);
+        }
+    }
+
+    // ---------------- Mission-giver never runs dry (item 13) ----------------
+
+    [Fact]
+    public void Board_NeverRunsDry_KeepsMissionsAvailable_AsYouKeepAccepting()
+    {
+        var server = StartedWithBoard(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Courier");
+            p.State.Position = BoardPos(server);
+
+            // Take a dozen jobs in a row; the giver always still has fresh ones on offer.
+            for (int round = 0; round < 12; round++)
+            {
+                var available = server.AvailableBoardMissions("Courier");
+                Assert.True(available.Count >= 3, $"the giver should always offer ≥3 (round {round}, had {available.Count}).");
+                server.AcceptMission("Courier", available[0]);
+            }
+
+            Assert.True(server.AvailableBoardMissions("Courier").Count >= 3); // still stocked at the end
+        }
+    }
+
+    [Fact]
+    public void BoardMissions_CarryAGiverName()
+    {
+        var server = StartedWithBoard(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Courier");
+            p.State.Position = BoardPos(server);
+
+            var id = server.AvailableBoardMissions("Courier").First();
+            Assert.False(string.IsNullOrEmpty(server.MissionGiverName(id)), "a giver mission names who offers it.");
         }
     }
 

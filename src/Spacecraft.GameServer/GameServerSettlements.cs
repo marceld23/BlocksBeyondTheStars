@@ -145,7 +145,6 @@ public sealed partial class GameServer
 
         _settlementMarkers.Clear();
         _settlementMissionIds.Clear();
-        bool hasBoard = false;
         foreach (var m in structure.Markers)
         {
             var pos = new Vector3f(origin.X + m.LocalPos.X + 0.5f, groundY + m.LocalPos.Y + 0.5f, origin.Z + m.LocalPos.Z + 0.5f);
@@ -156,17 +155,14 @@ public sealed partial class GameServer
             {
                 SpawnStructureLoot("settlement", m.Type, pos, rng);
             }
-            else if (m.Type == "mission_board")
-            {
-                hasBoard = true;
-            }
         }
 
-        // An inhabited settlement's mission board offers a couple of local gather missions
-        // (only acceptable/turn-in-able while standing at the board).
-        if (hasBoard && !ruined)
+        // An inhabited settlement's mission board offers an endless rolling set of gather missions: seed the
+        // first window now, then the per-player mission-giver window (item 13) slides it so it never runs dry.
+        if (!ruined && _settlementMarkers.Any(m => m.Type == "mission_board"))
         {
-            GenerateSettlementMissions(rng);
+            string prefix = $"settle_{(uint)WorldGenerator.StableHash(_settlementName) % 100000u}_";
+            StockBoard(prefix, _settlementName, _settlementMissionIds, CoinGiverName(_settlementName));
         }
 
         _settlementStamped = true;
@@ -244,59 +240,6 @@ public sealed partial class GameServer
 
     /// <summary>Mission ids offered by the settlement board (test/inspection).</summary>
     public IReadOnlyCollection<string> SettlementMissionIds => _settlementMissionIds;
-
-    /// <summary>Generates a couple of deterministic local gather missions for the settlement board.</summary>
-    private void GenerateSettlementMissions(System.Random rng)
-    {
-        // (deliver item, target, reward item, reward count) pools — all real content items.
-        (string Need, int Target, string Reward, int RewardN)[] templates =
-        {
-            ("iron_ore", 10, "iron_plate", 3),
-            ("carbon", 8, "cable", 2),
-            ("silicate", 8, "energy_cell_1", 1),
-            ("copper_ore", 10, "cable", 3),
-            ("crystal", 5, "titanium_plate", 2),
-        };
-
-        int count = 1 + rng.Next(2); // 1–2 missions
-        var used = new HashSet<int>();
-        for (int i = 0; i < count; i++)
-        {
-            int t = rng.Next(templates.Length);
-            if (!used.Add(t))
-            {
-                continue;
-            }
-
-            var tpl = templates[t];
-            if (_content.GetItem(tpl.Need) is null || _content.GetItem(tpl.Reward) is null)
-            {
-                continue;
-            }
-
-            var def = new Shared.Missions.MissionDefinition
-            {
-                Id = $"settle_{(uint)WorldGenerator.StableHash(_settlementName) % 100000u}_{i}",
-                Source = Shared.Missions.MissionSource.System,
-                NameKey = "mission.settlement.gather.title",
-                DescriptionKey = "mission.settlement.gather.desc",
-                Objectives =
-                {
-                    new Shared.Missions.MissionObjective
-                    {
-                        Type = Shared.Missions.MissionObjectiveType.Deliver,
-                        Target = tpl.Need,
-                        Required = tpl.Target,
-                    },
-                },
-                Rewards = { new Shared.Definitions.ItemAmount(tpl.Reward, tpl.RewardN) },
-                Active = true,
-            };
-
-            _missionDefs[def.Id] = def;
-            _settlementMissionIds.Add(def.Id);
-        }
-    }
 
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>
     public bool IsSettlementBlock(Vector3i pos)

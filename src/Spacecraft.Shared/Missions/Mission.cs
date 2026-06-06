@@ -61,6 +61,10 @@ public sealed class MissionDefinition
     /// <summary>Player id of the creator (player/admin missions).</summary>
     public string? CreatorId { get; set; }
 
+    /// <summary>Name of the mission-giver NPC offering this (item 13) — shown as "Mission from {GiverName}".
+    /// Empty for non-board missions.</summary>
+    public string GiverName { get; set; } = string.Empty;
+
     public List<MissionObjective> Objectives { get; set; } = new();
 
     /// <summary>Reward paid to the player who completes and turns the mission in.</summary>

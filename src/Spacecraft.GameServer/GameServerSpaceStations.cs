@@ -324,17 +324,12 @@ public sealed partial class GameServer
         }
 
         station.Markers.Clear();
-        bool hasBoard = false;
         foreach (var m in structure.Markers)
         {
             var pos = new Vector3f(station.Origin.X + m.LocalPos.X + 0.5f,
                 station.Origin.Y + m.LocalPos.Y + 0.5f,
                 station.Origin.Z + m.LocalPos.Z + 0.5f);
             station.Markers.Add((m.Type, pos));
-            if (m.Type == "mission_board")
-            {
-                hasBoard = true;
-            }
         }
 
         // Arrive in the enclosed central hub (solid floor, no open wall), NOT the hangar — the hangar's
@@ -365,9 +360,12 @@ public sealed partial class GameServer
             _world.SetBlock(new Vector3i(sp.X, sp.Y + 1, sp.Z), BlockId.Air);   // headroom
         }
 
-        if (hasBoard)
+        // The station's mission board offers an endless rolling set of jobs: seed the first window now; the
+        // per-player mission-giver window (item 13) slides it so it never runs dry.
+        if (station.Markers.Any(m => m.Type == "mission_board"))
         {
-            GenerateStationMissions(station);
+            string prefix = $"station_{(uint)WorldGenerator.StableHash(station.Id) % 100000u}_";
+            StockBoard(prefix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
         }
 
         // NPCs are runtime (cleared when the station world reloads), so the caller (BoardStation) spawns
@@ -405,7 +403,13 @@ public sealed partial class GameServer
             // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
             // floor surface (the integer Y) so the crew stands on the deck instead of floating over it.
             var standing = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z);
-            _npcs.Add(MakeNpc(role, "traders", robotic: false, standing, rng));
+            var npc = MakeNpc(role, "traders", robotic: false, standing, rng);
+            if (role == "quartermaster")
+            {
+                npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
+            }
+
+            _npcs.Add(npc);
             added++;
         }
 
@@ -430,53 +434,6 @@ public sealed partial class GameServer
         }
     }
 
-    private void GenerateStationMissions(BoardableStation station)
-    {
-        string prefix = $"station_{(uint)WorldGenerator.StableHash(station.Id) % 100000u}_";
-        if (_stationMissionIds.Any(id => id.StartsWith(prefix, StringComparison.Ordinal)))
-        {
-            return;
-        }
-
-        (string Need, int Target, string Reward, int RewardN)[] templates =
-        {
-            ("iron_ore", 12, "titanium_plate", 1),
-            ("carbon", 10, "energy_cell_1", 1),
-            ("data_fragment", 2, "medpack", 2),
-        };
-
-        int baseId = unchecked((int)WorldGenerator.StableHash(station.Id));
-        for (int i = 0; i < 2; i++)
-        {
-            var tpl = templates[System.Math.Abs(baseId + i) % templates.Length];
-            if (_content.GetItem(tpl.Need) is null || _content.GetItem(tpl.Reward) is null)
-            {
-                continue;
-            }
-
-            var def = new Shared.Missions.MissionDefinition
-            {
-                Id = $"station_{(uint)WorldGenerator.StableHash(station.Id) % 100000u}_{i}",
-                Source = Shared.Missions.MissionSource.System,
-                NameKey = "mission.settlement.gather.title",
-                DescriptionKey = "mission.settlement.gather.desc",
-                Objectives =
-                {
-                    new Shared.Missions.MissionObjective
-                    {
-                        Type = Shared.Missions.MissionObjectiveType.Deliver,
-                        Target = tpl.Need,
-                        Required = tpl.Target,
-                    },
-                },
-                Rewards = { new Shared.Definitions.ItemAmount(tpl.Reward, tpl.RewardN) },
-                Active = true,
-            };
-
-            _missionDefs[def.Id] = def;
-            _stationMissionIds.Add(def.Id);
-        }
-    }
 
     private bool NearStationMarker(Shared.State.PlayerState player, string type, float reach)
     {
