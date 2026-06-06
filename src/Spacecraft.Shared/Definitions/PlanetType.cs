@@ -130,6 +130,14 @@ public sealed class PlanetType
     public double OxygenExtractability { get; set; } = 0.5;
 
     /// <summary>
+    /// Absolute world Y above which an on-foot player has climbed out of the atmosphere and is "in
+    /// space" — zero-g float + suit-oxygen drain + a space sky (item 10). Set well above the tallest
+    /// terrain so it can only be reached by building a tower; thick/breathable worlds sit high, airless
+    /// bodies low (a short climb). 0 (the default) disables the feature for that body (e.g. void worlds).
+    /// </summary>
+    public double AtmosphereHeight { get; set; }
+
+    /// <summary>
     /// Whether the universe generator may pick this type for a random system planet. Special
     /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
     /// </summary>

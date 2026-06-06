@@ -597,6 +597,9 @@ public sealed partial class GameServer
                 continue; // transitioned out of this world — skip the rest of the on-foot tick for this player
             }
 
+            // Built/climbed a tower above the atmosphere → float in space on foot (item 10).
+            UpdateAboveAtmosphere(session);
+
             DecayTeleportCooldown(p.PlayerId, dt);
             TickStealth(session, dt);
             TickJetpack(session, dt);
@@ -615,7 +618,9 @@ public sealed partial class GameServer
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             bool submerged = !lifeSupport && !p.InEva && HeadUnderwater(p);
-            if (!submerged && (lifeSupport || (!p.InEva && AtmosphereBreathable)))
+            // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
+            // world — the suit tank drains until the player descends back below the line.
+            if (!submerged && !p.AboveAtmosphere && (lifeSupport || (!p.InEva && AtmosphereBreathable)))
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).
@@ -633,7 +638,7 @@ public sealed partial class GameServer
             {
                 // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
                 float drain = (float)(dt * Rules.OxygenDrainPerSecond);
-                if (!submerged && !p.InEva && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
+                if (!submerged && !p.InEva && !p.AboveAtmosphere && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
                 {
                     // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
                     // the drain, scaled by how breathable-ish this world is. Airless worlds (0) don't help.
@@ -677,6 +682,32 @@ public sealed partial class GameServer
             {
                 RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
             }
+        }
+    }
+
+    /// <summary>Blocks of overlap below the atmosphere line before the in-space state drops, so a player
+    /// hovering right at the boundary doesn't flicker in and out of zero-g.</summary>
+    private const float AtmosphereHysteresis = 4f;
+
+    /// <summary>Flips <see cref="Shared.State.PlayerState.AboveAtmosphere"/> when an on-foot player crosses
+    /// the planet's atmosphere line (item 10), broadcasting the change. Only an on-foot player on a real
+    /// planet qualifies (not aboard / EVA / ship interior / station; only worlds with an atmosphere line).</summary>
+    private void UpdateAboveAtmosphere(PlayerSession session)
+    {
+        var p = session.State;
+        bool eligible = _atmosphereHeight > 0
+            && !p.AboardShip && !p.InEva
+            && !InShipInterior(p.PlayerId) && !InStation(p.PlayerId);
+
+        // Hysteresis: cross up at the line, drop only once a few blocks back below it.
+        bool above = eligible && (p.AboveAtmosphere
+            ? p.Position.Y > _atmosphereHeight - AtmosphereHysteresis
+            : p.Position.Y > _atmosphereHeight);
+
+        if (above != p.AboveAtmosphere)
+        {
+            p.AboveAtmosphere = above;
+            SendPlayerState(session);
         }
     }
 
@@ -2047,6 +2078,7 @@ public sealed partial class GameServer
             Hunger = p.Hunger,
             AboardShip = p.AboardShip,
             InEva = p.InEva,
+            AboveAtmosphere = p.AboveAtmosphere,
             StationName = CurrentStationName(p.PlayerId),
         });
     }

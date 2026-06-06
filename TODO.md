@@ -512,9 +512,24 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    - **Open decisions for greenlight:** (a) B0 mild-whole-frame vs B1 true HUD-projection (recommended B1, with B0
      as a quick first pass); (b) default intensity / always-on vs only-in-EVA-or-space; (c) include faked
      reflections or keep it clean.
-10. **Feature — build high enough to leave the atmosphere into space.** Build a structure tall enough that you
-   leave the atmosphere (if there is one) and are **in space**. *(Analysis done; questions in chat; implement
-   after answers.)*
+10. ✅ **Feature — build high enough to leave the atmosphere into space (done 2026-06-07).** Build a tower tall
+   enough and you climb out of the atmosphere into space on foot. **Decisions (user):** on-foot **zero-g in the
+   same world** (not the flight view); **per-planet height by density**; **airless bodies = a short climb**.
+   - **Server-authoritative:** new `PlanetType.AtmosphereHeight` (absolute Y, in `planets.json`). `TickEnvironment`
+     → `UpdateAboveAtmosphere` flips `PlayerState.AboveAtmosphere` for an on-foot player (not aboard/EVA/ship-
+     interior/station) crossing the line, with a 4-block **hysteresis** so it doesn't flicker. Broadcast in
+     `PlayerStateUpdate`.
+   - **In-space-on-foot:** **oxygen drains** above the line even on a breathable world (extractor gives no
+     benefit in vacuum); the client sets the dormant **`OnFootInSpace`** → existing `PlayerController` **zero-g
+     float** kicks in; **`Sky`/`Starfield`** switch to a **space sky** (black + stars) regardless of the planet's
+     own sky. A bilingual toast on crossing up/down (`hud.atmosphere.left`/`.entered`, DE+EN).
+   - **Per-body heights:** breathable jungle/varied 240, swamp 230; toxic rocky/desert 190, ice 200; airless
+     crystal/lava 150, asteroid 100 (all well above terrain peaks ~80-98). Void worlds 0 = disabled.
+   - **Tested:** climb sets `AboveAtmosphere` + drains O₂ on a breathable world; descend clears it; hysteresis
+     doesn't flicker; aboard-ship never counts; per-body heights differ — full suite **337 green**. Client +
+     bundled server rebuilt.
+
+   ### Original ask + analysis (kept for reference)
 
    ### Analysis (2026-06-07)
    - **The world is vertically unbounded** — `ChunkCoord` has a real Y axis, chunks stream in 3D

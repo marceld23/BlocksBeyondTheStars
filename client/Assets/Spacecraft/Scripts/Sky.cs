@@ -147,7 +147,8 @@ namespace Spacecraft.Client
             // Boarded on an orbital station: it floats free in space, so show the space sky (black, no fog)
             // and treat it like a lit, life-supported interior — independent of the planet far below.
             bool boarded = !string.IsNullOrEmpty(Game.StationName);
-            bool spaceSky = (env != null && env.SpaceSky) || boarded;
+            // Built above the atmosphere (item 10): the sky turns to space even on a normal planet.
+            bool spaceSky = (env != null && env.SpaceSky) || boarded || Game.OnFootInSpace;
 
             // Planet flora re-tint hue for the block shader (a>0.5 = active). Off on stations (no planet flora).
             if (env != null && !boarded)

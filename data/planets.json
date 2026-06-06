@@ -1,6 +1,6 @@
 [
   {
-    "key": "rocky", "nameKey": "planet.rocky.name", "cloudColor": 15593458, "cloudDensity": 0.35,
+    "key": "rocky", "nameKey": "planet.rocky.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35,
     "baseHeight": 64, "amplitude": 14, "terrainScale": 48.0,
     "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.74, "dataCacheRarity": 0.0008, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.6,
@@ -12,7 +12,7 @@
     ]
   },
   {
-    "key": "ice", "nameKey": "planet.ice.name", "cloudColor": 14478069, "cloudDensity": 0.5,
+    "key": "ice", "nameKey": "planet.ice.name", "atmosphereHeight": 200, "cloudColor": 14478069, "cloudDensity": 0.5,
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.76, "dataCacheRarity": 0.0010, "floraDensity": 0.04, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5,
@@ -23,7 +23,7 @@
     ]
   },
   {
-    "key": "lava", "nameKey": "planet.lava.name", "cloudColor": 5917252, "cloudDensity": 0.7,
+    "key": "lava", "nameKey": "planet.lava.name", "atmosphereHeight": 150, "cloudColor": 5917252, "cloudDensity": 0.7,
     "baseHeight": 56, "amplitude": 22, "terrainScale": 40.0,
     "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0012,
@@ -35,7 +35,7 @@
     "weather": "dynamic", "stormChance": 0.2, "dayLengthSeconds": 520, "worldRadius": 700, "floraDensity": 0.06, "creatureAbundance": "few", "atmosphere": "none", "oxygenExtractability": 0.0
   },
   {
-    "key": "desert", "nameKey": "planet.desert.name", "cloudColor": 15260080, "cloudDensity": 0.3,
+    "key": "desert", "nameKey": "planet.desert.name", "atmosphereHeight": 190, "cloudColor": 15260080, "cloudDensity": 0.3,
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0,
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.78, "dataCacheRarity": 0.0008,
@@ -46,7 +46,7 @@
     ]
   },
   {
-    "key": "jungle", "nameKey": "planet.jungle.name", "cloudColor": 15922422, "cloudDensity": 0.6,
+    "key": "jungle", "nameKey": "planet.jungle.name", "atmosphereHeight": 240, "cloudColor": 15922422, "cloudDensity": 0.6,
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0010,
@@ -57,7 +57,7 @@
     ]
   },
   {
-    "key": "crystal", "nameKey": "planet.crystal.name", "cloudColor": 15128304, "cloudDensity": 0.4,
+    "key": "crystal", "nameKey": "planet.crystal.name", "atmosphereHeight": 150, "cloudColor": 15128304, "cloudDensity": 0.4,
     "baseHeight": 60, "amplitude": 18, "terrainScale": 50.0,
     "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.70, "dataCacheRarity": 0.0020,
@@ -68,7 +68,7 @@
     ]
   },
   {
-    "key": "swamp", "nameKey": "planet.swamp.name", "cloudColor": 13159360, "cloudDensity": 0.75,
+    "key": "swamp", "nameKey": "planet.swamp.name", "atmosphereHeight": 230, "cloudColor": 13159360, "cloudDensity": 0.75,
     "baseHeight": 58, "amplitude": 8, "terrainScale": 52.0,
     "surfaceBlock": "mud", "subSurfaceBlock": "mud", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.74, "dataCacheRarity": 0.0010,
@@ -79,7 +79,7 @@
     ]
   },
   {
-    "key": "varied", "nameKey": "planet.varied.name", "cloudColor": 15725044, "cloudDensity": 0.5,
+    "key": "varied", "nameKey": "planet.varied.name", "atmosphereHeight": 240, "cloudColor": 15725044, "cloudDensity": 0.5,
     "baseHeight": 64, "amplitude": 18, "terrainScale": 46.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.73, "dataCacheRarity": 0.0010,
@@ -96,7 +96,7 @@
     ]
   },
   {
-    "key": "asteroid", "nameKey": "planet.asteroid.name", "cloudColor": 15593458, "cloudDensity": 0.0,
+    "key": "asteroid", "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0,
     "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.68, "dataCacheRarity": 0.0016,

@@ -61,7 +61,7 @@ namespace Spacecraft.Client
             // Out in true space / on an airless body / inside a station the stars are there instantly (no slow
             // fade-in — that's why none seemed to show on entering space); a planet keeps the soft dusk/dawn fade.
             bool hardSky = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
-                           || (Game.Environment != null && Game.Environment.SpaceSky);
+                           || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
             float target = TargetBrightness();
             _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * 0.7f);
             _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
@@ -73,7 +73,7 @@ namespace Spacecraft.Client
         {
             bool boarded = !string.IsNullOrEmpty(Game.StationName);
             var env = Game.Environment;
-            bool spaceSky = Game.SpaceViewActive || boarded || (env != null && env.SpaceSky);
+            bool spaceSky = Game.SpaceViewActive || boarded || (env != null && env.SpaceSky) || Game.OnFootInSpace;
             if (spaceSky)
             {
                 return 1f;

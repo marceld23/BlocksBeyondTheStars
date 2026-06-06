@@ -527,6 +527,8 @@
   "ui.hud.location": "Location",
   "ui.hud.aboard": "aboard ship",
   "ui.hud.station": "station",
+  "hud.atmosphere.left": "You have left the atmosphere — zero gravity",
+  "hud.atmosphere.entered": "Re-entering the atmosphere",
   "ui.hud.ship": "Ship",
   "ui.hud.hull": "Hull",
   "ui.hud.shield": "Shield",

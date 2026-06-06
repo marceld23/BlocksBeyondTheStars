@@ -46,6 +46,7 @@ public sealed partial class GameServer
     private bool _spaceSky { get => _worlds.Active.SpaceSky; set => _worlds.Active.SpaceSky = value; }
     private string _biome { get => _worlds.Active.Biome; set => _worlds.Active.Biome = value; }
     private double _oxygenExtractability { get => _worlds.Active.OxygenExtractability; set => _worlds.Active.OxygenExtractability = value; }
+    private double _atmosphereHeight { get => _worlds.Active.AtmosphereHeight; set => _worlds.Active.AtmosphereHeight = value; }
     private System.Random _envRng { get => _worlds.Active.EnvRng; set => _worlds.Active.EnvRng = value; }
 
     // Public accessors (HUD / tests).
@@ -62,6 +63,9 @@ public sealed partial class GameServer
     /// <summary>Whether this body shows a space sky (black + stars) on the surface (landable asteroids).</summary>
     public bool SpaceSky => _spaceSky;
 
+    /// <summary>Absolute Y above which an on-foot player is in space (item 10); 0 = no atmosphere line here.</summary>
+    public double AtmosphereHeight => _atmosphereHeight;
+
     private void InitWeather()
     {
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
@@ -75,6 +79,7 @@ public sealed partial class GameServer
         _cloudDensity = _spaceSky ? 0f : (float)System.Math.Clamp(planet?.CloudDensity ?? 0.45, 0.0, 1.0);
         _biome = string.IsNullOrEmpty(_worlds.Active.PlanetType) ? "rock" : _worlds.Active.PlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
+        _atmosphereHeight = planet?.AtmosphereHeight ?? 0.0;
         _envRng = new System.Random((int)_meta.Seed);
         _dayFraction = 0.35;
         _weatherTimer = 0;

@@ -532,6 +532,8 @@
   "ui.hud.location": "Standort",
   "ui.hud.aboard": "an Bord",
   "ui.hud.station": "Station",
+  "hud.atmosphere.left": "Du hast die Atmosphäre verlassen — Schwerelosigkeit",
+  "hud.atmosphere.entered": "Wiedereintritt in die Atmosphäre",
   "ui.hud.ship": "Schiff",
   "ui.hud.hull": "Hülle",
   "ui.hud.shield": "Schild",

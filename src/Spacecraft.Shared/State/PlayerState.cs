@@ -69,6 +69,11 @@ public sealed class PlayerState
     /// the suit runs on its own air, so oxygen drains until the player boards the ship/station again.</summary>
     public bool InEva { get; set; }
 
+    /// <summary>True while the on-foot player has climbed above the planet's atmosphere into space
+    /// (item 10): zero-g float, suit oxygen drains (no air to breathe up here), and a space sky. Cleared
+    /// when they descend back below the atmosphere line. Not persisted.</summary>
+    public bool AboveAtmosphere { get; set; }
+
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
 

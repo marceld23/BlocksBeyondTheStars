@@ -609,6 +609,13 @@ namespace Spacecraft.Client
             Aboard = m.AboardShip;
             InEva = m.InEva;
 
+            // Built/climbed above the atmosphere → zero-g float on foot + space sky (item 10).
+            if (m.AboveAtmosphere != OnFootInSpace)
+            {
+                OnFootInSpace = m.AboveAtmosphere;
+                LastMessage = Localizer?.Get(m.AboveAtmosphere ? "hud.atmosphere.left" : "hud.atmosphere.entered") ?? LastMessage;
+            }
+
             // Boarding or leaving a space station is a server-side teleport (to the station interior, or
             // back to the ship). Snap the body to the new authoritative position — otherwise the player
             // stayed where they were and appeared to "land on the planet" instead of docking.

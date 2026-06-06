@@ -426,6 +426,10 @@ public sealed class PlayerStateUpdate
     /// suit float HUD and tells the client to skip the ship take-off animation when boarding again.</summary>
     public bool InEva { get; set; }
 
+    /// <summary>True while the on-foot player has built/climbed above the atmosphere into space (item 10)
+    /// — the client floats in zero-g and shows a space sky.</summary>
+    public bool AboveAtmosphere { get; set; }
+
     /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
     public string StationName { get; set; } = string.Empty;
 }

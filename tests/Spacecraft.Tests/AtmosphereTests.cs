@@ -164,6 +164,103 @@ public sealed class AtmosphereTests : IDisposable
         }
     }
 
+    // ---------------- Build above the atmosphere → on-foot in space (item 10) ----------------
+
+    [Fact]
+    public void AtmosphereHeight_IsPerBody_HigherForThickAtmospheres()
+    {
+        var jungle = Started("jungle", out var rj); // breathable → high line
+        var asteroid = Started("crystal", out var ra); // airless → lower line
+        using (rj)
+        using (ra)
+        {
+            Assert.True(jungle.AtmosphereHeight > 0);
+            Assert.True(asteroid.AtmosphereHeight > 0);
+            Assert.True(jungle.AtmosphereHeight > asteroid.AtmosphereHeight,
+                "A thick/breathable world's atmosphere should reach higher than an airless body's.");
+        }
+    }
+
+    [Fact]
+    public void ClimbingAboveTheAtmosphere_EntersSpaceOnFoot_AndDrainsOxygen_EvenWhenBreathable()
+    {
+        var server = Started("jungle", out var repo); // breathable: surface air normally regenerates
+        using (repo)
+        {
+            SurfacePlayer(server, out var p);
+            p.Oxygen = 50f;
+
+            server.Tick(1.0);
+            Assert.False(p.AboveAtmosphere);
+            Assert.True(p.Oxygen >= 50f, "On the breathable surface the suit doesn't drain.");
+
+            // Teleport to the top of a tower above the atmosphere line.
+            p.Position = new Vector3f(0, (float)server.AtmosphereHeight + 10f, 0);
+            p.Oxygen = 50f;
+            server.Tick(2.0);
+
+            Assert.True(p.AboveAtmosphere, "Above the atmosphere line the player is in space on foot.");
+            Assert.True(p.Oxygen < 50f, "In space the suit air drains even above a breathable world.");
+        }
+    }
+
+    [Fact]
+    public void DescendingBackBelowTheAtmosphere_ClearsTheSpaceState()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            SurfacePlayer(server, out var p);
+            p.Position = new Vector3f(0, (float)server.AtmosphereHeight + 10f, 0);
+            server.Tick(0.5);
+            Assert.True(p.AboveAtmosphere);
+
+            p.Position = new Vector3f(0, 64, 0); // climbed back down
+            server.Tick(0.5);
+            Assert.False(p.AboveAtmosphere, "Back below the line the player is on the ground again.");
+        }
+    }
+
+    [Fact]
+    public void AtmosphereLine_HasHysteresis_DoesNotFlickerJustBelow()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            SurfacePlayer(server, out var p);
+            float line = (float)server.AtmosphereHeight;
+
+            p.Position = new Vector3f(0, line + 10f, 0);
+            server.Tick(0.5);
+            Assert.True(p.AboveAtmosphere);
+
+            // Dip just 2 blocks below the line (inside the hysteresis band) — stays in space.
+            p.Position = new Vector3f(0, line - 2f, 0);
+            server.Tick(0.5);
+            Assert.True(p.AboveAtmosphere, "A small dip below the line shouldn't drop the space state.");
+
+            // Drop clearly below the band — now it ends.
+            p.Position = new Vector3f(0, line - 10f, 0);
+            server.Tick(0.5);
+            Assert.False(p.AboveAtmosphere);
+        }
+    }
+
+    [Fact]
+    public void AboardShip_NeverCountsAsAboveAtmosphere()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Pilot").State;
+            p.AboardShip = true; // life support — not an on-foot climber
+            p.Position = new Vector3f(0, (float)server.AtmosphereHeight + 50f, 0);
+
+            server.Tick(1.0);
+            Assert.False(p.AboveAtmosphere, "Aboard the ship you're never 'on foot above the atmosphere'.");
+        }
+    }
+
     public void Dispose()
     {
         try

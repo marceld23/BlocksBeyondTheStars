@@ -97,6 +97,7 @@ internal sealed class LoadedWorld
     public bool SpaceSky { get; set; }
     public string Biome { get; set; } = "rock";
     public double OxygenExtractability { get; set; }
+    public double AtmosphereHeight { get; set; }
     public System.Random EnvRng { get; set; } = new(1);
 }
 
