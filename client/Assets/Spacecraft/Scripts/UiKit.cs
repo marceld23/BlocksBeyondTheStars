@@ -161,6 +161,13 @@ namespace Spacecraft.Client
             return sprite == null ? null : AddImage(parent, x, y, size, size, sprite, Color.white);
         }
 
+        /// <summary>Places a pre-resolved sprite at a square rect (used for content-styled item icons);
+        /// no-op when the sprite is null. The tint lets toxic consumables render green.</summary>
+        public static Image AddIconSprite(Transform parent, float x, float y, float size, Sprite sprite, Color tint)
+        {
+            return sprite == null ? null : AddImage(parent, x, y, size, size, sprite, tint);
+        }
+
         public static Image AddImage(Transform parent, float x, float y, float w, float h, Sprite sprite, Color color, Image.Type type = Image.Type.Simple)
         {
             var go = new GameObject("Image", typeof(RectTransform));

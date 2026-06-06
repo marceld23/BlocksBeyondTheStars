@@ -375,7 +375,20 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    **Questions:** (1) Give-up feel — roughly how long should an aggressor chase before giving up, and how long
    should it leave you alone after? (default ~12 s chase → ~10 s cooldown). (2) Spawn spread — OK to spawn
    creatures **farther out + scattered** (so you discover them around the biome) rather than right next to you?
-8. **Task 4 — content-styled icons** for everything pickup-able / hand-held. (Brief below; full Analysis + Plan here.)
+8. ✅ **Task 4 — content-styled icons (done 2026-06-07).** Real per-item art everywhere instead of crude
+   procedural glyphs / shared category icons.
+   - **Client `IconResolver`** (new) — one key-based source for hotbar + crafting/tech/ship menu + space-systems
+     bar: a generated full-colour PNG (`Resources/icons/item_<key>.png`) → else the in-game **block atlas tile**
+     for a material that places/equals a block → else the old procedural glyph. Toxic consumables
+     (`ConsumeHealth < 0`) get a runtime **green tint** (user pick — no extra assets).
+   - **60 AI icons generated** via new `tools/ai-assets/gen_item_icons.py` (OpenAI `gpt-image-1-mini`, full-colour
+     transparent, downscaled to 128²): 39 non-block items (mats/components, consumables incl. a steak, tools,
+     weapons, suit gear) + 21 ship modules; space laser/tractor reuse `ship_laser_basic`/`tractor_beam`.
+     Block-backed materials reuse their block tile (no asset). Blueprints reuse their unlocked key's icon.
+   - **Wired:** `AddCard(..., contentKey)` in the menu (recipes/blueprints/modules/inventory), the hotbar
+     (RawImage path + `PlacesBlock` tile fallback + green tint), and a selected-system icon over the space bar.
+   - **Tested:** `IconCoverageTests` (every item/module resolves to an icon; toxic flagged) — 332 green.
+     `NOTICES.md` updated; full client rebuilt (icons bundled).
 
    ### Analysis (2026-06-07)
    **Two parallel icon systems today, neither gives per-item art:**

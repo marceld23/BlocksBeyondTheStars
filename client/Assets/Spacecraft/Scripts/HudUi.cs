@@ -309,10 +309,21 @@ namespace Spacecraft.Client
                 }
 
                 var blockDef = Game.Content?.GetBlock(item);
+                if (blockDef == null && Game.Content?.GetItem(item)?.PlacesBlock is string pb && pb.Length > 0)
+                {
+                    blockDef = Game.Content?.GetBlock(pb); // a seed etc. shows the tile of the block it places
+                }
+
+                Texture2D itemTex;
                 if (blockDef != null && Game.Atlas != null)
                 {
                     s.Icon.texture = Game.Atlas.Texture;
                     s.Icon.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                }
+                else if ((itemTex = IconResolver.ItemTexture(item)) != null)
+                {
+                    s.Icon.texture = itemTex; // a generated content-styled icon
+                    s.Icon.uvRect = new Rect(0, 0, 1, 1);
                 }
                 else
                 {
@@ -321,6 +332,7 @@ namespace Spacecraft.Client
                     s.Icon.uvRect = new Rect(0, 0, 1, 1);
                 }
 
+                s.Icon.color = IconResolver.Tint(item, Game); // toxic consumables read green
                 s.Icon.enabled = true;
                 string name = loc.Get($"item.{item}.name");
                 s.Name.text = name.Length > 9 ? name.Substring(0, 8) + "…" : name;

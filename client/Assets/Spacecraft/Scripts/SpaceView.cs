@@ -91,6 +91,7 @@ namespace Spacecraft.Client
         private int _selectedSystem;      // index into _systems
         private readonly List<ShipSystem> _systems = new List<ShipSystem>();
         private Text _systemsBar;
+        private Image _systemIcon;        // content-styled icon of the selected ship system
         private const string FlightWeapon = "ship_laser_basic";
         private const float WeaponRange = 45f;  // matches ship_laser_basic weapon_range
         private const float FireRate = 0.45f;   // seconds between shots
@@ -1667,6 +1668,19 @@ namespace Spacecraft.Client
             _systemsBar.horizontalOverflow = HorizontalWrapMode.Overflow;
             _systemsBar.supportRichText = true;
             _systemsBar.raycastTarget = false;
+
+            // A small content-styled icon of the selected system, centred just above the quick-bar.
+            var icoGo = new GameObject("SystemIcon", typeof(RectTransform));
+            icoGo.transform.SetParent(_ui.transform, false);
+            var irt = icoGo.GetComponent<RectTransform>();
+            irt.anchorMin = irt.anchorMax = new Vector2(0.5f, 0f);
+            irt.pivot = new Vector2(0.5f, 0f);
+            irt.sizeDelta = new Vector2(30f, 30f);
+            irt.anchoredPosition = new Vector2(0f, 84f);
+            _systemIcon = icoGo.AddComponent<Image>();
+            _systemIcon.raycastTarget = false;
+            _systemIcon.preserveAspect = true;
+            _systemIcon.enabled = false;
         }
 
         /// <summary>Creates the chain of lens-flare sprites once (a big bloom at the sun + ghosts that march
@@ -1909,6 +1923,19 @@ namespace Spacecraft.Client
                     }
 
                     _systemsBar.text = sb.ToString();
+                }
+
+                // A content-styled icon of the selected system (laser turret / tractor emitter).
+                if (_systemIcon != null)
+                {
+                    var sys = show ? _systems[_selectedSystem] : default;
+                    string iconKey = !show ? null : sys.Kind == "tractor" ? "tractor_beam" : sys.WeaponKey ?? FlightWeapon;
+                    var sprite = iconKey != null ? IconResolver.Resolve(iconKey, Game) : null;
+                    _systemIcon.enabled = show && sprite != null;
+                    if (sprite != null)
+                    {
+                        _systemIcon.sprite = sprite;
+                    }
                 }
             }
         }

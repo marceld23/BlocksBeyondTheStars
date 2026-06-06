@@ -20,4 +20,11 @@ public static class TestPaths
 
         throw new DirectoryNotFoundException("Could not locate the repository 'data' directory from the test output path.");
     }
+
+    /// <summary>The repository root (the parent of the <c>data</c> directory).</summary>
+    public static string RepoRoot() => Directory.GetParent(DataDir())!.FullName;
+
+    /// <summary>The client's runtime icon directory (generated content icons live here).</summary>
+    public static string ClientIconsDir()
+        => Path.Combine(RepoRoot(), "client", "Assets", "Resources", "icons");
 }

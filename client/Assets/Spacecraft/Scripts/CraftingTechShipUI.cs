@@ -349,7 +349,7 @@ namespace Spacecraft.Client
                 }
 
                 AddCard(y, ItemName(outItem.Item), IconFor(outItem.Item), can ? L("ui.craft.ready") : L("ui.craft.blocked"),
-                    can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), r.Key, () => { _selected = r.Key; RebuildDetail(); });
+                    can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), r.Key, () => { _selected = r.Key; RebuildDetail(); }, contentKey: outItem.Item);
                 y += 88f;
             }
 
@@ -378,7 +378,7 @@ namespace Spacecraft.Client
                 }
 
                 var (label, col) = TechStatus(bp);
-                AddCard(y, L($"blueprint.{bp.Key}.name"), "cat_tech", label, col, bp.Key, () => { _selected = bp.Key; RebuildDetail(); }, Mathf.Min(tier, 4) * 28f);
+                AddCard(y, L($"blueprint.{bp.Key}.name"), "cat_tech", label, col, bp.Key, () => { _selected = bp.Key; RebuildDetail(); }, Mathf.Min(tier, 4) * 28f, contentKey: bp.Key);
                 y += 88f;
             }
 
@@ -440,7 +440,7 @@ namespace Spacecraft.Client
                     }
 
                     AddCard(y, L($"module.{m.Key}.name"), "cat_modules", can ? L("ui.craft.ready") : L("ui.craft.blocked"),
-                        can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), "mod:" + m.Key, () => { _selected = "mod:" + m.Key; RebuildDetail(); });
+                        can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), "mod:" + m.Key, () => { _selected = "mod:" + m.Key; RebuildDetail(); }, contentKey: m.Key);
                     y += 88f;
                 }
             }
@@ -481,7 +481,7 @@ namespace Spacecraft.Client
 
             foreach (var s in items)
             {
-                AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); });
+                AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); }, contentKey: s.Item);
                 y += 88f;
             }
 
@@ -640,7 +640,7 @@ namespace Spacecraft.Client
             return y;
         }
 
-        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f)
+        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null)
         {
             var card = UiKit.AddButton(_listContent, indent, y, 780 - indent, 78, string.Empty, onClick);
             if (_selected == key)
@@ -650,7 +650,12 @@ namespace Spacecraft.Client
 
             float cw = 780f - indent;
             float tx = 16f;
-            if (UiKit.AddIcon(card.transform, 14, 14, 50, icon) != null)
+            // Prefer the real content-styled icon (item/material/module art); fall back to the category icon.
+            var sprite = string.IsNullOrEmpty(contentKey) ? null : IconResolver.Resolve(contentKey, Game);
+            bool placed = sprite != null
+                ? UiKit.AddIconSprite(card.transform, 14, 14, 50, sprite, IconResolver.Tint(contentKey, Game)) != null
+                : UiKit.AddIcon(card.transform, 14, 14, 50, icon) != null;
+            if (placed)
             {
                 tx = 78f;
             }
