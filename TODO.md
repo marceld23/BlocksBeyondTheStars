@@ -102,7 +102,7 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 5. **Bug — the player must not fall in space.** If the player is ever in space **without a ship**, they must
    **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
    able to **get back into their ship** when it's there, or **dock at a station**. Analyse precisely, plan, ask
-   questions, then implement. (Relates to item 9 — building up into space.)
+   questions, then implement. (Relates to item 10 — building up into space.)
 6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
    be saved too, so on **loading the save I'm back there** (not just the last/home world).
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
@@ -117,16 +117,46 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 10. **Feature — build high enough to leave the atmosphere into space.** Analyse + plan thoroughly: it should be
    theoretically possible, on a world / moon / asteroid, to **build a structure tall enough that it leaves the
    atmosphere** (if there is one) and you are **in space**. Analyse precisely, then plan, ask questions, only
-   then implement. (Ties into item 5 and the sphere analysis 14.)
+   then implement. (Ties into item 5 and the sphere analysis 18.)
 11. **Feature — trade knowledge points.** Players should be able to **trade knowledge points**. Key constraint:
    knowledge **never goes away** — unlocking blueprints only needs a knowledge **threshold**, no points are
    spent; so trading must **not deduct** knowledge points either. But it must be ensured that **each knowledge
    point can only be passed to another player once** — track how many points you've **already given to a given
    other player**, so no endless back-and-forth trade is possible. It should be possible to **offer knowledge
    for materials or for equipment** in a trade. Analyse precisely, then plan, ask questions, only then implement.
-12. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Detailed below; big.)
-13. **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
-14. **Analysis only — make a world more spherical (vertical wrap too).** *(Analysis only — do NOT implement.)*
+12. **Feature — NPCs should have names.** Give NPCs a name too. Build a **random name generator** with as many
+   random name **combinations** as possible. (Mirror the existing syllable-based flora/creature `NameGenerator`
+   approach so names are deterministic per NPC.) — *Foundation for items 14 + 15.*
+13. **Feature — mission-giver NPCs that always have a mission on offer.** There should also be NPCs that **offer
+   missions** — and each such NPC should **always have a mission available** (never run dry). Make sure this is
+   the case. Analyse the current NPC/mission wiring, then plan, ask questions, only then implement.
+14. **Feature (plan ahead) — NPCs remember their interactions with a player.** NPCs should **"remember"** when
+   they have interacted with a player. Store **what kind** of interaction it was: just a **dialog**, a **trade**,
+   or a **mission accepted**. This then **improves the relationship value** to that player. Keep an **interaction
+   log of at most the last 10** interactions (per player). (Feeds item 15 — name, role, relationship and these
+   logs are part of what the dialog backend receives.) Analyse precisely, then plan, ask questions, only then
+   implement.
+15. **Feature — AI dialog backend (`./ai-backend/`, Python) for NPC dialog text.** *(Analyse precisely + plan
+   first; research online if needed. Do NOT implement yet.)* Under `./ai-backend/` there should be a **Python
+   backend** exposing an **API** the game can later call to **fetch NPC dialog texts**. The backend **consumes /
+   uses a language model available via an API call** — at the start a **local model running in LM Studio**.
+   - **Graceful skip:** if the backend has **no language model available**, the in-game function is **simply
+     skipped** (the NPC falls back to its normal/canned dialog).
+   - **Request parameters** the game server sends: **name of the planet / station**, the NPC's **function/role**,
+     its **name**, the NPC's **relationship status** to the player, the **logs of the last interactions** (item
+     14), the **offer** the NPC makes (trader: **what kind of goods**; quest giver: **type of quest**), plus the
+     current **weather** and **time of day**.
+   - **Flow:** the backend wraps these in a **system prompt**, sends them to the LLM, generates a **short text**,
+     and returns it to the game engine, which **displays the text on interaction** with the NPC.
+   - **Non-blocking:** generating an LLM response can take a while — the game must **wait but not block** (async;
+     show the text once ready, with an instant fallback/placeholder meanwhile).
+   - **Toggle:** the LLM feature must be **on/off-switchable in the game settings** (i.e. when **creating a game
+     world**).
+   - **Separate process:** the backend should be **startable and run separately** from the game (at least at
+     first).
+16. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Detailed below; big.)
+17. **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
+18. **Analysis only — make a world more spherical (vertical wrap too).** *(Analysis only — do NOT implement.)*
    Analyse and estimate: how could the game be changed so a world can be circumnavigated **not only horizontally
    but also vertically** — i.e. how to make a world behave **more like a sphere**. Assess what's **realistically
    possible**, weighing **complexity and performance cost**. For now, just **estimate and analyse**.
