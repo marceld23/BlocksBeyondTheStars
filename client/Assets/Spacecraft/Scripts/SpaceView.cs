@@ -649,8 +649,9 @@ namespace Spacecraft.Client
         /// station-board teardown (the dock-approach is already "done" since you floated over on foot).</summary>
         private void DockStationFromEva()
         {
+            // Keep InEva set on the server until BoardStation runs, so it knows the ship stayed floating
+            // (undocking returns you to the float). The server clears InEva as it docks you.
             _eva = false;
-            Game.Network?.SendSetEva(false);
             _phase = Phase.Boarding;
             _seq = BoardDuration;     // skip the fly-in: you're already at the hull on foot
             _boardSent = false;

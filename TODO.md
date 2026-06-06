@@ -177,9 +177,19 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      into the flight view's landables yet** (`_landables` = planets + moons only), so asteroid-landing-from-EVA
      is enforced-but-not-yet-reachable; making asteroid bodies landable in flight is a separate task — the guard
      is already correct for when they exist.
-   - ⏳ **Stage 7 — R3 + R4: ship stays + respawn.** Docking a station from EVA leaves the ship in space (don't
-     move its location); returning resumes at the floating ship. Death respawns at the **last planet/station
-     with the ship** (verify `RespawnPoint`; set it on station boarding).
+   - ✅ **Stage 7 — R3 + R4 (done 2026-06-07).**
+     - **R4 — death respawn with the ship.** `RespawnPlayer` now recovers correctly from anywhere: on foot on
+       the ship's own world it just snaps to the heal-tank (fast path, no loading screen), but dying in the
+       flight view / on an EVA / inside the ship / on a station does a full **world transition** to the ship's
+       planet heal-tank (`RecoverToShip` → `LeaveSpace` + `LoadWorld` + `StampShip` + `WorldReset`), so you're
+       never left stuck in the flight view or a stale world and always come back **with your ship**. Also:
+       **stations now sate hunger** (life support — no more starving while docked). Test
+       `DeathOnAnEva_RecoversToTheShip_NotStuckInSpace`.
+     - **R3 — the ship stays floating.** Docking a station **while on an EVA** records the ship's floating
+       position (`_dockedFromEva`); **undocking returns you to the float next to the waiting ship** (InEva
+       restored, ship position restored, no take-off) instead of re-launching. The client keeps `InEva` set
+       through the dock so the server knows. Test
+       `DockingAStationOnAnEva_KeepsTheShipFloating_AndUndockReturnsToEva`. (326 pass.)
    - ⏳ **Stage 8 — R2: multiplayer visibility in space.** Broadcast each player's ship position + EVA/in-ship
      state to others in the same space instance; render remote ships and floating EVA players in the flight
      view. (The flight view renders only your own ship today — this is new networking + rendering.)

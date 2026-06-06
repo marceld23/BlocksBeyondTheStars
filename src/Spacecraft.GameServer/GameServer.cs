@@ -643,9 +643,9 @@ public sealed partial class GameServer
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 15)));
             }
 
-            // Hunger (survival): aboard the ship or when disabled, sate; otherwise drain and,
-            // once empty, starve (health loss until the player eats).
-            if (p.AboardShip || !Rules.HungerEnabled)
+            // Hunger (survival): aboard the ship, boarded on a station (both have life support), or when
+            // disabled, sate; otherwise drain and, once empty, starve (health loss until the player eats).
+            if (p.AboardShip || InStation(p.PlayerId) || !Rules.HungerEnabled)
             {
                 p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * 10));
             }
@@ -804,6 +804,11 @@ public sealed partial class GameServer
             }
         }
 
+        // Capture where the player died BEFORE resetting state — it decides whether a full world transition
+        // is needed (you died away from the ship's world) or just a snap to the heal-tank.
+        bool wasInFlightView = InSpace(p.PlayerId);
+        bool wasInShipInterior = _inShipInterior.ContainsKey(p.PlayerId);
+
         p.Health = 100f;
         p.Oxygen = MaxOxygen(p);
         p.SuitEnergy = 100f;
@@ -811,22 +816,86 @@ public sealed partial class GameServer
         p.Stealthed = false;
         p.InEva = false; // a death ends any spacewalk
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
-        p.Position = p.RespawnPoint;
-        p.AboardShip = true;
+        _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
 
+        // On foot on a planet your ship is already there (you land with it) — a plain heal-tank snap. You only
+        // need a world transition if you died away from your ship's world: in the flight view, on a spacewalk,
+        // inside the ship, or boarded on a station.
+        bool sameWorld = !wasInFlightView && !wasInShipInterior && !InStation(p.PlayerId);
+
+        if (sameWorld)
+        {
+            // Died on the ship's own world on foot — snap to the heal-tank, no loading screen.
+            p.Position = p.RespawnPoint;
+            p.AboardShip = true;
+            Send(session, new RespawnNotice
+            {
+                X = p.RespawnPoint.X,
+                Y = p.RespawnPoint.Y,
+                Z = p.RespawnPoint.Z,
+                Reason = reason,
+                SalvageCapsuleDropped = salvaged,
+                Died = true, // an actual death → client plays the red death flash + sound
+            });
+            SendInventory(session);
+            SendPlayerState(session);
+        }
+        else
+        {
+            // Died on a spacewalk, in the flight view, inside the ship, or on another body — recover with a
+            // proper world transition to the ship's planet + heal-tank, so you always come back WITH the ship
+            // and are never left stuck in the flight view or a stale world.
+            RecoverToShip(session, reason, salvaged);
+        }
+
+        _repo.SavePlayer(p);
+        _log.Info($"Player '{p.Name}' respawned (salvage={salvaged}, transition={!sameWorld}).");
+    }
+
+    /// <summary>Death recovery with a world transition: lands the player at their ship's heal-tank on the
+    /// ship's planet, leaving any space instance first so the client drops out of the flight view.</summary>
+    private void RecoverToShip(PlayerSession session, string reason, bool salvaged)
+    {
+        var p = session.State;
+        // The cursor is already on this session (set by the per-player tick / Serve), so _ship is this
+        // player's ship — recover to the world it's parked on.
+        string homeLoc = !string.IsNullOrEmpty(_ship?.CurrentLocationId) ? _ship.CurrentLocationId : _meta.ActiveLocationId;
+        var homeBody = _galaxy?.FindBody(homeLoc);
+        string homeType = !string.IsNullOrEmpty(homeBody?.PlanetType) ? homeBody.PlanetType : _meta.DefaultPlanetType;
+
+        LeaveSpace(p.PlayerId); // exit any flight view (sends SpaceClosed if in one)
+
+        LoadWorld(homeType, homeLoc);
+        SetCurrent(session);
+        if (_config.PlaceStarterShip)
+        {
+            StampShip();
+        }
+
+        session.CurrentLocationId = homeLoc;
+        p.Position = _shipStamped ? _healTank : p.RespawnPoint;
+        p.RespawnPoint = _shipStamped ? _healTank : p.RespawnPoint;
+        p.AboardShip = true;
+        session.SentChunks.Clear();
+
+        var (systemName, planetName) = ActiveLocationNames();
+        Send(session, new WorldReset { PlanetType = homeType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
         Send(session, new RespawnNotice
         {
-            X = p.RespawnPoint.X,
-            Y = p.RespawnPoint.Y,
-            Z = p.RespawnPoint.Z,
+            X = p.Position.X,
+            Y = p.Position.Y,
+            Z = p.Position.Z,
             Reason = reason,
             SalvageCapsuleDropped = salvaged,
-            Died = true, // an actual death → client plays the red death flash + sound
+            Died = true,
         });
-        SendInventory(session);
         SendPlayerState(session);
-        _repo.SavePlayer(p);
-        _log.Info($"Player '{p.Name}' respawned at heal-tank (salvage={salvaged}).");
+        SendEnvironment(session);
+        SendInventory(session);
+        SendPlanetPois(session);
+        SendCreatures(session);
+        SendContainers(session);
+        SendNpcs(session);
     }
 
     private void StreamChunks()

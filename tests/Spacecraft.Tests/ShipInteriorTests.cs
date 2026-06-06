@@ -136,6 +136,31 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void DeathOnAnEva_RecoversToTheShip_NotStuckInSpace()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var session = server.AddLocalPlayer("Pilot");
+            var p = session.State;
+            server.EnterSpace("Pilot");
+            server.EnterShipInterior("Pilot");
+            server.UseStation("Pilot", "airlock"); // floating in EVA, in a space instance
+            Assert.True(p.InEva);
+            Assert.True(server.InSpace("Pilot"));
+
+            p.Health = 0f;
+            server.Tick(0.1); // death → recovery
+
+            Assert.Equal(100f, p.Health);
+            Assert.False(server.InSpace("Pilot"));        // dropped out of the flight view
+            Assert.False(server.InShipInterior("Pilot"));
+            Assert.False(p.InEva);
+            Assert.True(p.AboardShip);                    // recovered into the ship with life support
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);

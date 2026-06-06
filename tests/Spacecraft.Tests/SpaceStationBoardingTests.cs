@@ -154,6 +154,28 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void DockingAStationOnAnEva_KeepsTheShipFloating_AndUndockReturnsToEva()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            var p = pilot.State;
+            server.EnterSpace("Pilot");
+            p.InEva = true; // floating on a spacewalk next to the parked ship
+
+            var station = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.SpaceStation);
+            server.BoardStation("Pilot", station.Id);
+            Assert.True(server.InStation("Pilot"));
+            Assert.False(p.InEva); // inside the station now — the spacewalk ended
+
+            server.LeaveStation("Pilot");
+            Assert.True(server.InSpace("Pilot")); // back in the flight view
+            Assert.True(p.InEva);                 // floating again next to the ship that waited in space
+        }
+    }
+
+    [Fact]
     public void Station_NeverSpawnsHostilesOrWildlife_OnlyPeacefulNpcs()
     {
         var server = Started(out var repo);

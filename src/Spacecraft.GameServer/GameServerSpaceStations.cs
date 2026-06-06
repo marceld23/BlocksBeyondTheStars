@@ -28,6 +28,9 @@ public sealed partial class GameServer
     private readonly Dictionary<string, string> _boardedStation = new();
     // Where to send a player back when they leave a station: (planet location id, planet type key).
     private readonly Dictionary<string, (string Loc, string Type)> _boardedReturn = new();
+    // Players who docked a station while on an EVA: their ship stayed floating at this position, so undocking
+    // returns them to the float (not a re-launch). Keyed by player id → the ship's parked space position.
+    private readonly Dictionary<string, Vector3f> _dockedFromEva = new();
     private readonly HashSet<string> _stationMissionIds = new();
 
     private sealed class BoardableStation
@@ -169,6 +172,14 @@ public sealed partial class GameServer
 
         // Remember the planet to return to, then leave the space instance.
         _boardedReturn[playerId] = (session.CurrentLocationId, _world.PlanetKey);
+
+        // Docking on an EVA: the ship stays floating where it is — remember its spot so undocking returns you
+        // to the float next to it, rather than re-launching.
+        if (session.State.InEva)
+        {
+            _dockedFromEva[playerId] = instance.ShipPosition;
+        }
+
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
 
@@ -260,10 +271,19 @@ public sealed partial class GameServer
             _worlds.Unload(stationLoc);
         }
 
-        // Undock into space flight: relaunch into the system's space instance (the ship view) instead of
-        // walking out onto the planet. Boarding came from space, so this returns you to where you were.
-        EnterSpace(playerId);
-        Send(session, new ServerMessage { Text = "Undocked into space." });
+        // Undock into space flight. If you docked while on an EVA, your ship stayed floating where it was —
+        // return you to the float next to it (no take-off); otherwise relaunch the ship as before.
+        bool fromEva = _dockedFromEva.Remove(playerId, out var floatShipPos);
+        EnterSpace(playerId, skipLaunch: fromEva);
+        if (fromEva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            inst.ShipPosition = floatShipPos;
+            inst.ShipLastPosition = floatShipPos;
+            session.State.InEva = true; // back outside the ship, floating where you left it
+            SendPlayerState(session);
+        }
+
+        Send(session, new ServerMessage { Text = fromEva ? "Back outside — your ship waited in space." : "Undocked into space." });
     }
 
     private void StampStation(BoardableStation station)
