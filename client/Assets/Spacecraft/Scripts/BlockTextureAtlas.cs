@@ -96,30 +96,49 @@ namespace Spacecraft.Client
 
             // Prefer a generated block texture (Resources/textures/<key>.bytes); fall back to the
             // procedural tile when none is bundled.
-            if (TryPaintFromAsset(key, ox, oy))
+            if (!TryPaintFromAsset(key, ox, oy))
             {
-                return;
+                Color baseCol = BaseColor(key);
+                var rng = new System.Random(Hash(key));
+
+                for (int px = 0; px < Tile; px++)
+                {
+                    for (int py = 0; py < Tile; py++)
+                    {
+                        float n = 0.86f + 0.28f * (float)rng.NextDouble(); // per-pixel grain
+                        var c = new Color(baseCol.r * n, baseCol.g * n, baseCol.b * n, 1f);
+                        if (px == 0 || py == 0 || px == Tile - 1 || py == Tile - 1)
+                        {
+                            c *= 0.65f; // darker edge → tiled look
+                        }
+
+                        Texture.SetPixel(ox + px, oy + py, new Color(c.r, c.g, c.b, 1f));
+                    }
+                }
+
+                Decorate(id, key, ox, oy, rng);
             }
 
-            Color baseCol = BaseColor(key);
-            var rng = new System.Random(Hash(key));
+            // Water is semi-transparent (alpha < 1) so you can see down into a sea while swimming; the
+            // transparent block shader keys off this tile alpha to render water clear-blue (vs frosted glass).
+            if (key == "water")
+            {
+                FadeTileAlpha(ox, oy, 0.62f);
+            }
+        }
 
+        /// <summary>Sets a uniform alpha across a tile (used to make water see-through in the atlas).</summary>
+        private void FadeTileAlpha(int ox, int oy, float alpha)
+        {
             for (int px = 0; px < Tile; px++)
             {
                 for (int py = 0; py < Tile; py++)
                 {
-                    float n = 0.86f + 0.28f * (float)rng.NextDouble(); // per-pixel grain
-                    var c = new Color(baseCol.r * n, baseCol.g * n, baseCol.b * n, 1f);
-                    if (px == 0 || py == 0 || px == Tile - 1 || py == Tile - 1)
-                    {
-                        c *= 0.65f; // darker edge → tiled look
-                    }
-
-                    Texture.SetPixel(ox + px, oy + py, new Color(c.r, c.g, c.b, 1f));
+                    var c = Texture.GetPixel(ox + px, oy + py);
+                    c.a = alpha;
+                    Texture.SetPixel(ox + px, oy + py, c);
                 }
             }
-
-            Decorate(id, key, ox, oy, rng);
         }
 
         /// <summary>

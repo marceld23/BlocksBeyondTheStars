@@ -258,7 +258,7 @@ namespace Spacecraft.Client
             }
 
             var def = content.BlockById(id);
-            return def?.Key is "glass" or "force_field";
+            return def?.Key is "glass" or "force_field" or "water"; // water is alpha-blended so you see into it
         }
 
         private static Color BlockColor(GameContent content, BlockId id)

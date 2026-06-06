@@ -61,7 +61,8 @@ Shader "Spacecraft/BlockAtlasTransparent"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed3 albedo = tex2D(_MainTex, i.uv).rgb;
+                fixed4 tex = tex2D(_MainTex, i.uv);
+                fixed3 albedo = tex.rgb;
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;
 
                 float3 N = normalize(i.wn);
@@ -73,12 +74,22 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 fixed3 col = albedo * light * (0.55 + 0.45 * ndl) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)
 
-                // Plain glass (no emission) reads as a frosted, milky pane — clearly glass, not an open hole —
-                // while emissive energy fields stay an airy, see-through curtain.
-                float isField = saturate(emission * 4.0);              // ~0 for glass, ~1 for energy fields
-                col = lerp(col + light * 0.16, col, isField);          // a soft white frost on glass only
-                float alpha = lerp(0.72, _BaseAlpha, isField);         // milky glass vs. see-through field
-                alpha = saturate(alpha + emission * 0.15);
+                float alpha;
+                if (tex.a < 0.95)
+                {
+                    // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
+                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas).
+                    alpha = tex.a;
+                }
+                else
+                {
+                    // Plain glass (no emission) reads as a frosted, milky pane — clearly glass, not an open hole
+                    // — while emissive energy fields stay an airy, see-through curtain.
+                    float isField = saturate(emission * 4.0);          // ~0 for glass, ~1 for energy fields
+                    col = lerp(col + light * 0.16, col, isField);      // a soft white frost on glass only
+                    alpha = lerp(0.72, _BaseAlpha, isField);           // milky glass vs. see-through field
+                    alpha = saturate(alpha + emission * 0.15);
+                }
 
                 fixed4 outc = fixed4(col, alpha);
                 UNITY_APPLY_FOG(i.fogCoord, outc);
