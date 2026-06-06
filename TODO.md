@@ -25,7 +25,8 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    a **soft sky-occlusion** (5×5 horizontal kernel): cave mouths feather into a soft-lit gradient and overhang
    shadows soften, while deep caves stay dark (lamp needed). Mesher-only; the shader already took a continuous
    sky. See the Task 3 plan below.
-2. **Bug — no stars in the space background.** Analyse: in the space view there are **no background stars** —
+2. ✅ **Bug — no stars in the space background** (FIXED + confirmed 2026-06-07 — the `Spacecraft/Starfield`
+   shader was stripped from the build; added to `m_AlwaysIncludedShaders`). Analyse: in the space view there are **no background stars** —
    I see the system's sun but no stars behind it; there should be stars. *This was already attempted once* —
    analyse precisely and find the actual cause. Check whether the cause has **further implications** elsewhere,
    e.g. **stars should also be visible at night on the planet**.
@@ -54,10 +55,12 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    was missing too** — the glass/water transparent shader — and added it (very likely the root of the **glass
    "not milky" bug, item 3**). The brightness/size/twinkle tweaks above stay (now the stars actually render).
    Saved as a memory ([[shaders-must-be-always-included]]). *Verify in the new build.*
-3. **Bug — glass is still only transparent, not milky.** Analyse thoroughly: glass still looks merely
-   see-through, I see **no "milkiness"**. *This has been attempted several times.* Find the root cause and check
-   whether it has **further effects elsewhere** in the game. Analyse precisely, then make a plan, then start
-   implementing. (See the [[glass-milky-not-transparent]] requirement.)
+3. ✅ **Bug — glass is still only transparent, not milky** (FIXED + confirmed 2026-06-07 — **same root cause as
+   item 2**: the `Spacecraft/BlockAtlasTransparent` shader (glass + water) was stripped from the build, so in the
+   built `.exe` glass fell back to a plain transparent material with no milky frost. Adding its GUID to
+   `m_AlwaysIncludedShaders` restored the frosted glass — confirmed by the user). The shader's milky/water logic
+   was correct all along; it just wasn't in the build. See [[glass-milky-not-transparent]] +
+   [[shaders-must-be-always-included]].
 4. **Bug — landing pop-in; want a loading screen.** When I land on a planet or station I can see the planet/
    station **building up before my ship appears** (for stations, before everything is finished). Instead I want
    a **loading screen that disappears once everything is ready**. Analyse precisely, then make a plan; only then
