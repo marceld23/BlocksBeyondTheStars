@@ -99,14 +99,70 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      locale files). Station boardings read *Betrete Station* / *Entering station*.
 
    No change to the landing/chunk/settle logic itself — purely an overlay + one readiness flag + one event.
-5. ✅ **Bug — the player must not fall in space** (done 2026-06-07; EVA needs an in-engine test pass). If the
-   player is ever in space **without a ship**, they must
-   **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
-   able to **get back into their ship** when it's there (**incl. while already in space** — board/enter the ship
-   from a float), or **dock at a station**. Also: the **Launch button** in the menu must **not trigger the
-   launch (take-off) animation when the player is already in space** — boarding the ship from a float should go
-   straight to the flight view. Analyse precisely, plan, ask questions, then implement. (Relates to item 10 —
-   building up into space.)
+5. 🔄 **Bug/feature — in-space movement: pilot ↔ inside ship ↔ EVA** (reopened 2026-06-07 for a redesign).
+   Original: the player must **not fall in space** — float in the suit, get back into the ship, dock a station.
+   Stages 1–3 shipped a pilot↔EVA float (oxygen drain + 6-DOF + board) but that **skipped a state the user
+   wants**.
+
+   ### Redesign (2026-06-07) — three states, requested by the user
+   The player wants **three** modes in space, not two:
+   1. **Pilot** — flying the ship (the current flight view).
+   2. **Inside the ship (on foot)** — walk around inside your ship's interior **while it floats in space**.
+   3. **EVA** — spacewalk outside the hull, **started from inside the ship** (not from the pilot view).
+   **Transitions (all bidirectional):** Pilot ⇄ Inside ship; Inside ship ⇄ EVA. (Pilot does **not** go straight
+   to EVA any more — my stage-2 `G` from cruise must move to the inside-ship state.)
+
+   **Approach (analysis):** there is no walkable ship interior in space today — on a planet the ship is stamped
+   voxels you can walk in; in the flight view it's an abstract model. The clean, consistent way to add a
+   walkable interior in space is to **board your own ship like a station**: reuse the station-interior infra
+   (`GameServerSpaceStations` — load a small world, stamp the ship structure, spawn the player on foot, keep the
+   ship's flight-view position in `SpaceInstance.ShipPosition`). From inside: a **helm/pilot console** returns
+   to the flight view (skip-launch, no take-off animation), an **airlock** starts an EVA; the EVA float +
+   oxygen + board-back from stages 1–2 are reused (only the entry point changes — EVA from the airlock instead
+   of from cruise). Needs confirmation of the approach + the control scheme before building (see questions).
+
+   ### Pending follow-up requirements (from the user, 2026-06-07)
+   - **R1 — EVA landing targets:** from EVA you may dock **your own ship** and **space stations**, and land on
+     **asteroids**, but **not on planets or moons** (those need the ship). *(server guard + client prompt)*
+   - **R2 — multiplayer visibility:** an EVA/in-space player must be **visible to other players** flying in the
+     same space instance. *(Big — the flight view renders only your own ship today; remote ships/players in
+     space aren't broadcast/rendered. Needs new networking + rendering.)*
+   - **R3 — the ship stays put:** if you **dock a station while in EVA**, your **ship remains in space** at its
+     position (you didn't take it with you); returning puts you back at the floating ship.
+   - **R4 — death respawn:** on death, respawn at the **last planet or station, with your ship** (today: the
+     heal-tank `RespawnPoint`; verify it already lands you at the last body, and set it on station boarding).
+   - **EVA boarding UX (done 2026-06-07, pending the redesign):** the EVA HUD board hint always shows (distance
+     to the parked ship when far), the wrong "G ship" text was fixed, board range widened. *Will be folded into
+     the redesign (EVA is launched from the airlock, so the cruise `G` hint changes to "enter ship").*
+
+   ### Plan (locked by the user's answers, 2026-06-07)
+   (a) **Inside the ship = the real ship interior** — board your own ship as a walkable world (reuse the
+   station-interior infra). (b) **Diegetic controls** — a **pilot console** (E → fly) and an **airlock** (E →
+   EVA) inside the ship, with on-screen prompts (the discoverability the user was missing). (c) **Multiplayer
+   visibility (R2) is in scope now.**
+
+   **Staged build (server-first, testable; client parts need an in-editor pass):**
+   - ⏳ **Stage 4 — board your own ship (walkable interior in space).** Server: an "enter ship" path that loads
+     the ship interior as a void world with the ship stamped (mirror `GameServerSpaceStations.BoardStation` /
+     `StampShip`), spawns the player on foot inside, and **keeps the ship in its space instance + position**.
+     Intents `EnterShipIntent` (from the flight view) and a helm/airlock interaction. Place a **helm** marker
+     (→ flight view, skip-launch) and an **airlock** marker (→ EVA) in the ship stamp. Client: a flight-view
+     key/prompt to go inside; on-foot prompts at the helm + airlock.
+   - ⏳ **Stage 5 — move EVA to the airlock.** EVA starts from the airlock (inside the ship), not from cruise
+     `G`; reuse stages 1–2 (float + oxygen + board-back). EVA → board returns you to the ship **interior** at
+     the airlock. Update the cruise hint (no more `G EVA`).
+   - ⏳ **Stage 6 — R1: EVA landing targets.** From EVA: dock own ship + stations, land on **asteroids only**
+     (not planets/moons) — server guard in the leave-space/land path + client prompt filtering by
+     `WorldSizeClass.Asteroid`.
+   - ⏳ **Stage 7 — R3 + R4: ship stays + respawn.** Docking a station from EVA leaves the ship in space (don't
+     move its location); returning resumes at the floating ship. Death respawns at the **last planet/station
+     with the ship** (verify `RespawnPoint`; set it on station boarding).
+   - ⏳ **Stage 8 — R2: multiplayer visibility in space.** Broadcast each player's ship position + EVA/in-ship
+     state to others in the same space instance; render remote ships and floating EVA players in the flight
+     view. (The flight view renders only your own ship today — this is new networking + rendering.)
+
+   **Interim (committed before the redesign):** the pilot↔EVA float (stages 1–3) + the EVA-boarding UX fix ship
+   now, so the current build is usable/clearer while the redesign is built on top.
 
    ### Analysis (2026-06-07)
    **Today there is no "on foot in space" state at all.** "In space" only ever means *piloting the ship* in the

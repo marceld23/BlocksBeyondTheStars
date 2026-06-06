@@ -25,7 +25,7 @@ namespace Spacecraft.Client
         private const float LookSpeed = 2.2f;
         private const float Bounds = 130f;
         private const float EvaSpeed = 6.5f;       // suit thrust speed on a spacewalk (slower than the ship)
-        private const float EvaBoardRange = 7.5f;  // how close the suit must get to the hull to board the ship
+        private const float EvaBoardRange = 11f;   // how close the suit must get to the hull to board the ship
 
         private enum Phase { Launch, Cruise, Landing, Boarding }
 
@@ -1665,17 +1665,20 @@ namespace Spacecraft.Client
                 {
                     string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
                     _board.text = $"{board} {_nearStationName}";
-                    _board.gameObject.SetActive(true);
                 }
                 else if (_evaNearShip)
                 {
                     _board.text = loc != null ? loc.Get("ui.space.eva_board_ship") : "Press E to board your ship";
-                    _board.gameObject.SetActive(true);
                 }
                 else
                 {
-                    _board.gameObject.SetActive(false);
+                    // Always guide the player home: show how far the parked ship is so they fly back and board it.
+                    int dist = Mathf.RoundToInt(Mathf.Sqrt(_evaShipSq));
+                    string toShip = loc != null ? loc.Get("ui.space.eva_to_ship") : "Fly to your ship";
+                    _board.text = $"{toShip} — {dist} m";
                 }
+
+                _board.gameObject.SetActive(true);
 
                 int o2 = Mathf.CeilToInt(Mathf.Clamp(Game.Oxygen, 0f, 999f));
                 string oxy = loc != null ? loc.Get("ui.space.eva_oxygen") : "O₂";
