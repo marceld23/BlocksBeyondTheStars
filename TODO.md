@@ -160,9 +160,15 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
        `ExitShipToFlight`), latched on entry in `GameBootstrap.SpaceSkipLaunch`, so `SpaceView.Enter` starts in
        `Cruise` with no roar. Test `UsingTheCockpitInsideTheShip_TakesTheHelm`. *(Airlock→EVA is stage 5; EVA is
        still `G` from cruise for now.)*
-   - ⏳ **Stage 5 — move EVA to the airlock.** EVA starts from the airlock (inside the ship), not from cruise
-     `G`; reuse stages 1–2 (float + oxygen + board-back). EVA → board returns you to the ship **interior** at
-     the airlock. Update the cruise hint (no more `G EVA`).
+   - ✅ **Stage 5 — EVA from the airlock (done 2026-06-07; needs in-engine test).** A new **airlock** station
+     marker by the ship's hatch (`StampShip`); using it in space (`UseStation "airlock"` → `StartEvaFromShip`)
+     cycles out into the flight view as a floating EVA suit (`InEva=true`, oxygen drains). The cruise `G`→EVA is
+     **removed** — EVA is only reached from inside the ship now (hint updated). Client mirrors the server's
+     `InEva` (`BeginEvaMode`, no client-initiated EVA); **EVA → board returns you to the ship interior** on foot
+     (`BoardShipFromEva` → `SendEnterShip`), not to the helm. New `_enteringInterior` flag tears the flight view
+     down at once (no stray landing descent) when stepping inside. New `ui.station.airlock`. Test
+     `AirlockInsideTheShip_StepsOutIntoAnEva` (323 pass). **The three-state loop is now complete:** pilot —F→
+     inside ship —(cockpit)→ helm/fly, —(airlock)→ EVA —(E at ship)→ back inside.
    - ⏳ **Stage 6 — R1: EVA landing targets.** From EVA: dock own ship + stations, land on **asteroids only**
      (not planets/moons) — server guard in the leave-space/land path + client prompt filtering by
      `WorldSizeClass.Asteroid`.

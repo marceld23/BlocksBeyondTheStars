@@ -62,6 +62,8 @@ namespace Spacecraft.Client
         private float _evaYaw, _evaPitch; // suit free-look
         private bool _evaNearShip;        // within boarding range of the parked ship this frame
         private float _evaShipSq;         // squared distance from the suit to the ship (for ship-vs-station priority)
+        private bool _enteringInterior;   // stepping into the ship interior — tear the flight view down at once
+                                          // (no landing descent) when the server closes space
 
         private float _moveSendTimer;     // throttles authoritative position reports
         private float _hitFlash;          // red damage flash on a collision/hit
@@ -132,9 +134,9 @@ namespace Spacecraft.Client
             // landing sequence back down to the body we launched from, then tear down.
             if (!Game.InSpace)
             {
-                if (_hyperjumping || _phase == Phase.Boarding)
+                if (_hyperjumping || _phase == Phase.Boarding || _enteringInterior)
                 {
-                    Exit();
+                    Exit(); // jump / station dock / stepping inside the ship: no landing descent
                     return;
                 }
 
@@ -153,6 +155,14 @@ namespace Spacecraft.Client
 
             SyncEntities();
             UpdateBeams(Time.deltaTime);
+
+            // EVA is server-driven now (you step out through the ship's airlock): mirror its InEva state so
+            // the suit float begins/ends in sync with the server.
+            if (_phase == Phase.Cruise)
+            {
+                if (Game.InEva && !_eva) { BeginEvaMode(); }
+                else if (!Game.InEva && _eva) { _eva = false; }
+            }
 
             switch (_phase)
             {
@@ -248,16 +258,11 @@ namespace Spacecraft.Client
             }
 
             // F: leave the helm and step inside the ship — walk around its interior while it floats here.
+            // (From inside, the airlock starts an EVA — there is no direct cockpit→EVA any more.)
             if (Input.GetKeyDown(KeyCode.F))
             {
+                _enteringInterior = true;
                 Game.Network?.SendEnterShip();
-                return;
-            }
-
-            // G: step outside the ship for an EVA spacewalk — float free in the suit (oxygen drains).
-            if (Input.GetKeyDown(KeyCode.G))
-            {
-                EnterEva();
                 return;
             }
 
@@ -527,9 +532,9 @@ namespace Spacecraft.Client
             _beams.Add(new TractorBeam { Go = flash, Life = 0.14f, Max = 0.14f });
         }
 
-        /// <summary>Steps the player out of the ship into an EVA spacewalk: the ship stays parked where it
-        /// is and the suit takes over (first-person 6-DOF float). Tells the server (oxygen starts draining).</summary>
-        private void EnterEva()
+        /// <summary>Server reports the player is now on an EVA (stepped out the ship's airlock): set up the
+        /// first-person 6-DOF suit float next to the parked ship. The ship stays where it is.</summary>
+        private void BeginEvaMode()
         {
             if (_ship == null)
             {
@@ -546,8 +551,7 @@ namespace Spacecraft.Client
             }
 
             _eva = true;
-            Game.Network?.SendSetEva(true);
-            ClientAudio.Instance?.Cue("scan_ping"); // a soft suit blip
+            ClientAudio.Instance?.Cue("scan_ping"); // a soft suit blip as the airlock cycles
         }
 
         /// <summary>Free-floating suit control while on EVA: mouse look + WASD + Space/Ctrl up/down (6-DOF).
@@ -631,14 +635,14 @@ namespace Spacecraft.Client
             }
         }
 
-        /// <summary>Climbs back into the parked ship from an EVA — straight back to free flight, no take-off
-        /// animation (you never left space).</summary>
+        /// <summary>Climbs back in through the airlock from an EVA — into the ship's walkable interior (on
+        /// foot), the way you came out. From there the helm takes you back to flying.</summary>
         private void BoardShipFromEva()
         {
             _eva = false;
-            Game.Network?.SendSetEva(false);
+            _enteringInterior = true;       // tear the flight view down at once (no landing descent)
+            Game.Network?.SendEnterShip();  // server ends the EVA and loads the ship interior
             ClientAudio.Instance?.Cue("scan_ping");
-            // The ship stayed put with its heading; cruise resumes from _yaw/_pitch as they were.
         }
 
         /// <summary>Docks the nearby station directly from an EVA: ends the spacewalk and reuses the normal
@@ -746,6 +750,7 @@ namespace Spacecraft.Client
             _boardSent = false;
             _hyperjumping = false;
             _eva = false;
+            _enteringInterior = false;
             _landTargetId = null;
             _landTargetName = null;
             Game.SpaceViewActive = true;
@@ -837,6 +842,7 @@ namespace Spacecraft.Client
             _sunMat = null;
             _active = false;
             _eva = false;
+            _enteringInterior = false;
             _shake = 0f;
             _hitFlash = 0f;
             _cargoFlash = 0f;

@@ -78,7 +78,13 @@ public sealed partial class GameServer
 
     /// <summary>Take the helm again: leave the ship interior straight back into the flight view, the ship
     /// restored to exactly where it was parked (no take-off animation — you never landed).</summary>
-    public void ExitShipToFlight(string playerId)
+    public void ExitShipToFlight(string playerId) => ReturnToFlight(playerId, eva: false);
+
+    /// <summary>Cycle out through the airlock: leave the ship interior into the flight view as a floating EVA
+    /// suit next to the parked ship — the spacewalk begins (oxygen now drains).</summary>
+    public void StartEvaFromShip(string playerId) => ReturnToFlight(playerId, eva: true);
+
+    private void ReturnToFlight(string playerId, bool eva)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null || !_inShipInterior.TryGetValue(playerId, out var ret))
@@ -97,7 +103,7 @@ public sealed partial class GameServer
         session.SentChunks.Clear();
 
         // Back into the flight view, and put the ship back exactly where it was parked. Skip the take-off
-        // sequence — you never landed, you just stepped back to the helm.
+        // sequence — you never landed, you just stepped out of the hull.
         EnterSpace(playerId, skipLaunch: true);
         if (_playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
         {
@@ -105,6 +111,12 @@ public sealed partial class GameServer
             inst.ShipLastPosition = ret.ShipPos;
         }
 
-        _log.Info($"Player '{session.State.Name}' took the helm again (back to the flight view).");
+        if (eva)
+        {
+            session.State.InEva = true; // stepping out the airlock starts the spacewalk → oxygen drains
+            SendPlayerState(session);   // tell the client it is now floating in EVA next to the ship
+        }
+
+        _log.Info($"Player '{session.State.Name}' {(eva ? "stepped out for an EVA" : "took the helm again")} (flight view).");
     }
 }

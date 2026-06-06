@@ -102,6 +102,25 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void AirlockInsideTheShip_StepsOutIntoAnEva()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var session = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            server.EnterShipInterior("Pilot");
+            Assert.True(server.InShipInterior("Pilot"));
+
+            // The airlock cycles out into the flight view as a floating EVA suit.
+            server.UseStation("Pilot", "airlock");
+            Assert.True(server.InSpace("Pilot"));
+            Assert.False(server.InShipInterior("Pilot"));
+            Assert.True(session.State.InEva);
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);

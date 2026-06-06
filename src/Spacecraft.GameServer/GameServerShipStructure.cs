@@ -184,6 +184,7 @@ public sealed partial class GameServer
         AddStation("quarters", cx + dx, floor, cz - dz, "carbon");     // sleep / set respawn
         AddStation("lab", cx - dx, floor, cz + dz, "data_cache");      // research console (Tech menu)
         AddStation("console", cx + dx, floor, cz + dz, "data_cache");  // ship-expansion console (Ship menu)
+        AddStation("airlock", cx, floor, cz - dz, "data_cache");       // by the hatch — step out on an EVA (in space)
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
@@ -453,6 +454,19 @@ public sealed partial class GameServer
                 {
                     Send(session, new ServerMessage { Text = "Cockpit — open the menu (Tab) → Map to travel to another planet." });
                     SendStarMap(session);
+                }
+
+                break;
+
+            case "airlock":
+                // Cycle out into space on an EVA — only meaningful while the ship is floating in space.
+                if (InShipInterior(session.State.PlayerId))
+                {
+                    StartEvaFromShip(session.State.PlayerId);
+                }
+                else
+                {
+                    Send(session, new ServerMessage { Text = "Airlock — it only cycles out when the ship is in space." });
                 }
 
                 break;
