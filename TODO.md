@@ -16,6 +16,40 @@ SQLite persistence.
 
 ---
 
+## ⏭ Requested 2026-06-07: six analysis-first tasks (do one at a time)
+Workflow for these (per the user): for **each** task — (1) thorough analysis of the current code, (2) write
+an **Analysis + Plan** block here **before** any implementation, (3) ask clarifying questions if needed,
+(4) only then implement + commit. One task at a time. Asset generation (OpenAI textures / ElevenLabs sounds)
+is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
+
+- **Task 1 — Swimming / diving + ship landing underwater.** Analyse: can the player sink/dive in water today?
+  The player **should be able to swim and dive**. Water should therefore have **transparency** (slightly
+  see-through). **Jumping** should let the player **surface** again. The **ship must be able to land underwater
+  on water worlds**, and **no water may be inside the ship** (and none may flow in).
+- **Task 2 — Walk all the way around a planet.** Analyse: can the player really circumnavigate a planet, and
+  **how is it implemented**? It should be possible. (World-wrap is partly built — verify it end-to-end.)
+- **Task 3 — Shadows & darkness on planets.** Analyse how shadow-casting + darkness work. A **cave entrance
+  currently looks like a black wall** — change it so the entrance reads as **softly lit**. Shadows should be
+  **softer**, not so **hard-edged**.
+- **Task 4 — Appealing icons for everything pickup-able / hand-held.** Current icons are crude and off-style.
+  Plan: **materials** → a downscaled in-game **texture** (like the harvested-plant icon), generated from game
+  content. **Meat** → a steak icon (green if toxic, else normal). **Items + tools** → same style as the in-game
+  icons. **Audit which items + materials need an icon, make a list**, then use the **OpenAI** generator to
+  create + wire them. Use the icons in the **player menu (crafting)** and on **blueprints**. Also make icons
+  for the **space view** (laser, tractor beam) and for **ship upgrades/modules**, and use them in the menu.
+- **Task 5 — Crafting + tech-tree + materials overhaul.** Analyse the crafting/tech tree + existing materials.
+  Goal: a **working crafting base that builds up in stages** with real **prerequisites** — some materials are
+  gathered, others are **crafted from base materials**. Find inconsistencies. Plan how to expand materials +
+  crafting for **player items, ship parts, and ships**. Plan what **kinds of objects** are still needed to
+  **build on worlds**. **Expand the metals/materials found on planets** — gold, silver, copper, etc.: take all
+  plausible **metals, rare earths, raw resources**. Generate their **textures (OpenAI)** and fold the new
+  materials into the crafting logic.
+- **Task 6 — Drastically increase flora & fauna variety.** Add new **base types** with their **sounds +
+  textures** generated immediately (OpenAI textures, ElevenLabs sounds — via the Python tools). Remember some
+  flora/fauna can (rarely) serve as a **material substitute**. Generate textures + sounds for the new fauna too.
+
+---
+
 ## ✅ Done (2026-06-06): world block — terrain archetypes, seas, trees
 Done in the user's reconsidered order (terrain shapes the basins → fluids fill them → trees on the land):
 - **Regional terrain archetypes** — `SurfaceHeight` modulates the base terrain by a large-scale field that
