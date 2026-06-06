@@ -109,6 +109,21 @@ public sealed class CreatureTests : IDisposable
         Assert.Contains(roster, s => s.DropKind is CreatureDropKind.Food or CreatureDropKind.Poison);
     }
 
+    [Fact]
+    public void Roster_NamesEverySpecies_WithVariety()
+    {
+        var planet = _content.GetPlanet("jungle")!; // "many" → 6 species
+        var roster = CreatureGenerator.GenerateRoster(planet, 4242);
+
+        foreach (var s in roster)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(s.Name), "Every species should get a coined name.");
+        }
+
+        // Names are coined per species, so a world's roster shows several distinct ones.
+        Assert.True(roster.Select(s => s.Name).Distinct().Count() >= roster.Count - 1, "Names should vary across the roster.");
+    }
+
     // ---------------- Live spawning & combat ----------------
 
     [Fact]

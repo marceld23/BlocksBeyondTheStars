@@ -68,6 +68,7 @@ public static class CreatureGenerator
         {
             Id = "sp" + index,
             NameKey = "creature.generic.name",
+            Name = NameGenerator.Creature(rng),
             Habitat = habitat,
             Activity = activity,
             Temperament = temperament,
@@ -136,15 +137,19 @@ public static class CreatureGenerator
 
     private static int PickColor(System.Random rng, CreatureHabitat habitat)
     {
-        // ~1 in 4 species is a vivid, fully-random colour (a striking outlier); the rest are a habitat-tinted
-        // base hue with a wide jitter — so a world's fauna spans subtle naturals to bold exotics.
-        if (rng.NextDouble() < 0.25)
+        // ~Half of all species are vivid exotics — a fully random hue at high saturation, so pinks, violets,
+        // yellows, teals and oranges are common (alien fauna, not just earthy naturals). The rest are a
+        // habitat-tinted base hue with a wide jitter, so a world still spans subtle naturals to bold exotics.
+        if (rng.NextDouble() < 0.5)
         {
-            return (Clamp8(rng.Next(40, 256)) << 16) | (Clamp8(rng.Next(40, 256)) << 8) | Clamp8(rng.Next(40, 256));
+            float h = (float)rng.NextDouble();                       // any hue on the wheel
+            float s = 0.6f + (float)rng.NextDouble() * 0.4f;          // strongly saturated
+            float v = 0.7f + (float)rng.NextDouble() * 0.3f;          // bright
+            return HsvToRgb(h, s, v);
         }
 
         int r, g, b;
-        int j() => rng.Next(-55, 56);
+        int j() => rng.Next(-60, 61);
         switch (habitat)
         {
             case CreatureHabitat.Water: r = 60; g = 130; b = 200; break;
@@ -154,6 +159,32 @@ public static class CreatureGenerator
         }
 
         return (Clamp8(r + j()) << 16) | (Clamp8(g + j()) << 8) | Clamp8(b + j());
+    }
+
+    /// <summary>HSV→RGB (h,s,v in 0..1) packed as 0xRRGGBB — used for vivid, evenly-spread exotic hues.</summary>
+    private static int HsvToRgb(float h, float s, float v)
+    {
+        float r = v, g = v, b = v;
+        if (s > 0f)
+        {
+            float hf = (h - (float)System.Math.Floor(h)) * 6f;
+            int i = (int)hf;
+            float f = hf - i;
+            float p = v * (1f - s);
+            float q = v * (1f - s * f);
+            float t = v * (1f - s * (1f - f));
+            switch (i % 6)
+            {
+                case 0: r = v; g = t; b = p; break;
+                case 1: r = q; g = v; b = p; break;
+                case 2: r = p; g = v; b = t; break;
+                case 3: r = p; g = q; b = v; break;
+                case 4: r = t; g = p; b = v; break;
+                default: r = v; g = p; b = q; break;
+            }
+        }
+
+        return (Clamp8((int)(r * 255f + 0.5f)) << 16) | (Clamp8((int)(g * 255f + 0.5f)) << 8) | Clamp8((int)(b * 255f + 0.5f));
     }
 
     private static int Clamp8(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);

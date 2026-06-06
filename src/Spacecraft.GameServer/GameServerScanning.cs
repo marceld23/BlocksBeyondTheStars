@@ -30,12 +30,14 @@ public sealed partial class GameServer
         string info;
         string threat = "—";
         int value;
+        string display = subjectKey;
 
         if (subjectType == "creature" && _speciesById.TryGetValue(subjectKey, out var sp))
         {
             info = $"{sp.Habitat} · {sp.Activity} · {sp.Temperament}";
             threat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
+            display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
         }
         else if (subjectType == "block" && _content.GetBlock(subjectKey) is { } block)
         {
@@ -48,7 +50,8 @@ public sealed partial class GameServer
             return new ScanResult { Subject = subjectKey, Info = "Unknown subject.", Threat = "—" };
         }
 
-        return Award(session, $"{subjectType}:{subjectKey}", subjectKey, info, threat, value);
+        // Ledger key stays the species/block key (stable first-scan tracking); the readout shows `display`.
+        return Award(session, $"{subjectType}:{subjectKey}", display, info, threat, value);
     }
 
     /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).</summary>

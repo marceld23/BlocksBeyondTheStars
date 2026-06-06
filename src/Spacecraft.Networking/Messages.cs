@@ -690,6 +690,7 @@ public sealed class NetCreature
     public string Id { get; set; } = string.Empty;
     public string SpeciesId { get; set; } = string.Empty;
     public string NameKey { get; set; } = "creature.generic.name";
+    public string Name { get; set; } = string.Empty; // coined species name (shown on scan / look)
 
     public bool Hostile { get; set; }
     public bool Asleep { get; set; }

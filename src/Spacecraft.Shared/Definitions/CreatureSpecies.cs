@@ -58,6 +58,10 @@ public sealed class CreatureSpecies
     /// <summary>Bilingual display-name key (generated species use a generic fallback name).</summary>
     public string NameKey { get; set; } = "creature.generic.name";
 
+    /// <summary>A coined, pronounceable species name (e.g. "Vexilth Krool"), generated per species and shown
+    /// to the player on scan. Language-neutral (invented), so it needs no localization.</summary>
+    public string Name { get; set; } = string.Empty;
+
     public CreatureHabitat Habitat { get; set; }
     public CreatureActivity Activity { get; set; }
     public CreatureTemperament Temperament { get; set; }

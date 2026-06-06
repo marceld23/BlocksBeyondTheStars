@@ -413,6 +413,7 @@ public sealed partial class GameServer
             Id = e.Id,
             SpeciesId = e.SpeciesId,
             NameKey = sp?.NameKey ?? "creature.generic.name",
+            Name = sp?.Name ?? string.Empty,
             Hostile = e.Hostile || e.ProvokeTimer > 0, // provoked creatures read as hostile (red tint)
             Asleep = asleep,
             Hull = e.Hull,
