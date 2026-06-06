@@ -332,6 +332,11 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    at the saved `Position`; otherwise (first join, or a transient station/space save) it falls back to the home
    body. Test `Reload_RestoresPlayerToTheLastPlanet_NotHome` (328 pass). *(Full per-planet memory — option b —
    left for later if wanted.)*
+
+   - **6b — Auto-save on landing / docking.** Automatically write a savegame **when the player lands on a
+     planet** (or moon/asteroid) **or docks at a station** — the natural checkpoints, so the per-planet
+     position (item 6) is captured at those moments without relying only on the autosave timer / explicit save.
+     Hook the existing save path (`SaveAll` / `SaveGameIntent`) into the land + station-board transitions.
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
    constantly**. After a while, pursuing/attacking creatures should **leave the player alone**. Also: **where do
    creatures spawn?** Make sure they **don't only spawn at the ship** but are **distributed across their biomes**.
