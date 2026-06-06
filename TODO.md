@@ -45,10 +45,15 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    floor and bump star size a touch so they're clearly visible without washing the sky. Then verify in a build;
    if stars still don't show it points to a render issue only visible at runtime (revisit with the game running).
 
-   ◑ **Applied 2026-06-07 (needs in-game verification):** `Starfield` snaps to full brightness instantly in
-   space/airless/station (no 1.4 s fade), `MaxBrightness 0.9 → 1.3`, star angular size up (~0.005 → ~0.006–
-   0.013), twinkle floor lifted (`0.55±0.45 → 0.72±0.28` in the shader). If stars STILL don't appear in space,
-   the cause is a runtime-only render/occlusion issue — re-investigate with the game running.
+   ✅ **ROOT CAUSE FOUND + FIXED 2026-06-07:** the **`Spacecraft/Starfield` shader was stripped from the build**
+   — the game builds all materials in code via `Shader.Find` (no `.mat` assets), and a shader not listed in
+   `GraphicsSettings.asset → m_AlwaysIncludedShaders` is dropped from the player build, so `Shader.Find` returns
+   null → `Starfield` disabled itself → black sky. The sun rendered because its `SunGlow` shader WAS listed.
+   This is why earlier code tweaks never helped (the shader wasn't in the build at all). **Fix:** added the
+   Starfield GUID (`1fe9729…`) to `m_AlwaysIncludedShaders`. Also found **`BlockAtlasTransparent` (`152a7b5…`)
+   was missing too** — the glass/water transparent shader — and added it (very likely the root of the **glass
+   "not milky" bug, item 3**). The brightness/size/twinkle tweaks above stay (now the stars actually render).
+   Saved as a memory ([[shaders-must-be-always-included]]). *Verify in the new build.*
 3. **Bug — glass is still only transparent, not milky.** Analyse thoroughly: glass still looks merely
    see-through, I see **no "milkiness"**. *This has been attempted several times.* Find the root cause and check
    whether it has **further effects elsewhere** in the game. Analyse precisely, then make a plan, then start
