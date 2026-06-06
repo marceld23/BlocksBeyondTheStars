@@ -36,6 +36,7 @@ Shader "Spacecraft/BlockAtlas"
             float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
             fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
             float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
+            fixed4 _Sc_FloraTint; // planet flora base hue (rgb); flora faces are desaturated + re-tinted to it
 
             struct appdata
             {
@@ -43,7 +44,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
-                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors)
+                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = flora flag
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -54,7 +55,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD4; // world tangent xyz + bitangent handedness w
-                float skyl : TEXCOORD5; // skylight
+                float2 skyl : TEXCOORD5; // x = skylight, y = flora flag
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(3)
             };
@@ -67,7 +68,7 @@ Shader "Spacecraft/BlockAtlas"
                 o.wn = UnityObjectToWorldNormal(v.normal);
                 o.wt = float4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.skyl = v.sky.x;
+                o.skyl = v.sky;
                 o.mat = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
@@ -76,6 +77,16 @@ Shader "Spacecraft/BlockAtlas"
             fixed4 frag(v2f i) : SV_Target
             {
                 fixed3 albedo = tex2D(_MainTex, i.uv).rgb;
+
+                // Flora re-tint: where the flora flag is set, drop the tile to its luminance and re-colour it
+                // by the planet's uniform flora hue, so all of a world's plant life shares one base colour
+                // regardless of the underlying tile (a hint of the tile's own hue is kept for richness).
+                if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
+                {
+                    float lum = dot(albedo, float3(0.299, 0.587, 0.114));
+                    albedo = lerp(albedo, lum * _Sc_FloraTint.rgb * 1.6, 0.85);
+                }
+
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;
 
                 // Per-pixel normal from the Sobel-derived map, lifted into world space (tangent basis),
@@ -93,7 +104,7 @@ Shader "Spacecraft/BlockAtlas"
                 // Skylight: 1 in the open, ~0 underground / indoors. The sun, sky-ambient, specular and
                 // environment reflection are all gated by it, so caves + interiors are dark and rely on
                 // the headlamp + emissive light blocks (added below, unaffected by skylight).
-                float sky = saturate(i.skyl);
+                float sky = saturate(i.skyl.x);
 
                 // Diffuse: a tiny cave-ambient floor + (sky-ambient + directional) scaled by skylight,
                 // coloured by the system sun. A subtle per-face AO keeps cube edges readable.

@@ -567,21 +567,36 @@ collider closes the gap when shut). Phased plan:
 - **D5 — localization + tests:** en/de names; tests: a slide door opens when a player steps within range +
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
-### ▶ Next up (resume after 2026-06-07)
-The **water arc is complete**: seas generate, you can **mine water/lava with the beam** (bodies refill until
-drained), the world **muffles underwater**, aquatic creatures **swim + dive**, and **kelp + lily pads** grow in
-the seas. What's left in the für-später backlog:
+### ▶ In progress (started 2026-06-07): species/flora/colour/naming overhaul
+A multi-phase feature requested 2026-06-07 — random per-world flora & fauna species with generated looks +
+names, wilder colours, uniform per-planet flora hue, and full OpenAI/ElevenLabs asset coverage. The user chose
+**"work the plan in order"** and **gave blanket approval for paid asset generation** (OpenAI textures +
+ElevenLabs sounds — no further per-batch confirmation needed; keys are in `tools/ai-assets/.env`, run via `uv`).
 
-1. **Flora re-tint per species × biome × planet** ← *recommended next* — the user's emphasized *"ganz wichtig"*
-   engine task: a random **final colour on top of the texture** (texture-independent), **uniform per flora type
-   within a biome/planet**. Bigger lift: regenerate flora tiles grayscale + add a **tint-UV channel** in
-   `ChunkMesher` + a `BlockAtlas` shader multiply + plumb the planet seed (and biome index) to the mesher. Full
-   plan in the planned item below.
-2. **Multiplayer player-name reservation** — server-side name claim so two clients can't collide.
-3. *Quick follow-up:* generate **kelp/lily OpenAI textures** for parity with the other flora tiles (they use a
-   flat sea-green BaseColor fallback right now).
+- ✅ **Phase 1 — per-system star colour** (done 2026-06-07) — replaced the 5-swatch sun palette with
+  `StarColor(system)`: a weighted hot→cool stellar ramp (blue-white→white→yellow→orange→red) blended by a
+  second hash, so every system gets a distinct sun tint. Already shared between the planet surface + space +
+  station views via `WorldEnvironment.SunColor`; unified the env-null fallback too. (`0d988a9`)
+- ✅ **Phase 2 — flora re-tint engine** (done 2026-06-07) — the server picks a **per-planet flora base hue**
+  (`FloraColor`: green-dominant palette with rarer brown/pink/purple/amber, deterministic from seed+planet),
+  broadcast via `WorldEnvironment.FloraTint`. The mesher tags flora vertices with a flag in `TEXCOORD1.y`
+  (`IsFloraBlock` — `flora_*` only; trees keep their colours); `Sky` feeds the hue to the block shader as the
+  global `_Sc_FloraTint`; `BlockAtlas.shader` **desaturates the flora tile to its luminance and re-tints it**
+  by the hue. No tile regen + no re-mesh needed (it's a live shader global, off in space/stations). Grayscale
+  flora tiles (Phase 5a) become optional polish now. Test: `FloraTint_IsAColourfulPlanetHue`.
+- ⏳ **Phase 3 — FloraGenerator + names** — random flora species per world/biome (archetype-based: tuft / bush
+  / stalk / frond / cap …) with properties (edible/toxic, drops) + look (shape, size). A **procedural name
+  generator** for flora.
+- ⏳ **Phase 4 — fauna polish + names** — wilder creature colours (pink/violet/yellow/brown more often),
+  per-**biome** species affinity (not just per-planet), and a **generated species name** shown to the player
+  **on scan** (creatures currently use a fixed `creature.generic.name`).
+- ⏳ **Phase 5 — asset generation (paid, approved)** — (a) regenerate all flora tiles **grayscale** so the
+  per-planet tint works + add kelp/lily; (b) more creature hides if new parts are added; (c) more ElevenLabs
+  creature call variants for sound variety. Bundle via `bundle_textures.py` / `gen_batch.py`.
 
-Everything builds + **302 tests pass** as of the last commit.
+Also still in the backlog: **multiplayer player-name reservation**.
+
+Everything builds + **302 tests pass** as of `0d988a9`.
 
 ### Planned — requested 2026-06-06 (für später)
 - ✅ **Mineable water/lava (with the mining beam) + source logic** (done 2026-06-06) — water/lava are now

@@ -85,6 +85,9 @@ namespace Spacecraft.Client
                 // Emission (ores/crystals/lava/light blocks glow — the bloom pass catches them, and they
                 // stay lit at night). Packed into the vertex-colour alpha for the atlas shader.
                 float emission = atlas != null ? BlockEmission(content, id) : 0f;
+                // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these to the planet's
+                // uniform flora hue. Only the small plants — trees keep their natural bark/leaf colours.
+                float floraFlag = IsFloraBlock(content, id) ? 1f : 0f;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -111,8 +114,8 @@ namespace Spacecraft.Client
                     AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv);
 
                     float sky = ny > Top(nx, nz) ? 1f : 0f; // the air this face looks into sees the sky?
-                    skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
-                    skyUv.Add(new Vector2(sky, 0f)); skyUv.Add(new Vector2(sky, 0f));
+                    skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
+                    skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                 }
             }
 
@@ -149,6 +152,14 @@ namespace Spacecraft.Client
         /// y=metal (0 dielectric .. 1 metal — metals tint their highlight + reflection by the albedo).
         /// Ice/glass/crystal are glossy, hull/ore metals reflective, soils matte.
         /// </summary>
+        /// <summary>True for the small flora plants (block key "flora_*"); the planet flora re-tint applies
+        /// to these only — trees (wood_log / tree_leaves) keep their natural colours.</summary>
+        private static bool IsFloraBlock(GameContent content, BlockId id)
+        {
+            var key = content.BlockById(id)?.Key;
+            return key != null && key.StartsWith("flora_", System.StringComparison.Ordinal);
+        }
+
         private static Vector2 BlockMaterial(GameContent content, BlockId id)
         {
             var def = content.BlockById(id);

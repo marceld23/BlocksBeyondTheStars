@@ -59,6 +59,19 @@ public sealed class WorldEnvironmentTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FloraTint_IsAColourfulPlanetHue()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            int c = server.FloraTint;
+            Assert.NotEqual(0xFFFFFF, c); // a real per-planet flora hue was chosen, not the "no tint" default
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            Assert.True(r + g + b > 60, "the flora hue shouldn't be near-black");
+        }
+    }
+
     public void Dispose()
     {
         try

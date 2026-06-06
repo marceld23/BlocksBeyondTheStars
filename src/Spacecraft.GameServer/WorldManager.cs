@@ -91,6 +91,7 @@ internal sealed class LoadedWorld
     public double SinceEnvBroadcast { get; set; }
     public int SunColor { get; set; } = 0xFFF6E8;
     public int CloudColor { get; set; } = 0xEDEFF2;
+    public int FloraTint { get; set; } = 0xFFFFFF;
     public float CloudDensity { get; set; } = 0.45f;
     public bool Breathable { get; set; }
     public bool SpaceSky { get; set; }

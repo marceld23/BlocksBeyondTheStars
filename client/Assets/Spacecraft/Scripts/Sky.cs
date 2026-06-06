@@ -22,6 +22,7 @@ namespace Spacecraft.Client
         private static readonly int GradeTintId = Shader.PropertyToID("_Sc_GradeTint");
         private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
         private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
+        private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
         private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
 
         private Light _sun;
@@ -111,6 +112,7 @@ namespace Spacecraft.Client
                 Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off
                 Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
+                Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
                 RenderSettings.fog = false;
                 if (_sunDisc != null)
                 {
@@ -146,6 +148,19 @@ namespace Spacecraft.Client
             // and treat it like a lit, life-supported interior — independent of the planet far below.
             bool boarded = !string.IsNullOrEmpty(Game.StationName);
             bool spaceSky = (env != null && env.SpaceSky) || boarded;
+
+            // Planet flora re-tint hue for the block shader (a>0.5 = active). Off on stations (no planet flora).
+            if (env != null && !boarded)
+            {
+                Color flora = Rgb(env.FloraTint);
+                flora.a = 1f;
+                Shader.SetGlobalColor(FloraTintId, flora);
+            }
+            else
+            {
+                Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f));
+            }
+
             ApplyLighting(_time, intensity, sun, spaceSky, constantLight: boarded);
         }
 
@@ -303,6 +318,7 @@ namespace Spacecraft.Client
             Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
+            Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {

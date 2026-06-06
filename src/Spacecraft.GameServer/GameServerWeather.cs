@@ -39,6 +39,7 @@ public sealed partial class GameServer
     private double _sinceEnvBroadcast { get => _worlds.Active.SinceEnvBroadcast; set => _worlds.Active.SinceEnvBroadcast = value; }
     private int _sunColor { get => _worlds.Active.SunColor; set => _worlds.Active.SunColor = value; }
     private int _cloudColor { get => _worlds.Active.CloudColor; set => _worlds.Active.CloudColor = value; }
+    private int _floraTint { get => _worlds.Active.FloraTint; set => _worlds.Active.FloraTint = value; }
     private float _cloudDensity { get => _worlds.Active.CloudDensity; set => _worlds.Active.CloudDensity = value; }
     private bool _breathable { get => _worlds.Active.Breathable; set => _worlds.Active.Breathable = value; }
     private bool _spaceSky { get => _worlds.Active.SpaceSky; set => _worlds.Active.SpaceSky = value; }
@@ -50,6 +51,9 @@ public sealed partial class GameServer
     public float TimeOfDay => (float)_dayFraction;
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
+
+    /// <summary>The planet's uniform flora base hue (0xRRGGBB) — all plant life is re-tinted to this.</summary>
+    public int FloraTint => _floraTint;
 
     /// <summary>Whether the current planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool AtmosphereBreathable => _breathable;
@@ -77,6 +81,10 @@ public sealed partial class GameServer
 
         var (system, _) = ActiveLocationNames();
         _sunColor = StarColor(system);
+        // One uniform flora base hue per planet (green / brown / pink / purple …), deterministic from the
+        // world seed + planet, so every plant on the world shares a base colour (applied as a desaturate-tint
+        // on the client). Airless/floraless worlds still carry a value; it just goes unused with no flora.
+        _floraTint = FloraColor(unchecked((uint)(_meta.Seed ^ StableStringHash(_worlds.Active.PlanetType ?? string.Empty))));
 
         // Fixed-weather planets: lock the state; dynamic ones start clear.
         _weatherState = _planetWeatherMode switch
@@ -153,6 +161,7 @@ public sealed partial class GameServer
             Intensity = intensity,
             SunColor = _sunColor,
             CloudColor = _cloudColor,
+            FloraTint = _floraTint,
             CloudDensity = _cloudDensity,
             Breathable = _breathable,
             SpaceSky = _spaceSky,
@@ -257,4 +266,52 @@ public sealed partial class GameServer
         int bl = (int)(ab + (bb - ab) * t + 0.5f);
         return (r << 16) | (g << 8) | bl;
     }
+
+    // Per-planet flora base hue: green-dominant, with rarer brown / pink / purple / amber exotics.
+    private static readonly (int Rgb, int Weight)[] FloraPalette =
+    {
+        (0x4FA63C, 30), // leaf green
+        (0x6FBF4A, 20), // bright green
+        (0x3E7D4F, 12), // deep teal-green
+        (0x8A7B3A, 12), // olive
+        (0x9C6B3A, 10), // brown
+        (0xB85C9E, 7),  // pink / magenta (exotic)
+        (0x7E4FB0, 6),  // violet / purple (exotic)
+        (0xC9A23A, 3),  // amber / yellow (rare)
+    };
+
+    /// <summary>A deterministic per-planet flora base hue: a weighted pick from a green-dominant palette (with
+    /// rarer brown / pink / purple / amber exotics) plus a small per-channel jitter, so most worlds are leafy
+    /// green but some are strikingly alien. One hue for all of a planet's plant life.</summary>
+    private static int FloraColor(uint h)
+    {
+        int total = 0;
+        foreach (var (_, w) in FloraPalette)
+        {
+            total += w;
+        }
+
+        int roll = (int)(h % (uint)total);
+        int i = 0;
+        for (; i < FloraPalette.Length; i++)
+        {
+            roll -= FloraPalette[i].Weight;
+            if (roll < 0)
+            {
+                break;
+            }
+        }
+
+        if (i >= FloraPalette.Length)
+        {
+            i = FloraPalette.Length - 1;
+        }
+
+        int anchor = FloraPalette[i].Rgb;
+        int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
+        int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
+        return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
+    }
+
+    private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 }
