@@ -45,7 +45,9 @@ namespace Spacecraft.Client
             var shader = Shader.Find("Spacecraft/Visor");
             if (layer < 0 || shader == null)
             {
-                enabled = false; // no visor pipeline — diegetic canvases fall back to plain overlay
+                // No visor pipeline — diegetic canvases fall back to a plain overlay (HUD never lost).
+                Debug.LogWarning($"[VisorHud] disabled — falling back to a flat HUD (layer={layer}, shaderFound={shader != null}).");
+                enabled = false;
                 return;
             }
 
@@ -77,6 +79,7 @@ namespace Spacecraft.Client
             UiKit.HudCamera = _hudCam; // diegetic canvases created from here on target this camera
             _lastEuler = MainCamera.transform.eulerAngles;
             _active = true;
+            Debug.Log($"[VisorHud] engaged — holographic HUD on layer {layer}, RT {_w}x{_h}.");
         }
 
         private void CreateRt()
@@ -207,18 +210,17 @@ namespace Spacecraft.Client
         private Material _mat;
         private float _time;
 
-        private void OnEnable()
-        {
-            if (VisorShader != null && _mat == null)
-            {
-                _mat = new Material(VisorShader) { hideFlags = HideFlags.HideAndDontSave };
-            }
-        }
-
         private void Update() => _time += Time.deltaTime;
 
         private void OnRenderImage(RenderTexture src, RenderTexture dst)
         {
+            // Build the material lazily: OnEnable runs synchronously inside AddComponent (before VisorShader is
+            // assigned), so create it here once the shader is available — otherwise the HUD would never composite.
+            if (_mat == null && VisorShader != null)
+            {
+                _mat = new Material(VisorShader) { hideFlags = HideFlags.HideAndDontSave };
+            }
+
             if (_mat == null || Hud == null)
             {
                 Graphics.Blit(src, dst);
@@ -227,17 +229,17 @@ namespace Spacecraft.Client
 
             _mat.SetTexture("_HudTex", Hud);
             _mat.SetFloat("_Intensity", Intensity);
-            _mat.SetFloat("_Curvature", 0.06f);
-            _mat.SetFloat("_Chroma", 0.012f);
+            _mat.SetFloat("_Curvature", 0.11f);   // outward-curved visor bow
+            _mat.SetFloat("_Chroma", 0.022f);     // chromatic edge fringing
             _mat.SetFloat("_ScanCount", Mathf.Max(120f, Hud.height * 0.5f));
             _mat.SetFloat("_VisorTime", _time);
             _mat.SetVector("_Parallax", new Vector4(Parallax.x, Parallax.y, 0f, 0f));
             _mat.SetFloat("_Aspect", src.height > 0 ? (float)src.width / src.height : 1.78f);
-            _mat.SetFloat("_HudOpacity", 0.96f);
-            _mat.SetFloat("_Glow", 0.6f);
-            _mat.SetFloat("_Reflect", 0.1f);
+            _mat.SetFloat("_HudOpacity", 0.97f);
+            _mat.SetFloat("_Glow", 0.9f);         // emissive hologram glow
+            _mat.SetFloat("_Reflect", 0.14f);     // faint visor reflection of the world
             _mat.SetColor("_RimColor", new Color(0.4f, 0.85f, 1f, 1f));
-            _mat.SetFloat("_RimIntensity", 0.12f);
+            _mat.SetFloat("_RimIntensity", 0.2f); // visor glass edge glow
             Graphics.Blit(src, dst, _mat, 0);
         }
 
