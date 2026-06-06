@@ -138,7 +138,9 @@ namespace Spacecraft.Client
         private string Label(NetNpc nd)
         {
             var loc = Game?.Localizer;
-            return loc != null ? loc.Get(nd.NameKey) : nd.Role;
+            string role = loc != null ? loc.Get(nd.NameKey) : nd.Role;
+            // "Name · Role" (item 12); fall back to just the role for any NPC without a coined name.
+            return string.IsNullOrEmpty(nd.Name) ? role : $"{nd.Name} · {role}";
         }
 
         private void LateUpdate()

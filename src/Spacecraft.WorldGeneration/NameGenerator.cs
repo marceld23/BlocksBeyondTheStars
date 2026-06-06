@@ -45,6 +45,13 @@ public static class NameGenerator
         return rng.NextDouble() < 0.75 ? stem + FloraSuffixes[rng.Next(FloraSuffixes.Length)] : stem;
     }
 
+    /// <summary>A coined personal name for an NPC, e.g. "Kra Thraxon" — a short given name + a longer surname,
+    /// both capitalised (so it reads as a person, not a lowercase-epithet creature). Thousands of combinations.</summary>
+    public static string Person(Random rng) => Word(rng, 1, 2) + " " + Word(rng, 2, 3);
+
+    /// <summary>A coined robot/android designation, e.g. "Vex-42" — a short stem plus a unit number.</summary>
+    public static string Robot(Random rng) => Word(rng, 1, 2) + "-" + rng.Next(2, 99);
+
     private static string Word(Random rng, int minSyllables, int maxSyllables)
     {
         int syllables = rng.Next(minSyllables, maxSyllables + 1);

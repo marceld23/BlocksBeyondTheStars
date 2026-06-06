@@ -14,8 +14,11 @@ public sealed class NetNpc
     /// <summary>Inhabitant theme (settlers/miners/traders/researchers) — flavour for the avatar.</summary>
     public string Theme { get; set; } = string.Empty;
 
-    /// <summary>Localization key for the NPC's display name / role label.</summary>
+    /// <summary>Localization key for the NPC's role label (e.g. "npc.role.vendor").</summary>
     public string NameKey { get; set; } = string.Empty;
+
+    /// <summary>The NPC's coined personal name (item 12) — procedural, shown on the nameplate.</summary>
+    public string Name { get; set; } = string.Empty;
 
     public float X { get; set; }
     public float Y { get; set; }

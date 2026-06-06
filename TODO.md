@@ -623,9 +623,39 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      (no back-and-forth inflation); threshold-only unlock no longer deducts; knowledge⇄items swap is atomic.
 
    **Open questions → see chat.**
-12. **Feature — NPCs should have names.** Give NPCs a name too. Build a **random name generator** with as many
-   random name **combinations** as possible. (Mirror the existing syllable-based flora/creature `NameGenerator`
-   approach so names are deterministic per NPC.) — *Foundation for items 14 + 15.*
+12. ✅ **Feature — NPCs should have names (done 2026-06-07).** Every NPC gets a deterministic coined name,
+   mirroring the flora/creature `NameGenerator`; shown as **"Name · Role"** on the nameplate (user pick).
+   - `NameGenerator.Person(rng)` (short given name + longer surname, both capitalised — thousands of combos) and
+     `NameGenerator.Robot(rng)` ("Vex-42" unit designation) for `IsRobot` NPCs.
+   - `ServerNpc.Name` + `NetNpc.Name`, coined in `MakeNpc` from the existing settlement/station-seeded rng (so
+     names are stable per NPC without persistence, like creatures). `NpcView.Label` shows "Name · Role" (falls
+     back to the role label if absent). Procedural → identical DE/EN; the role label stays localized.
+   - Tested: `NameGeneratorTests` (Person/Robot deterministic, two capitalised parts, highly varied, robot has a
+     stem + unit number) — full suite **344 green**. Client + bundled server rebuilt.
+
+   ### Analysis (2026-06-07)
+   - **NPCs have a stable id + role but no personal name.** `ServerNpc` (`GameServerNpcs.cs`) = `Id, Role
+     (vendor/quartermaster/settler), Theme (settlers/miners/traders/researchers), NameKey, IsRobot, Pos…`.
+     `NameKey` is only a **role label key** (`npc.role.vendor` / `npc.theme.settlers`). Mirrored to the client as
+     `NetNpc` in `NpcList` (NetCodec tag 84 — adding a field is non-breaking).
+   - **Deterministic seed already available.** NPCs are made in `MakeNpc(role, theme, robotic, home, rng)`, drawn
+     from a settlement/station-seeded `System.Random` (`_meta.Seed ^ StableHash("settlement:"+key)` /
+     `"station-npc:"+id`) — the same per-world pattern creatures use. NPCs aren't persisted (regenerated on load),
+     so a name coined from this rng is **stable per NPC** without any new persistence.
+   - **`NameGenerator`** (`Spacecraft.WorldGeneration`, pure/deterministic) already has `Creature` (two-part
+     "Vexilth krool") + `Flora` + a private `Word(rng,min,max)` syllable builder. Easy to add a `Person` (First +
+     Surname) and a `Robot` (designation) variant.
+   - **Display path:** `NpcView.Label(nd)` returns `loc.Get(nd.NameKey)` → shown as a floating nameplate via
+     `ScreenLabelLayer.World(...)`. One place to change to show the name.
+
+   ### Plan
+   - Add `NameGenerator.Person(rng)` (e.g. `Word(1,2)` first + `Word(2,3)` surname, both capitalised — distinct
+     from the lowercase-epithet creature style) and `NameGenerator.Robot(rng)` (a short stem + a number, e.g.
+     "Vex-42") for `IsRobot` NPCs. Thousands of combinations, deterministic from the rng.
+   - `ServerNpc.Name` + `NetNpc.Name`; set in `MakeNpc` (`robotic ? Robot : Person`), map in `ToNetNpc`.
+   - `NpcView.Label` shows the name (format = the display question), falling back to the role label if empty.
+   - Names are procedural → identical in DE/EN (no locale change); the role label stays localized.
+   - Tests: `Person`/`Robot` deterministic for the same seed, varied across seeds, non-empty, two-part for Person.
 13. **Feature — mission-giver NPCs that always have a mission on offer.** There should also be NPCs that **offer
    missions** — and each such NPC should **always have a mission available** (never run dry). Make sure this is
    the case. Analyse the current NPC/mission wiring, then plan, ask questions, only then implement.

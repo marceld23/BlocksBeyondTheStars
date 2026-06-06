@@ -28,6 +28,7 @@ public sealed partial class GameServer
         public string Role = string.Empty;
         public string Theme = string.Empty;
         public string NameKey = string.Empty;
+        public string Name = string.Empty; // coined personal name (item 12)
         public Vector3f Home;
         public Vector3f Pos;
         public float Facing;
@@ -110,12 +111,16 @@ public sealed partial class GameServer
             _ => $"npc.theme.{theme}",
         };
 
+        // A deterministic personal name from the same seeded rng (robots get a unit designation).
+        string name = robotic ? Spacecraft.WorldGeneration.NameGenerator.Robot(rng) : Spacecraft.WorldGeneration.NameGenerator.Person(rng);
+
         return new ServerNpc
         {
             Id = _nextNpcId++,
             Role = role,
             Theme = theme,
             NameKey = nameKey,
+            Name = name,
             Home = home,
             Pos = home,
             Facing = (float)(rng.NextDouble() * System.Math.PI * 2),
@@ -202,6 +207,7 @@ public sealed partial class GameServer
         Role = n.Role,
         Theme = n.Theme,
         NameKey = n.NameKey,
+        Name = n.Name,
         X = n.Pos.X,
         Y = n.Pos.Y,
         Z = n.Pos.Z,
