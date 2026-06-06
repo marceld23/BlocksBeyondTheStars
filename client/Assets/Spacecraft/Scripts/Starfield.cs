@@ -15,7 +15,7 @@ namespace Spacecraft.Client
         public Camera Camera;
 
         private const int StarCount = 1500;
-        private const float MaxBrightness = 0.9f; // additive cap so stars never wash the sky out
+        private const float MaxBrightness = 1.3f; // additive cap (per-star dots, so the sky as a whole stays dark)
 
         private Transform _dome;
         private Material _mat;
@@ -58,7 +58,12 @@ namespace Spacecraft.Client
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.45f;
             _dome.localScale = new Vector3(r, r, r);
 
-            _brightness = Mathf.MoveTowards(_brightness, TargetBrightness(), Time.deltaTime * 0.7f);
+            // Out in true space / on an airless body / inside a station the stars are there instantly (no slow
+            // fade-in — that's why none seemed to show on entering space); a planet keeps the soft dusk/dawn fade.
+            bool hardSky = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
+                           || (Game.Environment != null && Game.Environment.SpaceSky);
+            float target = TargetBrightness();
+            _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * 0.7f);
             _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
         }
 
@@ -122,7 +127,7 @@ namespace Spacecraft.Client
                 Vector3 right = Vector3.Normalize(Vector3.Cross(up, dir));
                 Vector3 up2 = Vector3.Cross(dir, right);
 
-                float h = 0.0045f + 0.005f * (float)rng.NextDouble(); // angular half-size
+                float h = 0.006f + 0.007f * (float)rng.NextDouble(); // angular half-size (a touch larger = readable)
                 Color tint = StarColor(rng);
                 float phase = (float)(rng.NextDouble() * Mathf.PI * 2f);
                 float speed = 0.6f + 1.8f * (float)rng.NextDouble();

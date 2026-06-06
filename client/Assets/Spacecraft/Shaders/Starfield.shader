@@ -49,7 +49,7 @@ Shader "Spacecraft/Starfield"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
                 float s = sin(_Time.y * v.tw.y + v.tw.x); // per-star pulse
-                o.tw = 0.55 + 0.45 * s;
+                o.tw = 0.72 + 0.28 * s; // twinkle with a brighter floor so stars never dim to near-black
                 o.color = v.color;
                 return o;
             }

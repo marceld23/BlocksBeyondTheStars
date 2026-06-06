@@ -29,6 +29,26 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    I see the system's sun but no stars behind it; there should be stars. *This was already attempted once* —
    analyse precisely and find the actual cause. Check whether the cause has **further implications** elsewhere,
    e.g. **stars should also be visible at night on the planet**.
+
+   ### Analysis + Plan (2026-06-07)
+   The starfield IS wired and the render path is correct: `Starfield` builds a 1500-quad dome (additive,
+   `Background` queue, `Cull Off`, `ZWrite Off`) that follows the camera and its quads face inward toward it
+   (`Starfield.cs`); `SpaceView` reparents the same camera and clears to near-black (`SpaceView.cs:629-631`),
+   so nothing culls or occludes the dome. `TargetBrightness()` correctly returns 1 in space / airless / station
+   and the day/night curve on a planet. **Likely causes the stars don't read:** (1) the brightness **fades in
+   over ~1.4 s** — `_brightness = MoveTowards(_brightness, target, dt*0.7)` (`Starfield.cs:61`) — so on entering
+   space they're near-invisible at first; (2) at full they're still **dim/small** (`MaxBrightness 0.9`, angular
+   half-size ~0.005 rad, twinkle dips to 0.10) — easy to miss next to the bright bloomed sun + ACES tonemap.
+   No hard occlusion found in code. **Implication:** the same component draws planet **night** stars (same slow
+   fade + dimness), so the fix helps there too. **Plan:** snap brightness to target instantly when the sky is
+   "space/airless/station" (keep the smooth dusk/dawn fade on planets); raise `MaxBrightness`, lift the twinkle
+   floor and bump star size a touch so they're clearly visible without washing the sky. Then verify in a build;
+   if stars still don't show it points to a render issue only visible at runtime (revisit with the game running).
+
+   ◑ **Applied 2026-06-07 (needs in-game verification):** `Starfield` snaps to full brightness instantly in
+   space/airless/station (no 1.4 s fade), `MaxBrightness 0.9 → 1.3`, star angular size up (~0.005 → ~0.006–
+   0.013), twinkle floor lifted (`0.55±0.45 → 0.72±0.28` in the shader). If stars STILL don't appear in space,
+   the cause is a runtime-only render/occlusion issue — re-investigate with the game running.
 3. **Bug — glass is still only transparent, not milky.** Analyse thoroughly: glass still looks merely
    see-through, I see **no "milkiness"**. *This has been attempted several times.* Find the root cause and check
    whether it has **further effects elsewhere** in the game. Analyse precisely, then make a plan, then start
