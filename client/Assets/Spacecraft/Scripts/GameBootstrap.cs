@@ -576,7 +576,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            var mesh = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas);
+            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas);
 
             if (!_chunkObjects.TryGetValue(coord, out var go))
             {
@@ -596,7 +596,9 @@ namespace Spacecraft.Client
             }
 
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
-            go.GetComponent<MeshCollider>().sharedMesh = mesh;
+            // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava;
+            // null (a chunk of only fluids/air) clears the collider so nothing blocks there.
+            go.GetComponent<MeshCollider>().sharedMesh = collider;
         }
 
         private void OnDestroy() => Network?.Dispose();

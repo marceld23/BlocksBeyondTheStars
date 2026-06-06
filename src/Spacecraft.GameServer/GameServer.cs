@@ -592,7 +592,11 @@ public sealed partial class GameServer
                 continue; // invulnerable: no drain, no death
             }
 
-            if (p.AboardShip || InStation(p.PlayerId) || !Rules.OxygenEnabled || AtmosphereBreathable)
+            bool lifeSupport = p.AboardShip || InStation(p.PlayerId) || !Rules.OxygenEnabled;
+            // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
+            // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
+            bool submerged = !lifeSupport && HeadUnderwater(p);
+            if (!submerged && (lifeSupport || AtmosphereBreathable))
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).
@@ -608,9 +612,9 @@ public sealed partial class GameServer
             }
             else
             {
-                // Outside without a breathable atmosphere (toxic / airless): drain at the configured rate.
+                // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
                 float drain = (float)(dt * Rules.OxygenDrainPerSecond);
-                if (_oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
+                if (!submerged && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
                 {
                     // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
                     // the drain, scaled by how breathable-ish this world is. Airless worlds (0) don't help.
@@ -655,6 +659,19 @@ public sealed partial class GameServer
                 RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
             }
         }
+    }
+
+    /// <summary>True when the player's head is inside a water block — diving spends the suit's oxygen tank.</summary>
+    private bool HeadUnderwater(Shared.State.PlayerState p)
+    {
+        if (_waterId == 0)
+        {
+            return false;
+        }
+
+        var head = new Spacecraft.Shared.Geometry.Vector3i(
+            (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y + 1.5f), (int)System.Math.Floor(p.Position.Z));
+        return _world.GetBlock(head).Value == _waterId;
     }
 
     /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>

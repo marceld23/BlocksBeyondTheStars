@@ -41,6 +41,53 @@ public sealed class OxygenTests : IDisposable
     }
 
     [Fact]
+    public void Submerged_DrainsSuitOxygen_EvenOnABreathableWorld()
+    {
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "oxyswim"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "oxyswim", Seed = 7, StartPlanet = "jungle", // breathable atmosphere
+                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true, // a ship so AboardShip is tracked
+                PlaceSettlements = false, PlaceWrecks = false,
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            var p = server.AddLocalPlayer("Diver");
+            server.TickForTest(0.1);
+            Assert.True(server.AtmosphereBreathable, "jungle should be breathable for this test");
+
+            // Build a deep pool (stone floor + a tall, wide body of water) far from the ship. The body is
+            // generous so an un-piloted player stays submerged through any in-tick drift.
+            var water = _content.GetBlock("water")!.NumericId;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            int cx = 240, cz = 240, floorY = 100;
+            for (int x = cx - 3; x <= cx + 3; x++)
+            for (int z = cz - 3; z <= cz + 3; z++)
+            {
+                server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+                for (int y = floorY + 1; y <= floorY + 8; y++) server.World.SetBlock(new Vector3i(x, y, z), water);
+            }
+
+            var abovePool = new Vector3f(cx + 0.5f, floorY + 14f, cz + 0.5f); // dry air above the pool
+            var dive = new Vector3f(cx + 0.5f, floorY + 3f, cz + 0.5f);       // chest-deep in the pool
+
+            // Outside the ship, dry, on a breathable world: oxygen recovers.
+            float dry = p.State.Oxygen = 50f;
+            for (int i = 0; i < 6; i++) { p.State.Position = abovePool; server.TickForTest(0.5); }
+            Assert.True(p.State.Oxygen > dry, $"Oxygen should recover dry on a breathable world (was {p.State.Oxygen}).");
+
+            // Submerged: the suit air now drains despite the breathable atmosphere.
+            float wet = p.State.Oxygen = 80f;
+            for (int i = 0; i < 6; i++) { p.State.Position = dive; server.TickForTest(0.5); }
+            Assert.True(p.State.Oxygen < wet, $"Submerged, suit oxygen should drain even on a breathable world (was {p.State.Oxygen}).");
+        }
+    }
+
+    [Fact]
     public void AboardShip_RefillsOxygen_OutsideDrainsIt()
     {
         var server = Start(out var repo);

@@ -21,11 +21,15 @@ namespace Spacecraft.Client
             new Vector3i(0, 0, 1), new Vector3i(0, 0, -1),
         };
 
-        public static Mesh Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null)
+        /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
+        /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
+        /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
+        public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();   // submesh 0: opaque blocks
             var trisT = new List<int>();  // submesh 1: see-through blocks (glass / force fields)
+            var colliderTris = new List<int>(); // solid faces only (no fluids) → the collision mesh
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
             var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
@@ -88,6 +92,8 @@ namespace Spacecraft.Client
                 // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these to the planet's
                 // uniform flora hue. Only the small plants — trees keep their natural bark/leaf colours.
                 float floraFlag = IsFloraBlock(content, id) ? 1f : 0f;
+                // Fluids (water/lava) render but don't collide, so the player can swim/sink into them.
+                bool collidable = !IsFluidBlock(content, id);
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -111,7 +117,13 @@ namespace Spacecraft.Client
                     var col = atlas != null
                         ? new Color(matR, matG, s, emission)
                         : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
+                    int faceBase = verts.Count;
                     AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv);
+                    if (collidable)
+                    {
+                        colliderTris.Add(faceBase); colliderTris.Add(faceBase + 1); colliderTris.Add(faceBase + 2);
+                        colliderTris.Add(faceBase); colliderTris.Add(faceBase + 2); colliderTris.Add(faceBase + 3);
+                    }
 
                     float sky = ny > Top(nx, nz) ? 1f : 0f; // the air this face looks into sees the sky?
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
@@ -133,7 +145,18 @@ namespace Spacecraft.Client
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            return mesh;
+
+            // Collision mesh: same vertices, but only the solid (non-fluid) faces, so water/lava are passable.
+            Mesh collider = null;
+            if (colliderTris.Count > 0)
+            {
+                collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                collider.SetVertices(verts);
+                collider.SetTriangles(colliderTris, 0);
+                collider.RecalculateBounds();
+            }
+
+            return (mesh, collider);
         }
 
         /// <summary>Relative brightness per face (top brightest, bottom darkest) for a lit-looking blocky world.</summary>
@@ -158,6 +181,13 @@ namespace Spacecraft.Client
         {
             var key = content.BlockById(id)?.Key;
             return key != null && key.StartsWith("flora_", System.StringComparison.Ordinal);
+        }
+
+        /// <summary>True for fluids (water/lava) — they render but are excluded from the collision mesh.</summary>
+        private static bool IsFluidBlock(GameContent content, BlockId id)
+        {
+            var key = content.BlockById(id)?.Key;
+            return key is "water" or "lava";
         }
 
         private static Vector2 BlockMaterial(GameContent content, BlockId id)

@@ -22,6 +22,11 @@ namespace Spacecraft.Client
         public float SafeFallSpeed = 14f; // impact speed you can land at unharmed (~5 blocks); faster hurts
         public float JetpackAccel = 26f;   // upward acceleration while the jetpack fires
         public float JetpackMaxRise = 6.5f; // cap on jetpack-driven rise speed
+        // Swimming: in water the player drifts down slowly and holds Jump to rise / surface (no fast falls).
+        public float SwimUpSpeed = 4f;     // rise speed while holding Jump underwater
+        public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
+        public float SwimAccel = 12f;      // how fast vertical speed eases toward the swim target
+        public float SwimSpeedMul = 0.62f; // horizontal movement is slower in water
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
         public bool ThirdPerson = false;
@@ -747,9 +752,18 @@ namespace Spacecraft.Client
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
-            _moving = grounded && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
+            bool inWater = IsSubmerged();
+            _moving = (inWater || grounded) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
             bool jetpacking = false;
-            if (grounded)
+            if (inWater)
+            {
+                // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
+                // breaks a fall (the big downward speed eases out instead of slamming the seabed). No jetpack.
+                float target = Input.GetButton("Jump") ? SwimUpSpeed : -SwimSinkSpeed;
+                _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
+                move *= SwimSpeedMul;
+            }
+            else if (grounded)
             {
                 if (Input.GetButtonDown("Jump"))
                 {
@@ -795,14 +809,15 @@ namespace Spacecraft.Client
                 _stepTimer = 0f;
             }
 
-            if (grounded && !_wasGrounded)
+            if (grounded && !_wasGrounded && !inWater)
             {
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
                 _camShake = Mathf.Max(_camShake, Mathf.Clamp01(-prevVy / 12f) * 0.7f); // impact kick
 
                 // A hard landing hurts: report the impact speed so the server (which owns health) applies
-                // fall damage. Small drops/jumps stay below the safe threshold and do nothing.
+                // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Water breaks
+                // the fall (you enter the swim branch instead of becoming grounded), so no splash damage.
                 if (-prevVy > SafeFallSpeed)
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
@@ -810,6 +825,21 @@ namespace Spacecraft.Client
             }
 
             _wasGrounded = grounded;
+        }
+
+        /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
+        /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
+        private bool IsSubmerged()
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            var c = transform.position + Vector3.up * 1.1f;
+            var def = Game.Content.BlockById(Game.World.GetBlock(
+                Mathf.FloorToInt(c.x), Mathf.FloorToInt(c.y), Mathf.FloorToInt(c.z)));
+            return def?.Key == "water";
         }
 
         /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while
