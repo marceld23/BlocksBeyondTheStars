@@ -219,6 +219,7 @@ public sealed partial class GameServer
             Z = station.Spawn.Z,
         });
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
+        CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
     }
 
     /// <summary>Leaves a boarded station and undocks straight back into <b>space flight</b> around the

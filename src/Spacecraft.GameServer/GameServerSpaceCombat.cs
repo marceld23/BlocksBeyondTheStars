@@ -973,6 +973,7 @@ public sealed partial class GameServer
         if (string.IsNullOrEmpty(dest) || dest == session.CurrentLocationId)
         {
             LeaveSpace(session.State.PlayerId); // land back on the current world
+            CheckpointSave("landed (returned to surface)"); // auto-save on landing
             return;
         }
 

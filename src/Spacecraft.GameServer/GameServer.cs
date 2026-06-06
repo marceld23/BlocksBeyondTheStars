@@ -413,6 +413,7 @@ public sealed partial class GameServer
         SendContainers(session);
         SendStarMap(session);
         Send(session, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
+        CheckpointSave($"landed on {planetName}"); // auto-save when landing on a body
 
         // Drop the old world from memory if this was the last player there (edits are already persisted).
         if (!string.IsNullOrEmpty(oldLoc) && oldLoc != body.Id && !OccupiedLocations().Contains(oldLoc))
@@ -1975,6 +1976,14 @@ public sealed partial class GameServer
         }
 
         _repo.SaveMetadata(_meta);
+    }
+
+    /// <summary>Auto-saves at a natural checkpoint (landing on a body, docking a station) so the player's
+    /// per-planet position is captured there, not only on the autosave timer / an explicit save.</summary>
+    private void CheckpointSave(string reason)
+    {
+        SaveAll();
+        _log.Info($"Checkpoint save ({reason}).");
     }
 
     /// <summary>Player chat (requires a comm radio; length-capped + rate-limited). Broadcast to all.</summary>
