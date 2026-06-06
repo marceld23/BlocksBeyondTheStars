@@ -38,8 +38,34 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   client wall) so N/S is bounded instead of an infinite strip. **Sizes** — each planet/moon gets a
   deterministic random **size in the orbit view** (`BodySizeScale`); walkable circumference stays 6000.
   Tests: `WrapDistanceSquared_MeasuresProximityAcrossTheSeam`, `WalkingTowardThePole_IsBoundedByTheLatitude-
-  Barrier`. *(Future option: true per-world walkable circumference — a larger refactor of the static wrap
-  helpers; deferred since 6000 is fine and the orbit size already varies.)*
+  Barrier`. *(Future option: true per-world walkable circumference — see Task 2b below.)*
+
+  ### Task 2b — Per-world walkable circumference (requested 2026-06-07, analysis-first)
+  **Finding: there is NO per-world walkable size today** — every world is the global `WorldConstants.
+  Circumference = 6000`. `PlanetType.WorldRadius` exists but is *informational only* (not wired into gen/wrap);
+  the orbit `BodySizeScale` is cosmetic. **Blast radius:** ~23 sites + the 6 static wrap helpers (`WrapX`/
+  `WrapDeltaX`/`CanonicalChunkX`/`CanonicalChunk`/`CanonicalBlock`/`WrapDistanceSquared`) + derived
+  `ChunksAround`/`LatitudeLimit`, across server (`ServerWorld` block/chunk canonicalisation, `GameServer`
+  streaming/move/reach), client (`GameBootstrap.SceneX`/`RepositionChunks`/`DayCircumference`, `ClientWorld`),
+  and worldgen (`Noise.FbmCylX`/`ValueCylX` circular domain + flora `WrapX`). **Persistence:** circumference is
+  baked into chunk keys (`ChunksAround`) — it must be **immutable per world**, or saved chunks break.
+
+  **Plan (multi-commit, non-breaking for old saves):**
+  1. **Shared `WorldGeometry`** — an instance object `{ int Circumference; ChunksAround; LatitudeLimit; WrapX;
+     WrapDeltaX; CanonicalChunkX/Chunk/Block; WrapDistanceSquared }`. Keep the old static `WorldConstants`
+     helpers (default 6000) as thin wrappers so nothing else breaks mid-refactor. Add `CircumferenceFor(key)`
+     — deterministic per body (moons smaller than planets, e.g. moons ~3000–4500, planets ~5000–9000).
+  2. **Persist** the chosen circumference in world metadata at creation (default 6000 when absent → old saves
+     stay 6000 and keep working); load it immutably.
+  3. **Server** threads the world's `WorldGeometry` into `ServerWorld` (block/chunk canonicalisation), the
+     `WorldGenerator` (ctor param → noise domain + flora wrap), move/reach/stream, and `LatitudeLimit`.
+  4. **Network** — send `Circumference` (+ `LatitudeLimit`) in `WorldEnvironment` (already broadcast on
+     join/world-switch).
+  5. **Client** caches it into a `WorldGeometry`, uses it for `SceneX`/`RepositionChunks`/`DayCircumference`/
+     `ClientWorld` wrap; the **orbit `BodySizeScale` now reflects each body's real circumference** (derive via
+     `CircumferenceFor(body.Id)`), so the space-view size ≈ the walkable size.
+  6. **Tests** — wrap consistency across several circumferences; a small vs large world differ; old-save
+     default 6000.
 
   ### Task 2 — Analysis + Plan (2026-06-07)
   **Verdict: circumnavigation already works (W0–W4).** The world is a **cylinder**: X is a wrapping longitude,
