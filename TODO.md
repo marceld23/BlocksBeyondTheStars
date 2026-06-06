@@ -169,9 +169,14 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      down at once (no stray landing descent) when stepping inside. New `ui.station.airlock`. Test
      `AirlockInsideTheShip_StepsOutIntoAnEva` (323 pass). **The three-state loop is now complete:** pilot —F→
      inside ship —(cockpit)→ helm/fly, —(airlock)→ EVA —(E at ship)→ back inside.
-   - ⏳ **Stage 6 — R1: EVA landing targets.** From EVA: dock own ship + stations, land on **asteroids only**
-     (not planets/moons) — server guard in the leave-space/land path + client prompt filtering by
-     `WorldSizeClass.Asteroid`.
+   - ✅ **Stage 6 — R1: EVA landing targets (done 2026-06-07).** From an EVA you may board your own ship + dock
+     stations (already the only EVA actions); landing on a body is now **restricted to asteroids** by a server
+     guard: `HandleLeaveSpace` rejects a land while `InEva` unless the target body's `WorldSizeClass` is
+     `Asteroid` (`EvaLandingAllowed`). So planets/moons are never landable on foot — board the ship first. Test
+     `Eva_CannotLandOnAPlanet_OnlyAnAsteroid` (324 pass). **Note:** walkable **asteroid bodies aren't generated
+     into the flight view's landables yet** (`_landables` = planets + moons only), so asteroid-landing-from-EVA
+     is enforced-but-not-yet-reachable; making asteroid bodies landable in flight is a separate task — the guard
+     is already correct for when they exist.
    - ⏳ **Stage 7 — R3 + R4: ship stays + respawn.** Docking a station from EVA leaves the ship in space (don't
      move its location); returning resumes at the floating ship. Death respawns at the **last planet/station
      with the ship** (verify `RespawnPoint`; set it on station boarding).

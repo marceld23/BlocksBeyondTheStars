@@ -2,6 +2,7 @@ using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.World;
 
 namespace Spacecraft.GameServer;
 
@@ -898,9 +899,30 @@ public sealed partial class GameServer
     /// <summary>Leaves space onto a chosen body: the current world (default) or another body in the same
     /// system the player flew to (system-scale flight). Same-system landing is free; a body in another
     /// system would need a hyperspace jump (offered via the star map, not from flight).</summary>
+    /// <summary>On an EVA spacewalk you may only set down on a small <b>asteroid</b>; planets and moons need
+    /// the ship (board it first). Defends the rule on the server regardless of what the client offers.</summary>
+    public bool EvaLandingAllowed(string bodyId)
+    {
+        var body = _galaxy?.FindBody(bodyId);
+        return WorldConstants.SizeClassFor(body?.Kind ?? CelestialKind.Planet, body?.PlanetType ?? string.Empty)
+               == WorldConstants.WorldSizeClass.Asteroid;
+    }
+
     private void HandleLeaveSpace(PlayerSession session, LeaveSpaceIntent intent)
     {
         string dest = intent.DestinationBodyId ?? string.Empty;
+
+        // From an EVA spacewalk you can only land on an asteroid — not a planet or moon.
+        if (session.State.InEva)
+        {
+            string landBody = string.IsNullOrEmpty(dest) ? session.CurrentLocationId : dest;
+            if (!EvaLandingAllowed(landBody))
+            {
+                Reject(session, "land", "On a spacewalk you can only land on an asteroid — board the ship to reach a planet or moon.");
+                return;
+            }
+        }
+
         if (string.IsNullOrEmpty(dest) || dest == session.CurrentLocationId)
         {
             LeaveSpace(session.State.PlayerId); // land back on the current world

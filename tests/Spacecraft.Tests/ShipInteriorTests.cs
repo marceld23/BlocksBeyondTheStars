@@ -121,6 +121,21 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void Eva_CannotLandOnAPlanet_OnlyAnAsteroid()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var session = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+
+            // The body you launched from ("rocky") is a planet — never an EVA landing target. From a
+            // spacewalk you must board the ship to reach a planet/moon; only asteroids are landable on foot.
+            Assert.False(server.EvaLandingAllowed(session.CurrentLocationId));
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);
