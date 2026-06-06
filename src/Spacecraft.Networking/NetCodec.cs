@@ -114,6 +114,11 @@ public static class NetCodec
         Register(91, typeof(SaveGameIntent));
         Register(92, typeof(TractorPullIntent));
         Register(93, typeof(DoorList));
+
+        // Client -> Server (space EVA / ship-interior intents — append-only, never reuse ids).
+        Register(94, typeof(SetEvaIntent));
+        Register(95, typeof(EnterShipIntent));
+        Register(96, typeof(ExitShipIntent));
     }
 
     private static void Register(byte tag, Type type)

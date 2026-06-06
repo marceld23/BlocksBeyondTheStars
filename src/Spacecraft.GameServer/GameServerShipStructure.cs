@@ -184,7 +184,14 @@ public sealed partial class GameServer
         AddStation("quarters", cx + dx, floor, cz - dz, "carbon");     // sleep / set respawn
         AddStation("lab", cx - dx, floor, cz + dz, "data_cache");      // research console (Tech menu)
         AddStation("console", cx + dx, floor, cz + dz, "data_cache");  // ship-expansion console (Ship menu)
-        AddStation("airlock", cx, floor, cz - dz, "data_cache");       // by the hatch — step out on an EVA (in space)
+
+        // Only when this ship is its own in-space interior: the existing hatch IS the airlock. Register a
+        // marker AT the door (no block placed, so it never obstructs the real doorway on planets) — E there
+        // cycles out on an EVA. On planets there's no airlock at all, just the normal door.
+        if (_world.PlanetKey == ShipInteriorType)
+        {
+            _stations.Add(("airlock", new Vector3f(cx + 0.5f, y0 + 1f, cz - _shipHalfZ + 1.5f)));
+        }
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);

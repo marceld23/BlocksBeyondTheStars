@@ -206,19 +206,24 @@ namespace Spacecraft.Client
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
             _hint.text = loc.Get("ui.hud.hint");
 
-            // Prompts.
+            // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
+            // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
+            // foot inside the ship; from the flight view you press F to step inside).
             string prompt = string.Empty;
-            if (!string.IsNullOrEmpty(Game.NearbyStation))
+            if (!Game.SpaceViewActive)
             {
-                // Inside the ship while it floats in space, the cockpit reads as the helm (take it to fly again).
-                string stationKey = (Game.NearbyStation == "cockpit" && Game.LoadingPlanetType == "ship_interior")
-                    ? "ui.station.helm"
-                    : $"ui.station.{Game.NearbyStation}";
-                prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
-            }
-            else if (HoldingScanner())
-            {
-                prompt = loc.Get("ui.scan.use_hint");
+                if (!string.IsNullOrEmpty(Game.NearbyStation))
+                {
+                    // Inside the ship while it floats in space, the cockpit reads as the helm (take it to fly again).
+                    string stationKey = (Game.NearbyStation == "cockpit" && Game.LoadingPlanetType == "ship_interior")
+                        ? "ui.station.helm"
+                        : $"ui.station.{Game.NearbyStation}";
+                    prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
+                }
+                else if (HoldingScanner())
+                {
+                    prompt = loc.Get("ui.scan.use_hint");
+                }
             }
 
             _prompt.text = prompt;
