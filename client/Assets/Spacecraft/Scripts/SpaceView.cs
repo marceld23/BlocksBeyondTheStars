@@ -24,6 +24,8 @@ namespace Spacecraft.Client
         private const float MoveSpeed = 14f;
         private const float LookSpeed = 2.2f;
         private const float Bounds = 130f;
+        private const float EvaSpeed = 6.5f;       // suit thrust speed on a spacewalk (slower than the ship)
+        private const float EvaBoardRange = 7.5f;  // how close the suit must get to the hull to board the ship
 
         private enum Phase { Launch, Cruise, Landing, Boarding }
 
@@ -54,6 +56,12 @@ namespace Spacecraft.Client
         private Vector3 _boardTargetPos, _boardStartPos;
         private bool _boardSent;          // the board intent was sent (now waiting for the server)
         private float _boardWait;         // safety timeout so a rejected board never leaves a black screen
+
+        private bool _eva;                // on an EVA spacewalk: first-person 6-DOF float, ship parked
+        private Vector3 _evaPos;          // suit position (space-local), independent of the parked ship
+        private float _evaYaw, _evaPitch; // suit free-look
+        private bool _evaNearShip;        // within boarding range of the parked ship this frame
+        private float _evaShipSq;         // squared distance from the suit to the ship (for ship-vs-station priority)
 
         private float _moveSendTimer;     // throttles authoritative position reports
         private float _hitFlash;          // red damage flash on a collision/hit
@@ -151,7 +159,7 @@ namespace Spacecraft.Client
                 case Phase.Launch: UpdateSequence(rising: true); break;
                 case Phase.Landing: UpdateSequence(rising: false); break;
                 case Phase.Boarding: UpdateBoarding(); break;
-                default: UpdateCruise(); break;
+                default: if (_eva) { UpdateEva(); } else { UpdateCruise(); } break;
             }
 
             PlaceCamera();
@@ -160,7 +168,7 @@ namespace Spacecraft.Client
             // Engine loop: swells in cruise, throttle nudges the pitch.
             if (_engine != null)
             {
-                _engine.volume = Mathf.MoveTowards(_engine.volume, _phase == Phase.Cruise ? 0.25f : 0.12f, Time.deltaTime * 0.5f);
+                _engine.volume = Mathf.MoveTowards(_engine.volume, (_phase == Phase.Cruise && !_eva) ? 0.25f : 0.08f, Time.deltaTime * 0.5f);
                 _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(Input.GetAxis("Vertical")));
             }
 
@@ -236,6 +244,13 @@ namespace Spacecraft.Client
             if (Input.GetKeyDown(KeyCode.L))
             {
                 _confirmLand = true;
+                return;
+            }
+
+            // G: step outside the ship for an EVA spacewalk — float free in the suit (oxygen drains).
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                EnterEva();
                 return;
             }
 
@@ -505,6 +520,134 @@ namespace Spacecraft.Client
             _beams.Add(new TractorBeam { Go = flash, Life = 0.14f, Max = 0.14f });
         }
 
+        /// <summary>Steps the player out of the ship into an EVA spacewalk: the ship stays parked where it
+        /// is and the suit takes over (first-person 6-DOF float). Tells the server (oxygen starts draining).</summary>
+        private void EnterEva()
+        {
+            if (_ship == null)
+            {
+                return;
+            }
+
+            var rot = _ship.transform.localRotation;
+            _evaYaw = _yaw;
+            _evaPitch = _pitch;
+            _evaPos = _ship.transform.localPosition + rot * new Vector3(0f, -1.4f, -3.4f); // just below & behind the hull
+            if (_evaPos.magnitude > _bounds)
+            {
+                _evaPos = _evaPos.normalized * _bounds;
+            }
+
+            _eva = true;
+            Game.Network?.SendSetEva(true);
+            ClientAudio.Instance?.Cue("scan_ping"); // a soft suit blip
+        }
+
+        /// <summary>Free-floating suit control while on EVA: mouse look + WASD + Space/Ctrl up/down (6-DOF).
+        /// Float up to the parked ship (or a station) and press E to board — no take-off animation.</summary>
+        private void UpdateEva()
+        {
+            if (_ship == null || Game.MenuOpen)
+            {
+                return;
+            }
+
+            // Free-look.
+            _evaYaw += Input.GetAxis("Mouse X") * LookSpeed;
+            _evaPitch = Mathf.Clamp(_evaPitch - Input.GetAxis("Mouse Y") * LookSpeed, -89f, 89f);
+            var rot = Quaternion.Euler(_evaPitch, _evaYaw, 0f);
+
+            // 6-DOF thrust: WASD in the look plane, Space/Ctrl for world up/down.
+            float fwd = Input.GetAxis("Vertical");
+            float strafe = Input.GetAxis("Horizontal");
+            float lift = (Input.GetKey(KeyCode.Space) ? 1f : 0f)
+                       - ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C)) ? 1f : 0f);
+            Vector3 dir = rot * (Vector3.forward * fwd + Vector3.right * strafe) + Vector3.up * lift;
+            _evaPos += dir * (EvaSpeed * Time.deltaTime);
+
+            // Stay inside the flight bounds and don't drift into a body — slide along its keep-out shell.
+            if (_evaPos.magnitude > _bounds)
+            {
+                _evaPos = _evaPos.normalized * _bounds;
+            }
+
+            foreach (var ob in _keepOut)
+            {
+                Vector3 d = _evaPos - ob.Pos;
+                float dist = d.magnitude;
+                if (dist < ob.Radius && dist > 0.0001f)
+                {
+                    _evaPos = ob.Pos + d / dist * ob.Radius;
+                }
+            }
+
+            // Board targets: the parked ship, or the nearest station in range (whichever is closer wins on E).
+            _evaShipSq = (_ship.transform.localPosition - _evaPos).sqrMagnitude;
+            _evaNearShip = _evaShipSq <= EvaBoardRange * EvaBoardRange;
+
+            _nearStationId = null;
+            _nearStationSq = float.MaxValue;
+            var space = Game.Space;
+            if (space != null)
+            {
+                float best = BoardRange * BoardRange;
+                foreach (var e in space.Entities)
+                {
+                    if (e.Kind != "SpaceStation")
+                    {
+                        continue;
+                    }
+
+                    float sq = (new Vector3(e.X, e.Y, e.Z) - _evaPos).sqrMagnitude;
+                    if (sq < best)
+                    {
+                        best = sq;
+                        _nearStationId = e.Id;
+                        _nearStationName = e.Name;
+                        _boardTargetPos = new Vector3(e.X, e.Y, e.Z);
+                        _nearStationSq = sq;
+                    }
+                }
+            }
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
+                if (stationCloser)
+                {
+                    DockStationFromEva();
+                }
+                else if (_evaNearShip)
+                {
+                    BoardShipFromEva();
+                }
+            }
+        }
+
+        /// <summary>Climbs back into the parked ship from an EVA — straight back to free flight, no take-off
+        /// animation (you never left space).</summary>
+        private void BoardShipFromEva()
+        {
+            _eva = false;
+            Game.Network?.SendSetEva(false);
+            ClientAudio.Instance?.Cue("scan_ping");
+            // The ship stayed put with its heading; cruise resumes from _yaw/_pitch as they were.
+        }
+
+        /// <summary>Docks the nearby station directly from an EVA: ends the spacewalk and reuses the normal
+        /// station-board teardown (the dock-approach is already "done" since you floated over on foot).</summary>
+        private void DockStationFromEva()
+        {
+            _eva = false;
+            Game.Network?.SendSetEva(false);
+            _phase = Phase.Boarding;
+            _seq = BoardDuration;     // skip the fly-in: you're already at the hull on foot
+            _boardSent = false;
+            _boardWait = 0f;
+            _boardTargetId = _nearStationId;
+            _boardStartPos = _ship.transform.localPosition;
+        }
+
         /// <summary>Flies the ship in to dock with the station + fades out, then sends the board intent.
         /// A safety timeout reverts to cruise if the server never confirms (so it can't hang on black).</summary>
         private void UpdateBoarding()
@@ -549,6 +692,19 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // EVA: first-person from the suit, looking where you steer.
+            if (_eva)
+            {
+                Camera.transform.localPosition = _evaPos;
+                Camera.transform.localRotation = Quaternion.Euler(_evaPitch, _evaYaw, 0f);
+                if (_shake > 0.001f)
+                {
+                    Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
+                }
+
+                return;
+            }
+
             var sp = _ship.transform.localPosition;
             var rot = _ship.transform.localRotation;
             if (_viewMode == 1)
@@ -580,6 +736,7 @@ namespace Spacecraft.Client
             _confirmLand = false;
             _boardSent = false;
             _hyperjumping = false;
+            _eva = false;
             _landTargetId = null;
             _landTargetName = null;
             Game.SpaceViewActive = true;
@@ -667,6 +824,7 @@ namespace Spacecraft.Client
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
             _active = false;
+            _eva = false;
             _shake = 0f;
             _hitFlash = 0f;
             _cargoFlash = 0f;
@@ -1493,11 +1651,45 @@ namespace Spacecraft.Client
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
             }
+            else if (_eva)
+            {
+                // Spacewalk HUD: float controls, a board prompt for the ship/station, and the oxygen lifeline.
+                _fade.color = new Color(0f, 0f, 0f, 0f);
+                var loc = Game.Localizer;
+                _hint.text = loc != null ? loc.Get("ui.space.eva_controls")
+                    : "EVA — WASD/Mouse float · Space/Ctrl up/down · E board";
+                _hint.gameObject.SetActive(true);
+
+                bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
+                if (stationCloser)
+                {
+                    string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
+                    _board.text = $"{board} {_nearStationName}";
+                    _board.gameObject.SetActive(true);
+                }
+                else if (_evaNearShip)
+                {
+                    _board.text = loc != null ? loc.Get("ui.space.eva_board_ship") : "Press E to board your ship";
+                    _board.gameObject.SetActive(true);
+                }
+                else
+                {
+                    _board.gameObject.SetActive(false);
+                }
+
+                int o2 = Mathf.CeilToInt(Mathf.Clamp(Game.Oxygen, 0f, 999f));
+                string oxy = loc != null ? loc.Get("ui.space.eva_oxygen") : "O₂";
+                _cargo.text = $"{oxy}: {o2}%";
+                _cargo.color = Game.Oxygen <= 25f
+                    ? Color.Lerp(new Color(1f, 0.3f, 0.2f), Color.white, Mathf.PingPong(Time.time * 2f, 1f) * 0.6f)
+                    : UiKit.TextCol;
+                _cargo.gameObject.SetActive(true);
+            }
             else
             {
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return";
+                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return · G EVA";
                 _hint.gameObject.SetActive(true);
 
                 // Prompt whichever you're closest to: dock a station (E) or land on a body (E) you've flown up to.
@@ -1525,8 +1717,8 @@ namespace Spacecraft.Client
                 _cargo.gameObject.SetActive(true);
             }
 
-            // Lens flare only during free flight (hidden behind the launch/landing/boarding fades).
-            if (_phase == Phase.Cruise)
+            // Lens flare only during free flight (hidden behind the launch/landing/boarding fades + EVA).
+            if (_phase == Phase.Cruise && !_eva)
             {
                 UpdateLensFlare();
             }
@@ -1541,7 +1733,7 @@ namespace Spacecraft.Client
             // Aiming dot: shown in free flight, cyan when the laser has a target locked.
             if (_crosshair != null)
             {
-                bool show = _phase == Phase.Cruise && !_confirmLand;
+                bool show = _phase == Phase.Cruise && !_confirmLand && !_eva;
                 _crosshair.enabled = show;
                 if (show)
                 {
@@ -1554,7 +1746,7 @@ namespace Spacecraft.Client
             // Ship-systems quick-bar text: the selected system is highlighted; numbers are the hotkeys.
             if (_systemsBar != null)
             {
-                bool show = _phase == Phase.Cruise && !_confirmLand && _systems.Count > 0;
+                bool show = _phase == Phase.Cruise && !_confirmLand && !_eva && _systems.Count > 0;
                 _systemsBar.enabled = show;
                 if (show)
                 {

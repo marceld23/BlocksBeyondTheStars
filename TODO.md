@@ -166,10 +166,15 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      extractor can't help; empty → the existing suffocation damage. `InEva` is cleared on leave-space, station
      docking, ship loss and death, and mirrored to the client in `PlayerStateUpdate` (`GameBootstrap.InEva`) +
      `NetworkClient.SendSetEva`. Test: `Eva_DrainsOxygen_EvenOverABreathableWorld`. (319 tests pass.)
-   - ⏳ **Stage 2 — client EVA mode in `SpaceView`.** A first-person 6-DOF float mode: a key in the flight view
-     exits the ship (ship stays parked as a model), `SendSetEva(true)`; reuse the cruise yaw/pitch + WASD (slower)
-     + ascend/descend; **E boards the ship or a station when in range** (`SendSetEva(false)`, no take-off
-     animation); oxygen/EVA HUD + board prompt.
+   - ✅ **Stage 2 — client EVA mode in `SpaceView` (done 2026-06-07; needs in-engine test).** **G** in the
+     flight view steps out into a first-person **6-DOF** spacewalk (`EnterEva` → `SendSetEva(true)`): the ship
+     stays parked, mouse-look + WASD + **Space/Ctrl** up/down at `EvaSpeed`, bounds + body keep-out reused.
+     Float up to the parked ship and **E boards it with no take-off animation** (`BoardShipFromEva`); E near a
+     station docks it (`DockStationFromEva`, reuses the board teardown). EVA HUD: float-controls hint, a
+     ship/station board prompt, and an **O₂ readout** (red + pulsing under 25 %). Cruise hint now lists `G EVA`;
+     crosshair/flare/systems/engine gated off during EVA. New keys `ui.space.eva_controls` /
+     `.eva_board_ship` / `.eva_oxygen` (DE+EN). *Unity client — couldn't be compiled in the sandbox; verify in
+     the editor (feel of the float, board ranges, the O₂ drain loop).*
    - ⏳ **Stage 3 — launch-button + zero-g groundwork.** The `ui.space.enter` action must not replay the
      take-off animation when already in space (`SpaceState`/`SpaceView.Enter` skip-launch path + button
      label/branch). Add a gravity-skip + floaty path in `PlayerController` gated on a flag (unset for now) so
