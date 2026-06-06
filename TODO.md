@@ -48,6 +48,42 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   textures** generated immediately (OpenAI textures, ElevenLabs sounds — via the Python tools). Remember some
   flora/fauna can (rarely) serve as a **material substitute**. Generate textures + sounds for the new fauna too.
 
+### Task 1 — Analysis + Plan (2026-06-07) — swimming/diving, transparent water, underwater ship
+**Analysis of today's behaviour (file:line):**
+- **Player can't swim.** `PlayerController` is a `CharacterController` with simple gravity/jump
+  (`Gravity 20`, `JumpSpeed 7`, vertical at `PlayerController.cs:759/763/698`). It has **no water detection**
+  for movement. `water` block is `Solid` (no `solid:false` in `data/blocks.json:18`) and the chunk
+  **`MeshCollider` uses the whole render mesh** (`GameBootstrap.cs:594/599`), so the player **walks on top of
+  water like ground** — no sinking, diving or buoyancy. (Only `ClientAudio.HeadInFluid` samples water, for the
+  muffle.)
+- **Water is opaque.** `ChunkMesher.IsTransparent` returns true only for `glass`/`force_field`
+  (`ChunkMesher.cs:223-231`); water renders in the opaque submesh 0. A `BlockAtlasTransparent` shader exists
+  (used by glass). Transparent faces are only drawn toward air (`ChunkMesher.cs:101`).
+- **Ship lands on the seabed.** `StampShip` anchors at `SurfaceHeight` (= terrain/seabed) at
+  `GameServerShipStructure.cs:55`, so on a water world it is already **underwater**. The interior is stamped to
+  air (clears any water there at stamp time). `FillShipFoundation` plugs only **air** cavities below the ship,
+  not water. **The fluid sim has zero ship awareness** (`GameServerFluids.cs` TickFluids/Spread/FillFluid only
+  test `IsAir`), so woken water can flow through the hatch/gaps into the interior; the hull is protected from
+  mining but **not watertight against fluids**.
+
+**Plan (3 parts):**
+1. **Swim/dive (client).** Build the chunk **MeshCollider from solid blocks only** (exclude `water`/`lava`),
+   so the player falls *into* water instead of standing on it (ChunkMesher emits a collider triangle set that
+   skips fluids; `GameBootstrap` assigns it). Add water physics to `PlayerController`: detect submerged (sample
+   the water block at the body), replace gravity with gentle buoyant **sink**, **Jump = swim up / surface**, and
+   a real jump-out when the head breaches the surface; damp horizontal speed in water. (Dive-deeper control TBD
+   — see questions.)
+2. **Transparent water (client).** Add `water` to `IsTransparent` → renders in the alpha submesh; give the
+   **water tile an alpha (~0.6)** and have `BlockAtlasTransparent` blend by texture alpha (glass stays ~0.85
+   milky per the glass memory). Internal water faces already cull (only faces toward air draw), so a sea shows
+   its surface + you can see down into it while diving.
+3. **Underwater ship, watertight (server).** Make the fluid sim **ship-aware**: never fill/flow into cells
+   inside `ShipInteriorContains` (water stops at the doorway plane). Explicitly **clear water/lava in the
+   interior** (and a 1-block margin) at stamp; extend `FillShipFoundation` to also replace water/lava under the
+   footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
+   prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
+   ship interior; ship interior is water-free after landing in a sea.
+
 ---
 
 ## ✅ Done (2026-06-06): world block — terrain archetypes, seas, trees
