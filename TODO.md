@@ -64,8 +64,15 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   5. **Client** caches it into a `WorldGeometry`, uses it for `SceneX`/`RepositionChunks`/`DayCircumference`/
      `ClientWorld` wrap; the **orbit `BodySizeScale` now reflects each body's real circumference** (derive via
      `CircumferenceFor(body.Id)`), so the space-view size ≈ the walkable size.
-  6. **Tests** — wrap consistency across several circumferences; a small vs large world differ; old-save
-     default 6000.
+  6. **Tests** — wrap consistency across several circumferences; a small vs large world differ.
+
+  **Decisions (2026-06-07):** ignore save compatibility (derive deterministically, no metadata persistence);
+  round circumference to a multiple of ChunkSize (16). **Three size classes** by body: **asteroid**
+  (landable, PlanetType `asteroid`) **800–1600**, **moon** (`CelestialKind.Moon`) **2500–4000**, **planet**
+  **5000–12000** — `CircumferenceFor(bodyId, class)` deterministic; `SizeClassFor(kind, planetKey)` in shared
+  so server (active world from `_galaxy.FindBody`) + client (orbit from `NetBody`) agree. The static
+  `WorldConstants` helpers gain circumference overloads (old no-arg versions default to 6000), so the threading
+  is a per-world value passed at the ~23 sites — no global mutable state.
 
   ### Task 2 — Analysis + Plan (2026-06-07)
   **Verdict: circumnavigation already works (W0–W4).** The world is a **cylinder**: X is a wrapping longitude,

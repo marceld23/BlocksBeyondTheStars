@@ -138,4 +138,41 @@ public class WorldWrapTests
         var b = new Vector3f(2, 70, 18);
         Assert.Equal(36.0 + 64.0, WorldConstants.WrapDistanceSquared(a, b), 3);
     }
+
+    [Theory]
+    [InlineData(2000)]
+    [InlineData(6000)]
+    [InlineData(9008)]
+    public void WrapHelpers_ArePeriodic_ForAnyCircumference(int circ)
+    {
+        Assert.Equal(0, WorldConstants.WrapX(circ, circ));
+        Assert.Equal(WorldConstants.WrapX(100, circ), WorldConstants.WrapX(circ + 100, circ));
+        Assert.Equal(-1, WorldConstants.WrapDeltaX(circ - 1, circ)); // one east of the seam == one west
+        Assert.Equal(circ / 16, WorldConstants.ChunksAroundOf(circ));
+        Assert.Equal(circ / 4, WorldConstants.LatitudeLimitFor(circ));
+    }
+
+    [Fact]
+    public void CircumferenceFor_SizesByClass_DeterministicAndChunkAligned()
+    {
+        int ast = WorldConstants.CircumferenceFor("body-a", WorldConstants.WorldSizeClass.Asteroid);
+        int moon = WorldConstants.CircumferenceFor("body-a", WorldConstants.WorldSizeClass.Moon);
+        int planet = WorldConstants.CircumferenceFor("body-a", WorldConstants.WorldSizeClass.Planet);
+
+        Assert.InRange(ast, 800, 1600);
+        Assert.InRange(moon, 2500, 4000);
+        Assert.InRange(planet, 5000, 12000);
+        Assert.True(ast < moon && moon < planet, "asteroid < moon < planet");
+
+        Assert.Equal(0, planet % WorldConstants.ChunkSize); // whole chunks → seam tiles cleanly
+        Assert.Equal(planet, WorldConstants.CircumferenceFor("body-a", WorldConstants.WorldSizeClass.Planet)); // deterministic
+    }
+
+    [Fact]
+    public void SizeClassFor_DistinguishesAsteroidMoonPlanet()
+    {
+        Assert.Equal(WorldConstants.WorldSizeClass.Asteroid, WorldConstants.SizeClassFor(CelestialKind.Planet, "asteroid"));
+        Assert.Equal(WorldConstants.WorldSizeClass.Moon, WorldConstants.SizeClassFor(CelestialKind.Moon, "rocky"));
+        Assert.Equal(WorldConstants.WorldSizeClass.Planet, WorldConstants.SizeClassFor(CelestialKind.Planet, "rocky"));
+    }
 }
