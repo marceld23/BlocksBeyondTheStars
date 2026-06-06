@@ -99,7 +99,8 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      locale files). Station boardings read *Betrete Station* / *Entering station*.
 
    No change to the landing/chunk/settle logic itself — purely an overlay + one readiness flag + one event.
-5. **Bug — the player must not fall in space.** If the player is ever in space **without a ship**, they must
+5. ✅ **Bug — the player must not fall in space** (done 2026-06-07; EVA needs an in-engine test pass). If the
+   player is ever in space **without a ship**, they must
    **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
    able to **get back into their ship** when it's there (**incl. while already in space** — board/enter the ship
    from a float), or **dock at a station**. Also: the **Launch button** in the menu must **not trigger the
@@ -175,10 +176,15 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      crosshair/flare/systems/engine gated off during EVA. New keys `ui.space.eva_controls` /
      `.eva_board_ship` / `.eva_oxygen` (DE+EN). *Unity client — couldn't be compiled in the sandbox; verify in
      the editor (feel of the float, board ranges, the O₂ drain loop).*
-   - ⏳ **Stage 3 — launch-button + zero-g groundwork.** The `ui.space.enter` action must not replay the
-     take-off animation when already in space (`SpaceState`/`SpaceView.Enter` skip-launch path + button
-     label/branch). Add a gravity-skip + floaty path in `PlayerController` gated on a flag (unset for now) so
-     item 10 can flip it — the "must not fall" safety net.
+   - ✅ **Stage 3 — launch-button finding + zero-g groundwork (done 2026-06-07).** **Launch button:** already
+     correct — the `ui.space.enter` button is guarded by `if (!Game.InSpace)` (`CraftingTechShipUI.cs:609`) and
+     shows **Leave** instead while in a space instance, so it never replays the take-off animation in space. The
+     EVA→ship board (stage 2) is client-side, so it's animation-free too. (Undocking a station deliberately
+     re-launches from the return planet — left as designed.) The remaining no-anim case belongs to item 10
+     (launching from a tower already in space); a `SpaceState` skip-launch flag will be added there. **Zero-g
+     net:** `GameBootstrap.OnFootInSpace` + a float branch in `PlayerController.Move` — above the atmosphere
+     there's no gravity, so the player floats (Jump rises, Ctrl/C sinks, else drifts to a stop) instead of
+     falling. Nothing sets the flag yet (a no-op until item 10 flips it) — the "must not fall in space" net.
 6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
    be saved too, so on **loading the save I'm back there** (not just the last/home world).
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player

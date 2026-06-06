@@ -57,6 +57,11 @@ namespace Spacecraft.Client
         public bool Aboard { get; private set; }
         public bool InEva { get; private set; } // server-authoritative: floating outside the ship in space
 
+        /// <summary>When set, the on-foot player is above the atmosphere (zero-g) and must float instead of
+        /// fall — <see cref="PlayerController"/> drops gravity. Groundwork for item 10 (building a structure up
+        /// into space); nothing sets it yet, so it's a no-op until that lands.</summary>
+        public bool OnFootInSpace { get; set; }
+
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
 

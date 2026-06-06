@@ -23,6 +23,9 @@ namespace Spacecraft.Client
         public float SafeFallSpeed = 14f; // impact speed you can land at unharmed (~5 blocks); faster hurts
         public float JetpackAccel = 26f;   // upward acceleration while the jetpack fires
         public float JetpackMaxRise = 6.5f; // cap on jetpack-driven rise speed
+        // Zero-g (above the atmosphere): float instead of fall — Jump rises, crouch sinks, else drift to a stop.
+        public float SpaceFloatSpeed = 4f;
+        public float SpaceFloatAccel = 14f;
         // Swimming: in water the player drifts down slowly and holds Jump to rise / surface (no fast falls).
         public float SwimUpSpeed = 4f;     // rise speed while holding Jump underwater
         public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
@@ -773,6 +776,14 @@ namespace Spacecraft.Client
                 }
 
                 _verticalVelocity = Input.GetButton("Jump") ? JumpSpeed : -1f;
+            }
+            else if (Game != null && Game.OnFootInSpace)
+            {
+                // Above the atmosphere there is no gravity: float, never fall. Jump rises, crouch (Ctrl/C)
+                // sinks, otherwise the suit drifts to a gentle stop. (Set by item 10 — building up into space.)
+                float lift = (Input.GetButton("Jump") ? SpaceFloatSpeed : 0f)
+                           - ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C)) ? SpaceFloatSpeed : 0f);
+                _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, lift, SpaceFloatAccel * Time.deltaTime);
             }
             else
             {
