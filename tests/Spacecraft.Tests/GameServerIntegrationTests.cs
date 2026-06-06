@@ -237,6 +237,39 @@ public sealed class GameServerIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void WalkingTowardThePole_IsBoundedByTheLatitudeBarrier()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "pole"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+
+        var config = Config();
+        config.WorldName = "pole";
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Wanderer");
+        var session = server.Sessions[1];
+
+        const int L = Spacecraft.Shared.World.WorldConstants.LatitudeLimit;
+        float y = session.State.Position.Y;
+
+        // Walk far north past the pole: the authoritative Z is clamped to the barrier (not an infinite strip).
+        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = L + 500 }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.Equal(L, session.State.Position.Z, 3);
+
+        // …and far south.
+        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = -(L + 500) }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.Equal(-L, session.State.Position.Z, 3);
+
+        // Within the band, latitude passes through unclamped (longitude still wraps separately).
+        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = 100 }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.Equal(100f, session.State.Position.Z, 3);
+    }
+
+    [Fact]
     public void Jetpack_DrainsSuitEnergy_WhileActive_AndRejectsWithoutOne()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "jet"));

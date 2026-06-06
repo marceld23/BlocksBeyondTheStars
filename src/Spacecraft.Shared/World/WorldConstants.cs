@@ -24,6 +24,11 @@ public static class WorldConstants
     /// <summary>Number of chunk columns around the world (Circumference / ChunkSize).</summary>
     public const int ChunksAround = Circumference / ChunkSize;
 
+    /// <summary>Latitude (Z) bound from the equator (Z = 0, where players spawn) to each pole. Longitude (X)
+    /// wraps freely, but north–south is bounded by an invisible pole barrier at ±this, so the planet feels
+    /// finite instead of an infinite N–S strip. ≈ a sphere's pole-to-pole span (half the equator).</summary>
+    public const int LatitudeLimit = Circumference / 4;
+
     /// <summary>Wraps a world-X coordinate into the canonical [0, Circumference) range.</summary>
     public static int WrapX(int x)
     {

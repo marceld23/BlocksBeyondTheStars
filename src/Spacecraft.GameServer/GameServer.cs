@@ -1180,8 +1180,16 @@ public sealed partial class GameServer
         if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
         {
             // Longitude wraps: the client transform runs unbounded as it laps the world, but the
-            // authoritative X is canonical [0, Circumference). Z (latitude) is not wrapped.
-            session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X), move.Y, move.Z);
+            // authoritative X is canonical [0, Circumference). Latitude (Z) is NOT wrapped — instead it's
+            // bounded by the pole barrier at ±LatitudeLimit, so a player can't wander off into an infinite
+            // north/south strip. On surface worlds only (stations/space have their own small coordinate space).
+            float z = move.Z;
+            if (!InStation(session.State.PlayerId) && !InSpace(session.State.PlayerId))
+            {
+                z = System.Math.Clamp(z, -WorldConstants.LatitudeLimit, WorldConstants.LatitudeLimit);
+            }
+
+            session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X), move.Y, z);
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
         }
