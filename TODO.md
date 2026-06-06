@@ -593,7 +593,12 @@ ElevenLabs sounds — no further per-batch confirmation needed; keys are in `too
   `FloraRoster_IsEmpty_OnABarrenWorld`. ✅ **toxic flora now bites back** (2026-06-07): harvesting a toxic
   species yields **`toxic_berries`** (a harmful consumable, `consumeHealth -18`) instead of edible berries —
   `BreakBlockAt` remaps the drop by the world's flora species, so the scan's Edible/Toxic warning has teeth.
-  Test: `ToxicFlora_YieldsToxicBerries_…`. *(Possible follow-up: per-world archetype subsetting.)*
+  Test: `ToxicFlora_YieldsToxicBerries_…`. ✅ **per-world archetype subsetting** (2026-06-07): each world now
+  activates only ~60% of the flora forms (`FloraSpecies.Active`), so worlds differ in plant *shapes*, not just
+  hue/names — with an `EnsureCoverage` pass that force-activates the minimum so every land host surface + the
+  seas keep ≥1 active species (no bare biome). `WorldGenerator.ResolveFlora` builds the per-surface pools +
+  kelp/lily gating from the active subset; placement + scan share `_meta.Seed` so they always agree. Test:
+  `FloraRoster_ActivatesASubset_ButKeepsFullCoverage`.
 - ◑ **Phase 4 — fauna polish + names** — ✅ **names + colours done** (`3c1500c`): a shared `NameGenerator`
   coins per-species names (shown on scan as the readout subject; rides `NetCreature.Name`); `PickColor` now
   makes ~half of species vivid exotics (HSV hues → pink/violet/yellow/teal). ⏳ **still to do:** per-**biome**

@@ -1,3 +1,4 @@
+using System.Linq;
 using Spacecraft.Networking.Transport;
 using Spacecraft.Persistence;
 using Spacecraft.Shared.Configuration;
@@ -102,6 +103,28 @@ public sealed class FloraTests : IDisposable
     {
         var planet = _content.GetPlanet("asteroid")!; // no flora
         Assert.Empty(FloraGenerator.GenerateRoster(planet, 4242));
+    }
+
+    [Fact]
+    public void FloraRoster_ActivatesASubset_ButKeepsFullCoverage()
+    {
+        var planet = _content.GetPlanet("jungle")!;
+        var roster = FloraGenerator.GenerateRoster(planet, 4242);
+
+        // Subsetting: a world grows some flora forms and not others.
+        Assert.Contains(roster, s => s.Active);
+        Assert.Contains(roster, s => !s.Active);
+
+        // Coverage: every land host surface keeps at least one active land species (no bare biome) …
+        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic).SelectMany(s => s.Hosts).Distinct();
+        foreach (var host in landHosts)
+        {
+            Assert.Contains(roster, s => s.Active && !s.Aquatic
+                && FloraCatalog.All.First(c => c.Key == s.BlockKey).Hosts.Contains(host));
+        }
+
+        // … and the seas keep at least one active aquatic species.
+        Assert.Contains(roster, s => s.Active && s.Aquatic);
     }
 
     [Fact]

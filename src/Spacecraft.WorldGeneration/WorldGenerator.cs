@@ -164,7 +164,9 @@ public sealed class WorldGenerator
         var kelpId = _content.GetBlock("flora_kelp")?.NumericId ?? BlockId.Air;
         var lilyId = _content.GetBlock("flora_lily")?.NumericId ?? BlockId.Air;
         var seaWaterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        bool waterFlora = flora && !kelpId.IsAir && !lilyId.IsAir && fluidId == seaWaterId && !seaWaterId.IsAir;
+        ResolveFlora(planet); // pick this world's active flora subset (sets _kelpActive / _lilyActive)
+        bool waterFlora = flora && !kelpId.IsAir && !lilyId.IsAir && fluidId == seaWaterId && !seaWaterId.IsAir
+            && (_kelpActive || _lilyActive);
 
         var origin = WorldConstants.ChunkOrigin(coord);
 
@@ -233,7 +235,7 @@ public sealed class WorldGenerator
             // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
             if (flora && surfaceY + 1 > fluidLevel)
             {
-                var floraId = FloraForSurface(surfaceId, seed, worldX, worldZ);
+                var floraId = FloraForSurface(planet, surfaceId, seed, worldX, worldZ);
                 int fy = surfaceY + 1;
                 int fly = fy - origin.Y;
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
@@ -413,8 +415,8 @@ public sealed class WorldGenerator
         double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX), 11, worldZ);
 
         // Kelp needs at least a little depth; it grows from the seabed up a few cells, capped just below the
-        // surface so the top of the column stays open water.
-        if (columnDepth >= 2 && roll < floraDensity * 1.6)
+        // surface so the top of the column stays open water. Only if this world activated the kelp archetype.
+        if (_kelpActive && columnDepth >= 2 && roll < floraDensity * 1.6)
         {
             int height = 2 + (int)(roll * 997) % 3; // 2..4 cells
             int top = System.Math.Min(fluidLevel - 1, surfaceY + height);
@@ -430,8 +432,8 @@ public sealed class WorldGenerator
             return;
         }
 
-        // Otherwise an occasional lily pad floating on the topmost water cell.
-        if (roll > 1.0 - floraDensity * 0.6)
+        // Otherwise an occasional lily pad floating on the topmost water cell (if the lily archetype is active).
+        if (_lilyActive && roll > 1.0 - floraDensity * 0.6)
         {
             int lily = fluidLevel - origin.Y;
             if (lily >= 0 && lily < WorldConstants.ChunkSize)
@@ -442,47 +444,71 @@ public sealed class WorldGenerator
     }
 
     private bool _floraResolved;
-    // surface block id -> the pool of flora that may grow on it (from FloraCatalog).
+    private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
+    // surface block id -> the pool of (this world's active) flora that may grow on it.
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
 
-    /// <summary>
-    /// Picks the flora block for a given surface (Air = none). Each surface has a pool of
-    /// biome-appropriate species (<see cref="Spacecraft.Shared.Definitions.FloraCatalog"/>); a per-column
-    /// noise roll selects one so a planet shows a mix rather than a single plant everywhere.
-    /// </summary>
-    private BlockId FloraForSurface(BlockId surface, long seed, int worldX, int worldZ)
+    /// <summary>Resolves this world's active flora subset (once): builds the per-surface land-flora pools from
+    /// only the archetypes <see cref="FloraGenerator"/> activated for this world, and records whether the two
+    /// aquatic archetypes are active. Different worlds activate different forms (coverage is kept, so no host
+    /// surface or the seas ever go bare).</summary>
+    private void ResolveFlora(PlanetType planet)
     {
-        if (!_floraResolved)
+        if (_floraResolved)
         {
-            _floraResolved = true;
-            var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
-            foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
+            return;
+        }
+
+        _floraResolved = true;
+
+        var active = new System.Collections.Generic.HashSet<string>();
+        foreach (var fs in FloraGenerator.GenerateRoster(planet, _worldSeed))
+        {
+            if (fs.Active)
             {
-                if (sp.Aquatic || _content.GetBlock(sp.Key) is not { } flora)
-                {
-                    continue; // aquatic flora are placed directly in submerged columns, not on land surfaces
-                }
-
-                foreach (var hostKey in sp.Hosts)
-                {
-                    if (_content.GetBlock(hostKey) is { } host)
-                    {
-                        if (!acc.TryGetValue(host.NumericId.Value, out var list))
-                        {
-                            acc[host.NumericId.Value] = list = new System.Collections.Generic.List<BlockId>();
-                        }
-
-                        list.Add(flora.NumericId);
-                    }
-                }
-            }
-
-            foreach (var kv in acc)
-            {
-                _floraBySurface[kv.Key] = kv.Value.ToArray();
+                active.Add(fs.BlockKey);
             }
         }
 
+        _kelpActive = active.Contains("flora_kelp");
+        _lilyActive = active.Contains("flora_lily");
+
+        var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
+        foreach (var sp in Spacecraft.Shared.Definitions.FloraCatalog.All)
+        {
+            if (sp.Aquatic || !active.Contains(sp.Key) || _content.GetBlock(sp.Key) is not { } flora)
+            {
+                continue; // aquatic flora are placed in submerged columns; inactive forms don't grow here
+            }
+
+            foreach (var hostKey in sp.Hosts)
+            {
+                if (_content.GetBlock(hostKey) is { } host)
+                {
+                    if (!acc.TryGetValue(host.NumericId.Value, out var list))
+                    {
+                        acc[host.NumericId.Value] = list = new System.Collections.Generic.List<BlockId>();
+                    }
+
+                    list.Add(flora.NumericId);
+                }
+            }
+        }
+
+        foreach (var kv in acc)
+        {
+            _floraBySurface[kv.Key] = kv.Value.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Picks the flora block for a given surface (Air = none). Each surface has a pool of this world's active,
+    /// biome-appropriate species; a per-column noise roll selects one so a planet shows a mix rather than a
+    /// single plant everywhere.
+    /// </summary>
+    private BlockId FloraForSurface(PlanetType planet, BlockId surface, long seed, int worldX, int worldZ)
+    {
+        ResolveFlora(planet);
         if (_floraBySurface.TryGetValue(surface.Value, out var pool) && pool.Length > 0)
         {
             int idx = (int)(Noise.Value01(seed + 9101, WorldConstants.WrapX(worldX), 3, worldZ) * pool.Length);

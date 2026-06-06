@@ -23,4 +23,9 @@ public sealed class FloraSpecies
 
     /// <summary>True for in-water plants (kelp / lily) — they live in the seas, not on land.</summary>
     public bool Aquatic { get; set; }
+
+    /// <summary>Whether this archetype actually grows on this world. Each world activates only a subset of the
+    /// flora forms (with coverage kept so no host surface / the seas ever go bare), so different worlds show
+    /// different plant shapes. Inactive species are never placed (and so never scanned).</summary>
+    public bool Active { get; set; } = true;
 }
