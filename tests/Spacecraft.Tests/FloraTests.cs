@@ -105,6 +105,51 @@ public sealed class FloraTests : IDisposable
     }
 
     [Fact]
+    public void ToxicFlora_YieldsToxicBerries_WhileEdibleFloraYieldsNormalBerries()
+    {
+        // toxic_berries is a real, harmful consumable.
+        var tb = _content.GetItem("toxic_berries");
+        Assert.NotNull(tb);
+        Assert.True(tb!.ConsumeHealth < 0, "toxic berries must harm when eaten");
+
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "floratox"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "floratox", Seed = 7, AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false, StartPlanet = "jungle", // a flora world
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            var sp = server.FloraSpeciesForBlock("flora_bush"); // flora_bush yields berries
+            Assert.NotNull(sp);
+
+            var p = server.AddLocalPlayer("Forager");
+            p.State.Position = new Vector3f(0.5f, 132f, 0.5f);
+            var pos = new Vector3i(0, 130, 0);
+            server.World.SetBlock(pos, _content.GetBlock("flora_bush")!.NumericId);
+
+            int berries = p.State.Inventory.CountOf("berries");
+            int toxic = p.State.Inventory.CountOf("toxic_berries");
+            server.MineBlock("Forager", pos.X, pos.Y, pos.Z);
+
+            if (sp!.Toxic)
+            {
+                Assert.True(p.State.Inventory.CountOf("toxic_berries") > toxic, "a toxic plant should drop toxic berries");
+                Assert.Equal(berries, p.State.Inventory.CountOf("berries"));
+            }
+            else
+            {
+                Assert.True(p.State.Inventory.CountOf("berries") > berries, "an edible plant should drop normal berries");
+                Assert.Equal(toxic, p.State.Inventory.CountOf("toxic_berries"));
+            }
+        }
+    }
+
+    [Fact]
     public void Worldgen_SeedsFlora_OnAFloraPlanet()
     {
         var planet = _content.GetPlanet("jungle")!; // grass surface, floraDensity 0.14

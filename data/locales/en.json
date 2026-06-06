@@ -52,6 +52,8 @@
   "item.toxic_gland.desc": "Poisonous — eating it harms you.",
   "item.berries.name": "Berries",
   "item.berries.desc": "Edible plant food — eases hunger.",
+  "item.toxic_berries.name": "Toxic Berries",
+  "item.toxic_berries.desc": "Harvested from a toxic plant — poisonous to eat. Scan flora first.",
   "item.emergency_ration.name": "Emergency Ration",
   "item.emergency_ration.desc": "Suit ration — auto-eaten when you're about to starve.",
   "item.suit_teleporter.name": "Suit Teleporter",

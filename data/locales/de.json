@@ -56,6 +56,8 @@
   "item.toxic_gland.desc": "Giftig — der Verzehr schadet dir.",
   "item.berries.name": "Beeren",
   "item.berries.desc": "Essbare Pflanzennahrung — lindert den Hunger.",
+  "item.toxic_berries.name": "Giftbeeren",
+  "item.toxic_berries.desc": "Von einer giftigen Pflanze geerntet — giftig beim Verzehr. Flora erst scannen.",
   "item.emergency_ration.name": "Notration",
   "item.emergency_ration.desc": "Anzugs-Ration — wird automatisch gegessen, bevor du verhungerst.",
   "item.suit_teleporter.name": "Anzug-Teleporter",

@@ -590,8 +590,10 @@ ElevenLabs sounds — no further per-batch confirmation needed; keys are in `too
   block→species (`FloraSpeciesForBlock`); **scanning a plant now shows its coined name + Edible/Toxic** (the
   block branch in `GameServerScanning`). Per-world identity = the Phase-2 hue + the coined names + toxicity
   over the shared archetype blocks (no dynamic blocks needed). Tests: `FloraRoster_NamesEveryArchetype_…`,
-  `FloraRoster_IsEmpty_OnABarrenWorld`. *(Possible follow-ups: per-world archetype subsetting; toxic flora
-  food actually harming on eat.)*
+  `FloraRoster_IsEmpty_OnABarrenWorld`. ✅ **toxic flora now bites back** (2026-06-07): harvesting a toxic
+  species yields **`toxic_berries`** (a harmful consumable, `consumeHealth -18`) instead of edible berries —
+  `BreakBlockAt` remaps the drop by the world's flora species, so the scan's Edible/Toxic warning has teeth.
+  Test: `ToxicFlora_YieldsToxicBerries_…`. *(Possible follow-up: per-world archetype subsetting.)*
 - ◑ **Phase 4 — fauna polish + names** — ✅ **names + colours done** (`3c1500c`): a shared `NameGenerator`
   coins per-species names (shown on scan as the readout subject; rides `NetCreature.Name`); `PickColor` now
   makes ~half of species vivid exotics (HSV hues → pink/violet/yellow/teal). ⏳ **still to do:** per-**biome**

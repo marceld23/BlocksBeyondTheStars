@@ -1299,9 +1299,13 @@ public sealed partial class GameServer
         _world.SetBlock(pos, BlockId.Air);
         _miningProgress.Remove(pos);
 
+        // A toxic flora species yields poisonous berries instead of edible ones (the scan warns which is which).
+        bool toxicFlora = IsFlora(current.Value)
+            && _floraSpeciesByBlock.TryGetValue(current.Value, out var fsp) && fsp.Toxic;
         foreach (var drop in def.Drops)
         {
-            pool.Add(drop.Item, drop.Count);
+            string item = toxicFlora && drop.Item == "berries" ? "toxic_berries" : drop.Item;
+            pool.Add(item, drop.Count);
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
