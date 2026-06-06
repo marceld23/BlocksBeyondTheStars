@@ -777,7 +777,9 @@ namespace Spacecraft.Client
             // planet to fly back to — never a decorative filler.
             string homeType = !string.IsNullOrEmpty(current?.PlanetType) ? current.PlanetType : Game?.Environment?.Biome;
             var homePos = new Vector3(0f, -150f, -20f);
-            const float homeDiameter = 150f;
+            // Every body has its own size (deterministic from its id), so worlds + moons look big or small in
+            // orbit instead of all identical — an approximate reflection of how varied the bodies are.
+            float homeDiameter = 150f * BodySizeScale(current?.Id ?? Game?.LocationName);
             SpawnBody("HomePlanet", homePos, homeDiameter, homeType);
             _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
@@ -819,8 +821,9 @@ namespace Spacecraft.Client
 
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    Plan(b.Id, b.Name, pos, PlanetDiameter, type);
-                    planets.Add((b.SystemX, b.SystemZ, pos, PlanetDiameter * 0.5f));
+                    float diameter = PlanetDiameter * BodySizeScale(b.Id);
+                    Plan(b.Id, b.Name, pos, diameter, type);
+                    planets.Add((b.SystemX, b.SystemZ, pos, diameter * 0.5f));
                 }
 
                 // Pass 2: moons, each placed just outside its nearest parent planet's surface.
@@ -842,14 +845,15 @@ namespace Spacecraft.Client
                     }
 
                     var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
-                    float minClear = parent.Radius + MoonDiameter * 0.5f + BodyGap; // outside the planet's surface
+                    float moonDia = MoonDiameter * BodySizeScale(b.Id);
+                    float minClear = parent.Radius + moonDia * 0.5f + BodyGap; // outside the planet's surface
                     if (rel.magnitude < minClear)
                     {
                         Vector3 dir = rel.sqrMagnitude > 0.0001f ? rel.normalized : Vector3.right;
                         rel = dir * minClear;
                     }
 
-                    Plan(b.Id, b.Name, parent.Render + rel, MoonDiameter, type);
+                    Plan(b.Id, b.Name, parent.Render + rel, moonDia, type);
                 }
 
                 // Separation pass: relax any overlapping pair apart in the x-z plane until every body has a
@@ -894,6 +898,26 @@ namespace Spacecraft.Client
             }
 
             _bounds = Mathf.Max(Bounds, maxDist + 140f); // keep the whole system reachable
+        }
+
+        /// <summary>A deterministic per-body size factor (0.70..1.35) from the body id, so each world/moon has
+        /// its own size in orbit (a small moon reads smaller than a big gas world). Same id → same size, and
+        /// a body looks the same size whether it's the one you launched from or a distant one in the system.</summary>
+        private static float BodySizeScale(string id)
+        {
+            int h = StableHash(id);
+            return 0.70f + (h % 1000) / 1000f * 0.65f; // 0.70 .. 1.35
+        }
+
+        private static int StableHash(string s)
+        {
+            int h = 17;
+            foreach (char c in s ?? string.Empty)
+            {
+                h = h * 31 + c;
+            }
+
+            return h & 0x7fffffff;
         }
 
         /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.</summary>

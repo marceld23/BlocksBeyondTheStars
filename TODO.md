@@ -30,8 +30,16 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   watertight cabin** that water can't flow into. Tests: `Submerged_DrainsSuitOxygen_…`,
   `Fluid_DoesNotFlowIntoAShipInterior`. ✅ **Polish:** a subtle blue full-screen wash while the eye is
   submerged (`WeatherFx.EyeUnderwater` + an IMGUI wash, smoothed, hidden in space/menu).
-- **Task 2 — Walk all the way around a planet.** Analyse: can the player really circumnavigate a planet, and
-  **how is it implemented**? It should be possible. (World-wrap is partly built — verify it end-to-end.)
+- ✅ **Task 2 — Walk all the way around a planet** (done 2026-06-07). **Verdict: yes** — the world is a
+  cylinder (X = wrapping longitude, Circumference 6000, seam-free noise), a lap ≈ 16 min. Shipped: **Fix 1** —
+  `WrapDistanceSquared`/`WrapDistSq` make every on-planet proximity check seam-aware (creatures, doors,
+  enemies, NPCs, vendors, containers, trade, ship station, bump) so interactions work across X=0 (space combat
+  left alone). **Fix 2** — `WorldConstants.LatitudeLimit` + an invisible **pole barrier** (server clamps Z,
+  client wall) so N/S is bounded instead of an infinite strip. **Sizes** — each planet/moon gets a
+  deterministic random **size in the orbit view** (`BodySizeScale`); walkable circumference stays 6000.
+  Tests: `WrapDistanceSquared_MeasuresProximityAcrossTheSeam`, `WalkingTowardThePole_IsBoundedByTheLatitude-
+  Barrier`. *(Future option: true per-world walkable circumference — a larger refactor of the static wrap
+  helpers; deferred since 6000 is fine and the orbit size already varies.)*
 
   ### Task 2 — Analysis + Plan (2026-06-07)
   **Verdict: circumnavigation already works (W0–W4).** The world is a **cylinder**: X is a wrapping longitude,
