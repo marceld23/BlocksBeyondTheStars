@@ -16,6 +16,55 @@ SQLite persistence.
 
 ---
 
+## ▶ Open backlog — priority order (updated 2026-06-07)
+At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
+analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
+only then implement. Items marked *(analysis only)* must NOT be implemented yet.
+
+1. **Task 3 — softer shadows + lit cave mouths.** (Detailed in the task list below.) Cave entrances read as a
+   black wall; make them softly lit, and soften the hard-edged shadows.
+2. **Bug — no stars in the space background.** Analyse: in the space view there are **no background stars** —
+   I see the system's sun but no stars behind it; there should be stars. *This was already attempted once* —
+   analyse precisely and find the actual cause. Check whether the cause has **further implications** elsewhere,
+   e.g. **stars should also be visible at night on the planet**.
+3. **Bug — glass is still only transparent, not milky.** Analyse thoroughly: glass still looks merely
+   see-through, I see **no "milkiness"**. *This has been attempted several times.* Find the root cause and check
+   whether it has **further effects elsewhere** in the game. Analyse precisely, then make a plan, then start
+   implementing. (See the [[glass-milky-not-transparent]] requirement.)
+4. **Bug — landing pop-in; want a loading screen.** When I land on a planet or station I can see the planet/
+   station **building up before my ship appears** (for stations, before everything is finished). Instead I want
+   a **loading screen that disappears once everything is ready**. Analyse precisely, then make a plan; only then
+   start implementing.
+5. **Bug — the player must not fall in space.** If the player is ever in space **without a ship**, they must
+   **not fall** — they should **float and be able to move with their suit** (not walk — float). They should be
+   able to **get back into their ship** when it's there, or **dock at a station**. Analyse precisely, plan, ask
+   questions, then implement. (Relates to item 9 — building up into space.)
+6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
+   be saved too, so on **loading the save I'm back there** (not just the last/home world).
+7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
+   constantly**. After a while, pursuing/attacking creatures should **leave the player alone**. Also: **where do
+   creatures spawn?** Make sure they **don't only spawn at the ship** but are **distributed across their biomes**.
+   Analyse precisely, then make a plan, ask questions, only then implement.
+8. **Task 4 — content-styled icons** for everything pickup-able / hand-held. (Detailed below.)
+9. **Feature — build high enough to leave the atmosphere into space.** Analyse + plan thoroughly: it should be
+   theoretically possible, on a world / moon / asteroid, to **build a structure tall enough that it leaves the
+   atmosphere** (if there is one) and you are **in space**. Analyse precisely, then plan, ask questions, only
+   then implement. (Ties into items 5 and the sphere analysis 13.)
+10. **Feature — trade knowledge points.** Players should be able to **trade knowledge points**. Key constraint:
+   knowledge **never goes away** — unlocking blueprints only needs a knowledge **threshold**, no points are
+   spent; so trading must **not deduct** knowledge points either. But it must be ensured that **each knowledge
+   point can only be passed to another player once** — track how many points you've **already given to a given
+   other player**, so no endless back-and-forth trade is possible. It should be possible to **offer knowledge
+   for materials or for equipment** in a trade. Analyse precisely, then plan, ask questions, only then implement.
+11. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Detailed below; big.)
+12. **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
+13. **Analysis only — make a world more spherical (vertical wrap too).** *(Analysis only — do NOT implement.)*
+   Analyse and estimate: how could the game be changed so a world can be circumnavigated **not only horizontally
+   but also vertically** — i.e. how to make a world behave **more like a sphere**. Assess what's **realistically
+   possible**, weighing **complexity and performance cost**. For now, just **estimate and analyse**.
+
+---
+
 ## ⏭ Requested 2026-06-07: six analysis-first tasks (do one at a time)
 Workflow for these (per the user): for **each** task — (1) thorough analysis of the current code, (2) write
 an **Analysis + Plan** block here **before** any implementation, (3) ask clarifying questions if needed,
