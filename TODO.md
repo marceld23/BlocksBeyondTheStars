@@ -656,9 +656,38 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    - `NpcView.Label` shows the name (format = the display question), falling back to the role label if empty.
    - Names are procedural → identical in DE/EN (no locale change); the role label stays localized.
    - Tests: `Person`/`Robot` deterministic for the same seed, varied across seeds, non-empty, two-part for Person.
-13. **Feature — mission-giver NPCs that always have a mission on offer.** There should also be NPCs that **offer
-   missions** — and each such NPC should **always have a mission available** (never run dry). Make sure this is
-   the case. Analyse the current NPC/mission wiring, then plan, ask questions, only then implement.
+13. **Feature — mission-giver NPCs that always have a mission on offer.** NPCs that offer missions and **never
+   run dry**. *(Analysis done; questions in chat; implement after answers.)*
+
+   ### Analysis (2026-06-07)
+   - **Missions CAN run dry today.** `MissionDefinition` (id, source, nameKey/title, objectives[Collect/Mine/
+     Deliver], rewards[], `Repeatable`, `Active`) + per-player `MissionProgress`. Settlements mint **1-2** missions
+     at stamp time; stations **2** at board time — a **finite pool, default non-repeatable, no refill**. The
+     per-player available list hides anything accepted/turned-in, so once a player takes them the board is empty.
+   - **No NPC ↔ mission link.** Missions are **board-centric**: `NearSettlementMissionBoard` (a `mission_board`
+     marker, reach-gated) gates accept; the **quartermaster NPC is purely cosmetic** (rendering/name only).
+     `MissionDefinition` has no giver field (only `CreatorId` for player-made; `MissionPlan.GiverName` is unused
+     flavour). Quartermaster NPCs stand at the board, so near-board ≈ near-quartermaster.
+   - **Plumbing to reuse:** `HandleAcceptMission`/`HandleTurnInMission`/`SendMissionList` (server),
+     `RequestMissions`/`AcceptMissionIntent`/`TurnInMissionIntent` + `MissionList`/`MissionResult` (NetCodec
+     10-13 / 62-63), `NetMission` schema, the Missions tab in `CraftingTechShipUI` (Available/Active + accept/
+     turn-in). `MissionProgress` is persisted per player; board defs regenerate per load.
+
+   ### Plan (recommended — confirm via questions)
+   - **Tie missions to a giver NPC:** add `GiverNpcId` to `MissionDefinition` (+ `GiverName` on `NetMission` for
+     display). When generating settlement/station missions, assign them to that location's **quartermaster** NPC.
+     Foundation for items 14 (NPC memory) + 15 (AI dialog).
+   - **Never run dry (refill-on-take):** keep each giver topped up to **≥1 available** procedural mission. When a
+     player accepts a giver's mission, immediately **mint a fresh replacement** for that giver (rolling unique id,
+     randomised template + counts), so the giver always shows something to take. (One-shot missions; the refill —
+     not repeatability — is what guarantees endless availability.) `EnsureGiverStocked(npcId, target)` called at
+     generation + after accept.
+   - **Client:** show the giver's name on the mission ("Auftrag von {Name}"); bilingual key. The Missions tab and
+     the accept/turn-in flow stay as-is.
+   - **Tests:** a giver always has ≥1 available even after accepting repeatedly (never dry); accepting mints a
+     replacement; missions carry the giver id/name; turn-in still pays the reward.
+
+   **Open questions → see chat.**
 14. **Feature (plan ahead) — NPCs remember their interactions with a player.** NPCs should **"remember"** when
    they have interacted with a player. Store **what kind** of interaction it was: just a **dialog**, a **trade**,
    or a **mission accepted**. This then **improves the relationship value** to that player. Keep an **interaction
