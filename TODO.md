@@ -375,7 +375,59 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    **Questions:** (1) Give-up feel — roughly how long should an aggressor chase before giving up, and how long
    should it leave you alone after? (default ~12 s chase → ~10 s cooldown). (2) Spawn spread — OK to spawn
    creatures **farther out + scattered** (so you discover them around the biome) rather than right next to you?
-8. **Task 4 — content-styled icons** for everything pickup-able / hand-held. (Detailed below.)
+8. **Task 4 — content-styled icons** for everything pickup-able / hand-held. (Brief below; full Analysis + Plan here.)
+
+   ### Analysis (2026-06-07)
+   **Two parallel icon systems today, neither gives per-item art:**
+   - **Hotbar (on-foot)** `HudUi.cs:311-321`: block-category items already draw a **downscaled block atlas tile**
+     (`Game.Atlas.TileUv(numericId)` on a `RawImage`). Non-block items fall to `IconFactory.ForItem(key, kind)`
+     — a 16×16 **procedural glyph** (ring/diamond/cross/box, colour hashed from the key). Crude, not per-item.
+   - **Crafting / tech / ship menu** `CraftingTechShipUI.cs:1287-1301`: every row uses a **category** icon string
+     (`cat_tools`, `cat_weapons`, …) via `UiKit.Icon()` → `Resources.Load<Texture2D>("icons/<name>.png")`. So a
+     whole category shares one icon; individual items/blueprints/modules are indistinguishable.
+   - **Block textures** are real, AI-generated 64×64 tiles in `Resources/textures/*.bytes` (34 of them: ores,
+     metals, flora, glass, …) loaded by `BlockTextureAtlas`. **Materials that correspond to a block already have
+     usable art** — it just isn't surfaced as an inventory/menu icon.
+   - **Space view** `SpaceView.cs`: ship weapons/modules are **text labels** only (`ui.space.sys_laser`,
+     `sys_tractor`); the tractor beam is a cyan cube. No icons.
+
+   **Asset pipeline (ready to extend):** `tools/ai-assets/` has `gen_icons.py` (OpenAI `gpt-image-1-mini`,
+   cyan-line transparent PNGs → `client/Assets/Resources/icons/<name>.png`, ~$0.005 each, `--only`/`--dry-run`,
+   resumable) and `gen_textures.py` + `bundle_textures.py` (full-colour tiles → `Resources/textures/*.bytes`).
+   Keys in `tools/ai-assets/.env`. Adding a new `gen_item_icons.py` manifest mirrors the existing pattern.
+
+   **What needs an icon (audited — `data/*.json`):**
+   - **60 items** (`items.json`): ~**22 map to a block** (placesBlock or same key → free **atlas tile** icon:
+     stone/dirt/ores/glass/iron_wall/sand/mud/crystal/ice/basalt/wood_log/ladder/stairs/seeds…). The other **~38
+     have no block art** and need a real icon: processed mats (iron_ingot, iron_plate, copper_wire, cable,
+     carbon_composite, energy_cell_1, titanium_plate, data_fragment, plant_fiber), 7 consumables
+     (creature_meat, **toxic_gland**, berries, **toxic_berries**, emergency_ration, medpack, oxygen_tank_1),
+     6 weapons, 6 tools, 11 suit/wearable components.
+   - **23 ship modules** (`ship_modules.json`) + the **space tools** (laser, tractor_beam) — for the builder/space
+     UI.
+   - **36 blueprints** (`blueprints.json`): each unlocks an item/module of (almost) the **same key** → **reuse
+     that icon**, no separate blueprint art needed (fallback to category icon if unmatched).
+   - No JSON schema change required: icons resolve **by key** at load (block-atlas tile, else `item_<key>.png`,
+     else procedural fallback). Toxic = `consumeHealth < 0` (drives the green-meat variant).
+
+   ### Plan
+   1. **Client `IconResolver`** (new) — single source of truth used by BOTH hotbar and crafting/tech/ship menu:
+      given an item/module/blueprint key return, in order: (a) **block atlas tile** as a `Sprite`
+      (`Sprite.Create(atlas.Texture, tileRectInPixels, …)`) when the key places/equals a textured block; (b) a
+      loaded **`Resources/icons/item_<key>.png`** sprite if present; (c) **`IconFactory`** procedural glyph
+      fallback. Blueprint → unlocked-key lookup first. This makes the menu show the same real icon as the hotbar.
+   2. **Generate the missing icons** via a new `tools/ai-assets/gen_item_icons.py` (manifest of the ~38 items +
+      ~21 modules + space tools, each with a short prompt; downscale to 128×128 transparent PNG). **Test-first:**
+      one sample icon generated + shown for approval, then the batch (per the asset-approval rule). Copy to
+      `Resources/icons/item_<key>.png`; update `NOTICES.md`.
+   3. **Meat/toxic:** a steak icon for `creature_meat`; toxic consumables (`toxic_gland`, `toxic_berries`) get a
+      **green** treatment (either a dedicated green icon or a runtime green tint of the base icon — see Q).
+   4. **Wire space view:** show the laser/tractor (and ship modules) icons in the ship systems bar + builder UI.
+   5. **Bilingual + tests:** no new user text (icons are visual); add a small test that `IconResolver` returns a
+      non-null sprite for every item/module key (catches missing art) and that toxic resolves to the green path.
+   6. Build + client rebuild (icons are `Resources`, picked up by the player build).
+
+   **Open questions for the user → see chat.**
 9. **Feature — holographic visor HUD.** Analyse + plan: can the in-game UI be adapted so it looks like a
    **holographic HUD projected onto the inside of an outward-curved glass** (the space-suit visor glass)? Look
    at which **effects** can be used to achieve it (e.g. curvature/parallax, a fresnel/rim glow on the visor,
