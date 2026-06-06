@@ -94,6 +94,10 @@ public sealed class CreatureSpecies
     /// <summary>Bioluminescent — glows in the dark (ties into the lighting system).</summary>
     public bool Glows { get; set; }
 
+    /// <summary>The biome (index into the planet's biome list) this species is native to, so a multi-biome
+    /// world shows different fauna in different regions. -1 = at home in any biome (single-biome worlds).</summary>
+    public int BiomeAffinity { get; set; } = -1;
+
     // --- Harvest (drop + its property kind) ---
     public string DropItem { get; set; } = string.Empty;
     public int DropCount { get; set; } = 1;

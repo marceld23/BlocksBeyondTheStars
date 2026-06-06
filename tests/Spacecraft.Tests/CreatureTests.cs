@@ -124,6 +124,18 @@ public sealed class CreatureTests : IDisposable
         Assert.True(roster.Select(s => s.Name).Distinct().Count() >= roster.Count - 1, "Names should vary across the roster.");
     }
 
+    [Fact]
+    public void Roster_AssignsBiomeAffinity_SpreadAcrossAMultiBiomeWorld()
+    {
+        var varied = _content.GetPlanet("varied")!; // a multi-biome world
+        int biomeCount = System.Math.Max(1, varied.Biomes.Count);
+        Assert.True(biomeCount >= 2, "the 'varied' planet should have several biomes for this test");
+
+        var roster = CreatureGenerator.GenerateRoster(varied, 4242);
+        Assert.All(roster, s => Assert.InRange(s.BiomeAffinity, 0, biomeCount - 1)); // a real biome on a multi-biome world
+        Assert.True(roster.Select(s => s.BiomeAffinity).Distinct().Count() >= 2, "fauna should spread across biomes");
+    }
+
     // ---------------- Live spawning & combat ----------------
 
     [Fact]

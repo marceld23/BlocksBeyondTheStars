@@ -25,13 +25,14 @@ public static class CreatureGenerator
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
         bool allowWater = HasWaterLife(planet);
         bool allowLava = HasLavaLife(planet);
+        int biomeCount = System.Math.Max(1, planet.Biomes.Count);
 
         const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
         for (int i = 0; i < count; i++)
         {
             long s = unchecked(planetSeed ^ ((long)i * golden));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list.Add(MakeSpecies(i, rng, allowWater, allowLava));
+            list.Add(MakeSpecies(i, rng, allowWater, allowLava, biomeCount));
         }
 
         return list;
@@ -44,7 +45,7 @@ public static class CreatureGenerator
         _ => 3, // "few" / unknown
     };
 
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava)
+    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, int biomeCount)
     {
         var habitat = PickHabitat(rng, allowWater, allowLava);
         var temperament = (CreatureTemperament)Weighted(rng,
@@ -87,6 +88,7 @@ public static class CreatureGenerator
             Eyes = Weighted(rng, 0, 12, 2, 50, 3, 18, 4, 14, 6, 6),   // eyeless / two / three / four / six
             Horns = Weighted(rng, 0, 55, 1, 18, 2, 15, 3, 12),         // none / one / two / three
             Glows = habitat == CreatureHabitat.Lava || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
+            BiomeAffinity = biomeCount <= 1 ? -1 : rng.Next(biomeCount), // native to one biome on multi-biome worlds
 
             DropItem = dropItem,
             DropCount = dropCount,

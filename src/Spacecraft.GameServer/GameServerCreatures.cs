@@ -206,20 +206,31 @@ public sealed partial class GameServer
         int x = (int)System.Math.Floor(player.Position.X) + dx;
         int z = (int)System.Math.Floor(player.Position.Z) + dz;
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+        int biome = _generator.BiomeIndexAt(_world.Planet, x, z);
 
-        for (int n = 0; n < _speciesRoster.Length; n++)
+        // Two passes: first only species native to this biome (so a multi-biome world shows different fauna in
+        // different regions), then any species — so a biome never goes empty if none of its natives fit here.
+        for (int pass = 0; pass < 2; pass++)
         {
-            var sp = _speciesRoster[(_creatureSpawnRotor + n) % _speciesRoster.Length];
-            float y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
-            var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
-            if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
+            for (int n = 0; n < _speciesRoster.Length; n++)
             {
-                continue; // never spawn inside (or clipping into) a landed ship
-            }
+                var sp = _speciesRoster[(_creatureSpawnRotor + n) % _speciesRoster.Length];
+                if (pass == 0 && sp.BiomeAffinity >= 0 && sp.BiomeAffinity != biome)
+                {
+                    continue; // not native to this biome (relaxed on the second pass)
+                }
 
-            _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;
-            SpawnCreature(sp, pos);
-            return true;
+                float y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
+                var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
+                if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
+                {
+                    continue; // never spawn inside (or clipping into) a landed ship
+                }
+
+                _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;
+                SpawnCreature(sp, pos);
+                return true;
+            }
         }
 
         return false;

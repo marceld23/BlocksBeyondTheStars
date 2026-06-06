@@ -567,7 +567,7 @@ collider closes the gap when shut). Phased plan:
 - **D5 — localization + tests:** en/de names; tests: a slide door opens when a player steps within range +
   auto-closes; a hinge door toggles on interact; the collider blocks passage while closed.
 
-### ▶ In progress (started 2026-06-07): species/flora/colour/naming overhaul
+### ✅ Done (2026-06-07): species/flora/colour/naming overhaul
 A multi-phase feature requested 2026-06-07 — random per-world flora & fauna species with generated looks +
 names, wilder colours, uniform per-planet flora hue, and full OpenAI/ElevenLabs asset coverage. The user chose
 **"work the plan in order"** and **gave blanket approval for paid asset generation** (OpenAI textures +
@@ -595,7 +595,11 @@ ElevenLabs sounds — no further per-batch confirmation needed; keys are in `too
 - ◑ **Phase 4 — fauna polish + names** — ✅ **names + colours done** (`3c1500c`): a shared `NameGenerator`
   coins per-species names (shown on scan as the readout subject; rides `NetCreature.Name`); `PickColor` now
   makes ~half of species vivid exotics (HSV hues → pink/violet/yellow/teal). ⏳ **still to do:** per-**biome**
-  species affinity (spawn species by the player's current biome, not just per-planet).
+  species affinity (spawn species by the player's current biome, not just per-planet). ✅ **done 2026-06-07**:
+  `CreatureSpecies.BiomeAffinity` (assigned per species from the planet's biome count; -1 on single-biome
+  worlds); `TrySpawnCreatureNear` now does a biome-first two-pass spawn (native species preferred, any as
+  fallback) so a multi-biome world shows different fauna per region. Test:
+  `Roster_AssignsBiomeAffinity_SpreadAcrossAMultiBiomeWorld`.
 - ◑ **Phase 5 — asset generation (paid, approved)** — ✅ **(a) flora textures complete**: generated +
   bundled `flora_kelp` + `flora_lily` (OpenAI), so **all 15 `flora_*` blocks now have tiles** (audit confirmed
   flora 15/15 + creature hides 12/12 covered; only special blocks — lights/force-field/ladder/stairs/data-cache
