@@ -202,6 +202,14 @@ public sealed class SetJetpackIntent
     public bool Active { get; set; }
 }
 
+/// <summary>Client → server: the player starts (Active = true) or ends (Active = false) an EVA spacewalk —
+/// floating outside the ship in space on foot. The server honours a start only while the player is actually
+/// in a space instance; on EVA the suit's life support is off, so oxygen drains until they board again.</summary>
+public sealed class SetEvaIntent
+{
+    public bool Active { get; set; }
+}
+
 /// <summary>Client docks with and boards a nearby space station from the current space instance.</summary>
 public sealed class BoardStationIntent
 {
@@ -399,6 +407,10 @@ public sealed class PlayerStateUpdate
 
     /// <summary>Whether the player is currently inside their ship (enables cargo crafting, oxygen regen).</summary>
     public bool AboardShip { get; set; }
+
+    /// <summary>True while the player is on an EVA spacewalk (floating in space on foot) — drives the
+    /// suit float HUD and tells the client to skip the ship take-off animation when boarding again.</summary>
+    public bool InEva { get; set; }
 
     /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
     public string StationName { get; set; } = string.Empty;

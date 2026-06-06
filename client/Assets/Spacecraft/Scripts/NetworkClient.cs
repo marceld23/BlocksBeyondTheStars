@@ -149,6 +149,8 @@ namespace Spacecraft.Client
 
         public void SendSetJetpack(bool active) => Send(new SetJetpackIntent { Active = active });
 
+        public void SendSetEva(bool active) => Send(new SetEvaIntent { Active = active });
+
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });
 
         public void SendScan(string subjectType, string subjectKey) => Send(new ScanIntent { SubjectType = subjectType, SubjectKey = subjectKey });

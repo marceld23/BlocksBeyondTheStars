@@ -254,6 +254,24 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Starts/ends an EVA spacewalk. Only honoured while the player is actually out in a space
+    /// instance and free flight is allowed; on EVA the suit life support is off so oxygen drains.</summary>
+    private void HandleSetEva(PlayerSession session, SetEvaIntent intent)
+    {
+        var p = session.State;
+        if (intent.Active)
+        {
+            if (Rules.FreeSpaceFlight && InSpace(p.PlayerId))
+            {
+                p.InEva = true;
+            }
+        }
+        else
+        {
+            p.InEva = false;
+        }
+    }
+
     /// <summary>Leaves the current space instance and returns to the surface/base.</summary>
     public void LeaveSpace(string playerId)
     {
@@ -263,6 +281,10 @@ public sealed partial class GameServer
         }
 
         _playerInstance.Remove(playerId);
+        if (FindSessionByPlayerId(playerId) is { } leaveSession)
+        {
+            leaveSession.State.InEva = false; // back on the surface — the spacewalk is over
+        }
         if (_spaceInstances.TryGetValue(instanceId, out var instance))
         {
             instance.Players.Remove(playerId);
@@ -782,6 +804,7 @@ public sealed partial class GameServer
             var p = session.State;
             p.Position = p.RespawnPoint;
             p.AboardShip = true;
+            p.InEva = false; // the ship's loss ends any spacewalk
             p.Health = 100f;
             p.Oxygen = 100f;
 

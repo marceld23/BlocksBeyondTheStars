@@ -55,6 +55,7 @@ namespace Spacecraft.Client
 
         /// <summary>Whether we're currently inside the ship (authoritative; enables cargo crafting).</summary>
         public bool Aboard { get; private set; }
+        public bool InEva { get; private set; } // server-authoritative: floating outside the ship in space
 
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
@@ -591,6 +592,7 @@ namespace Spacecraft.Client
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
             Aboard = m.AboardShip;
+            InEva = m.InEva;
 
             // Boarding or leaving a space station is a server-side teleport (to the station interior, or
             // back to the ship). Snap the body to the new authoritative position — otherwise the player

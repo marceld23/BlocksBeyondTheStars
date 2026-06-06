@@ -599,11 +599,13 @@ public sealed partial class GameServer
                 continue; // invulnerable: no drain, no death
             }
 
-            bool lifeSupport = p.AboardShip || InStation(p.PlayerId) || !Rules.OxygenEnabled;
+            // On an EVA spacewalk there is no atmosphere and no ship/station life support: always drain,
+            // regardless of the body you launched from being breathable. InEva overrides everything below.
+            bool lifeSupport = !p.InEva && (p.AboardShip || InStation(p.PlayerId) || !Rules.OxygenEnabled);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
-            bool submerged = !lifeSupport && HeadUnderwater(p);
-            if (!submerged && (lifeSupport || AtmosphereBreathable))
+            bool submerged = !lifeSupport && !p.InEva && HeadUnderwater(p);
+            if (!submerged && (lifeSupport || (!p.InEva && AtmosphereBreathable)))
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).
@@ -621,7 +623,7 @@ public sealed partial class GameServer
             {
                 // Outside without breathable air (toxic / airless) or submerged underwater: drain the tank.
                 float drain = (float)(dt * Rules.OxygenDrainPerSecond);
-                if (!submerged && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
+                if (!submerged && !p.InEva && _oxygenExtractability > 0 && p.Inventory.Has("oxygen_extractor", 1))
                 {
                     // The suit extracts some oxygen from a toxic atmosphere — reduces (never refills)
                     // the drain, scaled by how breathable-ish this world is. Airless worlds (0) don't help.
@@ -807,6 +809,7 @@ public sealed partial class GameServer
         p.SuitEnergy = 100f;
         p.Hunger = 100f;
         p.Stealthed = false;
+        p.InEva = false; // a death ends any spacewalk
         p.Position = p.RespawnPoint;
         p.AboardShip = true;
 
@@ -995,6 +998,7 @@ public sealed partial class GameServer
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
+            case SetEvaIntent eva: HandleSetEva(session, eva); break;
             case BoardStationIntent boardStation: HandleBoardStation(session, boardStation); break;
             case LeaveStationIntent: HandleLeaveStation(session); break;
             case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
@@ -1931,6 +1935,7 @@ public sealed partial class GameServer
             SuitEnergy = p.SuitEnergy,
             Hunger = p.Hunger,
             AboardShip = p.AboardShip,
+            InEva = p.InEva,
             StationName = CurrentStationName(p.PlayerId),
         });
     }

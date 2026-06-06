@@ -65,6 +65,26 @@ public sealed class AtmosphereTests : IDisposable
     }
 
     [Fact]
+    public void Eva_DrainsOxygen_EvenOverABreathableWorld()
+    {
+        var server = Started("jungle", out var repo); // breathable air at the surface
+        using (repo)
+        {
+            Assert.True(server.AtmosphereBreathable);
+
+            var session = server.AddLocalPlayer("Spacewalker");
+            var p = session.State;
+            p.AboardShip = true; // EVA keeps the ship bond; InEva is what forces the drain
+            p.InEva = true;      // floating outside the ship in space
+            p.Position = new Vector3f(0, 64, 0);
+            p.Oxygen = 50f;
+
+            server.Tick(2.0);
+            Assert.True(p.Oxygen < 50f, "An EVA spacewalk must drain oxygen even over a breathable world.");
+        }
+    }
+
+    [Fact]
     public void ToxicPlanet_DrainsOxygenOnSurface()
     {
         var server = Started("rocky", out var repo); // toxic

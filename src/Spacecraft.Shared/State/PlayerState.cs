@@ -59,6 +59,11 @@ public sealed class PlayerState
     /// <summary>True when the player is currently aboard their ship (enables cargo crafting).</summary>
     public bool AboardShip { get; set; } = true;
 
+    /// <summary>True while the player is on an EVA spacewalk — floating outside the ship in a space
+    /// instance. The ship bond (<see cref="AboardShip"/>) stays set, but life support does not apply:
+    /// the suit runs on its own air, so oxygen drains until the player boards the ship/station again.</summary>
+    public bool InEva { get; set; }
+
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
 

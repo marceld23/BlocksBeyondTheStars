@@ -189,6 +189,7 @@ public sealed partial class GameServer
         session.CurrentLocationId = stationLoc;
         session.State.Position = station.Spawn;
         session.State.AboardShip = false;
+        session.State.InEva = false; // docking ends any spacewalk — the station has life support
         session.SentChunks.Clear();
 
         Send(session, new SpaceClosed { Reason = "Docked with station.", ShipDisabled = false });

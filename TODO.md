@@ -153,6 +153,27 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
    No world-gen or persistence changes expected beyond the new flag; mostly `PlayerController` (gravity + float
    movement), `SpaceView.Enter` (skip-launch), one server flag + message field, and the launch-button label/branch.
+
+   **Decisions (user, 2026-06-07):** (a) scope = **both** — build EVA now **and** keep the float logic generic
+   so item 10 (build into space) docks on later; (b) movement = **full 6-DOF free-fly** (mouse-look + WASD +
+   ascend/descend, like piloting); (c) board the ship in space by **floating up to it** (E to board,
+   range-gated like station docking); (d) floating **drains suit oxygen** (time pressure → get back in time).
+
+   **Implementation — staged:**
+   - ✅ **Stage 1 — server EVA foundation (done 2026-06-07).** `PlayerState.InEva` + the `SetEvaIntent`
+     message/handler (`HandleSetEva`, only honoured while actually in a space instance). The oxygen tick now
+     treats `InEva` as "no life support, no atmosphere" so oxygen drains even over a breathable world and the
+     extractor can't help; empty → the existing suffocation damage. `InEva` is cleared on leave-space, station
+     docking, ship loss and death, and mirrored to the client in `PlayerStateUpdate` (`GameBootstrap.InEva`) +
+     `NetworkClient.SendSetEva`. Test: `Eva_DrainsOxygen_EvenOverABreathableWorld`. (319 tests pass.)
+   - ⏳ **Stage 2 — client EVA mode in `SpaceView`.** A first-person 6-DOF float mode: a key in the flight view
+     exits the ship (ship stays parked as a model), `SendSetEva(true)`; reuse the cruise yaw/pitch + WASD (slower)
+     + ascend/descend; **E boards the ship or a station when in range** (`SendSetEva(false)`, no take-off
+     animation); oxygen/EVA HUD + board prompt.
+   - ⏳ **Stage 3 — launch-button + zero-g groundwork.** The `ui.space.enter` action must not replay the
+     take-off animation when already in space (`SpaceState`/`SpaceView.Enter` skip-launch path + button
+     label/branch). Add a gravity-skip + floaty path in `PlayerController` gated on a flag (unset for now) so
+     item 10 can flip it — the "must not fall" safety net.
 6. **Bug — save the player's position per planet.** When I land on another planet, my **position there** should
    be saved too, so on **loading the save I'm back there** (not just the last/home world).
 7. **Bug — creatures chase forever + spawn only at the ship.** Analyse: creatures seem to **follow the player
