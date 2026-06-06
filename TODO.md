@@ -28,7 +28,8 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   (alpha submesh, clear-blue tile alpha, no frost) so you see down into seas. Part 3: the fluid sim is
   **ship-aware** (`FluidCanEnter`) — ships land at the seabed (so underwater on water worlds) with a **dry,
   watertight cabin** that water can't flow into. Tests: `Submerged_DrainsSuitOxygen_…`,
-  `Fluid_DoesNotFlowIntoAShipInterior`. *(Possible polish: a subtle blue screen tint while submerged.)*
+  `Fluid_DoesNotFlowIntoAShipInterior`. ✅ **Polish:** a subtle blue full-screen wash while the eye is
+  submerged (`WeatherFx.EyeUnderwater` + an IMGUI wash, smoothed, hidden in space/menu).
 - **Task 2 — Walk all the way around a planet.** Analyse: can the player really circumnavigate a planet, and
   **how is it implemented**? It should be possible. (World-wrap is partly built — verify it end-to-end.)
 - **Task 3 — Shadows & darkness on planets.** Analyse how shadow-casting + darkness work. A **cave entrance

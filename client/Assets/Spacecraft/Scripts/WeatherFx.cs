@@ -19,6 +19,7 @@ namespace Spacecraft.Client
         private bool _init;
         private float _flash;
         private float _flashTimer;
+        private float _underwater; // smoothed 0..1 blue submerged wash
 
         private void Init()
         {
@@ -36,6 +37,9 @@ namespace Spacecraft.Client
 
         private void Update()
         {
+            // Underwater blue wash — independent of weather (works in caves / at night too).
+            _underwater = Mathf.MoveTowards(_underwater, EyeUnderwater() ? 1f : 0f, Time.deltaTime * 3.5f);
+
             if (Game?.Environment == null)
             {
                 return;
@@ -53,8 +57,33 @@ namespace Spacecraft.Client
             }
         }
 
+        /// <summary>True when the first-person eye (≈ the head, ~1.5 above the player root) is inside water.</summary>
+        private bool EyeUnderwater()
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            var p = Game.PlayerPosition;
+            var def = Game.Content.BlockById(Game.World.GetBlock(
+                Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y + 1.5f), Mathf.FloorToInt(p.z)));
+            return def?.Key == "water";
+        }
+
         private void OnGUI()
         {
+            // Subtle blue submerged wash, drawn before (and independent of) the weather overlay so it shows
+            // even underwater in a cave or at night. Hidden in space and while the menu is open.
+            if (_underwater > 0.01f && Game != null && !Game.SpaceViewActive && !Game.MenuOpen)
+            {
+                GUI.depth = 10;
+                var prevWater = GUI.color;
+                GUI.color = new Color(0.15f, 0.40f, 0.62f, 0.34f * _underwater);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = prevWater;
+            }
+
             var env = Game?.Environment;
             if (env == null || Game.SpaceViewActive || !Game.ExposedToSky)
             {
