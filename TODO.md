@@ -441,9 +441,12 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    6. Build + client rebuild (icons are `Resources`, picked up by the player build).
 
    **Open questions for the user → see chat.**
-9. ✅ **Feature — holographic visor HUD (done 2026-06-07).** The diegetic HUD now reads as a hologram projected
-   onto the inside of the suit visor. **Decisions (user):** (a) **direct true HUD projection** (B1, not the mild
-   whole-frame option); (b) **always on**; (c) **reflections yes**.
+9. ✅ **Feature — holographic visor HUD (done 2026-06-07; confirmed working in-game).** The diegetic HUD reads as
+   a hologram projected onto the inside of the suit visor. **Decisions (user):** (a) **direct true HUD
+   projection** (B1, not the mild whole-frame option); (b) **always on**; (c) **reflections yes**. *(Needed two
+   in-build fixes the player log surfaced: build the composite material lazily — `OnEnable` ran before the shader
+   was set — and resolve the HUD layer by index, since a freshly-added layer NAME isn't baked into a batch build;
+   see [[unity-layer-index-not-name]].)*
    - **B1 pipeline:** the diegetic HUD canvases (HudUI + Space radar) render through a dedicated **UI camera**
      (`VisorHud`) on a new **`VisorHud` layer (8)** into an ARGB32 **render texture**; the main camera excludes
      that layer. A new `VisorComposite` (after `PostFx`) runs a fullscreen **`Spacecraft/Visor`** pass over the
@@ -813,8 +816,11 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    **server** — it holds the context + the toggle); (b) backend framework (FastAPI recommended); (c) cache + cost
    controls; (d) how the backend process is launched (manual `uv run` first; later a launcher script / bundled).
    **Out of scope here:** no code — this entry is the plan; implement only when greenlit.
-16. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Brief below; full
-   Analysis + Plan here — **big, to be staged**.) *(Analysis done; scope questions in chat.)*
+16. 🔄 **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Big, staged — full
+   Analysis + Plan below.) **Done so far: Stage 1** (14 metals/rare-earths + alloy tier + soft-lock/dead-station
+   cleanups), **Stage 3** (placeable workbench/forge = on-world crafting + decor blocks), **Stage 3b** (placeable
+   storage crate). **Remaining: Stage 2** (deeper tiers / data_fragment rebalance), **Stage 4** (ships & ship
+   parts on the new materials), and a **placeable door**.
 
    ### Analysis (2026-06-07)
    **Current graph** (`data/{items,blocks,recipes,blueprints,ship_modules,ships,planets}.json`):
