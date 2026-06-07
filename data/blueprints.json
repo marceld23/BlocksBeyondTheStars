@@ -72,7 +72,7 @@
   {
     "key": "laser_cannon_2", "nameKey": "blueprint.laser_cannon_2.name", "descriptionKey": "blueprint.laser_cannon_2.desc",
     "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1" ],
-    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "ship_hauler", "nameKey": "blueprint.ship_hauler.name", "descriptionKey": "blueprint.ship_hauler.desc",
@@ -177,6 +177,6 @@
   {
     "key": "plasma_blaster", "nameKey": "blueprint.plasma_blaster.name", "descriptionKey": "blueprint.plasma_blaster.desc",
     "category": "Weapon", "prerequisites": [ "laser_pistol" ], "knowledgeCost": 16,
-    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
   }
 ]

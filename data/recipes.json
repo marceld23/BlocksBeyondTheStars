@@ -45,7 +45,7 @@
   { "key": "market_titanium_to_iron",  "station": "market", "inputs": [ { "item": "titanium_ore", "count": 1 } ],  "outputs": [ { "item": "iron_ore", "count": 4 } ] },
   { "key": "market_copper_to_silicate","station": "market", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
   { "key": "market_sell_crystal",      "station": "market", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
-  { "key": "market_buy_data_fragment", "station": "market", "inputs": [ { "item": "titanium_ore", "count": 4 }, { "item": "crystal", "count": 2 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+  { "key": "market_buy_data_fragment", "station": "market", "inputs": [ { "item": "titanium_ore", "count": 3 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] },

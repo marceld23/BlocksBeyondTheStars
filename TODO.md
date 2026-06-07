@@ -819,8 +819,8 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 16. 🔄 **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Big, staged — full
    Analysis + Plan below.) **Done so far: Stage 1** (14 metals/rare-earths + alloy tier + soft-lock/dead-station
    cleanups), **Stage 3** (placeable workbench/forge = on-world crafting + decor blocks), **Stage 3b** (placeable
-   storage crate), **Stage 4** (ships & ship parts fold onto the new materials). **Remaining: Stage 2** (deeper
-   tiers / data_fragment rebalance) and a **placeable door**.
+   storage crate), **Stage 4** (ships & ship parts fold onto the new materials), **Stage 2** (knowledge-economy +
+   ore depth-tier rebalance). **Remaining: a placeable door** (the last Stage-3 follow-up).
 
    ### Analysis (2026-06-07)
    **Current graph** (`data/{items,blocks,recipes,blueprints,ship_modules,ships,planets}.json`):
@@ -856,10 +856,18 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      (steel_wall, bronze/brass block). Removed the **dead `Lab`/`MachineRoom` stations** + the **worse-than-craft
      market dupes**. **Tested:** `CraftingConsistencyTests` (no broken refs, every input obtainable, no dead-ends,
      every planet reaches cable, dead stations gone) — 354 green. ~40 assets generated; client rebuilt.
-   - **Stage 2 — Staged crafting depth (alloys + electronics + real prerequisites).** Mid-tier intermediates
-     (e.g. steel = iron+carbon, bronze = copper+tin, electronics = silver/gold+silicate, battery cells from
-     lithium, alloy plates) that gate the existing advanced items, turning the flat tree into clear stages; rework
-     unlock/recipe costs to use them; rebalance the data_fragment/knowledge economy.
+   - ✅ **Stage 2 — knowledge-economy + ore depth-tier rebalance (done 2026-06-07).** *(The staged alloy/
+     electronics intermediates this stage originally scoped — steel/bronze/electronics/alloy plates gating the
+     advanced items — were already delivered in Stage 1; Stage 2 became the **economy + depth** rebalance the
+     user picked.)* **Eased the `data_fragment` grind** (≈89 fragments unlock everything, ~1–5 per blueprint;
+     `data_cache` was ~10–75× rarer than ore): the cache now **drops 2** (was 1), worldgen cache rarity **×1.5
+     across all worlds** (floor 0.0012), the market fallback is cheaper (**3 titanium_ore + 1 crystal → 1**, was
+     4+2), and the two steepest unlocks (laser_cannon_2, plasma_blaster) drop **5→4** fragments — on top of the
+     existing cache/market/mission/combat/structure-loot sources. **Light depth-tiering:** valuable/rare ores now
+     sit deeper (gold 16→20, silver/cobalt 12→16, lithium 8→12, tungsten/neodymium 20→26, uranium/platinum 24→30)
+     while construction ores stay shallow — rewards deep mining without a soft-lock (every vein still reachable in
+     its crust). **Tested:** new `EconomyBalanceTests` (eased cache yield, every vein reachable, valuable-deeper-
+     than-construction) — 361 green; data synced to the bundled server.
    - ✅ **Stage 3 — Buildable world objects (done 2026-06-07).** New placeable blocks for base-building on
      worlds: a **workbench** (enables **workshop** crafting when you stand near it, no ship needed) and a
      **forge** (enables **refinery** crafting) — `StationAvailable` now also accepts a placed station block via
