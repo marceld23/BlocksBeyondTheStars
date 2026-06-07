@@ -1024,7 +1024,7 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    reads as a translucent holographic overlay over the world/HUD (panels already use the HUD cyan palette); kept
    flat (not routed through the visor — that would misalign clicks). Client rebuilt. *(Exact magnitudes want a
    playtest — all are single constants, easy to nudge.)*
-   - ✅ **19d — Menu "visor glass" helmet look (done 2026-06-07; user feedback "no curvature/helmet in the menu").**
+   - ✅ **19d — Menu "visor glass" helmet look (done 2026-06-07; ✅ confirmed good in-game).**
      The menu was flat (no helmet) because routing it through the visor would **displace clicks** (the shader
      bends the image). Chosen with the user: give the menu the **helmet look without the curvature** — a new
      additive **`Spacecraft/VisorGlass`** shader (cyan fresnel rim glow + faint animated scanlines + top glint,
