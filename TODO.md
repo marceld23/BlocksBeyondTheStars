@@ -1094,7 +1094,16 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
 ### Small "rest" TODOs surfaced from completed items (promoted here 2026-06-07 for visibility)
 *(These were implicit/deferred notes buried inside already-✅ items — captured as explicit backlog entries.)*
-24. **Make asteroid bodies landable in the flight view** *(from item 5, Stage 6; re-scoped 2026-06-07 — MEDIUM,
+24. ✅ **Large landable asteroids (done 2026-06-07; needs in-engine test).** **Implemented:** worldgen now
+   places **2–3 large landable asteroid bodies per system** (`UniverseGenerator` — `CelestialKind.AsteroidField`
+   with **`PlanetType = "asteroid"`**, scattered orbit positions, ids `{system}-a{0..2}`), so each is **Asteroid
+   size-class** → a defined small walkable world (circumference 800–1600 per id) and the existing
+   `EvaLandingAllowed` guard permits it. The flight view (`SpaceView.BuildSystemBodies`) gained a **third loop**
+   that renders `AsteroidField` bodies + adds them to `_landables`, so you **fly up + press E to land** — with
+   the **ship or on an EVA** (travel/land already route through `LoadWorld(body.PlanetType, …)`; planets/moons
+   stay EVA-rejected). The **small mineable rocks** are unchanged (space entities you shoot/harvest). Test
+   `Universe_GeneratesLargeLandableAsteroidBodies_PerSystem` (2–3 per system, all asteroid-class) — 365 green;
+   client + bundled server rebuilt. *(Original analysis below.)* *(from item 5, Stage 6; re-scoped 2026-06-07 — MEDIUM,
    not small).* **Finding on closer look:** there are **no discrete walkable asteroid bodies** — a system has at
    most one **asteroid *belt*** (`CelestialKind.AsteroidField`, no `PlanetType`, rendered in space as mineable
    rock *entities*). `RestoreJoinBody` already treats an `AsteroidField` as a travelable body, but it has no

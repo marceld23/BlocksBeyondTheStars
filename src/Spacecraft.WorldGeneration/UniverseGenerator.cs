@@ -121,10 +121,24 @@ public sealed class UniverseGenerator
                 }
             }
 
-            if (rng.NextDouble() < _desc.AsteroidFields.Probability())
+            // A few large, landable asteroids per system: walkable "asteroid" worlds you can land on with the
+            // ship or on an EVA, each sized deterministically by its id (CircumferenceFor → Asteroid class). The
+            // small mineable rocks spawn separately as space entities at any body. (One rng draw, like the old
+            // single-belt gate, so existing systems' stations/wrecks downstream stay put.)
+            int asteroidCount = 2 + (rng.NextDouble() < 0.5 ? 1 : 0); // 2 or 3
+            for (int a = 0; a < asteroidCount; a++)
             {
-                var (ax, az) = DiscPoint(i, planets, 301);
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-a0", Name = $"{system.Name} Belt", Kind = CelestialKind.AsteroidField, SystemId = system.Id, SystemX = ax, SystemZ = az });
+                var (ax, az) = DiscPoint(i, planets, 310 + a);
+                system.Bodies.Add(new CelestialBody
+                {
+                    Id = $"{system.Id}-a{a}",
+                    Name = $"{system.Name} Asteroid {a + 1}",
+                    Kind = CelestialKind.AsteroidField,
+                    PlanetType = "asteroid",
+                    SystemId = system.Id,
+                    SystemX = ax,
+                    SystemZ = az,
+                });
             }
 
             if (rng.NextDouble() < _desc.SpaceStations.Probability())

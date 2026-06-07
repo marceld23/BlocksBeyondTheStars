@@ -89,6 +89,30 @@ public sealed class LandableAsteroidTests : IDisposable
     }
 
     [Fact]
+    public void Universe_GeneratesLargeLandableAsteroidBodies_PerSystem()
+    {
+        // Item 24: a few large, landable asteroid *bodies* per system — walkable "asteroid" worlds you can land
+        // on (ship or EVA), distinct from the small mineable rocks that spawn as space entities.
+        var galaxy = new UniverseGenerator(123, new WorldDescription(), _content).Generate();
+        var asteroids = galaxy.AllBodies().Where(b => b.Kind == CelestialKind.AsteroidField).ToList();
+        Assert.NotEmpty(asteroids);
+
+        foreach (var a in asteroids)
+        {
+            Assert.Equal("asteroid", a.PlanetType); // → travel/land loads the walkable asteroid world
+            // Asteroid size class → a defined small walkable size AND EvaLandingAllowed permits it (EVA can land).
+            Assert.Equal(WorldConstants.WorldSizeClass.Asteroid,
+                WorldConstants.SizeClassFor(a.Kind, a.PlanetType ?? string.Empty));
+        }
+
+        // Each system carries a small handful (2–3) of them.
+        foreach (var bySystem in asteroids.GroupBy(a => a.SystemId))
+        {
+            Assert.InRange(bySystem.Count(), 2, 3);
+        }
+    }
+
+    [Fact]
     public void Asteroid_DrainsOxygen_AndReportsSpaceSky()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "ast"));

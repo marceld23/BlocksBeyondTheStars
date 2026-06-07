@@ -1064,6 +1064,22 @@ namespace Spacecraft.Client
                     Plan(b.Id, b.Name, parent.Render + rel, moonDia, type);
                 }
 
+                // Pass 3: large landable asteroids — scattered like planets; you fly up + press E to land on
+                // them (ship or EVA → a small walkable asteroid world). The small mineable rocks are separate
+                // space entities; these are the sized, landable bodies.
+                foreach (var b in system.Bodies)
+                {
+                    if (b.Id == current.Id || b.Kind != "AsteroidField")
+                    {
+                        continue;
+                    }
+
+                    string type = string.IsNullOrEmpty(b.PlanetType) ? "asteroid" : b.PlanetType;
+                    var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
+                    float diameter = OrbitDiameterFor(b.Id, b.Kind, type);
+                    Plan(b.Id, b.Name, pos, diameter, type);
+                }
+
                 // Separation pass: relax any overlapping pair apart in the x-z plane until every body has a
                 // clear gap to every other. (Home is excluded — it sits far "below" you and never overlaps.)
                 for (int iter = 0; iter < 24; iter++)
