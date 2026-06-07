@@ -1523,6 +1523,18 @@ Client-only. *Playtest wanted.*
   reset** (the new world's `NpcList` repopulates). Note: the other entity views (`CreatureView`, `RemotePlayers`,
   `DoorView`) rely on the same snapshot-pruning and have the same latent gap — apply the same `WorldReset` clear if
   creatures/remote players ever leak across worlds. Client build verified.
+- **B34 — Loading flashes the empty/half-built world before the loading screen. [VALID — reported 2026-06-07]**
+  When a world / station / ship interior loads, the player briefly sees the **empty (still-streaming) world**,
+  *then* the loading overlay appears, *then* the finished world. Wanted: the **loading screen from the very first
+  frame** of the transition, hiding everything until the destination (planet / station / the player's ship,
+  depending on where they load) is fully built — then reveal. *Investigate:* the loading-overlay timing in
+  `GameBootstrap` (`WorldLoadStarted`/`HyperjumpStarted` events, `WorldReady`, the `OnWorldReset` order) + the
+  `PlayerController` settle-freeze that dismisses the overlay. The overlay is currently raised *inside*
+  `OnWorldReset` (after chunks are torn down) and dismissed once the player "settles onto solid ground", so there's
+  a gap at the very start (old world torn down, overlay not yet up) and possibly an early dismiss before the world
+  finishes meshing. *Fix idea:* show the overlay the instant a travel/board/land intent is sent (before any world
+  teardown), and only dismiss after the destination's chunks around the spawn have meshed (not just collider-
+  settle). Medium.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
