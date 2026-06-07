@@ -884,6 +884,13 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    Analyse and estimate: how could the game be changed so a world can be circumnavigated **not only horizontally
    but also vertically** — i.e. how to make a world behave **more like a sphere**. Assess what's **realistically
    possible**, weighing **complexity and performance cost**. For now, just **estimate and analyse**.
+19. **Feature — bigger HUD elements (requested 2026-06-07).** The player HUD elements (the **vitals/status bars,
+   the hotbar, compass, etc.**) should be shown **larger**. Must stay **resolution-independent**: the user has a
+   **high-resolution monitor** but it must also fit on **other resolutions**. *(Context: the HUD is built on a
+   `UiKit` canvas with `CanvasScaler` ScaleWithScreenSize, reference 1920×1080, ScreenMatchMode = Expand, and
+   elements are placed by fixed 1920×1080 coords — so "bigger" likely means lowering the reference resolution or
+   adding a HUD scale factor, then nudging the per-element rects so nothing overflows on 16:9 / ultrawide / 4K.
+   Note the diegetic HUD now also routes through the visor render texture — item 9 — so re-test the visor after.)*
 
 ---
 
