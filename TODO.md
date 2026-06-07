@@ -1302,6 +1302,16 @@ B5 (hard-block hardness ×1.6 — stone 3.8→6.1, ores/metals up; soft blocks u
   `SlideDoorOpenRange = 4.5`**; the per-door tighter range from the ship-hatch fix (1.8) was applied **only** to
   ship-stamp doors, not stations. In a station's tight rooms 4.5 means you're always within range → doors stay
   open. *Fix:* give station (and tight interior) slide doors a smaller open range, like the hatch.
+- **B24 — Red dots in the space HUD — enemies? Flew to one, saw no enemy ship. [PLAYTEST/analysis]** Most likely
+  the **enemy drones at long range**: combat spawns drones **150+ units away** from the launch point
+  (`GameServerSpaceCombat.cs:349` — deliberately far so launching is safe) and each drone has a **glowing red
+  sensor "eye"** (`SpaceView.cs:1232`), so at distance it reads as a small red dot; singleplayer runs
+  `--space-combat PvE --space-npcs Normal` so drones do spawn. (Less likely: reddish background **stars**, or the
+  ship's own red **port nav-light**.) Flying "to a dot" and seeing nothing could mean: it was far/you stopped
+  short, the drone moved, or it isn't an enemy at all. *Investigate in-engine:* fly fully out toward one + scan;
+  if confirmed enemies, they may need a clearer HUD contact marker (a labelled hostile blip / off-screen arrow)
+  so "red dot" reliably means "enemy ship there". *(Relates to B21's missing on-foot feedback — the space HUD's
+  contact cues are thin.)*
 
 *(All recorded only — none fixed yet, per the user. Quick tunables: B1/B5/B9/B10/B13/B18 (done), B9-style B23.
 Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 is the damage-feedback audit.)*
