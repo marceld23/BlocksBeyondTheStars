@@ -881,6 +881,29 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      `DepositContainerIntent` (NetCodec **98**), `DepositToContainer`, place/mine hooks, a `PlaceBlock` test
      entrypoint, and a crate-specific HUD prompt ("Stash · G take · H store"). Tested: `CrateStorageTests`
      (stash-not-tools + take-back, mining returns contents) — **358 green**. *(Placeable door still a follow-up.)*
+   - 🔄 **Stage 3c — Placeable door (analysis + plan 2026-06-07).**
+     **As-is (mapped):** the game already has a full **door system** — doors are **server-authoritative entities**
+     (`ServerDoor` in `GameServerDoors.cs`), *not* voxel blocks: a doorway stays **air**, and a door entity fills
+     the gap. The client `DoorView.cs` already renders them as GameObjects, **animates** them (slide panels
+     retract / hinge leaf swings), toggles a **BoxCollider** by open-state, plays SFX, and creates/destroys them
+     live from the server's `DoorList` — so **the client needs no changes**. Two kinds exist: **slide** (auto —
+     opens when a player is within range, auto-closes) and **hinge** (manual — press **E** at it; already wired in
+     `PlayerController` via `NearestHinge` + `SendDoorInteract`, NetCodec tag 46 / DoorList 93). Today doors are
+     built only from generated **markers** (settlements/ship/stations) via `RegisterDoors()`/`MakeDoor()` (which
+     probes the surrounding blocks for wall axis + gap width). **Two gotchas for player doors:** (1) `RegisterDoors()`
+     **clears + rebuilds** `_doors` from markers on every settlement/ship stamp + world load → player-built doors
+     must be **persisted** and re-appended afterwards (the generated ones are deterministic, player ones are not);
+     (2) doors fill an **air** cell (no solid block), so removal can't rely on a normal block-break.
+     **Plan (server-only, reuses DoorView):** add a **hinge** door block+item (`door` → category block, `placesBlock`,
+     texture, recipe, bilingual names); in `HandlePlace`, after the cell is placed, call a new **`PlaceDoor(pos)`**
+     that (a) keeps the cell **air** (not solid), (b) registers a **width-1 `ServerDoor`** centred on the cell
+     (axis from the player's facing or probed jambs), (c) **persists** it (mirror the container repo:
+     `SaveDoor`/`ListDoors`/`DeleteDoor`), (d) `BroadcastDoors()`. Re-append persisted player doors at the end of
+     `RegisterDoors`/`RegisterStationDoors` + on load (so stamps don't wipe them). **Removal:** mining the door's
+     cell (its closed collider is raycast-hittable) finds the player-door there → remove + persist-delete + drop
+     the `door` item; if it's open, press **E** to close first. Server-unit-testable (place → `DoorCount`/persisted
+     → interact toggles → mine removes + drops); the **feel** (collider-to-mine mapping, animation) needs a
+     **playtest**. *(Door **kind** + recipe to confirm with the user before building.)*
    - ✅ **Stage 4 — Ships & ship parts on the new materials (done 2026-06-07).** Folded the new alloys/electronics
      into ship + module builds: **hauler** craftCost += steel + circuit_board (heavy hull + avionics), **scout**
      += light_alloy + circuit_board (light + sensors); module builds **hull_plating** += steel, **shield_generator**
