@@ -123,7 +123,7 @@ public sealed class WorldGenerator
         bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
 
         double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
-        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.55 : 0.0);
+        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0); // B19: more lava (higher pool level) on volcanic worlds
 
         // Sea level sits BELOW the average surface (BaseHeight) so only genuine low ground floods (valleys,
         // canyon floors, basins) — not half the world. A higher abundance raises it toward more water.

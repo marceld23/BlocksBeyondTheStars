@@ -1001,6 +1001,20 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // Right-click a held consumable → eat/use it (no aiming needed); the server applies the effect and
+            // the client plays an eat sound. Consumables don't place a block, so right-click is free for this (B16).
+            if (place)
+            {
+                string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+                var hdef = string.IsNullOrEmpty(held) ? null : Game.Content?.GetItem(held);
+                if (hdef != null && hdef.Category.ToString() == "Consumable")
+                {
+                    Game.Network?.SendConsume(held);
+                    ClientAudio.Instance?.Cue("eat");
+                    return;
+                }
+            }
+
             var ray = new Ray(Camera.transform.position, Camera.transform.forward);
             if (!Physics.Raycast(ray, out var hit, Reach))
             {

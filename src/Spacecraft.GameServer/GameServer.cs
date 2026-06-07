@@ -1578,12 +1578,14 @@ public sealed partial class GameServer
             return;
         }
 
-        // Don't let the player wall themselves in: refuse a block in the cell they occupy (feet or head).
+        // Don't let the player wall themselves in: refuse a block at HEAD height in their own column. The FEET
+        // cell is allowed so you can pillar-jump (place under yourself while jumping) — the client collider just
+        // lifts you onto the new block (B3); only the head cell would trap you.
         var feet = session.State.Position;
         int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
-        if (pos.X == fx && pos.Z == fz && (pos.Y == fy || pos.Y == fy + 1))
+        if (pos.X == fx && pos.Z == fz && pos.Y == fy + 1)
         {
-            Reject(session, "place", "You can't place a block where you're standing.");
+            Reject(session, "place", "You can't place a block right above your head.");
             return;
         }
 

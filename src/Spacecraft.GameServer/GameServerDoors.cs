@@ -20,7 +20,9 @@ namespace Spacecraft.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float SlideDoorOpenRange = 4.5f;   // a slide door opens for a player within this range
+    private const float SlideDoorOpenRange = 2.8f;   // a slide door opens for a player within this range (B23:
+                                                     // was 4.5 — too wide, so doors in tight station/village rooms
+                                                     // stayed permanently open; now they open as you reach them)
     private const float ShipHatchOpenRange = 1.8f;   // …but the ship's own hatch opens only when you walk right
                                                      // up to it, so it stays sealed/closed where you spawn inside
     private const double SlideDoorAutoClose = 1.4;   // …and closes this many seconds after the last one leaves

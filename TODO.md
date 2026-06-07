@@ -1209,6 +1209,11 @@ Tags: **VALID** (confirmed in code), **PARTIAL** (partly true / nuance), **FEATU
 B5 (hard-block hardness ×1.6 — stone 3.8→6.1, ores/metals up; soft blocks unchanged), B9 (asteroid respawn
 40→120s), B10 (asteroids scattered by golden-angle within weapon range), B13 (machete `damage 12→7`), B18
 (temperament weights → Aggressive 15→9 / PackHunter 5→3 + aggro range 10→8). *Each still wants a playtest.*
+**✅ Fixed 2026-06-07 (second quick batch, 365 green, built):** B23 (slide-door `OpenRange 4.5→2.8` so station/
+village doors close again; ship hatch stays 1.8), B3 (place guard now only rejects the **head** cell, so you can
+pillar-jump by placing at your feet), B16 (right-click a held **consumable** → eat: wires up the existing
+`SendConsume` which was defined-but-never-called + a new ElevenLabs **eat** sound), B19 (volcanic lava abundance
+`0.55→0.7` so lava pools are higher/more visible). *Each still wants a playtest.*
 
 - **B1 — Creature sounds carry too far; should fade with distance, be silent when far. [VALID]**
   `ClientAudio.At` plays 3D at `minDistance 4`, `maxDistance 45` with Unity's default (logarithmic) rolloff →
