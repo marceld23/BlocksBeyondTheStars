@@ -58,6 +58,10 @@ public sealed class PlayerState
     /// so the same knowledge can't be handed back and forth to inflate totals (item 11). Persisted.</summary>
     public Dictionary<string, int> KnowledgeGivenTo { get; set; } = new();
 
+    /// <summary>What each NPC remembers about this player (item 14): NPC key → relationship score + recent
+    /// interaction log. Persisted; feeds item 15's dialog backend.</summary>
+    public Dictionary<string, NpcRelationship> NpcMemory { get; set; } = new();
+
     /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
     public HashSet<string> Scanned { get; set; } = new();
 

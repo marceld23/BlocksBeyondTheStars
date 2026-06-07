@@ -155,6 +155,31 @@ public sealed class MissionBoardTests : IDisposable
         }
     }
 
+    // ---------------- NPC memory of interactions (item 14) ----------------
+
+    [Fact]
+    public void Quartermaster_RemembersMissionAccepts_RelationshipRises_LogCapsAtTen()
+    {
+        var server = StartedWithBoard(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Courier");
+            p.State.Position = BoardPos(server);
+
+            for (int i = 0; i < 12; i++)
+            {
+                var avail = server.AvailableBoardMissions("Courier");
+                server.AcceptMission("Courier", avail[0]);
+            }
+
+            var rel = p.State.NpcMemory.Values.First(r => r.Role == "quartermaster");
+            Assert.Equal(10, rel.Log.Count);              // only the last 10 are kept
+            Assert.True(rel.Value > 0);                    // taking jobs builds the relationship
+            Assert.All(rel.Log, e => Assert.Equal(Spacecraft.Shared.State.NpcInteractionKind.MissionAccepted, e.Kind));
+            Assert.False(string.IsNullOrEmpty(rel.Name));  // remembers the giver's name
+        }
+    }
+
     public void Dispose()
     {
         try

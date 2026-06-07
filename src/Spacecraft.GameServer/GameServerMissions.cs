@@ -95,6 +95,12 @@ public sealed partial class GameServer
             ObjectiveProgress = Enumerable.Repeat(0, def.Objectives.Count).ToList(),
         });
 
+        // The board's quartermaster remembers that this player took a job from them (item 14).
+        if (IsBoardMissionId(missionId))
+        {
+            RecordMissionAccepted(session.State, missionId, def.GiverName);
+        }
+
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         SendMissionList(session);
     }

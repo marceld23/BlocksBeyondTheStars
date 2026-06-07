@@ -1672,6 +1672,12 @@ public sealed partial class GameServer
             pool.Add(output.Item, output.Count * count);
         }
 
+        // Bartering at a settlement/station market stall is a trade with that vendor NPC — remembered (item 14).
+        if (recipe.Station == Shared.Definitions.CraftingStation.Market && !session.State.AboardShip)
+        {
+            RecordVendorTrade(session.State);
+        }
+
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
     }

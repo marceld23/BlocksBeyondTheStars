@@ -60,6 +60,33 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
+    public void Player_RoundTripsNpcMemory()
+    {
+        var player = new PlayerState { PlayerId = "p1", Name = "Pilot" };
+        var rel = new NpcRelationship { Name = "Kra Thraxon", Role = "quartermaster", Value = 7 };
+        rel.Log.Add(new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted });
+        rel.Log.Add(new NpcInteraction { Kind = NpcInteractionKind.Trade });
+        player.NpcMemory["settle_123:quartermaster"] = rel;
+
+        using (var repo = NewRepo())
+        {
+            repo.SavePlayer(player);
+        }
+
+        using var reopened = NewRepo();
+        var loaded = reopened.LoadPlayer("p1");
+
+        Assert.NotNull(loaded);
+        Assert.True(loaded!.NpcMemory.TryGetValue("settle_123:quartermaster", out var r));
+        Assert.Equal("Kra Thraxon", r!.Name);
+        Assert.Equal("quartermaster", r.Role);
+        Assert.Equal(7, r.Value);
+        Assert.Equal(2, r.Log.Count);
+        Assert.Equal(NpcInteractionKind.MissionAccepted, r.Log[0].Kind);
+        Assert.Equal(NpcInteractionKind.Trade, r.Log[1].Kind);
+    }
+
+    [Fact]
     public void Player_RoundTripsInventoryAndBlueprints()
     {
         var player = new PlayerState

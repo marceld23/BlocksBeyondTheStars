@@ -38,6 +38,7 @@ public sealed class PlayerSnapshot
     public List<string> UnlockedBlueprints { get; set; } = new();
     public int KnowledgePoints { get; set; }
     public Dictionary<string, int> KnowledgeGivenTo { get; set; } = new();
+    public Dictionary<string, NpcRelationship> NpcMemory { get; set; } = new();
     public List<string> Scanned { get; set; } = new();
     public List<InventorySlotDto> RationStore { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
@@ -110,6 +111,7 @@ public static class StateMapper
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
         KnowledgePoints = p.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(p.KnowledgeGivenTo),
+        NpcMemory = CloneNpcMemory(p.NpcMemory),
         Scanned = p.Scanned.ToList(),
         RationStore = DumpInventory(p.RationStore),
         Inventory = DumpInventory(p.Inventory),
@@ -122,6 +124,29 @@ public static class StateMapper
         Status = m.Status,
         ObjectiveProgress = new List<int>(m.ObjectiveProgress),
     };
+
+    /// <summary>Deep-clones the per-NPC memory (item 14) so a snapshot doesn't alias the live state.</summary>
+    private static Dictionary<string, NpcRelationship> CloneNpcMemory(Dictionary<string, NpcRelationship>? memory)
+    {
+        var clone = new Dictionary<string, NpcRelationship>();
+        if (memory is null)
+        {
+            return clone;
+        }
+
+        foreach (var (key, rel) in memory)
+        {
+            clone[key] = new NpcRelationship
+            {
+                Name = rel.Name,
+                Role = rel.Role,
+                Value = rel.Value,
+                Log = rel.Log.Select(i => new NpcInteraction { Kind = i.Kind }).ToList(),
+            };
+        }
+
+        return clone;
+    }
 
     public static PlayerState FromSnapshot(PlayerSnapshot s) => new()
     {
@@ -143,6 +168,7 @@ public static class StateMapper
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
         KnowledgePoints = s.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(s.KnowledgeGivenTo ?? new Dictionary<string, int>()),
+        NpcMemory = CloneNpcMemory(s.NpcMemory),
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         RationStore = RestoreInventory(Spacecraft.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),

@@ -701,9 +701,19 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      replacement; missions carry the giver id/name; turn-in still pays the reward.
 
    **Open questions → see chat.**
-14. **Feature (plan ahead) — NPCs remember their interactions with a player.** Per-NPC, per-player relationship
-   value + a log of the last 10 interactions (dialog / trade / mission accepted). *(Analysis done; questions in
-   chat; implement after answers.)*
+14. ✅ **Feature (plan ahead) — NPCs remember their interactions with a player (done 2026-06-07).** Per-NPC,
+   per-player relationship + a log of the last 10 interactions. **Decisions (user):** memory plumbing only
+   (record today's trade + mission-accept; "Dialog" wired for item 15); **internal** (no UI standing).
+   - **Model (shared):** `NpcInteractionKind {Dialog,Trade,MissionAccepted}`, `NpcInteraction`,
+     `NpcRelationship {Name,Role,Value,Log}`; `PlayerState.NpcMemory : Dictionary<NpcKey, NpcRelationship>`
+     persisted via `Snapshots` (deep-cloned). **NpcKey = `{locationKey}:{role}`** (e.g. `settle_<hash>:vendor`,
+     `station_<hash>:quartermaster`) — stable across reloads since the runtime `ServerNpc.Id` isn't.
+   - **Recording** (`GameServerNpcMemory`): `RecordNpcInteraction` raises the relationship by a per-kind weight
+     (Dialog +1 / Trade +2 / MissionAccepted +3, clamped) and appends to the **capped last-10** log. Hooked into
+     `HandleAcceptMission` (quartermaster) and the market-barter path in `HandleCraft` (vendor; aboard-ship
+     console doesn't count). `NpcRelationshipFor(playerId, npcKey)` exposes it for item 15.
+   - **Tested:** `Quartermaster_RemembersMissionAccepts_RelationshipRises_LogCapsAtTen`,
+     `Player_RoundTripsNpcMemory` (persists) — full suite **348 green**. Bundled server rebuilt.
 
    ### Analysis (2026-06-07)
    - **No NPC dialog/talk system exists yet.** The only player↔NPC interactions today are **vendor barter** (a
