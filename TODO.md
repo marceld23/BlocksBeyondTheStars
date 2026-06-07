@@ -1115,6 +1115,32 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture audit**, **uGUI theme/icon polish**.
    Kept in that section; pointer here so they're not forgotten. *(PvP ship combat + big cruisers stay **deferred
    by design**.)*
+28. **Bug + analysis — multi-second freeze after "start new game" before the loading screen (requested
+   2026-06-07).** Clicking Singleplayer → entering a new name / starting a new game → **several seconds of
+   nothing**, *then* the loading screen (percent bar) appears.
+   ### Analysis (2026-06-07) — root cause
+   Two things combine; both are in `AppShell.StartSingleplayerWorld` + `LocalServerLauncher` + `LoadingScreen`:
+   - **(1) The loading screen is only shown *after* the server is spawned, and the spawn can block the UI
+     thread.** `StartSingleplayerWorld` calls **`_localServer.Start(...)` synchronously** and only **then** sets
+     `Phase = ShellPhase.Loading` (`AppShell.cs:157,169`). `Start()` itself just does `Process.Start()` on the
+     bundled **self-contained .NET server EXE** (`LocalServerLauncher.cs:133`) — normally fast, **but on Windows
+     the first launch of a freshly-built EXE is commonly stalled for seconds by Defender/SmartScreen real-time
+     scanning** (the EXE changes on every `build-client.ps1`, so the scan re-runs). While `Process.Start()`
+     blocks, the **menu is frozen** and the loading screen hasn't been built yet → "nothing happens".
+   - **(2) The percent bar is fake + a fixed warm-up wait.** `LoadingScreen.Progress` is **purely time-based**
+     (`_elapsed / MinShow`, `MinShow = 2.5s` set explicitly to "give the server time to start listening",
+     `AppShell.cs:161`); it is **not** real world-load progress. After the 2.5s timer `LaunchGame()` runs, the
+     client connects, joins, and streams the world. The bundled server's **cold start** (runtime init + content
+     load + open/create the new world's SQLite DB + generate the spawn region + bind the socket) takes **~3s**
+     end-to-end — server log: process at `13:41:39`, listening `13:41:40`, client connect `13:41:42`, join
+     `13:41:43`.
+   **So the perceived gap = the blocking `Process.Start()` (Defender first-scan) + the fixed 2.5s warm-up, none
+   of which shows real feedback.** **Fix direction (when tackled):** (a) set `Phase = Loading` and render the
+   loading screen **before** spawning the server (one frame), then start the server + connect on a coroutine so
+   `Process.Start()` never freezes the menu; (b) drive the bar from **real stages** ("starting server →
+   connecting → generating world → streaming chunks") instead of a fixed timer, and drop `MinShow` once real
+   progress exists; (c) optionally reduce the Defender hit (don't rebuild the server EXE when unchanged / sign it
+   / document a Defender exclusion for the saves+server dir). *(Analysis only — not yet implemented.)*
 
 ---
 
