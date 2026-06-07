@@ -138,6 +138,23 @@ namespace Spacecraft.Client
                     new Vector3(0f, 0f, -tailLen * 0.5f), new Vector3(unit * 0.35f, unit * 0.35f, tailLen), _bodyMat);
             }
 
+            // Dorsal crest: a row of spiny plates along the spine, tallest at the shoulders — silhouette variety.
+            if (c.HasCrest)
+            {
+                var crestMat = Lit(c.Glows ? baseColor * 1.4f : baseColor * 0.7f, null);
+                int fins = Mathf.Max(3, segments * 2);
+                float z0 = -(segments - 1) * 0.5f * segLen - segLen * 0.2f;
+                float z1 = (segments - 1) * 0.5f * segLen + segLen * 0.2f;
+                float topY = bodyY + unit * 0.5f;
+                for (int f = 0; f < fins; f++)
+                {
+                    float t = fins == 1 ? 0.5f : f / (float)(fins - 1);
+                    float finH = unit * (0.5f - 0.22f * Mathf.Abs(t - 0.32f)); // peak near the front
+                    AddPart(body, "Crest" + f, new Vector3(0f, topY, Mathf.Lerp(z0, z1, t)),
+                        new Vector3(unit * 0.10f, Mathf.Max(unit * 0.2f, finH), unit * 0.42f), crestMat);
+                }
+            }
+
             if (c.Glows)
             {
                 var go = new GameObject("Glow");
@@ -241,6 +258,9 @@ namespace Spacecraft.Client
         private static Texture2D _scales, _fur, _chitin, _hide, _slime;
         private static Texture2D _feathers, _spots, _stripes, _warty, _plated;
         private static Texture2D _finned, _tentacled;
+        // Task 6 — more skin variety.
+        private static Texture2D _mossy, _crystalline, _metallic, _banded, _shaggy;
+        private static Texture2D _spined, _mottled, _iridescent, _barkskin, _veined;
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -263,6 +283,16 @@ namespace Spacecraft.Client
             _plated = LoadTex("creature_plated");
             _finned = LoadTex("creature_finned");
             _tentacled = LoadTex("creature_tentacled");
+            _mossy = LoadTex("creature_mossy");
+            _crystalline = LoadTex("creature_crystalline");
+            _metallic = LoadTex("creature_metallic");
+            _banded = LoadTex("creature_banded");
+            _shaggy = LoadTex("creature_shaggy");
+            _spined = LoadTex("creature_spined");
+            _mottled = LoadTex("creature_mottled");
+            _iridescent = LoadTex("creature_iridescent");
+            _barkskin = LoadTex("creature_barkskin");
+            _veined = LoadTex("creature_veined");
         }
 
         /// <summary>Picks a hide tile for the species: glowing → slime, winged → feathers, hostile → chitin/
@@ -270,23 +300,36 @@ namespace Spacecraft.Client
         /// consistent but the world's fauna spans many skins).</summary>
         private static Texture2D PickHide(NetCreature c)
         {
-            if (c.Glows && _slime != null) return _slime;
-            if (c.HasWings && _feathers != null) return _feathers;
-
             int h = StableIdHash(c.SpeciesId);
+            if (c.Glows)
+            {
+                var glow = new[] { _slime, _veined, _crystalline, _iridescent };
+                return glow[h % glow.Length] ?? _slime ?? _hide;
+            }
+
+            if (c.HasWings && _feathers != null)
+            {
+                var winged = new[] { _feathers, _iridescent, _mottled };
+                return winged[h % winged.Length] ?? _feathers;
+            }
+
             if (c.Habitat == "Water")
             {
-                var aquatic = new[] { _finned, _tentacled, _slime, _scales };
+                var aquatic = new[] { _finned, _tentacled, _slime, _scales, _iridescent, _banded };
                 return aquatic[h % aquatic.Length] ?? _finned ?? _hide;
             }
 
             if (c.Hostile)
             {
-                var hostileOpts = new[] { _chitin, _plated, _scales };
+                var hostileOpts = new[] { _chitin, _plated, _scales, _spined, _metallic, _crystalline, _barkskin };
                 return hostileOpts[h % hostileOpts.Length] ?? _chitin ?? _hide;
             }
 
-            var opts = new[] { _fur, _hide, _scales, _spots, _stripes, _warty, _plated };
+            var opts = new[]
+            {
+                _fur, _hide, _scales, _spots, _stripes, _warty, _plated,
+                _mossy, _shaggy, _mottled, _banded, _barkskin, _veined,
+            };
             return opts[h % opts.Length] ?? _hide;
         }
 

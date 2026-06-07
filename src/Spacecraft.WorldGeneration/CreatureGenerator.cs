@@ -82,11 +82,12 @@ public static class CreatureGenerator
             Legs = PickLegs(rng, habitat),
             HasWings = habitat == CreatureHabitat.Air || rng.NextDouble() < 0.1,
             HasTail = rng.NextDouble() < 0.5,
-            BodySegments = 1 + rng.Next(3),
+            BodySegments = 1 + rng.Next(4),                            // 1..4 — some long, segmented bodies
             ColorRgb = PickColor(rng, habitat),
             BellyRgb = PickColor(rng, habitat), // a second tone → two-tone bodies
-            Eyes = Weighted(rng, 0, 12, 2, 50, 3, 18, 4, 14, 6, 6),   // eyeless / two / three / four / six
-            Horns = Weighted(rng, 0, 55, 1, 18, 2, 15, 3, 12),         // none / one / two / three
+            Eyes = Weighted(rng, 0, 12, 1, 6, 2, 44, 3, 16, 4, 14, 6, 6, 8, 2), // eyeless / one / two / three / four / six / eight
+            Horns = Weighted(rng, 0, 50, 1, 18, 2, 15, 3, 12, 4, 5),   // none / one / two / three / four
+            HasCrest = rng.NextDouble() < 0.32,                        // a dorsal frill on roughly a third
             Glows = habitat == CreatureHabitat.Lava || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
             BiomeAffinity = biomeCount <= 1 ? -1 : rng.Next(biomeCount), // native to one biome on multi-biome worlds
 

@@ -38,6 +38,17 @@ TEXTURES = [
     ("plated", "armored bony plates and scutes like a crocodile back"),
     ("finned", "sleek wet fish skin with fine shiny scales and a smooth sheen"),
     ("tentacled", "smooth glossy cephalopod octopus skin with soft suckers"),
+    # Task 6 — more creature skin variety.
+    ("mossy", "shaggy mossy overgrown hide with lichen patches and tufts"),
+    ("crystalline", "faceted crystalline mineral skin with angular gem-like plates"),
+    ("metallic", "brushed metallic chrome carapace with a hard reflective sheen"),
+    ("banded", "skin with bold concentric banded rings like a coral snake"),
+    ("shaggy", "long thick shaggy matted fur coat"),
+    ("spined", "skin bristling with rows of sharp porcupine quills and spines"),
+    ("mottled", "blotchy camouflage mottled skin with irregular dappled patches"),
+    ("iridescent", "smooth iridescent beetle shell shimmering with shifting tones"),
+    ("barkskin", "rough woody bark-like hide with cracks and ridges"),
+    ("veined", "translucent membranous skin with a network of glowing veins"),
 ]
 
 

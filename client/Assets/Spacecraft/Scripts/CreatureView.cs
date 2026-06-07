@@ -157,6 +157,10 @@ namespace Spacecraft.Client
             "creature_call_chirp", "creature_call_croak", "creature_call_growl", "creature_call_screech",
             "creature_call_warble", "creature_call_hoot", "creature_call_trill", "creature_call_click",
             "creature_call_rumble", "creature_call_bellow", "creature_call_hiss", "creature_call_chitter",
+            // Task 6 — more creature voices.
+            "creature_call_purr", "creature_call_moan", "creature_call_squeak", "creature_call_drone",
+            "creature_call_gurgle", "creature_call_yelp", "creature_call_snarl", "creature_call_whistle",
+            "creature_call_cluck", "creature_call_wail",
         };
 
         private static int SpeciesHash(string id)

@@ -88,6 +88,9 @@ public sealed class CreatureSpecies
     /// <summary>Number of horns/spikes on the head/back (0 = none) — silhouette variety.</summary>
     public int Horns { get; set; }
 
+    /// <summary>A row of dorsal-crest spines/frill along the back — extra silhouette variety (Task 6).</summary>
+    public bool HasCrest { get; set; }
+
     /// <summary>Secondary/belly accent colour (packed RGB) for a two-tone body, for more visible variety.</summary>
     public int BellyRgb { get; set; } = 0xFFFFFF;
 

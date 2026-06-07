@@ -794,6 +794,7 @@ public sealed class NetCreature
     public bool Glows { get; set; }
     public int Eyes { get; set; } = 2;
     public int Horns { get; set; }
+    public bool HasCrest { get; set; }
     public int BellyRgb { get; set; } = 0xFFFFFF;
 }
 

@@ -934,7 +934,18 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      path to `cable`; new ores mine + smelt; content-load + locale-parity stay green.
 
    **Open scope questions → see chat.**
-17. 🔄 **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
+17. ✅ **Task 6 — drastically more flora & fauna variety** (first big batch done 2026-06-07; needs in-engine test).
+   Added in one batch (all generated): **+14 flora archetypes** — palm, moss, orchid, succulent, pitcher, puffball,
+   lichen, coral, seagrass, sporepod, thornbush, bellflower, ashweed, glowvine (each = `flora_*` block + drops +
+   `FloraCatalog` hosts across biomes + OpenAI texture + DE/EN name; glowvine/sporepod also glow via
+   `ChunkMesher.GlowFor`); **+10 creature hide textures** — mossy, crystalline, metallic, banded, shaggy, spined,
+   mottled, iridescent, barkskin, veined (OpenAI grayscale tiles wired into `CreatureBuilder`'s hide-selection
+   pools, incl. diversified glow/winged/water/hostile sets); **a new procedural body feature** — a **dorsal crest**
+   (`HasCrest` on `CreatureSpecies`/`NetCreature`, rolled ~⅓, rendered as spine plates) plus **wider generator
+   rolls** (body segments 1→4, eyes incl. 1/8, horns incl. 4); **+10 creature calls** — purr, moan, squeak, drone,
+   gurgle, yelp, snarl, whistle, cluck, wail (ElevenLabs clips added to `CreatureView`'s call list). 363 green;
+   textures bundled + sounds installed; client + bundled server rebuilt. *(Visual/audio variety wants a playtest;
+   the pipeline supports further batches — see analysis below.)*
 
    ### Analysis (2026-06-07) — as-is + plan
    **As-is (mapped):** Three deterministic-from-seed systems, all already fairly rich:
