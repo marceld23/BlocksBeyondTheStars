@@ -1107,6 +1107,28 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    they coexist (e.g. land = descend to a walkable asteroid; staying in space = mine the rocks). Touches worldgen
    + flight view + server + needs an in-engine playtest. **Decision (user 2026-06-07): landable with the ship too**
    (like planets/moons), not EVA-only. *(Was mislabeled "small"; it's a medium feature — pick it deliberately.)*
+   **Clarified design (user 2026-06-07):** **two asteroid scales.** Keep the **small** asteroids as mineable rocks
+   you **shoot + harvest from the ship** (already exist as space combat entities). **Add bigger asteroids** with a
+   **defined size (in the world generator)** that you can **land on** — **with the ship or via EVA** — descending
+   onto a walkable asteroid world. So small = mine-from-ship (existing), large = a sized **landable** body (new).
+   ### Analysis + plan (2026-06-07)
+   **As-is (mapped):** small asteroids = `CombatEntity Kind=Asteroid` tiers 0/1/2 spawned in the per-body
+   `SpaceInstance` (`CreateSpaceInstance` spawns 3; `RespawnAsteroids` refills) — shoot to split + harvest loot
+   (works from the ship). A system has one **`AsteroidField`** belt body (no `PlanetType`). Landing flow:
+   approach a `_landables` body → **E** → `SendLeaveSpace(bodyId)` → server `HandleTravel`/`LeaveSpace` →
+   `LoadWorld(body.PlanetType, body.Id)`; the walkable world's size = `CircumferenceFor(id, SizeClassFor(kind,
+   planetType))` (Asteroid class = **800–1600** blocks, deterministic per id). **EVA guard** `EvaLandingAllowed`
+   already permits only `WorldSizeClass.Asteroid`. **Gap:** the `AsteroidField` body has no `PlanetType`, so it's
+   not Asteroid-class and never appears in `SpaceView._landables` (planets+moons only) → unreachable.
+   **Plan (small, mostly wiring):** (1) **worldgen** — `AsteroidField` body gets `PlanetType = "asteroid"` (→
+   Asteroid size-class → defined walkable size 800–1600; EVA guard + travel then work as-is); (2) **client** —
+   add an `AsteroidField` loop to `SpaceView.BuildSystemBodies` so the belt renders + is in `_landables` (ship +
+   EVA can fly up + **E** to land), rendered with the `asteroid` look; (3) **bigger/sized large asteroids** — see
+   the open questions; (4) tests (lands from ship + EVA; planets/moons still EVA-rejected; world loads as
+   asteroid-class). Small mineable rocks stay as the space-instance entities.
+   **Open design questions (ask the user):** how many **large landable** asteroids per system (just the one belt
+   body, or several scattered)? and the **size** model — the auto deterministic 800–1600 per id, or an explicit
+   small/large tier (a new size field in worldgen)?
 25. ⏭️ **SKIPPED (user 2026-06-07) — covered by item 6a + the fixed landing zone.** You already land at the same
    persisted landing zone (with your ship) on every visit, and a reload restores your current body + position, so
    a per-body position map adds little and would *separate you from your just-landed ship* on travel-back. Left
