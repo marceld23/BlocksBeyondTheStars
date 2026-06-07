@@ -1078,6 +1078,31 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    it **non-annoying** (frequency caps, mute/skip). **Plan** an incremental rollout (tips → event barks → systems
    narrator → story) so each step is shippable on its own.
 
+### Small "rest" TODOs surfaced from completed items (promoted here 2026-06-07 for visibility)
+*(These were implicit/deferred notes buried inside already-✅ items — captured as explicit backlog entries.)*
+24. **Make asteroid bodies landable in the flight view** *(from item 5, Stage 6).* EVA landing is already
+   **server-restricted to asteroids** (`EvaLandingAllowed`/`HandleLeaveSpace`), but the flight view's
+   **`_landables`** list only contains **planets + moons**, so a walkable asteroid is *enforced-but-not-reachable*:
+   you can never actually fly an EVA suit down onto one. **To do:** add asteroid galaxy bodies to the flight
+   view's landables (+ the land/approach prompt) so the asteroid-only EVA-landing rule becomes usable. The
+   `asteroid` planet type + its ore/terrain already generate; this is mostly wiring asteroids into the landables
+   + the descent. *(Decide: EVA-only on foot, or also ship-landable?)*
+25. **Full per-planet position memory (option b)** *(from item 6).* Today only the **last** planet's position is
+   restored on load (`PlayerState.CurrentLocationId` + `Position`). Option b = keep a **per-body position map** so
+   travelling **back** to a previously-visited body drops you where you left it (instead of the landing-zone
+   spawn). **To do:** persist a `{ locationId → position }` map on the player snapshot; on arrival at a visited
+   body, restore that position (still guarded by `EnsureSafeSpawn`); update it on leave/checkpoint. Server-only,
+   testable.
+26. **Intermediate ship tier** *(from item 16, Stage 4).* Stage 4 folded the new alloys/electronics onto the
+   existing ships (starter/hauler/scout) but **deferred a genuinely new mid-tier ship** between them. **To do
+   (data-only):** add 1–2 intermediate ships (stats + craftCost on the new materials + blueprint + bilingual
+   names + texture not needed since ships are voxel-built). Small + balance-driven.
+27. **Already-listed future work (see "Not started / larger future work" near the end):** **W5 — poles**
+   (bound latitude Z with an ice-wall/barrier biome; relates to item 18), **per-species/planet flora colour
+   tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture audit**, **uGUI theme/icon polish**.
+   Kept in that section; pointer here so they're not forgotten. *(PvP ship combat + big cruisers stay **deferred
+   by design**.)*
+
 ---
 
 ## ⏭ Requested 2026-06-07: six analysis-first tasks (do one at a time)
