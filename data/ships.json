@@ -23,5 +23,14 @@
     "requiredBlueprint": "ship_scout",
     "craftCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 6 }, { "item": "light_alloy", "count": 6 }, { "item": "circuit_board", "count": 3 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "medbay", "cargo_hold_basic", "ship_laser_basic" ]
+  },
+  {
+    "key": "corvette", "nameKey": "ship.corvette.name", "descriptionKey": "ship.corvette.desc",
+    "baseHull": 130, "baseShield": 45,
+    "flightSpeed": 1.1, "handling": 1.1,
+    "interiorWidth": 6, "interiorLength": 7, "height": 4, "cargoSlots": 60,
+    "requiredBlueprint": "ship_corvette",
+    "craftCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "iron_plate", "count": 30 }, { "item": "cable", "count": 18 }, { "item": "energy_cell_1", "count": 5 }, { "item": "steel", "count": 5 }, { "item": "light_alloy", "count": 4 }, { "item": "circuit_board", "count": 3 } ],
+    "startModules": [ "cockpit", "reactor", "life_support", "medbay", "quarters", "cargo_hold_basic", "ship_laser_basic" ]
   }
 ]

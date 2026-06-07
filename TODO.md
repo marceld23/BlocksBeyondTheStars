@@ -1113,7 +1113,12 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    spawn). **To do:** persist a `{ locationId → position }` map on the player snapshot; on arrival at a visited
    body, restore that position (still guarded by `EnsureSafeSpawn`); update it on leave/checkpoint. Server-only,
    testable.
-26. **Intermediate ship tier** *(from item 16, Stage 4).* Stage 4 folded the new alloys/electronics onto the
+26. ✅ **Intermediate ship tier — Corvette (done 2026-06-07).** Added a balanced mid-class **corvette** between
+   scout (fast/light) and hauler (slow/cargo): baseHull 130, baseShield 45, flightSpeed 1.1, handling 1.1, cargo
+   60; `requiredBlueprint: ship_corvette` (data_fragment 4 + titanium_plate 11 + cable 5); craftCost on the new
+   materials (titanium/iron plate + cable + energy_cell + **steel** + **light_alloy** + **circuit_board**); DE/EN
+   names. Data-only — 364 green (consistency + locale parity). *(Original note below.)*
+   **Intermediate ship tier** *(from item 16, Stage 4).* Stage 4 folded the new alloys/electronics onto the
    existing ships (starter/hauler/scout) but **deferred a genuinely new mid-tier ship** between them. **To do
    (data-only):** add 1–2 intermediate ships (stats + craftCost on the new materials + blueprint + bilingual
    names + texture not needed since ships are voxel-built). Small + balance-driven. **Decision (user 2026-06-07):

@@ -85,6 +85,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "ship_corvette", "nameKey": "blueprint.ship_corvette.name", "descriptionKey": "blueprint.ship_corvette.desc",
+    "category": "Ship", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 11 }, { "item": "cable", "count": 5 } ]
+  },
+  {
     "key": "stealth_suit", "nameKey": "blueprint.stealth_suit.name", "descriptionKey": "blueprint.stealth_suit.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 8 } ]
