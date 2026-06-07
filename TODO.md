@@ -1094,15 +1094,19 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
 ### Small "rest" TODOs surfaced from completed items (promoted here 2026-06-07 for visibility)
 *(These were implicit/deferred notes buried inside already-✅ items — captured as explicit backlog entries.)*
-24. **Make asteroid bodies landable in the flight view** *(from item 5, Stage 6).* EVA landing is already
-   **server-restricted to asteroids** (`EvaLandingAllowed`/`HandleLeaveSpace`), but the flight view's
-   **`_landables`** list only contains **planets + moons**, so a walkable asteroid is *enforced-but-not-reachable*:
-   you can never actually fly an EVA suit down onto one. **To do:** add asteroid galaxy bodies to the flight
-   view's landables (+ the land/approach prompt) so the asteroid-only EVA-landing rule becomes usable. The
-   `asteroid` planet type + its ore/terrain already generate; this is mostly wiring asteroids into the landables
-   + the descent. **Decision (user 2026-06-07): make asteroids landable *with the ship too* (like planets/moons),
-   not EVA-only** — so add asteroid bodies to the ship's `_landables` as well + allow `HandleLeaveSpace` ship-landing
-   on them.
+24. **Make asteroid bodies landable in the flight view** *(from item 5, Stage 6; re-scoped 2026-06-07 — MEDIUM,
+   not small).* **Finding on closer look:** there are **no discrete walkable asteroid bodies** — a system has at
+   most one **asteroid *belt*** (`CelestialKind.AsteroidField`, no `PlanetType`, rendered in space as mineable
+   rock *entities*). `RestoreJoinBody` already treats an `AsteroidField` as a travelable body, but it has no
+   `PlanetType`, so `SizeClassFor` doesn't classify it as `Asteroid` and the flight view's **`_landables`** only
+   loops **planets + moons**. So landing on an asteroid needs: **(1) worldgen** — give the `AsteroidField` body
+   the **`asteroid` `PlanetType`** so travel/land loads the walkable asteroid world (+ `SizeClass=Asteroid`);
+   **(2) client** — add an `AsteroidField` loop to `SpaceView._landables` (+ approach/land prompt + descent);
+   **(3) server** — allow ship-landing on it (the generic land-to-body flow). **Design nuance to resolve:** the
+   belt is *both* a field of mineable rocks in space **and** (after this) a landable asteroid world — decide how
+   they coexist (e.g. land = descend to a walkable asteroid; staying in space = mine the rocks). Touches worldgen
+   + flight view + server + needs an in-engine playtest. **Decision (user 2026-06-07): landable with the ship too**
+   (like planets/moons), not EVA-only. *(Was mislabeled "small"; it's a medium feature — pick it deliberately.)*
 25. ⏭️ **SKIPPED (user 2026-06-07) — covered by item 6a + the fixed landing zone.** You already land at the same
    persisted landing zone (with your ship) on every visit, and a reload restores your current body + position, so
    a per-body position map adds little and would *separate you from your just-landed ship* on travel-back. Left
