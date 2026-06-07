@@ -1015,6 +1015,12 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    non-voxel `SpaceInstance`** (asteroids/entities + a parked ship), **not a placeable voxel world** — so
    "placing blocks in space" needs either a buildable voxel volume in the flight/EVA view or a different model
    (e.g. build the station in a void world, then register + persist it as a new boardable body in the system).
+21. **Feature — loading screens always show + stay readable ≥3s (requested 2026-06-07).** The **landing/transition
+   loading screens** (landing on a **station** and on a **planet**) should **always appear** (not be skipped when a
+   load is fast) and stay **on screen for at least ~3 seconds** so the text on them can actually be read. *(So:
+   enforce a **minimum display time** on the landing/planet-arrival loading screen — show it even when the world is
+   already cached/instant, and hold it ≥3s before handing control back. Check both the station-board and the
+   planet-landing transitions use the same minimum.)*
 
 ---
 
