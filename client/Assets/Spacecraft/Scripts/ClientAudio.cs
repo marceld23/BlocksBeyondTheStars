@@ -157,7 +157,7 @@ namespace Spacecraft.Client
             {
                 float intensity = Game?.Environment?.Intensity ?? 0.4f;
                 float target = sfx * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
-                bool weatherBed = _ambienceId == "rain_loop" || _ambienceId == "storm_loop";
+                bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop" or "wind_strong";
                 if (weatherBed && Game != null && !Game.ExposedToSky)
                 {
                     target = 0f;
@@ -166,8 +166,9 @@ namespace Spacecraft.Client
                 _ambience.volume = Mathf.MoveTowards(_ambience.volume, target, Time.deltaTime * 0.8f);
             }
 
-            // Occasional thunder during storms (only with open sky overhead).
-            if (Game?.Environment != null && Game.Environment.Weather == "storm" && Game.ExposedToSky)
+            // Occasional thunder during a rain thunderstorm (only with open sky overhead).
+            if (Game?.Environment != null && Game.Environment.Weather == "storm"
+                && Game.Environment.Precipitation == "rain" && Game.ExposedToSky)
             {
                 _thunderTimer -= Time.deltaTime;
                 if (_thunderTimer <= 0f)
@@ -355,11 +356,14 @@ namespace Spacecraft.Client
 
         private void OnEnvironment(WorldEnvironment e)
         {
-            // Bad weather takes over the bed; otherwise the planet's biome ambience plays.
-            string id = e.Weather switch
+            // The bad-weather bed is driven by the precipitation type (snow/hail howl, sandstorm hisses,
+            // ash roars); otherwise the planet's biome ambience plays.
+            string id = e.Precipitation switch
             {
-                "storm" => "storm_loop",
-                "rain" => "rain_loop",
+                "sandstorm" => "sandstorm_loop",
+                "ash" => "ash_loop",
+                "hail" or "snow" => "wind_strong",
+                "rain" => e.Weather == "storm" ? "storm_loop" : "rain_loop",
                 _ => BiomeBed(e.Biome),
             };
             SetAmbience(id);

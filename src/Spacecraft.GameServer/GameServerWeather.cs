@@ -216,9 +216,10 @@ public sealed partial class GameServer
             return "none";
         }
 
-        if (temp >= 55f) return "ash";
-        if (temp <= -15f) return "hail";
-        if (temp <= 2f) return "snow";
+        if (_content.GetPlanet(_worlds.Active.PlanetType)?.SurfaceBlock == "sand") return "sandstorm"; // dry worlds blow sand
+        if (temp >= 55f) return "ash";   // fire-rain / ash on very hot (lava) worlds
+        if (temp <= -15f) return "hail"; // very cold → hail
+        if (temp <= 2f) return "snow";   // cold → snow
         return "rain";
     }
 

@@ -1255,9 +1255,12 @@ Client-only. *Playtest wanted.*
   ResolveSeaFluid` floods basins to **one global sea level** (`waterAbundance` default 0.55; no planet overrides),
   so worlds have **seas (flooded valleys)** but **no isolated lakes/ponds**. *Fix (feature):* add noise-pocket
   lakes/ponds above sea level.
-- **B8 — Thunderstorm has thunder audio but no visible lightning. [VALID]** `ClientAudio` plays `thunder_*` in
-  storms (`ClientAudio.cs:169-176`) but there is **no lightning-flash visual** anywhere. *Fix:* add a lightning
-  flash (sky/screen flash + optional bolt) synced to the thunder cue.
+- **B8 — Thunderstorm has thunder audio but no visible lightning. [FIXED 2026-06-07 — weather Stage 3]** The faint
+  pre-existing screen flash (`_flash*0.35`, no bolt) was the reason "no lightning showed". `WeatherFx` now: a
+  **brighter** sky flash (`_flash*0.6`) **plus a jagged white bolt** (`DrawBolt`, glow + hot core, ~0.18 s) drawn
+  from the top of the screen down to mid-screen on each strike; strikes every 4–11 s. Gated to **rain
+  thunderstorms only** (`Weather=="storm" && Precipitation=="rain"`) — no bolts in blizzards/sandstorms/ashfall;
+  thunder audio gated the same way (`ClientAudio.cs`).
 - **B9 — Mined asteroids respawn too fast. [VALID/tunable]** `AsteroidRespawnInterval = 40s`, target 3
   (`GameServerSpaceCombat.cs:765-766`). *Fix:* raise the interval.
 - **B10 — Mineable asteroids too clustered; spread them around the planet. [VALID]** `CreateSpaceInstance` spawns
@@ -1270,10 +1273,16 @@ Client-only. *Playtest wanted.*
   worlds) + a weather cooling (storm -8/rain -5/clouds -2/clear +2) + a **day↔night swing** (±6 with air, ±16
   airless). Networked via `WorldEnvironment.Temperature` (+ a `Precipitation` field) and shown in the HUD
   (time-of-day panel, °C). **User refinement:** ship/station cabins read **22 °C**; **vacuum** worlds
-  (space-sky asteroid/crystal) + **above the atmosphere** read **"—"**. `PrecipitationFor` already classifies
-  none/rain/snow/hail/ash by temp (server-side). 365 green. **Stage 2 (next):** render the precip forms client-
-  side — **snow/hail** (cold), **fire-ash** (hot/lava), **rain**, + **sandstorm** (dry/sand) — in `WeatherFx3D`
-  with sound (B34). **Stage 3:** lightning (B8).
+  (space-sky asteroid/crystal) + **above the atmosphere** read **"—"**. `PrecipitationFor` classifies
+  none/rain/snow/hail/ash/**sandstorm** by temp + surface block (server-side; deserts now `weather:"dynamic",
+  stormChance 0.18` → sandstorms). 365 green.
+  **✅ Stage 2 done 2026-06-07:** `WeatherFx3D` now renders by `env.Precipitation` (gated on `Precipitation!="none"`)
+  with a per-form `Style` — **rain** (blue streaks), **snow** (white, slow, sideways wobble), **hail** (grey, fast),
+  **fire-ash** (glowing orange, slow, drifting), **sandstorm** (tan horizontal streaks). Fog tinted per form
+  (sandstorm = dense tan blind, ash = smoky, snow/hail = white-out, rain storm = grey-blue). `WeatherFx` screen wash
+  tinted per form; 2D streaks limited to actual rain. Audio (B34): two new ElevenLabs loops `sandstorm_loop` +
+  `ash_loop`; `ClientAudio.OnEnvironment` picks the bed by precip (sandstorm/ash/snow+hail→`wind_strong`/rain/storm).
+  **✅ Stage 3 done 2026-06-07:** lightning flash + bolt — see B8.
 - **B12 — Creature movement too simple (a few steps back-and-forth). [VALID]** Wander runs through
   `CreatureBehaviour.Step` (`GameServerCreatures.cs:352`); the wander is basic. *Fix:* richer roaming — varied
   headings, pauses/grazing, longer wanders, maybe light flocking.
@@ -1426,14 +1435,11 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    sum of inverted radial bumps / worley-style pits — selected for airless moons + asteroid bodies, blended with
    the existing terrain). Where: `WorldGenerator` surface-height + the per-planet terrain params (the `asteroid`
    planet type + a moon-airless variant). Medium.
-34. **Precipitation by climate — fire/ash rain on very hot worlds (and snow on cold).** *(Analysis first; may
-   need a clarifying question on world-climate ranges.)* There should be **especially hot worlds** (like lava
-   worlds) and **especially cold worlds**; on **very hot** worlds, precipitation should fall as **fire-rain /
-   ash-rain** instead of normal rain (and on cold worlds, **snow** — see B11). Needs a **per-world climate/temp**
-   (ties into B11's temperature system) driving the precip type + the **visual/audio effects** for fire/ash fall
-   (and snow). Builds on the weather system (`GameServerWeather` + the client rain/storm beds). Medium-large.
-   *(Open question for later: how are "very hot/cold" worlds defined — a temperature threshold per planet type,
-   or an explicit climate band?)*
+34. **Precipitation by climate — fire/ash rain on very hot worlds (and snow on cold). [DONE 2026-06-07 — folded
+   into B11 Stage 2.]** Resolved as part of the weather pass: server `PrecipitationFor(weather, temp)` picks the
+   form from the per-world temperature (B11) + surface block — **ash** ≥55 °C (lava worlds), **hail** ≤-15 °C,
+   **snow** ≤2 °C, **sandstorm** on sand surfaces, else **rain**. Client renders all five in `WeatherFx3D` with
+   tinted fog + screen wash, and `ClientAudio` plays a matching bed. See the B11 Stage 2 note for details.
 
 ---
 
