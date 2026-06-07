@@ -15,6 +15,17 @@ public sealed class StoredContainer
     public List<ItemStack> Items { get; set; } = new();
 }
 
+/// <summary>A player-built door, persisted by its world cell so it survives the deterministic door rebuild.</summary>
+public sealed class StoredDoor
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string Kind { get; set; } = "hinge"; // "slide" | "hinge"
+    public bool AxisX { get; set; }
+}
+
 /// <summary>A single persisted player block edit (placement or removal) in world space.</summary>
 public readonly struct BlockEdit
 {
@@ -64,6 +75,14 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredContainer> ListContainers(string planet);
 
     void DeleteContainer(string id);
+
+    /// <summary>Stores (inserts or replaces) a player-built door, keyed by its world cell.</summary>
+    void SaveDoor(StoredDoor door);
+
+    /// <summary>Lists all player-built doors on a planet (re-added after the generated doors on load).</summary>
+    IReadOnlyList<StoredDoor> ListDoors(string planet);
+
+    void DeleteDoor(string planet, int x, int y, int z);
 
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);

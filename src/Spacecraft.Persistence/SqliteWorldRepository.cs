@@ -58,6 +58,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
                 x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS door (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                kind TEXT NOT NULL, axisx INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS landing_zone (
@@ -281,6 +284,66 @@ public sealed class SqliteWorldRepository : IWorldRepository
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM container WHERE id = $id;";
             cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Doors (player-built) ---
+
+    public void SaveDoor(StoredDoor door)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO door (planet, x, y, z, kind, axisx) " +
+                              "VALUES ($p, $x, $y, $z, $k, $a) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET kind=excluded.kind, axisx=excluded.axisx;";
+            cmd.Parameters.AddWithValue("$p", door.Planet);
+            cmd.Parameters.AddWithValue("$x", door.X);
+            cmd.Parameters.AddWithValue("$y", door.Y);
+            cmd.Parameters.AddWithValue("$z", door.Z);
+            cmd.Parameters.AddWithValue("$k", door.Kind);
+            cmd.Parameters.AddWithValue("$a", door.AxisX ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredDoor> ListDoors(string planet)
+    {
+        var result = new List<StoredDoor>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, kind, axisx FROM door WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredDoor
+                {
+                    Planet = planet,
+                    X = reader.GetInt32(0),
+                    Y = reader.GetInt32(1),
+                    Z = reader.GetInt32(2),
+                    Kind = reader.GetString(3),
+                    AxisX = reader.GetInt32(4) != 0,
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteDoor(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM door WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", x);
+            cmd.Parameters.AddWithValue("$y", y);
+            cmd.Parameters.AddWithValue("$z", z);
             cmd.ExecuteNonQuery();
         }
     }

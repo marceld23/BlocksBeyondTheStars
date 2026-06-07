@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Spacecraft.Networking.Messages;
+using Spacecraft.Persistence;
 using Spacecraft.Shared.Geometry;
 
 namespace Spacecraft.GameServer;
@@ -33,6 +34,7 @@ public sealed partial class GameServer
         public float Width = 2f;       // gap width in blocks along the wall axis
         public bool Open;
         public double AutoCloseTimer;  // slide doors: counts down once no player is near
+        public bool PlayerBuilt;       // placed by a player (persisted + removable by mining), not stamped
     }
 
     private List<ServerDoor> _doors => _worlds.Active.Doors;
@@ -72,6 +74,8 @@ public sealed partial class GameServer
             }
         }
 
+        LoadPlayerDoors(); // re-add persisted player-built doors after the deterministic rebuild
+
         if (_doors.Count > 0)
         {
             _log.Info($"Registered {_doors.Count} doors in the active world.");
@@ -91,6 +95,8 @@ public sealed partial class GameServer
                 _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
             }
         }
+
+        LoadPlayerDoors(); // a player may have built doors in this station's void world too
     }
 
     /// <summary>Builds a door at a marker, probing the surrounding blocks to find the wall axis and the full
@@ -193,6 +199,91 @@ public sealed partial class GameServer
     /// <summary>Test/util entrypoint: a player toggles a hinge door they're standing at (mirrors pressing E).</summary>
     public void InteractDoorForTest(PlayerSession session, int doorId)
         => HandleDoorInteract(session, new DoorInteractIntent { DoorId = doorId });
+
+    /// <summary>A player builds a door: it fills the (air) cell as a 1-wide entity — no solid block — and is
+    /// persisted by its cell so the deterministic door rebuild can re-add it. Wall axis comes from the
+    /// surrounding jambs if there's a clear one, else from the player's facing.</summary>
+    private void PlaceDoor(PlayerSession session, Vector3i pos, string kind)
+    {
+        bool xJamb = IsSolidBlock(pos.X - 1, pos.Y, pos.Z) || IsSolidBlock(pos.X + 1, pos.Y, pos.Z);
+        bool zJamb = IsSolidBlock(pos.X, pos.Y, pos.Z - 1) || IsSolidBlock(pos.X, pos.Y, pos.Z + 1);
+        bool axisX;
+        if (xJamb != zJamb)
+        {
+            axisX = xJamb; // jambs on exactly one axis → the wall runs that way
+        }
+        else
+        {
+            double yaw = session.State.Yaw * System.Math.PI / 180.0; // wall faces the player's look direction
+            axisX = System.Math.Abs(System.Math.Cos(yaw)) >= System.Math.Abs(System.Math.Sin(yaw));
+        }
+
+        _doors.Add(new ServerDoor
+        {
+            Id = _nextDoorId++,
+            Kind = kind,
+            Pos = new Vector3f(pos.X + 0.5f, pos.Y, pos.Z + 0.5f),
+            AxisX = axisX,
+            Width = 1f,
+            PlayerBuilt = true,
+        });
+        _repo.SaveDoor(new StoredDoor { Planet = _world.LocationId, X = pos.X, Y = pos.Y, Z = pos.Z, Kind = kind, AxisX = axisX });
+        BroadcastDoors();
+    }
+
+    /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
+    /// door item to the miner and forget it. Returns true if it handled the mine (a player door was there).</summary>
+    private bool RemovePlayerDoorAt(PlayerSession session, Vector3i pos)
+    {
+        var door = _doors.FirstOrDefault(d => d.PlayerBuilt
+            && (int)System.Math.Floor(d.Pos.X) == pos.X
+            && (int)System.Math.Floor(d.Pos.Z) == pos.Z
+            && pos.Y >= (int)System.Math.Floor(d.Pos.Y) && pos.Y <= (int)System.Math.Floor(d.Pos.Y) + 2);
+        if (door is null)
+        {
+            return false;
+        }
+
+        if (!WithinReach(session.State, pos))
+        {
+            Reject(session, "mine", "Out of reach.");
+            return true;
+        }
+
+        int bx = (int)System.Math.Floor(door.Pos.X), by = (int)System.Math.Floor(door.Pos.Y), bz = (int)System.Math.Floor(door.Pos.Z);
+        _doors.Remove(door);
+        _repo.DeleteDoor(_world.LocationId, bx, by, bz);
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        pool.Add(door.Kind == "slide" ? "door_slide" : "door_hinge", 1); // give the door block back
+        BroadcastDoors();
+        SendInventory(session);
+        return true;
+    }
+
+    /// <summary>Re-adds this world's persisted player-built doors (idempotent — drops any already loaded first),
+    /// so a settlement/ship stamp's deterministic rebuild never wipes them.</summary>
+    private void LoadPlayerDoors()
+    {
+        _doors.RemoveAll(d => d.PlayerBuilt);
+        if (_nextDoorId < 1)
+        {
+            _nextDoorId = 1; // door id 0 means "none" to the client's NearestHinge — never hand it out
+        }
+
+        foreach (var sd in _repo.ListDoors(_world.LocationId))
+        {
+            _doors.Add(new ServerDoor
+            {
+                Id = _nextDoorId++,
+                Kind = sd.Kind,
+                Pos = new Vector3f(sd.X + 0.5f, sd.Y, sd.Z + 0.5f),
+                AxisX = sd.AxisX,
+                Width = 1f,
+                PlayerBuilt = true,
+            });
+        }
+    }
 
     private void BroadcastDoors() => BroadcastToWorld(new DoorList { Doors = _doors.Select(ToNetDoor).ToArray() });
 

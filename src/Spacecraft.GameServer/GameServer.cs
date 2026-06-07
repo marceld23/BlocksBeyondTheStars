@@ -295,6 +295,8 @@ public sealed partial class GameServer
             }
         }
 
+        LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
+
         var body = _galaxy?.FindBody(locationId);
         if (body is not null && body.Status != GenerationStatus.Visited)
         {
@@ -1398,6 +1400,13 @@ public sealed partial class GameServer
         // Longitude wraps: canonicalize X up front so reach, protection, mining progress and the broadcast
         // all agree, whatever lap the client's unbounded transform reported the block from.
         var pos = WorldConstants.CanonicalBlock(new Vector3i(mine.X, mine.Y, mine.Z));
+
+        // A player-built door fills an air cell as an entity — mining it removes the door + returns the item.
+        if (RemovePlayerDoorAt(session, pos))
+        {
+            return;
+        }
+
         var current = _world.GetBlock(pos);
         if (current.IsAir)
         {
@@ -1622,6 +1631,14 @@ public sealed partial class GameServer
             }
 
             pool.Remove(new[] { new ItemAmount(place.ItemKey, 1) });
+        }
+
+        // A door isn't a voxel block — it fills the (air) cell as a server door entity (Task 5 Stage 3c).
+        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide")
+        {
+            PlaceDoor(session, pos, blockDef.Key == "door_slide" ? "slide" : "hinge");
+            SendInventory(session);
+            return;
         }
 
         _world.SetBlock(pos, blockDef.NumericId);
