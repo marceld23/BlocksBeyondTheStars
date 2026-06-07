@@ -412,7 +412,10 @@ public sealed class CreatureTests : IDisposable
             p.State.Position = new Vector3f(0, 64, 0);
 
             server.Tick(6.0); // seed fauna
-            var hostile = server.SpeciesRoster.First(s => s.Hostile); // Aggressive/PackHunter -> an aggressor
+            // Force an aggressor: with the (B18) lower hostile weights a given seed's roster may have none, so
+            // make the first species Aggressive rather than relying on one rolling hostile.
+            var hostile = server.SpeciesRoster.First();
+            hostile.Temperament = CreatureTemperament.Aggressive;
             var creature = server.Creatures.First();
             creature.SpeciesId = hostile.Id;
             creature.Position = new Vector3f(2, 64, 0); // right next to the player (well within aggro)

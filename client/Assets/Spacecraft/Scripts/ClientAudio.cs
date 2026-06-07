@@ -326,7 +326,8 @@ namespace Spacecraft.Client
             src.clip = clip;
             src.spatialBlend = 1f;
             src.minDistance = 4f;
-            src.maxDistance = 45f;
+            src.maxDistance = 20f;                       // B1: creatures fade out much closer (was 45)
+            src.rolloffMode = AudioRolloffMode.Linear;   // B1: linear → truly silent past maxDistance
             src.pitch = pitch;
             src.volume = Mathf.Clamp01(vol * SfxVol());
             if (_submerged)

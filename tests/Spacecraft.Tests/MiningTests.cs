@@ -60,13 +60,15 @@ public sealed class MiningTests : IDisposable
             var p = server.AddLocalPlayer("Miner");
             p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
             var pos = new Vector3i(0, 64, 0);
-            server.World.SetBlock(pos, _content.GetBlock("iron_ore")!.NumericId); // hardness 2.5, power 1
+            server.World.SetBlock(pos, _content.GetBlock("iron_ore")!.NumericId); // hardness 4.0 (B5), power 1
 
-            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
-            Assert.False(server.World.GetBlock(pos).IsAir, "One hit must not break iron ore.");
+            for (int i = 0; i < 3; i++)
+            {
+                server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+                Assert.False(server.World.GetBlock(pos).IsAir, "Iron ore must not break in 3 hits or fewer.");
+            }
 
-            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
-            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z); // 3rd hit reaches hardness
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z); // 4th hit reaches hardness 4.0
             Assert.True(server.World.GetBlock(pos).IsAir, "Iron ore should break after a few hits.");
         }
     }

@@ -324,7 +324,12 @@ public sealed partial class GameServer
         int asteroids = 3;
         for (int i = 0; i < asteroids; i++)
         {
-            instance.Entities.Add(MakeAsteroid(LargeAsteroidTier, new Vector3f(12 + i * 8, 0, 18)));
+            // B10: scatter them around the body (a golden-angle ring at varied radius/height) instead of a
+            // tight line — but inside weapon range (asteroid_breaker reaches ~40) so they stay shootable.
+            float ang = i * 2.39996f;
+            float rad = 18f + i * 8f; // 18 / 26 / 34
+            instance.Entities.Add(MakeAsteroid(LargeAsteroidTier,
+                new Vector3f(rad * (float)System.Math.Cos(ang), (i - 1) * 9f, rad * (float)System.Math.Sin(ang))));
         }
 
         AddStationContacts(instance);
@@ -763,7 +768,7 @@ public sealed partial class GameServer
     }
 
     private const int AsteroidFieldTarget = 3;            // large-equivalent asteroids the field tends toward
-    private const double AsteroidRespawnInterval = 40.0;  // seconds between replenishing spawns
+    private const double AsteroidRespawnInterval = 120.0; // seconds between replenishing spawns (B9: slower respawn)
 
     /// <summary>Slowly refills a mined-out asteroid field back toward its target so it isn't barren for the
     /// rest of the session (a fresh field is still generated on each space entry).</summary>
@@ -784,8 +789,11 @@ public sealed partial class GameServer
 
         instance.AsteroidRespawnTimer = 0;
         int r = instance.AsteroidSpawnRotor++;
-        // Spread successive rocks around the field, away from the launch point.
-        var pos = new Vector3f(20f + (r % 4) * 14f, ((r % 3) - 1) * 8f, 26f + (r % 5) * 12f);
+        // Spread successive rocks around the field at varied angle/height (B10) — but within weapon range so
+        // a refilled rock is still reachable.
+        float rang = r * 2.39996f;
+        float rrad = 22f + (r % 3) * 6f; // 22 / 28 / 34
+        var pos = new Vector3f(rrad * (float)System.Math.Cos(rang), ((r % 5) - 2) * 8f, rrad * (float)System.Math.Sin(rang));
         instance.Entities.Add(MakeAsteroid(LargeAsteroidTier, pos));
         BroadcastSpaceState(instance);
     }

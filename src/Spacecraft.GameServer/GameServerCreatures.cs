@@ -30,7 +30,7 @@ public sealed partial class GameServer
     private const float CreatureDespawnRange = 70f; // creatures far from every player despawn (frees the cap)
     private const double CreatureBroadcastInterval = 0.5;  // position-sync cadence (client interpolates)
     private const double CreatureMoveDtCap = 0.25;         // cap per-step movement so big ticks can't teleport
-    private const float CreatureAggroRange = 10f;          // hunters approach within this
+    private const float CreatureAggroRange = 8f;           // hunters approach within this (B18: smaller → less hounding)
     private const float CreatureFleeRange = 6f;            // skittish flee within this
     private const double CreatureProvokeSeconds = 12.0;    // how long a provoked creature retaliates
     private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this

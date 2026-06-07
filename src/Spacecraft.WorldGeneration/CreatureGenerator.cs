@@ -48,12 +48,12 @@ public static class CreatureGenerator
     private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, int biomeCount)
     {
         var habitat = PickHabitat(rng, allowWater, allowLava);
-        var temperament = (CreatureTemperament)Weighted(rng,
-            (int)CreatureTemperament.Passive, 35,
-            (int)CreatureTemperament.Skittish, 25,
-            (int)CreatureTemperament.Territorial, 20,
-            (int)CreatureTemperament.Aggressive, 15,
-            (int)CreatureTemperament.PackHunter, 5);
+        var temperament = (CreatureTemperament)Weighted(rng, // B18: fewer hostiles — more peaceful fauna
+            (int)CreatureTemperament.Passive, 42,
+            (int)CreatureTemperament.Skittish, 30,
+            (int)CreatureTemperament.Territorial, 16,
+            (int)CreatureTemperament.Aggressive, 9,
+            (int)CreatureTemperament.PackHunter, 3);
         var activity = (CreatureActivity)Weighted(rng,
             (int)CreatureActivity.Diurnal, 40,
             (int)CreatureActivity.Nocturnal, 30,

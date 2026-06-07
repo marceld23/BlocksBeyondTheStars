@@ -1205,6 +1205,10 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 A batch of user-reported issues. Each checked against the code for validity + a code pointer + fix direction.
 Tags: **VALID** (confirmed in code), **PARTIAL** (partly true / nuance), **FEATURE** (a new system, not a bug),
 **PLAYTEST** (needs in-engine confirmation).
+**✅ Fixed 2026-06-07 (quick tunables, 365 green, built):** B1 (audio `maxDistance 45→20` + Linear rolloff),
+B5 (hard-block hardness ×1.6 — stone 3.8→6.1, ores/metals up; soft blocks unchanged), B9 (asteroid respawn
+40→120s), B10 (asteroids scattered by golden-angle within weapon range), B13 (machete `damage 12→7`), B18
+(temperament weights → Aggressive 15→9 / PackHunter 5→3 + aggro range 10→8). *Each still wants a playtest.*
 
 - **B1 — Creature sounds carry too far; should fade with distance, be silent when far. [VALID]**
   `ClientAudio.At` plays 3D at `minDistance 4`, `maxDistance 45` with Unity's default (logarithmic) rolloff →
