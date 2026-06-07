@@ -1007,13 +1007,29 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    if it must *feel* like a sphere (poles exist) and a ~1-2 week effort is acceptable. **(C) true sphere is out of
    scope.** Either way the orbit/star-system view needs no change. *(Estimate only — confirm direction before any
    build.)*
-19. **Feature — bigger HUD elements (requested 2026-06-07).** The player HUD elements (the **vitals/status bars,
-   the hotbar, compass, etc.**) should be shown **larger**. Must stay **resolution-independent**: the user has a
-   **high-resolution monitor** but it must also fit on **other resolutions**. *(Context: the HUD is built on a
-   `UiKit` canvas with `CanvasScaler` ScaleWithScreenSize, reference 1920×1080, ScreenMatchMode = Expand, and
-   elements are placed by fixed 1920×1080 coords — so "bigger" likely means lowering the reference resolution or
-   adding a HUD scale factor, then nudging the per-element rects so nothing overflows on 16:9 / ultrawide / 4K.
-   Note the diegetic HUD now also routes through the visor render texture — item 9 — so re-test the visor after.)*
+19. 🔄 **Feature — bigger HUDs + weaker visor + menu matches HUD look (requested 2026-06-07; in progress).**
+   Make **all** HUDs **larger** (person view **and** space/flight view), keep them **resolution-independent**;
+   make the **visor effect weaker** ("nicht ganz so stark"); and give the **in-game menu the same look & feel as
+   the HUDs**.
+   ### Analysis (2026-06-07)
+   - **HUD sizing.** All UI uses `UiKit` `CanvasScaler` ScaleWithScreenSize, **ref 1920×1080**, match=Expand.
+     `HudUi` (person HUD, **diegetic** → visor RT) positions right/bottom elements with **absolute** `W/H=1920/1080`
+     consts; `SpaceView` flight HUD uses **screen-edge anchors** (auto-scales); the **menu** (`CraftingTechShipUI`)
+     uses **absolute 1920 coords** (full-screen). So a *global* ref drop would enlarge the HUDs **but push the
+     menu's absolute layout off-screen**. → Give **HUD canvases a lower reference** (e.g. 1536×864 ≈ 1.25×, bigger)
+     and keep the **menu at 1920** (already full-screen). Add an optional ref param to `UiKit.CreateCanvas`/
+     `CreateDiegeticCanvas`; set `HudUi.W/H` + the SpaceView overlay to the HUD ref. Expand keeps it fitting on
+     16:9/ultrawide/4K.
+   - **Visor strength.** `VisorHud.OnRenderImage` sets `_Intensity=1` + `_Curvature 0.11`, `_Chroma 0.022`,
+     `_RimIntensity 0.2` (scanlines/rim/reflection scale by `_Intensity`). → lower base intensity + chroma +
+     curvature + rim for a subtler bow/fringe, keep glow/opacity for readability.
+   - **Menu look.** Menu panels already use the HUD cyan palette (`UiKit.Panel`/`Cyan`), but the menu has a
+     near-opaque backdrop (`0.96` alpha) and is a flat overlay. Routing it through the **visor would misalign
+     clicks** (the shader warps/curves) — so keep it flat but **drop the backdrop alpha** so it reads as a
+     translucent holographic overlay like the HUD. (Magnitudes confirmed with the user before building.)
+   - **Loading screens (item 21, bundled in this pass).** `WorldLoadingOverlay` **skips the veil when the world is
+     already ready** (fast/cached load) and `MinShow=0.7`. → remove the skip + set `MinShow=3.0` so it **always**
+     shows ~3s on planet-landing **and** station-board (shared overlay).
 20. **Feature — build in space + erect a player-built space station (requested 2026-06-07).** *(ANALYSIS FIRST —
    do NOT implement yet; analyse the current state, then plan, then ask, then build.)* Players should be able to
    **build in space** by placing **individual blocks**, and once the structure is **closed and/or has an airlock**
