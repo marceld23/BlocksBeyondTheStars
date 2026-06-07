@@ -759,6 +759,60 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      world**).
    - **Separate process:** the backend should be **startable and run separately** from the game (at least at
      first).
+
+   ### Analysis + Plan (2026-06-07) — design only, NOT implemented
+   **What's already in place (the inputs exist):** items 12-14 give every NPC a stable name (`CoinGiverName` /
+   item 12), a role (`vendor`/`quartermaster`/`settler`), a per-player **relationship + last-10 interaction log**
+   (`PlayerState.NpcMemory`, item 14), and the **offer** (a quartermaster's current board missions / a vendor's
+   market goods). `GameServerWeather` exposes weather + time-of-day; `ActiveLocationNames()` + the boarded-station
+   name give the planet/station. So the **server already holds every request parameter** the task lists.
+   **What's missing:** (a) **no "talk to NPC" interaction** exists yet (item 14 confirmed) — needed to trigger +
+   show dialog; (b) no outward HTTP call / async path from the server; (c) no world-creation toggle for it; (d)
+   the Python backend itself.
+
+   **LM Studio facts (researched):** LM Studio runs a local **OpenAI-compatible** server at
+   `http://localhost:1234/v1` — `GET /v1/models` (lists the *loaded* model) and `POST /v1/chat/completions`. The
+   **graceful-skip probe** = `GET /v1/models`: connection refused or an empty list ⇒ no model ⇒ skip. `api_key`
+   is ignored on localhost (send any non-empty string). (A richer `GET /api/v0/models` reports load state too.)
+
+   **Architecture (chain, each link degrades gracefully):**
+   `Game server (C#)` → `./ai-backend (Python/FastAPI)` → `LM Studio /v1/chat/completions`.
+   The **C# server** owns the context (it has NpcMemory/weather/offer) and calls the Python backend; the backend
+   is a thin **provider abstraction** over the LLM (LM Studio now, others later) that owns the prompt. If the
+   backend is down → server skips; if LM Studio has no model → backend replies "unavailable" → server skips.
+
+   **`./ai-backend/` (Python, `uv`, FastAPI + httpx):**
+   - `GET /health` → `{ available: bool }` (probes LM Studio `/v1/models`), so the game cheaply knows whether to try.
+   - `POST /npc-dialog` body `{ planet, npcName, npcRole, relationshipValue, relationshipBand, recent:[kinds],
+     offer:{type, detail}, weather, timeOfDay, language }` → `{ text }` (or 503 when no model). Builds a **system
+     prompt** ("You are {name}, a {role} on {planet}; relationship {band}; recent: {…}; weather/time {…};
+     offering {…}; reply in {language}, ≤2 short sentences, in-character, no markdown"), calls chat/completions
+     (`max_tokens` ~80, temp ~0.8), returns the trimmed line. `.env` for `LMSTUDIO_URL`/model. **Bilingual** via
+     the `language` field (matches the player's locale). Runs standalone: `uv run uvicorn app:app --port 8770`.
+   - Mirrors the existing `tools/ai-assets` Python/`uv` style; keep it dependency-light + offline-friendly.
+   - Optional: a tiny in-memory cache keyed by (npcKey, player, coarse-context) to avoid re-generating on repeat
+     talks; a short request timeout; one retry.
+
+   **Game integration (C#):**
+   - **Talk interaction (new):** client presses **E** on a nearby NPC → `TalkToNpcIntent{npcId}` (register in
+     NetCodec). Server `HandleTalkToNpc`: resolve the NPC + its `NpcKey`, **record a `Dialog` interaction**
+     (item 14 — finally wires the dormant `Dialog` kind), and **immediately** send a `NpcDialog{npcId, text}` with
+     the **canned line** (placeholder). A small client panel shows name · role + the text.
+   - **Async, non-blocking:** if the world's AI toggle is on AND a cached `/health` says available, the server
+     fires the `POST /npc-dialog` on a background task (`HttpClient`, ~8-12 s timeout) off the tick loop; when the
+     text returns it sends a second `NpcDialog{npcId, text, final:true}` that **replaces** the placeholder. Timeout
+     / error / disabled ⇒ keep the canned line. (Never block `Tick`.)
+   - **Toggle (world creation):** add an `AiDialog` flag to `ServerConfig` + the world-create UI (alongside PvP /
+     space-combat etc.), persisted in world metadata. Off ⇒ never call the backend. Also a backend URL setting
+     (default `http://localhost:8770`).
+   - **Params source:** name/role/relationship/log from `NpcMemory` + the NPC; offer from the quartermaster's
+     board window (mission type) or vendor goods; planet/station from `ActiveLocationNames()`/station; weather +
+     time from `GameServerWeather`.
+
+   **Open decisions for greenlight:** (a) does the C# server call the backend, or the client directly? (recommend
+   **server** — it holds the context + the toggle); (b) backend framework (FastAPI recommended); (c) cache + cost
+   controls; (d) how the backend process is launched (manual `uv run` first; later a launcher script / bundled).
+   **Out of scope here:** no code — this entry is the plan; implement only when greenlit.
 16. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Detailed below; big.)
 17. **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
 18. **Analysis only — make a world more spherical (vertical wrap too).** *(Analysis only — do NOT implement.)*
