@@ -1021,6 +1021,28 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    enforce a **minimum display time** on the landing/planet-arrival loading screen — show it even when the world is
    already cached/instant, and hold it ≥3s before handing control back. Check both the station-board and the
    planet-landing transitions use the same minimum.)*
+22. **Analysis + plan — immersive tutorial / onboarding mode (requested 2026-06-07).** *(ANALYSIS + PLAN ONLY —
+   do NOT implement yet.)* Design how a **tutorial mode** could **introduce a new player**: in-game **tips** that
+   teach the **basic functions** (move/look, mine, place, craft at a station/workbench, inventory/hotbar, the suit
+   vitals/oxygen, flying the ship, landing, scanning, missions, …). It should be **immersive**, not a wall of
+   pop-ups — e.g. the player's **ship AI** speaks the tips in-character (voiced/text lines triggered by context:
+   first time you open the inventory, first low-oxygen warning, first ore mined, first station approach, etc.).
+   **Analyse:** what onboarding exists today (does anything explain controls? the HUD prompts?), what the natural
+   first-session beat sequence is, how to gate/trigger tips by player state + first-time events (a persisted
+   "seen" set), how to present them (a diegetic ship-AI voice line + subtitle vs. a HUD toast), localisation
+   (DE+EN), and a skip/replay option. **Plan** a staged, low-risk first version. *(Pairs with item 23 — the ship
+   AI is the natural narrator.)*
+23. **Analysis + plan — the ship AI as a recurring in-game character / system (requested 2026-06-07).**
+   *(ANALYSIS + PLAN ONLY — do NOT implement yet.)* Plan a **ship AI** companion as a persistent presence and
+   what **role it could play across future expansions**, beyond the tutorial (item 22). **Explore ideas:** a named
+   on-board AI that comments on events (arrivals, danger, discoveries, low resources), gives **mission/quest
+   hints + lore**, reads out **scan/sensor** results, warns about **hazards** (toxic atmosphere, hull/oxygen),
+   manages **ship systems** as an in-fiction interface (travel, modules, fleet), reacts to the player's choices
+   (a light **personality / relationship** track), and could later branch into **story beats**. **Analyse** how it
+   would hook into existing systems (events the server already raises — arrivals, combat, scans, missions, vitals;
+   the audio/voice pipeline; the HUD), the **content/voice** cost (lines + DE/EN + generated VO), and how to keep
+   it **non-annoying** (frequency caps, mute/skip). **Plan** an incremental rollout (tips → event barks → systems
+   narrator → story) so each step is shippable on its own.
 
 ---
 
