@@ -1351,7 +1351,31 @@ Client-only. *Playtest wanted.*
   then make water scannable (a sensible scan result) + verify swimming. *(Possibly the same root as B7 — water
   is sparse/sea-level-only.)*
 
-*(All recorded only — none fixed yet, per the user. Quick tunables: B1/B5/B9/B10/B13/B18 (done), B9-style B23.
+### Fourth batch (reported 2026-06-07)
+- **B27 — On a planet, the landed ship's door "stands in the air". [VALID]** Looking at your landed ship, the
+  hatch door floats away from the doorway. The box-ship hatch door is registered at `(cx-0.5, y0+1,
+  cz-_shipHalfZ+0.5)` (`GameServerShipStructure.StampShip`) + built by `MakeDoor`/`DoorView`; the door's Pos or
+  width is off relative to the actual hatch gap, so it renders detached. *Investigate:* the door Pos vs the hatch
+  cells (and whether `MakeDoor`'s jamb-probe widens it wrongly on the landed box ship). *(Also re-check after
+  B23's open-range change, though that was range not position.)*
+- **B28 — German menu tab "Einstellungen" overflows its button graphic. [VALID]** The in-game-menu tab label
+  "Einstellungen" (Settings) is wider than the tab's background and spills over it. *Fix:* size the tab to the
+  text (or shrink the font / shorten the label) so DE labels fit; check the other tabs too for the longest DE
+  strings.
+- **B29 — A space station is stuck inside a moon / large asteroid. [VALID]** A station spawned overlapping a body
+  (its exterior intersects the moon/asteroid). Station orbit positions don't avoid bodies. *Fix:* when placing a
+  station body in `UniverseGenerator` (or rendering it in the flight view), keep it clear of planets/moons/
+  asteroids (a min separation, like the flight-view body separation pass).
+- **B30 — NPCs walk out through the station's window/glass. [VALID]** On a small (one-room) space station NPCs
+  leave the interior by passing through the glass. NPC pathing/bounds don't treat the station hull/glass as a
+  wall (glass is non-solid for movement, or NPCs aren't bounded to the interior). *Fix:* bound station NPCs to
+  the interior (treat hull + glass as walls for them, or clamp them to the station's room).
+- **B15 update (red 2-block thing — new clues):** it **damages you on touch** and **can't be scanned**, **no
+  texture**. *(So it's most likely either **lava** — now more abundant after B19 — which deals contact damage,
+  isn't a scan target, and would read as glowing red, possibly with a missing/odd lava texture; or a **hostile
+  creature** with a failed hide texture. Damage-on-touch fits lava best.)* When tackled: confirm whether the
+  block at that spot is `lava` (a missing `lava` texture / odd 2-deep pool) vs a creature, then fix the texture/
+  render. Pairs with B21 (now the contact damage at least flashes "Burning — lava!").
 Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 is the damage-feedback audit.)*
 
 ## 📋 More feature requests — 2026-06-07 (backlog only, analysis-first, not started)
