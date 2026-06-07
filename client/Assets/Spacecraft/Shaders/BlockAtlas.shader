@@ -12,6 +12,7 @@ Shader "Spacecraft/BlockAtlas"
     {
         _MainTex ("Atlas", 2D) = "white" {}
         _NormalTex ("Normal", 2D) = "bump" {}
+        _LeafCutoff ("Leaf alpha cutoff", Range(0,1)) = 0.5
     }
     SubShader
     {
@@ -37,6 +38,7 @@ Shader "Spacecraft/BlockAtlas"
             fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
             float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
             fixed4 _Sc_FloraTint; // planet flora base hue (rgb); flora faces are desaturated + re-tinted to it
+            float _LeafCutoff;    // alpha-test threshold for cutout foliage (leaf tiles carry a baked alpha mask)
 
             struct appdata
             {
@@ -45,6 +47,7 @@ Shader "Spacecraft/BlockAtlas"
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = flora flag
+                float2 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout this face)
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -56,6 +59,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD4; // world tangent xyz + bitangent handedness w
                 float2 skyl : TEXCOORD5; // x = skylight, y = flora flag
+                float2 leaf : TEXCOORD6; // x = foliage flag
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(3)
             };
@@ -69,6 +73,7 @@ Shader "Spacecraft/BlockAtlas"
                 o.wt = float4(UnityObjectToWorldDir(v.tangent.xyz), v.tangent.w);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.skyl = v.sky;
+                o.leaf = v.leaf;
                 o.mat = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
@@ -76,7 +81,16 @@ Shader "Spacecraft/BlockAtlas"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed3 albedo = tex2D(_MainTex, i.uv).rgb;
+                fixed4 texel = tex2D(_MainTex, i.uv);
+                // Cutout foliage: the leaf tile's baked alpha mask punches the gaps between leaves, so tree
+                // crowns + leafy plants are see-through instead of solid cubes. Only leaf-flagged faces clip
+                // (every other tile is fully opaque and unaffected).
+                if (i.leaf.x > 0.5)
+                {
+                    clip(texel.a - _LeafCutoff);
+                }
+
+                fixed3 albedo = texel.rgb;
 
                 // Flora re-tint: where the flora flag is set, drop the tile to its luminance and re-colour it
                 // by the planet's uniform flora hue, so all of a world's plant life shares one base colour

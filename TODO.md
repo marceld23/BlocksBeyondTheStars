@@ -1248,9 +1248,24 @@ Client-only. *Playtest wanted.*
 - **B5 — Stone (and other) mining still too fast. [VALID/tunable]** Stone `hardness 3.8` (`blocks.json`); the
   drill's mining power clears it quickly. *Fix:* raise stone + rock/metal hardness (and/or lower tool power) and
   rebalance the hardness table for a slower dig.
-- **B6 — Plants are a solid textured cube; want transparent leaves (also tree crowns). [VALID]** `ChunkMesher`
-  renders `flora_*` as full **opaque cube faces**, not cross-billboards / alpha-cutout. *Fix:* render flora +
-  tree leaves as cross-quad billboards or alpha-cutout so the gaps show through. (Meshing change.)
+- **B6 — Plants are a solid textured cube; want transparent leaves (also tree crowns). [FIXED 2026-06-07 — real
+  alpha-cutout leaves]** `ChunkMesher` rendered `tree_leaves` + `flora_*` as full opaque cube faces. **User chose
+  real alpha leaf textures** (over procedural shader holes / translucent blend). Implemented with the actual leaf
+  art (no normal-map artefacts, holes follow the real leaf shapes):
+  - **Bake** (`tools/ai-assets/bake_leaf_alpha.py`): the block atlas was already RGBA32 + preserves tile alpha,
+    but foliage tiles shipped fully opaque. The script derives an alpha mask from each tile's OWN art (the
+    darkest ~34% — the shadow gaps between leaves/petals — become transparent), leaving RGB untouched so the
+    Sobel normal atlas stays clean. Rewrote the 20 foliage `.bytes` in place (`tree_leaves` + leafy `flora_*`;
+    excludes structural/glowing flora: cactus, crystal, succulent, mushroom, puffball, pitcher, glowcap,
+    emberbloom, sporepod, glowvine — and never the ground `grass`).
+  - **Mesher**: a per-vertex **foliage flag** (new uv2.x) marks leaf faces (`IsFoliageBlock`, set kept in sync
+    with the bake script). Opaque blocks now also draw faces toward foliage neighbours (`nbSeeThrough`), so you
+    see leaf layers + the block behind through the holes (not a hollow shell). Leaves still collide.
+  - **Shader** (`BlockAtlas.shader`): leaf-flagged faces `clip(texel.a - _LeafCutoff)` (default 0.5) — every
+    other tile is fully opaque and unaffected. No new shader/submesh/material (alpha-test lives fine in the
+    opaque queue → no GraphicsSettings always-include needed). Shader compiles clean; client build verified.
+  - *Playtest:* check crown/bush density + whether distant foliage thins too much (alpha-test + mips); tune
+    `--hole` (bake) or `_LeafCutoff` (shader) if so.
 - **B7 — How often is there water; lakes/ponds or only seas? [INVESTIGATED — only seas]** `WorldGenerator.
   ResolveSeaFluid` floods basins to **one global sea level** (`waterAbundance` default 0.55; no planet overrides),
   so worlds have **seas (flooded valleys)** but **no isolated lakes/ponds**. *Fix (feature):* add noise-pocket

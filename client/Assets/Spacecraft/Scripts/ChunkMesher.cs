@@ -33,6 +33,7 @@ namespace Spacecraft.Client
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
             var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
+            var leafUv = new List<Vector2>(); // x = foliage flag (1 = clip the tile's alpha → cutout leaves)
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
@@ -120,6 +121,10 @@ namespace Spacecraft.Client
                 // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these to the planet's
                 // uniform flora hue. Only the small plants — trees keep their natural bark/leaf colours.
                 float floraFlag = IsFloraBlock(content, id) ? 1f : 0f;
+                // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
+                // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
+                bool foliage = IsFoliageBlock(content, id);
+                float leafFlag = foliage ? 1f : 0f;
                 // Fluids (water/lava) render but don't collide, so the player can swim/sink into them.
                 bool collidable = !IsFluidBlock(content, id);
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
@@ -130,9 +135,11 @@ namespace Spacecraft.Client
                     int nx = wx + dir.X, ny = wy + dir.Y, nz = wz + dir.Z;
                     var nb = worldBlock(nx, ny, nz);
                     // Opaque blocks hide faces behind solid neighbours but still draw faces behind glass/
-                    // fields (so you see the wall through the window). See-through blocks only draw their
+                    // fields (so you see the wall through the window) and behind cutout foliage (so you see
+                    // leaf layers + the block behind through the holes). See-through blocks only draw their
                     // faces toward open air — that culls glass↔glass seams + the hidden side against a wall.
-                    bool drawFace = transparent ? nb.IsAir : (nb.IsAir || IsTransparent(content, nb));
+                    bool nbSeeThrough = nb.IsAir || IsTransparent(content, nb) || IsFoliageBlock(content, nb);
+                    bool drawFace = transparent ? nb.IsAir : nbSeeThrough;
                     if (!drawFace)
                     {
                         continue; // face hidden
@@ -156,6 +163,8 @@ namespace Spacecraft.Client
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
+                    var leaf = new Vector2(leafFlag, 0f);
+                    leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                 }
             }
 
@@ -169,7 +178,8 @@ namespace Spacecraft.Client
             mesh.SetTriangles(trisT, 1);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
-            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x
+            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, flora-tint flag in .y
+            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
@@ -209,6 +219,35 @@ namespace Spacecraft.Client
         {
             var key = content.BlockById(id)?.Key;
             return key != null && key.StartsWith("flora_", System.StringComparison.Ordinal);
+        }
+
+        // The structural / solid / glowing-cap flora that read better as solid cubes — everything else
+        // leafy (plus tree crowns) gets the alpha-cutout leaf look. MUST match bake_leaf_alpha.py's FOLIAGE.
+        private static readonly HashSet<string> SolidFlora = new HashSet<string>
+        {
+            "flora_cactus", "flora_crystal", "flora_succulent", "flora_mushroom", "flora_puffball",
+            "flora_pitcher", "flora_glowcap", "flora_emberbloom", "flora_sporepod", "flora_glowvine",
+        };
+
+        /// <summary>True for foliage that renders with alpha-cutout leaves (holes punched into the tile):
+        /// tree crowns + leafy/flowering plants. The leaf tiles carry a baked alpha mask; the block shader
+        /// clips it for leaf-flagged faces. Excludes structural/glowing flora (cactus, crystal, caps…) and
+        /// never the ground "grass" block.</summary>
+        private static bool IsFoliageBlock(GameContent content, BlockId id)
+        {
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            var key = content.BlockById(id)?.Key;
+            if (key == null)
+            {
+                return false;
+            }
+
+            return key == "tree_leaves"
+                || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
         }
 
         /// <summary>True for fluids (water/lava) — they render but are excluded from the collision mesh.</summary>
