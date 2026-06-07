@@ -813,7 +813,51 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    **server** — it holds the context + the toggle); (b) backend framework (FastAPI recommended); (c) cache + cost
    controls; (d) how the backend process is launched (manual `uv run` first; later a launcher script / bundled).
    **Out of scope here:** no code — this entry is the plan; implement only when greenlit.
-16. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Detailed below; big.)
+16. **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Brief below; full
+   Analysis + Plan here — **big, to be staged**.) *(Analysis done; scope questions in chat.)*
+
+   ### Analysis (2026-06-07)
+   **Current graph** (`data/{items,blocks,recipes,blueprints,ship_modules,ships,planets}.json`):
+   - **Raw (mined):** iron_ore, copper_ore, silicate, carbon, titanium_ore, crystal + `data_fragment` (from
+     `data_cache` blocks). **Flora drops:** plant_fiber, berries, crystal. **Creature drops:** creature_meat,
+     toxic_gland, etc. (so `creature_meat`/`toxic_gland` ARE obtainable — via fauna, not a bug).
+   - **Crafted chain (shallow, ~2-3 tiers):** ore→ingot→plate (iron); copper_ore→copper_wire→cable(+silicate);
+     carbon→carbon_composite; silicate→glass; titanium_ore→titanium_plate(refinery); cable+carbon_composite→
+     energy_cell_1. Everything advanced (weapons/suit/modules/ships) = plate/cable/energy_cell + a blueprint.
+   - **Tech tree:** ~36 blueprints, mostly shallow chains (machete→vibro_knife→plasma_sword, etc.), gated by a
+     **data_fragment + plate/cable** unlock cost + a knowledge threshold (item 11). 6 stations in the enum.
+   **Real inconsistencies to fix:** (1) **`Lab` + `MachineRoom` stations are dead** — in the enum + station
+   mapping (`GameServer.cs`) but **no module provides them and no recipe uses them**. (2) **Duplicate market
+   recipes are strictly worse than crafting** (`market_buy_medpack` 3c+2s vs hand 2c+1s; `market_buy_oxygen_tank`
+   dupes the blueprint craft) → dead / trap entries. (3) **Single-planet soft-lock:** silicate/copper absent on
+   lava/jungle/swamp → no `cable` → progression stalls without travel/market (travel-gating is fine, a hard wall
+   isn't). (4) **`data_fragment` economy:** ~20× rarer than ore yet needed by nearly every unlock → grind.
+   (5) minor: `comm_radio` blueprint vs recipe cost ordering. *(Not bugs / by-design: titanium scarcity =
+   travel-gating; pre-built starter ship carries `tractor_beam`/`ship_laser_basic` un-blueprinted.)*
+   **Gaps vs the task goal:** few metals (no gold/silver/aluminium/nickel/…), no **alloys/electronics** mid-tier,
+   thin "build on a world" object set (mostly walls/lights/ladders/stairs), no real **staged prerequisites**
+   beyond plate/cable.
+
+   ### Plan — staged (each stage shippable + tested)
+   - **Stage 1 — New metals & raw resources + textures + base processing.** Add a set of new **ores/raw
+     resources** (gold, silver, aluminium/bauxite, tin, nickel, cobalt, lithium, sulfur, uranium, a rare-earth…
+     — count per the scope question), each a mineable block with a **generated OpenAI texture** (via
+     `gen_textures.py` + `bundle_textures.py`; item icons reuse the block tile per item 8), distributed across
+     planet ore tables (and **fix the silicate/copper soft-lock** so every world can reach `cable`). Add base
+     **smelt/refine recipes** (ore→ingot) for each. Clean up the **dead `Lab`/`MachineRoom` stations** and the
+     **worse-than-crafting market dupes**.
+   - **Stage 2 — Staged crafting depth (alloys + electronics + real prerequisites).** Mid-tier intermediates
+     (e.g. steel = iron+carbon, bronze = copper+tin, electronics = silver/gold+silicate, battery cells from
+     lithium, alloy plates) that gate the existing advanced items, turning the flat tree into clear stages; rework
+     unlock/recipe costs to use them; rebalance the data_fragment/knowledge economy.
+   - **Stage 3 — Buildable world objects.** New place-able functional/decorative blocks for building on worlds
+     (per the "what objects" question) + their recipes/textures.
+   - **Stage 4 — Ship parts & ships** folded onto the new materials (alloys for hulls, electronics for modules),
+     with intermediate ship tiers.
+   - Tests at each stage: every recipe input/unlock cost is obtainable; no dead-end outputs; every planet has a
+     path to `cable`; new ores mine + smelt; content-load + locale-parity stay green.
+
+   **Open scope questions → see chat.**
 17. **Task 6 — drastically more flora & fauna variety** (with generated textures + sounds). (Detailed below; big.)
 18. **Analysis only — make a world more spherical (vertical wrap too).** *(Analysis only — do NOT implement.)*
    Analyse and estimate: how could the game be changed so a world can be circumnavigated **not only horizontally
