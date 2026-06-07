@@ -1497,13 +1497,15 @@ Client-only. *Playtest wanted.*
   `ResyncStaleChunk` too (belt-and-suspenders). Root cause stands: structure **stamps** `SetBlock`-clear terrain
   without a `BlockChanged` broadcast → stale already-streamed clients get ghost blocks; *optional hardening: have
   live re-stamps broadcast their clears so ghosts never form in the first place.*
-- **B33 — Station NPC name labels show through onto the planet below. [VALID — reported 2026-06-07]** While on a
-  planet surface, the player sees floating **NPC name overlays** for NPCs that are actually aboard a **space
-  station orbiting above** (a different world/instance). The NPC name-label HUD/world-space text isn't scoped to
-  the player's current world — labels for entities in another instance (the station's void world) still render.
-  *Fix:* gate the NPC name-tag rendering to NPCs in the player's **active world/instance** only (or clear the
-  station's NPC list on the client when not aboard it). Where: the client NPC name-label renderer (`NpcView` /
-  HUD nameplates) + how station NPCs are broadcast/scoped. Small-medium.
+- **B33 — Station NPC name labels float in a planet's sky. [FIXED 2026-06-07]** User saw blue floating NPC name
+  labels up in the air on a planet — space-station inhabitants leaking into the planet view. Cause: `NpcView`
+  subscribed only to `NpcsReceived` and **never cleared its NPCs on a world change**. Each world keeps its own NPC
+  list with IDs that restart at 1, so the station's NPCs (sitting at the station's void-world Y≈64) lingered in
+  the client after returning to the planet (their high Y → floating in the sky; `ScenePos` passes Y through
+  unwrapped). *Fix:* `NpcView` now also subscribes to `WorldResetReceived` and **destroys all NPCs on every world
+  reset** (the new world's `NpcList` repopulates). Note: the other entity views (`CreatureView`, `RemotePlayers`,
+  `DoorView`) rely on the same snapshot-pruning and have the same latent gap — apply the same `WorldReset` clear if
+  creatures/remote players ever leak across worlds. Client build verified.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a

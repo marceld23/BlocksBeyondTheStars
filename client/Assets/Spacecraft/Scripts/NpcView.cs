@@ -34,6 +34,7 @@ namespace Spacecraft.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.NpcsReceived += OnNpcs;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -54,6 +55,22 @@ namespace Spacecraft.Client
                     n.GestureTimer = Random.Range(n.GestureLo, n.GestureHi);
                 }
             }
+        }
+
+        /// <summary>Changing world (planet ↔ station ↔ space) wipes the NPCs: each world keeps its own list with
+        /// IDs that restart at 1, so without this the previous world's NPCs would linger — e.g. a space station's
+        /// inhabitants left hanging in a planet's sky (B33). The new world's <see cref="NpcList"/> repopulates.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var n in _npcs.Values)
+            {
+                if (n.Go != null)
+                {
+                    Destroy(n.Go);
+                }
+            }
+
+            _npcs.Clear();
         }
 
         private void OnNpcs(NpcList m)
@@ -164,6 +181,7 @@ namespace Spacecraft.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.NpcsReceived -= OnNpcs;
+                Game.Network.WorldResetReceived -= OnWorldReset;
             }
         }
 
