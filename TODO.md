@@ -1355,6 +1355,23 @@ Client-only. *Playtest wanted.*
   vendor's trade view" issue), not a dedicated barter screen. *Fix:* give the vendor its own trade/barter screen
   (or a clearly trade-only view) instead of the crafting menu. *(Deferred from the medium batch — it's a
   medium-**large** new UI; do it as its own focused task.)*
+  **Analysis 2026-06-07:** the economy is **pure barter, no currency** — vendor trades are the **market recipes**
+  in `data/recipes.json` (`station:"market"`, e.g. 5 iron_ore → 1 titanium_ore), executed via the normal
+  `CraftIntent` → `GameServer.HandleCraft` (validates `MarketAvailable`, consumes inputs, grants outputs, sends
+  `InventoryUpdate`). E at a vendor sets `NearbyStation="market"` (`NearVendor`, vendor NPC within 3.6) → `GameMenu.
+  OpenMarket()` opens the crafting menu on the market category. **Plan (chosen = barter screen, no server change):**
+  a dedicated client `VendorTradeUI` opened on E at a vendor instead of the crafting menu — lists the market
+  exchanges as "give X → get Y" cards, greys out the ones the player can't afford (lacks inputs), and on click
+  sends the existing `CraftIntent(recipeKey)`; refreshes on `InventoryUpdate`/`CraftResult`. Shows the vendor's
+  name. No new messages/NetCodec/economy. (Currency-based shop with credits considered but rejected — it'd be a
+  whole new economy: a balance on `PlayerState`, prices on every item, buy/sell intents.)
+  **[FIXED 2026-06-07 — user chose barter]** New client `VendorTradeUI` (own canvas, sortingOrder 60): a focused
+  centred panel titled with the nearest vendor's name, listing each market exchange as a "give X → get Y" card —
+  unaffordable ones show the short count in red + a disabled "Not enough" button; affordable ones have a "Trade"
+  button that sends `SendCraft(key, 1)`. Refreshes on `InventoryUpdated`; closes on Esc/Tab/close-button/world-
+  reset. `GameMenu.OpenMarket()` now opens this instead of the crafting menu (the two are mutually exclusive via
+  `SetOpen`/`CloseForTransition`). E at the vendor opens it (`PlayerController` unchanged). Bilingual keys
+  `ui.vendor.*` added (EN+DE). No server/protocol change. 367 tests green (locale parity); client build verified.
 - **B23 — Station doors don't auto-open/close; open radius too large. [VALID — not fixed by the hatch change]**
   Station slide doors are registered via `RegisterStationDoors → MakeDoor("slide", …)` with the **default
   `SlideDoorOpenRange = 4.5`**; the per-door tighter range from the ship-hatch fix (1.8) was applied **only** to

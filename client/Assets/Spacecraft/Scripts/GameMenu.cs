@@ -65,15 +65,28 @@ namespace Spacecraft.Client
         public void OpenMap() => OpenAt(Tab.Map);
         public void OpenMissions() => OpenAt(Tab.Missions);
 
-        /// <summary>Opens the crafting panel straight on the market/barter category (vendor trading).</summary>
+        /// <summary>Opens the dedicated vendor trade (barter) screen — a focused "give X → get Y" view, not the
+        /// full crafting menu (B22). The two are mutually exclusive (see <see cref="SetOpen"/>).</summary>
         public void OpenMarket()
         {
-            EnsureUi();
-            // Open/switch to the crafting tab FIRST, then jump to the market category — otherwise ShowMode
-            // resets the category to "all" right after RequestCategory set it, and you land on the generic
-            // crafting list instead of the vendor's trade view.
-            OpenAt(Tab.Crafting);
-            _ui.RequestCategory("market");
+            EnsureVendorUi();
+            _vendorUi.Open();
+        }
+
+        private VendorTradeUI _vendorUi;
+
+        private void EnsureVendorUi()
+        {
+            if (_vendorUi != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("VendorTradeUI");
+            go.transform.SetParent(transform, false);
+            _vendorUi = go.AddComponent<VendorTradeUI>();
+            _vendorUi.Game = Game;
+            _vendorUi.Menu = this;
         }
 
         private void OpenAt(Tab tab)
@@ -84,6 +97,11 @@ namespace Spacecraft.Client
 
         private void SetOpen(bool open)
         {
+            if (open)
+            {
+                _vendorUi?.Close(); // the vendor trade screen + the crafting menu are mutually exclusive
+            }
+
             _open = open;
             Game.MenuOpen = _open;
             Cursor.lockState = _open ? CursorLockMode.None : CursorLockMode.Locked;
@@ -137,6 +155,7 @@ namespace Spacecraft.Client
         /// <summary>Closes the menu (if open) when a launch/landing/hyperjump animation starts.</summary>
         private void CloseForTransition()
         {
+            _vendorUi?.Close();
             if (_open)
             {
                 SetOpen(false);
