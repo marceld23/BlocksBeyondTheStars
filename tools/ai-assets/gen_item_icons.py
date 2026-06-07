@@ -83,6 +83,31 @@ ITEMS = [
     ("gauss_pistol", "a sci-fi gauss pistol"),
     ("laser_pistol", "a sci-fi laser pistol"),
     ("plasma_blaster", "a heavy sci-fi plasma blaster rifle"),
+    # Task 5 — refined metals / rare-earths (ingots + raw refined materials).
+    ("gold_ingot", "a shiny yellow gold metal ingot bar"),
+    ("silver_ingot", "a shiny metallic silver ingot bar"),
+    ("aluminium_ingot", "a dull silvery aluminium ingot bar"),
+    ("tin_ingot", "a dull pale silvery tin ingot bar"),
+    ("nickel_ingot", "a greenish-silver nickel ingot bar"),
+    ("cobalt_ingot", "a deep-blue cobalt ingot bar"),
+    ("platinum_ingot", "a bright silvery-white platinum ingot bar"),
+    ("lead_ingot", "a dull bluish-grey lead ingot bar"),
+    ("zinc_ingot", "a bluish-silver zinc ingot bar"),
+    ("tungsten_ingot", "a dark heavy tungsten ingot bar"),
+    ("lithium", "a soft pinkish-white lithium metal nugget"),
+    ("uranium", "a faintly glowing yellow-green uranium pellet"),
+    ("neodymium", "a purple-grey rare-earth neodymium chunk"),
+    ("sulfur", "a small heap of bright yellow sulfur powder"),
+    # Task 5 — alloy / electronic components crafted from the new metals.
+    ("steel", "a stack of brushed steel metal bars"),
+    ("bronze", "a warm golden-brown bronze metal bar"),
+    ("brass", "a bright yellow-gold brass metal bar"),
+    ("circuit_board", "a green printed circuit board with gold traces and chips"),
+    ("power_cell", "a glowing blue high-capacity power cell battery"),
+    ("reactor_fuel", "a glowing green reactor fuel rod in a metal casing"),
+    ("carbide", "a dark hard tungsten-carbide drill tip"),
+    ("magnet", "a red horseshoe magnet with glowing poles"),
+    ("light_alloy", "a lightweight brushed silver alloy plate"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

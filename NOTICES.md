@@ -21,11 +21,12 @@ for the generating account's plan. Background **music** and the remaining UI/fee
 usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for
-non-block items, ship modules and space tools) are **AI-generated** with the same **OpenAI** image API
+non-block items, ship modules, space tools, and the Task-5 metal ingots + alloy/electronic components) are
+**AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (34 raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — plus wood-log/tree-leaves) are
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, and the Task-5 metal/rare-earth ores + alloy blocks) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

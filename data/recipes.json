@@ -11,7 +11,7 @@
 
   { "key": "titanium_plate",   "station": "refinery", "inputs": [ { "item": "titanium_ore", "count": 2 } ],                                        "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
 
-  { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
+  { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "carbide", "count": 1 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
   { "key": "oxygen_tank_1",    "station": "workshop", "requiredBlueprint": "oxygen_tank_1",  "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ],          "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] },
 
   { "key": "machete",        "station": "workshop", "requiredBlueprint": "machete",        "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "carbon", "count": 2 } ],                                          "outputs": [ { "item": "machete", "count": 1 } ] },
@@ -30,25 +30,52 @@
   { "key": "oxygen_extractor", "station": "workshop", "requiredBlueprint": "oxygen_extractor", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "oxygen_extractor", "count": 1 } ] },
 
   { "key": "stealth_suit",     "station": "workshop", "requiredBlueprint": "stealth_suit",     "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "stealth_suit", "count": 1 } ] },
-  { "key": "jetpack",          "station": "workshop", "requiredBlueprint": "jetpack",          "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "jetpack", "count": 1 } ] },
-  { "key": "advanced_scanner", "station": "workshop", "requiredBlueprint": "advanced_scanner", "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "advanced_scanner", "count": 1 } ] },
-  { "key": "mining_beam",      "station": "workshop", "requiredBlueprint": "mining_beam",      "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 4 } ], "outputs": [ { "item": "mining_beam", "count": 1 } ] },
-  { "key": "armor_chest",      "station": "workshop", "requiredBlueprint": "armor_chest",      "inputs": [ { "item": "iron_plate", "count": 8 }, { "item": "carbon_composite", "count": 2 } ], "outputs": [ { "item": "armor_chest", "count": 1 } ] },
+  { "key": "jetpack",          "station": "workshop", "requiredBlueprint": "jetpack",          "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "light_alloy", "count": 2 } ], "outputs": [ { "item": "jetpack", "count": 1 } ] },
+  { "key": "advanced_scanner", "station": "workshop", "requiredBlueprint": "advanced_scanner", "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "circuit_board", "count": 1 }, { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "advanced_scanner", "count": 1 } ] },
+  { "key": "mining_beam",      "station": "workshop", "requiredBlueprint": "mining_beam",      "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "power_cell", "count": 1 }, { "item": "carbide", "count": 1 } ], "outputs": [ { "item": "mining_beam", "count": 1 } ] },
+  { "key": "armor_chest",      "station": "workshop", "requiredBlueprint": "armor_chest",      "inputs": [ { "item": "iron_plate", "count": 8 }, { "item": "carbon_composite", "count": 2 }, { "item": "steel", "count": 2 } ], "outputs": [ { "item": "armor_chest", "count": 1 } ] },
   { "key": "armor_legs",       "station": "workshop", "requiredBlueprint": "armor_legs",       "inputs": [ { "item": "iron_plate", "count": 6 }, { "item": "carbon_composite", "count": 1 } ], "outputs": [ { "item": "armor_legs", "count": 1 } ] },
   { "key": "helmet",           "station": "workshop", "requiredBlueprint": "helmet",           "inputs": [ { "item": "iron_plate", "count": 5 }, { "item": "glass", "count": 2 } ], "outputs": [ { "item": "helmet", "count": 1 } ] },
   { "key": "oxygen_tank_2",    "station": "workshop", "requiredBlueprint": "oxygen_tank_2",    "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "oxygen_tank_2", "count": 1 } ] },
   { "key": "suit_lamp",        "station": "workshop", "requiredBlueprint": "suit_lamp",        "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "glass", "count": 1 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "suit_lamp", "count": 1 } ] },
-  { "key": "comm_radio",       "station": "workshop", "requiredBlueprint": "comm_radio",       "inputs": [ { "item": "copper_wire", "count": 3 }, { "item": "iron_plate", "count": 1 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "comm_radio", "count": 1 } ] },
-  { "key": "radar_scanner",    "station": "workshop", "requiredBlueprint": "radar_scanner",    "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "radar_scanner", "count": 1 } ] },
+  { "key": "comm_radio",       "station": "workshop", "requiredBlueprint": "comm_radio",       "inputs": [ { "item": "copper_wire", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "comm_radio", "count": 1 } ] },
+  { "key": "radar_scanner",    "station": "workshop", "requiredBlueprint": "radar_scanner",    "inputs": [ { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 4 }, { "item": "circuit_board", "count": 1 }, { "item": "magnet", "count": 1 } ], "outputs": [ { "item": "radar_scanner", "count": 1 } ] },
 
   { "key": "market_iron_to_titanium",  "station": "market", "inputs": [ { "item": "iron_ore", "count": 5 } ],      "outputs": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "market_titanium_to_iron",  "station": "market", "inputs": [ { "item": "titanium_ore", "count": 1 } ],  "outputs": [ { "item": "iron_ore", "count": 4 } ] },
   { "key": "market_copper_to_silicate","station": "market", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
-  { "key": "market_buy_medpack",       "station": "market", "inputs": [ { "item": "carbon", "count": 3 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "medpack", "count": 1 } ] },
-  { "key": "market_buy_oxygen_tank",   "station": "market", "inputs": [ { "item": "iron_ore", "count": 6 }, { "item": "silicate", "count": 3 } ], "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] },
   { "key": "market_sell_crystal",      "station": "market", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
   { "key": "market_buy_data_fragment", "station": "market", "inputs": [ { "item": "titanium_ore", "count": 4 }, { "item": "crystal", "count": 2 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
-  { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] }
+  { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] },
+
+  { "key": "gold_ingot",     "station": "workshop", "inputs": [ { "item": "gold_ore", "count": 2 } ],      "outputs": [ { "item": "gold_ingot", "count": 1 } ] },
+  { "key": "silver_ingot",   "station": "workshop", "inputs": [ { "item": "silver_ore", "count": 2 } ],    "outputs": [ { "item": "silver_ingot", "count": 1 } ] },
+  { "key": "aluminium_ingot","station": "workshop", "inputs": [ { "item": "aluminium_ore", "count": 2 } ], "outputs": [ { "item": "aluminium_ingot", "count": 1 } ] },
+  { "key": "tin_ingot",      "station": "workshop", "inputs": [ { "item": "tin_ore", "count": 2 } ],       "outputs": [ { "item": "tin_ingot", "count": 1 } ] },
+  { "key": "nickel_ingot",   "station": "workshop", "inputs": [ { "item": "nickel_ore", "count": 2 } ],    "outputs": [ { "item": "nickel_ingot", "count": 1 } ] },
+  { "key": "cobalt_ingot",   "station": "workshop", "inputs": [ { "item": "cobalt_ore", "count": 2 } ],    "outputs": [ { "item": "cobalt_ingot", "count": 1 } ] },
+  { "key": "platinum_ingot", "station": "workshop", "inputs": [ { "item": "platinum_ore", "count": 2 } ],  "outputs": [ { "item": "platinum_ingot", "count": 1 } ] },
+  { "key": "lead_ingot",     "station": "workshop", "inputs": [ { "item": "lead_ore", "count": 2 } ],      "outputs": [ { "item": "lead_ingot", "count": 1 } ] },
+  { "key": "zinc_ingot",     "station": "workshop", "inputs": [ { "item": "zinc_ore", "count": 2 } ],      "outputs": [ { "item": "zinc_ingot", "count": 1 } ] },
+  { "key": "tungsten_ingot", "station": "workshop", "inputs": [ { "item": "tungsten_ore", "count": 2 } ],  "outputs": [ { "item": "tungsten_ingot", "count": 1 } ] },
+  { "key": "lithium",        "station": "workshop", "inputs": [ { "item": "lithium_ore", "count": 2 } ],   "outputs": [ { "item": "lithium", "count": 1 } ] },
+  { "key": "uranium",        "station": "workshop", "inputs": [ { "item": "uranium_ore", "count": 2 } ],   "outputs": [ { "item": "uranium", "count": 1 } ] },
+  { "key": "neodymium",      "station": "workshop", "inputs": [ { "item": "neodymium_ore", "count": 2 } ], "outputs": [ { "item": "neodymium", "count": 1 } ] },
+  { "key": "sulfur",         "station": "workshop", "inputs": [ { "item": "sulfur_ore", "count": 1 } ],    "outputs": [ { "item": "sulfur", "count": 1 } ] },
+
+  { "key": "steel",         "station": "workshop", "inputs": [ { "item": "iron_ingot", "count": 2 }, { "item": "nickel_ingot", "count": 1 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "steel", "count": 1 } ] },
+  { "key": "bronze",        "station": "workshop", "inputs": [ { "item": "copper_wire", "count": 2 }, { "item": "tin_ingot", "count": 1 } ],                                     "outputs": [ { "item": "bronze", "count": 2 } ] },
+  { "key": "brass",         "station": "workshop", "inputs": [ { "item": "copper_wire", "count": 2 }, { "item": "zinc_ingot", "count": 1 } ],                                    "outputs": [ { "item": "brass", "count": 2 } ] },
+  { "key": "circuit_board", "station": "workshop", "inputs": [ { "item": "gold_ingot", "count": 1 }, { "item": "silver_ingot", "count": 1 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "circuit_board", "count": 1 } ] },
+  { "key": "power_cell",    "station": "workshop", "inputs": [ { "item": "energy_cell_1", "count": 1 }, { "item": "lithium", "count": 1 }, { "item": "cobalt_ingot", "count": 1 }, { "item": "sulfur", "count": 1 } ], "outputs": [ { "item": "power_cell", "count": 1 } ] },
+  { "key": "reactor_fuel",  "station": "refinery", "inputs": [ { "item": "uranium", "count": 2 }, { "item": "lead_ingot", "count": 1 } ],                                        "outputs": [ { "item": "reactor_fuel", "count": 1 } ] },
+  { "key": "carbide",       "station": "workshop", "inputs": [ { "item": "tungsten_ingot", "count": 1 }, { "item": "platinum_ingot", "count": 1 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "carbide", "count": 1 } ] },
+  { "key": "magnet",        "station": "workshop", "inputs": [ { "item": "neodymium", "count": 1 }, { "item": "iron_ingot", "count": 1 } ],                                      "outputs": [ { "item": "magnet", "count": 2 } ] },
+  { "key": "light_alloy",   "station": "workshop", "inputs": [ { "item": "aluminium_ingot", "count": 2 }, { "item": "titanium_plate", "count": 1 } ],                            "outputs": [ { "item": "light_alloy", "count": 1 } ] },
+
+  { "key": "steel_wall",   "station": "workshop", "inputs": [ { "item": "steel", "count": 1 } ],  "outputs": [ { "item": "steel_wall", "count": 4 } ] },
+  { "key": "bronze_block", "station": "workshop", "inputs": [ { "item": "bronze", "count": 2 } ], "outputs": [ { "item": "bronze_block", "count": 1 } ] },
+  { "key": "brass_block",  "station": "workshop", "inputs": [ { "item": "brass", "count": 2 } ],  "outputs": [ { "item": "brass_block", "count": 1 } ] }
 ]

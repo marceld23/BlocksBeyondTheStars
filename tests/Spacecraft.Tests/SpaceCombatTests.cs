@@ -334,6 +334,7 @@ public sealed class SpaceCombatTests : IDisposable
         state.Inventory.Add("cable", 10, 99);
         state.Inventory.Add("glass", 4, 99);
         state.Inventory.Add("energy_cell_1", 3, 99);
+        state.Inventory.Add("magnet", 2, 99); // Task 5: radar_array now also needs magnets
 
         client.Send(NetCodec.Encode(new BuildShipModuleIntent { ModuleKey = "radar_array" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);

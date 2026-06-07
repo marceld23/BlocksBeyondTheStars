@@ -39,5 +39,24 @@
   { "key": "flora_kelp",   "nameKey": "block.flora_kelp.name",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "flora_lily",   "nameKey": "block.flora_lily.name",   "hardness": 0.2, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "berries", "count": 1 } ] },
   { "key": "ladder",       "nameKey": "block.ladder.name",       "hardness": 0.4, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "ladder", "count": 1 } ] },
-  { "key": "stairs",       "nameKey": "block.stairs.name",       "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "stairs", "count": 1 } ] }
+  { "key": "stairs",       "nameKey": "block.stairs.name",       "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "stairs", "count": 1 } ] },
+
+  { "key": "gold_ore",      "nameKey": "block.gold_ore.name",      "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "gold_ore", "count": 1 } ] },
+  { "key": "silver_ore",    "nameKey": "block.silver_ore.name",    "hardness": 2.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "silver_ore", "count": 1 } ] },
+  { "key": "aluminium_ore", "nameKey": "block.aluminium_ore.name", "hardness": 2.4, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "aluminium_ore", "count": 1 } ] },
+  { "key": "tin_ore",       "nameKey": "block.tin_ore.name",       "hardness": 2.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "tin_ore", "count": 1 } ] },
+  { "key": "nickel_ore",    "nameKey": "block.nickel_ore.name",    "hardness": 3.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "nickel_ore", "count": 1 } ] },
+  { "key": "cobalt_ore",    "nameKey": "block.cobalt_ore.name",    "hardness": 3.4, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "cobalt_ore", "count": 1 } ] },
+  { "key": "lithium_ore",   "nameKey": "block.lithium_ore.name",   "hardness": 2.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "lithium_ore", "count": 1 } ] },
+  { "key": "uranium_ore",   "nameKey": "block.uranium_ore.name",   "hardness": 4.2, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "uranium_ore", "count": 1 } ] },
+  { "key": "platinum_ore",  "nameKey": "block.platinum_ore.name",  "hardness": 4.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "platinum_ore", "count": 1 } ] },
+  { "key": "lead_ore",      "nameKey": "block.lead_ore.name",      "hardness": 2.6, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "lead_ore", "count": 1 } ] },
+  { "key": "zinc_ore",      "nameKey": "block.zinc_ore.name",      "hardness": 2.4, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "zinc_ore", "count": 1 } ] },
+  { "key": "tungsten_ore",  "nameKey": "block.tungsten_ore.name",  "hardness": 5.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "tungsten_ore", "count": 1 } ] },
+  { "key": "sulfur_ore",    "nameKey": "block.sulfur_ore.name",    "hardness": 1.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "sulfur_ore", "count": 1 } ] },
+  { "key": "neodymium_ore", "nameKey": "block.neodymium_ore.name", "hardness": 3.8, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "neodymium_ore", "count": 1 } ] },
+
+  { "key": "steel_wall",    "nameKey": "block.steel_wall.name",    "hardness": 3.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "steel_wall", "count": 1 } ] },
+  { "key": "bronze_block",  "nameKey": "block.bronze_block.name",  "hardness": 2.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "bronze_block", "count": 1 } ] },
+  { "key": "brass_block",   "nameKey": "block.brass_block.name",   "hardness": 2.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "brass_block", "count": 1 } ] }
 ]

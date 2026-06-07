@@ -61,6 +61,25 @@ TEXTURES = [
     # Aquatic flora (the planet flora tint re-colours these on the client; the tile gives the pattern).
     ("flora_kelp", "tall ribbon-like green seaweed kelp blades swaying underwater, top-down"),
     ("flora_lily", "round flat green lily pads floating on water with a small white blossom, top-down"),
+    # Task 5 — new metal / rare-earth / raw-resource ores (grey host rock with the metal's veins).
+    ("gold_ore", "grey stone with bright shiny yellow gold ore veins"),
+    ("silver_ore", "grey stone with bright metallic silver-white ore veins"),
+    ("aluminium_ore", "reddish-brown bauxite rock with dull silvery aluminium ore flecks"),
+    ("tin_ore", "grey stone with dull pale silvery tin ore flecks"),
+    ("nickel_ore", "grey stone with pale greenish-silver nickel ore veins"),
+    ("cobalt_ore", "grey stone with deep blue cobalt ore veins"),
+    ("lithium_ore", "pale grey rock with soft pinkish-white lithium ore streaks"),
+    ("uranium_ore", "dark grey rock with faintly glowing yellow-green uranium ore flecks"),
+    ("platinum_ore", "grey stone with bright silvery-white platinum ore flecks"),
+    ("lead_ore", "dark grey stone with dull bluish-grey lead ore flecks"),
+    ("zinc_ore", "grey stone with bluish-silver zinc ore crystals"),
+    ("tungsten_ore", "dark grey rock with hard dark metallic tungsten ore flecks"),
+    ("sulfur_ore", "grey rock with bright yellow sulfur crystal deposits"),
+    ("neodymium_ore", "dark grey rock with purple-grey rare-earth neodymium ore veins"),
+    # Task 5 — craftable building blocks from the new alloys.
+    ("steel_wall", "brushed steel sci-fi wall plate with panel seams and bolts"),
+    ("bronze_block", "polished bronze metal block with a warm golden-brown sheen"),
+    ("brass_block", "polished brass metal block with a bright yellow-gold sheen"),
 ]
 
 

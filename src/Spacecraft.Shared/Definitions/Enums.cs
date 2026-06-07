@@ -23,15 +23,13 @@ public enum ToolKind
 
 /// <summary>
 /// Where a recipe can be crafted. Mirrors the crafting locations from the game design
-/// (personal quick-crafting, workshop, refinery, lab, machine room).
+/// (personal quick-crafting, workshop, refinery, detoxifier, market).
 /// </summary>
 public enum CraftingStation
 {
     Hand,
     Workshop,
     Refinery,
-    Lab,
-    MachineRoom,
     Detoxifier,
     Market,
 }

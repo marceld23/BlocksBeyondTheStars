@@ -839,13 +839,17 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    beyond plate/cable.
 
    ### Plan — staged (each stage shippable + tested)
-   - **Stage 1 — New metals & raw resources + textures + base processing.** Add a set of new **ores/raw
-     resources** (gold, silver, aluminium/bauxite, tin, nickel, cobalt, lithium, sulfur, uranium, a rare-earth…
-     — count per the scope question), each a mineable block with a **generated OpenAI texture** (via
-     `gen_textures.py` + `bundle_textures.py`; item icons reuse the block tile per item 8), distributed across
-     planet ore tables (and **fix the silicate/copper soft-lock** so every world can reach `cable`). Add base
-     **smelt/refine recipes** (ore→ingot) for each. Clean up the **dead `Lab`/`MachineRoom` stations** and the
-     **worse-than-crafting market dupes**.
+   - ✅ **Stage 1 — New metals & raw resources + textures + base processing (done 2026-06-07).** Added **14 new
+     ores** (gold, silver, aluminium, tin, nickel, cobalt, lithium, uranium, platinum, lead, zinc, tungsten,
+     sulfur, neodymium) — each a mineable block + material item with a **generated OpenAI texture**, distributed
+     across every planet's ore tables (rare metals deeper/rarer). **Soft-lock fixed:** copper_ore + silicate now
+     on every ore-bearing world, so all can reach `cable`. **Base smelting** (ore→ingot/refined) for all 14. To
+     avoid dead-ends, a **mid-tier of 9 alloys/components** (steel, bronze, brass, circuit_board, power_cell,
+     reactor_fuel, carbide, magnet, light_alloy) consumes every new metal and is **folded into existing recipes**
+     (armor/comm_radio/scanners/drills/jetpack + radar/tractor/jump modules) + 3 buildable decor blocks
+     (steel_wall, bronze/brass block). Removed the **dead `Lab`/`MachineRoom` stations** + the **worse-than-craft
+     market dupes**. **Tested:** `CraftingConsistencyTests` (no broken refs, every input obtainable, no dead-ends,
+     every planet reaches cable, dead stations gone) — 354 green. ~40 assets generated; client rebuilt.
    - **Stage 2 — Staged crafting depth (alloys + electronics + real prerequisites).** Mid-tier intermediates
      (e.g. steel = iron+carbon, bronze = copper+tin, electronics = silver/gold+silicate, battery cells from
      lithium, alloy plates) that gate the existing advanced items, turning the flat tree into clear stages; rework

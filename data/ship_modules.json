@@ -28,7 +28,7 @@
   {
     "key": "tractor_beam", "nameKey": "module.tractor_beam.name", "descriptionKey": "module.tractor_beam.desc",
     "mandatory": false, "requiredBlueprint": "tractor_beam",
-    "buildCost": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 }, { "item": "magnet", "count": 2 } ],
     "stats": { "tractor_range": 8 }
   },
   {
@@ -46,13 +46,13 @@
   {
     "key": "jump_generator", "nameKey": "module.jump_generator.name", "descriptionKey": "module.jump_generator.desc",
     "mandatory": false, "requiredBlueprint": "jump_generator",
-    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 } ],
     "stats": { "jump_range": 1000 }
   },
   {
     "key": "radar_array", "nameKey": "module.radar_array.name", "descriptionKey": "module.radar_array.desc",
     "mandatory": false, "requiredBlueprint": "radar_array",
-    "buildCost": [ { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 4 }, { "item": "energy_cell_1", "count": 3 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 4 }, { "item": "energy_cell_1", "count": 3 }, { "item": "magnet", "count": 2 } ],
     "stats": { "radar_bonus": 170 }
   },
   {

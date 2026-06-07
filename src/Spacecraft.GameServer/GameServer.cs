@@ -1982,8 +1982,6 @@ public sealed partial class GameServer
         {
             CraftingStation.Workshop => "workshop",
             CraftingStation.Refinery => "refinery",
-            CraftingStation.Lab => "lab",
-            CraftingStation.MachineRoom => "machine_room",
             CraftingStation.Detoxifier => "detoxifier",
             _ => string.Empty,
         };
