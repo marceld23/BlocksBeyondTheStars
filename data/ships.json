@@ -12,7 +12,7 @@
     "flightSpeed": 0.7, "handling": 0.55,
     "interiorWidth": 7, "interiorLength": 9, "height": 4, "cargoSlots": 96,
     "requiredBlueprint": "ship_hauler",
-    "craftCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "iron_plate", "count": 60 }, { "item": "cable", "count": 24 }, { "item": "energy_cell_1", "count": 6 } ],
+    "craftCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "iron_plate", "count": 60 }, { "item": "cable", "count": 24 }, { "item": "energy_cell_1", "count": 6 }, { "item": "steel", "count": 8 }, { "item": "circuit_board", "count": 4 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "cargo_hold_1", "ship_laser_basic" ]
   },
   {
@@ -21,7 +21,7 @@
     "flightSpeed": 1.5, "handling": 1.7,
     "interiorWidth": 5, "interiorLength": 5, "height": 4, "cargoSlots": 24,
     "requiredBlueprint": "ship_scout",
-    "craftCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 6 } ],
+    "craftCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 6 }, { "item": "light_alloy", "count": 6 }, { "item": "circuit_board", "count": 3 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "medbay", "cargo_hold_basic", "ship_laser_basic" ]
   }
 ]

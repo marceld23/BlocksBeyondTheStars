@@ -819,8 +819,8 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 16. 🔄 **Task 5 — crafting / tech-tree / materials overhaul + more metals & rare earths.** (Big, staged — full
    Analysis + Plan below.) **Done so far: Stage 1** (14 metals/rare-earths + alloy tier + soft-lock/dead-station
    cleanups), **Stage 3** (placeable workbench/forge = on-world crafting + decor blocks), **Stage 3b** (placeable
-   storage crate). **Remaining: Stage 2** (deeper tiers / data_fragment rebalance), **Stage 4** (ships & ship
-   parts on the new materials), and a **placeable door**.
+   storage crate), **Stage 4** (ships & ship parts fold onto the new materials). **Remaining: Stage 2** (deeper
+   tiers / data_fragment rebalance) and a **placeable door**.
 
    ### Analysis (2026-06-07)
    **Current graph** (`data/{items,blocks,recipes,blueprints,ship_modules,ships,planets}.json`):
@@ -873,8 +873,13 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      `DepositContainerIntent` (NetCodec **98**), `DepositToContainer`, place/mine hooks, a `PlaceBlock` test
      entrypoint, and a crate-specific HUD prompt ("Stash · G take · H store"). Tested: `CrateStorageTests`
      (stash-not-tools + take-back, mining returns contents) — **358 green**. *(Placeable door still a follow-up.)*
-   - **Stage 4 — Ship parts & ships** folded onto the new materials (alloys for hulls, electronics for modules),
-     with intermediate ship tiers.
+   - ✅ **Stage 4 — Ships & ship parts on the new materials (done 2026-06-07).** Folded the new alloys/electronics
+     into ship + module builds: **hauler** craftCost += steel + circuit_board (heavy hull + avionics), **scout**
+     += light_alloy + circuit_board (light + sensors); module builds **hull_plating** += steel, **shield_generator**
+     + **jump_generator** += circuit_board (on top of the Stage-1 magnet/reactor_fuel folds for radar/tractor/jump).
+     So high-tier ships/modules now require the deeper material tier. Tested (updated the hull-plating + scout-craft
+     tests to supply the new mats) — 358 green; data synced to the bundled server. *(Intermediate ship tier
+     deferred; a placeable door is the remaining Stage-3 follow-up.)*
    - Tests at each stage: every recipe input/unlock cost is obtainable; no dead-end outputs; every planet has a
      path to `cable`; new ores mine + smelt; content-load + locale-parity stay green.
 

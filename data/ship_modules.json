@@ -46,7 +46,7 @@
   {
     "key": "jump_generator", "nameKey": "module.jump_generator.name", "descriptionKey": "module.jump_generator.desc",
     "mandatory": false, "requiredBlueprint": "jump_generator",
-    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 }, { "item": "circuit_board", "count": 2 } ],
     "stats": { "jump_range": 1000 }
   },
   {
@@ -58,13 +58,13 @@
   {
     "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
     "mandatory": false, "requiredBlueprint": "hull_plating",
-    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 }, { "item": "steel", "count": 6 } ],
     "stats": { "hull": 100 }
   },
   {
     "key": "shield_generator", "nameKey": "module.shield_generator.name", "descriptionKey": "module.shield_generator.desc",
     "mandatory": false, "requiredBlueprint": "shield_generator",
-    "buildCost": [ { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 4 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 4 }, { "item": "glass", "count": 4 }, { "item": "circuit_board", "count": 2 } ],
     "stats": { "shield": 80, "shield_regen": 8 }
   },
   {

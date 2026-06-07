@@ -63,6 +63,8 @@ public sealed class ShipFleetTests : IDisposable
             pilot.State.Inventory.Add("cable", 16, 99);
             pilot.State.Inventory.Add("energy_cell_1", 4, 99);
             pilot.State.Inventory.Add("glass", 6, 99);
+            pilot.State.Inventory.Add("light_alloy", 6, 99);   // Task 5 Stage 4: scout now needs these
+            pilot.State.Inventory.Add("circuit_board", 3, 99);
 
             var (ok, _) = server.CraftShip("Pilot", "scout");
 
