@@ -1438,6 +1438,27 @@ Client-only. *Playtest wanted.*
   block than it looks (a flora/decoration or a stamped block re-textured like mud). *Where:* `GameServer.MineBlock`
   + the mining-protection checks + the client `PlayerController` dig raycast. Needs a repro (which block, is it
   near a ship/settlement?). Medium.
+  **Analysis 2026-06-07:** `GameServer.HandleMine` (GameServer.cs:1398) rejects a dig via `Reject("mine", reason)`
+  on: air, **ship block** (`IsShipBlock` — hull AABB + `_shipExtra` incl. the 6-deep stone foundation), **settlement
+  block** (`IsSettlementBlock` — a coarse min/max **AABB that also covers the natural terrain between buildings**),
+  **station block**, not-mineable, **out of reach** (server MaxReach 8 vs client raycast Reach **6**), another
+  player's landing zone, tool-tier. Mud/grass are hardness 0.6 / no tool → one-shot, so it's not a progress issue.
+  Each `Reject` sends `ActionRejected` → client plays an error sound + sets `LastMessage`, which the HUD shows as
+  the cyan **toast** (`HudUi.cs:270`). So **two distinct cases**: (1) a *reject* (toast + buzz) ⇒ a protection
+  AABB is covering plain terrain — fix = exempt natural-terrain blocks from settlement/structure protection (or
+  track exact built cells); (2) *nothing at all* (no buzz/toast) ⇒ the client never sent the dig (raycast missed /
+  collider gap at a chunk seam, or the cell is just past the **6**-unit client reach while looking adjacent), or a
+  client↔server state desync. Awaiting user repro detail (sound+message vs nothing; near a ship/settlement or open
+  wilderness) to pick the fix.
+  **User repro 2026-06-07: "nothing happens" (no buzz/toast), "everywhere".** ⇒ case (2): the dig intent was
+  never sent — `HandleInteract` does `Physics.Raycast(...Reach...)` and **silently `return`s** when it misses.
+  Two causes: the client `Reach` was **6** vs the server's **8** (a 2-unit dead-band where a click does nothing),
+  and the chunk **MeshCollider is rebuilt right after every dig**, so a raycast against it can miss a block that's
+  clearly there for a frame. **[FIXED 2026-06-07]** (a) bumped client `Reach` to 8 to match the server; (b)
+  replaced the block mine/place targeting with a **voxel ray-march** (`PlayerController.AimBlock`, Amanatides &
+  Woo over `ClientWorld` — the source of truth, always in sync, immune to collider rebuild/recook lag + seams;
+  fluids passed through to match the collider). Mining/placing now never silently fails when a block is in front.
+  Client build verified. *Playtest to confirm.*
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a

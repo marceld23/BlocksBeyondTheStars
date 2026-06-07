@@ -34,7 +34,7 @@ namespace Spacecraft.Client
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
         public bool ThirdPerson = false;
-        public float Reach = 6f;
+        public float Reach = 8f; // match the server's MaxReach (8) — a shorter client reach left a silent dead-band (B32)
 
         private const int HotbarSlots = 9;
 
@@ -1015,19 +1015,19 @@ namespace Spacecraft.Client
                 }
             }
 
-            var ray = new Ray(Camera.transform.position, Camera.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, Reach))
+            // Target the block under the crosshair by ray-marching the voxel world itself, not a Physics.Raycast.
+            // The collider is a mesh that gets rebuilt right after every dig; a raycast against it can silently
+            // miss a block that's clearly there (the rebuild's re-cook, a seam, or just its shorter reach) — which
+            // is exactly the "I aim at the next block and nothing happens" bug (B32). The voxel grid is the source
+            // of truth and always in sync, so this never silently fails when a block is in front of you.
+            if (!AimBlock(out var hitCell, out var placeCell))
             {
                 return;
             }
 
-            // Nudge slightly into / out of the surface to pick the target block cell.
-            Vector3 inside = hit.point - hit.normal * 0.5f;
-            var b = FloorVec(inside);
-
             if (mine)
             {
-                Game.Network.SendMine(b.x, b.y, b.z);
+                Game.Network.SendMine(hitCell.x, hitCell.y, hitCell.z);
                 TriggerSwing();
             }
             else
@@ -1038,11 +1038,65 @@ namespace Spacecraft.Client
                 var def = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item);
                 if (def != null && !string.IsNullOrEmpty(def.PlacesBlock))
                 {
-                    var t = FloorVec(hit.point + hit.normal * 0.5f);
-                    Game.Network.SendPlace(t.x, t.y, t.z, item);
+                    Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item);
                     TriggerSwing();
                 }
             }
+        }
+
+        /// <summary>Ray-marches the voxel grid (Amanatides &amp; Woo) along the aim ray and returns the first
+        /// targetable block within <see cref="Reach"/> — <paramref name="hitCell"/> is the block to mine, and
+        /// <paramref name="placeCell"/> the empty cell just before its hit face (where a placed block goes).
+        /// Fluids (water/lava) are passed through, matching the collider (which excludes them). Cells are in the
+        /// same space the dig intents use; the server + <see cref="ClientWorld"/> both wrap X, so the seam is fine.</summary>
+        private bool AimBlock(out Vector3Int hitCell, out Vector3Int placeCell)
+        {
+            hitCell = default;
+            placeCell = default;
+            if (Game?.World == null || Camera == null)
+            {
+                return false;
+            }
+
+            Vector3 o = Camera.transform.position;
+            Vector3 dir = Camera.transform.forward;
+            int x = Mathf.FloorToInt(o.x), y = Mathf.FloorToInt(o.y), z = Mathf.FloorToInt(o.z);
+            int px = x, py = y, pz = z;
+
+            int sx = dir.x >= 0 ? 1 : -1, sy = dir.y >= 0 ? 1 : -1, sz = dir.z >= 0 ? 1 : -1;
+            float invx = Mathf.Abs(dir.x) > 1e-6f ? 1f / Mathf.Abs(dir.x) : float.PositiveInfinity;
+            float invy = Mathf.Abs(dir.y) > 1e-6f ? 1f / Mathf.Abs(dir.y) : float.PositiveInfinity;
+            float invz = Mathf.Abs(dir.z) > 1e-6f ? 1f / Mathf.Abs(dir.z) : float.PositiveInfinity;
+            // Parametric distance to the first cell boundary on each axis.
+            float tMaxX = float.IsInfinity(invx) ? float.PositiveInfinity : (dir.x > 0 ? (x + 1 - o.x) : (o.x - x)) * invx;
+            float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
+            float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
+
+            float t = 0f;
+            for (int i = 0; i < 80 && t <= Reach; i++)
+            {
+                var id = Game.World.GetBlock(x, y, z);
+                if (!id.IsAir && !IsFluidBlock(id))
+                {
+                    hitCell = new Vector3Int(x, y, z);
+                    placeCell = new Vector3Int(px, py, pz);
+                    return true;
+                }
+
+                px = x; py = y; pz = z;
+                if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
+                else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }
+                else { z += sz; t = tMaxZ; tMaxZ += invz; }
+            }
+
+            return false;
+        }
+
+        /// <summary>Water/lava are passed through when aiming (they have no collider — you swim/sink into them).</summary>
+        private bool IsFluidBlock(Spacecraft.Shared.Primitives.BlockId id)
+        {
+            var key = Game.Content?.BlockById(id)?.Key;
+            return key is "water" or "lava";
         }
 
         private void SendMovement()
