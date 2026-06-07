@@ -1389,13 +1389,17 @@ Client-only. *Playtest wanted.*
   contact cues are thin.)*
 
 ### Third batch (reported 2026-06-07)
-- **B25 — Avatar has no face in the avatar editor; the in-game colour menu shows no avatar at all. [VALID]**
-  Two parts: **(a)** the standalone **avatar editor** (`AvatarEditor.cs`) renders the avatar but with **no face**
-  — it likely builds the body without the eyes/visor that `PlayerAvatar` now adds (B20), so its preview is blank;
-  align it with `PlayerAvatar`'s faced build. **(b)** the **in-game menu** section where you set your figure's
-  colours shows **no avatar preview at all** — add a live avatar preview there (rotating model), **with a face**,
-  so you can see your colour choices on the actual figure. *Fix:* share one faced avatar-build path between
-  `PlayerAvatar`, the avatar editor, and a new in-game colour-menu preview.
+- **B25 — Avatar has no face in the avatar editor; the in-game colour menu shows no avatar at all. [FIXED
+  2026-06-07]** **(a)** Already resolved by B20: `AvatarEditor` builds its preview with `PlayerAvatar.Build`, which
+  now adds the eyes/pupils/brow/mouth (+ the visor moved below the eyes) — so the editor inherits the face; the
+  report predated the B20 fix. **(b)** The colour tab (`CraftingTechShipUI` Mode.Character) showed only colour
+  swatches, no figure. Added a **live faced-avatar preview**: new `AvatarPreviewRig` builds a real `PlayerAvatar`
+  (same faced body) at an isolated far spot with its own short-range point light + camera rendering to a
+  `RenderTexture`, shown via a `RawImage` in the colour tab's detail pane. It rotates while the tab is open and
+  recolours live as you cycle a part (`BuildCharacterList` → `SetColors`); the camera only renders while the
+  Character tab is visible (`ShowMode`/`Hide` toggle). One shared faced-build path (`PlayerAvatar.Build`) across
+  the in-world avatar, the editor, and this preview. Bilingual key `ui.settings.preview`. 367 tests green; build
+  verified.
 - **B26 — Water can't be scanned, and you don't sink in / can't swim. [VALID/regression?]** Two issues: **(a)**
   scanning a **water** block returns nothing (scanning targets creatures + ore/blocks — water may be excluded);
   **(b)** the player **doesn't sink into / swim in** water — but **swimming was shipped in Task 1** (the chunk

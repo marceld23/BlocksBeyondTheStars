@@ -33,6 +33,7 @@ namespace Spacecraft.Client
         private bool _craftableOnly;
         private int _lastDataHash = -1;
         private bool _built;
+        private AvatarPreviewRig _avatarPreview; // live faced-avatar preview for the colour menu (B25)
 
         private const float W = 1920f, H = 1080f;
 
@@ -48,6 +49,7 @@ namespace Spacecraft.Client
             }
 
             _mode = mode;
+            _avatarPreview?.SetActive(mode == Mode.Character); // only render the live preview on the colour tab
             _category = string.IsNullOrEmpty(_pendingCategory) ? "all" : _pendingCategory;
             _pendingCategory = null;
             _selected = string.Empty;
@@ -87,6 +89,8 @@ namespace Spacecraft.Client
             {
                 _canvas.enabled = false;
             }
+
+            _avatarPreview?.SetActive(false); // stop rendering the preview camera while the menu is closed
         }
 
         private void Update()
@@ -569,6 +573,12 @@ namespace Spacecraft.Client
                 ? new[] { Menu.Settings.SkinColor, Menu.Settings.TorsoColor, Menu.Settings.ArmColor, Menu.Settings.LegColor }
                 : new[] { Color.gray, Color.gray, Color.gray, Color.gray };
 
+            // Recolour the live preview as the player cycles a part (this list rebuilds on every cycle).
+            if (_avatarPreview != null && Menu?.Settings != null)
+            {
+                _avatarPreview.SetColors(cols[0], cols[1], cols[2], cols[3]);
+            }
+
             for (int i = 0; i < 4; i++)
             {
                 int which = i;
@@ -596,6 +606,45 @@ namespace Spacecraft.Client
             y += 96f;
 
             return y;
+        }
+
+        /// <summary>Builds (once) the live faced-avatar preview rig, coloured from the player's current settings.</summary>
+        private void EnsureAvatarPreview()
+        {
+            if (_avatarPreview != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("AvatarPreviewRig");
+            go.transform.SetParent(transform, false);
+            _avatarPreview = go.AddComponent<AvatarPreviewRig>();
+            var s = Menu?.Settings;
+            _avatarPreview.EnsureBuilt(
+                s?.SkinColor ?? Color.gray, s?.TorsoColor ?? Color.gray, s?.ArmColor ?? Color.gray, s?.LegColor ?? Color.gray);
+        }
+
+        /// <summary>Shows the rotating faced-avatar preview (rendered to a texture) in the colour tab's detail
+        /// pane, so the player sees their colour choices on the actual figure — with a face (B25).</summary>
+        private float BuildCharacterPreview()
+        {
+            EnsureAvatarPreview();
+            _avatarPreview.SetActive(true);
+            var s = Menu?.Settings;
+            if (s != null)
+            {
+                _avatarPreview.SetColors(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor);
+            }
+
+            UiKit.AddPanel(_detail, 64, 16, 500, 716, new Color(0.03f, 0.06f, 0.11f, 0.92f));
+            UiKit.AddText(_detail, 64, 24, 500, 26, L("ui.settings.preview"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            var go = new GameObject("AvatarPreview", typeof(RectTransform));
+            go.transform.SetParent(_detail, false);
+            UiKit.Place(go, 94, 58, 440, 660);
+            var img = go.AddComponent<RawImage>();
+            img.texture = _avatarPreview.Texture;
+            return 744f;
         }
 
         /// <summary>Nudges master volume and applies + persists it immediately.</summary>
@@ -689,6 +738,12 @@ namespace Spacecraft.Client
             }
 
             ClearChildren(_detail);
+            if (_mode == Mode.Character)
+            {
+                SetContentHeight(_detail, BuildCharacterPreview()); // a live, rotating faced-avatar preview (B25)
+                return;
+            }
+
             if (string.IsNullOrEmpty(_selected))
             {
                 UiKit.AddText(_detail, 8, 20, 620, 30, L("ui.craft.pick"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
