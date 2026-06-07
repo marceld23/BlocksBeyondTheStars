@@ -257,6 +257,10 @@ namespace Spacecraft.Client
         /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
         public string LastMessage { get; private set; } = string.Empty;
 
+        /// <summary>The last cell the player tried to mine (set by the controller) — used to annotate a mine
+        /// rejection with what the CLIENT believes is there, to diagnose client↔server block desyncs (B32).</summary>
+        public Vector3Int LastMineCell;
+
         /// <summary>The item key in a personal inventory slot, or empty if none.</summary>
         public string ItemInSlot(int slot)
         {
@@ -393,7 +397,29 @@ namespace Spacecraft.Client
             };
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
-            Network.ActionRejected += m => { Debug.Log($"Action '{m.Action}' rejected: {m.Reason}"); LastMessage = $"{m.Action}: {m.Reason}"; };
+            Network.ActionRejected += m =>
+            {
+                Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");
+                if (m.Action == "mine")
+                {
+                    var c = LastMineCell;
+                    string clientKey = Content?.BlockById(World?.GetBlock(c.x, c.y, c.z) ?? default)?.Key ?? "?";
+                    LastMessage = $"{m.Reason}  tgt({c.x},{c.y},{c.z})=client:{clientKey}  pos({Mathf.FloorToInt(PlayerPosition.x)},{Mathf.FloorToInt(PlayerPosition.y)},{Mathf.FloorToInt(PlayerPosition.z)})";
+
+                    // The server says this cell is empty — it's authoritative, so clear the client's ghost block
+                    // here directly (don't wait on a re-stream). If the cell really was the visible block, the
+                    // phantom vanishes and the next dig hits whatever is actually behind it (B32).
+                    if (!string.IsNullOrEmpty(m.Reason) && m.Reason.Contains("empty")
+                        && World != null && World.ApplyBlockChange(c.x, c.y, c.z, 0, out var ghostCoord))
+                    {
+                        _dirty.Add(ghostCoord);
+                    }
+                }
+                else
+                {
+                    LastMessage = $"{m.Action}: {m.Reason}";
+                }
+            };
             Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = m.Text; };
 
             // Connect now; the join handshake is sent once the transport reports Connected
