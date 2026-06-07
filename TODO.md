@@ -1115,9 +1115,18 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture audit**, **uGUI theme/icon polish**.
    Kept in that section; pointer here so they're not forgotten. *(PvP ship combat + big cruisers stay **deferred
    by design**.)*
-28. **Bug + analysis — multi-second freeze after "start new game" before the loading screen (requested
-   2026-06-07).** Clicking Singleplayer → entering a new name / starting a new game → **several seconds of
+28. ✅ **Bug — multi-second freeze after "start new game" before the loading screen (done 2026-06-07; needs
+   in-engine test).** Clicking Singleplayer → entering a new name / starting a new game → **several seconds of
    nothing**, *then* the loading screen (percent bar) appears.
+   **Fix (done):** the loading screen is now shown **first** and the local server is spawned **off the main
+   thread**, so the blocking `Process.Start` can never freeze the menu. `LocalServerLauncher` was split into
+   **`Prepare`** (main thread — builds the launch info from Unity paths) + **`LaunchPrepared`** (thread-safe —
+   does `Process.Start`); `AppShell.StartSingleplayerWorld` now calls `Prepare` + sets `Phase = Loading`
+   immediately, and `Update` kicks `LaunchPrepared` on a `Task` once the loading UI is on screen. The client's
+   existing connect-retry (`GameBootstrap` — every 2s, up to 6×) covers the case where the server isn't listening
+   yet, so no launch gate is needed; `StopLocalServer` waits for an in-flight spawn so backing out can't orphan a
+   server. *(The percent bar is still the time-based `MinShow` timer — driving it from real load stages is a
+   future polish, noted below.)* Client rebuilt.
    ### Analysis (2026-06-07) — root cause
    Two things combine; both are in `AppShell.StartSingleplayerWorld` + `LocalServerLauncher` + `LoadingScreen`:
    - **(1) The loading screen is only shown *after* the server is spawned, and the spawn can block the UI

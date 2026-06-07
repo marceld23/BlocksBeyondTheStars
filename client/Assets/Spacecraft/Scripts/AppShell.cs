@@ -37,6 +37,8 @@ namespace Spacecraft.Client
 
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
         private bool _hostLocal;
+        private bool _serverPending;                          // prepared, waiting to spawn once the screen is up
+        private System.Threading.Tasks.Task _serverLaunch;    // the off-thread spawn (so Process.Start can't freeze us)
         private GameObject _gameRoot;
 
         private bool _splashSoundDone;
@@ -154,11 +156,17 @@ namespace Spacecraft.Client
             _hostLocal = true;
             Settings.LastWorld = worldName;
             Settings.Save();
-            if (_localServer.Start(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed))
+
+            // Prepare the launch on the main thread (it reads Unity paths), but DON'T spawn the server yet:
+            // show the loading screen first (below), then spawn it on a background thread. Otherwise the
+            // blocking Process.Start (a Defender first-scan of the freshly-built EXE can stall it for seconds)
+            // would freeze the menu so "nothing happens" before the loading screen appears.
+            if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed))
             {
                 Host = _localServer.Host;
                 Port = _localServer.Port.ToString();
                 _loading.MinShow = 2.5f; // give the server time to start listening
+                _serverPending = true;
             }
             else
             {
@@ -184,6 +192,13 @@ namespace Spacecraft.Client
 
         private void StopLocalServer()
         {
+            _serverPending = false;
+            if (_serverLaunch != null)
+            {
+                try { _serverLaunch.Wait(3000); } catch { } // let an in-flight spawn finish so we can stop it
+                _serverLaunch = null;
+            }
+
             if (_hostLocal)
             {
                 _localServer.Stop();
@@ -420,6 +435,15 @@ namespace Spacecraft.Client
             {
                 Destroy(_uiLoading);
                 _uiLoading = null;
+            }
+
+            // With the loading screen now on screen, spawn the prepared local server on a background thread —
+            // so a blocking Process.Start (Defender first-scan of the freshly-built EXE) can't freeze the menu
+            // or the loading bar. The connect happens after MinShow, by which time it's listening.
+            if (_serverPending && _uiLoading != null)
+            {
+                _serverPending = false;
+                _serverLaunch = System.Threading.Tasks.Task.Run(() => _localServer.LaunchPrepared());
             }
 
             // Settings + credits are uGUI now too (the whole shell is one design).

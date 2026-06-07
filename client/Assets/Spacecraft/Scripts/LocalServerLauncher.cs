@@ -79,7 +79,12 @@ namespace Spacecraft.Client
             }
         }
 
-        public bool Start(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0)
+        private ProcessStartInfo _pendingPsi;
+
+        /// <summary>Main-thread step: validate the bundled server EXE + build the launch info. Must run on the
+        /// Unity main thread (it reads <c>Application.*</c> paths). Returns false only if the EXE is missing.
+        /// Pair with <see cref="LaunchPrepared"/> (which can run off the main thread).</summary>
+        public bool Prepare(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0)
         {
             if (IsRunning)
             {
@@ -112,7 +117,7 @@ namespace Spacecraft.Client
             string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
             // Singleplayer enables free space flight + PvE space combat so it's reachable solo.
             const string spaceArgs = " --free-flight true --space-combat PvE --space-npcs Normal";
-            var psi = new ProcessStartInfo
+            _pendingPsi = new ProcessStartInfo
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name Singleplayer --world \"{worldName}\" " +
@@ -123,26 +128,47 @@ namespace Spacecraft.Client
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
+            return true;
+        }
 
-            _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            _process.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.Log($"[server] {e.Data}"); };
-            _process.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.LogWarning($"[server] {e.Data}"); };
+        /// <summary>Spawns the prepared server process. **Thread-safe** (no Unity APIs) so it can run on a
+        /// background thread — then a blocking <c>Process.Start</c> (e.g. a Windows Defender first-scan of the
+        /// freshly-built EXE) never freezes the UI. Call <see cref="Prepare"/> on the main thread first.</summary>
+        public bool LaunchPrepared()
+        {
+            if (IsRunning)
+            {
+                return true;
+            }
+
+            if (_pendingPsi == null)
+            {
+                return false;
+            }
+
+            var proc = new Process { StartInfo = _pendingPsi, EnableRaisingEvents = true };
+            proc.OutputDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.Log($"[server] {e.Data}"); };
+            proc.ErrorDataReceived += (_, e) => { if (!string.IsNullOrEmpty(e.Data)) Debug.LogWarning($"[server] {e.Data}"); };
 
             try
             {
-                _process.Start();
-                _process.BeginOutputReadLine();
-                _process.BeginErrorReadLine();
-                Debug.Log($"Local server started (pid {_process.Id}) on {Host}:{Port}.");
+                proc.Start();
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+                _process = proc;
+                Debug.Log($"Local server started (pid {proc.Id}) on {Host}:{Port}.");
                 return true;
             }
             catch (Exception e)
             {
                 Debug.LogError($"Failed to start local server: {e.Message}");
-                _process = null;
                 return false;
             }
         }
+
+        /// <summary>Convenience: prepare + spawn in one blocking call (kept for non-UI callers/tests).</summary>
+        public bool Start(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0)
+            => Prepare(port, viewDistanceChunks, worldName, seed) && LaunchPrepared();
 
         public void Stop()
         {
