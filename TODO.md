@@ -1201,6 +1201,78 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
 ---
 
+## 🐞 Reported bugs — triaged 2026-06-07 (sorted into the backlog; **not yet fixed**)
+A batch of user-reported issues. Each checked against the code for validity + a code pointer + fix direction.
+Tags: **VALID** (confirmed in code), **PARTIAL** (partly true / nuance), **FEATURE** (a new system, not a bug),
+**PLAYTEST** (needs in-engine confirmation).
+
+- **B1 — Creature sounds carry too far; should fade with distance, be silent when far. [VALID]**
+  `ClientAudio.At` plays 3D at `minDistance 4`, `maxDistance 45` with Unity's default (logarithmic) rolloff →
+  audible from far. *Fix:* lower `maxDistance` (~18–22) + use a Linear/custom rolloff so distant creatures fade
+  to silence. (`ClientAudio.cs:316-329`.) Relates to [[netcodec-register-messages]]-era audio work.
+- **B2 — Small mineable asteroids need their own texture. [PARTIAL]** They're **not** untextured — `AsteroidMat()`
+  reuses the **stone** block texture tinted grey (`SpaceView.cs:2027`). *Fix:* generate a dedicated asteroid-rock
+  texture (OpenAI — **pre-approved**) + use it. ([[asset-generation-approved]].)
+- **B3 — Can't pillar-jump (place a block under yourself). [VALID]** `HandlePlace` rejects placing in the cell you
+  occupy — feet `fy` or head `fy+1` — "You can't place a block where you're standing" (`GameServer.cs:1586`); a
+  jump-place targets your feet cell → rejected, so it seems to "break instantly". *Fix:* allow placing at the feet
+  cell while airborne (keep the head-cell guard) so building straight up works.
+- **B4 — Ship editor missing usable items; audit ship + station + settlement editors. [PARTIAL]** The ship-editor
+  palette **does** include **Medbay** (the heal-tank) + a **Door** (door_slide) (`ShipEditor.cs:59-78`) — "no
+  heal-tank" is a labelling/visibility issue. But newer placeables are missing (e.g. **crate**, **door_hinge**,
+  workbench/forge, modules like refinery/detoxifier/oxygen_generator/cargo_hold_1). *Fix:* audit + complete the
+  ship palette, and do the same for the **station** + **settlement** editors.
+- **B5 — Stone (and other) mining still too fast. [VALID/tunable]** Stone `hardness 3.8` (`blocks.json`); the
+  drill's mining power clears it quickly. *Fix:* raise stone + rock/metal hardness (and/or lower tool power) and
+  rebalance the hardness table for a slower dig.
+- **B6 — Plants are a solid textured cube; want transparent leaves (also tree crowns). [VALID]** `ChunkMesher`
+  renders `flora_*` as full **opaque cube faces**, not cross-billboards / alpha-cutout. *Fix:* render flora +
+  tree leaves as cross-quad billboards or alpha-cutout so the gaps show through. (Meshing change.)
+- **B7 — How often is there water; lakes/ponds or only seas? [INVESTIGATED — only seas]** `WorldGenerator.
+  ResolveSeaFluid` floods basins to **one global sea level** (`waterAbundance` default 0.55; no planet overrides),
+  so worlds have **seas (flooded valleys)** but **no isolated lakes/ponds**. *Fix (feature):* add noise-pocket
+  lakes/ponds above sea level.
+- **B8 — Thunderstorm has thunder audio but no visible lightning. [VALID]** `ClientAudio` plays `thunder_*` in
+  storms (`ClientAudio.cs:169-176`) but there is **no lightning-flash visual** anywhere. *Fix:* add a lightning
+  flash (sky/screen flash + optional bolt) synced to the thunder cue.
+- **B9 — Mined asteroids respawn too fast. [VALID/tunable]** `AsteroidRespawnInterval = 40s`, target 3
+  (`GameServerSpaceCombat.cs:765-766`). *Fix:* raise the interval.
+- **B10 — Mineable asteroids too clustered; spread them around the planet. [VALID]** `CreateSpaceInstance` spawns
+  the 3 at a fixed near-line `(12 + i*8, 0, 18)` (`GameServerSpaceCombat.cs:327`). *Fix:* scatter them over a
+  wider volume around the body. *(Note: pairs with item 24's new large landable asteroids.)*
+- **B11 — Per-planet temperature (HUD value, varies with weather; cold → snow instead of rain + snow visuals).
+  [FEATURE]** No temperature exists in `PlanetType`/`GameServerWeather`. *Fix:* add a per-planet base temperature
+  (worldgen) + a weather modifier, send it to the HUD, and below freezing render **snow** instead of rain (new
+  precip visual). New system.
+- **B12 — Creature movement too simple (a few steps back-and-forth). [VALID]** Wander runs through
+  `CreatureBehaviour.Step` (`GameServerCreatures.cs:352`); the wander is basic. *Fix:* richer roaming — varied
+  headings, pauses/grazing, longer wanders, maybe light flocking.
+- **B13 — Machete one-shots most animals. [VALID/balance]** Machete `damage: 12` (`items.json`) vs creature
+  `MaxHealth = 10 + size*8 (+10 if hostile)` (`CreatureGenerator.cs:78`) → small fauna ~15 HP die in one hit.
+  *Fix:* lower machete damage or raise creature HP.
+- **B14 — Weapon attack animations are poor. [VALID/subjective]** One generic `Swing()` for everything
+  (`PlayerController.TriggerSwing` → Avatar/viewmodel `Swing`). *Fix:* better per-weapon-class swing/thrust/fire
+  animations.
+- **B15 — A "red creature" of two stacked blocks with no texture — what is it? [PLAYTEST]** There is **no**
+  lava/2-block entity in space combat; it's almost certainly a **fauna creature** rendered **red** (hostile
+  creatures get a red tint in `CreatureBuilder`) with a **missing/failed hide texture** (untextured → flat red)
+  and/or a minimal body. *Fix:* confirm in-engine (scan it), then fix the hide fallback / body so a creature never
+  renders as bare red cubes.
+- **B16 — Can't eat food. [VALID]** The server has `ConsumeItemIntent` + `HandleConsume`/`ConsumeItem` (food
+  heals) (`GameServer.cs:1101`, `GameServerCreatures.cs:498`), but the **client never sends it** (no eat key/UI).
+  *Fix:* add a client eat action (a key, or an inventory "eat") that sends `ConsumeItemIntent` for the selected
+  food. *(Hunger has a separate auto-consume path, `GameServer.cs:747`, but manual eating is unreachable.)*
+- **B17 — Creature eyes look bad (tiny). [VALID/cosmetic]** Eyes are small flat-coloured quads + pupil
+  (`CreatureBuilder.cs:79-94`, eyeSize ≈ 0.24·headScale). *Fix:* bigger/rounder eyes, better shading/highlight.
+- **B18 — Creatures still too aggressive. [VALID/balance]** Despite item 7's give-up leash, the temperament roll
+  still makes hostiles (Aggressive 15 / PackHunter 5 weights in `CreatureGenerator`) + the aggro range bites.
+  *Fix:* lower the hostile weights / aggro range / damage, or make more species flee. Pairs with B13.
+
+*(All 18 are recorded only — none fixed yet, per the user. Many are quick tunables (B1/B5/B9/B10/B13/B18), a few
+are features (B7/B11) or rendering work (B6/B8), and B15 needs an in-engine look.)*
+
+---
+
 ## ⏭ Requested 2026-06-07: six analysis-first tasks (do one at a time)
 Workflow for these (per the user): for **each** task — (1) thorough analysis of the current code, (2) write
 an **Analysis + Plan** block here **before** any implementation, (3) ask clarifying questions if needed,
