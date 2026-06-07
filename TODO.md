@@ -1273,10 +1273,18 @@ Client-only. *Playtest wanted.*
     re-baked on a **coarse 16×16 grid** so holes are chunky, visible gaps. (3) Reverted the "draw faces toward
     foliage" culling back to a **thin shell**, so the holes show the sky/world BEHIND the tree (a dense volume
     just showed more leaves through the holes → read as solid).
-- **B7 — How often is there water; lakes/ponds or only seas? [INVESTIGATED — only seas]** `WorldGenerator.
-  ResolveSeaFluid` floods basins to **one global sea level** (`waterAbundance` default 0.55; no planet overrides),
-  so worlds have **seas (flooded valleys)** but **no isolated lakes/ponds**. *Fix (feature):* add noise-pocket
-  lakes/ponds above sea level.
+- **B7 — How often is there water; lakes/ponds or only seas? [FIXED 2026-06-07 — upland ponds]** Worlds only had
+  seas (basins flooded to one global level); no isolated lakes/ponds, and swim-deep water was rare (B26).
+  **Carve-and-fill upland ponds** in `WorldGenerator.Generate`: per column **above** the sea, a low-frequency
+  pond-mask noise on **flat ground** (slope-gated so the water sits level) carves a shallow bowl
+  (`seabedY = surfaceY − depth`, depth tapering 0→5 rim→centre) and fills it with water up to the original
+  surface — a pond flush with the ground, 2–5 deep, so B26's `IsSubmerged` swimming actually triggers. **Frequency
+  derives from the world's `WaterAbundance`** (the same property that sets the sea level — the user's ask): wet
+  worlds get more/larger ponds, dry worlds almost none, lava/airless worlds none (their sea isn't water). Pond
+  columns grow aquatic flora (kelp/lily) not land plants. Deterministic (pure noise). Tuned scattered/rare
+  ("water rare except oceans"); regression test `WateryWorld_GeneratesUplandPonds_AboveSeaLevel`; the atmosphere
+  tests were made pond-robust (find the open-air surface, since a pond can now sit at the origin). 368 green; build
+  verified. *(Knobs: `pondThreshold`, `PondMaxDepth`, `PondBand`, `PondMaxSlope` in `WorldGenerator`.)*
 - **B8 — Thunderstorm has thunder audio but no visible lightning. [FIXED 2026-06-07 — weather Stage 3]** The faint
   pre-existing screen flash (`_flash*0.35`, no bolt) was the reason "no lightning showed". `WeatherFx` now: a
   **brighter** sky flash (`_flash*0.6`) **plus a jagged white bolt** (`DrawBolt`, glow + hot core, ~0.18 s) drawn

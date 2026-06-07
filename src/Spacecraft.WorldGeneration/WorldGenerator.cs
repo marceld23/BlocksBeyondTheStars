@@ -143,6 +143,34 @@ public sealed class WorldGenerator
         return (int.MinValue, BlockId.Air);
     }
 
+    private const int PondMaxDepth = 5;     // deepest carve at a pond's centre (≥2 is swimmable)
+    private const double PondBand = 0.10;   // mask range from "rim" (depth 0) to "centre" (full depth)
+    private const int PondMaxSlope = 4;     // only carve on flat ground (Δheight over ±2 in x+z) so water sits level
+
+    /// <summary>Carve depth (0 = none) for an upland pond at this column: a low-frequency mask scatters ponds
+    /// (sized by its peaks → small pools + occasional lakes), gated to flat ground so the water surface stays
+    /// level. Deterministic — pure noise. The caller fills the carved bowl with water up to the original
+    /// surface, so a pond reads as a swimmable pool flush with the surrounding terrain (B7).</summary>
+    private int PondDepthAt(PlanetType planet, long seed, int worldX, int worldZ, double threshold)
+    {
+        double mask = Noise.FbmCylX(seed + 0x7A11, worldX, worldZ, _circumference, planet.TerrainScale * 4.0, octaves: 3);
+        double strength = (mask - threshold) / PondBand;
+        if (strength <= 0.0)
+        {
+            return 0;
+        }
+
+        // Flat-ground gate — sampled lazily, only inside the pond mask, so it doesn't cost on every column.
+        int slope = System.Math.Abs(SurfaceHeight(planet, worldX + 2, worldZ) - SurfaceHeight(planet, worldX - 2, worldZ))
+                  + System.Math.Abs(SurfaceHeight(planet, worldX, worldZ + 2) - SurfaceHeight(planet, worldX, worldZ - 2));
+        if (slope > PondMaxSlope)
+        {
+            return 0;
+        }
+
+        return (int)System.Math.Round(System.Math.Min(1.0, strength) * PondMaxDepth);
+    }
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
@@ -180,6 +208,16 @@ public sealed class WorldGenerator
         bool waterFlora = flora && !kelpId.IsAir && !lilyId.IsAir && fluidId == seaWaterId && !seaWaterId.IsAir
             && (_kelpActive || _lilyActive);
 
+        // Upland ponds/lakes (B7): scattered, swimmable water ABOVE the sea on flat ground. Frequency derives
+        // from the world's WaterAbundance — the same property that sets the sea level — so wet worlds get more
+        // (and larger) ponds, dry worlds almost none, and lava/airless worlds get none (their sea isn't water).
+        double pondAbundance = planet.WaterAbundance
+            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
+        bool ponds = pondAbundance > 0.15 && fluidId == seaWaterId && !seaWaterId.IsAir;
+        // The mask is FBM noise (∈[0,1], clustered around 0.5), so the bar sits in its upper tail; a wetter
+        // world lowers it for more/larger ponds. The flat-ground gate keeps them scattered (not everywhere).
+        double pondThreshold = 0.70 - pondAbundance * 0.12;
+
         var origin = WorldConstants.ChunkOrigin(coord);
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
@@ -189,6 +227,23 @@ public sealed class WorldGenerator
             int worldZ = origin.Z + lz;
             int surfaceY = SurfaceHeight(planet, worldX, worldZ);
 
+            // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
+            // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
+            // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
+            int seabedY = surfaceY;
+            int waterTop = fluidLevel;
+            var columnFluid = fluidId;
+            if (ponds && surfaceY > fluidLevel)
+            {
+                int pondDepth = PondDepthAt(planet, seed, worldX, worldZ, pondThreshold);
+                if (pondDepth > 0)
+                {
+                    seabedY = surfaceY - pondDepth;
+                    waterTop = surfaceY;
+                    columnFluid = seaWaterId;
+                }
+            }
+
             // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
             int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
             var surfaceId = biomes[biomeIndex].Surface;
@@ -197,17 +252,17 @@ public sealed class WorldGenerator
             for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
             {
                 int worldY = origin.Y + ly;
-                if (worldY > surfaceY)
+                if (worldY > seabedY)
                 {
-                    if (worldY <= fluidLevel)
+                    if (worldY <= waterTop)
                     {
-                        chunk.Set(lx, ly, lz, fluidId); // sea fill in a basin below the world's sea level
+                        chunk.Set(lx, ly, lz, columnFluid); // sea fill in a basin, or an upland pond above it
                     }
 
                     continue; // else air above the surface
                 }
 
-                int depth = surfaceY - worldY;
+                int depth = seabedY - worldY;
 
                 // Carve caves below the surface layer.
                 if (planet.CaveThreshold > 0 && depth > 1)
@@ -245,10 +300,10 @@ public sealed class WorldGenerator
             // Surface flora: one plant in the air cell directly above the surface (bounded — one per column,
             // no spreading), chosen by biome surface + a density roll. Columns that lie under the sea grow
             // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
-            if (flora && surfaceY + 1 > fluidLevel)
+            if (flora && seabedY + 1 > waterTop)
             {
                 var floraId = FloraForSurface(planet, surfaceId, seed, worldX, worldZ);
-                int fy = surfaceY + 1;
+                int fy = seabedY + 1;
                 int fly = fy - origin.Y;
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
                     && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, worldZ) < planet.FloraDensity)
@@ -256,9 +311,10 @@ public sealed class WorldGenerator
                     chunk.Set(lx, fly, lz, floraId);
                 }
             }
-            else if (waterFlora && surfaceY + 1 <= fluidLevel)
+            else if (waterFlora && seabedY + 1 <= waterTop)
             {
-                StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, surfaceY, fluidLevel,
+                // Submerged column — the sea or an upland pond grows kelp/lily pads instead of land plants.
+                StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
                     kelpId, lilyId, planet.FloraDensity);
             }
         }

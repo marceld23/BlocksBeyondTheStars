@@ -44,7 +44,22 @@ public sealed class AtmosphereTests : IDisposable
     {
         var session = server.AddLocalPlayer("Diver");
         session.State.AboardShip = false;
-        session.State.Position = new Vector3f(0, 64, 0);
+
+        // Stand in the open air just above the surface at the origin column — the first air cell over the top
+        // solid/water cell — so the breathing test isn't accidentally placed underwater when an upland pond
+        // (B7) happens to sit at the origin on this seed.
+        int y = 66;
+        for (int yy = 160; yy > 8; yy--)
+        {
+            if (!server.World.GetBlock(new Vector3i(0, yy, 0)).IsAir
+                && server.World.GetBlock(new Vector3i(0, yy + 1, 0)).IsAir)
+            {
+                y = yy + 2;
+                break;
+            }
+        }
+
+        session.State.Position = new Vector3f(0, y, 0);
         session.State.Oxygen = 50f;
         state = session.State;
         return server;

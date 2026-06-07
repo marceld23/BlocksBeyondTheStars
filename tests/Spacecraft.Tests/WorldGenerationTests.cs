@@ -27,6 +27,42 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void WateryWorld_GeneratesUplandPonds_AboveSeaLevel()
+    {
+        // B7: a watery (atmospheric) world should scatter swimmable upland ponds — water ABOVE the global sea
+        // level — not just sea-level basins. (Determinism is covered by the test above, since ponds are part of
+        // Generate.)
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        var gen = new WorldGenerator(7, content);
+        int sea = gen.SeaLevel(planet);
+        Assert.True(sea > int.MinValue, "expected a watery world for this test");
+        var waterId = content.GetBlock("water")!.NumericId;
+        int cs = WorldConstants.ChunkSize;
+
+        int pondCells = 0;
+        for (int cx = 0; cx < 16 && pondCells == 0; cx++)
+        for (int cz = 0; cz < 16 && pondCells == 0; cz++)
+        for (int cy = 0; cy <= 4; cy++)
+        {
+            var coord = new ChunkCoord(cx, cy, cz);
+            var chunk = gen.Generate(planet, coord);
+            var origin = WorldConstants.ChunkOrigin(coord);
+            for (int lx = 0; lx < cs; lx++)
+            for (int ly = 0; ly < cs; ly++)
+            for (int lz = 0; lz < cs; lz++)
+            {
+                if (origin.Y + ly > sea && chunk.Get(lx, ly, lz) == waterId)
+                {
+                    pondCells++;
+                }
+            }
+        }
+
+        Assert.True(pondCells > 0, $"expected upland ponds (water above sea level {sea}) on a watery world");
+    }
+
+    [Fact]
     public void VoidPlanet_GeneratesEmptySpace()
     {
         var content = Content();
