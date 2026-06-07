@@ -59,6 +59,45 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void StationsAndWrecks_NeverSpawnInsideABody()
+    {
+        // Generate plenty of systems so stations + wrecks actually appear, then assert each free-floater keeps
+        // its kind-appropriate clearance from every planet/moon/asteroid (B29 — no station stuck in a moon).
+        var desc = new WorldDescription { StarSystemCount = 60, PlanetsPerSystemMin = 2, PlanetsPerSystemMax = 5 };
+        var galaxy = new UniverseGenerator(7, desc, _content).Generate();
+
+        int floaters = 0;
+        foreach (var sys in galaxy.Systems)
+        {
+            foreach (var f in sys.Bodies.Where(b => b.Kind is CelestialKind.SpaceStation or CelestialKind.Wreck))
+            {
+                floaters++;
+                foreach (var body in sys.Bodies)
+                {
+                    if (body.Kind is CelestialKind.SpaceStation or CelestialKind.Wreck)
+                    {
+                        continue;
+                    }
+
+                    float dx = f.SystemX - body.SystemX, dz = f.SystemZ - body.SystemZ;
+                    float dist = System.MathF.Sqrt(dx * dx + dz * dz);
+                    float need = body.Kind switch
+                    {
+                        CelestialKind.Planet => 300f,
+                        CelestialKind.Moon => 185f,
+                        CelestialKind.AsteroidField => 150f,
+                        _ => 110f,
+                    };
+                    Assert.True(dist >= need - 1f,
+                        $"{f.Kind} {f.Id} only {dist:0} units from {body.Kind} {body.Id} (needs {need})");
+                }
+            }
+        }
+
+        Assert.True(floaters > 0, "expected some stations/wrecks to be generated");
+    }
+
+    [Fact]
     public void DifferentSeeds_ProduceDifferentUniverses()
     {
         var desc = new WorldDescription { StarSystemCount = 6 };

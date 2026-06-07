@@ -149,10 +149,11 @@ public sealed partial class GameServer
                 }
             }
 
-            // Rear engine nozzle (dark, off), paired near the back centre.
+            // Rear engine nozzles (dark, off), outboard of the centre hatch so they never block the way out
+            // (the rear -Z hatch occupies the two centre columns cx-1..cx; engines sit at the rear corners).
             for (int d = 1; d <= 2; d++)
             {
-                Ext(cx + s, y0 + 1, cz - _shipHalfZ - d, dark);
+                Ext(cx + s * _shipHalfX, y0 + 1, cz - _shipHalfZ - d, dark);
             }
         }
 
@@ -187,6 +188,31 @@ public sealed partial class GameServer
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
+
+        // Flush rear doorstep: the hull is a flat box anchored at the centre's surface height, so on sloped
+        // ground the rear hatch can otherwise hang in the air (or get buried). Carve a short, level pad out
+        // the hatch — a solid threshold at cabin-floor level, the doorway cleared above it, and a foundation
+        // under it — so the door always meets solid, walkable ground regardless of the terrain it landed on.
+        var stepFill = _content.GetBlock("stone")?.NumericId ?? wall;
+        for (int d = 1; d <= 2; d++)             // two blocks out from the rear wall
+        for (int sx = cx - 1; sx <= cx; sx++)    // the two hatch columns
+        {
+            int sz = cz - _shipHalfZ - d;
+            Ext(sx, y0, sz, wall);               // flush threshold at floor level (protected like the hull)
+            for (int sy = y0 + 1; sy <= y0 + _shipHeight; sy++)
+            {
+                _world.SetBlock(new Vector3i(sx, sy, sz), BlockId.Air); // clear any rise/flora from the doorway
+            }
+
+            for (int dy = 1; dy <= ShipFoundationDepth; dy++)           // support the pad over a dip
+            {
+                var fp = new Vector3i(sx, y0 - dy, sz);
+                if (_world.GetBlock(fp).IsAir)
+                {
+                    _world.SetBlock(fp, stepFill);
+                }
+            }
+        }
 
         // A sci-fi sliding door fills the hatch (the 2-wide opening in the -Z wall) so the box ship has a
         // real door like designed ships, not just an open hole.

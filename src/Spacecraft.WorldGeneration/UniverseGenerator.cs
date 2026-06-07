@@ -144,12 +144,14 @@ public sealed class UniverseGenerator
             if (rng.NextDouble() < _desc.SpaceStations.Probability())
             {
                 var (sx, sz) = DiscPoint(i, planets, 302);
+                (sx, sz) = SeparateFromBodies(system, sx, sz); // never park a station inside a planet/moon/asteroid (B29)
                 system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-st", Name = $"{system.Name} Station", Kind = CelestialKind.SpaceStation, SystemId = system.Id, SystemX = sx, SystemZ = sz });
             }
 
             if (rng.NextDouble() < _desc.Wrecks.Probability())
             {
                 var (wx, wz) = DiscPoint(i, planets, 303);
+                (wx, wz) = SeparateFromBodies(system, wx, wz); // a wreck shouldn't clip a body either
                 system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-w", Name = $"Wreck near {system.Name}", Kind = CelestialKind.Wreck, SystemId = system.Id, SystemX = wx, SystemZ = wz });
             }
 
@@ -170,6 +172,64 @@ public sealed class UniverseGenerator
         float radius = BaseOrbit + Hash01(systemIndex, salt, 2) * (planets * OrbitStep + OrbitStep);
         return (radius * System.MathF.Cos(angle), radius * System.MathF.Sin(angle));
     }
+
+    /// <summary>Nudges a free-floating body (station/wreck) out of any planet/moon/asteroid it would otherwise
+    /// spawn inside, by pushing it radially away from each overlapped body until clear. The clearances are in
+    /// system-disc units, sized so the body never visually clips another in the compact flight view (where
+    /// system units are scaled down ~0.16×): a planet needs the widest berth, a small asteroid the least.</summary>
+    private static (float X, float Z) SeparateFromBodies(StarSystem system, float x, float z)
+    {
+        for (int iter = 0; iter < 16; iter++)
+        {
+            bool moved = false;
+            foreach (var b in system.Bodies)
+            {
+                // Only avoid the solid, sized bodies — not other free-floaters (placed before this one anyway).
+                if (b.Kind == CelestialKind.SpaceStation || b.Kind == CelestialKind.Wreck)
+                {
+                    continue;
+                }
+
+                float dx = x - b.SystemX, dz = z - b.SystemZ;
+                float dist = System.MathF.Sqrt(dx * dx + dz * dz);
+                float need = BodyClearance(b.Kind);
+                if (dist < need)
+                {
+                    float nx, nz;
+                    if (dist > 0.001f)
+                    {
+                        nx = dx / dist; nz = dz / dist;
+                    }
+                    else
+                    {
+                        float r = System.MathF.Sqrt(x * x + z * z); // co-located → shove outward from the star
+                        nx = r > 0.001f ? x / r : 1f;
+                        nz = r > 0.001f ? z / r : 0f;
+                    }
+
+                    x = b.SystemX + nx * need;
+                    z = b.SystemZ + nz * need;
+                    moved = true;
+                }
+            }
+
+            if (!moved)
+            {
+                break;
+            }
+        }
+
+        return (x, z);
+    }
+
+    /// <summary>Minimum spawn distance (system-disc units) a free-floater must keep from a body of this kind.</summary>
+    private static float BodyClearance(CelestialKind kind) => kind switch
+    {
+        CelestialKind.Planet => 300f,
+        CelestialKind.Moon => 185f,
+        CelestialKind.AsteroidField => 150f,
+        _ => 110f,
+    };
 
     private string PickPlanetType(DeterministicRandom rng)
     {

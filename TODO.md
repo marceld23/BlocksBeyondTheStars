@@ -1368,24 +1368,42 @@ Client-only. *Playtest wanted.*
   is sparse/sea-level-only.)*
 
 ### Fourth batch (reported 2026-06-07)
-- **B27 — On a planet, the landed ship's door "stands in the air". [VALID]** Looking at your landed ship, the
-  hatch door floats away from the doorway. The box-ship hatch door is registered at `(cx-0.5, y0+1,
-  cz-_shipHalfZ+0.5)` (`GameServerShipStructure.StampShip`) + built by `MakeDoor`/`DoorView`; the door's Pos or
-  width is off relative to the actual hatch gap, so it renders detached. *Investigate:* the door Pos vs the hatch
-  cells (and whether `MakeDoor`'s jamb-probe widens it wrongly on the landed box ship). *(Also re-check after
-  B23's open-range change, though that was range not position.)*
-- **B28 — German menu tab "Einstellungen" overflows its button graphic. [VALID]** The in-game-menu tab label
-  "Einstellungen" (Settings) is wider than the tab's background and spills over it. *Fix:* size the tab to the
-  text (or shrink the font / shorten the label) so DE labels fit; check the other tabs too for the longest DE
-  strings.
-- **B29 — A space station is stuck inside a moon / large asteroid. [VALID]** A station spawned overlapping a body
-  (its exterior intersects the moon/asteroid). Station orbit positions don't avoid bodies. *Fix:* when placing a
-  station body in `UniverseGenerator` (or rendering it in the flight view), keep it clear of planets/moons/
-  asteroids (a min separation, like the flight-view body separation pass).
-- **B30 — NPCs walk out through the station's window/glass. [VALID]** On a small (one-room) space station NPCs
-  leave the interior by passing through the glass. NPC pathing/bounds don't treat the station hull/glass as a
-  wall (glass is non-solid for movement, or NPCs aren't bounded to the interior). *Fix:* bound station NPCs to
-  the interior (treat hull + glass as walls for them, or clamp them to the station's room).
+- **B27 — On a planet, the landed ship's door "stands in the air" / "on the roof". [FIXED 2026-06-07]** A
+  regression test (`ShipHatchDoor_SitsAtCabinFloor_NotOnTheRoof`) proved the box-ship hatch door is registered at
+  cabin-floor level (y0+1, `dY=1.0`), so the placement was never on the roof — the real cause is the hull being a
+  flat box anchored at the *centre's* surface height: on sloped/jungle ground the rear hatch hangs over (or buries
+  into) terrain at a different height, and a rear engine nozzle sat directly in the left hatch column.
+  *Fix (`GameServerShipStructure.StampShip`):* moved the engine nozzles outboard (`cx ± _shipHalfX`) so they never
+  block the way out, and carve a **flush rear doorstep** — a solid threshold at floor level out the hatch, the
+  doorway cleared above it, and a foundation under it — so the door always meets level, walkable ground regardless
+  of the terrain it landed on. *(Playtest to confirm the visual.)*
+- **B28 — German menu tab "Einstellungen" overflows its button graphic. [FIXED 2026-06-07]** The tab buttons are a
+  fixed 150 px wide with 22 pt bold text (`CraftingTechShipUI.BuildHeader` + `UiKit.AddButton`, overflow wrap), so
+  the 14-char "Einstellungen" spilled out. *Fix:* enable best-fit on each tab label (`resizeTextForBestFit`,
+  max 22 / min 12) so a long localized tab auto-shrinks to fit its button while short labels keep full size — no
+  row-width change (the 8-tab row is already ~1296 px).
+- **B29 — A space station is stuck inside a moon / large asteroid. [FIXED 2026-06-07]** Stations + wrecks were
+  placed by `DiscPoint` with no overlap check (and they skip the flight-view body-separation pass, which only
+  de-overlaps planets/moons/asteroids). *Fix (`UniverseGenerator`):* a `SeparateFromBodies` pass pushes each
+  station/wreck radially clear of every planet/moon/asteroid at generation (system-unit clearances sized for the
+  0.16× flight scale — planet 300 / moon 185 / asteroid 150), so the authoritative position is clear for both the
+  render and the server's board-range check. Regression test `StationsAndWrecks_NeverSpawnInsideABody`. 367 green.
+- **B30 — NPCs walk out through the station's window/glass. [FIXED 2026-06-07]** Two causes: NPC world-collision
+  only checked the wander **endpoint** cell (so an NPC's wander arc could teleport across a one-block glass pane
+  when the far side was open air), and it keyed on "non-air" rather than the block's **Solid** flag. *Fix
+  (`GameServerNpcs`):* the step is now **swept** (`PathBlockedByWorld` samples the segment every ¼ block, so no
+  tunnelling through a 1-block wall/pane), and collision uses a new `IsSolidCell` keyed on `BlockDefinition.Solid`
+  — keeping **solid** and **transparent** distinct exactly as noted: **glass** is solid-but-transparent (blocks
+  NPCs, you see through it) while a non-solid transparent block like **water** stays passable.
+- **B31 — Trees (flora) spawn on top of the landed ship. [VALID — reported 2026-06-07]** On a jungle planet the
+  player landed and **trees were standing on the ship**. World decoration (flora/trees, and likely also rocks/
+  creatures) is placed without checking the landed ship's stamped footprint, so vegetation grows through/on the
+  hull. *Fix:* when stamping the ship (or when scattering flora/decoration), **keep a keep-out around the ship
+  footprint** so nothing spawns on or inside it — either skip decoration cells whose column intersects a ship
+  stamp (`GameServerShipStructure` `CurStamp` bounds), or stamp the ship *after* clearing any flora in its
+  footprint. Check whether the order is worldgen-decoration-then-ship-stamp (ship should clear what it overlaps)
+  and whether ongoing flora respawn also needs the keep-out. Likely also applies to settlements/stations stamped
+  onto terrain. Medium.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a

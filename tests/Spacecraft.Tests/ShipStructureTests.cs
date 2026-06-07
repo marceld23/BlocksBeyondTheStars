@@ -1,3 +1,4 @@
+using System.Linq;
 using Spacecraft.Networking.Transport;
 using Spacecraft.Persistence;
 using Spacecraft.Shared.Configuration;
@@ -56,6 +57,26 @@ public sealed class ShipStructureTests : IDisposable
             // intruding through the hull), while the floor below stays solid.
             Assert.True(server.World.GetBlock(new Spacecraft.Shared.Geometry.Vector3i(a.X, a.Y + 1, a.Z)).IsAir);
             Assert.False(server.World.GetBlock(a).IsAir);
+        }
+    }
+
+    [Fact]
+    public void ShipHatchDoor_SitsAtCabinFloor_NotOnTheRoof()
+    {
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var a = server.ShipAnchorBlock; // (cx, y0 floor, cz)
+            // The ship's hatch door (the slide door nearest the ship anchor) must sit at cabin-floor level —
+            // one block above the floor anchor — never up at the hull roof (B27).
+            var hatch = server.DoorSnapshots
+                .Where(d => d.Kind == "slide"
+                            && System.Math.Abs(d.Pos.X - a.X) < 6f && System.Math.Abs(d.Pos.Z - a.Z) < 8f)
+                .OrderBy(d => System.Math.Abs(d.Pos.X - a.X) + System.Math.Abs(d.Pos.Z - a.Z))
+                .FirstOrDefault();
+
+            Assert.NotEqual(0, hatch.Id); // a ship hatch door exists
+            Assert.InRange(hatch.Pos.Y - a.Y, 0.5f, 1.5f); // ~floor level, not the roof
         }
     }
 

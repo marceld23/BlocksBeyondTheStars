@@ -175,8 +175,13 @@ public sealed partial class GameServer
             float oz = (float)System.Math.Sin(npc.WanderPhase * 0.7) * NpcWanderLeash;
             var next = new Vector3f(npc.Home.X + ox, npc.Home.Y, npc.Home.Z + oz);
 
-            // NPCs don't wander into the player's ship — or through their building's walls/doors.
-            npc.Pos = EntityBlockedByShip(next) || BlockedByWorld(next) ? npc.Pos : next;
+            // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
+            // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
+            // wall or station glass pane when its wander arc clears it on the far side.
+            if (!EntityBlockedByShip(next) && !PathBlockedByWorld(npc.Pos, next))
+            {
+                npc.Pos = next;
+            }
 
             // Face the nearest player if one is close, else look along the stroll heading.
             var nearest = NearestPlayerPosition(targets, npc.Pos);
@@ -191,6 +196,26 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>True if moving from <paramref name="from"/> to <paramref name="to"/> would pass through (or end
+    /// inside) a solid block. Samples the segment every ~quarter block so an NPC can't tunnel through a one-block
+    /// wall or glass pane in a single wander step (the endpoint alone could land in open air on the far side).</summary>
+    private bool PathBlockedByWorld(Vector3f from, Vector3f to)
+    {
+        float dx = to.X - from.X, dz = to.Z - from.Z;
+        float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
+        for (int s = 1; s <= steps; s++)
+        {
+            float f = s / (float)steps;
+            if (BlockedByWorld(new Vector3f(from.X + dx * f, to.Y, from.Z + dz * f)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>True if an NPC's body (feet + head) would sit inside a solid block at this position — a wall,
     /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.</summary>
     private bool BlockedByWorld(Vector3f pos)
@@ -198,8 +223,23 @@ public sealed partial class GameServer
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        return !_world.GetBlock(new Vector3i(x, y, z)).IsAir       // feet
-            || !_world.GetBlock(new Vector3i(x, y + 1, z)).IsAir;  // head
+        return IsSolidCell(x, y, z)       // feet
+            || IsSolidCell(x, y + 1, z);  // head
+    }
+
+    /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
+    /// just "non-air", so the two are kept distinct: <b>glass</b> is solid-but-transparent (blocks NPCs, you see
+    /// through it), while a non-solid transparent block like <b>water</b> is passable. Air is never solid.</summary>
+    private bool IsSolidCell(int x, int y, int z)
+    {
+        var id = _world.GetBlock(new Vector3i(x, y, z));
+        if (id.IsAir)
+        {
+            return false;
+        }
+
+        var def = _content.BlockById(id);
+        return def == null || def.Solid; // unknown id → treat as solid (safe default)
     }
 
     private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });

@@ -185,6 +185,16 @@ namespace Spacecraft.Client
                     b.GetComponent<Image>().color = UiKit.Cyan;
                 }
 
+                // Auto-fit the label so a long localized tab (e.g. German "Einstellungen") shrinks to fit the
+                // fixed-width button instead of spilling over its graphic (B28); short labels keep full size.
+                var lbl = b.GetComponentInChildren<Text>();
+                if (lbl != null)
+                {
+                    lbl.resizeTextForBestFit = true;
+                    lbl.resizeTextMaxSize = 22;
+                    lbl.resizeTextMinSize = 12;
+                }
+
                 x += 158f;
             }
 
