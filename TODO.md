@@ -1353,6 +1353,21 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    player state (persisted + networked), a colour picker in the ship tab of the menu, and applying the tint
    everywhere the ship is built (flight view, interior, remote avatars). Small-medium, mostly client + one state
    field. *(Pairs with the existing avatar colour customization.)*
+33. **Cratered terrain for airless moons + landable asteroids.** *(Analysis first.)* On **moons without an
+   atmosphere** and on the **landable asteroids** (item 24 — the big ones you land on; never the mini mineable
+   rocks) — both always airless — add a **frequently-used crater landscape**: mostly **flat** ground pocked with
+   **many round craters**. Adjust the **terrain generator** accordingly (a crater-field height function — e.g.
+   sum of inverted radial bumps / worley-style pits — selected for airless moons + asteroid bodies, blended with
+   the existing terrain). Where: `WorldGenerator` surface-height + the per-planet terrain params (the `asteroid`
+   planet type + a moon-airless variant). Medium.
+34. **Precipitation by climate — fire/ash rain on very hot worlds (and snow on cold).** *(Analysis first; may
+   need a clarifying question on world-climate ranges.)* There should be **especially hot worlds** (like lava
+   worlds) and **especially cold worlds**; on **very hot** worlds, precipitation should fall as **fire-rain /
+   ash-rain** instead of normal rain (and on cold worlds, **snow** — see B11). Needs a **per-world climate/temp**
+   (ties into B11's temperature system) driving the precip type + the **visual/audio effects** for fire/ash fall
+   (and snow). Builds on the weather system (`GameServerWeather` + the client rain/storm beds). Medium-large.
+   *(Open question for later: how are "very hot/cold" worlds defined — a temperature threshold per planet type,
+   or an explicit climate band?)*
 
 ---
 
