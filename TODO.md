@@ -701,12 +701,36 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      replacement; missions carry the giver id/name; turn-in still pays the reward.
 
    **Open questions → see chat.**
-14. **Feature (plan ahead) — NPCs remember their interactions with a player.** NPCs should **"remember"** when
-   they have interacted with a player. Store **what kind** of interaction it was: just a **dialog**, a **trade**,
-   or a **mission accepted**. This then **improves the relationship value** to that player. Keep an **interaction
-   log of at most the last 10** interactions (per player). (Feeds item 15 — name, role, relationship and these
-   logs are part of what the dialog backend receives.) Analyse precisely, then plan, ask questions, only then
-   implement.
+14. **Feature (plan ahead) — NPCs remember their interactions with a player.** Per-NPC, per-player relationship
+   value + a log of the last 10 interactions (dialog / trade / mission accepted). *(Analysis done; questions in
+   chat; implement after answers.)*
+
+   ### Analysis (2026-06-07)
+   - **No NPC dialog/talk system exists yet.** The only player↔NPC interactions today are **vendor barter** (a
+     market trade gated by `NearSettlementVendor`/`NearSpaceStationVendor`) and **accepting a mission** at the
+     quartermaster's board (item 13). "Dialog" has **no trigger yet** — that's item 15's job.
+   - **NPCs aren't persisted** (regenerated each load), so memory can't live on `ServerNpc`. But their identity is
+     stable by **location + role**: the vendor / quartermaster of a given settlement (`settle:<hash>`) or station
+     (`station:<id>`). Coined names are deterministic (items 12/13) but not unique → key memory by a stable
+     **NpcKey = `{locationKey}:{role}`**, not the runtime `ServerNpc.Id`.
+   - **Persistence pattern ready:** `PlayerState` already carries persisted dictionaries (e.g. `KnowledgeGivenTo`);
+     a per-player record of each NPC (= the NPC's memory of that player) persists cleanly via `Snapshots` and is
+     exactly what item 15's backend needs (relationship + recent log for this player+NPC).
+
+   ### Plan (recommended — confirm via questions)
+   - **Data model (shared):** `enum NpcInteractionKind { Dialog, Trade, MissionAccepted }`; `NpcInteraction
+     { Kind; }` (optionally a turn/detail); `NpcRelationship { int Value; List<NpcInteraction> Log }` capped at
+     **10** (FIFO). `PlayerState.NpcMemory : Dictionary<string, NpcRelationship>` keyed by NpcKey. Persist in
+     `Snapshots` (like `KnowledgeGivenTo`).
+   - **Recording:** `RecordNpcInteraction(player, npcKey, kind)` — appends to the log (trim to 10) and raises the
+     relationship by a per-kind weight (e.g. Dialog +1, Trade +2, MissionAccepted +3; clamped). Hook it into the
+     **mission-accept** handler (quartermaster NpcKey) and the **vendor barter** path (vendor NpcKey).
+   - **Lookup for item 15:** `NpcRelationshipFor(player, npcKey)` returning value + last-10 log + the NPC's
+     name/role, so the dialog backend (item 15) receives name, role, relationship and logs.
+   - **Tests:** interactions accumulate + raise the value; the log caps at 10 (oldest dropped); memory persists
+     across a reload; distinct NPCs/players keep separate records.
+
+   **Open questions → see chat.**
 15. **Feature — AI dialog backend (`./ai-backend/`, Python) for NPC dialog text.** *(Analyse precisely + plan
    first; research online if needed. Do NOT implement yet.)* Under `./ai-backend/` there should be a **Python
    backend** exposing an **API** the game can later call to **fetch NPC dialog texts**. The backend **consumes /
