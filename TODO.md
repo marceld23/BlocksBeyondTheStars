@@ -1426,6 +1426,18 @@ Client-only. *Playtest wanted.*
   footprint. Check whether the order is worldgen-decoration-then-ship-stamp (ship should clear what it overlaps)
   and whether ongoing flora respawn also needs the keep-out. Likely also applies to settlements/stations stamped
   onto terrain. Medium.
+- **B32 — Sometimes a block can't be mined (e.g. mud/grass): one block mines, the adjacent one won't. [VALID —
+  reported 2026-06-07]** Intermittent: the player mines one mud/grass block fine, but a neighbouring identical-
+  looking block doesn't break. Mud/grass need no tool, so it's not a tool-tier gate. *Hypotheses to investigate:*
+  (a) **mining protection** — the block is part of a ship/settlement/structure footprint (`IsProtectedShipBlock`
+  / `_shipExtra` / settlement-protected cells, or the **foundation fill** under a stamp) that silently rejects the
+  dig, so a stray protected block sits among normal terrain; (b) **client↔server target mismatch** — the raycast/
+  aim resolves a slightly different cell than the server validates (off-by-one at block edges / longitude wrap),
+  so the dig lands on air/another cell and "does nothing"; (c) a **block-state/hardness desync** (mined on the
+  server but still shown client-side, or hardness/durability not reset); (d) the cell is actually a different
+  block than it looks (a flora/decoration or a stamped block re-textured like mud). *Where:* `GameServer.MineBlock`
+  + the mining-protection checks + the client `PlayerController` dig raycast. Needs a repro (which block, is it
+  near a ship/settlement?). Medium.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
