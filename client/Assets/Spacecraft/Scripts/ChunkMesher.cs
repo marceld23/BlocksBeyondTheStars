@@ -125,8 +125,9 @@ namespace Spacecraft.Client
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
                 float leafFlag = foliage ? 1f : 0f;
-                // Fluids (water/lava) render but don't collide, so the player can swim/sink into them.
-                bool collidable = !IsFluidBlock(content, id);
+                // Fluids (water/lava) + fire render but don't collide — you swim/sink into fluids and walk
+                // through (and burn in) fire.
+                bool collidable = !IsFluidBlock(content, id) && content.BlockById(id)?.Key != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -328,7 +329,7 @@ namespace Spacecraft.Client
             }
 
             var def = content.BlockById(id);
-            return def?.Key is "glass" or "force_field" or "water"; // water is alpha-blended so you see into it
+            return def?.Key is "glass" or "force_field" or "water" or "fire"; // alpha-blended — see through them
         }
 
         private static Color BlockColor(GameContent content, BlockId id)

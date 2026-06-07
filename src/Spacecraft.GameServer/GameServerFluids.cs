@@ -88,6 +88,11 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (id == _lavaId)
+            {
+                IgniteFlammableNeighbors(pos); // active/flowing lava sets adjacent plants/wood alight (item 30)
+            }
+
             byte level = _fluidLevel.TryGetValue(pos, out var lv) ? lv : FluidFull;
             var kind = new BlockId(id);
             bool changed = false;

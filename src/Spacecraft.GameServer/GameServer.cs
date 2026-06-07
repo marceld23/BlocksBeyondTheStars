@@ -279,6 +279,7 @@ public sealed partial class GameServer
         if (!planet.Void)
         {
             InitFluids();
+            InitFire();
             InitFlora();
             InitCreatures();
             LoadLandingZones();
@@ -559,6 +560,7 @@ public sealed partial class GameServer
             TickEnemies(deltaSeconds);
             TickPresence(deltaSeconds);
             TickFluids(deltaSeconds);
+            TickFire(deltaSeconds);
             TickWeather(deltaSeconds);
             TickFlora(deltaSeconds);
             TickCreatures(deltaSeconds);
@@ -658,6 +660,12 @@ public sealed partial class GameServer
             if (InLava(p.Position))
             {
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 15)));
+            }
+
+            // Standing in fire burns too (item 30) — a little less than lava.
+            if (InFire(p.Position))
+            {
+                p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 10)));
             }
 
             // Hunger (survival): aboard the ship, boarded on a station (both have life support), or when

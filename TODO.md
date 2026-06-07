@@ -1576,6 +1576,28 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    (needs a **new fire system**: fire spreads across flammable blocks, a **visual flame effect + sound**, burns
    them away); and **water extinguishes fire**. New systems: a fire/burning simulation (server) + flame VFX/SFX
    (client) + flammability per block + water↔fire interaction. Medium-large.
+   **Plan (fire system) 2026-06-07:** model fire as a transient **`fire` block** (server-simulated, broadcast via
+   the existing `BlockChanged`, client renders it emissive + alpha + non-colliding — like a fluid). A new
+   `GameServerFire` cellular tick mirrors `GameServerFluids` (per-world state in `WorldData`, ~6 Hz, per-tick
+   budget): a burning flammable block becomes `fire` for a short duration then turns away; each tick it ignites
+   flammable neighbours (spread) and is extinguished if a **water** neighbour touches it. **Lava ignites**: the
+   fluid tick, when it processes an (active, i.e. placed/flowing) lava cell, ignites its flammable neighbours.
+   Flammable = `flora_*` + `wood_log` + `tree_leaves`. Fire damages a player standing in it (like lava). Bounded
+   by the budget + active-set dormancy (existing lava seas don't ignite unless flowing). Client: `ChunkMesher`
+   treats `fire` like a see-through, non-collidable, glowing block; a fire-crackle ambience near fire. No new
+   message/NetCodec. Tests mirror `FluidTests`.
+   **[FIXED 2026-06-07 — user chose controlled→ash]** New blocks `fire` (non-solid, non-mineable, emissive,
+   alpha-blended) + `ash` (charred remains) appended to blocks.json (+ bilingual names). New `GameServerFire`
+   partial: per-world `FireTimer`/`ActiveFire` state, ~6 Hz tick, 300-cell budget; a flammable block
+   (`flora_*`/`wood_log`/`tree_leaves`) set alight becomes `fire` for ~3.5 s, igniting flammable neighbours, then
+   collapses to `ash`; a `water` neighbour douses it to air. The fluid tick ignites the flammable neighbours of
+   any active/flowing **lava** cell (placed/harvested lava → place near plants → fire). Fire burns a player
+   standing in it (10 hp/s, armour-reduced). Client: `ChunkMesher` renders `fire` see-through + non-collidable +
+   emissive (atlas tile from a generated **transparent flame texture** — alpha baked from brightness so flames
+   show on transparent gaps); `ash` is a solid charred tile; a **fire-crackle loop** (ElevenLabs) plays near
+   fire via the fluid-proximity ambience. 5 `FireTests` (ignite→ash, spread, water-douse, lava-ignite); 373
+   green; client build verified. *(Water/lava are already mineable (tier-3 drill) + flow on placement — the
+   item-30 "harvestable + flowing" parts pre-existed.)*
 31. **Player-created missions (a real player-to-player mission board).** *(Analysis first.)* A player can **post a
    mission** others accept from a mission board: the poster types a **name + description**, **stakes a reward**
    (an item/material they give up) and defines **what the completer receives**; on success the **poster is

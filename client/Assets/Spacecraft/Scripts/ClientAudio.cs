@@ -277,7 +277,8 @@ namespace Spacecraft.Client
                     for (int dz = -3; dz <= 3 && found.Length == 0; dz++)
                     {
                         string k = Game.Content.BlockById(Game.World.GetBlock(px + dx, py + dy, pz + dz))?.Key ?? string.Empty;
-                        if (k.Contains("lava")) found = "lava_bubble";
+                        if (k == "fire") found = "fire_crackle";       // a fire nearby crackles (item 30)
+                        else if (k.Contains("lava")) found = "lava_bubble";
                         else if (k.Contains("water")) found = "water_shore";
                     }
                 }

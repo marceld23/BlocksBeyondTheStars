@@ -14,6 +14,8 @@
   "block.force_field.name": "Force Field",
   "block.water.name": "Water",
   "block.lava.name": "Lava",
+  "block.fire.name": "Fire",
+  "block.ash.name": "Ash",
   "block.sand.name": "Sand",
   "block.mud.name": "Mud",
   "block.grass.name": "Grass",

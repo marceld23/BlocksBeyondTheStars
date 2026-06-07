@@ -44,6 +44,8 @@ TEXTURES = [
     ("glass", "clear pale blue glass pane with a faint reflection"),
     ("lava", "dark cooled crust with glowing orange molten lava cracks"),
     ("water", "blue rippling water surface"),
+    ("fire", "bright orange and yellow flames, licking tongues of fire with hot white centres, on a solid pure black background, top-down"),
+    ("ash", "dark grey and black charred ash, soot and burnt embers, fine powdery texture"),
     ("flora_plant", "lush green leafy plant with fronds and small bush foliage, top-down"),
     ("flora_crystal", "cluster of glowing cyan crystal shards growing from rock"),
     # Complete flora set — biome-appropriate species (full colour; the atlas tints nothing).

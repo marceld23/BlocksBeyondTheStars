@@ -31,6 +31,8 @@ internal sealed class LoadedWorld
     public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
+    public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)
+    public HashSet<Vector3i> ActiveFire { get; } = new();
     public Dictionary<string, LandingZone> LandingZones { get; } = new();
     public List<StoredContainer> Containers { get; } = new();
 
@@ -74,6 +76,7 @@ internal sealed class LoadedWorld
     public int CreatureSpawnRotor { get; set; }
     public double EnemySpawnTimer { get; set; }
     public double SinceFluid { get; set; }
+    public double SinceFire { get; set; }
     public double NpcBroadcastTimer { get; set; }
     public int NextNpcId { get; set; } = 1;
     public int NextDoorId { get; set; } = 1;
