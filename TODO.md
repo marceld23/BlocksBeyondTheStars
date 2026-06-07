@@ -1400,15 +1400,18 @@ Client-only. *Playtest wanted.*
   Character tab is visible (`ShowMode`/`Hide` toggle). One shared faced-build path (`PlayerAvatar.Build`) across
   the in-world avatar, the editor, and this preview. Bilingual key `ui.settings.preview`. 367 tests green; build
   verified.
-- **B26 — Water can't be scanned, and you don't sink in / can't swim. [VALID/regression?]** Two issues: **(a)**
-  scanning a **water** block returns nothing (scanning targets creatures + ore/blocks — water may be excluded);
-  **(b)** the player **doesn't sink into / swim in** water — but **swimming was shipped in Task 1** (the chunk
-  collider excludes fluids so you sink + Jump=rise). So either a **regression** (the fluid-excluded collision
-  mesh isn't taking effect), or this world's "water" isn't generating as a real fluid (basins only flood below
-  the sea level — B7), or the body of water is too shallow to sink into. *Investigate:* confirm `ChunkMesher`
-  still excludes fluids from the collider + that the world actually has water (vs only sea-level basins, B7);
-  then make water scannable (a sensible scan result) + verify swimming. *(Possibly the same root as B7 — water
-  is sparse/sea-level-only.)*
+- **B26 — Water can't be scanned, and you don't sink in / can't swim. [(a) FIXED 2026-06-07; (b) = B7]**
+  **(a) [FIXED]** Scanning water returned nothing because the client scan used `Physics.Raycast`, and fluids have
+  **no collider** (excluded from the chunk collider so you can swim) — so the ray passed straight through water.
+  The server already scans any block (water yields a sensible "Yields: water×1" result via `ScanSubject`). Fix:
+  `PlayerController.ScanTarget` now targets via the **voxel ray-march with `includeFluids: true`** (a new param on
+  `AimBlock`), so a water/lava block under the crosshair is hit + scanned. Client build verified.
+  **(b) NOT a bug — gated on water depth (B7).** The swim code is intact and correct: the collider excludes fluids
+  (you fall/sink into water), and `IsSubmerged` (water at **chest height**, feet+1.1) switches to buoyant swimming
+  (idle sink, hold Jump to rise, slower horizontal). It only triggers in water **≥ ~2 blocks deep**; the world's
+  seas sit BELOW `BaseHeight` so only genuine low ground floods, and deep basins are uncommon → the player usually
+  meets shallow, wadeable water and never submerges. Making swimmable water common (lakes/ponds + deeper basins)
+  is **B7** — do that to make swimming actually reachable.
 
 ### Fourth batch (reported 2026-06-07)
 - **B27 — On a planet, the landed ship's door "stands in the air" / "on the roof". [FIXED 2026-06-07]** A

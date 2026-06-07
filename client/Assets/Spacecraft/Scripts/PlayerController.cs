@@ -609,13 +609,13 @@ namespace Spacecraft.Client
                 return;
             }
 
-            var ray = new Ray(Camera.transform.position, Camera.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, Reach))
+            // Voxel ray-march INCLUDING fluids, so you can scan a water/lava block too (they have no collider, so
+            // a Physics.Raycast passes straight through them — that's why water "couldn't be scanned", B26).
+            if (!AimBlock(out var b, out _, includeFluids: true))
             {
                 return;
             }
 
-            var b = FloorVec(hit.point - hit.normal * 0.5f);
             var def = Game.Content?.BlockById(Game.World.GetBlock(b.x, b.y, b.z));
             if (def != null)
             {
@@ -1057,7 +1057,7 @@ namespace Spacecraft.Client
         /// <paramref name="placeCell"/> the empty cell just before its hit face (where a placed block goes).
         /// Fluids (water/lava) are passed through, matching the collider (which excludes them). Cells are in the
         /// same space the dig intents use; the server + <see cref="ClientWorld"/> both wrap X, so the seam is fine.</summary>
-        private bool AimBlock(out Vector3Int hitCell, out Vector3Int placeCell)
+        private bool AimBlock(out Vector3Int hitCell, out Vector3Int placeCell, bool includeFluids = false)
         {
             hitCell = default;
             placeCell = default;
@@ -1084,7 +1084,7 @@ namespace Spacecraft.Client
             for (int i = 0; i < 80 && t <= Reach; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
-                if (!id.IsAir && !IsFluidBlock(id))
+                if (!id.IsAir && (includeFluids || !IsFluidBlock(id)))
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
