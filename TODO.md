@@ -1330,6 +1330,14 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    mission board + `GameServerMissions`/`StoredMission` persistence (admin/player-created missions already persist)
    + the NPC-memory/relationship hooks. Needs: a post-mission UI, objective tracking + verification, the
    stake/escrow + payout, and cross-player notification. Big-ish.
+32. **Choose a ship hull colour (tints the hull texture), changeable in the in-game menu.** *(Analysis first.)*
+   Let the player pick a **colour** that **tints the ship's hull texture**, set from the **in-game menu**. The
+   ship already renders its hull with a textured material (`SpaceView.BuildShip` + the remote avatars use `LitTex`
+   with the `iron_wall` hull texture — item 5b); tinting = multiply a per-player **HullColor** into that material
+   (and the on-planet/station stamped ship + remote ships, for consistency). Needs: a `HullColor` on the ship/
+   player state (persisted + networked), a colour picker in the ship tab of the menu, and applying the tint
+   everywhere the ship is built (flight view, interior, remote avatars). Small-medium, mostly client + one state
+   field. *(Pairs with the existing avatar colour customization.)*
 
 ---
 
