@@ -896,6 +896,18 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    elements are placed by fixed 1920×1080 coords — so "bigger" likely means lowering the reference resolution or
    adding a HUD scale factor, then nudging the per-element rects so nothing overflows on 16:9 / ultrawide / 4K.
    Note the diegetic HUD now also routes through the visor render texture — item 9 — so re-test the visor after.)*
+20. **Feature — build in space + erect a player-built space station (requested 2026-06-07).** *(ANALYSIS FIRST —
+   do NOT implement yet; analyse the current state, then plan, then ask, then build.)* Players should be able to
+   **build in space** by placing **individual blocks**, and once the structure is **closed and/or has an airlock**
+   it should **become a space station**. Such stations must be **persisted in the star system** and **accessible**
+   to the player (boardable later). **Required analysis before tackling it:** the **as-is** behaviour — how the
+   **station interior vs. exterior** work today (interior = a void-world clone of `orbital_station` stamped from a
+   template / `GameServerSpaceStations`, `BoardableStation`, markers; exterior = a body/backdrop in the **space
+   flight view** + an entry on the **star map**), and **whether/how this can fundamentally work** or **what would
+   need to change** in the **space + star-system view**. Key open problem to call out: **space today is a
+   non-voxel `SpaceInstance`** (asteroids/entities + a parked ship), **not a placeable voxel world** — so
+   "placing blocks in space" needs either a buildable voxel volume in the flight/EVA view or a different model
+   (e.g. build the station in a void world, then register + persist it as a new boardable body in the system).
 
 ---
 
