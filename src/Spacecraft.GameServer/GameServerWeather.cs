@@ -159,12 +159,15 @@ public sealed partial class GameServer
     private WorldEnvironment BuildEnvironment(Spacecraft.Shared.Geometry.Vector3f pos = default)
     {
         var (state, intensity) = BiomeWeatherAt(pos);
+        float temperature = CurrentTemperature(state, _dayFraction);
         return new WorldEnvironment
         {
             TimeOfDay = (float)_dayFraction,
             DayLengthSeconds = (float)_dayLength,
             Weather = state,
             Intensity = intensity,
+            Temperature = temperature,
+            Precipitation = PrecipitationFor(state, temperature),
             SunColor = _sunColor,
             CloudColor = _cloudColor,
             FloraTint = _floraTint,
@@ -175,6 +178,48 @@ public sealed partial class GameServer
             SpaceSky = _spaceSky,
             Biome = _biome,
         };
+    }
+
+    /// <summary>Air temperature (°C): the planet-type base + a per-world seeded variation (so there are
+    /// "especially hot/cold" worlds) + a weather cooling + a day↔night swing (bigger on airless worlds).</summary>
+    /// <summary>Sentinel for "no meaningful air temperature" (vacuum / above the atmosphere) — the HUD shows "—".</summary>
+    public const float NoAirTemperature = -999f;
+
+    private float CurrentTemperature(string weather, double timeOfDay)
+    {
+        var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        if (planet?.Void == true)
+        {
+            return 22f; // a ship / station cabin is climate-controlled
+        }
+
+        if (_spaceSky)
+        {
+            return NoAirTemperature; // airless vacuum world (asteroid/crystal) → no air temp, HUD shows "—"
+        }
+
+        double baseT = planet?.BaseTemperature ?? 15.0;
+        double variation = ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 28.0 - 14.0;
+        double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "clouds" => -2.0, _ => 2.0 };
+        double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
+        double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
+        return (float)System.Math.Round(baseT + variation + weatherDelta + dayNight);
+    }
+
+    /// <summary>The precipitation form for the current weather + temperature: nothing unless it's actually
+    /// raining/storming, then snow/hail when cold, ash (fire-rain) when very hot, else rain. (Sandstorm —
+    /// stage 2 — keys off a dry/sand surface.)</summary>
+    private string PrecipitationFor(string weather, float temp)
+    {
+        if (weather != "rain" && weather != "storm")
+        {
+            return "none";
+        }
+
+        if (temp >= 55f) return "ash";
+        if (temp <= -15f) return "hail";
+        if (temp <= 2f) return "snow";
+        return "rain";
     }
 
     /// <summary>The weather in the biome at a position: the world's weather level shifted by a persistent

@@ -63,6 +63,10 @@ public sealed class PlanetType
     /// <summary>0..1 bias toward rain/storm weather on this planet (deserts low, ocean worlds high).</summary>
     public double StormChance { get; set; } = 0.35;
 
+    /// <summary>Base air temperature for this planet type, in °C. Each world adds a small seeded variation, plus
+    /// weather + day/night, so there are also "especially hot/cold" worlds. Drives the precipitation form.</summary>
+    public double BaseTemperature { get; set; } = 15.0;
+
     /// <summary>
     /// Weather behaviour: "dynamic" (changes over time), "clear" (no clouds, never changes) or
     /// "overcast" (always cloudy). Lets some planets have no weather at all.

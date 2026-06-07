@@ -1263,10 +1263,17 @@ Client-only. *Playtest wanted.*
 - **B10 — Mineable asteroids too clustered; spread them around the planet. [VALID]** `CreateSpaceInstance` spawns
   the 3 at a fixed near-line `(12 + i*8, 0, 18)` (`GameServerSpaceCombat.cs:327`). *Fix:* scatter them over a
   wider volume around the body. *(Note: pairs with item 24's new large landable asteroids.)*
-- **B11 — Per-planet temperature (HUD value, varies with weather; cold → snow instead of rain + snow visuals).
-  [FEATURE]** No temperature exists in `PlanetType`/`GameServerWeather`. *Fix:* add a per-planet base temperature
-  (worldgen) + a weather modifier, send it to the HUD, and below freezing render **snow** instead of rain (new
-  precip visual). New system.
+- **B11 — Per-planet temperature + climate precipitation. [FEATURE — staged]**
+  **✅ Stage 1 done 2026-06-07 (weather pass):** added `PlanetType.BaseTemperature` (per type in `planets.json` —
+  lava 115, ice -38, desert 44, jungle 28, rocky 12, crystal 4, swamp 22, varied 16, asteroid -25, void 20) +
+  `GameServerWeather.CurrentTemperature`: base + a **per-world seeded variation** (±14 → "especially hot/cold"
+  worlds) + a weather cooling (storm -8/rain -5/clouds -2/clear +2) + a **day↔night swing** (±6 with air, ±16
+  airless). Networked via `WorldEnvironment.Temperature` (+ a `Precipitation` field) and shown in the HUD
+  (time-of-day panel, °C). **User refinement:** ship/station cabins read **22 °C**; **vacuum** worlds
+  (space-sky asteroid/crystal) + **above the atmosphere** read **"—"**. `PrecipitationFor` already classifies
+  none/rain/snow/hail/ash by temp (server-side). 365 green. **Stage 2 (next):** render the precip forms client-
+  side — **snow/hail** (cold), **fire-ash** (hot/lava), **rain**, + **sandstorm** (dry/sand) — in `WeatherFx3D`
+  with sound (B34). **Stage 3:** lightning (B8).
 - **B12 — Creature movement too simple (a few steps back-and-forth). [VALID]** Wander runs through
   `CreatureBehaviour.Step` (`GameServerCreatures.cs:352`); the wander is basic. *Fix:* richer roaming — varied
   headings, pauses/grazing, longer wanders, maybe light flocking.

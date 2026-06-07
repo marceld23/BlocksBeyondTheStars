@@ -936,6 +936,12 @@ public sealed class WorldEnvironment
     /// <summary>0..1 weather strength.</summary>
     public float Intensity { get; set; }
 
+    /// <summary>Air temperature at the player, in °C (base per world + weather + day/night). Shown in the HUD.</summary>
+    public float Temperature { get; set; } = 15f;
+
+    /// <summary>Active precipitation form: none / rain / snow / hail / ash / sandstorm (climate-driven).</summary>
+    public string Precipitation { get; set; } = "none";
+
     /// <summary>Sun/star light colour, packed 0xRRGGBB.</summary>
     public int SunColor { get; set; } = 0xFFF6E8;
 

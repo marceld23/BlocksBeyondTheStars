@@ -189,9 +189,9 @@ namespace Spacecraft.Client
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             _compassWp = Blip(comp.transform, new Color(1f, 0.85f, 0.3f), 7f);
 
-            // Time of day.
-            var tod = Panel(root, W - 180f, 140, 170, 56);
-            _todText = UiKit.AddText(tod.transform, 10, 5, 150, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Time of day + temperature.
+            var tod = Panel(root, W - 210f, 140, 200, 56);
+            _todText = UiKit.AddText(tod.transform, 10, 5, 184, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(tod.transform, 10, 32, 150, 12, UiKit.SolidSprite, new Color(0.05f, 0.08f, 0.16f));
             UiKit.AddImage(tod.transform, 10 + 150 * 0.25f, 32, 150 * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
             _todMarker = UiKit.AddImage(tod.transform, 10, 30, 2, 16, UiKit.SolidSprite, UiKit.Cyan).rectTransform;
@@ -455,7 +455,8 @@ namespace Spacecraft.Client
             float frac = nextEdge - t; if (frac < 0f) frac += 1f;
             float secs = frac * Mathf.Max(1f, env.DayLengthSeconds);
             int mm = Mathf.FloorToInt(secs / 60f), ss = Mathf.FloorToInt(secs % 60f);
-            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}   {mm}:{ss:00}";
+            string tempStr = env.Temperature <= -900f || Game.OnFootInSpace ? "—" : $"{Mathf.RoundToInt(env.Temperature)}°C";
+            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
         }
 
