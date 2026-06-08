@@ -49,6 +49,10 @@ public sealed class PlayerSession
     public int ArmColor { get; set; } = 0x3372CC;
     public int LegColor { get; set; } = 0x40404F;
 
+    /// <summary>Ship hull colour (packed 0xRRGGBB), relayed so other players see this player's ship tinted
+    /// (item 32). Default = the steel tint the ship hull used before hull colours existed.</summary>
+    public int HullColor { get; set; } = 0xD1D6E0;
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

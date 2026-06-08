@@ -1687,7 +1687,8 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    `PlayerCreatedMission_…` (escrow + self-turn-in, implicitly the no-self-bonus guard) +
    `PlayerCreatedTravelMission_ProgressesWhenPlayerArrives`. **Playtest:** post a mission from the Missions tab,
    have a second player complete it, confirm the poster gets 1.5× back + the notice.
-32. **Choose a ship hull colour (tints the hull texture), changeable in the in-game menu.** *(Analysis first.)*
+32. **Choose a ship hull colour (tints the hull texture), changeable in the in-game menu. [DONE 2026-06-08]**
+   *(Analysis first.)*
    Let the player pick a **colour** that **tints the ship's hull texture**, set from the **in-game menu**. The
    ship already renders its hull with a textured material (`SpaceView.BuildShip` + the remote avatars use `LitTex`
    with the `iron_wall` hull texture — item 5b); tinting = multiply a per-player **HullColor** into that material
@@ -1695,6 +1696,28 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    player state (persisted + networked), a colour picker in the ship tab of the menu, and applying the tint
    everywhere the ship is built (flight view, interior, remote avatars). Small-medium, mostly client + one state
    field. *(Pairs with the existing avatar colour customization.)*
+   **ANALYSIS + PLAN 2026-06-08 (user chose: Ship tab WITH a live ship preview).** Mirrors the avatar-colour
+   pipeline. The flight ship (`SpaceView.BuildShip`) and remote ships (`BuildRemoteAvatar`) already build their
+   hull with `LitTex("iron_wall", tint)` — so tinting = set that tint to the player's hull colour. Remote ships
+   render in **space** from `NetSpacePlayer` (no colour field yet); the voxel planet/interior ship is mesher-based
+   and **out of scope** for this small pass (noted as a follow-up). Pieces: (1) `ClientSettings.HullColor`
+   (persisted client-side like the avatar colours) + `GameBootstrap.HullRgb` (set from settings in `WorldRig`);
+   (2) network it — add `Hull` to `SetAppearanceIntent` + `NetSpacePlayer`, extend `SendAppearance`, store
+   `PlayerSession.HullColor`, populate it in `OtherPlayersInSpace` (MessagePack is contractless, so new fields
+   need no codec work); (3) `GameMenu.CycleHull` + `ApplyAppearance` sends the 5th colour; (4) a new
+   `ShipPreviewRig` (mirrors `AvatarPreviewRig` — a textured rotating ship rendered to a RenderTexture, with
+   `SetHullColor`); (5) Ship tab gets a **"paint"** sidebar category → a hull-colour swatch + cycle in the list and
+   the live ship preview in the detail pane; (6) `SpaceView` tints the local ship (`_hullMat`) + remote ships from
+   the hull colour, re-tinting live when it changes. Default hull `0xD1D6E0` = today's tint, so unchanged ships
+   look identical. Bilingual `ui.ship.cat_paint` / `ui.ship.hull_color`.
+   **SHIPPED 2026-06-08 exactly as planned.** New Ship-tab **"Paint"** category: a hull-colour swatch (cycles the
+   shared palette via `GameMenu.CycleHull`) + a **live rotating ship preview** (`ShipPreviewRig`, mirrors
+   `AvatarPreviewRig`). The colour persists in `ClientSettings.HullColor`, flows through `GameBootstrap.HullRgb` +
+   `SetAppearanceIntent.Hull` → `PlayerSession.HullColor` → `NetSpacePlayer.Hull`, and tints the local flight ship
+   (live re-tint mid-flight) and other players' ships in space. 377 tests green (locale parity); client built.
+   **Out of scope (follow-up):** the **voxel** stamped ship you walk on (planet/interior) stays the default hull —
+   per-player tinting of mesher blocks is a separate, bigger change. **Playtest:** Ship tab → Paint → cycle the
+   colour, watch the preview, then fly and confirm the ship + (multiplayer) other players' ships show it.
 33. **Cratered terrain for airless moons + landable asteroids.** *(Analysis first.)* On **moons without an
    atmosphere** and on the **landable asteroids** (item 24 — the big ones you land on; never the mini mineable
    rocks) — both always airless — add a **frequently-used crater landscape**: mostly **flat** ground pocked with

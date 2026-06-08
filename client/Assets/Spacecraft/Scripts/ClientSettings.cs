@@ -48,6 +48,10 @@ namespace Spacecraft.Client
         public Color ArmColor = new Color(0.20f, 0.45f, 0.80f);
         public Color LegColor = new Color(0.25f, 0.25f, 0.32f);
 
+        /// <summary>Ship hull colour (item 32) — tints the player's ship. Default = the steel tint the hull
+        /// used before hull colours existed, so an unchanged ship looks the same.</summary>
+        public Color HullColor = new Color(0.82f, 0.84f, 0.88f);
+
         /// <summary>Start in third-person (showing your own figure) instead of first-person.</summary>
         public bool ThirdPerson = false;
 

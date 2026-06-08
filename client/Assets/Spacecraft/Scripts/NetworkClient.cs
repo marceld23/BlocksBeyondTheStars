@@ -209,8 +209,8 @@ namespace Spacecraft.Client
         public void SendCreateMission(string title, string description, NetMissionObjective[] objectives, NetReward[] rewards)
             => Send(new CreateMissionIntent { Title = title, Description = description, Objectives = objectives, Rewards = rewards });
 
-        public void SendAppearance(int skin, int torso, int arms, int legs)
-            => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs });
+        public void SendAppearance(int skin, int torso, int arms, int legs, int hull = 0)
+            => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs, Hull = hull });
 
         public void SendCraftShip(string shipType) => Send(new CraftShipIntent { ShipType = shipType });
 

@@ -34,6 +34,10 @@ namespace Spacecraft.Client
         public int ArmRgb = 0x3372CC;
         public int LegRgb = 0x40404F;
 
+        // Our ship hull colour (packed 0xRRGGBB), set by WorldRig; sent on join and read by the flight view
+        // to tint the ship (item 32). Default = the steel tint the hull used before hull colours existed.
+        public int HullRgb = 0xD1D6E0;
+
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
         public NetworkClient Network { get; private set; }
@@ -444,7 +448,7 @@ namespace Spacecraft.Client
                 if (Network.Connected)
                 {
                     Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password);
-                    Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb);
+                    Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
                     _joinSent = true;
                 }
                 else

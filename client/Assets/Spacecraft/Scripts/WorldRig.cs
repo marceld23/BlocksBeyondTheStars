@@ -32,6 +32,7 @@ namespace Spacecraft.Client
             boot.TorsoRgb = Rgb(shell.Settings.TorsoColor);
             boot.ArmRgb = Rgb(shell.Settings.ArmColor);
             boot.LegRgb = Rgb(shell.Settings.LegColor);
+            boot.HullRgb = Rgb(shell.Settings.HullColor); // ship hull tint (item 32)
 
             // Only our camera should render in-game; disable any pre-existing scene cameras.
             foreach (var existing in Camera.allCameras)

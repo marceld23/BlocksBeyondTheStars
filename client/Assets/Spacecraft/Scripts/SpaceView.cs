@@ -34,11 +34,13 @@ namespace Spacecraft.Client
         private GameObject _ship;
         private Transform _exhaust;
         private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
+        private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
+        private int _appliedHullRgb = -1; // last hull colour applied to _hullMat, to detect live changes
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; }
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; }
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
@@ -136,6 +138,13 @@ namespace Spacecraft.Client
             if (!_active)
             {
                 return;
+            }
+
+            // Live hull re-tint: the player can change their ship colour from the menu mid-flight (item 32).
+            if (_hullMat != null && Game.HullRgb != _appliedHullRgb)
+            {
+                _hullMat.color = Rgb(Game.HullRgb);
+                _appliedHullRgb = Game.HullRgb;
             }
 
             // Server says we left. A hyperspace jump (its full-screen warp covers the transition) or a
@@ -871,6 +880,8 @@ namespace Spacecraft.Client
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
             _hatchMat = null; // hatch marker material lived under the destroyed ship
+            _hullMat = null;
+            _appliedHullRgb = -1;
             _active = false;
             _eva = false;
             _enteringInterior = false;
@@ -1163,7 +1174,10 @@ namespace Spacecraft.Client
 
             // Same block textures as the ship you walk on a planet: iron_wall hull, glass canopy, carbon
             // engine nozzles (the station model already uses these), so it reads as a real hull, not a flat cube.
-            var hull = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f));
+            // The hull tint is the player's chosen hull colour (item 32; default = the old steel tint).
+            var hull = LitTex("iron_wall", Rgb(Game.HullRgb));
+            _hullMat = hull;
+            _appliedHullRgb = Game.HullRgb;
             var glass = LitTex("glass", new Color(0.7f, 0.9f, 1f));
             var engine = LitTex("carbon", new Color(0.78f, 0.78f, 0.82f));
 
@@ -1384,6 +1398,10 @@ namespace Spacecraft.Client
                     av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
                     av.Ship.SetActive(!rp.Eva);
                     av.Suit.SetActive(rp.Eva);
+                    if (av.HullMat != null)
+                    {
+                        av.HullMat.color = Rgb(rp.Hull != 0 ? rp.Hull : 0xD1D6E0); // their chosen hull colour (item 32)
+                    }
                 }
             }
 
@@ -1419,12 +1437,13 @@ namespace Spacecraft.Client
             // players read as real ships out here rather than flat cubes.
             var ship = new GameObject("Ship");
             ship.transform.SetParent(root.transform, false);
-            Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), LitTex("iron_wall", new Color(0.78f, 0.82f, 0.9f)));
+            var hullMat = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f)); // re-tinted per-player in SyncRemotePlayers (item 32)
+            Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), hullMat);
             Cube("Cockpit", ship.transform, new Vector3(0f, 0.45f, 1.1f), new Vector3(0.85f, 0.55f, 0.95f), LitTex("glass", new Color(0.7f, 0.9f, 1f)));
 
             var suit = Cube("Suit", root.transform, Vector3.zero, new Vector3(0.55f, 0.9f, 0.55f), Unlit(new Color(1f, 0.8f, 0.45f)));
             suit.SetActive(false);
-            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit };
+            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit, HullMat = hullMat };
         }
 
         private void SyncEntities()

@@ -35,6 +35,7 @@ namespace Spacecraft.Client
         private int _lastDataHash = -1;
         private bool _built;
         private AvatarPreviewRig _avatarPreview; // live faced-avatar preview for the colour menu (B25)
+        private ShipPreviewRig _shipPreview; // live ship preview for the Ship paint tab (item 32)
 
         // Player-created mission form state (item 31, Missions tab "create" category).
         private static readonly string[] PmTypes = { "Mine", "Collect", "Deliver" };
@@ -59,6 +60,7 @@ namespace Spacecraft.Client
 
             _mode = mode;
             _avatarPreview?.SetActive(mode == Mode.Character); // only render the live preview on the colour tab
+            _shipPreview?.SetActive(false); // re-enabled by the paint detail pane when that category is shown
             _category = string.IsNullOrEmpty(_pendingCategory) ? "all" : _pendingCategory;
             _pendingCategory = null;
             _selected = string.Empty;
@@ -100,6 +102,7 @@ namespace Spacecraft.Client
             }
 
             _avatarPreview?.SetActive(false); // stop rendering the preview camera while the menu is closed
+            _shipPreview?.SetActive(false);
         }
 
         private void Update()
@@ -276,6 +279,7 @@ namespace Spacecraft.Client
                     list.Add(("modules", L("ui.ship.cat_modules"), "cat_modules"));
                     list.Add(("fleet", L("ui.ship.cat_fleet"), "cat_fleet"));
                     list.Add(("build", L("ui.ship.cat_build"), "cat_buildship"));
+                    list.Add(("paint", L("ui.ship.cat_paint"), "cat_suit"));
                     break;
                 case Mode.Inventory:
                     list.Clear();
@@ -442,6 +446,11 @@ namespace Spacecraft.Client
         private float BuildShipList()
         {
             float y = 0f;
+            if (_category == "paint")
+            {
+                return BuildHullPaintList();
+            }
+
             if (_category == "all" || _category == "fleet")
             {
                 foreach (var s in Game.OwnedShips)
@@ -736,6 +745,59 @@ namespace Spacecraft.Client
             return 744f;
         }
 
+        /// <summary>The Ship paint tab's list: a hull-colour swatch + a cycle button (item 32), mirroring the
+        /// avatar colour cards. The live ship preview in the detail pane re-tints as you cycle.</summary>
+        private float BuildHullPaintList()
+        {
+            float y = 0f;
+            UiKit.AddText(_listContent, 16, y, 760, 40, L("ui.ship.hull_color"), 26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 56f;
+
+            Color hull = Menu?.Settings?.HullColor ?? Color.gray;
+            var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => { Menu?.CycleHull(); RebuildList(); RebuildDetail(); });
+            UiKit.AddText(card.transform, 16, 0, 360, 78, L("ui.ship.hull_color"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddImage(card.transform, 420, 19, 120, 40, UiKit.SolidSprite, hull);
+            UiKit.AddText(card.transform, 560, 0, 200, 78, L("ui.settings.next_color"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+            y += 96f;
+            return y;
+        }
+
+        /// <summary>Builds (once) the live ship preview rig, tinted from the player's current hull colour.</summary>
+        private void EnsureShipPreview()
+        {
+            if (_shipPreview != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("ShipPreviewRig");
+            go.transform.SetParent(transform, false);
+            _shipPreview = go.AddComponent<ShipPreviewRig>();
+            _shipPreview.EnsureBuilt(Menu?.Settings?.HullColor ?? Color.gray);
+        }
+
+        /// <summary>Shows the rotating ship preview (rendered to a texture) in the paint tab's detail pane so the
+        /// player sees the hull colour on the actual ship (item 32).</summary>
+        private float BuildShipPreview()
+        {
+            EnsureShipPreview();
+            _shipPreview.SetActive(true);
+            if (Menu?.Settings != null)
+            {
+                _shipPreview.SetHullColor(Menu.Settings.HullColor);
+            }
+
+            UiKit.AddPanel(_detail, 64, 16, 500, 460, new Color(0.03f, 0.06f, 0.11f, 0.92f));
+            UiKit.AddText(_detail, 64, 24, 500, 26, L("ui.ship.preview"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            var go = new GameObject("ShipPreview", typeof(RectTransform));
+            go.transform.SetParent(_detail, false);
+            UiKit.Place(go, 74, 58, 480, 400);
+            var img = go.AddComponent<RawImage>();
+            img.texture = _shipPreview.Texture;
+            return 488f;
+        }
+
         /// <summary>Nudges master volume and applies + persists it immediately.</summary>
         private void AdjustVolume(float delta)
         {
@@ -827,9 +889,20 @@ namespace Spacecraft.Client
             }
 
             ClearChildren(_detail);
+            if (!(_mode == Mode.Ship && _category == "paint"))
+            {
+                _shipPreview?.SetActive(false); // only render the ship preview on the paint tab
+            }
+
             if (_mode == Mode.Character)
             {
                 SetContentHeight(_detail, BuildCharacterPreview()); // a live, rotating faced-avatar preview (B25)
+                return;
+            }
+
+            if (_mode == Mode.Ship && _category == "paint")
+            {
+                SetContentHeight(_detail, BuildShipPreview()); // a live, rotating ship preview (item 32)
                 return;
             }
 

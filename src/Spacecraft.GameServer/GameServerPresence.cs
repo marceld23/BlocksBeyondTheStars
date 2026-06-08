@@ -20,10 +20,14 @@ public sealed partial class GameServer
         session.TorsoColor = intent.Torso;
         session.ArmColor = intent.Arms;
         session.LegColor = intent.Legs;
+        if (intent.Hull != 0)
+        {
+            session.HullColor = intent.Hull; // item 32 (0 = a client that didn't send one — keep the default)
+        }
     }
 
     /// <summary>Public setter for local play / tests.</summary>
-    public void SetAppearance(string playerId, int skin, int torso, int arms, int legs)
+    public void SetAppearance(string playerId, int skin, int torso, int arms, int legs, int hull = 0)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
@@ -31,6 +35,10 @@ public sealed partial class GameServer
             s.TorsoColor = torso;
             s.ArmColor = arms;
             s.LegColor = legs;
+            if (hull != 0)
+            {
+                s.HullColor = hull;
+            }
         }
     }
 

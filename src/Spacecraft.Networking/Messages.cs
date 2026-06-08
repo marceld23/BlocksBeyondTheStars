@@ -364,6 +364,9 @@ public sealed class SetAppearanceIntent
     public int Torso { get; set; }
     public int Arms { get; set; }
     public int Legs { get; set; }
+
+    /// <summary>Ship hull colour (packed 0xRRGGBB) — tints the player's ship hull (item 32). 0 = unset.</summary>
+    public int Hull { get; set; }
 }
 
 // ---------------- Server -> Client (state) ----------------
@@ -709,6 +712,10 @@ public sealed class NetSpacePlayer
 
     /// <summary>True = a floating suit on an EVA; false = piloting a ship.</summary>
     public bool Eva { get; set; }
+
+    /// <summary>Ship hull colour (packed 0xRRGGBB) so other players see this pilot's ship in their colour
+    /// (item 32). 0 = unset → the client falls back to the default steel tint.</summary>
+    public int Hull { get; set; }
 }
 
 /// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>

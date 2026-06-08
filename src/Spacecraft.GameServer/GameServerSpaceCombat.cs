@@ -899,15 +899,17 @@ public sealed partial class GameServer
             }
 
             var pose = kv.Value;
+            var owner = FindSessionByPlayerId(kv.Key);
             (others ??= new List<NetSpacePlayer>()).Add(new NetSpacePlayer
             {
                 PlayerId = kv.Key,
-                Name = FindSessionByPlayerId(kv.Key)?.State.Name ?? string.Empty,
+                Name = owner?.State.Name ?? string.Empty,
                 X = pose.Pos.X,
                 Y = pose.Pos.Y,
                 Z = pose.Pos.Z,
                 Yaw = pose.Yaw,
                 Eva = pose.Eva,
+                Hull = owner?.HullColor ?? 0xD1D6E0, // item 32 — other players see this ship in its hull colour
             });
         }
 

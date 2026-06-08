@@ -184,8 +184,26 @@ namespace Spacecraft.Client
         private void ApplyAppearance()
         {
             Avatar?.ApplyColors(Settings);
+            if (Game != null)
+            {
+                Game.HullRgb = Rgb(Settings.HullColor); // keep the flight view's hull tint in sync (item 32)
+            }
+
             Settings.Save();
-            Game.Network?.SendAppearance(Rgb(Settings.SkinColor), Rgb(Settings.TorsoColor), Rgb(Settings.ArmColor), Rgb(Settings.LegColor));
+            Game.Network?.SendAppearance(Rgb(Settings.SkinColor), Rgb(Settings.TorsoColor),
+                Rgb(Settings.ArmColor), Rgb(Settings.LegColor), Rgb(Settings.HullColor));
+        }
+
+        /// <summary>Cycles the ship hull colour — called from the uGUI Ship tab's paint category (item 32).</summary>
+        public void CycleHull()
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Settings.HullColor = NextColor(Settings.HullColor);
+            ApplyAppearance();
         }
 
         /// <summary>Cycles a body colour (0=skin 1=torso 2=arms 3=legs) — called from the uGUI Character tab.</summary>
