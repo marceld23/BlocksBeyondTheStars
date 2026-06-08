@@ -1707,6 +1707,45 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    form from the per-world temperature (B11) + surface block — **ash** ≥55 °C (lava worlds), **hail** ≤-15 °C,
    **snow** ≤2 °C, **sandstorm** on sand surfaces, else **rain**. Client renders all five in `WeatherFx3D` with
    tinted fog + screen wash, and `ClientAudio` plays a matching bed. See the B11 Stage 2 note for details.
+35. **Energy door — an automatic sliding door with a passable blue force-field in the opening; use it as the
+   ship's outer door.** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **new door type**
+   that behaves like the existing **automatic slide door** (auto-open/close on proximity) but, while **open**,
+   shows a **transparent blue energy field filling the doorway** that the **player can walk through** (passable —
+   it's a visual/atmospheric membrane, not a barrier). Then **replace the starter ship's outer hatch with this
+   energy door**. *Pointers:* doors are server entities over **air** cells (the client mesher renders+collides
+   every non-air block, so passable cells stay air + a server door entity — see the door system; `DoorSnapshots`
+   `Kind == "slide"`). The blue field can reuse the existing **`force_field`** look (already in `IsTransparent`)
+   but must stay **non-solid/passable** (solidity ≠ transparency — glass is solid+transparent, this is
+   non-solid+transparent); render it only in the **open** state (a thin emissive-blue alpha plane in the opening),
+   not when closed. The ship hatch is stamped in `StampShip` (the 2-wide gap in the `-Z` wall). **Bundle the
+   related fix:** the **hatch isn't centred** on the starter ship — the gap is at `x == cx || x == cx-1` (offset
+   half a block), so **centre it**, widening the ship by one if needed for an even/odd-symmetric doorway, and keep
+   `RegisterDoors`/the interior clear. Needs: a door-kind/flag for "energy" + the open-state field render
+   (client), the hatch re-centre + hull width tweak (server `StampShip`), and bilingual names. Medium.
+36. **New gadget items + ship systems: medpack, stasis projector, terrain blaster (with their own sounds,
+   textures and visual effects).** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* Three new
+   craftable gadgets: **(a) Medpack** — heal **yourself and other players** (a use-on-self + aim-at-ally heal, a
+   chunk of HP, consumable or charged). **(b) Stasis projector** — a beam that **briefly "freezes" a creature**
+   (suspends its movement/AI for a few seconds) so you can **scan it safely** at close range. **(c) Terrain
+   blaster** — destroys a **large volume of terrain** in one shot (a radius/sphere of blocks → air). For **each**:
+   an item def + **blueprint unlock** + craft recipe (`items.json`, the blueprint/unlock system), server handling
+   (heal players; pause a creature's AI/aggro timer in `GameServerCreatures`; bulk-`SetBlock`→air that **broadcasts
+   `BlockChanged`** for every changed cell — see the block-broadcast rule — and respects protections/landing
+   zones), client use (aim + fire), **OpenAI textures/icons**, **ElevenLabs sounds**, and **visual effects** (heal
+   sparkle, stasis shimmer/blue tint on the frozen creature, blaster shockwave + debris). Asset gen is pre-approved
+   (keys in `tools/ai-assets/.env`, run via `uv`). Big — best split into three sub-items (one gadget at a time),
+   each its own pass (item + assets + VFX + tests). *(Stasis pairs with the scan system; the blaster must honour
+   the same protection checks as mining so it can't grief towns/other players' zones.)*
+37. **Craftable radio beacon — a placeable block that appears as a labelled point on the map + minimap.**
+   *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **craftable, placeable block** the
+   player drops on a planet; once placed it shows up on the **world map** and the **minimap** as **its own point**
+   with a **player-typed, freely-editable label** (a personal waypoint/landmark, e.g. "Eisensee", "Basis 1"). It is
+   **unlocked as a blueprint first** (not available from the start) and has **OpenAI-generated textures**. Needs: a
+   new block (`blocks.json`) + its blueprint/craft recipe + unlock; a **server-tracked beacon entity** (position +
+   label + owner, **persisted per world**, networked to clients) created on place and removed on mine; a small
+   **label-entry UI** when placing (type the name); **map + minimap rendering** of beacons (a distinct marker +
+   the label, like the existing station/landing markers); and the **OpenAI texture**. Bilingual UI strings.
+   Medium — touches blocks/blueprints, a new persisted entity + message, and the map/minimap client layers.
 
 ---
 
