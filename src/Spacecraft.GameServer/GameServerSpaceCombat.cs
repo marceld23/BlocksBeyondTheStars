@@ -48,6 +48,10 @@ public sealed class CombatEntity
     /// <summary>Damage this hostile deals to the ship/player per second while engaged.</summary>
     public float DamagePerSecond { get; set; }
 
+    /// <summary>Seconds this creature is held in stasis (item 36): it can't move or attack while &gt; 0, so it
+    /// can be scanned safely. Decays each tick; networked as <c>NetCreature.Frozen</c> for the blue tint.</summary>
+    public double FrozenTimer { get; set; }
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 }

@@ -155,6 +155,11 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (creature.FrozenTimer > 0)
+            {
+                continue; // held in stasis (item 36) — can't bite while frozen, so you can scan it safely
+            }
+
             // Hostile species attack; so do provoked (territorial) creatures fighting back.
             bool aggressiveNow = sp.Hostile || creature.ProvokeTimer > 0;
             if (!aggressiveNow || !SpeciesActive(sp))
@@ -310,6 +315,12 @@ public sealed partial class GameServer
 
         foreach (var creature in _creatures)
         {
+            if (creature.FrozenTimer > 0)
+            {
+                creature.FrozenTimer = System.Math.Max(0, creature.FrozenTimer - dt);
+                continue; // held in stasis (item 36) — no movement this tick
+            }
+
             if (creature.ProvokeTimer > 0)
             {
                 creature.ProvokeTimer = System.Math.Max(0, creature.ProvokeTimer - dt);
@@ -470,6 +481,8 @@ public sealed partial class GameServer
             Name = sp?.Name ?? string.Empty,
             Hostile = e.Hostile || e.ProvokeTimer > 0, // provoked creatures read as hostile (red tint)
             Asleep = asleep,
+            Frozen = e.FrozenTimer > 0, // held in stasis (item 36) — client tints it icy blue
+
             Hull = e.Hull,
             HullMax = e.HullMax,
             X = e.Position.X,

@@ -792,6 +792,7 @@ public sealed class NetCreature
 
     public bool Hostile { get; set; }
     public bool Asleep { get; set; }
+    public bool Frozen { get; set; } // held in stasis (item 36) — client tints it icy blue + still
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public float X { get; set; }

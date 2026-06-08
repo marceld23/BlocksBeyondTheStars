@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
@@ -20,6 +21,11 @@ public sealed partial class GameServer
     private const float MedkitHealAmount = 45f; // HP restored to the user + each nearby ally
     private const float MedkitRadius = 6f;       // ally heal radius (blocks)
     private const double MedkitCooldown = 4.0;   // seconds between uses
+
+    // --- balance: stasis projector ---
+    private const float StasisRadius = 7f;       // creatures within this of the aim point are frozen
+    private const double StasisDuration = 6.0;   // seconds a creature stays in stasis (scan window)
+    private const double StasisCooldown = 6.0;
 
     private void HandleUseGadget(PlayerSession session, UseGadgetIntent intent)
     {
@@ -56,6 +62,10 @@ public sealed partial class GameServer
             case "field_medkit":
                 UseFieldMedkit(session);
                 cooldown = MedkitCooldown;
+                break;
+            case "stasis_projector":
+                UseStasisProjector(target);
+                cooldown = StasisCooldown;
                 break;
             default:
                 Reject(session, "gadget", "Unknown gadget.");
@@ -98,6 +108,30 @@ public sealed partial class GameServer
             }
         }
     }
+
+    /// <summary>Freezes every creature within <see cref="StasisRadius"/> of the aim point for
+    /// <see cref="StasisDuration"/> seconds (item 36) — they stop moving + biting so you can scan them safely.</summary>
+    private void UseStasisProjector(Vector3f target)
+    {
+        bool any = false;
+        foreach (var c in _creatures)
+        {
+            if (WrapDistSq(target, c.Position) <= StasisRadius * StasisRadius)
+            {
+                c.FrozenTimer = System.Math.Max(c.FrozenTimer, StasisDuration); // never shorten an existing freeze
+                any = true;
+            }
+        }
+
+        if (any)
+        {
+            BroadcastCreatures(); // push the Frozen flag now so the client tints them immediately
+        }
+    }
+
+    /// <summary>Test hook: seconds a creature is still frozen (0 = not frozen).</summary>
+    public double CreatureFrozenForTest(string creatureId)
+        => _creatures.FirstOrDefault(c => c.Id == creatureId)?.FrozenTimer ?? 0;
 
     /// <summary>Test hook: how many seconds until the gadget is usable again for this player (0 = ready).</summary>
     public double GadgetCooldownForTest(string playerId, string gadgetKey)

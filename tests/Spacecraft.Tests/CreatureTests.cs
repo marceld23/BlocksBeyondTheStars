@@ -154,6 +154,28 @@ public sealed class CreatureTests : IDisposable
     }
 
     [Fact]
+    public void StasisProjector_FreezesACreature_SoItCanBeScannedSafely()
+    {
+        // Item 36: the stasis projector holds creatures still (no movement, no biting) for a few seconds.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Ranger");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+            p.State.Inventory.Add("stasis_projector", 1, 1);
+
+            server.Tick(6.0);
+            var creature = server.Creatures.First();
+            Assert.Equal(0, server.CreatureFrozenForTest(creature.Id)); // not frozen yet
+
+            server.UseGadgetForTest("Ranger", "stasis_projector", creature.Position);
+
+            Assert.True(server.CreatureFrozenForTest(creature.Id) > 0, "the creature is held in stasis");
+        }
+    }
+
+    [Fact]
     public void AttackCreature_KillsIt_AndYieldsItsSpeciesDrop()
     {
         var server = Started("jungle", out var repo);

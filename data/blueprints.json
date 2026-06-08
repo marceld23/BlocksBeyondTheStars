@@ -15,6 +15,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 6 } ]
   },
   {
+    "key": "stasis_projector", "nameKey": "blueprint.stasis_projector.name", "descriptionKey": "blueprint.stasis_projector.desc",
+    "category": "Tools", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 } ]
+  },
+  {
     "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]

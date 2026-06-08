@@ -27,6 +27,7 @@ namespace Spacecraft.Client
             public float PrevHull;   // to detect a hull drop (hurt)
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
             public float AttackUntil; // a visible lunge window when attacking
+            public GameObject Stasis; // icy-blue stasis shell shown while frozen (item 36)
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -87,6 +88,8 @@ namespace Spacecraft.Client
                 // Smoothing is in world space; map to the scene at the copy nearest the player (longitude wraps).
                 entry.Root.transform.position = Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z) + lunge;
 
+                SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
+
                 // Periodic idle vocalisation, spatialised at the creature, pitched by its size.
                 if (Time.time >= entry.NextCall)
                 {
@@ -142,6 +145,47 @@ namespace Spacecraft.Client
                     _creatures.Remove(id);
                 }
             }
+        }
+
+        /// <summary>Shows/hides an icy-blue stasis shell around a creature while it is frozen by the stasis
+        /// projector (item 36). Built lazily on first freeze; the translucent shader can't strip to pink.</summary>
+        private static void SetStasis(Entry e, bool frozen, float size)
+        {
+            if (frozen && e.Stasis == null)
+            {
+                e.Stasis = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                var col = e.Stasis.GetComponent<Collider>();
+                if (col != null)
+                {
+                    Destroy(col);
+                }
+
+                e.Stasis.transform.SetParent(e.Root.transform, false);
+                float s = Mathf.Clamp(size, 0.4f, 3f);
+                e.Stasis.transform.localPosition = new Vector3(0f, 0.55f * s, 0f);
+                e.Stasis.transform.localScale = new Vector3(1.15f * s, 1.5f * s, 1.15f * s);
+                e.Stasis.GetComponent<Renderer>().sharedMaterial = StasisMaterial();
+            }
+
+            if (e.Stasis != null && e.Stasis.activeSelf != frozen)
+            {
+                e.Stasis.SetActive(frozen);
+            }
+        }
+
+        private static Material _stasisMat;
+
+        private static Material StasisMaterial()
+        {
+            if (_stasisMat == null)
+            {
+                var sh = Shader.Find("Spacecraft/Cloud") ?? Shader.Find("Unlit/Transparent");
+                _stasisMat = new Material(sh);
+                _stasisMat.SetColor("_Color", new Color(0.5f, 0.8f, 1f, 0.32f)); // translucent icy blue
+                _stasisMat.renderQueue = 3000;
+            }
+
+            return _stasisMat;
         }
 
         /// <summary>Voice bank for a creature: size tier (small/medium/large) x disposition (calm/hostile).</summary>

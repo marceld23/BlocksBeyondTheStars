@@ -664,6 +664,10 @@ namespace Spacecraft.Client
                     Weapons?.Pulse(self, new Color(0.35f, 1f, 0.5f)); // a green first-aid pulse around you
                     ClientAudio.Instance?.Cue("medkit_heal");
                     break;
+                case "stasis_projector":
+                    Weapons?.Pulse(target, new Color(0.4f, 0.8f, 1f)); // a cyan stasis burst at the aim point
+                    ClientAudio.Instance?.At("stasis_activate", target);
+                    break;
             }
         }
 
