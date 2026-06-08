@@ -1538,7 +1538,8 @@ Client-only. *Playtest wanted.*
   reset** (the new world's `NpcList` repopulates). Note: the other entity views (`CreatureView`, `RemotePlayers`,
   `DoorView`) rely on the same snapshot-pruning and have the same latent gap — apply the same `WorldReset` clear if
   creatures/remote players ever leak across worlds. Client build verified.
-- **B34 — Loading flashes the empty/half-built world before the loading screen. [VALID — reported 2026-06-07]**
+- **B34 — Loading flashes the empty/half-built world before the loading screen. [FIXED 2026-06-08 for dock +
+  enter-ship; planet landing keeps its descent — re-check]**
   When a world / station / ship interior loads, the player briefly sees the **empty (still-streaming) world**,
   *then* the loading overlay appears, *then* the finished world. Wanted: the **loading screen from the very first
   frame** of the transition, hiding everything until the destination (planet / station / the player's ship,
@@ -1553,6 +1554,17 @@ Client-only. *Playtest wanted.*
   **Re-reported 2026-06-08:** the same flash happens specifically when **docking a station, landing on a planet,
   and boarding your own ship** — you briefly see the current planet / station / ship before the loading overlay
   comes up. Same root + fix as above (raise the overlay the instant the dock/land/board intent is sent).
+  **FIXED 2026-06-08:** added `GameBootstrap.BeginWorldTransition()` + a `WorldTransitionStarted` event; the
+  overlay now **pre-raises the veil immediately** on a descent-less transition — **boarding a station**
+  (`SendBoardStation`) and **stepping into the ship interior** (`SendEnterShip`, from the cockpit and from an EVA)
+  — instead of waiting for the server's `WorldLoadStarted` (which only fires after the world swap, leaving the old
+  view visible for the round-trip). A **2.5 s confirmation timeout** drops the pre-raised veil if no world load
+  follows (a rejected action can't get stuck behind it), and `WorldLoadStarted` confirms + refreshes the title
+  once the destination is known (both paths send `WorldReset{Hyperjump=false}`, verified). **Planet landing was
+  left as-is on purpose** — it plays the in-space **descent** which already masks the build-up, and the overlay
+  raises as the descent ends; veiling it immediately would hide that animation. **Playtest:** dock a station +
+  enter your ship from space → no flash; **then check a planet landing** — if it still flashes at the end of the
+  descent, tell me and I'll veil just that last moment without killing the descent.
 - **B35 — Trees (flora) stand *in* the water. [FIXED 2026-06-08]** On a world the player saw **trees
   growing inside water** (submerged trunks). Almost certainly a **side-effect of B7 (upland ponds/lakes, just
   shipped)**: the flora scatter places trees from the **terrain surface height** without checking whether that

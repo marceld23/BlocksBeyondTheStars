@@ -281,6 +281,7 @@ namespace Spacecraft.Client
             if (Input.GetKeyDown(KeyCode.F))
             {
                 _enteringInterior = true;
+                Game.BeginWorldTransition(); // veil immediately — stepping inside has no descent to mask (B34)
                 Game.Network?.SendEnterShip();
                 return;
             }
@@ -679,6 +680,7 @@ namespace Spacecraft.Client
         {
             _eva = false;
             _enteringInterior = true;       // tear the flight view down at once (no landing descent)
+            Game.BeginWorldTransition();     // veil immediately so the flight view doesn't flash first (B34)
             Game.Network?.SendEnterShip();  // server ends the EVA and loads the ship interior
             ClientAudio.Instance?.Cue("scan_ping");
         }
@@ -720,6 +722,7 @@ namespace Spacecraft.Client
             if (_seq >= BoardDuration && !_boardSent)
             {
                 _boardSent = true;
+                Game.BeginWorldTransition(); // veil now (the approach has played) so the station doesn't flash (B34)
                 Game.Network?.SendBoardStation(_boardTargetId);
             }
 

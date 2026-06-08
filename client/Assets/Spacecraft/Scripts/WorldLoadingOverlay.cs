@@ -20,6 +20,7 @@ namespace Spacecraft.Client
         private const float Ring = 30f;        // spinner radius (reference units)
         private const float MinShow = 3.0f;    // always hold the screen long enough to read it (planet + station)
         private const float MaxShow = 25f;     // hard safety: drop the veil even if "ready" never arrives
+        private const float ConfirmTimeout = 2.5f; // pre-raised veil: drop it if no world load confirms by here
         private const float FadeIn = 0.30f;
         private const float FadeOut = 0.55f;
 
@@ -36,6 +37,8 @@ namespace Spacecraft.Client
         private bool _fadingOut;
         private float _t;       // seconds since the veil became visible
         private float _alpha;   // 0 hidden → 1 fully opaque veil
+        private bool _awaitingConfirm; // veil pre-raised at intent time; waiting for the load to confirm (B34)
+        private float _confirmTimer;   // seconds since the pre-raise, to time out an unconfirmed transition
 
         // WorldRig sets Game right after AddComponent, so subscribe in Start (not OnEnable, which would
         // run during AddComponent while Game is still null).
@@ -44,6 +47,7 @@ namespace Spacecraft.Client
             if (Game != null)
             {
                 Game.WorldLoadStarted += OnWorldLoadStarted;
+                Game.WorldTransitionStarted += OnTransitionStarted;
             }
         }
 
@@ -52,6 +56,7 @@ namespace Spacecraft.Client
             if (Game != null)
             {
                 Game.WorldLoadStarted -= OnWorldLoadStarted;
+                Game.WorldTransitionStarted -= OnTransitionStarted;
             }
 
             if (_canvas != null)
@@ -62,10 +67,46 @@ namespace Spacecraft.Client
 
         private void OnWorldLoadStarted()
         {
+            // A descent-less transition pre-raised the veil already — just confirm it (so the timeout doesn't
+            // drop it) and refresh the title now that the destination is known; don't reset the on-screen timer.
+            if (_active)
+            {
+                _awaitingConfirm = false;
+                RefreshLabels();
+                return;
+            }
+
             // Arm now, but don't raise the veil yet: a planet landing first plays the ship's descent in the
             // space view (the surface build-up is hidden behind the space scene anyway). We only veil once
             // we're back on the surface and the world still isn't ready — see Update.
             _armed = true;
+        }
+
+        /// <summary>The client sent a descent-less world-changing intent (board a station, enter the ship) —
+        /// veil the screen immediately so the old view never flashes (B34). If no world load confirms within
+        /// <see cref="ConfirmTimeout"/> (e.g. the action was rejected), the veil drops itself again.</summary>
+        private void OnTransitionStarted()
+        {
+            _armed = false;
+            _awaitingConfirm = true;
+            _confirmTimer = 0f;
+            Raise();
+        }
+
+        /// <summary>Brings the veil on screen (or restarts its on-screen timer if already up).</summary>
+        private void Raise()
+        {
+            EnsureBuilt();
+            RefreshLabels();
+            _t = 0f;
+            _fadingOut = false;
+            if (!_active)
+            {
+                _alpha = 0f;
+                _active = true;
+                _canvas.enabled = true;
+                _backdrop.raycastTarget = true; // swallow clicks while the world loads
+            }
         }
 
         private void Update()
@@ -83,22 +124,24 @@ namespace Spacecraft.Client
                 // Always raise the veil (even if the surface already streamed in during the descent) so the
                 // landing/boarding screen is reliably shown + readable for ~MinShow seconds, not skipped on a
                 // fast/cached load. The minimum-on-screen time below holds it; WorldReady only gates the fade-out.
-                EnsureBuilt();
-                RefreshLabels();
-                _t = 0f;
-                _fadingOut = false;
-                if (!_active)
-                {
-                    _alpha = 0f;
-                    _active = true;
-                    _canvas.enabled = true;
-                    _backdrop.raycastTarget = true; // swallow clicks while the world loads
-                }
+                Raise();
             }
 
             if (!_active)
             {
                 return;
+            }
+
+            // A pre-raised veil whose transition never confirmed (a rejected board/enter) drops itself, so the
+            // screen can't get stuck behind the veil for a non-event.
+            if (_awaitingConfirm)
+            {
+                _confirmTimer += Time.deltaTime;
+                if (_confirmTimer > ConfirmTimeout)
+                {
+                    _awaitingConfirm = false;
+                    _fadingOut = true;
+                }
             }
 
             _t += Time.deltaTime;
@@ -120,6 +163,7 @@ namespace Spacecraft.Client
             if (_fadingOut && _alpha <= 0.001f)
             {
                 _active = false;
+                _awaitingConfirm = false;
                 _backdrop.raycastTarget = false;
                 _canvas.enabled = false;
             }

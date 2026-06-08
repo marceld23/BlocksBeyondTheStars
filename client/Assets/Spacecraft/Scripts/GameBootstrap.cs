@@ -594,6 +594,16 @@ namespace Spacecraft.Client
         /// the warp VFX already masks those.</summary>
         public event System.Action WorldLoadStarted;
 
+        /// <summary>Raised the instant the client sends a world-changing intent that has no in-space descent to
+        /// mask the swap (boarding a station, stepping into the ship interior), so the loading overlay can veil
+        /// the screen immediately instead of briefly showing the old view first (B34). The overlay auto-clears
+        /// the pre-raised veil if no <see cref="WorldLoadStarted"/> confirms the transition shortly after.</summary>
+        public event System.Action WorldTransitionStarted;
+
+        /// <summary>Pre-raises the loading overlay for an immediate (descent-less) world transition — see
+        /// <see cref="WorldTransitionStarted"/>.</summary>
+        public void BeginWorldTransition() => WorldTransitionStarted?.Invoke();
+
         private static readonly (int X, int Y, int Z)[] _faceDirs =
         {
             (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
