@@ -1550,6 +1550,22 @@ Client-only. *Playtest wanted.*
   finishes meshing. *Fix idea:* show the overlay the instant a travel/board/land intent is sent (before any world
   teardown), and only dismiss after the destination's chunks around the spawn have meshed (not just collider-
   settle). Medium.
+- **B35 — Trees (flora) stand *in* the water. [VALID — reported 2026-06-08]** On a world the player saw **trees
+  growing inside water** (submerged trunks). Almost certainly a **side-effect of B7 (upland ponds/lakes, just
+  shipped)**: the flora scatter places trees from the **terrain surface height** without checking whether that
+  column is **under water** (a pond/lake carved below the surface). *Investigate:* `WorldGenerator`'s flora/tree
+  placement — it should skip any column whose surface cell is water or that sits **below the local water level**
+  (use the same `PondDepthAt`/pond-mask that carves the water, or test the top solid cell for a fluid above it).
+  *Fix idea:* before stamping a tree/flora, reject the site if the surface is a fluid or within the pond depth;
+  only plant on **dry** land. Small, pairs with B36 (same root: placement ignores the new scattered water).
+- **B36 — The ship lands *in* a lake (stands in the water). [VALID — reported 2026-06-08]** The player's ship
+  **landed inside a see/pond**, sitting in the water. Task 1 made landing **fluid-aware for oceans** (ships rest on
+  the seabed on water worlds, dry cabin) — but for a **scattered upland pond/lake (B7)** on an otherwise dry land
+  world, landing the ship submerged in a small pond looks like a bug, not intended seabed-landing. *Investigate:*
+  the **landing-site selection** (where the server picks the ship's touchdown column on a planet) — it likely
+  doesn't avoid pond/lake columns. *Fix idea:* on non-ocean worlds, the landing-site search should **prefer dry
+  land** (reject columns that are water/pond at the surface, nudge to the nearest dry spot), reserving seabed-
+  landing for genuine ocean worlds. Small-medium, pairs with B35 (both = pond placement not respected).
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
