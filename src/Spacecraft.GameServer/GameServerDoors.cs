@@ -77,7 +77,9 @@ public sealed partial class GameServer
         {
             foreach (var pos in stamp.Doors)
             {
-                _doors.Add(MakeDoor("slide", pos, ShipHatchOpenRange));
+                // The ship's doors are energy doors (item 35): a slide door with a passable blue energy field
+                // shown in the opening while open. Auto-open like a slide door (handled above).
+                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange));
             }
         }
 
@@ -162,9 +164,9 @@ public sealed partial class GameServer
         bool changed = false;
         foreach (var door in _doors)
         {
-            if (door.Kind != "slide")
+            if (door.Kind != "slide" && door.Kind != "energy")
             {
-                continue; // hinge doors are manual (HandleDoorInteract)
+                continue; // hinge doors are manual (HandleDoorInteract); slide + energy auto-open on proximity
             }
 
             bool near = targets.Any(p => WrapDistSq(p, door.Pos) <= door.OpenRange * door.OpenRange);

@@ -100,8 +100,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Hatch: a 2-wide, 2-tall gap in the -Z wall, centred on x (a hatch is never single-block).
-            bool door = z == cz - _shipHalfZ && (x == cx || x == cx - 1) && (y == y0 + 1 || y == y0 + 2);
+            // Hatch: a 3-wide, 2-tall gap in the -Z wall, centred on the ship (cells cx-1..cx+1 are symmetric
+            // about the hull centre cx+0.5, unlike the old 2-wide gap which sat half a block off-centre — item 35).
+            bool door = z == cz - _shipHalfZ && (x == cx - 1 || x == cx || x == cx + 1) && (y == y0 + 1 || y == y0 + 2);
             if (door)
             {
                 _world.SetBlock(pos, BlockId.Air);
@@ -152,7 +153,7 @@ public sealed partial class GameServer
             }
 
             // Rear engine nozzles (dark, off), outboard of the centre hatch so they never block the way out
-            // (the rear -Z hatch occupies the two centre columns cx-1..cx; engines sit at the rear corners).
+            // (the rear -Z hatch occupies the three centre columns cx-1..cx+1; engines sit at the rear corners).
             for (int d = 1; d <= 2; d++)
             {
                 Ext(cx + s * _shipHalfX, y0 + 1, cz - _shipHalfZ - d, dark);
@@ -196,8 +197,8 @@ public sealed partial class GameServer
         // the hatch — a solid threshold at cabin-floor level, the doorway cleared above it, and a foundation
         // under it — so the door always meets solid, walkable ground regardless of the terrain it landed on.
         var stepFill = _content.GetBlock("stone")?.NumericId ?? wall;
-        for (int d = 1; d <= 2; d++)             // two blocks out from the rear wall
-        for (int sx = cx - 1; sx <= cx; sx++)    // the two hatch columns
+        for (int d = 1; d <= 2; d++)               // two blocks out from the rear wall
+        for (int sx = cx - 1; sx <= cx + 1; sx++)  // the three hatch columns (centred on cx)
         {
             int sz = cz - _shipHalfZ - d;
             Ext(sx, y0, sz, wall);               // flush threshold at floor level (protected like the hull)
@@ -216,10 +217,11 @@ public sealed partial class GameServer
             }
         }
 
-        // A sci-fi sliding door fills the hatch (the 2-wide opening in the -Z wall) so the box ship has a
-        // real door like designed ships, not just an open hole.
+        // An energy door fills the hatch (the 3-wide opening in the -Z wall) so the box ship has a real door
+        // like designed ships, not just an open hole. The marker sits in the centre column (cx) so the door
+        // panel + field centre on the hull (item 35).
         CurStamp.Doors.Clear();
-        CurStamp.Doors.Add(new Vector3f(cx - 0.5f, y0 + 1f, cz - _shipHalfZ + 0.5f));
+        CurStamp.Doors.Add(new Vector3f(cx + 0.5f, y0 + 1f, cz - _shipHalfZ + 0.5f));
 
         _shipStamped = true;
         _log.Info($"Ship hull placed at ({cx}, {y0}, {cz}) with {_stations.Count} stations.");

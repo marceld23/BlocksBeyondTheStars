@@ -125,16 +125,36 @@ public sealed class ShipStructureTests : IDisposable
         using (repo)
         {
             var a = server.ShipAnchorBlock; // (cx, y0 floor, cz)
-            // The ship's hatch door (the slide door nearest the ship anchor) must sit at cabin-floor level —
+            // The ship's hatch door (the energy door nearest the ship anchor) must sit at cabin-floor level —
             // one block above the floor anchor — never up at the hull roof (B27).
             var hatch = server.DoorSnapshots
-                .Where(d => d.Kind == "slide"
+                .Where(d => (d.Kind == "energy" || d.Kind == "slide")
                             && System.Math.Abs(d.Pos.X - a.X) < 6f && System.Math.Abs(d.Pos.Z - a.Z) < 8f)
                 .OrderBy(d => System.Math.Abs(d.Pos.X - a.X) + System.Math.Abs(d.Pos.Z - a.Z))
                 .FirstOrDefault();
 
             Assert.NotEqual(0, hatch.Id); // a ship hatch door exists
             Assert.InRange(hatch.Pos.Y - a.Y, 0.5f, 1.5f); // ~floor level, not the roof
+        }
+    }
+
+    [Fact]
+    public void ShipHatch_IsAnEnergyDoor_CentredOnTheHull()
+    {
+        // Item 35: the box ship's outer hatch is an energy door, and its 3-wide opening is centred on the hull
+        // (cx+0.5), not half a block off-centre like the old 2-wide gap.
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var a = server.ShipAnchorBlock;
+            var hatch = server.DoorSnapshots
+                .Where(d => System.Math.Abs(d.Pos.X - a.X) < 6f && System.Math.Abs(d.Pos.Z - a.Z) < 8f)
+                .OrderBy(d => System.Math.Abs(d.Pos.Z - a.Z))
+                .FirstOrDefault();
+
+            Assert.NotEqual(0, hatch.Id);
+            Assert.Equal("energy", hatch.Kind);                         // the hatch is an energy door
+            Assert.InRange(hatch.Pos.X - a.X, 0.25f, 0.75f);            // centred on the hull (cx+0.5), not cx-0.5
         }
     }
 

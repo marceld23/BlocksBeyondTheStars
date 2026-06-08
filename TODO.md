@@ -1806,7 +1806,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    **snow** ≤2 °C, **sandstorm** on sand surfaces, else **rain**. Client renders all five in `WeatherFx3D` with
    tinted fog + screen wash, and `ClientAudio` plays a matching bed. See the B11 Stage 2 note for details.
 35. **Energy door — an automatic sliding door with a passable blue force-field in the opening; use it as the
-   ship's outer door.** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **new door type**
+   ship's outer door. [✅ DONE 2026-06-08 — playtest]** *(Analysis first.)* A **new door type**
    that behaves like the existing **automatic slide door** (auto-open/close on proximity) but, while **open**,
    shows a **transparent blue energy field filling the doorway** that the **player can walk through** (passable —
    it's a visual/atmospheric membrane, not a barrier). Then **replace the starter ship's outer hatch with this
@@ -1820,6 +1820,20 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    half a block), so **centre it**, widening the ship by one if needed for an even/odd-symmetric doorway, and keep
    `RegisterDoors`/the interior clear. Needs: a door-kind/flag for "energy" + the open-state field render
    (client), the hatch re-centre + hull width tweak (server `StampShip`), and bilingual names. Medium.
+   **SHIPPED 2026-06-08:** new door kind **`"energy"`** — server treats it exactly like a slide door for
+   auto-open/close (`GameServerDoors` open tick now matches `slide` **or** `energy`); the **ship's outer hatch** is
+   now registered as `"energy"` (`RegisterDoors`). Client `DoorView`: an energy door builds the normal cyan slide
+   panels **plus** a translucent blue **energy field** quad filling the opening (a thin cube on the door pivot,
+   no collider → passable) whose alpha **fades in with the open amount** + a faint shimmer; reuses the
+   always-included `Spacecraft/Cloud` alpha shader (no texture → a solid tinted quad, can't strip to pink). The
+   field shows only while open; the door's own collider still blocks while closed. **Hatch centred (bundled fix):**
+   the box ship's hatch is now a **3-wide** gap `cx-1..cx+1` (was 2-wide `cx-1..cx`, half a block off) — symmetric
+   about the hull centre `cx+0.5`, no hull-width change needed; the threshold pad + door marker were moved to
+   match. No new blocks/items, so no locale change (it's ship structure, not craftable). Tests:
+   `ShipHatch_IsAnEnergyDoor_CentredOnTheHull` + updated the two hatch tests to expect `"energy"`; 379 green.
+   **Note:** designed (editor) ships' doors were already all converted to slide on stamp, so they become energy
+   too (a consistent sci-fi look). **Playtest:** walk up to the ship hatch — it slides open with a blue field you
+   can walk through, and sits centred on the rear wall.
 36. **New gadget items + ship systems: medpack, stasis projector, terrain blaster (with their own sounds,
    textures and visual effects).** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* Three new
    craftable gadgets: **(a) Medpack** — heal **yourself and other players** (a use-on-self + aim-at-ally heal, a

@@ -111,7 +111,7 @@ public sealed class ShipInteriorTests : IDisposable
             server.EnterSpace("Pilot");
             server.EnterShipInterior("Pilot"); // standing inside the ship at the heal-tank
 
-            var hatch = server.DoorSnapshots.First(d => d.Kind == "slide"); // the ship's own hatch
+            var hatch = server.DoorSnapshots.First(d => d.Kind == "energy"); // the ship's own hatch (energy door, item 35)
             Assert.False(hatch.Open);                                       // starts closed
 
             // At the heal-tank spawn (a few blocks from the hatch) the tighter-range hatch stays sealed.

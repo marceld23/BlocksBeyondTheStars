@@ -33,6 +33,8 @@ namespace Spacecraft.Client
             public float Width;
             public bool Open;
             public float Anim;             // 0 closed → 1 open, eased toward Open
+            public Transform Field;        // energy door: the translucent blue field shown in the open doorway
+            public Material FieldMat;      // its material (alpha fades in with Anim) — item 35
         }
 
         private readonly Dictionary<int, Door> _doors = new Dictionary<int, Door>();
@@ -78,6 +80,15 @@ namespace Spacecraft.Client
                 float slide = (w * 0.5f) * d.Anim * 0.92f;
                 d.PanelA.localPosition = new Vector3(-w * 0.25f - slide, Height * 0.5f, 0f);
                 d.PanelB.localPosition = new Vector3(w * 0.25f + slide, Height * 0.5f, 0f);
+            }
+
+            // Energy field: fade it in as the door opens (invisible when closed) with a faint shimmer, so the
+            // open doorway shows a passable blue membrane (item 35).
+            if (d.FieldMat != null)
+            {
+                float shimmer = 0.85f + 0.15f * Mathf.Sin(Time.time * 6f);
+                float alpha = 0.42f * d.Anim * shimmer;
+                d.FieldMat.SetColor(FieldColorId, new Color(0.35f, 0.80f, 1f, alpha));
             }
         }
 
@@ -161,6 +172,23 @@ namespace Spacecraft.Client
             col.center = new Vector3(0f, Height * 0.5f, 0f);
             col.size = nd.AxisX ? new Vector3(w, Height, Thickness * 2f) : new Vector3(Thickness * 2f, Height, w);
 
+            // Energy door (item 35): a translucent blue energy field filling the opening, shown only while open
+            // (the panels still slide apart). The field is purely visual + passable — no collider — so you walk
+            // through it; the door's own collider above handles blocking while closed.
+            Transform field = null;
+            Material fieldMat = null;
+            if (nd.Kind == "energy")
+            {
+                var fieldGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                StripCollider(fieldGo);
+                fieldGo.transform.SetParent(pivot, false);
+                fieldGo.transform.localPosition = new Vector3(0f, Height * 0.5f, 0f);
+                fieldGo.transform.localScale = new Vector3(w * 0.98f, Height, 0.05f);
+                fieldMat = EnergyFieldMaterial();
+                fieldGo.GetComponent<Renderer>().sharedMaterial = fieldMat;
+                field = fieldGo.transform;
+            }
+
             return new Door
             {
                 Go = go,
@@ -173,7 +201,28 @@ namespace Spacecraft.Client
                 Width = w,
                 Open = nd.Open,
                 Anim = nd.Open ? 1f : 0f,
+                Field = field,
+                FieldMat = fieldMat,
             };
+        }
+
+        private static readonly int FieldColorId = Shader.PropertyToID("_Color");
+        private static Shader _fieldShader;
+
+        /// <summary>A translucent, glowing blue energy-field material (item 35). Reuses the always-included
+        /// <c>Spacecraft/Cloud</c> alpha-blend shader (no texture → a solid tinted quad), so it can't get
+        /// stripped from the build into pink. Alpha is driven per-frame in <see cref="Animate"/>.</summary>
+        private static Material EnergyFieldMaterial()
+        {
+            if (_fieldShader == null)
+            {
+                _fieldShader = Shader.Find("Spacecraft/Cloud") ?? Shader.Find("Unlit/Transparent");
+            }
+
+            var mat = new Material(_fieldShader);
+            mat.SetColor(FieldColorId, new Color(0.35f, 0.80f, 1f, 0f)); // alpha set each frame from the open amount
+            mat.renderQueue = 3000; // transparent
+            return mat;
         }
 
         private Transform MakePanel(Transform parent, Color body, Color trim, float panelWidth)
