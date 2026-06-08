@@ -1858,6 +1858,25 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    **label-entry UI** when placing (type the name); **map + minimap rendering** of beacons (a distinct marker +
    the label, like the existing station/landing markers); and the **OpenAI texture**. Bilingual UI strings.
    Medium — touches blocks/blueprints, a new persisted entity + message, and the map/minimap client layers.
+38. **Fixed, pre-planned landing zones (capacity-limited, no-build, ship-size aware).** *(ANALYSIS FIRST — ask
+   clarifying questions before any implementation. Backlog only — not started, requested 2026-06-08.)* Planets,
+   moons and **landable asteroids** should have a set of **fixed landing zones for ships**, **baked into the
+   generated map** (deterministic positions, not the current dynamic march): a player always lands on one of these
+   pre-planned pads. The **number of zones varies with map size** (a small asteroid has few, a big planet many).
+   **No building** is allowed on a landing zone (reserve the pad). In **multiplayer**, when a body is **full** (all
+   its zones occupied) that must be **shown in-game** (e.g. on the star map / when trying to land — "all landing
+   zones taken"). The design **must account for variable ship sizes** — it should be possible to own **bigger ships
+   than the starter**, so a zone needs enough clearance for the largest ship (or zones come in sizes / a big ship
+   needs a big pad). *Builds on what exists:* there is already a per-player `LandingZone` (`GameServerSpace.
+   EnsureLandingZone`) with **protection** (others can't mine/build in it — `IsLandingZoneBlockedForOther`) and the
+   B36 **dry-land + settlement-clear + collision-free** search; this feature turns that **dynamic** allocation into
+   a **fixed, map-planned set with a capacity limit + a "full" signal + ship-size clearance**, and extends the
+   no-build rule to *everyone* on the pad. *Open questions to raise at planning:* how many zones per size class +
+   how spaced; are zones visible markers on the surface/map; what happens when full (refuse landing / queue / send
+   elsewhere); do zones have size tiers for big vs small ships, or one generous size; how this interacts with the
+   existing settlement/station placement + the persisted per-player zones (migration); single-player behaviour
+   (always a free pad?). Medium-large — worldgen planning + server allocation/capacity + UI for "full" + ship-size
+   handling. *(Relates to the bigger-ships goal and to item 20 "build in space / player station".)*
 
 ---
 
