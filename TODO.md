@@ -1114,6 +1114,32 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
      collision) vs the simpler **"dock → 1:1 on-foot build" mode** (reuses existing collision)? (d) max station
      size + is it boardable/enterable like today's stations? (e) does a player station need **life support /
      gravity / power** rules, or is it purely structural for now?
+
+   **[DECISIONS 2026-06-08 — building the ambitious version]** (a) **Stylised scale** — keep flying up to bodies +
+   E-to-land as today; voxel structures may look large vs planets (accepted). (b) **Voxelise the flight ship now**
+   — the player's ship renders as a voxel mesh of its editor design (replacing `BuildShip`). (c) **Free EVA-flight
+   building** — place/mine while floating in the suit, which needs NEW free-space voxel collision + zero-g block
+   aiming. (d) **Boardable, capped stations** (~48³–64³), persisted + on the star map; no life-support/power rules
+   yet (purely structural for now).
+   **STAGED PLAN (each stage shippable + committed on its own):**
+   - **S1 — Voxel structures in the flight scene (foundation).** Server: a `SpaceStructure` = a small voxel grid
+     (its own `ServerWorld`/`LocationId`, no generation, no wrap) carried in the `SpaceInstance` with a world
+     position. Seed the FIRST one from the player's active ship DESIGN (the ship-editor voxel cells). Net: send a
+     structure's blocks + position to the client. Client: mesh it with `ChunkMesher` + place it in the flight scene
+     at 1:1 (stylised), REPLACING `BuildShip` for the player's own ship. *Proves meshing + position + scale.*
+   - **S2 — Free EVA collision + build/mine vs a structure.** EVA suit collides with the structure's `MeshCollider`
+     (no passing through); EVA aim ray-marches the structure's voxel grid → place/mine via the existing voxel
+     handlers (a free-space variant of `AimBlock`/`HandlePlace`/`HandleMine` scoped to the structure). *Proves the
+     core interaction.*
+   - **S3 — Voxel mineable asteroids.** Replace entity asteroids with small voxel ore grids; mining = `BlockChanged`
+     + re-mesh; depletion + respawn as today but block-based.
+   - **S4 — Player-built stations.** Build a fresh structure in space, and when it's closed / has an airlock,
+     register it as a boardable body (system registry row: position, owner, boardable) + persist its block edits;
+     show it on the star map; allow boarding (reuse the station-as-void-world entry, or walk its own voxel grid).
+   - **S5 — Protection + MP polish.** Other players' ships + game-spawned stations are unmineable (`IsShipBlock`-
+     style); far-structure unload; multiple structures co-rendered; networking + persistence hardening.
+   - **Biggest risks (de-risk early):** the free-space voxel collision + zero-g aim (S2) and the stylised-scale
+     framing of voxel structures next to spheres (S1) — prototype + eyeball both before going wide.
 21. ✅ **Feature — loading screens always show + stay readable ≥3s (done 2026-06-07; needs in-engine test).**
    `WorldLoadingOverlay` (the shared planet-landing + station-board veil) used to **skip** when the world was
    already ready (fast/cached load) and only held `MinShow=0.7s`. Removed the skip-when-ready early return so the
