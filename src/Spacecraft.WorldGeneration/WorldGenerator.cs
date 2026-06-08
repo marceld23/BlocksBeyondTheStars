@@ -171,6 +171,44 @@ public sealed class WorldGenerator
         return (int)System.Math.Round(System.Math.Min(1.0, strength) * PondMaxDepth);
     }
 
+    /// <summary>Upland-pond carve depth (0 = none) at a surface column — the same scattered-water gate
+    /// <see cref="Generate"/> applies (B7), but with this world's pond-enable, threshold and seed resolved
+    /// internally so callers (tree placement, ship landing) can keep things out of the water without
+    /// duplicating the rule. Returns 0 on worlds that have no water ponds (dry / lava / airless).</summary>
+    public int SurfacePondDepth(PlanetType planet, int worldX, int worldZ)
+    {
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        double pondAbundance = planet.WaterAbundance
+            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
+        if (!(pondAbundance > 0.15) || seaFluid != waterId || waterId.IsAir)
+        {
+            return 0; // ponds only on watery worlds (matches Generate)
+        }
+
+        if (SurfaceHeight(planet, worldX, worldZ) <= seaLevel)
+        {
+            return 0; // below the global sea — the sea fills this column, not a pond
+        }
+
+        double pondThreshold = 0.70 - pondAbundance * 0.12;
+        return PondDepthAt(planet, PlanetSeed(planet), worldX, worldZ, pondThreshold);
+    }
+
+    /// <summary>True if this surface column is under water — beneath the global water sea, or inside an upland
+    /// pond/lake (B7). A lava sea is not "water" here. Used to keep ship landings out of the water (B36).</summary>
+    public bool IsSurfaceWater(PlanetType planet, int worldX, int worldZ)
+    {
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        if (seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel)
+        {
+            return true; // beneath the global sea
+        }
+
+        return SurfacePondDepth(planet, worldX, worldZ) > 0; // inside an upland pond
+    }
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
@@ -374,6 +412,11 @@ public sealed class WorldGenerator
             if (sy + 1 <= fluidLevel)
             {
                 continue; // not in the sea
+            }
+
+            if (SurfacePondDepth(planet, wx, wz) > 0)
+            {
+                continue; // B35: an upland pond/lake here — a tree would stand in the water
             }
 
             int height = 4 + (int)(Noise.Value01(seed + 5151, WorldConstants.WrapX(wx, _circumference), 13, wz) * 3.99); // 4..7

@@ -63,6 +63,84 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void Trees_DoNotStandInUplandPonds()
+    {
+        // B35: a tree must never spawn in the water — its trunk base sitting directly on a pond/sea cell. Scan a
+        // watery, forested world (jungle, the same seed that grows upland ponds) and assert no wood_log has a
+        // water cell directly beneath it (the only way a trunk can be "in" the water).
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        var gen = new WorldGenerator(7, content);
+        var waterId = content.GetBlock("water")!.NumericId;
+        var logId = content.GetBlock("wood_log")!.NumericId;
+        int cs = WorldConstants.ChunkSize;
+
+        int logs = 0, logsInWater = 0;
+        for (int cx = 0; cx < 16; cx++)
+        for (int cz = 0; cz < 16; cz++)
+        {
+            // Generate the vertical column of chunks once so a trunk base at a chunk boundary can see the cell
+            // below it (in the chunk underneath).
+            var col = new ChunkData[6];
+            for (int cy = 0; cy < col.Length; cy++)
+            {
+                col[cy] = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
+            }
+
+            for (int cy = 0; cy < col.Length; cy++)
+            for (int lx = 0; lx < cs; lx++)
+            for (int ly = 0; ly < cs; ly++)
+            for (int lz = 0; lz < cs; lz++)
+            {
+                if (col[cy].Get(lx, ly, lz) != logId)
+                {
+                    continue;
+                }
+
+                logs++;
+                var below = ly > 0 ? col[cy].Get(lx, ly - 1, lz)
+                          : cy > 0 ? col[cy - 1].Get(lx, cs - 1, lz)
+                          : BlockId.Air;
+                if (below == waterId)
+                {
+                    logsInWater++;
+                }
+            }
+        }
+
+        Assert.True(logs > 0, "expected the jungle world to grow trees (the test would be meaningless otherwise)");
+        Assert.Equal(0, logsInWater);
+    }
+
+    [Fact]
+    public void IsSurfaceWater_FlagsPondsAndDryLand()
+    {
+        // Guards the helper that keeps trees (B35) and ship landings (B36) out of the water: on a watery,
+        // partly-dry world it must report BOTH wet columns (a sea or upland pond exists) and dry ones (land
+        // exists), so the landing search can actually find dry ground.
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        var gen = new WorldGenerator(7, content);
+
+        bool anyWet = false, anyDry = false;
+        for (int x = 0; x < 400 && !(anyWet && anyDry); x += 3)
+        for (int z = -200; z < 200 && !(anyWet && anyDry); z += 7)
+        {
+            if (gen.IsSurfaceWater(planet, x, z))
+            {
+                anyWet = true;
+            }
+            else
+            {
+                anyDry = true;
+            }
+        }
+
+        Assert.True(anyWet, "expected some surface water (sea/pond) on a watery world");
+        Assert.True(anyDry, "expected some dry land on a watery world (else ships could never land dry)");
+    }
+
+    [Fact]
     public void VoidPlanet_GeneratesEmptySpace()
     {
         var content = Content();

@@ -33,18 +33,38 @@ public sealed partial class GameServer
             return existing;
         }
 
-        int index = _landingZones.Count;
+        int baseIndex = _landingZones.Count;
         bool isProtected = Rules.PersonalLandingZoneProtection != LandingZoneProtection.Off;
 
-        // March the zone along +X, skipping any spot whose footprint would land on the settlement, so a
-        // ship (which stamps at the zone centre) never carves into a town — for every player, not just
-        // the first. Stations are in space; wrecks are placed clear of the zones already.
-        int cx = WorldConstants.WrapX(index * LandingZoneSpacing); // canonical longitude (wraps the world)
-        for (int guard = 0; guard < 128 && OverlapsSettlement(cx); guard++)
+        // March the zone along +X to a touchdown longitude that (hard rules) never lands on the settlement
+        // and never collides with another player's zone, and — where the world allows — sits on DRY land
+        // rather than in a sea or an upland pond (B36; a ship in the water looks wrong). The first merely
+        // town/zone-clear spot is kept as a fallback: on an all-ocean world no dry column exists, so the ship
+        // lands there on the seabed (Task 1 gives it a dry, watertight cabin) instead of marching the zone
+        // right around the planet. Stations are in space; wrecks are placed clear of the zones already.
+        int fallbackIndex = -1, dryIndex = -1;
+        for (int step = 0; step < 256; step++)
         {
-            index++;
-            cx = WorldConstants.WrapX(index * LandingZoneSpacing);
+            int cxTry = WorldConstants.WrapX((baseIndex + step) * LandingZoneSpacing); // wraps the world
+            if (OverlapsSettlement(cxTry) || OverlapsExistingZone(cxTry))
+            {
+                continue;
+            }
+
+            if (fallbackIndex < 0)
+            {
+                fallbackIndex = baseIndex + step; // first town/zone-clear spot (water tolerated)
+            }
+
+            if (!LandingFootprintWet(cxTry, 0))
+            {
+                dryIndex = baseIndex + step; // town/zone-clear AND dry — take it
+                break;
+            }
         }
+
+        int chosen = dryIndex >= 0 ? dryIndex : (fallbackIndex >= 0 ? fallbackIndex : baseIndex);
+        int cx = WorldConstants.WrapX(chosen * LandingZoneSpacing);
 
         var zone = new LandingZone
         {
@@ -74,6 +94,40 @@ public sealed partial class GameServer
         return cx >= _settlementMin.X - margin && cx <= _settlementMax.X + margin
             && 0 >= _settlementMin.Z - margin && 0 <= _settlementMax.Z + margin;
     }
+
+    /// <summary>True if a landing centred at (cx, 0) would sit within one zone-spacing of an existing zone on
+    /// this world (longitude-wrap aware), so two players never get overlapping ships (B36 search invariant).</summary>
+    private bool OverlapsExistingZone(int cx)
+    {
+        foreach (var z in _landingZones.Values)
+        {
+            if (z.LocationId == _world.LocationId
+                && System.Math.Abs(WorldConstants.WrapDeltaX(cx - z.CenterX, _world.Circumference)) < LandingZoneSpacing)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>True if the landing pad (its centre or any zone-radius edge) sits over surface water — a sea or
+    /// an upland pond — so a lake covering part of the pad still counts as wet (B36).</summary>
+    private bool LandingFootprintWet(int cx, int cz)
+    {
+        int r = LandingZoneRadius;
+        return _generator.IsSurfaceWater(_world.Planet, cx, cz)
+            || _generator.IsSurfaceWater(_world.Planet, cx - r, cz)
+            || _generator.IsSurfaceWater(_world.Planet, cx + r, cz)
+            || _generator.IsSurfaceWater(_world.Planet, cx, cz - r)
+            || _generator.IsSurfaceWater(_world.Planet, cx, cz + r);
+    }
+
+    /// <summary>Test hook: true if the given player's landing pad sits on dry land (B36). False if the pad is
+    /// over water — which on a normal world means the dry-land search failed, and on an all-ocean world is the
+    /// accepted seabed-landing fallback.</summary>
+    public bool LandingPadIsDry(string playerId)
+        => _landingZones.TryGetValue(playerId, out var z) && !LandingFootprintWet(z.CenterX, z.CenterZ);
 
     /// <summary>Test helper: seeds another player's protected landing zone on the active world (keyed to its
     /// real location id, so the protection check actually finds it regardless of which body is active).</summary>

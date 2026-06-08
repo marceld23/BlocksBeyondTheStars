@@ -46,6 +46,29 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void Ship_LandsOnDryLand_NotInWater()
+    {
+        // B36: on a watery world (seas + scattered upland ponds) the landing search must put the ship on DRY
+        // land, never in a pond/lake. Jungle has both water and dry ground, so the chosen pad should be dry.
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "wet_world"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "wet_world", Seed = 1, StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            server.AddLocalPlayer("Host");
+
+            Assert.True(server.LandingPadIsDry("Host"),
+                "the ship's landing pad must sit on dry land, never in a sea or upland pond (B36)");
+        }
+    }
+
+    [Fact]
     public void ShipInterior_IsHollow_NoTerrainIntrusion()
     {
         var server = Started(placeShip: true, out var repo);

@@ -1550,7 +1550,7 @@ Client-only. *Playtest wanted.*
   finishes meshing. *Fix idea:* show the overlay the instant a travel/board/land intent is sent (before any world
   teardown), and only dismiss after the destination's chunks around the spawn have meshed (not just collider-
   settle). Medium.
-- **B35 — Trees (flora) stand *in* the water. [VALID — reported 2026-06-08]** On a world the player saw **trees
+- **B35 — Trees (flora) stand *in* the water. [FIXED 2026-06-08]** On a world the player saw **trees
   growing inside water** (submerged trunks). Almost certainly a **side-effect of B7 (upland ponds/lakes, just
   shipped)**: the flora scatter places trees from the **terrain surface height** without checking whether that
   column is **under water** (a pond/lake carved below the surface). *Investigate:* `WorldGenerator`'s flora/tree
@@ -1558,7 +1558,15 @@ Client-only. *Playtest wanted.*
   (use the same `PondDepthAt`/pond-mask that carves the water, or test the top solid cell for a fluid above it).
   *Fix idea:* before stamping a tree/flora, reject the site if the surface is a fluid or within the pond depth;
   only plant on **dry** land. Small, pairs with B36 (same root: placement ignores the new scattered water).
-- **B36 — The ship lands *in* a lake (stands in the water). [VALID — reported 2026-06-08]** The player's ship
+  **CONFIRMED 2026-06-08:** `WorldGenerator.StampTrees` excludes only the **global** sea (`sy + 1 <= fluidLevel`)
+  and never consults the B7 pond mask, so a tree on a pond column gets a trunk standing on the pond water (the
+  small `flora_*` loop already guards with `seabedY + 1 > waterTop`; trees were missed). *Plan:* add a centralized
+  `WorldGenerator.SurfacePondDepth(planet,x,z)` (computes this world's pond-enable + threshold + seed internally,
+  reusing `PondDepthAt`) and, in `StampTrees`, `continue` when `SurfacePondDepth > 0` (after the existing sea
+  check). Same helper fixes B36. **FIXED:** added `WorldGenerator.SurfacePondDepth` + `IsSurfaceWater`;
+  `StampTrees` now skips pond columns. Test: `Trees_DoNotStandInUplandPonds` (no `wood_log` has water directly
+  beneath it on a forested watery world) + `IsSurfaceWater_FlagsPondsAndDryLand`.
+- **B36 — The ship lands *in* a lake (stands in the water). [FIXED 2026-06-08]** The player's ship
   **landed inside a see/pond**, sitting in the water. Task 1 made landing **fluid-aware for oceans** (ships rest on
   the seabed on water worlds, dry cabin) — but for a **scattered upland pond/lake (B7)** on an otherwise dry land
   world, landing the ship submerged in a small pond looks like a bug, not intended seabed-landing. *Investigate:*
@@ -1566,6 +1574,18 @@ Client-only. *Playtest wanted.*
   doesn't avoid pond/lake columns. *Fix idea:* on non-ocean worlds, the landing-site search should **prefer dry
   land** (reject columns that are water/pond at the surface, nudge to the nearest dry spot), reserving seabed-
   landing for genuine ocean worlds. Small-medium, pairs with B35 (both = pond placement not respected).
+  **CONFIRMED 2026-06-08:** `EnsureLandingZone` (`GameServerSpace.cs`) marches the zone +X (spacing 24, radius 8)
+  skipping only `OverlapsSettlement` — **no water check** — and `StampShip` anchors at `y0 = SurfaceHeight` (the
+  terrain top, water-blind), so a pond/sea column at the zone centre puts the ship in the water. The zone is
+  computed once per (player, world) and persisted, so the fix only affects *new* landings. *Plan:* extend the
+  march to also skip columns where `SurfacePondDepth > 0` (and, per the chosen policy below, genuine sea), keeping
+  zones ≥ spacing apart (wrap-aware) so players don't collide; if the whole budget is water (all-ocean world),
+  **fall back** to the settlement-only spot so Task 1's seabed-landing (dry cabin) still applies — no far-marching.
+  **FIXED 2026-06-08 (chosen policy: prefer dry land, seabed fallback on all-ocean):** `EnsureLandingZone` now
+  marches to the first spot clear of the settlement AND of other zones AND on dry land (`LandingFootprintWet`
+  samples the pad centre + radius edges via `WorldGenerator.IsSurfaceWater`); keeps the first town/zone-clear spot
+  as the all-ocean fallback. Test: `Ship_LandsOnDryLand_NotInWater` (jungle pad comes out dry, via the
+  `LandingPadIsDry` hook). Note: only affects *new* landing zones (existing ones are persisted).
 - **B37 — Audit: is the (varying) sun colour used *consistently* everywhere? [AUDIT — reported 2026-06-08]** The
   star colour is meant to **vary per system**. It *is* generated server-side (`GameServerWeather.StarColor(system)`
   → `_sunColor`, networked as `Environment.SunColor`) and consumed in several places — `Sky.cs` (planet sky +
