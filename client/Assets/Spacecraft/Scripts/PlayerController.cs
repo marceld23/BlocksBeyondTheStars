@@ -721,25 +721,27 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // A radio beacon you own that you're aiming at → rename it (item 37).
+            if (TryAimOwnedBeacon(out int beaconId, out string current))
+            {
+                BeaconLabelUi.Instance?.Open(
+                    Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
+                    current,
+                    label => Game.Network?.SendSetBeaconLabel(beaconId, label));
+                return;
+            }
+
+            // A settlement hinge door you're standing at opens/closes with E — checked BEFORE stations so a door
+            // next to a market stall still opens (sci-fi slide doors open themselves; this is for village doors) (B47).
+            int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
+            if (door != 0)
+            {
+                Game.Network?.SendDoorInteract(door);
+                return;
+            }
+
             if (string.IsNullOrEmpty(Game.NearbyStation))
             {
-                // No station here — maybe a radio beacon you own to rename (item 37) …
-                if (TryAimOwnedBeacon(out int beaconId, out string current))
-                {
-                    BeaconLabelUi.Instance?.Open(
-                        Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
-                        current,
-                        label => Game.Network?.SendSetBeaconLabel(beaconId, label));
-                    return;
-                }
-
-                // … or a hinge door to open/close (sci-fi sliders open themselves).
-                int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
-                if (door != 0)
-                {
-                    Game.Network?.SendDoorInteract(door);
-                }
-
                 return;
             }
 

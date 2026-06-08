@@ -85,6 +85,11 @@ namespace Spacecraft.Client
             {
                 _cam.enabled = on;
             }
+
+            if (_model != null)
+            {
+                _model.gameObject.SetActive(on); // hide the model when inactive so the avatar camera can't pick up the ship (B53)
+            }
         }
 
         private void Update()

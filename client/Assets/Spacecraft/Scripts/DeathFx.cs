@@ -79,7 +79,8 @@ namespace Spacecraft.Client
                 return; // a normal return from space, not a destruction
             }
 
-            Flash(new Color(1f, 0.55f, 0.15f, 0.85f), 0.8f); // an explosion glare (boom played by ClientAudio)
+            Flash(new Color(1f, 0.55f, 0.15f, 0.85f), 0.8f); // an explosion glare …
+            ClientAudio.Instance?.Cue("ship_destroyed");      // … with the boom (B49: was silent)
         }
 
         private void OnDestroy()

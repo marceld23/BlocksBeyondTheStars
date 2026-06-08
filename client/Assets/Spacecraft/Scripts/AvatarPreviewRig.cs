@@ -62,13 +62,19 @@ namespace Spacecraft.Client
 
         public void SetColors(Color skin, Color torso, Color arms, Color legs) => _avatar?.ApplyColors(skin, torso, arms, legs);
 
-        /// <summary>Enables/disables rendering (the camera only draws while the colour menu is showing).</summary>
+        /// <summary>Enables/disables rendering. Toggles the MODEL too (not just the camera) so an inactive rig's
+        /// avatar isn't left in the scene where the other preview's camera would pick it up (B53).</summary>
         public void SetActive(bool on)
         {
             _active = on;
             if (_cam != null)
             {
                 _cam.enabled = on;
+            }
+
+            if (_model != null)
+            {
+                _model.gameObject.SetActive(on);
             }
         }
 

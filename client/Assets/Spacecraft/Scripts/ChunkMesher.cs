@@ -143,6 +143,16 @@ namespace Spacecraft.Client
                     // the near leaf faces show the sky/world BEHIND the tree — a clearly see-through crown,
                     // not a dense volume whose holes just reveal more leaves.
                     bool drawFace = transparent ? nb.IsAir : (nb.IsAir || IsTransparent(content, nb));
+
+                    // A submerged fluid cell (the same fluid sits directly above it) must NOT draw its vertical
+                    // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
+                    // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
+                    // Only the true top layer (air above) keeps its faces, so the real water surface still shows.
+                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value)
+                    {
+                        drawFace = false;
+                    }
+
                     if (!drawFace)
                     {
                         continue; // face hidden

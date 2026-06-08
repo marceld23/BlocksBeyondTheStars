@@ -135,6 +135,17 @@ namespace Spacecraft.Client
 
         public void GoTo(ShellPhase phase) => Phase = phase;
 
+        /// <summary>Forces the save-select screen to rebuild next frame (e.g. after deleting a world) — the phase
+        /// stays SaveSelect, so without this the list wouldn't refresh and a delete looked like it did nothing (B59).</summary>
+        public void RefreshSaveSelect()
+        {
+            if (_uiSaveSelect != null)
+            {
+                Destroy(_uiSaveSelect);
+                _uiSaveSelect = null;
+            }
+        }
+
         public void OpenSettings() => Phase = ShellPhase.Settings;
 
         public void CloseSettings()

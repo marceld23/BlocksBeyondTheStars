@@ -77,7 +77,7 @@ namespace Spacecraft.Client
                     LocalServerLauncher.DeleteWorld(target[0]);
                 }
 
-                shell.GoTo(ShellPhase.SaveSelect); // rebuild the screen with the refreshed world list
+                shell.RefreshSaveSelect(); // force a rebuild so the deleted world drops off the list (B59)
             }, "btn_exit");
             UiKit.AddButton(panel.transform, 370f, 160f, 290f, 58f, shell.L("ui.save.delete_no"), () => confirm.SetActive(false), "btn_singleplayer");
             confirm.SetActive(false);

@@ -279,7 +279,12 @@ namespace Spacecraft.Client
                 textX = 56f;
             }
 
-            AddText(go.transform, textX, 0f, w - textX - 10f, h, label, 22, TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var labelText = AddText(go.transform, textX, 0f, w - textX - 10f, h, label, 22, TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Shrink the label to fit its button so a longer word (e.g. German "Einstellungen"/"Schließen") never
+            // spills out of the frame (B57); it stays at 22 when it fits and only scales down when it must.
+            labelText.resizeTextForBestFit = true;
+            labelText.resizeTextMinSize = 11;
+            labelText.resizeTextMaxSize = 22;
             return btn;
         }
 

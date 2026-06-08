@@ -897,10 +897,13 @@ namespace Spacecraft.Client
             }
 
             ClearChildren(_detail);
-            if (!(_mode == Mode.Ship && _category == "paint"))
-            {
-                _shipPreview?.SetActive(false); // only render the ship preview on the paint tab
-            }
+
+            // Exactly one preview rig may be live at a time, else each rig's camera also picks up the OTHER rig's
+            // model and they bleed into each other (B53: the colour tab showed the ship, the paint tab showed both).
+            bool showAvatar = _mode == Mode.Character;
+            bool showShip = _mode == Mode.Ship && _category == "paint";
+            _avatarPreview?.SetActive(showAvatar);
+            _shipPreview?.SetActive(showShip);
 
             if (_mode == Mode.Character)
             {
