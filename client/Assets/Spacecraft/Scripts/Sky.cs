@@ -200,6 +200,15 @@ namespace Spacecraft.Client
             else
             {
                 Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
+
+                // Tint the daytime sky toward the system star's hue, so a warm / red star gives a warmer sky
+                // and a blue-white star a cooler one (B37 — the world's colouring follows its sun, not a fixed
+                // blue). Normalise the sun colour to a pure hue first so only its tint shifts the sky, not its
+                // brightness. The directional sun light + block diffuse already use the star colour.
+                float sm = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
+                Color sunHue = sm > 0.001f ? new Color(sunColor.r / sm, sunColor.g / sm, sunColor.b / sm) : Color.white;
+                daySky = Color.Lerp(daySky, daySky * sunHue, 0.5f);
+
                 Color nightSky = new Color(0.03f, 0.04f, 0.09f);
                 sky = Color.Lerp(nightSky, daySky, day);
             }

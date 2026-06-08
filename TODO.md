@@ -1586,7 +1586,7 @@ Client-only. *Playtest wanted.*
   samples the pad centre + radius edges via `WorldGenerator.IsSurfaceWater`); keeps the first town/zone-clear spot
   as the all-ocean fallback. Test: `Ship_LandsOnDryLand_NotInWater` (jungle pad comes out dry, via the
   `LandingPadIsDry` hook). Note: only affects *new* landing zones (existing ones are persisted).
-- **B37 — Audit: is the (varying) sun colour used *consistently* everywhere? [AUDIT — reported 2026-06-08]** The
+- **B37 — Audit: is the (varying) sun colour used *consistently* everywhere? [AUDITED + FIXED 2026-06-08]** The
   star colour is meant to **vary per system**. It *is* generated server-side (`GameServerWeather.StarColor(system)`
   → `_sunColor`, networked as `Environment.SunColor`) and consumed in several places — `Sky.cs` (planet sky +
   directional sun light + `SetGrade` colour grade), `SpaceView.cs` (the sun disc/corona in space), `Clouds.cs`
@@ -1597,8 +1597,21 @@ Client-only. *Playtest wanted.*
   *Check:* does `SpaceView` use *each planet's* star colour or one global sun? Is `RenderSettings.ambientLight`
   derived from `SunColor` or constant? Does the colour-grade meaningfully shift block/terrain colours? Report
   gaps; fix only after. Small audit, possibly small fixes.
-- **B38 — Audit: are creatures & flora generated with the intended *random* colours? [AUDIT — reported
-  2026-06-08]** Two parts. **(a) Flora:** a per-planet `FloraColor`/`Environment.FloraTint` re-tints flora via the
+  **FINDINGS 2026-06-08:** the source varies well — `StarColor` blends across a real hot→cool ramp
+  (blue-white → white → yellow → orange → red-orange). Already **consistent**: the planet **directional sun light**
+  + the block-shader **diffuse** global (`Sky.cs` `LightId = sunColor*brightness`), the **sun disc**, the
+  `SetGrade` post **colour-grade**, the **cloud** tint at sunset (`Clouds.cs`), and the **space sun disc/corona +
+  lens flare** (`SpaceView` `_sunColor` from `Environment.SunColor`) and the **station-window sun**
+  (`StationBackdrop`). **GAP found + FIXED:** the **daytime sky was a hardcoded blue** (`Sky.cs.ApplyLighting`),
+  ignoring the star — so a red-star world still had a blue sky. Now the day sky (and the fog + reflection global
+  that follow it) is **tinted toward the star's hue** (normalise the sun colour to a pure hue, lerp the sky 0.5
+  toward `daySky*hue`): warm/red stars → warmer skies, blue-white stars → cooler. **Remaining (lower-priority,
+  not done):** Unity `RenderSettings.ambientLight` is unmanaged (world blocks don't need it — they use the
+  sun-tinted `LightId` global — but standard-shader objects could pick up a star-tinted ambient); **space-view
+  planets + their cloud shells** use fixed biome tints (not star-lit) and the starfield is generic (arguably
+  correct — those are *other* suns). Playtest: land under a warm/orange star and a blue-white star, compare skies.
+- **B38 — Audit: are creatures & flora generated with the intended *random* colours? [AUDITED + FIXED 2026-06-08]**
+  Two parts. **(a) Flora:** a per-planet `FloraColor`/`Environment.FloraTint` re-tints flora via the
   block shader global `_Sc_FloraTint` — but `ChunkMesher` only flags the **small `flora_*` plants** for the tint
   (`IsFlora`, comment "small flora plants"). **Verify tree crowns (`tree_leaves`) are also flagged/tinted** — if
   not, trees stay one fixed green while ground flora recolours (likely gap). **(b) Creatures:** creatures carry
@@ -1608,6 +1621,16 @@ Client-only. *Playtest wanted.*
   suspected root of **B15** (the untextured red/blank creature). *Check:* where creature `ColorRgb` is set at spawn
   (species palette + per-spawn RNG), and whether `tree_leaves` gets the flora-tint vertex flag. Report gaps; fix
   after. Small audit; pairs with B15.
+  **FINDINGS 2026-06-08:** **(a) Flora — GAP found + FIXED:** `ChunkMesher.IsFloraBlock` flagged only the small
+  `flora_*` plants, so **tree crowns stayed a fixed green** while ground flora recoloured per planet — yet the
+  server's `FloraColor` is documented as *"one hue for all of a planet's plant life."* Fix: `IsFloraBlock` now also
+  flags **`tree_leaves`**, so a planet's leaves take its flora hue (alien purple/amber foliage on exotic worlds);
+  the `wood_log` trunk keeps its natural bark colour. **(b) Creatures — VERIFIED WORKING (no change):**
+  `CreatureGenerator.PickColor` already randomises every species' `ColorRgb`/`BellyRgb` — ~50 % vivid exotics (a
+  fully random hue at high saturation) and ~50 % habitat-tinted naturals with ±60 per-channel jitter — assigned at
+  species generation. The `?? 0xFFFFFF` white default only triggers if the **species is null** (a data/desync
+  error, never normal spawn); that — or a `PickHide` texture-load failure — is the **B15** lead, a *separate* bug,
+  not a colour-generation gap. Playtest: trees on a non-green-flora world should now match its foliage hue.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a

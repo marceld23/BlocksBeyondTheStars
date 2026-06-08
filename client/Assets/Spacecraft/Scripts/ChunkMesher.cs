@@ -119,7 +119,8 @@ namespace Spacecraft.Client
                 // stay lit at night). Packed into the vertex-colour alpha for the atlas shader.
                 float emission = atlas != null ? BlockEmission(content, id) : 0f;
                 // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these to the planet's
-                // uniform flora hue. Only the small plants — trees keep their natural bark/leaf colours.
+                // uniform flora hue — the small plants AND tree crowns (B38), so a planet's foliage reads as one
+                // hue; tree trunks keep their natural bark colour.
                 float floraFlag = IsFloraBlock(content, id) ? 1f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
@@ -215,12 +216,15 @@ namespace Spacecraft.Client
         /// y=metal (0 dielectric .. 1 metal — metals tint their highlight + reflection by the albedo).
         /// Ice/glass/crystal are glossy, hull/ore metals reflective, soils matte.
         /// </summary>
-        /// <summary>True for the small flora plants (block key "flora_*"); the planet flora re-tint applies
-        /// to these only — trees (wood_log / tree_leaves) keep their natural colours.</summary>
+        /// <summary>True for plant foliage that takes the planet's uniform flora hue (B38): the small flora
+        /// plants (block key "flora_*") and tree crowns ("tree_leaves"). The server's flora colour is "one hue
+        /// for all of a planet's plant life", so leaves recolour per planet too; the wood_log trunk keeps its
+        /// natural bark colour.</summary>
         private static bool IsFloraBlock(GameContent content, BlockId id)
         {
             var key = content.BlockById(id)?.Key;
-            return key != null && key.StartsWith("flora_", System.StringComparison.Ordinal);
+            return key != null
+                && (key.StartsWith("flora_", System.StringComparison.Ordinal) || key == "tree_leaves");
         }
 
         // The structural / solid / glowing-cap flora that read better as solid cubes — everything else
