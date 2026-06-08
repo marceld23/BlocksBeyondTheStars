@@ -1905,7 +1905,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    multiplayer-visible gadget flashes could be a follow-up.* Playtest: unlock + craft each at a workshop, then
    right-click — heal a teammate, freeze + scan a creature, blast a crater.
 37. **Craftable radio beacon — a placeable block that appears as a labelled point on the map + minimap.**
-   *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **craftable, placeable block** the
+   **[✅ DONE 2026-06-08 — playtest]** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **craftable, placeable block** the
    player drops on a planet; once placed it shows up on the **world map** and the **minimap** as **its own point**
    with a **player-typed, freely-editable label** (a personal waypoint/landmark, e.g. "Eisensee", "Basis 1"). It is
    **unlocked as a blueprint first** (not available from the start) and has **OpenAI-generated textures**. Needs: a
@@ -1914,6 +1914,43 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    **label-entry UI** when placing (type the name); **map + minimap rendering** of beacons (a distinct marker +
    the label, like the existing station/landing markers); and the **OpenAI texture**. Bilingual UI strings.
    Medium — touches blocks/blueprints, a new persisted entity + message, and the map/minimap client layers.
+
+   **[ANALYSIS DONE 2026-06-08 — plan below, mirrors the door entity pattern]**
+   - **Reuse:** the **door** entity is the exact template — a server-tracked, per-world-persisted, networked entity
+     created in `HandlePlace` and removed in `HandleMine` (`GameServerDoors.cs`, `StoredDoor` via
+     `IWorldRepository`/SQLite, `DoorList` over NetCodec). Beacons copy this wholesale.
+   - **Data:** append `radio_beacon` to `blocks.json` (drops `radio_beacon`), `items.json`
+     (`placesBlock: radio_beacon`), `recipes.json` (workshop, `requiredBlueprint: radio_beacon`),
+     `blueprints.json` (category Tools). OpenAI **block** texture via `gen_textures.py` + **item** icon via
+     `gen_item_icons.py`. 5 locale keys each in en/de (block/item name+desc, blueprint name+desc).
+   - **Server:** new `GameServerBeacons.cs` partial — `ServerBeacon { Id, Pos, Label, OwnerId }`,
+     `LoadedWorld.Beacons` + `NextBeaconId`, `StoredBeacon` DTO + `SaveBeacon/ListBeacons/DeleteBeacon` on the repo,
+     `PlaceBeacon`/`RemovePlayerBeaconAt`/`LoadBeacons`/`BroadcastBeacons`/`SendBeacons`. Hook `HandlePlace`
+     (`blockDef.Key == "radio_beacon"`) + `HandleMine`. Beacon block stays an **air cell + entity** (like doors) so
+     the label travels with the entity, not the voxel.
+   - **Networking:** `NetBeacon { Id, X, Y, Z, Label, OwnerId }` + `BeaconList`; register a free NetCodec tag;
+     a `SetBeaconLabelIntent { Id, Label }` (rename) registered too. Sent on join + on change.
+   - **Client:** label-entry overlay on place (uses `UiKit.AddInput`) → sends label with the place (new
+     `PlaceBlockIntent.Label` field, free on MessagePack) ; rename via interact (E) on an owned beacon.
+     `GameBootstrap` stores `Beacons`; `WorldMap.cs` draws a beacon glyph + label (extend `PoiLook`); `HudUi.cs`
+     compass gets beacon blips.
+   - **Tests:** `BeaconTests.cs` mirroring `PlaceableDoorTests` — place→persist→reload→mine lifecycle, label set,
+     locale parity.
+   - **Open design questions (asking before impl):** (a) is the label **re-editable** after placement, or only typed
+     once at placement? (b) are beacon map markers **visible to everyone** in the world, or **owner-only** (personal)?
+   **[SHIPPED 2026-06-08]** Chosen: **re-editable** (type at placement + rename later) and **visible to everyone**
+   (owner stored; only the owner renames). Implemented exactly to the door-entity template: new `radio_beacon`
+   block/item/recipe (workshop, `requiredBlueprint`)/blueprint (Tools) + OpenAI block texture + item icon + 5 DE/EN
+   locale keys each (+ `ui.beacon.*` overlay strings). Server: `GameServerBeacons.cs` (`ServerBeacon`,
+   place/remove/load/broadcast/rename, owner-gated + reach-checked), `StoredBeacon` table + `Save/List/DeleteBeacon`,
+   `LoadedWorld.Beacons`/`NextBeaconId`; hooked into `HandlePlace`/`BreakBlockAt` (covers area-mine) + the terrain
+   blaster cleanup + join/world-init sends. The beacon is a **real voxel block** (mesher draws it + the block edit
+   persists) plus a metadata entity for the label/owner. Networking: `NetBeacon`/`BeaconList` (tag 100),
+   `SetBeaconLabelIntent` (tag 101), `PlaceBlockIntent.Label`. Client: a modal `BeaconLabelUi` (name at placement /
+   E-rename your own), markers + names on the world map (`WorldMap`), amber blips on the HUD compass (`HudUi`), and a
+   floating world-space name above the block (`BeaconView`). 4 `BeaconTests` (place/persist/reload/mine/owner-rename);
+   **389 tests green** (locale parity included); client rebuilt. Playtest: unlock + craft at a workshop, place →
+   name it → see it on M + compass + above the block; walk up + E to rename; mine to take it back.
 38. **Fixed, pre-planned landing zones (capacity-limited, no-build, ship-size aware).** *(ANALYSIS FIRST — ask
    clarifying questions before any implementation. Backlog only — not started, requested 2026-06-08.)* Planets,
    moons and **landable asteroids** should have a set of **fixed landing zones for ships**, **baked into the

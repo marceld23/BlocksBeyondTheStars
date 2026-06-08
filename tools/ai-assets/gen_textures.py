@@ -107,6 +107,7 @@ TEXTURES = [
     ("door_hinge", "a closed metal hinged door panel set in a frame, with a round handle and visible hinges, front view"),
     ("door_slide", "a closed sci-fi sliding blast door with a centre seam and glowing status light, front view"),
     ("asteroid_rock", "a rough grey pitted space asteroid rock surface, cratered stony texture with mineral flecks, seamless"),
+    ("radio_beacon", "a sci-fi radio beacon transmitter tower, a slim metal pole on a base with a glowing cyan antenna ring and blinking status light, front view"),
 ]
 
 

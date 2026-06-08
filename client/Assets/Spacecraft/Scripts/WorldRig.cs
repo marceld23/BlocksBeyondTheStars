@@ -100,6 +100,14 @@ namespace Spacecraft.Client
             var chat = root.AddComponent<ChatUi>();
             chat.Game = boot;
 
+            // Beacon name/rename overlay (item 37): opens when placing or renaming a radio beacon.
+            var beaconLabel = root.AddComponent<BeaconLabelUi>();
+            beaconLabel.Game = boot;
+
+            // Floating beacon labels above their blocks in the world (item 37).
+            var beaconView = root.AddComponent<BeaconView>();
+            beaconView.Game = boot;
+
             // Hyperspace warp animation (plays on a system-to-system jump).
             var warp = root.AddComponent<HyperspaceWarp>();
             warp.Game = boot;

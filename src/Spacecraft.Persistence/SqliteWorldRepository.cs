@@ -61,6 +61,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS door (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 kind TEXT NOT NULL, axisx INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS beacon (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                label TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS landing_zone (
@@ -340,6 +343,66 @@ public sealed class SqliteWorldRepository : IWorldRepository
         {
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM door WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", x);
+            cmd.Parameters.AddWithValue("$y", y);
+            cmd.Parameters.AddWithValue("$z", z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Beacons (placed radio beacons, item 37) ---
+
+    public void SaveBeacon(StoredBeacon beacon)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO beacon (planet, x, y, z, label, owner) " +
+                              "VALUES ($p, $x, $y, $z, $l, $o) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET label=excluded.label, owner=excluded.owner;";
+            cmd.Parameters.AddWithValue("$p", beacon.Planet);
+            cmd.Parameters.AddWithValue("$x", beacon.X);
+            cmd.Parameters.AddWithValue("$y", beacon.Y);
+            cmd.Parameters.AddWithValue("$z", beacon.Z);
+            cmd.Parameters.AddWithValue("$l", beacon.Label);
+            cmd.Parameters.AddWithValue("$o", beacon.OwnerId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredBeacon> ListBeacons(string planet)
+    {
+        var result = new List<StoredBeacon>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, label, owner FROM beacon WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredBeacon
+                {
+                    Planet = planet,
+                    X = reader.GetInt32(0),
+                    Y = reader.GetInt32(1),
+                    Z = reader.GetInt32(2),
+                    Label = reader.GetString(3),
+                    OwnerId = reader.GetString(4),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteBeacon(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM beacon WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$x", x);
             cmd.Parameters.AddWithValue("$y", y);

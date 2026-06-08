@@ -37,6 +37,9 @@ public sealed class PlaceBlockIntent
     public int Y { get; set; }
     public int Z { get; set; }
     public string ItemKey { get; set; } = string.Empty;
+
+    /// <summary>Optional label carried when placing a labelled block (a radio beacon); ignored otherwise.</summary>
+    public string Label { get; set; } = string.Empty;
 }
 
 public sealed class CraftIntent

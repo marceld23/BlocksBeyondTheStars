@@ -234,6 +234,20 @@ namespace Spacecraft.Client
                 }
             }
 
+            // Player-placed radio beacons (item 37): a distinct amber star + the typed label beside it.
+            if (Game.Beacons != null)
+            {
+                var beaconCol = new Color(1f, 0.72f, 0.2f);
+                foreach (var b in Game.Beacons)
+                {
+                    Marker(b.X, b.Z, 20f, beaconCol, "✦");
+                    string name = string.IsNullOrEmpty(b.Label) ? L("ui.beacon.default") : b.Label;
+                    MarkerLabel(b.X, b.Z, name, beaconCol);
+                    float bd = Vector3.Distance(new Vector3(Game.PlayerPosition.x, 0, Game.PlayerPosition.z), new Vector3(b.X, 0, b.Z));
+                    poiLines.Append($"\n✦ {name}  —  {Mathf.RoundToInt(bd)} m");
+                }
+            }
+
             // Ship station tiles (workshop / lab / medbay / …) as small dots.
             if (Game.Stations != null)
             {
@@ -259,7 +273,7 @@ namespace Spacecraft.Client
                 _info.text =
                     $"{L("ui.map.you")}: X {Mathf.RoundToInt(Game.PlayerPosition.x)}  Z {Mathf.RoundToInt(Game.PlayerPosition.z)}\n" +
                     $"{L("ui.map.scale")}: ±{_radius} m\n" +
-                    $"▲ {L("ui.map.you")}    ▣ {L("ui.hud.ship")}    ✛ {L("ui.map.waypoint")}\n" +
+                    $"▲ {L("ui.map.you")}    ▣ {L("ui.hud.ship")}    ✛ {L("ui.map.waypoint")}    ✦ {L("ui.beacon.default")}\n" +
                     $"{L("ui.map.click_hint")}{wp}{pois}";
             }
         }
@@ -298,6 +312,32 @@ namespace Spacecraft.Client
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;
+        }
+
+        /// <summary>Draws a small text label centred just below a marker's world position (beacon names).</summary>
+        private void MarkerLabel(float wx, float wz, string text, Color color)
+        {
+            float u = (Game.SceneX(wx) - _ox) / _side, v = (wz - _oz) / _side;
+            if (u < 0f || u > 1f || v < 0f || v > 1f)
+            {
+                return;
+            }
+
+            var go = new GameObject("MarkerLabel", typeof(RectTransform));
+            go.transform.SetParent(_mapRt, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(u, v);
+            rt.pivot = new Vector2(0.5f, 1f);            // hang the text below the glyph
+            rt.anchoredPosition = new Vector2(0f, -13f);
+            rt.sizeDelta = new Vector2(140f, 18f);
+            var t = go.AddComponent<Text>();
+            t.font = UiKit.Font;
+            t.text = text;
+            t.fontSize = 14;
+            t.color = color;
+            t.alignment = TextAnchor.UpperCenter;
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.verticalOverflow = VerticalWrapMode.Overflow;
         }
 
         public static Color MapColor(string key)

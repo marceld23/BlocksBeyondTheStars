@@ -29,6 +29,8 @@ namespace Spacecraft.Client
         private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist;
         private RectTransform _todMarker;
         private RectTransform _compassShip, _compassWp;
+        private Transform _compassParent; // parent for pooled beacon blips (item 37)
+        private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
 
         private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; }
         private VitalRow[] _vitals;
@@ -188,6 +190,7 @@ namespace Spacecraft.Client
             _compassDist = UiKit.AddText(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             _compassWp = Blip(comp.transform, new Color(1f, 0.85f, 0.3f), 7f);
+            _compassParent = comp.transform;
 
             // Time of day + temperature.
             var tod = Panel(root, W - 210f, 140, 200, 56);
@@ -421,6 +424,24 @@ namespace Spacecraft.Client
             PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
             _compassDist.text = Game.ShipPosition.HasValue ? $"{Mathf.RoundToInt(dist)} m" : string.Empty;
+
+            // Player-placed beacons (item 37): amber blips, pooled since their count varies.
+            var beacons = Game.Beacons;
+            int bn = beacons?.Length ?? 0;
+            for (int i = 0; i < bn; i++)
+            {
+                if (i >= _compassBeacons.Count)
+                {
+                    _compassBeacons.Add(Blip(_compassParent, new Color(1f, 0.72f, 0.2f), 6f));
+                }
+
+                PlaceBlip(_compassBeacons[i], true, new Vector3(beacons[i].X, beacons[i].Y, beacons[i].Z), radius);
+            }
+
+            for (int i = bn; i < _compassBeacons.Count; i++)
+            {
+                _compassBeacons[i].gameObject.SetActive(false);
+            }
         }
 
         private void PlaceBlip(RectTransform blip, bool active, Vector3 target, float radius)

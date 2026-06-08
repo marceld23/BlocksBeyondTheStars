@@ -128,6 +128,12 @@ public static class NetCodec
 
         // Client -> Server (item 36: right-click gadgets — field medkit / stasis projector / terrain blaster).
         Register(99, typeof(UseGadgetIntent));
+
+        // Server -> Client (item 37: placed radio beacons — labelled map/compass waypoints).
+        Register(100, typeof(BeaconList));
+
+        // Client -> Server (item 37: rename a beacon you own).
+        Register(101, typeof(SetBeaconLabelIntent));
     }
 
     private static void Register(byte tag, Type type)

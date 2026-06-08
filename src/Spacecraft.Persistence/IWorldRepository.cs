@@ -26,6 +26,17 @@ public sealed class StoredDoor
     public bool AxisX { get; set; }
 }
 
+/// <summary>A placed radio beacon, persisted by its world cell with its player-typed label + owner (item 37).</summary>
+public sealed class StoredBeacon
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+}
+
 /// <summary>A single persisted player block edit (placement or removal) in world space.</summary>
 public readonly struct BlockEdit
 {
@@ -83,6 +94,14 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredDoor> ListDoors(string planet);
 
     void DeleteDoor(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a placed radio beacon, keyed by its world cell.</summary>
+    void SaveBeacon(StoredBeacon beacon);
+
+    /// <summary>Lists all placed radio beacons on a planet (restored on world load).</summary>
+    IReadOnlyList<StoredBeacon> ListBeacons(string planet);
+
+    void DeleteBeacon(string planet, int x, int y, int z);
 
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);

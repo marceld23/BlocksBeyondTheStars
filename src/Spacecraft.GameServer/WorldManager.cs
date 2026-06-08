@@ -25,6 +25,7 @@ internal sealed class LoadedWorld
     public List<CombatEntity> PlanetEnemies { get; } = new();
     public List<GameServer.ServerNpc> Npcs { get; } = new();
     public List<GameServer.ServerDoor> Doors { get; } = new();
+    public List<GameServer.ServerBeacon> Beacons { get; } = new(); // placed radio beacons (item 37)
     public List<(string Type, Vector3f Pos)> SettlementMarkers { get; } = new();
     public HashSet<string> SettlementMissionIds { get; } = new();
     public List<(string Type, Vector3f Pos)> WreckMarkers { get; } = new();
@@ -80,6 +81,7 @@ internal sealed class LoadedWorld
     public double NpcBroadcastTimer { get; set; }
     public int NextNpcId { get; set; } = 1;
     public int NextDoorId { get; set; } = 1;
+    public int NextBeaconId { get; set; } = 1;
 
     // Per-world weather/environment (TickWeather + BroadcastEnvironment are per-planet: day length, storm
     // chance, atmosphere/oxygen, clouds, weather RNG). time-of-day fraction included; admin time/weather

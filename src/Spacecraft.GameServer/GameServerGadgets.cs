@@ -181,6 +181,10 @@ public sealed partial class GameServer
             _world.SetBlock(p, BlockId.Air);
             _miningProgress.Remove(p);
             BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
+            if (d.Key == "radio_beacon")
+            {
+                RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
+            }
             if (IsFluid(b.Value) || HasFluidNeighbor(p))
             {
                 OnFluidRemoved(p); // a hole opened in/under water or lava refills

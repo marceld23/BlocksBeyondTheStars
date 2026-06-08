@@ -42,6 +42,7 @@ namespace Spacecraft.Client
         public event Action<ShipPlacement> ShipPlacementReceived;
         public event Action<ShipStations> ShipStationsReceived;
         public event Action<PlanetPoiList> PlanetPoisReceived;
+        public event Action<BeaconList> BeaconsReceived;
         public event Action<ChatMessage> ChatReceived;
 
         // Navigation, missions & feedback (M23).
@@ -88,8 +89,11 @@ namespace Spacecraft.Client
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
-        public void SendPlace(int x, int y, int z, string itemKey)
-            => Send(new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey });
+        public void SendPlace(int x, int y, int z, string itemKey, string label = null)
+            => Send(new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty });
+
+        public void SendSetBeaconLabel(int beaconId, string label)
+            => Send(new SetBeaconLabelIntent { BeaconId = beaconId, Label = label ?? string.Empty });
 
         public void SendCraft(string recipeKey, int count = 1)
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
@@ -252,6 +256,7 @@ namespace Spacecraft.Client
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
+                case BeaconList m: BeaconsReceived?.Invoke(m); break;
                 case ChatMessage m: ChatReceived?.Invoke(m); break;
                 case StarMapData m: StarMapReceived?.Invoke(m); break;
                 case MissionList m: MissionsReceived?.Invoke(m); break;

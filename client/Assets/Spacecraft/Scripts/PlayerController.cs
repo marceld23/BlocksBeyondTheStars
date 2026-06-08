@@ -723,7 +723,17 @@ namespace Spacecraft.Client
 
             if (string.IsNullOrEmpty(Game.NearbyStation))
             {
-                // No station here — maybe a hinge door to open/close (sci-fi sliders open themselves).
+                // No station here — maybe a radio beacon you own to rename (item 37) …
+                if (TryAimOwnedBeacon(out int beaconId, out string current))
+                {
+                    BeaconLabelUi.Instance?.Open(
+                        Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
+                        current,
+                        label => Game.Network?.SendSetBeaconLabel(beaconId, label));
+                    return;
+                }
+
+                // … or a hinge door to open/close (sci-fi sliders open themselves).
                 int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
                 if (door != 0)
                 {
@@ -745,6 +755,38 @@ namespace Spacecraft.Client
                     Game.Network?.SendUseStation(Game.NearbyStation);
                     break; // medbay, quarters
             }
+        }
+
+        /// <summary>True if the player is looking at a radio beacon block they own — returns its id + current label
+        /// so E can open the rename overlay (item 37). Only the owner gets the rename prompt; everyone sees markers.</summary>
+        private bool TryAimOwnedBeacon(out int beaconId, out string label)
+        {
+            beaconId = 0;
+            label = string.Empty;
+            if (Game?.Beacons == null || Game.Beacons.Length == 0 || string.IsNullOrEmpty(Game.LocalPlayerId))
+            {
+                return false;
+            }
+
+            if (!AimBlock(out var hit, out _))
+            {
+                return false; // not looking at a block within reach
+            }
+
+            foreach (var b in Game.Beacons)
+            {
+                if (b.OwnerId == Game.LocalPlayerId
+                    && Mathf.FloorToInt(b.X) == hit.x
+                    && Mathf.FloorToInt(b.Y) == hit.y
+                    && Mathf.FloorToInt(b.Z) == hit.z)
+                {
+                    beaconId = b.Id;
+                    label = b.Label ?? string.Empty;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void HandleHotbar()
@@ -1106,7 +1148,20 @@ namespace Spacecraft.Client
                 var def = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item);
                 if (def != null && !string.IsNullOrEmpty(def.PlacesBlock))
                 {
-                    Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item);
+                    if (def.PlacesBlock == "radio_beacon" && BeaconLabelUi.Instance != null)
+                    {
+                        // Name the beacon before placing it — the typed label travels with the place (item 37).
+                        var cell = placeCell;
+                        BeaconLabelUi.Instance.Open(
+                            Game.Localizer?.Get("ui.beacon.name_prompt") ?? "Name this beacon",
+                            string.Empty,
+                            label => Game.Network.SendPlace(cell.x, cell.y, cell.z, item, label));
+                    }
+                    else
+                    {
+                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item);
+                    }
+
                     TriggerSwing();
                 }
             }

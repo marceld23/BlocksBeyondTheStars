@@ -302,6 +302,7 @@ public sealed partial class GameServer
         }
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
+        LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
 
         var body = _galaxy?.FindBody(locationId);
         if (body is not null && body.Status != GenerationStatus.Visited)
@@ -419,6 +420,7 @@ public sealed partial class GameServer
         PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
         SendCreatures(session);
         SendDoors(session);
+        SendBeacons(session);
         SendContainers(session);
         SendStarMap(session);
         Send(session, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
@@ -1124,6 +1126,7 @@ public sealed partial class GameServer
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
+            case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
@@ -1232,6 +1235,7 @@ public sealed partial class GameServer
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
         SendCreatures(session);
         SendDoors(session);
+        SendBeacons(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
 
@@ -1318,12 +1322,13 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Places a block from a held item for a player (test/util entrypoint).</summary>
-    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey)
+    /// <summary>Places a block from a held item for a player (test/util entrypoint). An optional label rides
+    /// along for labelled blocks (a radio beacon).</summary>
+    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string label = null)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            HandlePlace(session, new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey });
+            HandlePlace(session, new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty });
         }
     }
 
@@ -1526,6 +1531,10 @@ public sealed partial class GameServer
         {
             RemoveCrateContainer(pos, pool); // mining a crate returns its stored contents (Task 5 Stage 3b)
         }
+        else if (def.Key == "radio_beacon")
+        {
+            RemoveBeaconAt(pos); // mining a beacon forgets its label/marker (item 37)
+        }
 
         // A toxic flora species yields poisonous berries instead of edible ones (the scan warns which is which).
         bool toxicFlora = IsFlora(current.Value)
@@ -1679,6 +1688,10 @@ public sealed partial class GameServer
         if (blockDef.Key == "crate")
         {
             PlaceCrate(pos); // a placed storage crate becomes a lootable/stash-able container (Task 5 Stage 3b)
+        }
+        else if (blockDef.Key == "radio_beacon")
+        {
+            PlaceBeacon(session, pos, place.Label); // a placed beacon becomes a labelled map/compass waypoint (item 37)
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });

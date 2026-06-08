@@ -111,6 +111,7 @@ ITEMS = [
     ("carbide", "a dark hard tungsten-carbide drill tip"),
     ("magnet", "a red horseshoe magnet with glowing poles"),
     ("light_alloy", "a lightweight brushed silver alloy plate"),
+    ("radio_beacon", "a sci-fi radio beacon transmitter device, a slim metal mast on a tripod base with a glowing cyan antenna ring and a blinking status light"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

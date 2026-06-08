@@ -119,5 +119,6 @@
   { "key": "concrete",    "nameKey": "item.concrete.name",    "category": "block", "maxStack": 99, "placesBlock": "concrete" },
   { "key": "crate",       "nameKey": "item.crate.name",       "category": "block", "maxStack": 99, "placesBlock": "crate", "descriptionKey": "item.crate.desc" },
   { "key": "door_hinge",  "nameKey": "item.door_hinge.name",  "category": "block", "maxStack": 99, "placesBlock": "door_hinge", "descriptionKey": "item.door_hinge.desc" },
-  { "key": "door_slide",  "nameKey": "item.door_slide.name",  "category": "block", "maxStack": 99, "placesBlock": "door_slide", "descriptionKey": "item.door_slide.desc" }
+  { "key": "door_slide",  "nameKey": "item.door_slide.name",  "category": "block", "maxStack": 99, "placesBlock": "door_slide", "descriptionKey": "item.door_slide.desc" },
+  { "key": "radio_beacon","nameKey": "item.radio_beacon.name", "category": "block", "maxStack": 99, "placesBlock": "radio_beacon", "descriptionKey": "item.radio_beacon.desc" }
 ]
