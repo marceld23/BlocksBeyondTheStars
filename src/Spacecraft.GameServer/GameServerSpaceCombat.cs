@@ -72,6 +72,10 @@ public sealed class SpaceInstance
     /// for the others. Visibility only — the shared <see cref="ShipPosition"/> still drives collision.</summary>
     public Dictionary<string, SpacePlayerPose> PlayerPoses { get; } = new();
 
+    /// <summary>Seconds until the ship can take asteroid-collision damage again — a brief grace after a bump so a
+    /// ram dents the shield/hull instead of stacking damage every tick and instantly destroying the ship (B56).</summary>
+    public double CollisionCooldown { get; set; }
+
     /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
     public double AsteroidRespawnTimer { get; set; }
 
@@ -590,7 +594,8 @@ public sealed partial class GameServer
     private const float ShipCollisionRadius = 3f;
     private const float ShipCollisionMinSpeed = 3f;
     private const float ShipCollisionDamageFactor = 0.8f;
-    private const float ShipCollisionMaxDamage = 50f;
+    private const float ShipCollisionMaxDamage = 18f;       // a ram dents the shield/hull, never one-shots (B56)
+    private const double ShipCollisionCooldown = 0.8;       // …and can't re-damage for this long, so it isn't per-tick
     // Hostiles only fire on the ship once they're within engagement range — so a distant drone can't plink
     // you forever (which read as the ship being shaken + flashing red with no visible attacker), and flying
     // clear of the fight actually stops the damage and lets the shield recharge.
@@ -724,24 +729,31 @@ public sealed partial class GameServer
             // stops it. Physical — independent of the combat rules.
             float speed = (float)(System.Math.Sqrt(instance.ShipPosition.DistanceSquared(instance.ShipLastPosition))
                                   / System.Math.Max(dt, 0.0001));
+            instance.CollisionCooldown = System.Math.Max(0.0, instance.CollisionCooldown - dt);
             bool hitAsteroid = instance.Entities.Any(e => e.Kind == CombatEntityKind.Asteroid
                 && e.Position.DistanceSquared(instance.ShipPosition) <= ShipCollisionRadius * ShipCollisionRadius);
             if (hitAsteroid && speed > ShipCollisionMinSpeed)
             {
-                ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
-                instance.ShipPosition = instance.ShipLastPosition; // bounce back / stop at the impact
-                foreach (var playerId in instance.Players)
+                instance.ShipPosition = instance.ShipLastPosition; // always bounce back / stop at the impact
+                if (instance.CollisionCooldown <= 0.0)
                 {
-                    if (FindSessionByPlayerId(playerId) is { } s)
+                    // A ram dents the shield first, then the hull — never an instant kill (B56). Brief grace
+                    // afterwards so holding thrust into the rock doesn't stack damage every tick.
+                    ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
+                    instance.CollisionCooldown = ShipCollisionCooldown;
+                    foreach (var playerId in instance.Players)
                     {
-                        SendShipCombatStatus(s);
+                        if (FindSessionByPlayerId(playerId) is { } s)
+                        {
+                            SendShipCombatStatus(s);
+                        }
                     }
-                }
 
-                if (_ship.Hull <= 0f)
-                {
-                    DisableShip(instance);
-                    continue;
+                    if (_ship.Hull <= 0f)
+                    {
+                        DisableShip(instance);
+                        continue;
+                    }
                 }
             }
 

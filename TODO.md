@@ -1784,6 +1784,22 @@ Client-only. *Playtest wanted.*
   button labels overflow the button graphic in the in-game menu (German, longer words). Like B28 (tab overflow) but
   for these menu buttons. Fix: size the button / shrink-to-fit the label so the text fits (`GameMenu`/`UiKit`
   button sizing).
+- **B58 — Can't customise the hotbar/quick-bar (add/remove items). [TODO]** The on-foot quick-bar shows fixed
+  slots; the player can't choose what goes in it. Add a way to move items into/out of the quick-bar slots (e.g.
+  drag from the inventory, or an assign action) so the player controls their loadout. Where: the inventory/hotbar
+  UI (`HudUi` hotbar + the inventory panel) + the slot model. Medium (client UI + maybe a server slot-swap intent).
+- **B59 — Deleting a singleplayer world from the save picker does nothing. [TODO]** In the main menu's
+  singleplayer world list, clicking the ✕ on a world opens a Delete/Cancel dialog, but **Delete does nothing** —
+  the world isn't removed. Where: the world-picker delete handler (`AppShell`/the save-list UI → the delete
+  confirm button's action + the actual save-folder delete).
+- **Feature 40 — Terrain scanner gadget (pulse reveals nearby valuable ores, incl. underground). [TODO — analysis
+  first.]** A new equipment/gadget item: emits an energy pulse around the player and **highlights valuable
+  materials**, including **underground** ones. For a few seconds the surrounding terrain at the trigger point goes
+  briefly **"transparent"** and only the **valuable blocks in line of sight stay visible** for the effect's
+  duration. Like the item-36 gadgets (tool kind `gadget`, cooldown + suit energy) + an OpenAI icon + ElevenLabs
+  sound + a client VFX (an x-ray/see-through pass that fades terrain and keeps ore blocks opaque/glowing). Needs:
+  the gadget item/recipe/blueprint, a server `UseGadget` branch (or a client-only reveal driven by the local chunk
+  data), and the client x-ray VFX. Medium — the see-through terrain effect is the novel client piece.
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
   **failed/missing hide texture** (`CreatureBuilder.PickHide` returned null → untextured red material) and a
