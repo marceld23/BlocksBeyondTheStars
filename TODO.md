@@ -1716,7 +1716,11 @@ Client-only. *Playtest wanted.*
   the **actual target body** is directly beneath the ship and pitch the camera down to keep it framed; needs the
   landing-target body position threaded into `UpdateSequence`. Deferred so it can be tuned against the real view.
 
-### Reported-bug batch (2026-06-08, after item 38) — B41–B52
+### Reported-bug batch (2026-06-08, after item 38) — B41–B59
+**STATUS 2026-06-08:** ✅ FIXED + built + 392 tests green: **B41a/b, B42, B43, B44, B45, B46, B47, B48, B49/B56,
+B50, B51, B52, B53, B54, B57, B59** (commits f2a0cc4, b5c8a82, 2e7e691, 27afca8). ⏳ STILL OPEN (in backlog):
+**B55** (vendor stock variety — needs the barter-stock seeding investigated), **B58** (customisable hotbar — a
+bigger UI feature), **Feature 40** (terrain-scanner gadget — new feature, analysis-first).
 - **B41 — Player-ship hatch sits *lengthwise* inside the ship (not parallel to / at the opening); + suffocated
   inside the ship on an airless planet. [TODO]** Two issues on the player's own landed ship: **(a)** the hatch
   door is oriented wrong — it should sit **at the doorway opening, parallel to it**, but renders **along the ship's
