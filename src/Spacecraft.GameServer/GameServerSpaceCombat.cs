@@ -948,7 +948,29 @@ public sealed partial class GameServer
 
     // ---------------- Intent handlers ----------------
 
-    private void HandleEnterSpace(PlayerSession session) => EnterSpace(session.State.PlayerId);
+    private void HandleEnterSpace(PlayerSession session)
+    {
+        // If the player is inside the ship interior, they are parked in space (the interior is only ever
+        // entered from a space instance) — so returning to flight must SKIP the planet take-off animation and
+        // restore the ship where it was parked, exactly like the helm (B40). Only a launch from a real planet
+        // surface plays the take-off. This guards every path that fires EnterSpaceIntent, not just the helm UI.
+        if (_inShipInterior.ContainsKey(session.State.PlayerId))
+        {
+            ExitShipToFlight(session.State.PlayerId);
+            return;
+        }
+
+        EnterSpace(session.State.PlayerId);
+    }
+
+    /// <summary>Test hook: run the EnterSpaceIntent handler (covers the ship-interior skip path, B40).</summary>
+    public void HandleEnterSpaceForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            HandleEnterSpace(s);
+        }
+    }
 
     /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>
     public void LandOnBody(string playerId, string destinationBodyId)

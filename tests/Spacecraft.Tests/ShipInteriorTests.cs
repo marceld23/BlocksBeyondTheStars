@@ -84,6 +84,27 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void LaunchToSpaceFromShipInterior_TakesTheSkipPath_NotAFreshPlanetLaunch()
+    {
+        // B40: the ship interior is only ever entered from space, so launching to space from there (whatever
+        // fires the EnterSpace intent) must return to flight via the skip-take-off path — never replay the
+        // planet take-off. The intent handler now routes a player in the interior through ExitShipToFlight.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            server.EnterShipInterior("Pilot");
+            Assert.True(server.InShipInterior("Pilot"));
+
+            server.HandleEnterSpaceForTest("Pilot"); // the menu "Launch into space" intent
+
+            Assert.True(server.InSpace("Pilot"));         // back in the flight view
+            Assert.False(server.InShipInterior("Pilot")); // exited cleanly via the skip path, not a fresh launch
+        }
+    }
+
+    [Fact]
     public void UsingTheCockpitInsideTheShip_TakesTheHelm()
     {
         var server = Started(out var repo);

@@ -1684,7 +1684,8 @@ Client-only. *Playtest wanted.*
   `StreamChunks_SendsThePlayersOwnChunkFirst_…`); the settle change is client-side. **Playtest:** start several new
   games / land on fresh worlds and confirm you always settle onto the surface (never fall into space / hang).
 - **B40 — "Launch to space" from the ship while already in space replays the planet take-off animation; and the
-  planet landing/take-off animation isn't oriented to the planet. [VALID — reported 2026-06-08]** Two related
+  planet landing/take-off animation isn't oriented to the planet. [(a) FIXED 2026-06-08; (b) OPEN — needs
+  playtest iteration]** Two related
   flight-animation issues. **(a)** When you're **already flying in space**, step **into the ship interior**, and
   pick **"Launch to space"** in the menu, the **planetary take-off animation plays** (ship rising as if leaving a
   surface) — but you came from space, so it should **skip the take-off** and just return to the flight view. Item
@@ -1699,6 +1700,21 @@ Client-only. *Playtest wanted.*
   motion makes sense (point the descent/ascent along the planet direction). Where: the space-view landing/launch
   sequence in `SpaceView` (the `Phase.Landing` descent + the launch/take-off path) + how the planet body is
   positioned relative to the ship in that view. Medium; (a) is the clearer bug, (b) is a polish/orientation pass.
+  **(a) FIXED 2026-06-08:** the ship interior is **only ever entered from a space instance** (`EnterShipInterior`
+  requires one), so launching to space from there must always skip the take-off. The client already shows the
+  **helm** there (skips), but the server's `EnterSpaceIntent` handler (`HandleEnterSpace`) always used
+  `skipLaunch=false`. Now `HandleEnterSpace` routes a player who is `_inShipInterior` through `ExitShipToFlight`
+  (restores the parked ship position + `skipLaunch:true`) — so **every** path that fires the intent from the
+  interior skips the take-off; only a launch from a real planet surface animates. Test:
+  `LaunchToSpaceFromShipInterior_TakesTheSkipPath_NotAFreshPlanetLaunch` (380 green). **(b) STILL OPEN —
+  needs live playtest iteration:** the up/down motion is fine, but framing the **planet beneath the ship** during
+  the sequence is a camera/orientation choreography problem I can't tune blind. The home planet *is* placed below
+  (`SpaceView` `homePos = (0,-150,-20)`) and the ship moves straight in `_root` Y, but the third-person camera
+  looks ~forward at the ship (so the planet sits low/off-frame), and when you **land on a body you flew *to*** (E),
+  that body is at its orbit position — **not below** — so the vertical descent doesn't point at it (the reported
+  "planet in front"). *Plan when tackled (with playtest):* at the start of `Phase.Landing`/`Launch`, reorient so
+  the **actual target body** is directly beneath the ship and pitch the camera down to keep it framed; needs the
+  landing-target body position threaded into `UpdateSequence`. Deferred so it can be tuned against the real view.
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
   **failed/missing hide texture** (`CreatureBuilder.PickHide` returned null → untextured red material) and a
