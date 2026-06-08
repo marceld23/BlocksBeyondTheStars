@@ -1683,7 +1683,22 @@ Client-only. *Playtest wanted.*
   cover the safety net (`RuntimeRescue_PullsAPlummetingPlayer_BackToSafeGround`, `JoinGuard_…`,
   `StreamChunks_SendsThePlayersOwnChunkFirst_…`); the settle change is client-side. **Playtest:** start several new
   games / land on fresh worlds and confirm you always settle onto the surface (never fall into space / hang).
-- **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
+- **B40 — "Launch to space" from the ship while already in space replays the planet take-off animation; and the
+  planet landing/take-off animation isn't oriented to the planet. [VALID — reported 2026-06-08]** Two related
+  flight-animation issues. **(a)** When you're **already flying in space**, step **into the ship interior**, and
+  pick **"Launch to space"** in the menu, the **planetary take-off animation plays** (ship rising as if leaving a
+  surface) — but you came from space, so it should **skip the take-off** and just return to the flight view. Item
+  **5e** already added a **`SpaceState.SkipLaunch`** path ("launch from inside the ship no longer plays the
+  take-off animation"; `EnterSpace(skipLaunch:true)`) — so this case is either **not taking that path** or it
+  **regressed**; *investigate* the ship-interior → launch flow (`SendEnterSpace`/`GameMenu` launch vs.
+  `EnterSpace`) and gate the take-off on "was the player actually on a planet surface?", not just "is the ship
+  stamped." **(b)** The planet **landing + take-off animations move the ship straight up (take-off) / down
+  (landing)**, which is fine — **but the planet may not be *below* the ship** (it can end up **in front of** the
+  player), so the up/down motion doesn't read as leaving/approaching the surface. *Fix:* **orient the ship (and/or
+  the camera + planet placement) before the animation** so the planet sits **beneath** the ship and the vertical
+  motion makes sense (point the descent/ascent along the planet direction). Where: the space-view landing/launch
+  sequence in `SpaceView` (the `Phase.Landing` descent + the launch/take-off path) + how the planet body is
+  positioned relative to the ship in that view. Medium; (a) is the clearer bug, (b) is a polish/orientation pass.
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
   **failed/missing hide texture** (`CreatureBuilder.PickHide` returned null → untextured red material) and a
