@@ -172,6 +172,16 @@ public sealed class ConsumeItemIntent
     public string ItemKey { get; set; } = string.Empty;
 }
 
+/// <summary>Client right-clicks a held gadget (item 36 — field medkit / stasis projector / terrain blaster).
+/// The server validates the gadget, suit energy + cooldown, then applies the keyed effect at the aim point.</summary>
+public sealed class UseGadgetIntent
+{
+    public string GadgetKey { get; set; } = string.Empty;
+    public float X { get; set; } // aim/target point (block-blast centre, stasis centre); ignored by the medkit
+    public float Y { get; set; }
+    public float Z { get; set; }
+}
+
 /// <summary>Client loots a nearby container (salvage capsule / corpse). Server validates proximity + transfers.</summary>
 public sealed class LootContainerIntent
 {

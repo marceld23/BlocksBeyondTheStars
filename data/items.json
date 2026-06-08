@@ -57,6 +57,7 @@
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "miningPower": 2.0, "energyPerUse": 0.5 } },
   { "key": "block_placer",    "nameKey": "item.block_placer.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.block_placer.desc", "tool": { "kind": "blockPlacer", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } },
+  { "key": "field_medkit",    "nameKey": "item.field_medkit.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.field_medkit.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 18.0 } },
 
   { "key": "machete",        "nameKey": "item.machete.name",        "category": "tool", "maxStack": 1, "descriptionKey": "item.machete.desc",        "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 7, "range": 3.5 } },
   { "key": "vibro_knife",    "nameKey": "item.vibro_knife.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.vibro_knife.desc",    "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 0.3, "damage": 45, "range": 3.5 } },

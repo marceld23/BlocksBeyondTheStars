@@ -1118,6 +1118,7 @@ public sealed partial class GameServer
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
+            case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;

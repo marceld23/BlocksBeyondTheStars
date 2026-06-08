@@ -125,6 +125,9 @@ public static class NetCodec
 
         // Client -> Server (Task 5 Stage 3b: storage crate deposit).
         Register(98, typeof(DepositContainerIntent));
+
+        // Client -> Server (item 36: right-click gadgets — field medkit / stasis projector / terrain blaster).
+        Register(99, typeof(UseGadgetIntent));
     }
 
     private static void Register(byte tag, Type type)

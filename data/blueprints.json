@@ -10,6 +10,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
   },
   {
+    "key": "field_medkit", "nameKey": "blueprint.field_medkit.name", "descriptionKey": "blueprint.field_medkit.desc",
+    "category": "Tools", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 6 } ]
+  },
+  {
     "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]

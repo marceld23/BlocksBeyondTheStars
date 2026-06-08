@@ -19,6 +19,10 @@ public enum ToolKind
     Scanner,
     Repair,
     Weapon,
+
+    /// <summary>A right-click-activated gadget (item 36) — field medkit, stasis projector, terrain blaster.
+    /// The specific effect is keyed by the item id in the server's gadget handler.</summary>
+    Gadget,
 }
 
 /// <summary>

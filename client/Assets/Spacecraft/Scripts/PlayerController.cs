@@ -641,6 +641,32 @@ namespace Spacecraft.Client
             }
         }
 
+        /// <summary>Right-click use of a held gadget (item 36): sends the use intent at the aim point and plays
+        /// the local effect + sound. The server validates suit energy + cooldown and applies the real effect.</summary>
+        private void UseGadget(string key)
+        {
+            if (Game?.Network == null || Camera == null)
+            {
+                return;
+            }
+
+            // Aim point: the block under the crosshair, else a point a few metres ahead of the camera.
+            Vector3 target = AimBlock(out var cell, out _, includeFluids: true)
+                ? new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f)
+                : transform.position + Camera.transform.forward * 5f;
+
+            Game.Network.SendUseGadget(key, target);
+
+            var self = transform.position + Vector3.up;
+            switch (key)
+            {
+                case "field_medkit":
+                    Weapons?.Pulse(self, new Color(0.35f, 1f, 0.5f)); // a green first-aid pulse around you
+                    ClientAudio.Instance?.Cue("medkit_heal");
+                    break;
+            }
+        }
+
         /// <summary>Fills the targeted breach cell of a crashed wreck with the selected hotbar block (server validates).</summary>
         private void RepairWreckCell()
         {
@@ -1035,6 +1061,14 @@ namespace Spacecraft.Client
                 {
                     Game.Network?.SendConsume(held);
                     ClientAudio.Instance?.Cue("eat");
+                    return;
+                }
+
+                // Right-click a held gadget (item 36) → use it: the medkit heals around you, the stasis
+                // projector + terrain blaster act at the aim point. The server validates energy + cooldown.
+                if (hdef?.Tool != null && hdef.Tool.Kind == Spacecraft.Shared.Definitions.ToolKind.Gadget)
+                {
+                    UseGadget(held);
                     return;
                 }
             }

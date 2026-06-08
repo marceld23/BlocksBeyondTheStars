@@ -145,6 +145,9 @@ namespace Spacecraft.Client
 
         public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
 
+        public void SendUseGadget(string gadgetKey, Vector3 target)
+            => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.x, Y = target.y, Z = target.z });
+
         public void SendLoadRation(string itemKey, int count) => Send(new LoadRationIntent { ItemKey = itemKey, Count = count });
 
         public void SendTeleportToShip() => Send(new TeleportToShipIntent());

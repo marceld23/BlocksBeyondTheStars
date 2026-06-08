@@ -11,7 +11,7 @@ namespace Spacecraft.Client
     /// </summary>
     public static class HeldItem
     {
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool }
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget }
 
         /// <summary>Maps the selected inventory item to a held-item kind + tint (None = empty hands).</summary>
         public static (Kind kind, Color tint) For(GameContent content, string itemKey)
@@ -43,8 +43,18 @@ namespace Spacecraft.Client
                 case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f));
                 case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f));
                 case ToolKind.Weapon: return IsRanged(itemKey) ? (Kind.Gun, GunTint(itemKey)) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f));
+                case ToolKind.Gadget: return (Kind.Gadget, GadgetTint(itemKey));
                 default: return (Kind.Tool, new Color(0.60f, 0.62f, 0.66f));
             }
+        }
+
+        /// <summary>The emitter glow colour for a gadget's held model (item 36).</summary>
+        private static Color GadgetTint(string key)
+        {
+            if (key.Contains("medkit")) return new Color(0.35f, 1f, 0.55f);   // green first-aid
+            if (key.Contains("stasis")) return new Color(0.4f, 0.8f, 1f);     // cyan stasis
+            if (key.Contains("blaster")) return new Color(1f, 0.55f, 0.25f);  // orange blast
+            return new Color(0.6f, 0.85f, 0.9f);
         }
 
         private static bool IsRanged(string key)
@@ -100,6 +110,15 @@ namespace Spacecraft.Client
                     Cube(holder.transform, new Vector3(0f, 0f, 0.06f), new Vector3(0.16f, 0.12f, 0.18f), metal);     // body
                     Cube(holder.transform, new Vector3(0f, 0.10f, 0.12f), new Vector3(0.03f, 0.10f, 0.03f), dark);   // antenna
                     Cube(holder.transform, new Vector3(0f, 0.16f, 0.12f), new Vector3(0.06f, 0.06f, 0.06f), tint);   // glowing tip
+                    break;
+
+                case Kind.Gadget:
+                    // A compact handheld emitter: a boxy body, a short barrel, and a glowing emitter tip in the
+                    // gadget's tint (green medkit / cyan stasis / orange blaster) — item 36.
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.04f), new Vector3(0.16f, 0.13f, 0.20f), metal);     // body
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.18f), new Vector3(0.08f, 0.08f, 0.12f), dark);     // barrel
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.27f), new Vector3(0.10f, 0.10f, 0.05f), tint);     // emitter glow
+                    Cube(holder.transform, new Vector3(0f, -0.12f, -0.04f), new Vector3(0.07f, 0.16f, 0.09f), dark); // grip
                     break;
 
                 default: // Tool

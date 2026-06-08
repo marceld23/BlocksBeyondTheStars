@@ -56,6 +56,7 @@ ITEMS = [
     ("toxic_berries", "a small cluster of round berries with a leaf"),
     ("emergency_ration", "a sealed silver foil ration food pack"),
     ("medpack", "a white medical kit box with a red cross"),
+    ("field_medkit", "a compact handheld medical injector gadget, white and green casing with a small red cross and a glowing green emitter tip"),
     ("oxygen_tank_1", "a small cyan compressed oxygen gas canister"),
     # Suit / wearable components
     ("suit_teleporter", "a glowing belt teleporter device with swirling portal energy"),
