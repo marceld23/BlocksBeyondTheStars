@@ -1550,6 +1550,9 @@ Client-only. *Playtest wanted.*
   finishes meshing. *Fix idea:* show the overlay the instant a travel/board/land intent is sent (before any world
   teardown), and only dismiss after the destination's chunks around the spawn have meshed (not just collider-
   settle). Medium.
+  **Re-reported 2026-06-08:** the same flash happens specifically when **docking a station, landing on a planet,
+  and boarding your own ship** — you briefly see the current planet / station / ship before the loading overlay
+  comes up. Same root + fix as above (raise the overlay the instant the dock/land/board intent is sent).
 - **B35 — Trees (flora) stand *in* the water. [FIXED 2026-06-08]** On a world the player saw **trees
   growing inside water** (submerged trunks). Almost certainly a **side-effect of B7 (upland ponds/lakes, just
   shipped)**: the flora scatter places trees from the **terrain surface height** without checking whether that
@@ -1631,6 +1634,21 @@ Client-only. *Playtest wanted.*
   species generation. The `?? 0xFFFFFF` white default only triggers if the **species is null** (a data/desync
   error, never normal spawn); that — or a `PickHide` texture-load failure — is the **B15** lead, a *separate* bug,
   not a colour-generation gap. Playtest: trees on a non-green-flora world should now match its foliage hue.
+- **B39 — New-world spawn sometimes fails: player falls in space, then the loading screen hangs forever.
+  [VALID — reported 2026-06-08]** Occasionally when **generating/entering a new world** the player **doesn't spawn
+  on the surface** — instead they **fall through into the void/space** — and the **"Loading world" overlay then
+  comes up and stays stuck**, with nothing further happening (a softlock; the only way out is to quit). This is
+  worse than B34 (a *flash*): here the load **never completes**. *Likely root:* the spawn position isn't resolved
+  to solid ground for that world (placed above terrain that hasn't streamed, or in a column with no surface — cf.
+  the B7 pond / B36 landing + `EnsureSafeSpawn` / the `SurfacePlayer` open-air scan), so the player free-falls; and
+  the loading overlay's **dismiss condition is "player settles onto solid ground"** (see B34) — which **never fires
+  while they're falling in the void**, so the overlay hangs forever. *Investigate:* the new-world spawn-Y
+  resolution (does it scan for the surface / clamp onto terrain before handing control over?), `EnsureSafeSpawn`,
+  and the overlay-dismiss watchdog. *Fix ideas:* (1) make spawn **always** resolve to a solid surface cell for the
+  destination (scan down/up from the spawn column once its chunks are meshed, like the landing-zone + SurfacePlayer
+  logic), and (2) give the loading overlay a **timeout / fallback** so it can never hang indefinitely (e.g. after N
+  seconds without a settle, force a safe re-spawn or surface the player) — a softlock should never be reachable.
+  Medium; **higher priority than B34** (softlock vs cosmetic). Pairs with B34's overlay-dismiss logic.
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
