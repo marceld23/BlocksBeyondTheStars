@@ -67,6 +67,36 @@ public sealed class GadgetTests : IDisposable
     }
 
     [Fact]
+    public void TerrainBlaster_ClearsASphereOfTerrain_WithNoLoot()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Demo");
+            p.State.AboardShip = false;
+            p.State.Inventory.Add("terrain_blaster", 1, 1);
+
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var center = new Vector3i(12, 40, 12);
+            for (int dx = -2; dx <= 2; dx++)
+            for (int dy = -2; dy <= 2; dy++)
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                server.World.SetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), stone);
+            }
+
+            int stoneBefore = p.State.Inventory.CountOf("stone");
+
+            server.UseGadgetForTest("Demo", "terrain_blaster",
+                new Vector3f(center.X + 0.5f, center.Y + 0.5f, center.Z + 0.5f));
+
+            Assert.True(server.World.GetBlock(center).IsAir, "the blast clears the centre");
+            Assert.True(server.World.GetBlock(new Vector3i(center.X + 1, center.Y, center.Z)).IsAir);
+            Assert.Equal(stoneBefore, p.State.Inventory.CountOf("stone")); // a clearing blast yields no loot
+        }
+    }
+
+    [Fact]
     public void FieldMedkit_DoesNothing_WithoutTheGadget()
     {
         var server = Started(out var repo);

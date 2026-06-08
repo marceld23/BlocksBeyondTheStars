@@ -193,6 +193,8 @@
   "item.field_medkit.desc": "A reusable medkit — right-click to heal yourself and nearby teammates. Costs suit energy.",
   "item.stasis_projector.name": "Stasis Projector",
   "item.stasis_projector.desc": "Right-click to freeze nearby creatures in stasis for a few seconds — long enough to scan them safely. Costs suit energy.",
+  "item.terrain_blaster.name": "Terrain Blaster",
+  "item.terrain_blaster.desc": "Right-click to blast a sphere of terrain to rubble — fast clearing, but it yields no materials. Costs suit energy.",
 
   "blueprint.oxygen_tank_1.name": "Oxygen Tank I",
   "blueprint.oxygen_tank_1.desc": "Unlocks crafting of the first oxygen tank upgrade.",
@@ -202,6 +204,8 @@
   "blueprint.field_medkit.desc": "Unlocks the field medkit: a reusable area heal for you and nearby allies.",
   "blueprint.stasis_projector.name": "Stasis Projector",
   "blueprint.stasis_projector.desc": "Unlocks the stasis projector: briefly freezes creatures so you can scan them without being attacked.",
+  "blueprint.terrain_blaster.name": "Terrain Blaster",
+  "blueprint.terrain_blaster.desc": "Unlocks the terrain blaster: clears a large sphere of terrain at once (no drops).",
   "blueprint.cargo_expansion_1.name": "Cargo Expansion I",
   "blueprint.cargo_expansion_1.desc": "Unlocks the first cargo hold expansion.",
   "blueprint.refinery.name": "Refinery",

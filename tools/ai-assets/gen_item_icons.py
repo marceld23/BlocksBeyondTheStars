@@ -58,6 +58,7 @@ ITEMS = [
     ("medpack", "a white medical kit box with a red cross"),
     ("field_medkit", "a compact handheld medical injector gadget, white and green casing with a small red cross and a glowing green emitter tip"),
     ("stasis_projector", "a sleek handheld sci-fi stasis projector gun, dark metal with a glowing cyan crystal emitter and faint blue energy rings"),
+    ("terrain_blaster", "a chunky heavy handheld sci-fi terrain blaster cannon, dark armoured metal with glowing orange energy vents and a wide barrel muzzle"),
     ("oxygen_tank_1", "a small cyan compressed oxygen gas canister"),
     # Suit / wearable components
     ("suit_teleporter", "a glowing belt teleporter device with swirling portal energy"),

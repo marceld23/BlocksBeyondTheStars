@@ -3,6 +3,8 @@ using System.Linq;
 using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Primitives;
+using Spacecraft.Shared.World;
 
 namespace Spacecraft.GameServer;
 
@@ -26,6 +28,10 @@ public sealed partial class GameServer
     private const float StasisRadius = 7f;       // creatures within this of the aim point are frozen
     private const double StasisDuration = 6.0;   // seconds a creature stays in stasis (scan window)
     private const double StasisCooldown = 6.0;
+
+    // --- balance: terrain blaster ---
+    private const int BlasterRadius = 3;         // sphere radius (blocks) — a sizeable crater (~120 blocks)
+    private const double BlasterCooldown = 3.0;
 
     private void HandleUseGadget(PlayerSession session, UseGadgetIntent intent)
     {
@@ -66,6 +72,10 @@ public sealed partial class GameServer
             case "stasis_projector":
                 UseStasisProjector(target);
                 cooldown = StasisCooldown;
+                break;
+            case "terrain_blaster":
+                UseTerrainBlaster(session, target);
+                cooldown = BlasterCooldown;
                 break;
             default:
                 Reject(session, "gadget", "Unknown gadget.");
@@ -132,6 +142,51 @@ public sealed partial class GameServer
     /// <summary>Test hook: seconds a creature is still frozen (0 = not frozen).</summary>
     public double CreatureFrozenForTest(string creatureId)
         => _creatures.FirstOrDefault(c => c.Id == creatureId)?.FrozenTimer ?? 0;
+
+    /// <summary>Destroys a sphere of mineable, unprotected terrain around the aim point (item 36) — a clearing
+    /// blast with <b>no loot</b> (so it can't out-mine a drill). Respects ship / settlement / station / other
+    /// players' landing-zone protection and leaves indestructible blocks alone.</summary>
+    private void UseTerrainBlaster(PlayerSession session, Vector3f target)
+    {
+        var center = WorldConstants.CanonicalBlock(new Vector3i(
+            (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)));
+
+        for (int dx = -BlasterRadius; dx <= BlasterRadius; dx++)
+        for (int dy = -BlasterRadius; dy <= BlasterRadius; dy++)
+        for (int dz = -BlasterRadius; dz <= BlasterRadius; dz++)
+        {
+            if (dx * dx + dy * dy + dz * dz > BlasterRadius * BlasterRadius)
+            {
+                continue; // carve a sphere, not a cube
+            }
+
+            var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz));
+            var b = _world.GetBlock(p);
+            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p))
+            {
+                continue;
+            }
+
+            var d = _world.Definition(b);
+            if (d is null || !d.Mineable)
+            {
+                continue; // leave bedrock / indestructible blocks intact
+            }
+
+            if (!session.State.IsAdmin && IsLandingZoneBlockedForOther(session.State.PlayerId, p))
+            {
+                continue;
+            }
+
+            _world.SetBlock(p, BlockId.Air);
+            _miningProgress.Remove(p);
+            BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
+            if (IsFluid(b.Value) || HasFluidNeighbor(p))
+            {
+                OnFluidRemoved(p); // a hole opened in/under water or lava refills
+            }
+        }
+    }
 
     /// <summary>Test hook: how many seconds until the gadget is usable again for this player (0 = ready).</summary>
     public double GadgetCooldownForTest(string playerId, string gadgetKey)

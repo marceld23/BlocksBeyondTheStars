@@ -1866,7 +1866,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    too (a consistent sci-fi look). **Playtest:** walk up to the ship hatch — it slides open with a blue field you
    can walk through, and sits centred on the rear wall.
 36. **New gadget items + ship systems: medpack, stasis projector, terrain blaster (with their own sounds,
-   textures and visual effects).** *(Analysis first. Backlog only — not started, requested 2026-06-08.)* Three new
+   textures and visual effects). [✅ DONE 2026-06-08 — playtest]** *(Analysis first.)* Three new
    craftable gadgets: **(a) Medpack** — heal **yourself and other players** (a use-on-self + aim-at-ally heal, a
    chunk of HP, consumable or charged). **(b) Stasis projector** — a beam that **briefly "freezes" a creature**
    (suspends its movement/AI for a few seconds) so you can **scan it safely** at close range. **(c) Terrain
@@ -1879,6 +1879,19 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    (keys in `tools/ai-assets/.env`, run via `uv`). Big — best split into three sub-items (one gadget at a time),
    each its own pass (item + assets + VFX + tests). *(Stasis pairs with the scan system; the blaster must honour
    the same protection checks as mining so it can't grief towns/other players' zones.)*
+   **SHIPPED 2026-06-08 (3 commits, design via AskUserQuestion).** All three are **reusable, blueprint-gated
+   gadgets** that right-click at the aim point, cost **suit energy** with a per-player **cooldown** (a shared
+   `ToolKind.Gadget` + `UseGadgetIntent` + `HandleUseGadget` framework; the medpack decision: the existing basic
+   medpack stays a self-heal consumable, this is the separate area-heal gadget). **(a) Field medkit** — heals you
+   + every on-foot ally within 6 blocks (+45 HP), green pulse VFX + heal chime. **(b) Stasis projector** — freezes
+   creatures within 7 blocks for 6 s (no movement, no biting → safe to scan); icy-blue stasis shell + `NetCreature.
+   Frozen`; cyan burst VFX. **(c) Terrain blaster** — clears a radius-3 sphere of terrain to air **with no loot**
+   (chosen for balance — not a super-miner), honouring ship/settlement/station/landing-zone protection + leaving
+   indestructible blocks, broadcasting `BlockChanged` per cell + waking fluids; orange detonation + debris VFX.
+   Each has an **OpenAI icon**, an **ElevenLabs sound**, a handheld emitter held-model, DE/EN locale, and a test
+   (`FieldMedkit_…`, `StasisProjector_…`, `TerrainBlaster_…`); 384 green. *VFX are local-to-user for now;
+   multiplayer-visible gadget flashes could be a follow-up.* Playtest: unlock + craft each at a workshop, then
+   right-click — heal a teammate, freeze + scan a creature, blast a crater.
 37. **Craftable radio beacon — a placeable block that appears as a labelled point on the map + minimap.**
    *(Analysis first. Backlog only — not started, requested 2026-06-08.)* A **craftable, placeable block** the
    player drops on a planet; once placed it shows up on the **world map** and the **minimap** as **its own point**

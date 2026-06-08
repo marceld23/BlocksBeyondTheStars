@@ -668,6 +668,11 @@ namespace Spacecraft.Client
                     Weapons?.Pulse(target, new Color(0.4f, 0.8f, 1f)); // a cyan stasis burst at the aim point
                     ClientAudio.Instance?.At("stasis_activate", target);
                     break;
+                case "terrain_blaster":
+                    Weapons?.Flash(target, new Color(1f, 0.6f, 0.2f), 1.3f);  // an orange detonation flash
+                    Weapons?.Sparks(target, new Color(1f, 0.5f, 0.2f), 18);   // flying rubble/debris
+                    ClientAudio.Instance?.At("terrain_blast", target);
+                    break;
             }
         }
 
