@@ -4,16 +4,18 @@ using Spacecraft.Persistence;
 using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.Primitives;
 using Xunit;
 using SvGameServer = Spacecraft.GameServer.GameServer;
 
 namespace Spacecraft.Tests;
 
 /// <summary>
-/// Spawn safety: the world has no bedrock floor, so a player below the terrain with nothing under them
-/// would fall forever — and their position is persisted + restored verbatim, so one fall can poison a save.
-/// Two guards close that loop: a join-time check that snaps a void position back to safe ground, and a
-/// runtime rescue that recovers anyone caught plummeting before the fall can be saved.
+/// Spawn safety: a player below the terrain with nothing under them (a deep cave/shaft) would fall, and their
+/// position is persisted + restored verbatim, so one fall can poison a save. Two guards close that loop: a
+/// join-time check that snaps a void position back to safe ground, and a runtime rescue that recovers anyone
+/// caught plummeting. (Since B46 the world also has a bedrock floor, so these tests carve an artificial shaft
+/// to reproduce a fall-into-void.)
 /// </summary>
 public sealed class SpawnSafetyTests : IDisposable
 {
@@ -41,20 +43,25 @@ public sealed class SpawnSafetyTests : IDisposable
         return server;
     }
 
-    /// <summary>Finds a Y in the player's own column that the server considers "the void" (well below the
-    /// terrain with nothing to stand on) — the shape of a position persisted mid-fall.</summary>
-    private static Vector3f FindVoidBelow(SvGameServer server, Vector3f from)
+    /// <summary>Carves a deep air shaft in the player's column and returns a position in it the server counts as
+    /// "the void" (well below the terrain with nothing within reach below) — the shape of a position persisted
+    /// mid-fall. The world has a bedrock floor (B46), so the void has to be made, not found.</summary>
+    private static Vector3f MakeVoidBelow(SvGameServer server, Vector3f from)
     {
-        for (int y = (int)from.Y - 20; y > -5000; y -= 24)
+        int bx = (int)System.Math.Floor(from.X), bz = (int)System.Math.Floor(from.Z);
+        int top = (int)from.Y;
+        for (int y = top; y > top - 160; y--)
         {
-            var probe = new Vector3f(from.X, y, from.Z);
-            if (server.IsInVoidForTest(probe))
-            {
-                return probe;
-            }
+            server.World.SetBlock(new Vector3i(bx, y, bz), BlockId.Air); // a deep, empty shaft (clears terrain + floor)
         }
 
-        throw new Xunit.Sdk.XunitException("No void Y found below the surface — the world should have a bottom.");
+        var voidPos = new Vector3f(from.X, top - 50, from.Z); // mid-shaft: far below the surface, no ground within reach
+        if (!server.IsInVoidForTest(voidPos))
+        {
+            throw new Xunit.Sdk.XunitException("The carved shaft should read as the void.");
+        }
+
+        return voidPos;
     }
 
     [Fact]
@@ -68,7 +75,7 @@ public sealed class SpawnSafetyTests : IDisposable
             Assert.False(server.IsInVoidForTest(spawn)); // a fresh spawn is safe
 
             // Drop them into the void, as a runaway fall would.
-            var voidPos = FindVoidBelow(server, spawn);
+            var voidPos = MakeVoidBelow(server, spawn);
             p.State.Position = voidPos;
             Assert.True(server.IsInVoidForTest(p.State.Position));
 
@@ -90,7 +97,7 @@ public sealed class SpawnSafetyTests : IDisposable
             var spawn = p.State.Position;
 
             // Simulate a poisoned save: their stored position is deep in the void.
-            var voidPos = FindVoidBelow(server, spawn);
+            var voidPos = MakeVoidBelow(server, spawn);
             p.State.Position = voidPos;
             p.State.RespawnPoint = voidPos;
 

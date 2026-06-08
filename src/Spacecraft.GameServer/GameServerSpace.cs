@@ -104,11 +104,9 @@ public sealed partial class GameServer
     private bool LandingFootprintWet(int cx, int cz)
     {
         int r = LandingPadRadius;
-        return _generator.IsSurfaceWater(_world.Planet, cx, cz)
-            || _generator.IsSurfaceWater(_world.Planet, cx - r, cz)
-            || _generator.IsSurfaceWater(_world.Planet, cx + r, cz)
-            || _generator.IsSurfaceWater(_world.Planet, cx, cz - r)
-            || _generator.IsSurfaceWater(_world.Planet, cx, cz + r);
+        // Avoid BOTH a water sea/pond and a lava sea — a ship should never touch down in either (B36/B54).
+        bool Wet(int x, int z) => _generator.IsSurfaceWater(_world.Planet, x, z) || _generator.IsSurfaceLava(_world.Planet, x, z);
+        return Wet(cx, cz) || Wet(cx - r, cz) || Wet(cx + r, cz) || Wet(cx, cz - r) || Wet(cx, cz + r);
     }
 
     // --- live occupancy (derived from sessions, never persisted) ---

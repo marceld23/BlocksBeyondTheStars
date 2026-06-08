@@ -221,15 +221,20 @@ public sealed class WorldGenerator
             return (level, water.NumericId);
         }
 
-        // Watery worlds get no surface lava; only dry volcanic/airless worlds pool lava in their basins.
+        // Watery worlds get no surface lava; only dry volcanic/airless worlds pool lava in their basins. The
+        // level sits around the average surface so lava is actually VISIBLE across the low + mid terrain — not
+        // hidden in a few deep pits — with mountains poking out as basalt islands (B54).
         if (waterAb <= 0.0 && lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
         {
-            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.8) * planet.Amplitude);
+            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.7) * planet.Amplitude);
             return (level, lava.NumericId);
         }
 
         return (int.MinValue, BlockId.Air);
     }
+
+    private const int WorldFloorDepth = 80;   // blocks below the surface where the unmineable bedrock floor sits (B46)
+    private const int LavaFloorThickness = 3; // a lava band this thick sits just above the bedrock on real planets
 
     private const int PondMaxDepth = 5;     // deepest carve at a pond's centre (≥2 is swimmable)
     private const double PondBand = 0.10;   // mask range from "rim" (depth 0) to "centre" (full depth)
@@ -297,6 +302,15 @@ public sealed class WorldGenerator
         return SurfacePondDepth(planet, worldX, worldZ) > 0; // inside an upland pond
     }
 
+    /// <summary>True if this surface column is under a LAVA sea — so a ship landing avoids it too (B54), the
+    /// same way it avoids water.</summary>
+    public bool IsSurfaceLava(PlanetType planet, int worldX, int worldZ)
+    {
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
+        return seaFluid == lavaId && !lavaId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
+    }
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
@@ -313,6 +327,12 @@ public sealed class WorldGenerator
         var deepId = ResolveBlock(planet.DeepBlock);
         var dataCacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
         bool flora = planet.FloraDensity > 0;
+
+        // World floor (B46): an unmineable bedrock layer bounds the dig depth so a player can't fall forever.
+        // On real planets a band of lava sits just above it; airless moons + asteroids get solid rock instead.
+        var bedrockId = _content.GetBlock("bedrock")?.NumericId ?? deepId;
+        var lavaFloorId = _content.GetBlock("lava")?.NumericId ?? bedrockId;
+        bool airlessBody = planet.Cratered || _crateredWorld;
 
         // Surface seas: water fills terrain basins on worlds with an atmosphere; lava fills them on
         // volcanic / airless worlds (never both). A higher abundance raises the sea level so more low
@@ -394,6 +414,20 @@ public sealed class WorldGenerator
                 }
 
                 int depth = seabedY - worldY;
+
+                // Unmineable world floor (B46): solid bedrock at the very bottom (no caves carved through it),
+                // with a lava band just above on real planets — so digging down ends in lava/rock, never a void.
+                if (depth >= WorldFloorDepth)
+                {
+                    chunk.Set(lx, ly, lz, bedrockId);
+                    continue;
+                }
+
+                if (!airlessBody && depth >= WorldFloorDepth - LavaFloorThickness)
+                {
+                    chunk.Set(lx, ly, lz, lavaFloorId);
+                    continue;
+                }
 
                 // Carve caves below the surface layer.
                 if (planet.CaveThreshold > 0 && depth > 1)

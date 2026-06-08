@@ -756,6 +756,7 @@
   "item.door_slide.name": "Schiebetür",
   "item.door_slide.desc": "Platziere sie als automatische Sci-Fi-Tür, die beim Näherkommen aufgeht. Abbauen gibt sie zurück.",
   "block.radio_beacon.name": "Funkfeuer",
+  "block.bedrock.name": "Grundgestein",
   "item.radio_beacon.name": "Funkfeuer",
   "item.radio_beacon.desc": "Platziere es als beschrifteten Wegpunkt — erscheint auf Karte und Kompass. Hingehen und E drücken zum Umbenennen; Abbauen gibt es zurück.",
   "ui.beacon.name_prompt": "Funkfeuer benennen",

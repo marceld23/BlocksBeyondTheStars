@@ -1409,7 +1409,10 @@ public sealed partial class GameServer
     }
 
     // Accumulated mining effort per block (a hard block needs several hits before it breaks).
-    private readonly Dictionary<Vector3i, float> _miningProgress = new();
+    // Mining progress per cell, tagged with the block it belongs to — so if a cell's block changes (flora
+    // regrowth, fluid flow, a structure stamp, a placed block) the leftover progress doesn't carry to the NEW
+    // block and one-shot it. A block of a given hardness then always takes the same number of hits (B52).
+    private readonly Dictionary<Vector3i, (ushort Block, float Progress)> _miningProgress = new();
 
     private const float FallSafeImpactSpeed = 14f;  // matches the client; below this a landing is harmless
     private const float FallDamagePerSpeed = 4.5f;  // health lost per unit of impact speed over the safe cap
@@ -1515,11 +1518,13 @@ public sealed partial class GameServer
         // (mud/dirt) break in one hit; hard ones (stone/metal/ore) take several. Accumulate until break.
         float hardness = System.Math.Max(0.2f, def.Hardness);
         float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
-        float progress = (_miningProgress.TryGetValue(pos, out var prev) ? prev : 0f) + power;
+        // Only keep prior progress if it was for THIS same block (else a replaced block starts fresh — B52).
+        float prior = _miningProgress.TryGetValue(pos, out var prev) && prev.Block == current.Value ? prev.Progress : 0f;
+        float progress = prior + power;
 
         if (progress + 0.0001f < hardness)
         {
-            _miningProgress[pos] = progress;
+            _miningProgress[pos] = (current.Value, progress);
             Send(session, new MiningProgress { X = pos.X, Y = pos.Y, Z = pos.Z, Fraction = progress / hardness });
             return;
         }
