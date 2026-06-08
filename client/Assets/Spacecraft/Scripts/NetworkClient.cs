@@ -205,6 +205,10 @@ namespace Spacecraft.Client
 
         public void SendTurnInMission(string missionId) => Send(new TurnInMissionIntent { MissionId = missionId });
 
+        /// <summary>Posts a player-created mission (item 31): objectives others can complete + a staked reward.</summary>
+        public void SendCreateMission(string title, string description, NetMissionObjective[] objectives, NetReward[] rewards)
+            => Send(new CreateMissionIntent { Title = title, Description = description, Objectives = objectives, Rewards = rewards });
+
         public void SendAppearance(int skin, int torso, int arms, int legs)
             => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs });
 

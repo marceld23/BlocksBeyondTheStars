@@ -151,6 +151,45 @@ public sealed class MissionTests : IDisposable
     }
 
     [Fact]
+    public void PlayerCreatedTravelMission_ProgressesWhenPlayerArrives()
+    {
+        var (server, client, repo) = Start("travelmission");
+        using (repo)
+        {
+            var p = server.Sessions[1].State;
+            p.Inventory.Add("iron_plate", 1, 99); // reward to stake
+
+            var create = new CreateMissionIntent
+            {
+                Title = "Visit Mars",
+                Description = "",
+                Objectives = new[] { new NetMissionObjective { Type = "Travel", Target = "mars", Required = 1 } },
+                Rewards = new[] { new NetReward { Item = "iron_plate", Count = 1 } },
+            };
+
+            string? createdId = null;
+            client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is MissionResult r && r.Success && r.MissionId.StartsWith("pm_")) createdId = r.MissionId; };
+
+            client.Send(NetCodec.Encode(create), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+            client.Poll();
+            Assert.NotNull(createdId);
+
+            client.Send(NetCodec.Encode(new AcceptMissionIntent { MissionId = createdId! }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            var pr = p.Missions.Single(m => m.MissionId == createdId!);
+            Assert.Equal(0, pr.ObjectiveProgress[0]); // not there yet
+
+            server.SimulateTravelForTest(server.Sessions[1], "venus", "Venus"); // wrong body — no progress
+            Assert.Equal(0, pr.ObjectiveProgress[0]);
+
+            server.SimulateTravelForTest(server.Sessions[1], "mars", "Mars");   // arrive — objective satisfied
+            Assert.Equal(1, pr.ObjectiveProgress[0]);
+        }
+    }
+
+    [Fact]
     public void MissionProgress_PersistsThroughRepository()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "persist"));

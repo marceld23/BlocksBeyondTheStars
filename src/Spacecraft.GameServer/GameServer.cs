@@ -395,6 +395,7 @@ public sealed partial class GameServer
         }
 
         var (systemName, planetName) = ActiveLocationNames();
+        OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
         var zone = EnsureLandingZone(session.State.PlayerId);
         int surfaceY = _generator.SurfaceHeight(_world.Planet, zone.CenterX, zone.CenterZ);
         var spawn = _shipStamped ? _healTank : new Vector3f(zone.CenterX + 0.5f, surfaceY + 2f, zone.CenterZ + 0.5f);

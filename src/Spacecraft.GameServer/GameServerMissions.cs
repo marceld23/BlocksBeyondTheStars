@@ -61,6 +61,38 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Called when a player lands on a body, to complete any matching Travel objective (item 31).</summary>
+    private void OnPlayerTravelled(PlayerSession session, string bodyId, string bodyName)
+    {
+        foreach (var pr in session.State.Missions)
+        {
+            if (pr.Status != MissionStatus.Active)
+            {
+                continue;
+            }
+
+            var def = GetMissionDef(pr.MissionId);
+            if (def is null)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < def.Objectives.Count && i < pr.ObjectiveProgress.Count; i++)
+            {
+                var obj = def.Objectives[i];
+                if (obj.Type == MissionObjectiveType.Travel
+                    && (obj.Target == bodyId || string.Equals(obj.Target, bodyName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    pr.ObjectiveProgress[i] = obj.Required; // arriving completes a travel objective
+                }
+            }
+        }
+    }
+
+    /// <summary>Test hook: simulate a player arriving at a celestial body, driving any Travel objectives.</summary>
+    public void SimulateTravelForTest(PlayerSession session, string bodyId, string bodyName)
+        => OnPlayerTravelled(session, bodyId, bodyName);
+
     private void HandleAcceptMission(PlayerSession session, string missionId)
     {
         var def = GetMissionDef(missionId);
@@ -155,6 +187,7 @@ public sealed partial class GameServer
         if (def.Source == MissionSource.Player)
         {
             PayoutDepot(missionId, pool);
+            RewardMissionPoster(def, session); // the poster gets a multiple of their stake back + a notice (item 31)
         }
         else
         {
@@ -193,15 +226,19 @@ public sealed partial class GameServer
         foreach (var o in intent.Objectives)
         {
             if (!Enum.TryParse<MissionObjectiveType>(o.Type, ignoreCase: true, out var type) ||
-                type is not (MissionObjectiveType.Collect or MissionObjectiveType.Mine or MissionObjectiveType.Deliver))
+                type is not (MissionObjectiveType.Collect or MissionObjectiveType.Mine
+                    or MissionObjectiveType.Deliver or MissionObjectiveType.Travel))
             {
                 MissionFail(session, "", $"Unsupported objective type '{o.Type}'.");
                 return;
             }
 
-            bool valid = type == MissionObjectiveType.Mine
-                ? _content.GetBlock(o.Target) is not null
-                : _content.GetItem(o.Target) is not null;
+            bool valid = type switch
+            {
+                MissionObjectiveType.Mine => _content.GetBlock(o.Target) is not null,
+                MissionObjectiveType.Travel => !string.IsNullOrWhiteSpace(o.Target), // a body id/name
+                _ => _content.GetItem(o.Target) is not null,
+            };
             if (!valid || o.Required < 1)
             {
                 MissionFail(session, "", $"Invalid objective target '{o.Target}'.");
@@ -267,6 +304,45 @@ public sealed partial class GameServer
         SendInventory(session);
         SendMissionList(session);
         _log.Info($"Player '{session.State.Name}' created mission '{id}'.");
+    }
+
+    /// <summary>Stake-with-multiplier payout (item 31): when someone ELSE completes a player's posted mission,
+    /// the poster gets a multiple of their staked reward back (created — a return on a fulfilled contract) plus
+    /// an in-game notice. Self-completion earns no bonus, so you can't mint items off your own mission.</summary>
+    private const float MissionPosterReturn = 1.5f;
+
+    private void RewardMissionPoster(MissionDefinition def, PlayerSession completer)
+    {
+        if (string.IsNullOrEmpty(def.CreatorId) || def.CreatorId == completer.State.PlayerId)
+        {
+            return;
+        }
+
+        var poster = FindSessionByPlayerId(def.CreatorId);
+        if (poster is null)
+        {
+            return; // offline poster — no payout this time (online-only for now)
+        }
+
+        var posterShip = poster.Ships.TryGetValue(poster.ActiveShipId, out var ps) ? ps : _noShip;
+        var posterPool = new MaterialPool(_content, poster.State, posterShip);
+        var parts = new List<string>();
+        foreach (var r in def.Rewards)
+        {
+            int back = (int)System.Math.Round(r.Count * MissionPosterReturn);
+            if (back > 0)
+            {
+                posterPool.Add(r.Item, back);
+                parts.Add($"{back}× {r.Item}");
+            }
+        }
+
+        _repo.SavePlayer(poster.State);
+        SendInventory(poster);
+        Send(poster, new ServerMessage
+        {
+            Text = $"Mission '{def.Title}' completed by {completer.State.Name} — you got back {string.Join(", ", parts)}.",
+        });
     }
 
     private void PayoutDepot(string missionId, MaterialPool pool)

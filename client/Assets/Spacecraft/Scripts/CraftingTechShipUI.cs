@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using Spacecraft.Shared.Definitions;
+using Spacecraft.Networking.Messages;
 
 namespace Spacecraft.Client
 {
@@ -34,6 +35,14 @@ namespace Spacecraft.Client
         private int _lastDataHash = -1;
         private bool _built;
         private AvatarPreviewRig _avatarPreview; // live faced-avatar preview for the colour menu (B25)
+
+        // Player-created mission form state (item 31, Missions tab "create" category).
+        private static readonly string[] PmTypes = { "Mine", "Collect", "Deliver" };
+        private static readonly string[] PmTargets = { "iron_ore", "copper_ore", "titanium_ore", "crystal", "carbon", "silicate", "stone", "ice" };
+        private static readonly string[] PmRewards = { "iron_ore", "copper_ore", "titanium_ore", "crystal", "carbon", "plant_fiber", "berries", "iron_plate" };
+        private string _pmTitle = string.Empty, _pmDesc = string.Empty;
+        private int _pmType, _pmTarget, _pmCount = 5, _pmRewardItem = 3, _pmRewardCount = 1;
+        private readonly System.Collections.Generic.List<NetMissionObjective> _pmObjectives = new();
 
         private const float W = 1920f, H = 1080f;
 
@@ -277,6 +286,7 @@ namespace Spacecraft.Client
                     list.Clear();
                     list.Add(("available", L("ui.missions.available"), "cat_mission"));
                     list.Add(("active", L("ui.missions.active"), "cat_tech"));
+                    list.Add(("create", L("ui.missions.create"), "cat_buildship"));
                     break;
                 case Mode.Map:
                     list.Clear();
@@ -546,6 +556,11 @@ namespace Spacecraft.Client
 
         private float BuildMissionsList()
         {
+            if (_category == "create")
+            {
+                return BuildMissionForm();
+            }
+
             var list = Game.Missions;
             if (list == null)
             {
@@ -563,6 +578,80 @@ namespace Spacecraft.Client
             }
 
             return y;
+        }
+
+        /// <summary>The "post a mission" form (item 31): title + description, an objectives builder (type / target /
+        /// count, add multiple), and a staked reward. Posting sends a <c>CreateMissionIntent</c>; the server
+        /// escrows the stake, and when someone else completes it the poster gets a multiple of the stake back.</summary>
+        private float BuildMissionForm()
+        {
+            var c = _listContent;
+            const float W = 780f;
+            float y = 0f;
+
+            UiKit.AddText(c, 0, y, W, 24, L("ui.missions.create_hint"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 30f;
+            UiKit.AddInput(c, 0, y, W, 42, _pmTitle, v => _pmTitle = v, L("ui.missions.title_ph"));
+            y += 50f;
+            UiKit.AddInput(c, 0, y, W, 42, _pmDesc, v => _pmDesc = v, L("ui.missions.desc_ph"));
+            y += 58f;
+
+            UiKit.AddText(c, 0, y, W, 22, L("ui.missions.objectives"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 28f;
+            for (int i = 0; i < _pmObjectives.Count; i++)
+            {
+                int idx = i;
+                var o = _pmObjectives[i];
+                UiKit.AddText(c, 12, y, 600, 32, $"{o.Type}  {o.Required}× {ItemName(o.Target)}", 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddButton(c, 700, y, 60, 32, "✕", () => { _pmObjectives.RemoveAt(idx); RebuildList(); });
+                y += 38f;
+            }
+
+            // Builder row: type / target / count / add.
+            UiKit.AddButton(c, 0, y, 150, 38, PmTypes[_pmType], () => { _pmType = (_pmType + 1) % PmTypes.Length; RebuildList(); });
+            UiKit.AddButton(c, 158, y, 210, 38, ItemName(PmTargets[_pmTarget]), () => { _pmTarget = (_pmTarget + 1) % PmTargets.Length; RebuildList(); });
+            UiKit.AddButton(c, 376, y, 44, 38, "−", () => { _pmCount = Mathf.Max(1, _pmCount - 1); RebuildList(); });
+            UiKit.AddText(c, 422, y, 54, 38, _pmCount.ToString(), 20, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(c, 478, y, 44, 38, "+", () => { _pmCount++; RebuildList(); });
+            UiKit.AddButton(c, 560, y, 200, 38, L("ui.missions.add_objective"), () =>
+            {
+                _pmObjectives.Add(new NetMissionObjective { Type = PmTypes[_pmType], Target = PmTargets[_pmTarget], Required = _pmCount });
+                RebuildList();
+            });
+            y += 56f;
+
+            UiKit.AddText(c, 0, y, W, 22, L("ui.missions.stake"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 28f;
+            UiKit.AddButton(c, 0, y, 210, 38, ItemName(PmRewards[_pmRewardItem]), () => { _pmRewardItem = (_pmRewardItem + 1) % PmRewards.Length; RebuildList(); });
+            UiKit.AddButton(c, 218, y, 44, 38, "−", () => { _pmRewardCount = Mathf.Max(1, _pmRewardCount - 1); RebuildList(); });
+            UiKit.AddText(c, 264, y, 54, 38, _pmRewardCount.ToString(), 20, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(c, 320, y, 44, 38, "+", () => { _pmRewardCount++; RebuildList(); });
+            UiKit.AddText(c, 380, y, 380, 38, $"(×{Owned(PmRewards[_pmRewardItem])})", 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 58f;
+
+            var post = UiKit.AddButton(c, 0, y, 320, 50, L("ui.missions.post"), PostMission);
+            post.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+            y += 60f;
+            return y;
+        }
+
+        private void PostMission()
+        {
+            if (string.IsNullOrWhiteSpace(_pmTitle) || _pmObjectives.Count == 0)
+            {
+                if (_feedback != null) _feedback.text = L("ui.missions.need_fields");
+                return;
+            }
+
+            var rewards = new[] { new NetReward { Item = PmRewards[_pmRewardItem], Count = _pmRewardCount } };
+            Game.Network?.SendCreateMission(_pmTitle, _pmDesc, _pmObjectives.ToArray(), rewards);
+            _pmObjectives.Clear();
+            _pmTitle = string.Empty;
+            _pmDesc = string.Empty;
+            _category = "available"; // jump to the board so the poster sees it appear
+            Game.Network?.SendRequestMissions();
+            RebuildList();
+            RebuildSidebar();
         }
 
         private float BuildCharacterList()

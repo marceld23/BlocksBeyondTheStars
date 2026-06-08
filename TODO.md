@@ -1606,6 +1606,29 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    mission board + `GameServerMissions`/`StoredMission` persistence (admin/player-created missions already persist)
    + the NPC-memory/relationship hooks. Needs: a post-mission UI, objective tracking + verification, the
    stake/escrow + payout, and cross-player notification. Big-ish.
+   **Analysis 2026-06-07 — most of the SERVER already exists:** `CreateMissionIntent` (NetCodec 13) →
+   `GameServerMissions.HandleCreateMission` makes a `MissionDefinition{Source=Player, CreatorId, Objectives,
+   Rewards}`, **escrows the reward** into a depot `StoredContainer`, persists via `_repo.SaveMission`; `Accept`/
+   `TurnIn` verify objectives (`OnBlockMined` tracks **Mine**; Collect/Deliver checked at turn-in) and pay the
+   completer from the depot (`PayoutDepot`). **Missing:** (1) a **client UI to POST a mission** (the form — title,
+   description, objectives, reward stake); (2) **notify the poster** when completed (+ the "multiple of stake"
+   payout); (3) **Travel** objective tracking (only Mine is hooked). Plan: build the post-mission form in the
+   Missions tab (a "+ New" view), add a poster-notification (`ServerMessage`/a small notice) + the chosen payout
+   on turn-in, and hook `HandleTravel`/landing for Travel objectives. Reuses the existing messages — no NetCodec
+   change for posting.
+   **[DONE 2026-06-08 — "Einsatz mit Multiplikator" payout.]** Shipped the three missing pieces:
+   (1) **Post-mission form** — a new "**Post a mission**" entry in the Missions sidebar (`CraftingTechShipUI.
+   BuildMissionForm`): title + optional description inputs, an **objectives builder** (cycle type Mine/Collect/
+   Deliver × target material × count, **+ Add** to stage several, ✕ to remove) and a **stake** (reward item +
+   count); **Post** sends `CreateMissionIntent` (`NetworkClient.SendCreateMission`). (2) **Poster payout +
+   notice** — `GameServerMissions.RewardMissionPoster` pays the poster **1.5× their staked reward** on turn-in
+   (rounded, online posters only) and sends a `ServerMessage` notice; **self-completion earns no bonus**
+   (`CreatorId == completer` guard) so you can't mint items off your own mission. (3) **Travel objective
+   tracking** — `OnPlayerTravelled` (hooked after `ActiveLocationNames()` on arrival) completes any matching
+   **Travel** objective; `HandleCreateMission` now accepts Travel objectives. Tests: existing
+   `PlayerCreatedMission_…` (escrow + self-turn-in, implicitly the no-self-bonus guard) +
+   `PlayerCreatedTravelMission_ProgressesWhenPlayerArrives`. **Playtest:** post a mission from the Missions tab,
+   have a second player complete it, confirm the poster gets 1.5× back + the notice.
 32. **Choose a ship hull colour (tints the hull texture), changeable in the in-game menu.** *(Analysis first.)*
    Let the player pick a **colour** that **tints the ship's hull texture**, set from the **in-game menu**. The
    ship already renders its hull with a textured material (`SpaceView.BuildShip` + the remote avatars use `LitTex`
