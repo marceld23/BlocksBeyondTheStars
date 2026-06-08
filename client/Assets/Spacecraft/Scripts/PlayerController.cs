@@ -49,6 +49,7 @@ namespace Spacecraft.Client
         private Vector3 _spawnPos;
         private bool _settling;
         private float _settleTimer; // how long we've been frozen at spawn waiting for the floor to stream
+        private bool _worldRevealed; // settle: has the loading overlay been dismissed for this spawn yet
         private bool _wasGrounded = true;
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
@@ -131,6 +132,7 @@ namespace Spacecraft.Client
                 _spawned = true;
                 _settling = true; // hold at spawn until the ground/ship chunk streams in
                 _settleTimer = 0f;
+                _worldRevealed = false;
             }
 
             // On death the server respawns us at the ship's heal-tank — teleport the body there.
@@ -141,6 +143,7 @@ namespace Spacecraft.Client
                 Game.RespawnTarget = null;
                 _settling = true; // hold at the heal-tank until its chunk is streamed
                 _settleTimer = 0f;
+                _worldRevealed = false;
             }
 
             // Hold the player frozen at the spawn (no gravity, no control, no movement sent) until the
@@ -155,15 +158,29 @@ namespace Spacecraft.Client
                 // Solid ground loaded somewhere below the spawn? (the chunk's MeshCollider exists)
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
                                    && gHit.collider != _controller;
-                if (groundBelow || _settleTimer > 20f) // hold longer so a slow chunk-load can't drop us into a cave
+
+                // Reveal the world (dismiss the loading overlay) as soon as the ground is under us, or after a
+                // short grace period even if the spawn chunk is still catching up — so the overlay never overstays
+                // and the player isn't left staring at a "Loading world" screen (B39).
+                if (!_worldRevealed && (groundBelow || _settleTimer > 8f))
+                {
+                    _worldRevealed = true;
+                    Game.NotifyWorldReady();
+                }
+
+                // Release on-foot control ONLY once there is real ground under the spawn — never drop the player
+                // into the bottomless void if the chunk is late (the B39 softlock was an unconditional release
+                // that let a slow spawn-chunk become an endless fall). As an absolute last resort after a long
+                // wait, release anyway and let the server's runtime void-rescue teleport us back to safe ground,
+                // so a never-arriving chunk can't freeze us at spawn forever either.
+                if (groundBelow || _settleTimer > 30f)
                 {
                     _settling = false;
                     _settleTimer = 0f;
-                    Game.NotifyWorldReady(); // ground is under us — let the loading overlay reveal the world
                 }
                 else
                 {
-                    return; // stay frozen this frame
+                    return; // stay frozen at spawn (no fall) until the ground chunk streams in
                 }
             }
 

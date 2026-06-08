@@ -1635,7 +1635,7 @@ Client-only. *Playtest wanted.*
   error, never normal spawn); that — or a `PickHide` texture-load failure — is the **B15** lead, a *separate* bug,
   not a colour-generation gap. Playtest: trees on a non-green-flora world should now match its foliage hue.
 - **B39 — New-world spawn sometimes fails: player falls in space, then the loading screen hangs forever.
-  [VALID — reported 2026-06-08]** Occasionally when **generating/entering a new world** the player **doesn't spawn
+  [FIXED 2026-06-08]** Occasionally when **generating/entering a new world** the player **doesn't spawn
   on the surface** — instead they **fall through into the void/space** — and the **"Loading world" overlay then
   comes up and stays stuck**, with nothing further happening (a softlock; the only way out is to quit). This is
   worse than B34 (a *flash*): here the load **never completes**. *Likely root:* the spawn position isn't resolved
@@ -1649,6 +1649,19 @@ Client-only. *Playtest wanted.*
   logic), and (2) give the loading overlay a **timeout / fallback** so it can never hang indefinitely (e.g. after N
   seconds without a settle, force a safe re-spawn or surface the player) — a softlock should never be reachable.
   Medium; **higher priority than B34** (softlock vs cosmetic). Pairs with B34's overlay-dismiss logic.
+  **ROOT FOUND + FIXED 2026-06-08:** the server already (a) streams the **spawn's own chunk nearest-first** so
+  ground arrives fast (`StreamChunks`, tested) and (b) runs a **runtime void-rescue** every 1 s + a join-time guard
+  (`GameServerSpawnSafety`, tested). The hole was on the **client**: `PlayerController` froze the player at spawn
+  until ground streamed in, but after a **20 s timeout it released them UNCONDITIONALLY** — so when a fresh world's
+  spawn chunk was slow, the freeze ended with **nothing under them → an endless fall**, and the overlay
+  (dismissed by that same release) revealed an empty void. Fix (client): the settle-freeze now **never drops the
+  player into the void** — it **reveals the world** (dismisses the overlay) after ≤8 s so the screen never
+  overstays, but **holds the player at spawn until there is real ground below**; only as an absolute last resort
+  (30 s) does it release, and then the server's runtime void-rescue immediately teleports them back to safe ground.
+  So a slow/never-arriving chunk can no longer become either an endless fall or a frozen softlock. Server tests
+  cover the safety net (`RuntimeRescue_PullsAPlummetingPlayer_BackToSafeGround`, `JoinGuard_…`,
+  `StreamChunks_SendsThePlayersOwnChunkFirst_…`); the settle change is client-side. **Playtest:** start several new
+  games / land on fresh worlds and confirm you always settle onto the surface (never fall into space / hang).
 - **B15 update (red 2-block thing — now leaning "creature"):** it **damages you on touch** and **can't be
   scanned**, **no texture**. **User's read (2026-06-07): it's a creature, not lava** — lava wouldn't spawn as a
   lone two-block thing. So most likely a **hostile fauna creature** rendered **red** (hostile tint) with a
