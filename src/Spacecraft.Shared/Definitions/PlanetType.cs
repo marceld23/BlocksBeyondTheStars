@@ -40,6 +40,10 @@ public sealed class PlanetType
     /// <summary>Horizontal feature scale; larger = smoother, broader terrain.</summary>
     public double TerrainScale { get; set; } = 48.0;
 
+    /// <summary>Airless barren bodies (landable asteroids, and — set per-world — airless moons): replace the
+    /// rolling terrain with mostly flat regolith pocked with round impact craters (item 33).</summary>
+    public bool Cratered { get; set; }
+
     public string SurfaceBlock { get; set; } = "dirt";
     public string SubSurfaceBlock { get; set; } = "dirt";
     public string DeepBlock { get; set; } = "stone";

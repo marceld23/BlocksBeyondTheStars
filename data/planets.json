@@ -136,7 +136,7 @@
   },
   {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
-    "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0,
+    "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "crystal", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.68, "dataCacheRarity": 0.0024,
     "weather": "clear", "stormChance": 0.0, "dayLengthSeconds": 700, "worldRadius": 220, "floraDensity": 0.0, "creatureAbundance": "none",

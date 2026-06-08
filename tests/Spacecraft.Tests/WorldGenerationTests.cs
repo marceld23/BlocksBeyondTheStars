@@ -27,6 +27,62 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void CrateredWorld_FlatRegolithWithPits_AndRareMetalInSomeCraters()
+    {
+        // Item 33: landable asteroids (and airless moons) are mostly flat regolith pocked with round impact
+        // craters; some crater floors expose a few clumps of rare metal.
+        var content = Content();
+        var asteroid = content.GetPlanet("asteroid")!;
+        Assert.True(asteroid.Cratered, "the asteroid type is cratered");
+        var gen = new WorldGenerator(5, content);
+
+        var metals = new System.Collections.Generic.HashSet<BlockId>();
+        foreach (var k in new[] { "titanium_ore", "gold_ore", "platinum_ore", "cobalt_ore", "uranium_ore", "tungsten_ore", "neodymium_ore" })
+        {
+            metals.Add(content.GetBlock(k)!.NumericId);
+        }
+
+        int baseH = asteroid.BaseHeight, cs = WorldConstants.ChunkSize;
+        int minH = int.MaxValue, flat = 0, total = 0, metalCols = 0, surfaceCols = 0;
+
+        for (int cx = 0; cx < 16; cx++)
+        for (int cz = 0; cz < 16; cz++)
+        {
+            var col = new ChunkData[5];
+            for (int cy = 0; cy < col.Length; cy++)
+            {
+                col[cy] = gen.Generate(asteroid, new ChunkCoord(cx, cy, cz));
+            }
+
+            var origin = WorldConstants.ChunkOrigin(new ChunkCoord(cx, 0, cz));
+            for (int lx = 0; lx < cs; lx++)
+            for (int lz = 0; lz < cs; lz++)
+            {
+                int h = gen.SurfaceHeight(asteroid, origin.X + lx, origin.Z + lz);
+                minH = System.Math.Min(minH, h);
+                if (System.Math.Abs(h - baseH) <= 3) flat++;
+                total++;
+
+                for (int gy = col.Length * cs - 1; gy >= 0; gy--) // top solid cell = the exposed surface
+                {
+                    var b = col[gy / cs].Get(lx, gy % cs, lz);
+                    if (!b.IsAir)
+                    {
+                        surfaceCols++;
+                        if (metals.Contains(b)) metalCols++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        Assert.True(baseH - minH >= 4, "craters dig pits below the flat regolith");
+        Assert.True(flat > total / 4, "much of the surface is flat regolith between craters");
+        Assert.True(metalCols > 0, "some crater floors expose rare metal");
+        Assert.True(metalCols < surfaceCols / 12, "metal is sparse — only some craters, a few clumps each");
+    }
+
+    [Fact]
     public void WateryWorld_GeneratesUplandPonds_AboveSeaLevel()
     {
         // B7: a watery (atmospheric) world should scatter swimmable upland ponds — water ABOVE the global sea

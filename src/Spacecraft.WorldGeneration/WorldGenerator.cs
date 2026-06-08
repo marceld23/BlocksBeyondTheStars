@@ -35,6 +35,14 @@ public sealed class WorldGenerator
     /// active world changes, so terrain, surface-height and flora all wrap at the right size).</summary>
     public void SetCircumference(int circumference) => _circumference = circumference;
 
+    // True when the active body is an airless moon (item 33): its terrain is cratered even though its planet
+    // TYPE may carry an atmosphere on a full-size planet. The asteroid type carries Cratered in data instead,
+    // so it craters everywhere (incl. standalone queries). Set beside SetCircumference at world-load.
+    private bool _crateredWorld;
+
+    /// <summary>Marks the active world as cratered regardless of its planet type (used for airless moons).</summary>
+    public void SetCratered(bool cratered) => _crateredWorld = cratered;
+
     /// <summary>
     /// Stable string hash (FNV-1a) — unlike <c>string.GetHashCode</c> this is identical
     /// across platforms and runs, which determinism across client/server depends on.
@@ -75,6 +83,14 @@ public sealed class WorldGenerator
         double n = Noise.FbmCylX(seed, worldX, worldZ, _circumference, planet.TerrainScale, octaves: 4);
         double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
 
+        // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
+        // hills/mountains/canyons) pocked with round impact craters carved on top.
+        if (planet.Cratered || _crateredWorld)
+        {
+            double flat = h * 0.30 * planet.Amplitude;
+            return planet.BaseHeight + (int)System.Math.Round(flat + CraterCarve(seed, worldX, worldZ, planet));
+        }
+
         // Regional terrain character: a large-scale field selects how rugged this area is (a blend across the
         // world's archetype subset), so the surface varies between flat plains, hills, mountains and canyons.
         var (amp, ridged) = TerrainProfile(planet, seed, worldX, worldZ);
@@ -85,6 +101,78 @@ public sealed class WorldGenerator
         }
 
         return planet.BaseHeight + (int)System.Math.Round(h * planet.Amplitude * amp);
+    }
+
+    // --- impact-crater field (item 33): seam-safe round basins via an FBM mask (the B7 pond-mask approach),
+    // each ringed by a raised ejecta rim. Pure noise → deterministic and wraps across the X seam. ---
+    private const double CraterThreshold = 0.60;  // mask above this is inside a crater (upper tail → scattered)
+    private const double CraterBand = 0.16;        // mask range from the rim (0) to the deepest centre (1)
+    private const double CraterMaxDepth = 7.0;     // bowl depth at the centre (blocks)
+    private const double CraterRimHeight = 2.0;    // raised ejecta lip at the crater edge (blocks)
+    private const double CraterRimBand = 0.07;     // mask range just outside the rim where the lip fades to flat
+
+    /// <summary>Height offset (blocks) for the impact-crater field at a column: a smooth bowl inside each basin
+    /// (deepening toward its centre) ringed by a raised rim, scattered across otherwise-flat ground (item 33).</summary>
+    private double CraterCarve(long seed, int worldX, int worldZ, PlanetType planet)
+    {
+        double mask = Noise.FbmCylX(seed + 0x6A17, worldX, worldZ, _circumference, planet.TerrainScale * 1.7, octaves: 3);
+        double d = mask - CraterThreshold;
+        if (d >= 0.0)
+        {
+            // Inside the basin: a smooth bowl down to -CraterMaxDepth, with a rim lip right at the edge.
+            double t = System.Math.Min(1.0, d / CraterBand);
+            double bowl = -CraterMaxDepth * (t * t * (3.0 - 2.0 * t));         // smoothstep deepening
+            double lip = CraterRimHeight * System.Math.Max(0.0, 1.0 - t * 4.0); // a lip at the edge, gone a quarter in
+            return bowl + lip;
+        }
+
+        // Just outside the rim: the raised ejecta lip, peaking at the edge and fading back to flat ground.
+        double o = System.Math.Min(1.0, -d / CraterRimBand);
+        return CraterRimHeight * (1.0 - o);
+    }
+
+    // Rare metals exposed as small clumps on deep crater floors — the reward for exploring craters (item 33).
+    private const double CraterFloorMinDepth = 4.0;     // only craters at least this deep host metal
+    private const double CraterMetalRegion = 0.55;      // per-crater gate: only SOME craters are metal-bearing
+    private const double CraterMetalThreshold = 0.58;   // clump mask (within a metal crater) → a few scattered lumps
+    private static readonly string[] CraterFloorMetals =
+    {
+        "titanium_ore", "gold_ore", "platinum_ore", "cobalt_ore", "uranium_ore", "tungsten_ore", "neodymium_ore",
+    };
+
+    /// <summary>For a cratered world, the rare-metal block to expose at a surface crater-floor column if this
+    /// crater is metal-bearing and a clump roll hits — else null. Only SOME craters carry metal, and then only a
+    /// few small clumps on the deeper floor (item 33).</summary>
+    private BlockId? CraterFloorMetal(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (CraterCarve(seed, worldX, worldZ, planet) > -CraterFloorMinDepth)
+        {
+            return null; // not a deep crater floor
+        }
+
+        // Per-crater gate: a coarse mask (larger than the crater spacing → ~constant within one crater, varying
+        // between craters) leaves most craters bare and only some metal-bearing.
+        double region = Noise.FbmCylX(seed + 0x51A2, worldX, worldZ, _circumference, planet.TerrainScale * 3.5, octaves: 2);
+        if (region < CraterMetalRegion)
+        {
+            return null; // this crater holds no metal
+        }
+
+        // Within a metal-bearing crater, a small-scale clump mask scatters a few lumps (high freq → tiny clumps).
+        double clump = Noise.FbmCylX(seed + 0x51A3, worldX, worldZ, _circumference, planet.TerrainScale * 0.22, octaves: 2);
+        if (clump < CraterMetalThreshold)
+        {
+            return null;
+        }
+
+        int pick = (int)(Noise.Value01(seed + 0x51A4, WorldConstants.WrapX(worldX, _circumference), 5, worldZ)
+                         * CraterFloorMetals.Length);
+        if (pick >= CraterFloorMetals.Length)
+        {
+            pick = CraterFloorMetals.Length - 1;
+        }
+
+        return _content.GetBlock(CraterFloorMetals[pick])?.NumericId;
     }
 
     /// <summary>The terrain archetype blend for a column: a large-scale region field picks among the world's
@@ -287,6 +375,11 @@ public sealed class WorldGenerator
             var surfaceId = biomes[biomeIndex].Surface;
             var subSurfaceId = biomes[biomeIndex].Sub;
 
+            // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
+            // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
+            BlockId? craterMetal = (planet.Cratered || _crateredWorld)
+                ? CraterFloorMetal(planet, seed, worldX, worldZ) : (BlockId?)null;
+
             for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
             {
                 int worldY = origin.Y + ly;
@@ -313,7 +406,11 @@ public sealed class WorldGenerator
                 }
 
                 BlockId block;
-                if (depth < planet.SurfaceDepth)
+                if (craterMetal.HasValue && depth <= 1)
+                {
+                    block = craterMetal.Value; // a rare-metal clump on the crater floor (top two cells)
+                }
+                else if (depth < planet.SurfaceDepth)
                 {
                     block = depth == 0 ? surfaceId : subSurfaceId;
                 }

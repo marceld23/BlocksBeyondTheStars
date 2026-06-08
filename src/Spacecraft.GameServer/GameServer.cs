@@ -263,6 +263,11 @@ public sealed partial class GameServer
 
         var world = _worlds.GetOrCreate(planet, locationId, circumference, out bool isNew);
         _generator.SetCircumference(world.World.Circumference); // active world's size for direct gen queries
+        // Airless MOONS get cratered regolith too (item 33) — even when their planet type normally has air on a
+        // full planet. The asteroid type carries Cratered in data, so it's handled by the planet type itself.
+        bool airlessMoon = worldBody?.Kind == CelestialKind.Moon
+            && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        _generator.SetCratered(airlessMoon);
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits

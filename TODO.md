@@ -1824,13 +1824,25 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    **Out of scope (follow-up):** the **voxel** stamped ship you walk on (planet/interior) stays the default hull —
    per-player tinting of mesher blocks is a separate, bigger change. **Playtest:** Ship tab → Paint → cycle the
    colour, watch the preview, then fly and confirm the ship + (multiplayer) other players' ships show it.
-33. **Cratered terrain for airless moons + landable asteroids.** *(Analysis first.)* On **moons without an
+33. **Cratered terrain for airless moons + landable asteroids. [✅ DONE 2026-06-08 — playtest]** *(Analysis first.)* On **moons without an
    atmosphere** and on the **landable asteroids** (item 24 — the big ones you land on; never the mini mineable
    rocks) — both always airless — add a **frequently-used crater landscape**: mostly **flat** ground pocked with
    **many round craters**. Adjust the **terrain generator** accordingly (a crater-field height function — e.g.
    sum of inverted radial bumps / worley-style pits — selected for airless moons + asteroid bodies, blended with
    the existing terrain). Where: `WorldGenerator` surface-height + the per-planet terrain params (the `asteroid`
    planet type + a moon-airless variant). Medium.
+   **SHIPPED 2026-06-08.** `SurfaceHeight` branches for cratered worlds: a near-flat regolith base (0.30×
+   amplitude undulation, no archetype hills/ridges) with `CraterCarve` on top — a seam-safe FBM mask (the B7
+   pond-mask approach, so it wraps the X seam) carving smooth bowls (to −7) each ringed by a raised ejecta rim
+   (+2). Selected two ways: a data flag `PlanetType.Cratered` (set on the **`asteroid`** type → landable
+   asteroids, craters everywhere incl. standalone queries) **and** a per-world `SetCratered` the server flips for
+   **airless moons** (`Kind==Moon && atmosphere=="none"`) at `LoadWorld` (beside `SetCircumference`), so airless
+   *planets* stay normal — only moons + asteroids get craters. **User add-ons:** *some* (not all) craters carry
+   a few small clumps of **rare metal** on their deeper floors — `CraterFloorMetal` gates whole craters with a
+   coarse region mask, then scatters tiny clumps (titanium/gold/platinum/cobalt/uranium/tungsten/neodymium) on the
+   top two cells. Test: `CrateredWorld_FlatRegolithWithPits_AndRareMetalInSomeCraters` (flat-with-pits + sparse
+   metal); 385 green; client built. Playtest: land on an asteroid / airless moon — flat cratered ground, dig the
+   odd crater floor for metal.
 34. **Precipitation by climate — fire/ash rain on very hot worlds (and snow on cold). [DONE 2026-06-07 — folded
    into B11 Stage 2.]** Resolved as part of the weather pass: server `PrecipitationFor(weather, temp)` picks the
    form from the per-world temperature (B11) + surface block — **ash** ≥55 °C (lava worlds), **hail** ≤-15 °C,
