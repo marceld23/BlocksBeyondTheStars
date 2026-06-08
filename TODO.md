@@ -1063,6 +1063,57 @@ only then implement. Items marked *(analysis only)* must NOT be implemented yet.
    non-voxel `SpaceInstance`** (asteroids/entities + a parked ship), **not a placeable voxel world** — so
    "placing blocks in space" needs either a buildable voxel volume in the flight/EVA view or a different model
    (e.g. build the station in a void world, then register + persist it as a new boardable body in the system).
+
+   **[ANALYSIS — OPTION 1 (real voxel volume in the flight/EVA view), 2026-06-08]**
+   - **As-is facts.** Flight view = a Unity scene at `SceneOrigin (0,6000,0)`; EVERYTHING is a float-positioned
+     hand-built CUBE MODEL, not voxel: the **ship** (`SpaceView.BuildShip`, ~3.6×0.9×4.4 u, from a silhouette, NOT
+     the player's design), **asteroids** (textured cube ~2.4 u, `CombatEntity` hull tiers), **stations/drones/UFOs**
+     (multi-cube models). Bodies = solid **spheres** (`CreatePrimitive`, dia ~13 asteroid / ~23 moon / ~46–62
+     planet) via `OrbitDiameterFor = 8 + circ/220`. Scale = **system coords × 0.16**; flyable `Bounds = 130` u;
+     ship cruise 14 u/s. Collision everywhere is **sphere/keep-out only** (`KeepOutMargin 10`, `StationKeepOut 6`,
+     `ShipKeepOut 3.5`, `ShipCollisionRadius 3`); **no block-level collision in space**. EVA = float 6-DOF, sphere
+     bounce. Server `SpaceInstance` = float `ShipPosition` + `List<CombatEntity>` — no voxel.
+   - **Voxel pipeline is planet-agnostic + cheap (reusable).** `ChunkMesher.Build(chunk, content, worldBlock
+     callback, atlas)` needs only a 16³ block grid + a neighbour lookup — **no circumference/wrap/planet coupling**.
+     `ServerWorld` is a `Dict<ChunkCoord,ChunkData>` keyed by a per-body `LocationId`, persists **only edits**, can
+     **skip generation** + use an arbitrary circumference (no wrap if `WrapX` isn't called). Mesh cost: **ship 1
+     chunk <1 ms; station 8–15 chunks ~5–15 ms; asteroid 1 chunk ~1 ms**; a block edit re-meshes the chunk + ≤6
+     neighbours, batched per frame (~7 ms worst). So each small structure = its own tiny `ServerWorld`.
+   - **THE核心 tension = SCALE.** A planet at 1:1 voxel would be 5000–12000 **units** — impossible in a 130-u zone,
+     so planets/moons MUST stay distant scaled spheres (✔ matches the ask). But the flight view is **compressed**
+     (planet shown at ~35 u), while 1:1 voxel structures are full size (ship ~9 u, **station 30–50 u**) — so a
+     player station could render **bigger than a planet**. Two resolutions (THE design fork to decide):
+     **(A) Backdrop planets** — bodies become far, non-to-scale backdrops you *transition* to (not fly into at
+     1:1); the near-field is a 1:1 voxel bubble. Clean scale, but changes the "fly up to a body, press E to land"
+     UX. **(B) Stylized scale** — keep flying up to bodies, accept that structures look large vs planets (a stylised
+     space view). Simplest, keeps current UX, looks gamey. *(Recommend prototyping both; lean B first, it preserves
+     today's flow.)*
+   - **Sizing.** NOT one giant grid — each structure is a small `ServerWorld`: ship = 1 chunk (~250 blocks),
+     asteroid = 1 chunk, **station capped ~48³–64³ (a few chunks)** to bound mesh/persistence/scale. The "voxel
+     space" is the union of these, each positioned in the flight scene.
+   - **Performance.** Meshing is per-chunk + cheap; the real costs are (i) **EVA/ship collision vs voxel meshes**
+     (today sphere-only — the biggest physics change), (ii) **many structures in MP** (dozens of small meshes —
+     fine with far-structure unload), (iii) networking block edits per structure. None are blockers.
+   - **Implications on the rest of the game.** (1) **Ship rendering overhaul** — the flight ship becomes a voxel
+     mesh of the player's **design** (reuse the ship-editor voxel data) instead of `BuildShip`. (2) **Mineable
+     asteroids** become voxel ore grids; mining = `BlockChanged` + re-mesh (replaces hull-tier entities + the
+     split/loot model). (3) **Place/mine in space** = reuse `HandlePlace`/`HandleMine` against each structure's
+     `ServerWorld`, with `IsShipBlock`-style protection for other players' ships + game-spawned stations
+     (unmineable). (4) **Collision** — cleanest path is a **"dock/attach to structure" 1:1 mode** that drops the
+     player into that structure's world with the EXISTING on-foot `CharacterController` voxel collision (sidesteps
+     inventing free-space mesh physics for building). (5) **Persistence + registry** — a player station persists as
+     block edits (its `LocationId`) + a system-registry row (position, owner, boardable) so it reappears + shows on
+     the star map. (6) Reuses the chunk-stream + `BlockChanged` paths (add a structure id).
+   - **De-risk order (prototype).** ① Co-render ONE voxel structure (the player's ship from its design) in the
+     flight scene at 1:1 — prove meshing + positioning + scale. ② EVA/dock + place/mine vs that one structure —
+     prove the interaction (via the dock-to-1:1 mode). ③ Decide scale fork A vs B against the real view. ④ Multi-
+     structure + voxel asteroids + persistence + registry + protection. Each stage is shippable on its own.
+   - **Open questions to put to the user before building:** (a) scale fork **A (backdrop) vs B (stylised)**?
+     (b) do we voxelise the player's flight ship now, or keep the model first + only voxelise stations/asteroids
+     (phased, lower risk)? (c) building interaction: **free-flight EVA placement** (needs free-space voxel
+     collision) vs the simpler **"dock → 1:1 on-foot build" mode** (reuses existing collision)? (d) max station
+     size + is it boardable/enterable like today's stations? (e) does a player station need **life support /
+     gravity / power** rules, or is it purely structural for now?
 21. ✅ **Feature — loading screens always show + stay readable ≥3s (done 2026-06-07; needs in-engine test).**
    `WorldLoadingOverlay` (the shared planet-landing + station-board veil) used to **skip** when the world was
    already ready (fast/cached load) and only held `MinShow=0.7s`. Removed the skip-when-ready early return so the
