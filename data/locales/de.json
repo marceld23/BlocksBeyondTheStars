@@ -332,6 +332,7 @@
   "ui.loading.world": "Lade Welt",
   "ui.loading.station": "Betrete Station",
   "ui.map.here": "du bist hier",
+  "ui.map.pad": "Platz",
   "ui.map.pads_full": "VOLL",
   "ui.hud.day": "Tag",
   "ui.hud.night": "Nacht",

@@ -248,13 +248,19 @@ namespace Spacecraft.Client
                 }
             }
 
-            // Fixed landing pads (item 38): a pad glyph, green when free, red when another player is on it.
+            // Fixed landing pads (item 38): ALWAYS shown — at true position when in view, else pinned to the map
+            // edge pointing the way (pads are spread round the body, so most sit outside this local window). Green
+            // = free, red = another player is on it. Also listed below with distance so every pad is findable.
             if (Game.LandingPads != null)
             {
                 foreach (var pad in Game.LandingPads)
                 {
                     var col = pad.Occupied ? new Color(1f, 0.45f, 0.4f) : new Color(0.5f, 0.9f, 0.6f);
-                    Marker(pad.X, pad.Z, 20f, col, "⊕");
+                    PadMarker(pad.X, pad.Z, col);
+                    float dx = Game.SceneX(pad.X) - Game.PlayerPosition.x, dz = pad.Z - Game.PlayerPosition.z;
+                    int dist = Mathf.RoundToInt(Mathf.Sqrt(dx * dx + dz * dz));
+                    string occ = pad.Occupied ? $" ({pad.Occupant})" : string.Empty;
+                    poiLines.Append($"\n⊕ {L("ui.map.pad")} {pad.Index + 1}{occ}  —  {dist} m");
                 }
             }
 
@@ -283,7 +289,7 @@ namespace Spacecraft.Client
                 _info.text =
                     $"{L("ui.map.you")}: X {Mathf.RoundToInt(Game.PlayerPosition.x)}  Z {Mathf.RoundToInt(Game.PlayerPosition.z)}\n" +
                     $"{L("ui.map.scale")}: ±{_radius} m\n" +
-                    $"▲ {L("ui.map.you")}    ▣ {L("ui.hud.ship")}    ✛ {L("ui.map.waypoint")}    ✦ {L("ui.beacon.default")}\n" +
+                    $"▲ {L("ui.map.you")}    ▣ {L("ui.hud.ship")}    ✛ {L("ui.map.waypoint")}    ✦ {L("ui.beacon.default")}    ⊕ {L("ui.map.pad")}\n" +
                     $"{L("ui.map.click_hint")}{wp}{pois}";
             }
         }
@@ -346,6 +352,38 @@ namespace Spacecraft.Client
             t.fontSize = 14;
             t.color = color;
             t.alignment = TextAnchor.UpperCenter;
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        /// <summary>Draws a landing-pad glyph (item 38). In view → at its true spot; out of view → pinned to the
+        /// map border in the pad's direction (smaller + dimmer), so a far pad is still findable on the local map.</summary>
+        private void PadMarker(float wx, float wz, Color color)
+        {
+            float u = (Game.SceneX(wx) - _ox) / _side, v = (wz - _oz) / _side;
+            bool clamped = u < 0f || u > 1f || v < 0f || v > 1f;
+            if (clamped)
+            {
+                float dx = u - 0.5f, dz = v - 0.5f;
+                float m = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dz));
+                if (m > 0.0001f) { dx *= 0.47f / m; dz *= 0.47f / m; }
+                u = 0.5f + dx;
+                v = 0.5f + dz;
+            }
+
+            var go = new GameObject("PadMarker", typeof(RectTransform));
+            go.transform.SetParent(_mapRt, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(u, v);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(20f, 20f);
+            var t = go.AddComponent<Text>();
+            t.font = UiKit.Font;
+            t.text = "⊕";
+            t.fontSize = clamped ? 15 : 20;
+            t.color = clamped ? new Color(color.r, color.g, color.b, 0.7f) : color;
+            t.alignment = TextAnchor.MiddleCenter;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
         }

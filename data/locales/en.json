@@ -327,6 +327,7 @@
   "ui.loading.world": "Loading world",
   "ui.loading.station": "Entering station",
   "ui.map.here": "you are here",
+  "ui.map.pad": "Pad",
   "ui.map.pads_full": "FULL",
   "ui.hud.day": "Day",
   "ui.hud.night": "Night",
