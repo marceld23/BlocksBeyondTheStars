@@ -1226,14 +1226,14 @@ wanted.* **B4 remainder + B22 still open** — see those entries.
 hunger≤0 → "Starving", else "Taking damage"), DE+EN. No more dying "out of nowhere" — you see the flash + why.
 Client-only. *Playtest wanted.*
 
-- **B1 — Creature sounds carry too far; should fade with distance, be silent when far. [VALID]**
+- **B1 — Creature sounds carry too far; should fade with distance, be silent when far. [✅ FIXED 2026-06-07 — playtest]**
   `ClientAudio.At` plays 3D at `minDistance 4`, `maxDistance 45` with Unity's default (logarithmic) rolloff →
   audible from far. *Fix:* lower `maxDistance` (~18–22) + use a Linear/custom rolloff so distant creatures fade
   to silence. (`ClientAudio.cs:316-329`.) Relates to [[netcodec-register-messages]]-era audio work.
-- **B2 — Small mineable asteroids need their own texture. [PARTIAL]** They're **not** untextured — `AsteroidMat()`
+- **B2 — Small mineable asteroids need their own texture. [✅ FIXED 2026-06-07 — playtest]** They're **not** untextured — `AsteroidMat()`
   reuses the **stone** block texture tinted grey (`SpaceView.cs:2027`). *Fix:* generate a dedicated asteroid-rock
   texture (OpenAI — **pre-approved**) + use it. ([[asset-generation-approved]].)
-- **B3 — Can't pillar-jump (place a block under yourself). [VALID]** `HandlePlace` rejects placing in the cell you
+- **B3 — Can't pillar-jump (place a block under yourself). [✅ FIXED 2026-06-07 — playtest]** `HandlePlace` rejects placing in the cell you
   occupy — feet `fy` or head `fy+1` — "You can't place a block where you're standing" (`GameServer.cs:1586`); a
   jump-place targets your feet cell → rejected, so it seems to "break instantly". *Fix:* allow placing at the feet
   cell while airborne (keep the head-cell guard) so building straight up works.
@@ -1245,7 +1245,7 @@ Client-only. *Playtest wanted.*
   **Hinged Door** + relabelled Medbay/Door in the ship editor. **Remainder:** airlock/lab/console/crate in the
   ship editor (needs an editor→stamp round-trip check that designed-ship station cells register correctly), and
   the **station + settlement (structure) editors** audit.
-- **B5 — Stone (and other) mining still too fast. [VALID/tunable]** Stone `hardness 3.8` (`blocks.json`); the
+- **B5 — Stone (and other) mining still too fast. [✅ FIXED 2026-06-07 — playtest]** Stone `hardness 3.8` (`blocks.json`); the
   drill's mining power clears it quickly. *Fix:* raise stone + rock/metal hardness (and/or lower tool power) and
   rebalance the hardness table for a slower dig.
 - **B6 — Plants are a solid textured cube; want transparent leaves (also tree crowns). [FIXED 2026-06-07 — real
@@ -1291,12 +1291,12 @@ Client-only. *Playtest wanted.*
   from the top of the screen down to mid-screen on each strike; strikes every 4–11 s. Gated to **rain
   thunderstorms only** (`Weather=="storm" && Precipitation=="rain"`) — no bolts in blizzards/sandstorms/ashfall;
   thunder audio gated the same way (`ClientAudio.cs`).
-- **B9 — Mined asteroids respawn too fast. [VALID/tunable]** `AsteroidRespawnInterval = 40s`, target 3
+- **B9 — Mined asteroids respawn too fast. [✅ FIXED 2026-06-07 — playtest]** `AsteroidRespawnInterval = 40s`, target 3
   (`GameServerSpaceCombat.cs:765-766`). *Fix:* raise the interval.
-- **B10 — Mineable asteroids too clustered; spread them around the planet. [VALID]** `CreateSpaceInstance` spawns
+- **B10 — Mineable asteroids too clustered; spread them around the planet. [✅ FIXED 2026-06-07 — playtest]** `CreateSpaceInstance` spawns
   the 3 at a fixed near-line `(12 + i*8, 0, 18)` (`GameServerSpaceCombat.cs:327`). *Fix:* scatter them over a
   wider volume around the body. *(Note: pairs with item 24's new large landable asteroids.)*
-- **B11 — Per-planet temperature + climate precipitation. [FEATURE — staged]**
+- **B11 — Per-planet temperature + climate precipitation. [✅ DONE 2026-06-07 — Stages 1–3; playtest]**
   **✅ Stage 1 done 2026-06-07 (weather pass):** added `PlanetType.BaseTemperature` (per type in `planets.json` —
   lava 115, ice -38, desert 44, jungle 28, rocky 12, crystal 4, swamp 22, varied 16, asteroid -25, void 20) +
   `GameServerWeather.CurrentTemperature`: base + a **per-world seeded variation** (±14 → "especially hot/cold"
@@ -1313,13 +1313,13 @@ Client-only. *Playtest wanted.*
   tinted per form; 2D streaks limited to actual rain. Audio (B34): two new ElevenLabs loops `sandstorm_loop` +
   `ash_loop`; `ClientAudio.OnEnvironment` picks the bed by precip (sandstorm/ash/snow+hail→`wind_strong`/rain/storm).
   **✅ Stage 3 done 2026-06-07:** lightning flash + bolt — see B8.
-- **B12 — Creature movement too simple (a few steps back-and-forth). [VALID]** Wander runs through
+- **B12 — Creature movement too simple (a few steps back-and-forth). [✅ FIXED 2026-06-07 — playtest]** Wander runs through
   `CreatureBehaviour.Step` (`GameServerCreatures.cs:352`); the wander is basic. *Fix:* richer roaming — varied
   headings, pauses/grazing, longer wanders, maybe light flocking.
-- **B13 — Machete one-shots most animals. [VALID/balance]** Machete `damage: 12` (`items.json`) vs creature
+- **B13 — Machete one-shots most animals. [✅ FIXED 2026-06-07 — playtest]** Machete `damage: 12` (`items.json`) vs creature
   `MaxHealth = 10 + size*8 (+10 if hostile)` (`CreatureGenerator.cs:78`) → small fauna ~15 HP die in one hit.
   *Fix:* lower machete damage or raise creature HP.
-- **B14 — Weapon attack animations are poor. [VALID/subjective]** One generic `Swing()` for everything
+- **B14 — Weapon attack animations are poor. [✅ FIXED 2026-06-07 — playtest]** One generic `Swing()` for everything
   (`PlayerController.TriggerSwing` → Avatar/viewmodel `Swing`). *Fix:* better per-weapon-class swing/thrust/fire
   animations.
 - **B15 — A "red creature" of two stacked blocks with no texture — what is it? [PLAYTEST]** There is **no**
@@ -1327,25 +1327,25 @@ Client-only. *Playtest wanted.*
   creatures get a red tint in `CreatureBuilder`) with a **missing/failed hide texture** (untextured → flat red)
   and/or a minimal body. *Fix:* confirm in-engine (scan it), then fix the hide fallback / body so a creature never
   renders as bare red cubes.
-- **B16 — Can't eat food. [VALID]** The server has `ConsumeItemIntent` + `HandleConsume`/`ConsumeItem` (food
+- **B16 — Can't eat food. [✅ FIXED 2026-06-07 — playtest]** The server has `ConsumeItemIntent` + `HandleConsume`/`ConsumeItem` (food
   heals) (`GameServer.cs:1101`, `GameServerCreatures.cs:498`), but the **client never sends it** (no eat key/UI).
   *Fix:* add a client eat action (a key, or an inventory "eat") that sends `ConsumeItemIntent` for the selected
   food. *(Hunger has a separate auto-consume path, `GameServer.cs:747`, but manual eating is unreachable.)*
-- **B17 — Creature eyes look bad (tiny). [VALID/cosmetic]** Eyes are small flat-coloured quads + pupil
+- **B17 — Creature eyes look bad (tiny). [✅ FIXED 2026-06-07 — playtest]** Eyes are small flat-coloured quads + pupil
   (`CreatureBuilder.cs:79-94`, eyeSize ≈ 0.24·headScale). *Fix:* bigger/rounder eyes, better shading/highlight.
-- **B18 — Creatures still too aggressive. [VALID/balance]** Despite item 7's give-up leash, the temperament roll
+- **B18 — Creatures still too aggressive. [✅ FIXED 2026-06-07 — playtest]** Despite item 7's give-up leash, the temperament roll
   still makes hostiles (Aggressive 15 / PackHunter 5 weights in `CreatureGenerator`) + the aggro range bites.
   *Fix:* lower the hostile weights / aggro range / damage, or make more species flee. Pairs with B13.
 
 ### Second batch (reported 2026-06-07)
-- **B19 — No lava on lava planets? [PARTIAL/PLAYTEST]** The code **does** generate a lava sea: the lava planet's
+- **B19 — No lava on lava planets? [✅ FIXED 2026-06-07 — lava abundance bumped; playtest]** The code **does** generate a lava sea: the lava planet's
   `surfaceBlock "basalt"` → `volcanic` → `lavaAb 0.55`, and `WorldGenerator.ResolveSeaFluid` pools **lava in
   basins** below ~`BaseHeight − 0.25·Amplitude` (≈ Y 50 on the lava world). So lava only fills **low ground**;
   on high terrain / the landing zone you may see none. *Investigate in-engine:* dig down to ~Y 50 / find a basin;
   if still none, it's a gen/render bug. *(Possible tweak: raise `lavaAb` so lava is more visible.)*
-- **B20 — Player avatar has no face. [VALID]** The procedural avatar has no facial features (eyes/visor). *Fix:*
+- **B20 — Player avatar has no face. [✅ FIXED 2026-06-07 — bigger eyes + mouth; playtest]** The procedural avatar has no facial features (eyes/visor). *Fix:*
   add a face — at least eyes / a helmet visor — to the avatar model (`AvatarBuilder`/`AvatarEditor`).
-- **B21 — "Died suddenly with no idea why" — audit the damage indicators. [VALID + analysis]**
+- **B21 — "Died suddenly with no idea why" — audit the damage indicators. [✅ FIXED 2026-06-07 — red flash + cause label; playtest]**
   **Damage sources (all server-side, `GameServer.TickEnvironment` + combat):** **oxygen suffocation** — toxic/
   airless atmosphere (or being submerged) drains O₂; at 0 → **Health −5/s** (`GameServer.cs:651-653`); **lava** —
   standing in lava → **Health −15/s** (kills from full in ~7s!) (`:658-660`); **starvation** — hunger 0 → **−3/s**
@@ -1357,7 +1357,7 @@ Client-only. *Playtest wanted.*
   fast drain (lava 15/s, or O₂ hitting 0) kills with only a quietly-emptying bar → "out of nowhere". *Fix:* add
   an on-foot damage cue — a red flash/vignette pulse on health loss + a short cause label, and verify each source
   decrements health correctly. *(Likely culprit for the sudden deaths: lava or a fast O₂ drain on a toxic world.)*
-- **B22 — Vendor "E" opens the inventory/crafting menu, not a trade screen. [VALID]** A vendor sets
+- **B22 — Vendor "E" opens the inventory/crafting menu, not a trade screen. [✅ FIXED 2026-06-07 — barter screen; playtest]** A vendor sets
   `NearbyStation = "market"` and **E** calls `GameMenu.OpenMarket()`, which just opens the unified **crafting/tech
   menu on the "market" category** (`GameMenu.cs:69` — its own comment flags the "crafting list instead of the
   vendor's trade view" issue), not a dedicated barter screen. *Fix:* give the vendor its own trade/barter screen
@@ -1380,7 +1380,7 @@ Client-only. *Playtest wanted.*
   reset. `GameMenu.OpenMarket()` now opens this instead of the crafting menu (the two are mutually exclusive via
   `SetOpen`/`CloseForTransition`). E at the vendor opens it (`PlayerController` unchanged). Bilingual keys
   `ui.vendor.*` added (EN+DE). No server/protocol change. 367 tests green (locale parity); client build verified.
-- **B23 — Station doors don't auto-open/close; open radius too large. [VALID — not fixed by the hatch change]**
+- **B23 — Station doors don't auto-open/close; open radius too large. [✅ FIXED 2026-06-07 — OpenRange 4.5→2.8; playtest]**
   Station slide doors are registered via `RegisterStationDoors → MakeDoor("slide", …)` with the **default
   `SlideDoorOpenRange = 4.5`**; the per-door tighter range from the ship-hatch fix (1.8) was applied **only** to
   ship-stamp doors, not stations. In a station's tight rooms 4.5 means you're always within range → doors stay
@@ -1458,7 +1458,7 @@ Client-only. *Playtest wanted.*
   footprint. Check whether the order is worldgen-decoration-then-ship-stamp (ship should clear what it overlaps)
   and whether ongoing flora respawn also needs the keep-out. Likely also applies to settlements/stations stamped
   onto terrain. Medium.
-- **B32 — Sometimes a block can't be mined (e.g. mud/grass): one block mines, the adjacent one won't. [VALID —
+- **B32 — Sometimes a block can't be mined (e.g. mud/grass): one block mines, the adjacent one won't. [✅ FIXED 2026-06-08 — client ghost-clear; orig VALID —
   reported 2026-06-07]** Intermittent: the player mines one mud/grass block fine, but a neighbouring identical-
   looking block doesn't break. Mud/grass need no tool, so it's not a tool-tier gate. *Hypotheses to investigate:*
   (a) **mining protection** — the block is part of a ship/settlement/structure footprint (`IsProtectedShipBlock`
@@ -1693,7 +1693,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    ingest it (stamp a player-designed station/settlement into a system; register a player-designed ship as
    craftable; load player material/blueprint/ship-part definitions as content). Likely needs a persistence/import
    path + a content-merge layer. *Estimate complexity per editor + a staged plan.*
-30. **Harvestable water + lava, flowing placement, and a fire system.** *(Analysis first.)* **Partly exists:**
+30. **Harvestable water + lava, flowing placement, and a fire system. [✅ DONE 2026-06-08 — playtest]** *(Analysis first.)* **Partly exists:**
    `water`/`lava` blocks are `mineable` (drill **tier 3**) and placing a fluid flows (`RegisterFluidSource`). The
    request: make water **harvestable** (confirm it works / lower the tool gate?) and when **placed it flows**;
    make **lava** harvestable too, and when **placed it ignites the surroundings** — the **flora catches fire**
@@ -1722,7 +1722,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    fire via the fluid-proximity ambience. 5 `FireTests` (ignite→ash, spread, water-douse, lava-ignite); 373
    green; client build verified. *(Water/lava are already mineable (tier-3 drill) + flow on placement — the
    item-30 "harvestable + flowing" parts pre-existed.)*
-31. **Player-created missions (a real player-to-player mission board).** *(Analysis first.)* A player can **post a
+31. **Player-created missions (a real player-to-player mission board). [✅ DONE 2026-06-08 — playtest]** *(Analysis first.)* A player can **post a
    mission** others accept from a mission board: the poster types a **name + description**, **stakes a reward**
    (an item/material they give up) and defines **what the completer receives**; on success the **poster is
    notified** and gets back a **multiple of their stake**. The poster sets the **objectives** — e.g. *mine N of a
