@@ -1449,7 +1449,7 @@ Client-only. *Playtest wanted.*
   tunnelling through a 1-block wall/pane), and collision uses a new `IsSolidCell` keyed on `BlockDefinition.Solid`
   — keeping **solid** and **transparent** distinct exactly as noted: **glass** is solid-but-transparent (blocks
   NPCs, you see through it) while a non-solid transparent block like **water** stays passable.
-- **B31 — Trees (flora) spawn on top of the landed ship. [VALID — reported 2026-06-07]** On a jungle planet the
+- **B31 — Trees (flora) spawn on top of the landed ship. [✅ FIXED 2026-06-08]** On a jungle planet the
   player landed and **trees were standing on the ship**. World decoration (flora/trees, and likely also rocks/
   creatures) is placed without checking the landed ship's stamped footprint, so vegetation grows through/on the
   hull. *Fix:* when stamping the ship (or when scattering flora/decoration), **keep a keep-out around the ship
@@ -1458,6 +1458,15 @@ Client-only. *Playtest wanted.*
   footprint. Check whether the order is worldgen-decoration-then-ship-stamp (ship should clear what it overlaps)
   and whether ongoing flora respawn also needs the keep-out. Likely also applies to settlements/stations stamped
   onto terrain. Medium.
+  **FIXED 2026-06-08:** `StampShip` now calls `ClearShipKeepOut(cx,cz,halfX,halfZ,y0,height)` in **both** stamp
+  paths (the default box hull and a designed-ship voxel layout) **before** laying the hull. It clears any
+  vegetation (`flora_*` / `wood_log` / `tree_leaves`, via the existing `IsFlammable` predicate) in the ship's
+  footprint **plus a 3-block crown margin** and **up to 9 blocks above the roof** — so a tree world-gen grew there
+  can neither stand on the hull nor poke through it, and an overhanging neighbour's crown is removed too. Only
+  vegetation is cleared (terrain + hull stay); runs at world-load before chunks stream, so no `BlockChanged`
+  broadcast is needed (same as the hull stamp). Test: `ShipKeepOut_ClearsTreesOnAndAboveTheHull` (plants a trunk
+  in the cabin + leaves above the roof → both cleared). **Settlements/stations stamped onto terrain may want the
+  same keep-out** — left as a follow-up (not reported yet). Playtest: land on a jungle world, no trees on the ship.
 - **B32 — Sometimes a block can't be mined (e.g. mud/grass): one block mines, the adjacent one won't. [✅ FIXED 2026-06-08 — client ghost-clear; orig VALID —
   reported 2026-06-07]** Intermittent: the player mines one mud/grass block fine, but a neighbouring identical-
   looking block doesn't break. Mud/grass need no tool, so it's not a tool-tier gate. *Hypotheses to investigate:*

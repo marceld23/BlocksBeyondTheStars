@@ -82,6 +82,8 @@ public sealed partial class GameServer
             return;
         }
 
+        ClearShipKeepOut(cx, cz, _shipHalfX, _shipHalfZ, y0, _shipHeight); // B31: no trees on/through the hull
+
         for (int x = cx - _shipHalfX; x <= cx + _shipHalfX; x++)
         for (int y = y0; y <= y0 + _shipHeight; y++)
         for (int z = cz - _shipHalfZ; z <= cz + _shipHalfZ; z++)
@@ -226,6 +228,33 @@ public sealed partial class GameServer
 
     /// <summary>Stamps a designed voxel ship (from the ship editor) centred on the landing zone: places
     /// each cell's hull/glass/light/engine block, opens hatch cells, and registers station markers.</summary>
+    /// <summary>Clears tree/flora blocks in — and just around and above — the ship's footprint before the hull
+    /// is stamped, so vegetation world-gen grew there can't stand on the roof or poke through the hull (B31).
+    /// The horizontal margin catches tree crowns whose trunk sits just outside the hull; the headroom catches a
+    /// tall trunk/crown left above the roof. Only vegetation (flora_* / wood_log / tree_leaves, via
+    /// <see cref="IsFlammable"/>) is removed — terrain and the hull stay. Runs at world-load time before the
+    /// player's chunks stream, so (like the hull stamp itself) it needs no BlockChanged broadcast.</summary>
+    private void ClearShipKeepOut(int cx, int cz, int halfX, int halfZ, int y0, int height)
+    {
+        const int margin = 3;    // crown reach beyond the hull
+        const int headroom = 9;  // tallest trunk + crown that could sit above the roof
+        int yTop = y0 + System.Math.Max(0, height) + headroom;
+        for (int x = cx - halfX - margin; x <= cx + halfX + margin; x++)
+        for (int z = cz - halfZ - margin; z <= cz + halfZ + margin; z++)
+        for (int y = y0; y <= yTop; y++)
+        {
+            var pos = new Vector3i(x, y, z);
+            if (IsFlammable(_world.GetBlock(pos).Value))
+            {
+                _world.SetBlock(pos, BlockId.Air);
+            }
+        }
+    }
+
+    /// <summary>Test hook: run the ship keep-out clear directly (B31).</summary>
+    public void ClearShipKeepOutForTest(int cx, int cz, int halfX, int halfZ, int y0, int height)
+        => ClearShipKeepOut(cx, cz, halfX, halfZ, y0, height);
+
     private void StampShipLayout(int cx, int cz, int y0, ShipLayout layout)
     {
         var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
@@ -251,6 +280,8 @@ public sealed partial class GameServer
         CurStamp.Doors.Clear();
         _shipIsLayout = true;
         Vector3f? medbay = null;
+
+        ClearShipKeepOut(cx, cz, _shipHalfX, _shipHalfZ, y0, _shipHeight); // B31: clear trees above + around the hull
 
         // Clear the ship's bounding box to air first — removes any terrain/flora that generated inside
         // the footprint, so nothing intrudes through the hull; the layout cells are stamped on top.

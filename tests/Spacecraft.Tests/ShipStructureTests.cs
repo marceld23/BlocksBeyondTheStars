@@ -46,6 +46,41 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
+    public void ShipKeepOut_ClearsTreesOnAndAboveTheHull()
+    {
+        // B31: vegetation in the ship's footprint (and just above/around it) is cleared, so trees never end up
+        // standing on or poking through the landed hull.
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "keepout"));
+        using (repo)
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig
+            {
+                WorldName = "keepout", Seed = 1, StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+            };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            server.AddLocalPlayer("Host");
+
+            var a = server.ShipAnchorBlock;
+            var log = _content.GetBlock("wood_log")!.NumericId;
+            var leaves = _content.GetBlock("tree_leaves")!.NumericId;
+
+            // Plant a tree right on the ship: a trunk in the cabin footprint + leaves above the roof.
+            var trunk = new Spacecraft.Shared.Geometry.Vector3i(a.X, a.Y + 1, a.Z);
+            var crown = new Spacecraft.Shared.Geometry.Vector3i(a.X, a.Y + 6, a.Z);
+            server.World.SetBlock(trunk, log);
+            server.World.SetBlock(crown, leaves);
+
+            server.ClearShipKeepOutForTest(a.X, a.Z, 2, 2, a.Y, 3);
+
+            Assert.True(server.World.GetBlock(trunk).IsAir, "a trunk in the hull footprint must be cleared");
+            Assert.True(server.World.GetBlock(crown).IsAir, "leaves above the roof must be cleared");
+        }
+    }
+
+    [Fact]
     public void Ship_LandsOnDryLand_NotInWater()
     {
         // B36: on a watery world (seas + scattered upland ponds) the landing search must put the ship on DRY
