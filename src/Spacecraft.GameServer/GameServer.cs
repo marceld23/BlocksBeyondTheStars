@@ -1838,6 +1838,19 @@ public sealed partial class GameServer
             return;
         }
 
+        // Market barter is themed: a settlement only posts goods for its own trade (a mining village sells ore,
+        // a research city sells data), so different settlements offer different deals. Themeless market recipes
+        // trade anywhere (every vendor + the ship's own console).
+        if (recipe.Station == CraftingStation.Market && !string.IsNullOrEmpty(recipe.MarketTheme))
+        {
+            string vendorTheme = NearSettlementVendor(session.State) ? SettlementTradeFor(_settlementName) : string.Empty;
+            if (!string.Equals(vendorTheme, recipe.MarketTheme, System.StringComparison.OrdinalIgnoreCase))
+            {
+                CraftFail(session, recipe.Key, "This trade isn't offered here.");
+                return;
+            }
+        }
+
         var pool = new MaterialPool(_content, session.State, _ship);
         var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count)).ToList();
         if (!pool.Has(scaledInputs))

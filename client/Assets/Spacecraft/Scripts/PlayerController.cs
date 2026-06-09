@@ -210,7 +210,7 @@ namespace Spacecraft.Client
 
             RefreshHeldItem();
 
-            if (Input.GetKeyDown(KeyCode.F))
+            if (Input.GetKeyDown(KeyCode.F) && WeaponSwingReady())
             {
                 AttackNearestEnemy();
                 TriggerSwing();
@@ -597,6 +597,27 @@ namespace Spacecraft.Client
             string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
             return !string.IsNullOrEmpty(held)
                 && Game.Content?.GetItem(held)?.Tool?.Kind == Spacecraft.Shared.Definitions.ToolKind.Weapon;
+        }
+
+        private float _nextWeaponSwing; // Time.time when the held weapon may swing again (client-side cooldown)
+        private const float DefaultMeleeCooldown = 1.5f; // mirrors the server default for energy-free melee (B44)
+
+        /// <summary>Whether the held weapon's swing cooldown has elapsed; if so, arms the next swing. Mirrors the
+        /// server cooldown so the swing animation/sound + attack intent are gated too (so the machete's 1.5s
+        /// cooldown is actually felt, not just silently dropped server-side).</summary>
+        private bool WeaponSwingReady()
+        {
+            if (Time.time < _nextWeaponSwing)
+            {
+                return false;
+            }
+
+            var tool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            float cd = tool == null ? 0f
+                : tool.CooldownSeconds > 0f ? tool.CooldownSeconds
+                : tool.EnergyPerUse <= 0f ? DefaultMeleeCooldown : 0f;
+            _nextWeaponSwing = Time.time + cd;
+            return true;
         }
 
         /// <summary>Scans the nearest creature (threat assessment) or, failing that, the block in view.</summary>
@@ -1100,10 +1121,15 @@ namespace Spacecraft.Client
 
             // Holding a weapon turns the primary action (left-click) into an attack — the same swing as F —
             // so a melee weapon like the machete actually hits creatures instead of trying to mine a block.
+            // Gated by the weapon's swing cooldown so it can't be spam-clicked (the machete's 1.5s, etc.).
             if (mine && HoldingWeapon())
             {
-                AttackNearestEnemy();
-                TriggerSwing();
+                if (WeaponSwingReady())
+                {
+                    AttackNearestEnemy();
+                    TriggerSwing();
+                }
+
                 return;
             }
 

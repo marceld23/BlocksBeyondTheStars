@@ -228,6 +228,54 @@ public sealed partial class GameServer
         RegisterDoors(); // pick up the hatch door (+ keep settlement/other-ship doors in sync)
     }
 
+    /// <summary>Carves the currently-stamped ship back out of the world (hull box + silhouette extras), so a
+    /// different design can be stamped on the same pad with no leftover hull from the old one. Used when the
+    /// player switches the active ship while landed — the new ship may be smaller or shaped differently.</summary>
+    private void ClearStampedShip()
+    {
+        if (!_shipStamped)
+        {
+            return;
+        }
+
+        var a = _shipAnchor;
+        for (int x = a.X - _shipHalfX; x <= a.X + _shipHalfX; x++)
+        for (int y = a.Y; y <= a.Y + _shipHeight + 2; y++) // +2 covers the raised cockpit canopy on top
+        for (int z = a.Z - _shipHalfZ; z <= a.Z + _shipHalfZ; z++)
+        {
+            _world.SetBlock(new Vector3i(x, y, z), BlockId.Air);
+        }
+
+        foreach (var c in _shipExtra)
+        {
+            _world.SetBlock(c, BlockId.Air); // wings, engine nozzles, nav lights, canopy outside the box
+        }
+
+        _shipExtra.Clear();
+        _stations.Clear();
+        CurStamp.Doors.Clear();
+        _shipStamped = false;
+    }
+
+    /// <summary>Forgets the world chunks the ship's footprint occupies on this session so <see cref="StreamChunks"/>
+    /// re-sends them next tick — used after re-stamping a switched ship while landed, so the client swaps the old
+    /// hull for the new one without a full world reload.</summary>
+    private void RestreamShipChunks(PlayerSession session)
+    {
+        var a = _shipAnchor;
+        var seen = new HashSet<ChunkCoord>();
+        for (int x = a.X - _shipHalfX - 3; x <= a.X + _shipHalfX + 3; x++)
+        for (int y = a.Y - ShipFoundationDepth - 1; y <= a.Y + _shipHeight + 3; y++)
+        for (int z = a.Z - _shipHalfZ - 3; z <= a.Z + _shipHalfZ + 3; z++)
+        {
+            var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(new Vector3i(x, y, z)), _world.Circumference);
+            if (seen.Add(coord))
+            {
+                session.SentChunks.Remove(coord);
+            }
+        }
+    }
+
     /// <summary>Stamps a designed voxel ship (from the ship editor) centred on the landing zone: places
     /// each cell's hull/glass/light/engine block, opens hatch cells, and registers station markers.</summary>
     /// <summary>Clears tree/flora blocks in — and just around and above — the ship's footprint before the hull

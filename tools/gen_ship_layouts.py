@@ -34,6 +34,9 @@ def build(width, height, length, builder):
 
 def hull(put, W, H, L, door_x, win_sides=False):
     """A closed hull box: solid floor + roof, perimeter walls, a rear airlock + front window band."""
+    # A proper 3-wide rear airlock (the single door marker is sized to the full gap by MakeDoor): clear the
+    # door column plus its two neighbours, kept off the rear corners so the hull stays sealed there.
+    door_cols = {x for x in (door_x - 1, door_x, door_x + 1) if 0 < x < W - 1}
     for x in range(W):
         for z in range(L):
             put(x, 0, z, "iron_wall")   # floor
@@ -43,10 +46,10 @@ def hull(put, W, H, L, door_x, win_sides=False):
             for z in range(L):
                 if not (x == 0 or x == W - 1 or z == 0 or z == L - 1):
                     continue  # interior stays hollow
-                if z == 0 and x == door_x and y in (1, 2):
-                    if y == 1:
-                        put(x, 1, 0, "door_slide", "element")  # rear airlock (cleared 3 tall + a real door)
-                    continue
+                if z == 0 and x in door_cols and y in (1, 2):
+                    if y == 1 and x == door_x:
+                        put(door_x, 1, 0, "door_slide", "element")  # one airlock door, sized to the 3-wide gap
+                    continue  # the whole 3-wide, 2-tall opening stays clear
                 if z == L - 1 and y == 2 and 0 < x < W - 1:
                     put(x, y, z, "glass")   # front windscreen band
                     continue

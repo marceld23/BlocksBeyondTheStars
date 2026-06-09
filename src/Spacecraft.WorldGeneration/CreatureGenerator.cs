@@ -15,11 +15,11 @@ public static class CreatureGenerator
 {
     public static IReadOnlyList<CreatureSpecies> GenerateRoster(PlanetType planet, long worldSeed)
     {
-        int count = AbundanceCount(planet.CreatureAbundance);
+        int count = planet.IsAirless ? 0 : AbundanceCount(planet.CreatureAbundance);
         var list = new List<CreatureSpecies>(count);
         if (count == 0)
         {
-            return list;
+            return list; // airless bodies (asteroids / airless moons+planets) + "none" worlds are lifeless
         }
 
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);

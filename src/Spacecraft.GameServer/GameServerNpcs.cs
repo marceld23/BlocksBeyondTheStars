@@ -66,7 +66,10 @@ public sealed partial class GameServer
             return; // abandoned ruins have no inhabitants
         }
 
-        string theme = string.IsNullOrEmpty(_settlementInhabitant) ? "settlers" : _settlementInhabitant;
+        // Each settlement has a deterministic trade profession (miners/traders/researchers/settlers) — it drives
+        // the residents' outfits + work gestures AND which goods the vendor posts, so different settlements offer
+        // different trades (the old per-NPC theme was the human/alien look, which the trade UI couldn't use).
+        string theme = SettlementTradeFor(_settlementName);
         bool robotic = theme == "researchers"; // research outposts are staffed by service androids
 
         foreach (var (type, pos) in _settlementMarkers)

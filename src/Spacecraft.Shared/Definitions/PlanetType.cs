@@ -124,6 +124,10 @@ public sealed class PlanetType
     /// </summary>
     public string Atmosphere { get; set; } = "toxic";
 
+    /// <summary>True for airless bodies (atmosphere "none"): landable asteroids + airless moons/planets. No
+    /// native flora or fauna grow/live here (it's a barren, lifeless surface).</summary>
+    public bool IsAirless => string.Equals(Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// When true, the sky is always space (black + stars) even on the surface — the system's sun
     /// is still visible. Used by landable asteroids / airless bodies; normal planets keep a sky.
@@ -150,6 +154,11 @@ public sealed class PlanetType
     /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
     /// </summary>
     public bool Selectable { get; set; } = true;
+
+    /// <summary>Relative likelihood this (Selectable) type is chosen for a system planet/moon — higher = more
+    /// common. Mirrors the <c>Frequency</c> weights (VeryRare 1, Rare 3, Normal 8, Frequent 16). Lets common
+    /// worlds (rock/ice/desert/ocean) dominate while exotic ones (fungal/crystalline/floating) stay a find.</summary>
+    public int SpawnWeight { get; set; } = 8;
 
     /// <summary>
     /// When true the world generates as pure empty space (all air, no terrain/caves/ore/flora). Used by

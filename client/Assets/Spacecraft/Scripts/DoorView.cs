@@ -315,7 +315,11 @@ namespace Spacecraft.Client
                     continue;
                 }
 
-                float sq = (d.World - worldPos).sqrMagnitude;
+                // Compare in SCENE space (seam-aware): the door's stored position is a raw world position, but
+                // the caller's position is a scene position — on a longitude-wrapped world they differ by the
+                // wrap offset, which made the door read as far away (so E never opened it). (B?)
+                Vector3 doorScene = Game != null ? Game.ScenePos(d.World.x, d.World.y, d.World.z) : d.World;
+                float sq = (doorScene - worldPos).sqrMagnitude;
                 if (sq <= bestSq)
                 {
                     bestSq = sq;

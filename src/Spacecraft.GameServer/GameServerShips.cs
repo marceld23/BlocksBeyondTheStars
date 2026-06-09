@@ -112,7 +112,9 @@ public sealed partial class GameServer
         return (true, id);
     }
 
-    /// <summary>Switches the active ship to one the player owns; re-stamps the hull design.</summary>
+    /// <summary>Switches the active ship to one the player owns and applies the new design IMMEDIATELY wherever
+    /// the player is — re-stamping the hull on a planet and rebuilding the flight-view voxel ship in space — so
+    /// the change shows at once, not only after the next launch/landing.</summary>
     public bool SwitchShip(string shipId)
     {
         if (!_ships.TryGetValue(shipId, out var ship))
@@ -122,9 +124,35 @@ public sealed partial class GameServer
 
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
+
         if (_shipStamped)
         {
+            // Landed: carve out the old hull and stamp the new design on the same pad, then re-stream the
+            // ship's chunks so the client swaps the old hull for the new one right away (no reload needed).
+            ClearStampedShip();
             StampShip(); // the new design may be a different size
+            if (_current is { Joined: true })
+            {
+                RestreamShipChunks(_current);
+                SendShipStations(_current);
+                SendDoors(_current);
+            }
+        }
+
+        // In space (piloting or EVA): rebuild the ship's voxel structure for the new design + re-send it so the
+        // flight view renders the new ship at once. The old structure is replaced under the same id.
+        if (_current != null && _playerInstance.TryGetValue(_current.State.PlayerId, out var iid)
+            && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            var rebuilt = BuildShipStructure(_current.State.PlayerId);
+            inst.Structures[rebuilt.Id] = rebuilt;
+            foreach (var pid in inst.Players)
+            {
+                if (FindSessionByPlayerId(pid) is { } s)
+                {
+                    SendShipDesign(s, rebuilt);
+                }
+            }
         }
 
         BroadcastOwnedShips();

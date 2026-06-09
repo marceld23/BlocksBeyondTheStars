@@ -147,6 +147,10 @@ namespace Spacecraft.Client
 
             _title.text = NearestVendorName();
 
+            // A vendor only posts goods for its settlement's trade (mining/trading/research/settler); themeless
+            // recipes barter everywhere. Aboard the ship console (no vendor) only the themeless deals show.
+            string vendorTheme = NearestVendorTheme();
+
             int row = 0;
             foreach (var r in Game.Content.Recipes.Values)
             {
@@ -154,6 +158,12 @@ namespace Spacecraft.Client
                     || r.Outputs.Count == 0 || r.Inputs.Count == 0)
                 {
                     continue;
+                }
+
+                if (!string.IsNullOrEmpty(r.MarketTheme)
+                    && !string.Equals(r.MarketTheme, vendorTheme, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // this trade belongs to a different kind of settlement
                 }
 
                 AddRow(row++, r);
@@ -240,6 +250,31 @@ namespace Spacecraft.Client
             }
 
             return best ?? L("ui.vendor.title");
+        }
+
+        /// <summary>The trade theme of the closest vendor NPC (miners/traders/researchers/settlers), or empty
+        /// when none is in reach (aboard the ship's own console) — used to show only that settlement's offers.</summary>
+        private string NearestVendorTheme()
+        {
+            var p = Game.PlayerPosition;
+            string theme = string.Empty;
+            float bestSq = 3.6f * 3.6f; // same reach as Game.NearVendor
+            foreach (var n in Game.Npcs)
+            {
+                if (n.Role != "vendor")
+                {
+                    continue;
+                }
+
+                float sq = (Game.ScenePos(n.X, n.Y, n.Z) - p).sqrMagnitude;
+                if (sq <= bestSq)
+                {
+                    bestSq = sq;
+                    theme = n.Theme ?? string.Empty;
+                }
+            }
+
+            return theme;
         }
 
         private void OnDestroy()

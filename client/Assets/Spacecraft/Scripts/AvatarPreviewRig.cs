@@ -39,11 +39,13 @@ namespace Spacecraft.Client
             _cam.fieldOfView = 30f;
             _cam.nearClipPlane = 0.1f;
             _cam.farClipPlane = 20f;
-            // Frame the whole figure from the front with a slight 3/4 angle. Aim with LookAt so the avatar is
-            // always centred (the old fixed position+yaw pointed ~23° off the figure, so it sat off-screen and
-            // the preview looked empty).
-            _cam.transform.position = Origin + new Vector3(0.55f, 1.3f, 3.9f);
-            _cam.transform.LookAt(Origin + new Vector3(0f, 1.15f, 0f));
+            // Frame the whole figure from the front with a slight 3/4 angle, viewing from the −Z side. The
+            // LitColor shader keys off a FIXED light from (0.4, 0.7, −0.55) — i.e. the −Z side — so the avatar's
+            // lit side is its −Z side. We view (and turn the avatar to face) that side so the FACE catches the
+            // key light; viewing from +Z left the face on the shadow side and it washed out to a blank (B?).
+            // Aim with LookAt so the avatar is always centred.
+            _cam.transform.position = Origin + new Vector3(-0.6f, 1.35f, -3.9f);
+            _cam.transform.LookAt(Origin + new Vector3(0f, 1.2f, 0f));
 
             var lightGo = new GameObject("AvatarPreviewLight");
             lightGo.transform.SetParent(transform, false);
@@ -56,6 +58,7 @@ namespace Spacecraft.Client
             _model = new GameObject("AvatarPreviewModel").transform;
             _model.SetParent(transform, false);
             _model.position = Origin;
+            _model.localRotation = Quaternion.Euler(0f, 180f, 0f); // face the −Z camera (the lit side)
             _avatar = _model.gameObject.AddComponent<PlayerAvatar>();
             _avatar.Build(skin, torso, arms, legs);
             _avatar.SetVisible(true);
@@ -85,7 +88,10 @@ namespace Spacecraft.Client
         {
             if (_active && _model != null)
             {
-                _model.Rotate(0f, Time.deltaTime * 28f, 0f, Space.World);
+                // Gently sway around the face-toward-camera pose (±28°) instead of a full turntable, so the face
+                // is always shown to the player (the point of the preview) and never spins to the unlit back.
+                float yaw = 180f + Mathf.Sin(Time.time * 0.7f) * 28f;
+                _model.localRotation = Quaternion.Euler(0f, yaw, 0f);
             }
         }
 

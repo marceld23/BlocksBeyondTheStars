@@ -346,8 +346,10 @@ namespace Spacecraft.Client
 
         private void RefreshHotbar(Spacecraft.Shared.Localization.Localizer loc)
         {
-            // No on-foot hotbar in space — you're flying the ship, not holding hand tools.
-            bool hide = Game.SpaceViewActive || Game.InSpace;
+            // No on-foot hotbar while flying the ship — you're piloting, not holding hand tools. BUT on an EVA
+            // the hotbar IS shown: you float in space and build/mine on structures from your inventory, so you
+            // need to see + pick the held block/tool (B?).
+            bool hide = (Game.SpaceViewActive || Game.InSpace) && !Game.InEva;
             for (int i = 0; i < Slots; i++)
             {
                 if (_hotbar[i].Border != null)

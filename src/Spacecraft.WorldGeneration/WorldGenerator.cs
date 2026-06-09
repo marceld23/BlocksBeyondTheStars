@@ -233,8 +233,18 @@ public sealed class WorldGenerator
         return (int.MinValue, BlockId.Air);
     }
 
-    private const int WorldFloorDepth = 80;   // blocks below the surface where the unmineable bedrock floor sits (B46)
-    private const int LavaFloorThickness = 3; // a lava band this thick sits just above the bedrock on real planets
+    // World floor (B46/B?): every world has a DEEP solid foundation (a few hundred to a couple thousand blocks,
+    // varied per world) ending in an unmineable bedrock layer, so caves never open a hole you can fall out of
+    // the bottom through. Just above the bedrock sits a boundary band — molten lava on real planets, basalt on
+    // airless moons/asteroids — so digging all the way down ends in lava/rock, never a void.
+    private const int WorldFloorMinDepth = 256;   // the shallowest a world's foundation ever bottoms out
+    private const int WorldFloorMaxDepth = 2048;  // …the deepest (per-world, deterministic)
+    private const int FloorBandThickness = 6;     // thickness of the lava/basalt boundary band above the bedrock
+
+    /// <summary>This world's solid-foundation depth below the surface (deterministic per world) — many hundreds
+    /// to a couple thousand blocks, so there is always a deep foundation and no way to fall out the bottom.</summary>
+    private static int FloorDepthFor(long seed)
+        => WorldFloorMinDepth + (int)((ulong)(seed ^ 0x466C6F6F72L) % (ulong)(WorldFloorMaxDepth - WorldFloorMinDepth + 1));
 
     private const int PondMaxDepth = 5;     // deepest carve at a pond's centre (≥2 is swimmable)
     private const double PondBand = 0.10;   // mask range from "rim" (depth 0) to "centre" (full depth)
@@ -332,7 +342,16 @@ public sealed class WorldGenerator
         // On real planets a band of lava sits just above it; airless moons + asteroids get solid rock instead.
         var bedrockId = _content.GetBlock("bedrock")?.NumericId ?? deepId;
         var lavaFloorId = _content.GetBlock("lava")?.NumericId ?? bedrockId;
+        var basaltFloorId = _content.GetBlock("basalt")?.NumericId ?? bedrockId;
         bool airlessBody = planet.Cratered || _crateredWorld;
+        int floorDepth = FloorDepthFor(seed);
+        var floorBandId = airlessBody ? basaltFloorId : lavaFloorId; // boundary band: basalt on airless, lava on planets
+
+        // Per-world interior variety (item 21): cave frequency + ore richness + a deep basalt mantle all vary
+        // per world, so two worlds of the same type differ underground, not just on the surface.
+        double caveThreshold = PerWorldCaveThreshold(planet, seed);
+        double oreRichness = PerWorldOreRichness(seed);
+        int mantleDepth = PerWorldMantle(seed, floorDepth, out var mantleId);
 
         // Surface seas: water fills terrain basins on worlds with an atmosphere; lava fills them on
         // volcanic / airless worlds (never both). A higher abundance raises the sea level so more low
@@ -415,25 +434,27 @@ public sealed class WorldGenerator
 
                 int depth = seabedY - worldY;
 
-                // Unmineable world floor (B46): solid bedrock at the very bottom (no caves carved through it),
-                // with a lava band just above on real planets — so digging down ends in lava/rock, never a void.
-                if (depth >= WorldFloorDepth)
+                // Unmineable world floor (B46/B?): solid bedrock at the very bottom of this world's deep
+                // foundation (no caves carved through it), with a boundary band just above — molten lava on real
+                // planets, basalt on airless moons/asteroids — so digging all the way down ends in lava/rock,
+                // never a void you can fall out of.
+                if (depth >= floorDepth)
                 {
                     chunk.Set(lx, ly, lz, bedrockId);
                     continue;
                 }
 
-                if (!airlessBody && depth >= WorldFloorDepth - LavaFloorThickness)
+                if (depth >= floorDepth - FloorBandThickness)
                 {
-                    chunk.Set(lx, ly, lz, lavaFloorId);
+                    chunk.Set(lx, ly, lz, floorBandId);
                     continue;
                 }
 
-                // Carve caves below the surface layer.
-                if (planet.CaveThreshold > 0 && depth > 1)
+                // Carve caves below the surface layer (per-world cave frequency, item 21).
+                if (caveThreshold > 0.0 && depth > 1)
                 {
                     double cave = Noise.ValueCylX(seed + 7777, worldX, worldY, worldZ, _circumference, 22.0, 16.0, 22.0);
-                    if (cave > planet.CaveThreshold)
+                    if (cave > caveThreshold)
                     {
                         continue; // cave => air
                     }
@@ -450,10 +471,12 @@ public sealed class WorldGenerator
                 }
                 else
                 {
-                    block = deepId;
-                    block = SelectOre(planet, seed, worldX, worldY, worldZ, depth, fallback: block);
+                    // Deep crust turns to a dark basalt mantle below this world's mantle depth (item 21), so the
+                    // interior isn't one uniform stone column on every world. Ores still vein through it.
+                    var rock = depth >= mantleDepth ? mantleId : deepId;
+                    block = SelectOre(planet, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
 
-                    if (block == deepId && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
+                    if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
                     {
                         double r = Noise.Value01(seed + 4242, WorldConstants.WrapX(worldX, _circumference), worldY, worldZ);
                         if (r < planet.DataCacheRarity)
@@ -572,7 +595,51 @@ public sealed class WorldGenerator
         }
     }
 
-    private BlockId SelectOre(PlanetType planet, long seed, int x, int y, int z, int depth, BlockId fallback)
+    // --- Per-world interior variety (item 21): two worlds of the same TYPE still differ underground — one is
+    // honeycombed with caves, the next nearly solid; one is ore-rich, the next lean; and the deep crust turns
+    // to dark basalt at a depth that varies per world. All deterministic from the world seed. ---
+
+    /// <summary>This world's effective cave threshold (lower = MORE caves) — the planet's base value jittered
+    /// per world by ±0.06, so cave frequency underground varies world to world. 0 keeps caves disabled.</summary>
+    private static double PerWorldCaveThreshold(PlanetType planet, long seed)
+    {
+        if (planet.CaveThreshold <= 0.0)
+        {
+            return 0.0;
+        }
+
+        double j = ((double)((ulong)(seed ^ 0x0CA7EL) % 1000UL) / 1000.0 - 0.5) * 0.10; // ±0.05
+        double t = planet.CaveThreshold + j;
+        return t < 0.60 ? 0.60 : (t > 0.90 ? 0.90 : t);
+    }
+
+    /// <summary>This world's ore-richness multiplier (0.7×..1.4× the planet's vein rarities) — some worlds are
+    /// rich strikes, others lean, so the interior payoff varies even on the same planet type.</summary>
+    private static double PerWorldOreRichness(long seed)
+        => 0.7 + (double)((ulong)(seed ^ 0x0670EL) % 1000UL) / 1000.0 * 0.7;
+
+    private static readonly string[] MantleRocks = { "basalt", "deepslate", "granite" };
+
+    /// <summary>Depth below which this world's crust turns to a deep "mantle" rock — basalt, deepslate or granite,
+    /// CHOSEN per world — instead of the surface stone, so the interior MATERIAL (not just cave/ore density)
+    /// differs from world to world. ~1/4 of worlds keep a plain stone crust to the bottom.
+    /// <see cref="int.MaxValue"/> = no mantle on this world.</summary>
+    private int PerWorldMantle(long seed, int floorDepth, out BlockId mantleId)
+    {
+        uint pick = (uint)((ulong)(seed ^ 0x0DEE9L) % 1000UL);
+        mantleId = _content.GetBlock(MantleRocks[pick % (uint)MantleRocks.Length])?.NumericId ?? BlockId.Air;
+        if (mantleId.IsAir || pick < 250)
+        {
+            return int.MaxValue; // ~1/4 of worlds: solid stone crust all the way down (no distinct mantle)
+        }
+
+        // The mantle starts somewhere in the lower half of the foundation (varies per world).
+        int lo = System.Math.Max(40, floorDepth / 2);
+        int span = System.Math.Max(1, floorDepth - FloorBandThickness - lo);
+        return lo + (int)((ulong)(seed ^ 0x0DA27L) % (ulong)span);
+    }
+
+    private BlockId SelectOre(PlanetType planet, long seed, int x, int y, int z, int depth, BlockId fallback, double richness)
     {
         for (int i = 0; i < planet.Ores.Count; i++)
         {
@@ -582,9 +649,10 @@ public sealed class WorldGenerator
                 continue;
             }
 
-            // Coarse 3D noise produces vein-like clusters; rarity is the fraction kept.
+            // Coarse 3D noise produces vein-like clusters; rarity is the fraction kept (scaled by this world's
+            // richness so some worlds strike rich and others lean).
             double n = Noise.ValueCylX(seed + 100 + i * 31, x, y, z, _circumference, 9.0, 9.0, 9.0);
-            if (n > 1.0 - ore.Rarity)
+            if (n > 1.0 - System.Math.Clamp(ore.Rarity * richness, 0.0, 0.95))
             {
                 var oreBlock = _content.GetBlock(ore.Block);
                 if (oreBlock is not null)

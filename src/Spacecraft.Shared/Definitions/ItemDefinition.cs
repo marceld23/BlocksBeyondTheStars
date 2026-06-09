@@ -24,6 +24,10 @@ public sealed class ToolProperties
 
     /// <summary>Weapon reach in blocks (melee = short, ranged = long); 0 uses the default attack reach.</summary>
     public float Range { get; set; }
+
+    /// <summary>Minimum seconds between uses/swings of this tool/weapon (e.g. a machete swings at most once per
+    /// 1.5s). 0 = no time cooldown (energy-free melee weapons fall back to the server's default melee cooldown).</summary>
+    public float CooldownSeconds { get; set; }
 }
 
 /// <summary>

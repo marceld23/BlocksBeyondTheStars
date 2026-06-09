@@ -53,13 +53,14 @@ public sealed class UniverseGenerator
 
         if (list.Count == 0)
         {
-            // Default: every selectable planet type at Normal weight (special bodies such as
-            // landable asteroids are excluded so they never appear as ordinary system planets).
+            // Default: every selectable planet type at its own SpawnWeight (special bodies such as landable
+            // asteroids are Selectable=false so they never appear as ordinary system planets). The per-type
+            // weight lets common worlds dominate while exotic ones stay rare without a world-description override.
             foreach (var key in content.Planets.Keys)
             {
-                if (content.GetPlanet(key) is { Selectable: true })
+                if (content.GetPlanet(key) is { Selectable: true } p)
                 {
-                    list.Add((key, Frequency.Normal.Weight()));
+                    list.Add((key, System.Math.Max(1, p.SpawnWeight)));
                 }
             }
         }

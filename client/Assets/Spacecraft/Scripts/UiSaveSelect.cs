@@ -55,7 +55,7 @@ namespace Spacecraft.Client
             UiKit.AddText(right, 20f, 54f, 660f, 24f, shell.L("ui.save.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
 
             string[] name = { "new_world" };
-            UiKit.AddInput(right, 20f, 82f, 660f, 34f, name[0], v => name[0] = v);
+            UiKit.AddInput(right, 20f, 82f, 660f, 34f, name[0], v => name[0] = v, maxLength: 24);
 
             // Mode: Explorer (normal) vs Creative (everything unlocked + a starter set; survival mechanics stay on).
             bool[] creative = { false };

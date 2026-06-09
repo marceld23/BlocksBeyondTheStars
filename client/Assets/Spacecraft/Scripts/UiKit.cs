@@ -290,7 +290,7 @@ namespace Spacecraft.Client
 
         /// <summary>Builds a themed single-line text field (background + editable text + placeholder).</summary>
         public static InputField AddInput(Transform parent, float x, float y, float w, float h, string value,
-            System.Action<string> onChange, string placeholder = "")
+            System.Action<string> onChange, string placeholder = "", int maxLength = 0)
         {
             var go = new GameObject("Input", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -309,6 +309,7 @@ namespace Spacecraft.Client
             input.textComponent = text;
             input.placeholder = ph;
             input.text = value ?? string.Empty;
+            if (maxLength > 0) input.characterLimit = maxLength;
             input.caretColor = Cyan;
             input.selectionColor = new Color(Cyan.r, Cyan.g, Cyan.b, 0.35f);
             if (onChange != null)

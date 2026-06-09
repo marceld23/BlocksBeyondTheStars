@@ -47,9 +47,20 @@
 
   { "key": "market_iron_to_titanium",  "station": "market", "inputs": [ { "item": "iron_ore", "count": 5 } ],      "outputs": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "market_titanium_to_iron",  "station": "market", "inputs": [ { "item": "titanium_ore", "count": 1 } ],  "outputs": [ { "item": "iron_ore", "count": 4 } ] },
-  { "key": "market_copper_to_silicate","station": "market", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
-  { "key": "market_sell_crystal",      "station": "market", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
-  { "key": "market_buy_data_fragment", "station": "market", "inputs": [ { "item": "titanium_ore", "count": 3 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+
+  { "key": "market_copper_to_silicate","station": "market", "marketTheme": "traders", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
+  { "key": "market_sell_crystal",      "station": "market", "marketTheme": "traders", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
+  { "key": "market_sell_gold",         "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 1 } ],   "outputs": [ { "item": "titanium_ore", "count": 6 } ] },
+
+  { "key": "market_buy_iron",          "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 4 } ],      "outputs": [ { "item": "iron_ore", "count": 6 } ] },
+  { "key": "market_buy_copper",        "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 3 } ],      "outputs": [ { "item": "copper_ore", "count": 4 } ] },
+  { "key": "market_carbon_to_crystal", "station": "market", "marketTheme": "miners", "inputs": [ { "item": "carbon", "count": 8 } ],        "outputs": [ { "item": "crystal", "count": 1 } ] },
+
+  { "key": "market_buy_data_fragment", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "titanium_ore", "count": 3 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
+  { "key": "market_data_to_circuit",   "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "circuit_board", "count": 2 } ] },
+
+  { "key": "market_sell_meat",         "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "creature_meat", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 3 } ] },
+  { "key": "market_buy_food",          "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "iron_ore", "count": 3 } ],      "outputs": [ { "item": "creature_meat", "count": 5 } ] },
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] },
@@ -88,6 +99,13 @@
   { "key": "steel_floor", "station": "workshop", "inputs": [ { "item": "steel", "count": 1 } ],                                      "outputs": [ { "item": "steel_floor", "count": 4 } ] },
   { "key": "metal_panel", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 } ],                                 "outputs": [ { "item": "metal_panel", "count": 4 } ] },
   { "key": "concrete",    "station": "hand",     "inputs": [ { "item": "stone", "count": 4 }, { "item": "sand", "count": 1 } ],      "outputs": [ { "item": "concrete", "count": 4 } ] },
+
+  { "key": "stairs_granite",     "station": "hand",     "inputs": [ { "item": "granite", "count": 2 } ],                                  "outputs": [ { "item": "stairs", "count": 4 } ] },
+  { "key": "concrete_deepslate", "station": "hand",     "inputs": [ { "item": "deepslate", "count": 4 }, { "item": "sand", "count": 1 } ], "outputs": [ { "item": "concrete", "count": 4 } ] },
+  { "key": "glass_salt",         "station": "refinery", "inputs": [ { "item": "salt", "count": 1 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "glass", "count": 2 } ] },
+  { "key": "water_snow",         "station": "hand",     "inputs": [ { "item": "snow", "count": 2 } ],                                     "outputs": [ { "item": "water", "count": 1 } ] },
+  { "key": "fiber_mycelium",     "station": "hand",     "inputs": [ { "item": "mycelium", "count": 1 } ],                                 "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
+  { "key": "fiber_alien_grass",  "station": "hand",     "inputs": [ { "item": "alien_grass", "count": 1 } ],                              "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
   { "key": "door_hinge",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "door_hinge", "count": 1 } ] },
   { "key": "door_slide",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 2 } ], "outputs": [ { "item": "door_slide", "count": 1 } ] },

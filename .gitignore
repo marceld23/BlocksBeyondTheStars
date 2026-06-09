@@ -61,3 +61,4 @@ Thumbs.db
 tests/Spacecraft.Tests/bin/
 tests/Spacecraft.Tests/obj/
 client/build-console.log
+.roo/mcp.json

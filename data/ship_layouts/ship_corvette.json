@@ -496,13 +496,6 @@
   {
    "x": 2,
    "y": 1,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
-  },
-  {
-   "x": 2,
-   "y": 1,
    "z": 5,
    "kind": "station",
    "id": "medbay"
@@ -511,13 +504,6 @@
    "x": 2,
    "y": 1,
    "z": 6,
-   "kind": "block",
-   "id": "iron_wall"
-  },
-  {
-   "x": 2,
-   "y": 2,
-   "z": 0,
    "kind": "block",
    "id": "iron_wall"
   },
@@ -853,13 +839,6 @@
   {
    "x": 4,
    "y": 1,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
-  },
-  {
-   "x": 4,
-   "y": 1,
    "z": 2,
    "kind": "station",
    "id": "cargo"
@@ -877,13 +856,6 @@
    "z": -1,
    "kind": "block",
    "id": "engine"
-  },
-  {
-   "x": 4,
-   "y": 2,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
   },
   {
    "x": 4,

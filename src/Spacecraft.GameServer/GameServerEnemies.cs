@@ -141,16 +141,21 @@ public sealed partial class GameServer
         var tool = ActiveTool(p);
         bool isWeapon = tool.Kind == ToolKind.Weapon;
 
-        // A melee weapon (e.g. the machete: a weapon with no per-shot energy cost) swings on a cooldown, so it
-        // can't be spammed — one hit per MeleeCooldown seconds (B44). Ranged energy weapons gate on suit energy.
-        if (isWeapon && tool.EnergyPerUse <= 0f)
+        // A weapon swings on a cooldown, so it can't be spammed (B44). The per-weapon cooldown comes from the
+        // item (machete = 1.5s); an energy-free melee weapon with no explicit cooldown falls back to the default.
+        // Ranged energy weapons without a cooldown are still rate-limited by their suit-energy cost.
+        if (isWeapon)
         {
-            if (_meleeReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
+            double cd = tool.CooldownSeconds > 0f ? tool.CooldownSeconds : (tool.EnergyPerUse <= 0f ? MeleeCooldown : 0.0);
+            if (cd > 0.0)
             {
-                return; // still on cooldown — ignore the swing (no reject spam)
-            }
+                if (_meleeReadyAt.TryGetValue(p.PlayerId, out var readyAt) && _uptime < readyAt)
+                {
+                    return; // still on cooldown — ignore the swing (no reject spam)
+                }
 
-            _meleeReadyAt[p.PlayerId] = _uptime + MeleeCooldown;
+                _meleeReadyAt[p.PlayerId] = _uptime + cd;
+            }
         }
 
         // A ranged weapon's longer reach extends the default; a melee weapon never *reduces* it below the

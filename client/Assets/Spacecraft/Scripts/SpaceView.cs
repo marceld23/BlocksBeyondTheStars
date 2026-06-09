@@ -93,8 +93,10 @@ namespace Spacecraft.Client
         private float _shipSpeedMul = 1f; // cruise-speed factor from the active ship design
         private float _shipTurnMul = 1f;  // turn-rate factor from the active ship design
 
-        private bool _confirmLand;        // a landing prompt is up — the pad chooser (item 38)
+        private bool _confirmLand;        // a landing prompt is up — the pad chooser map (item 38)
         private string _choosePadBody;    // body whose pads the chooser is showing (null = no chooser)
+        private GameObject _landMapGo;    // the on-screen planet map of landing pads (built while choosing)
+        private string _landMapBody;      // which body the currently-built land map is for
         private string _boardTargetId;    // station being boarded during the dock-approach animation
         private Vector3 _boardTargetPos, _boardStartPos;
         private bool _boardSent;          // the board intent was sent (now waiting for the server)
@@ -318,37 +320,21 @@ namespace Spacecraft.Client
             {
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
-                    _confirmLand = false;
-                    _choosePadBody = null;
+                    CancelLandChooser();
                     return;
                 }
 
                 var pads = Game.LandingPadsBody == _choosePadBody ? Game.LandingPads : null;
                 if (pads != null)
                 {
-                    // Pressing E again (or Enter) just lands on the first free pad — so "press E to land" works as
-                    // a single action without needing to know the per-pad number keys. Numbers still pick a pad.
-                    if (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
-                    {
-                        for (int i = 0; i < pads.Length; i++)
-                        {
-                            if (!pads[i].Occupied)
-                            {
-                                Game.Network?.SendLeaveSpace(_choosePadBody, pads[i].Index);
-                                _confirmLand = false;
-                                _choosePadBody = null;
-                                return;
-                            }
-                        }
-                    }
-
+                    // Show the planet map with the landing pads on it; the player clicks a free pad to touch down
+                    // there. Number keys 1–9 mirror clicking, for keyboard players.
+                    ShowLandMap(pads);
                     for (int i = 0; i < pads.Length && i < 9; i++)
                     {
                         if ((Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) && !pads[i].Occupied)
                         {
-                            Game.Network?.SendLeaveSpace(_choosePadBody, pads[i].Index); // land on the chosen pad
-                            _confirmLand = false;
-                            _choosePadBody = null;
+                            LandOnPad(pads[i].Index);
                             break;
                         }
                     }
@@ -495,7 +481,8 @@ namespace Spacecraft.Client
                 }
                 else if (_landTargetId != null)
                 {
-                    OpenPadChooser(_landTargetId); // pick a landing pad on the nearby body, then land (item 38)
+                    // One press opens the planet map; you pick the pad to land on there (item 38 / B?).
+                    OpenPadChooser(_landTargetId);
                 }
             }
 
@@ -540,6 +527,129 @@ namespace Spacecraft.Client
             _confirmLand = true;
             _choosePadBody = bodyId ?? string.Empty;
             Game.Network?.SendRequestLandingPads(_choosePadBody);
+        }
+
+        /// <summary>Closes the landing-pad map without landing (Esc / cancel).</summary>
+        private void CancelLandChooser()
+        {
+            _confirmLand = false;
+            _choosePadBody = null;
+            HideLandMap();
+        }
+
+        /// <summary>Touches down on the chosen pad and tears the chooser down.</summary>
+        private void LandOnPad(int padIndex)
+        {
+            Game.Network?.SendLeaveSpace(_choosePadBody, padIndex);
+            _confirmLand = false;
+            _choosePadBody = null;
+            HideLandMap();
+        }
+
+        /// <summary>Builds (once per body) the planet map shown before landing: a top-down plan of the body's
+        /// fixed landing pads plotted by their world X/Z, each a clickable marker — green = free (click to land
+        /// here), red = taken by another player. The cursor is freed so the player can click a pad (item 38).</summary>
+        private void ShowLandMap(Spacecraft.Networking.Messages.NetLandingPad[] pads)
+        {
+            if (_landMapGo != null && _landMapBody == _choosePadBody)
+            {
+                return; // already showing this body's pads
+            }
+
+            HideLandMap();
+            _landMapBody = _choosePadBody;
+            EnsureUi();
+
+            var loc = Game.Localizer;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            // Centre panel in the 1536×864 HUD space.
+            const float pw = 760f, ph = 660f;
+            float px = (UiKit.HudRefW - pw) * 0.5f, py = (UiKit.HudRefH - ph) * 0.5f;
+            var panel = UiKit.AddPanel(_ui.transform, px, py, pw, ph, new Color(0.03f, 0.07f, 0.13f, 0.97f));
+            panel.raycastTarget = true; // eat clicks behind the map
+            _landMapGo = panel.gameObject;
+
+            string title = loc != null ? loc.Get("ui.space.pad_choose") : "Choose a landing pad";
+            string bodyName = string.IsNullOrEmpty(_landTargetName) ? string.Empty : $" — {_landTargetName}";
+            UiKit.AddText(panel.transform, 24, 18, pw - 48, 30, title + bodyName, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            // Square map area inside the panel.
+            const float pad = 40f;
+            float mapTop = 64f, mapSize = pw - pad * 2;
+            var map = UiKit.AddPanel(panel.transform, pad, mapTop, mapSize, mapSize, new Color(0.05f, 0.11f, 0.18f, 1f));
+            map.raycastTarget = true;
+
+            // Bounding box of all pads (with a margin) → normalise each pad onto the map square.
+            int minX = int.MaxValue, maxX = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
+            foreach (var p in pads)
+            {
+                if (p.X < minX) minX = p.X;
+                if (p.X > maxX) maxX = p.X;
+                if (p.Z < minZ) minZ = p.Z;
+                if (p.Z > maxZ) maxZ = p.Z;
+            }
+
+            if (pads.Length == 0) { minX = maxX = minZ = maxZ = 0; }
+            float spanX = System.Math.Max(1, maxX - minX), spanZ = System.Math.Max(1, maxZ - minZ);
+            float span = System.Math.Max(spanX, spanZ) * 1.15f; // keep aspect square + a margin
+            float cxw = (minX + maxX) * 0.5f, czw = (minZ + maxZ) * 0.5f;
+            const float marker = 46f;
+            float inner = mapSize - marker;
+
+            foreach (var p in pads)
+            {
+                float u = 0.5f + (p.X - cxw) / span; // 0..1 across the map
+                float v = 0.5f + (p.Z - czw) / span; // 0..1 down the map (north up)
+                float mx = pad + marker * 0.5f + u * inner - marker * 0.5f;
+                float my = mapTop + marker * 0.5f + v * inner - marker * 0.5f;
+
+                bool free = !p.Occupied;
+                var col = free ? new Color(0.16f, 0.55f, 0.30f, 0.98f) : new Color(0.45f, 0.12f, 0.12f, 0.98f);
+                int padIndex = p.Index;
+                string label = (p.Index + 1).ToString();
+                if (free)
+                {
+                    UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
+                }
+                else
+                {
+                    var occ = UiKit.AddPanel(panel.transform, mx, my, marker, marker, col);
+                    occ.raycastTarget = true;
+                    UiKit.AddText(occ.transform, 0, 0, marker, marker, label, 18, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+                    string who = string.IsNullOrEmpty(p.Occupant) ? "—" : p.Occupant;
+                    UiKit.AddText(panel.transform, mx - 30, my + marker, marker + 60, 18, who, 12, new Color(1f, 0.6f, 0.55f), TextAnchor.UpperCenter);
+                }
+            }
+
+            string hint = loc != null ? loc.Get("ui.space.pad_full") : string.Empty;
+            bool anyFree = false;
+            foreach (var p in pads) { if (!p.Occupied) { anyFree = true; break; } }
+            UiKit.AddText(panel.transform, 24, ph - 96, pw - 48, 22,
+                anyFree ? (loc != null ? loc.Get("ui.space.pad_choose") : "Click a free (green) pad to land")
+                        : (loc != null ? loc.Get("ui.space.pad_full") : "All pads are occupied — wait for one to free up"),
+                15, anyFree ? UiKit.CyanDim : new Color(1f, 0.6f, 0.55f), TextAnchor.MiddleCenter);
+
+            UiKit.AddButton(panel.transform, (pw - 220) * 0.5f, ph - 64, 220, 46,
+                loc != null ? loc.Get("ui.action.close") : "Cancel (Esc)", CancelLandChooser);
+        }
+
+        /// <summary>Tears down the landing-pad map + re-locks the cursor for flight.</summary>
+        private void HideLandMap()
+        {
+            if (_landMapGo != null)
+            {
+                Destroy(_landMapGo);
+                _landMapGo = null;
+            }
+
+            _landMapBody = null;
+            if (Game != null && Game.SpaceViewActive)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
         }
 
         /// <summary>Rebuilds the quick-bar of ship systems from the active ship's fitted modules (a weapon
@@ -731,6 +841,9 @@ namespace Spacecraft.Client
                     _evaPos = ob.Pos + d / dist * ob.Radius;
                 }
             }
+
+            // Hotbar select (number keys + scroll) so you can pick the block/tool to build with out here.
+            UpdateEvaHotbarSelect();
 
             // Aim at the ship's voxel grid and build/mine on it (S2).
             UpdateEvaBuild();
@@ -962,6 +1075,31 @@ namespace Spacecraft.Client
 
         /// <summary>EVA aim + build/mine: highlights the targeted cell; LMB mines it (ship hull or asteroid ore),
         /// RMB places the held block in the empty cell before it. Server-authoritative — it validates + broadcasts.</summary>
+        /// <summary>Lets the EVA player pick the active hotbar slot (1–9 keys or scroll), mirroring the on-foot
+        /// controls — so they can choose which block/tool to build with while floating in space.</summary>
+        private void UpdateEvaHotbarSelect()
+        {
+            const int slots = 9;
+            for (int i = 0; i < slots; i++)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i))
+                {
+                    SelectEvaSlot(i);
+                }
+            }
+
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (scroll > 0f) { SelectEvaSlot((Game.SelectedHotbarSlot + slots - 1) % slots); }
+            else if (scroll < 0f) { SelectEvaSlot((Game.SelectedHotbarSlot + 1) % slots); }
+        }
+
+        private void SelectEvaSlot(int slot)
+        {
+            if (slot == Game.SelectedHotbarSlot) { return; }
+            Game.SelectedHotbarSlot = slot;
+            Game.Network?.SendSelectHotbar(slot);
+        }
+
         private void UpdateEvaBuild()
         {
             _evaHasAim = AimVoxel(out _evaAimStructId, out _evaAimHit, out _evaAimPlace);
@@ -1252,6 +1390,7 @@ namespace Spacecraft.Client
             _yaw = 0f;
             _pitch = 0f;
             _confirmLand = false;
+            HideLandMap();
             _boardSent = false;
             _hyperjumping = false;
             _eva = false;
@@ -2462,43 +2601,15 @@ namespace Spacecraft.Client
             }
             else if (_confirmLand)
             {
-                // Landing-pad chooser (item 38; key-driven, no cursor): pick a free pad 1–N, Esc cancels.
+                // Landing-pad chooser (item 38): the planet map of pads is its own clickable overlay (ShowLandMap);
+                // here just clear the fade and show a one-line hint while the pad list streams in.
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
                 var pads = Game.LandingPadsBody == _choosePadBody ? Game.LandingPads : null;
-                if (pads == null)
-                {
-                    _hint.text = loc != null ? loc.Get("ui.space.pad_loading") : "Reading landing pads…";
-                }
-                else
-                {
-                    var sb = new System.Text.StringBuilder();
-                    sb.Append(loc != null ? loc.Get("ui.space.pad_choose") : "Choose a landing pad");
-                    sb.Append(":   ");
-                    int free = 0;
-                    for (int i = 0; i < pads.Length && i < 9; i++)
-                    {
-                        if (pads[i].Occupied)
-                        {
-                            sb.Append($"<color=#ff6655>[{i + 1}] ✖ {pads[i].Occupant}</color>   ");
-                        }
-                        else
-                        {
-                            sb.Append($"<color=#66ddaa>[{i + 1}] ◉</color>   ");
-                            free++;
-                        }
-                    }
-
-                    if (free == 0)
-                    {
-                        sb.Append(loc != null ? loc.Get("ui.space.pad_full") : "— ALL FULL");
-                    }
-
-                    sb.Append("   ·   E land · Esc");
-                    _hint.text = sb.ToString();
-                }
-
-                _hint.gameObject.SetActive(true);
+                _hint.text = pads == null
+                    ? (loc != null ? loc.Get("ui.space.pad_loading") : "Reading landing pads…")
+                    : string.Empty; // the map shows the choices
+                _hint.gameObject.SetActive(pads == null);
                 _board.gameObject.SetActive(false);
                 _cargo.gameObject.SetActive(false);
             }

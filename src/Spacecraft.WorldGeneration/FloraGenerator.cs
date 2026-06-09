@@ -17,9 +17,9 @@ public static class FloraGenerator
     public static IReadOnlyList<FloraSpecies> GenerateRoster(PlanetType planet, long worldSeed)
     {
         var list = new List<FloraSpecies>();
-        if (planet.FloraDensity <= 0)
+        if (planet.IsAirless || planet.FloraDensity <= 0)
         {
-            return list; // barren worlds grow nothing to name
+            return list; // airless (asteroids / airless moons+planets) + barren worlds grow nothing
         }
 
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ 0x5EEDF10A;

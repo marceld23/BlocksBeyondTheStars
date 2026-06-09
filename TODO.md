@@ -21,6 +21,45 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Item 21 — World variety: more, stranger, more varied worlds (V1–V5) — IN PROGRESS (2026-06-09)
+Decisions (asked & answered 2026-06-09): scope **full V1–V5**; priorities **terrain shapes + exotic world
+types + flora variety** (fauna/habitats included but secondary); exotic-world frequency **balanced**
+(noticeable, not dominating). OpenAI textures + ElevenLabs sounds approved for any new blocks/flora.
+
+Current state (analysis): 8 selectable planet types, all equal weight; every world uses ONE FBM heightmap
+blended across the SAME global 5 terrain archetypes (flats→rolling→hills→mountains→canyons), so worlds read
+structurally alike. Only `varied` is multi-biome (`ResolveBiomes`), wasting fauna `BiomeAffinity` on the
+other 7. Flora (28 archetypes, `FloraCatalog`) is gated ONLY by surface block → same pool on every
+same-surface world; per-world *hue* varies, shape doesn't. Fauna has 4 habitats (Land/Air/Water/Lava);
+caves are lifeless; water/lava life gated to a few planet keys; no per-planet creature theme.
+
+Plan (staged, each phase shippable + tested):
+- **V1 — new world types (data-first): ✅ DONE (2026-06-09, 405 tests green).** Selectable planet types
+  8 → **17**. Added `PlanetType.SpawnWeight` (frequency in planets.json; UniverseGenerator uses it) with
+  balanced rarity tiers. New types: **ocean, savanna, highland, crystal_living, ashen** (from existing
+  blocks) + **tundra, fungal, corrupted, salt_flats** (new blocks). 6 new blocks (snow, salt, mycelium,
+  alien_grass, deepslate, granite) with OpenAI textures + bundled .bytes + bilingual locale. Multi-biome
+  pools added to rocky/ice/desert/jungle (+ the new types). **Interior variety (per the follow-up ask):**
+  per-world cave-frequency jitter, per-world ore-richness, and a per-world deep "mantle" rock chosen from
+  basalt/deepslate/granite — so two worlds of one type differ underground, not just on the surface. **New
+  materials embedded in crafting (per the follow-up ask):** all 6 new blocks are placeable building
+  materials that drop themselves; granite→stairs, deepslate→concrete, salt→glass (flux), snow→water,
+  mycelium/alien_grass→plant_fiber (→ emergency_ration) — no dead-ends. New surface blocks added as flora
+  hosts so exotic worlds grow thematic flora (fungal→glowing fungi, corrupted→alien meadow, tundra→frost,
+  salt→succulents, ashen→ember).
+- **V2 — per-planet terrain style + new archetypes:** let a planet pick its terrain-archetype set instead of
+  the global 5; add mesa/terrace, dunes, rivers. (Biggest "worlds look different" win.)
+- **V3 — flora variety + theme gating:** ~10 alien flora archetypes + new hosts; gate flora by planet
+  theme/biome (not just surface block); multi-block giant mushrooms + crystal spires.
+- **V4 — fauna habitats + alien morphology:** new Cave/subterranean + Amphibian habitats (living caves),
+  per-planet creature theme bias, richer morphology (eyestalks, tentacles, 8-legs, gasbag).
+- **V5 — signature alien terrain:** floating islands (skylands), chasms/sinkholes, geysers/lava vents.
+
+Key generation changes: FloraGenerator theme gating + new hosts in EnsureCoverage; CreatureGenerator new
+habitats + per-planet palette; WorldGenerator per-planet archetype set + new feature passes; PlanetType new
+fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
+weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
+
 1. ✅ **Task 3 — softer shadows + lit cave mouths** (done 2026-06-07). The mesher's hard binary skylight is now
    a **soft sky-occlusion** (5×5 horizontal kernel): cave mouths feather into a soft-lit gradient and overhang
    shadows soften, while deep caves stay dark (lamp needed). Mesher-only; the shader already took a continuous

@@ -126,9 +126,12 @@ namespace Spacecraft.Client
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
                 float leafFlag = foliage ? 1f : 0f;
-                // Fluids (water/lava) + fire render but don't collide — you swim/sink into fluids and walk
-                // through (and burn in) fire.
-                bool collidable = !IsFluidBlock(content, id) && content.BlockById(id)?.Key != "fire";
+                // Water + fire render but don't collide — you swim/sink into water and walk through (and burn
+                // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
+                // below) rather than dropping straight through it into a cave/void — you must not fall through
+                // lava.
+                var collKey = content.BlockById(id)?.Key;
+                bool collidable = collKey != "water" && collKey != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 for (int f = 0; f < Faces.Length; f++)

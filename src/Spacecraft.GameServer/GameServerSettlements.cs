@@ -213,6 +213,17 @@ public sealed partial class GameServer
     private const float SettlementVendorReach = 4f;
     private const float SettlementBoardReach = 4f;
 
+    /// <summary>The four settlement trade professions. A settlement's profession (derived deterministically from
+    /// its name) themes its NPCs and decides which market goods its vendor posts.</summary>
+    private static readonly string[] SettlementTrades = { "miners", "traders", "researchers", "settlers" };
+
+    /// <summary>Deterministic trade profession for a settlement (stable from its name), so a mining village and a
+    /// trade city always offer their own distinct barter — and both the NPC theme and the market filter agree.</summary>
+    private static string SettlementTradeFor(string name)
+        => string.IsNullOrEmpty(name)
+            ? "settlers"
+            : SettlementTrades[(uint)WorldGenerator.StableHash(name) % (uint)SettlementTrades.Length];
+
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)
         => NearMarker(player, "vendor", SettlementVendorReach);

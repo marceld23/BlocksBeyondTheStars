@@ -38,6 +38,26 @@ public sealed class FloraTests : IDisposable
         return server;
     }
 
+    [Fact]
+    public void AirlessBodies_HaveNoFloraOrFauna()
+    {
+        // Landable asteroids + airless moons/planets are barren: no flora, no fauna.
+        foreach (var key in new[] { "asteroid", "lava", "crystal" })
+        {
+            var planet = _content.GetPlanet(key);
+            Assert.NotNull(planet);
+            Assert.True(planet!.IsAirless, $"{key} should be airless");
+            Assert.Empty(FloraGenerator.GenerateRoster(planet, 123));
+            Assert.Empty(CreatureGenerator.GenerateRoster(planet, 123));
+        }
+
+        // A breathable world still teems with life.
+        var jungle = _content.GetPlanet("jungle");
+        Assert.NotNull(jungle);
+        Assert.NotEmpty(FloraGenerator.GenerateRoster(jungle!, 123));
+        Assert.NotEmpty(CreatureGenerator.GenerateRoster(jungle!, 123));
+    }
+
     private static ushort BlockAboveSurface(WorldGenerator gen, PlanetType planet, int x, int z)
     {
         int surfaceY = gen.SurfaceHeight(planet, x, z);

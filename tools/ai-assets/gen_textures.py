@@ -46,6 +46,13 @@ TEXTURES = [
     ("water", "blue rippling water surface"),
     ("fire", "bright orange and yellow flames, licking tongues of fire with hot white centres, on a solid pure black background, top-down"),
     ("ash", "dark grey and black charred ash, soot and burnt embers, fine powdery texture"),
+    # Item 21 — world variety: new surface + deep-crust blocks for the new world types.
+    ("snow", "fresh clean white snow surface with a faint sparkle and soft powdery drifts"),
+    ("salt", "white and pale grey crystalline salt flat crust with polygonal dried cracks"),
+    ("mycelium", "purple-grey fungal mycelium soil threaded with pale filaments and tiny spores, top-down"),
+    ("alien_grass", "alien turf of violet and magenta grass blades with a faint eerie glow, top-down"),
+    ("deepslate", "very dark grey-blue deepslate stone with fine layered banding"),
+    ("granite", "speckled pink and grey granite rock with glinting mineral flecks"),
     ("flora_plant", "lush green leafy plant with fronds and small bush foliage, top-down"),
     ("flora_crystal", "cluster of glowing cyan crystal shards growing from rock"),
     # Complete flora set — biome-appropriate species (full colour; the atlas tints nothing).
