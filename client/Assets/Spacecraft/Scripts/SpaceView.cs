@@ -1763,6 +1763,11 @@ namespace Spacecraft.Client
         /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.</summary>
         private void SpawnBody(string name, Vector3 pos, float diameter, string planetType)
         {
+            // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
+            // red sun the whole system reads warm (a light wash — the biome tint stays recognisable).
+            float sm = Mathf.Max(_sunColor.r, Mathf.Max(_sunColor.g, _sunColor.b));
+            Color sunHue = sm > 0.001f ? new Color(_sunColor.r / sm, _sunColor.g / sm, _sunColor.b / sm) : Color.white;
+
             var look = PlanetLook(planetType);
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.name = name;
@@ -1770,10 +1775,11 @@ namespace Spacecraft.Client
             sphere.transform.SetParent(_root.transform, false);
             sphere.transform.localPosition = pos;
             sphere.transform.localScale = Vector3.one * diameter;
-            sphere.GetComponent<Renderer>().sharedMaterial = Lit(look.tint, LoadTex(look.tex), new Vector2(3f, 2f));
+            Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
+            sphere.GetComponent<Renderer>().sharedMaterial = Lit(bodyTint, LoadTex(look.tex), new Vector2(3f, 2f));
 
             var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
-            AddCloudShell(sphere.transform, cloudCol, cloudDen);
+            AddCloudShell(sphere.transform, Color.Lerp(cloudCol, cloudCol * sunHue, 0.35f), cloudDen);
         }
 
         private GameObject BuildShip(Transform parent)

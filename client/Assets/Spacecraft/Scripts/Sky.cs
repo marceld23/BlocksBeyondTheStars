@@ -220,6 +220,12 @@ namespace Spacecraft.Client
             sky.a = 1f;
             Shader.SetGlobalColor(SkyId, sky);
 
+            // Star-tinted flat ambient (B37 rest): the custom block shader ignores Unity's ambient, but
+            // standard/Lit-shaded props (and URP's ambient term) pick it up — so even those follow the
+            // system star + time of day instead of Unity's fixed grey.
+            UnityEngine.RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            UnityEngine.RenderSettings.ambientLight = Color.Lerp(sky, tint, 0.35f);
+
             // Apply to the camera background (skip while the space view controls the camera).
             if (Camera != null && (Game == null || !Game.SpaceViewActive))
             {

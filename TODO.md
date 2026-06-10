@@ -187,6 +187,24 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
+### ★ Three-pack (doors check / creature morphology / sky rests) — ✅ DONE 2026-06-10 (423 tests green)
+- **Auto-doors stations + ship + placeable door — ALREADY IMPLEMENTED, TODO was stale.** Verified end-to-end:
+  `StationGenerator` emits `door_slide` markers (L306) → `RegisterStationDoors(station.Markers)` on boarding;
+  ship hatches are energy doors from `ShipStamps.Doors`; the **placeable door** exists fully (items + recipes
+  `door_slide`/`door_hinge`, `PlaceDoor`/`RemovePlayerDoorAt`, persisted via `_repo.SaveDoor`, covered by
+  `PlaceableDoorTests`); both editors carry door palette entries. The stale "stations/ship still open" section
+  below is superseded.
+- **Creature morphology (item-21 rest):** new species traits **Tentacles** (water 55% → 4–6, cave/amphibian
+  2–4, rare land/air oddities), **EyeStalks** (snail-like, amphibian 45%/cave 35%/water 25%), **HasGasSac**
+  (air 35%, rare floating land grazers) — generated per species, sent via `NetCreature`, rendered by
+  `CreatureBuilder` (staggered eyestalk spheres, shrinking dangling tentacle chains in the belly tone, a
+  translucent Cloud-shader buoyancy sac).
+- **Per-biome colour palettes (item-21 rest):** biome-native species pull their hue ~45% toward their biome's
+  anchor hue (golden-ratio spaced) — region A's fauna reads as one colour family, region B's as another.
+- **Sky rests (B37):** `RenderSettings.ambientLight` is now managed (flat, star-tinted, follows time of day)
+  so standard-shader props pick up the star tint too; **orbit-view planets + cloud shells** are washed ~35%
+  toward the system star's hue (a red sun makes the whole system read warm).
+
 ### ★ Feature 40 — Terrain scanner — ✅ DONE 2026-06-10 (423 tests green, client built)
 New item-36-style right-click gadget **`terrain_scanner`** (workshop recipe + blueprint, tier 2, 10 suit
 energy, 10 s cooldown): a pulse that reveals **valuable blocks through the terrain** — every `*_ore`, `crystal`
@@ -3258,12 +3276,11 @@ can see by day + night. Cosmetic, client-side (mirrors `Sky`/`Starfield`/the sun
 - Phasing: **O1** render neighbours + stations from the star map; **O2** slow orbital drift; **O3** per-type
   look + stations-of-this-body shown nearer/bigger; **O4** optional labels on look/scan.
 
-### Doors — ✅ shipped for settlements (see the Done entry above); stations/ship still open
-**Settlement doors are done** (D1–D5 — slide for towns/cities, hinge for villages/hamlets, with the three
-ElevenLabs SFX). **Still open:** auto-doors for **orbital stations + the ship** — their doorways are cut as
-air but don't yet emit `door_slide` markers; the `GameServerDoors` registry already accepts them once the
-station/ship stamp adds the markers (plus station/ship editor palette entries). Original plan kept below for
-that remaining work:
+### Doors — ✅ FULLY shipped (settlements + stations + ship + placeable; verified 2026-06-10)
+**Settlement doors done** (D1–D5). **Stations + ship done too** (this section was stale): the station
+generator emits `door_slide` markers, `RegisterStationDoors` registers them on boarding, ship hatches are
+energy doors from `ShipStamps.Doors`, and the **placeable door** (craftable `door_slide`/`door_hinge` items,
+place/remove + persistence, `PlaceableDoorTests`) exists. Original plan kept below for reference:
 - **Sci-fi sliding doors** — auto open/close: the server opens them when a player is within range and
   auto-closes them after a short delay. For **stations + cities/towns** (and the **ship**).
 - **Hinged "normal" doors** — manual: press **E** to toggle. For **villages/hamlets**.
