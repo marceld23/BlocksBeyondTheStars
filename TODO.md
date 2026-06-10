@@ -186,6 +186,37 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
+### ★ New batch — requested 2026-06-10 (after the URP merge; analysis-first where marked)
+1. **Planet enemies need real models/textures.** *(Answered: yes — the two-block-tall flat-red untextured
+   figures ARE the "planet enemies"*, the server's alien `PlanetEnemyList` entities (item 25), rendered by
+   `WorldEntities.cs` as plain scaled cubes (0.9×1.6×0.9, flat red — now LitColor so they shade/cast shadows,
+   but still no texture/shape).* **To do:** give them proper procedural alien bodies — reuse the creature
+   pipeline (`CreatureBuilder` hide textures + body parts) or a dedicated menacing silhouette + texture so they
+   read as enemies, not placeholders.
+2. **Sun path / moving shadows / sun colour — verify in playtest.** *(Answered from code: all three exist —
+   `Sky.ApplyLighting` rotates the sun with local time of day (`Euler(time*360−90, 160, 0)`, longitude-shifted
+   terminator), under URP the real-time shadows follow the directional light (so they wander/lengthen across
+   the day), and the sun Light + world tint + grade all use the per-system random star colour.)* **To do:**
+   playtest a full day cycle to confirm it reads well (shadow length at dawn/dusk, colour at noon); tune the
+   fixed 160° azimuth if the arc looks odd on some worlds.
+3. **BUG — mining sometimes rejected "Out of reach." while standing at the block.** Happens repeatedly in the
+   editor. Server check is `WithinReach` (`GameServer.cs:2117`, wrap-aware in X via `WrapDeltaX`, `MaxReach`).
+   Candidate causes to investigate: (a) client→server **position lag** — `MoveIntent` is sent unreliable; if the
+   server's `player.Position` trails the client (packet loss/throttle), a legal mine reads as out of reach;
+   (b) a **seam/canonicalisation mismatch** — client raycast hits a scene-space X that isn't canonicalised the
+   same way the server wraps it (then it would cluster near X≈0); (c) eye-vs-feet Y offset shrinking the
+   effective reach. Repro note: check whether it clusters at the longitude seam (world X near 0/circumference)
+   → that distinguishes (b) from (a). *(Cylinder wrap is a plausible suspect but the reach check itself IS
+   wrap-aware — the mismatch, if any, is more likely on the client's coordinate side.)*
+4. **ANALYSIS — collision trees (octree/BVH): used today? worth it?** Map what exists: Unity's physics already
+   BVHs the per-chunk MeshColliders client-side; the server uses direct voxel-grid lookups (O(1) per cell) for
+   block collision plus **O(n) linear scans** per tick for entity proximity (creatures/NPCs/enemies/containers/
+   doors — `NearestNpc`, `HabitatSuitable` rings, `WrapDistSq` loops). Analyse whether a spatial index (uniform
+   grid hash is likely a better fit than an octree for mostly-surface entities) would pay off for: per-tick
+   creature/enemy targeting, door/vendor proximity, projectile hits in space combat (`TickSpace`), and the
+   geyser/vent client scan. Deliverable: counts per tick at realistic populations + a recommendation
+   (probably: keep voxel grid for blocks, add a simple spatial hash for entities if populations grow).
+
 ### ★ Menu preview bugs — ✅ DONE 2026-06-10 (client built)
 - **Ship preview showed the wrong model** (menu → Ship → colour): the paint preview drew a hand-built cube
   silhouette, not the player's real ship. Now `ShipPreviewRig` renders the **real 1:1 voxel ship** from
