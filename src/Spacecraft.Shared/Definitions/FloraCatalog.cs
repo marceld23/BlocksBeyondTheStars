@@ -62,5 +62,12 @@ public static class FloraCatalog
         // Aquatic — coral reefs + seagrass on the seabed.
         new Species("flora_coral",       new[] { "sand", "stone" }, Aquatic: true),
         new Species("flora_seagrass",    new[] { "sand", "dirt", "mud" }, Aquatic: true),
+
+        // --- Item 21 V3: alien flora (corrupted / fungal / crystal worlds) ---
+        new Species("flora_tendril",     new[] { "alien_grass", "mycelium" }),
+        new Species("flora_bulb",        new[] { "alien_grass", "mycelium" }),        // bioluminescent (ChunkMesher.GlowFor)
+        new Species("flora_gasbloom",    new[] { "alien_grass", "mud" }),
+        new Species("flora_alienfern",   new[] { "alien_grass", "grass" }),
+        new Species("flora_shardbloom",  new[] { "crystal", "stone" }),              // crystal flower (faint glow)
     };
 }

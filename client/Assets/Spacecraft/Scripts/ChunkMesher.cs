@@ -246,6 +246,7 @@ namespace Spacecraft.Client
         {
             "flora_cactus", "flora_crystal", "flora_succulent", "flora_mushroom", "flora_puffball",
             "flora_pitcher", "flora_glowcap", "flora_emberbloom", "flora_sporepod", "flora_glowvine",
+            "flora_bulb", "flora_gasbloom", "flora_shardbloom", // item 21 V3 alien flora (bulbous/crystalline)
         };
 
         /// <summary>True for foliage that renders with alpha-cutout leaves (holes punched into the tile):
@@ -325,7 +326,9 @@ namespace Spacecraft.Client
                 case "data_cache": return 0.90f;
                 case "flora_glowcap": return 0.85f;
                 case "flora_glowvine": return 0.80f;
+                case "flora_bulb": return 0.75f;
                 case "flora_crystal": return 0.70f;
+                case "flora_shardbloom": return 0.6f;
                 case "flora_sporepod": return 0.55f;
                 case "crystal": return 0.50f;
                 case "flora_frostflower": return 0.40f;

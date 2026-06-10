@@ -35,6 +35,8 @@
   { "key": "alien_grass",     "nameKey": "item.alien_grass.name",     "category": "block",      "maxStack": 99, "placesBlock": "alien_grass" },
   { "key": "deepslate",       "nameKey": "item.deepslate.name",       "category": "material",   "maxStack": 99, "placesBlock": "deepslate" },
   { "key": "granite",         "nameKey": "item.granite.name",         "category": "material",   "maxStack": 99, "placesBlock": "granite" },
+  { "key": "mushroom_stem",   "nameKey": "item.mushroom_stem.name",    "category": "block",      "maxStack": 99, "placesBlock": "mushroom_stem" },
+  { "key": "mushroom_cap",    "nameKey": "item.mushroom_cap.name",     "category": "block",      "maxStack": 99, "placesBlock": "mushroom_cap" },
   { "key": "plant_fiber",     "nameKey": "item.plant_fiber.name",     "category": "material",   "maxStack": 99 },
   { "key": "plant_seed",      "nameKey": "item.plant_seed.name",      "category": "block",      "maxStack": 99, "placesBlock": "flora_plant" },
   { "key": "crystal_seed",    "nameKey": "item.crystal_seed.name",    "category": "block",      "maxStack": 99, "placesBlock": "flora_crystal" },

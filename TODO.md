@@ -47,10 +47,16 @@ Plan (staged, each phase shippable + tested):
   mycelium/alien_grass→plant_fiber (→ emergency_ration) — no dead-ends. New surface blocks added as flora
   hosts so exotic worlds grow thematic flora (fungal→glowing fungi, corrupted→alien meadow, tundra→frost,
   salt→succulents, ashen→ember).
-- **V2 — per-planet terrain style + new archetypes:** let a planet pick its terrain-archetype set instead of
-  the global 5; add mesa/terrace, dunes, rivers. (Biggest "worlds look different" win.)
-- **V3 — flora variety + theme gating:** ~10 alien flora archetypes + new hosts; gate flora by planet
-  theme/biome (not just surface block); multi-block giant mushrooms + crystal spires.
+- **V2 — per-planet terrain style + new archetypes: ✅ DONE (2026-06-10).** `PlanetType.TerrainStyle` +
+  `StyledHeightOffset` reshape the heightmap per world: desert=dunes, highland/ashen=mountains,
+  crystal/crystal_living=spires, rocky=mesa (terraced), corrupted=canyons, ocean/swamp/salt_flats=flats,
+  tundra/fungal=hills (others keep the mixed blend). **Rivers**: winding water channels carved flush (linear
+  ponds) on wet worlds, kept to low/mid terrain. Deserts/salt-flats set dry.
+- **V3 — flora variety + structures: ✅ DONE (2026-06-10).** 5 alien flora archetypes (tendril, glow-bulb,
+  gasbloom, alien-fern, crystal shardbloom) with OpenAI textures, hosts (alien_grass/mycelium/crystal),
+  drops + render (solid/leafy + glow). **Giant mushrooms** (mushroom_stem + mushroom_cap, new textures) as a
+  multi-block worldgen stamp on fungal/mycelium worlds. Flora theme reaches exotic worlds via the V1b hosts.
+  (Crystal-spire structures are covered by the V2 "spires" terrain style.)
 - **V4 — fauna habitats + alien morphology:** new Cave/subterranean + Amphibian habitats (living caves),
   per-planet creature theme bias, richer morphology (eyestalks, tentacles, 8-legs, gasbag).
 - **V5 — signature alien terrain:** floating islands (skylands), chasms/sinkholes, geysers/lava vents.

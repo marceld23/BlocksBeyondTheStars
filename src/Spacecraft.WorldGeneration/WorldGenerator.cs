@@ -323,6 +323,9 @@ public sealed class WorldGenerator
     private const double PondBand = 0.10;   // mask range from "rim" (depth 0) to "centre" (full depth)
     private const int PondMaxSlope = 4;     // only carve on flat ground (Δheight over ±2 in x+z) so water sits level
 
+    private const double RiverHalfWidth = 0.04; // |river-line noise − 0.5| under this is in-channel (narrow, winding)
+    private const int RiverMaxDepth = 4;        // channel depth at the river centre, tapering to the banks (item 21 V2)
+
     /// <summary>Carve depth (0 = none) for an upland pond at this column: a low-frequency mask scatters ponds
     /// (sized by its peaks → small pools + occasional lakes), gated to flat ground so the water surface stays
     /// level. Deterministic — pure noise. The caller fills the carved bowl with water up to the original
@@ -437,6 +440,13 @@ public sealed class WorldGenerator
         var leafId = _content.GetBlock("tree_leaves")?.NumericId ?? BlockId.Air;
         bool trees = treeDensity > 0.0 && !logId.IsAir && !leafId.IsAir;
 
+        // Giant mushrooms (item 21 V3): towering capped fungi on fungal (mycelium-surface) worlds.
+        var stemId = _content.GetBlock("mushroom_stem")?.NumericId ?? BlockId.Air;
+        var capId = _content.GetBlock("mushroom_cap")?.NumericId ?? BlockId.Air;
+        var myceliumId = _content.GetBlock("mycelium")?.NumericId ?? BlockId.Air;
+        bool giantMushrooms = !stemId.IsAir && !capId.IsAir && !myceliumId.IsAir
+            && biomes.Exists(b => b.Surface == myceliumId);
+
         // Aquatic flora: kelp stalks rooted on the seabed + lily pads on the surface, only where the sea is
         // water (never lava). World gen places them directly in the submerged columns below.
         var kelpId = _content.GetBlock("flora_kelp")?.NumericId ?? BlockId.Air;
@@ -455,6 +465,11 @@ public sealed class WorldGenerator
         // The mask is FBM noise (∈[0,1], clustered around 0.5), so the bar sits in its upper tail; a wetter
         // world lowers it for more/larger ponds. The flat-ground gate keeps them scattered (not everywhere).
         double pondThreshold = 0.70 - pondAbundance * 0.12;
+
+        // Rivers (item 21 V2): wet worlds get winding water channels carved flush like a long pond. Kept to
+        // low/mid terrain (rivers don't climb mountaintops).
+        bool rivers = ponds && pondAbundance >= 0.4;
+        int riverMaxY = planet.BaseHeight + (int)(planet.Amplitude * 0.5);
 
         var origin = WorldConstants.ChunkOrigin(coord);
 
@@ -479,6 +494,24 @@ public sealed class WorldGenerator
                     seabedY = surfaceY - pondDepth;
                     waterTop = surfaceY;
                     columnFluid = seaWaterId;
+                }
+            }
+
+            // Rivers: a winding river-line noise band carves a channel (deepest at the centre, tapering to the
+            // banks) and fills it with water flush to the surface — a meandering river across low/mid terrain.
+            if (rivers && columnFluid != seaWaterId && surfaceY > fluidLevel && surfaceY <= riverMaxY)
+            {
+                double rl = Noise.FbmCylX(seed + 0x817E12, worldX, worldZ, _circumference, planet.TerrainScale * 2.5, octaves: 2);
+                double rv = System.Math.Abs(rl - 0.5);
+                if (rv < RiverHalfWidth)
+                {
+                    int depth = (int)System.Math.Round(RiverMaxDepth * (1.0 - rv / RiverHalfWidth));
+                    if (depth >= 1)
+                    {
+                        seabedY = surfaceY - depth;
+                        waterTop = surfaceY;
+                        columnFluid = seaWaterId;
+                    }
                 }
             }
 
@@ -589,7 +622,82 @@ public sealed class WorldGenerator
             StampTrees(planet, seed, chunk, coord, biomes, logId, leafId, treeDensity, fluidLevel);
         }
 
+        if (giantMushrooms)
+        {
+            StampGiantMushrooms(planet, seed, chunk, coord, biomes, stemId, capId, myceliumId, fluidLevel);
+        }
+
         return chunk;
+    }
+
+    /// <summary>Stamps towering giant mushrooms (a fibrous stem + a domed cap) on a fungal world's mycelium
+    /// ground (item 21 V3). Mirrors <see cref="StampTrees"/>: scans a margin so a mushroom straddling a chunk
+    /// edge generates identically from either chunk, and the per-column roll wraps in X. Deterministic.</summary>
+    private void StampGiantMushrooms(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
+        List<(BlockId Surface, BlockId Sub)> biomes, BlockId stemId, BlockId capId, BlockId myceliumId, int fluidLevel)
+    {
+        var origin = WorldConstants.ChunkOrigin(coord);
+        int cs = WorldConstants.ChunkSize;
+        const int capR = 3;          // cap radius (bottom layer)
+        const double density = 0.012; // per-column chance on mycelium ground
+
+        void SetCell(int wx, int wy, int wz, BlockId block, bool overwrite)
+        {
+            int lx = wx - origin.X, ly = wy - origin.Y, lz = wz - origin.Z;
+            if (lx < 0 || lx >= cs || ly < 0 || ly >= cs || lz < 0 || lz >= cs)
+            {
+                return;
+            }
+
+            if (!overwrite && !chunk.Get(lx, ly, lz).IsAir)
+            {
+                return;
+            }
+
+            chunk.Set(lx, ly, lz, block);
+        }
+
+        for (int wx = origin.X - capR; wx < origin.X + cs + capR; wx++)
+        for (int wz = origin.Z - capR; wz < origin.Z + cs + capR; wz++)
+        {
+            if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, wz) >= density)
+            {
+                continue;
+            }
+
+            var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)].Surface;
+            if (surf != myceliumId)
+            {
+                continue; // only on mycelium ground
+            }
+
+            int sy = SurfaceHeight(planet, wx, wz);
+            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0)
+            {
+                continue; // not in water
+            }
+
+            int height = 5 + (int)(Noise.Value01(seed + 0x5341, WorldConstants.WrapX(wx, _circumference), 19, wz) * 4.99); // 5..9
+            int topY = sy + height;
+            for (int ty = sy + 1; ty <= topY; ty++)
+            {
+                SetCell(wx, ty, wz, stemId, overwrite: true);
+            }
+
+            // A domed cap: shrinking discs stacked above the stem top.
+            for (int dy = 0; dy <= 2; dy++)
+            {
+                int rr = capR - dy;
+                for (int dx = -rr; dx <= rr; dx++)
+                for (int dz = -rr; dz <= rr; dz++)
+                {
+                    if (dx * dx + dz * dz <= rr * rr + 1)
+                    {
+                        SetCell(wx + dx, topY + dy, wz + dz, capId, overwrite: false);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>Stamps multi-block trees (a wood trunk + a rounded leaf crown) on grass/earth columns. Scans a

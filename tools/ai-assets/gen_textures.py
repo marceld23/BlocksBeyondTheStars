@@ -53,6 +53,14 @@ TEXTURES = [
     ("alien_grass", "alien turf of violet and magenta grass blades with a faint eerie glow, top-down"),
     ("deepslate", "very dark grey-blue deepslate stone with fine layered banding"),
     ("granite", "speckled pink and grey granite rock with glinting mineral flecks"),
+    # Item 21 V3 — alien flora archetypes + giant-mushroom structure blocks.
+    ("flora_tendril", "writhing alien tendril plant with violet finger-like fronds, top-down"),
+    ("flora_bulb", "glowing bulbous alien pod plant with a luminous teal sac, top-down"),
+    ("flora_gasbloom", "alien plant with translucent gas-filled bladders and pink veins, top-down"),
+    ("flora_alienfern", "exotic alien fern with iridescent blue-violet feathery fronds, top-down"),
+    ("flora_shardbloom", "flower of sharp glowing cyan crystal shards on a thin stem, top-down"),
+    ("mushroom_stem", "pale fibrous giant mushroom stalk surface with vertical fibres"),
+    ("mushroom_cap", "domed red-orange giant mushroom cap with white speckles, top-down"),
     ("flora_plant", "lush green leafy plant with fronds and small bush foliage, top-down"),
     ("flora_crystal", "cluster of glowing cyan crystal shards growing from rock"),
     # Complete flora set — biome-appropriate species (full colour; the atlas tints nothing).
