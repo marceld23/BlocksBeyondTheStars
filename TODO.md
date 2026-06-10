@@ -3282,10 +3282,14 @@ stays per-world (fine while each occupied world has one player; shared-world mul
 
 _(Done 2026-06-06 — see the "Starter weapons + ship weapons finished (W1–W5)" entry above.)_
 
-### Orbital bodies in the planet sky — planned (not started) ⭐ (2026-06-06)
-On a planet's surface, the **other nearby bodies of the system** (neighbouring planets/moons) and the
-**space stations orbiting this planet** should be visible as **small objects in the sky** — like a moon you
-can see by day + night. Cosmetic, client-side (mirrors `Sky`/`Starfield`/the sun disc):
+### Orbital bodies in the planet sky — ✅ DONE 2026-06-11 (scope per user: NO stations; own sky cycles)
+Shipped as `SkyBodiesView` (client ambience, wired in WorldRig): the system's other LANDABLE bodies —
+moons, neighbour planets, landable asteroids (stations explicitly excluded) — hang in the surface sky as
+lit tinted spheres. **Each body follows its own deterministic sky cycle like the sun** (orbit speed as a
+fraction/multiple of the local day — asteroids cross fast, planets drift stately — plus a phase + its own
+path bearing), hashed from current-planet+body, so every world has a unique, stable sky choreography.
+Sized by world class, tinted by planet type, a touch brighter at night, horizon-faded, terrain-occluded;
+star map auto-requested after spawn, rebuilt on travel (stale-map guard). Original plan kept below:
 - A `SkyBodies` component that, only while on a planet surface (not in space / not boarded), places small
   **lit sphere billboards** for the system's neighbours and small **station icons** for stations orbiting
   the current body, in the sky dome — direction derived from the star map's relative system coords

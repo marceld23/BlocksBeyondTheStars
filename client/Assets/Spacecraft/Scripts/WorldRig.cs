@@ -222,6 +222,11 @@ namespace Spacecraft.Client
             var aurora = root.AddComponent<AuroraView>();
             aurora.Game = boot;
 
+            // Orbital bodies in the planet sky (moons/neighbour planets/landable asteroids — no stations),
+            // each on its own deterministic per-planet sky cycle.
+            var skyBodies = root.AddComponent<SkyBodiesView>();
+            skyBodies.Game = boot;
+
             // Block selection outline + mining/placing particle feedback (M27 polish).
             var miningFx = root.AddComponent<MiningFx>();
             miningFx.Game = boot;
