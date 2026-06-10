@@ -236,7 +236,22 @@ public sealed partial class GameServer
                     continue; // not native to this biome (relaxed on the second pass)
                 }
 
-                float y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
+                float y;
+                if (sp.Habitat == CreatureHabitat.Cave)
+                {
+                    int caveY = FindCaveFloorY(x, z, surface);
+                    if (caveY < 0)
+                    {
+                        continue; // no open cave under this spot — try another species/spot
+                    }
+
+                    y = caveY;
+                }
+                else
+                {
+                    y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
+                }
+
                 var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
                 if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
                 {
@@ -294,6 +309,12 @@ public sealed partial class GameServer
                 return BlockValueAt(at) == _creatureWaterId && _creatureWaterId != 0;
             case CreatureHabitat.Lava:
                 return BlockValueAt(at) == _creatureLavaId && _creatureLavaId != 0;
+            case CreatureHabitat.Cave:
+                // a standable air pocket on solid ground (the spawn probe places it in a real cave)
+                return _world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).IsAir
+                    && !_world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y) - 1, (int)System.Math.Floor(at.Z))).IsAir;
+            case CreatureHabitat.Amphibian:
+                return BlockValueAt(at) == _creatureWaterId || WaterWithin(at, 2); // in or beside water
             default:
                 return true; // Land, Air
         }
@@ -405,9 +426,54 @@ public sealed partial class GameServer
                 }
 
                 return new Vector3f(p.X, surface + 1f, p.Z); // no water in this column → rest on the bed
+            case CreatureHabitat.Cave:
+                // Stay down in the caves: re-find the cave floor at the new column; if it wandered out from under
+                // any cave, hold its current depth rather than popping up to the surface.
+                int caveY = FindCaveFloorY((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z), surface);
+                return caveY >= 0 ? new Vector3f(p.X, caveY, p.Z) : p;
             default:
-                return new Vector3f(p.X, surface + 1f, p.Z); // land / lava follow the ground
+                return new Vector3f(p.X, surface + 1f, p.Z); // land / lava / amphibian follow the ground
         }
+    }
+
+    /// <summary>Finds a standable cave floor (an air pocket on solid ground, with headroom) in a column, scanning
+    /// from just below the surface downward. Returns the floor's air-cell Y, or -1 if the column has no open cave.</summary>
+    private int FindCaveFloorY(int x, int z, int surface)
+    {
+        for (int y = surface - 3; y > surface - 50; y--)
+        {
+            if (!_world.GetBlock(new Vector3i(x, y - 1, z)).IsAir   // solid floor
+                && _world.GetBlock(new Vector3i(x, y, z)).IsAir      // feet in air
+                && _world.GetBlock(new Vector3i(x, y + 1, z)).IsAir) // headroom
+            {
+                return y;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>True if any water block sits within <paramref name="r"/> cells (horizontally, ±1 in Y) of a
+    /// position — used to keep amphibians on the shoreline.</summary>
+    private bool WaterWithin(Vector3f at, int r)
+    {
+        if (_creatureWaterId == 0)
+        {
+            return false;
+        }
+
+        int x = (int)System.Math.Floor(at.X), y = (int)System.Math.Floor(at.Y), z = (int)System.Math.Floor(at.Z);
+        for (int dx = -r; dx <= r; dx++)
+        for (int dz = -r; dz <= r; dz++)
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            if (_world.GetBlock(new Vector3i(x + dx, y + dy, z + dz)).Value == _creatureWaterId)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Marks an attacked creature as provoked if its species retaliates; pack-hunters rally kin.</summary>

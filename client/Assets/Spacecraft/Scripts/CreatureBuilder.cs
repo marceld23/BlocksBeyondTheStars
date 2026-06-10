@@ -175,7 +175,7 @@ namespace Spacecraft.Client
             // idle head gestures (graze / alert / lunge); aquatic species also undulate the body rig (swim).
             var anim = root.AddComponent<CreatureAnimator>();
             anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, body.transform,
-                c.Hostile, c.Asleep, c.Habitat == "Water", c.Temperament);
+                c.Hostile, c.Asleep, c.Habitat == "Water" || c.Habitat == "Amphibian", c.Temperament);
         }
 
         /// <summary>Adds a part on its own pivot (hinge) so it can be rotated for animation. The cube hangs
@@ -316,7 +316,7 @@ namespace Spacecraft.Client
                 return winged[h % winged.Length] ?? _feathers;
             }
 
-            if (c.Habitat == "Water")
+            if (c.Habitat == "Water" || c.Habitat == "Amphibian")
             {
                 var aquatic = new[] { _finned, _tentacled, _slime, _scales, _iridescent, _banded };
                 return aquatic[h % aquatic.Length] ?? _finned ?? _hide;

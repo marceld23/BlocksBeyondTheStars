@@ -25,6 +25,7 @@ public static class CreatureGenerator
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key);
         bool allowWater = HasWaterLife(planet);
         bool allowLava = HasLavaLife(planet);
+        bool allowCave = planet.CaveThreshold > 0.0; // worlds with caves host subterranean fauna
         int biomeCount = System.Math.Max(1, planet.Biomes.Count);
 
         const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
@@ -32,7 +33,7 @@ public static class CreatureGenerator
         {
             long s = unchecked(planetSeed ^ ((long)i * golden));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list.Add(MakeSpecies(i, rng, allowWater, allowLava, biomeCount));
+            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount));
         }
 
         return list;
@@ -45,9 +46,10 @@ public static class CreatureGenerator
         _ => 3, // "few" / unknown
     };
 
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, int biomeCount)
+    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount)
     {
-        var habitat = PickHabitat(rng, allowWater, allowLava);
+        var habitat = PickHabitat(rng, allowWater, allowLava, allowCave);
+        bool cave = habitat == CreatureHabitat.Cave;
         var temperament = (CreatureTemperament)Weighted(rng, // B18: fewer hostiles — more peaceful fauna
             (int)CreatureTemperament.Passive, 42,
             (int)CreatureTemperament.Skittish, 30,
@@ -80,15 +82,19 @@ public static class CreatureGenerator
             AttackDamage = hostile ? 2f + (float)rng.NextDouble() * 5f : 0f,
 
             Legs = PickLegs(rng, habitat),
-            HasWings = habitat == CreatureHabitat.Air || rng.NextDouble() < 0.1,
-            HasTail = rng.NextDouble() < 0.5,
+            HasWings = habitat == CreatureHabitat.Air
+                       || (habitat != CreatureHabitat.Cave && habitat != CreatureHabitat.Amphibian && rng.NextDouble() < 0.1),
+            HasTail = rng.NextDouble() < (habitat == CreatureHabitat.Amphibian ? 0.85 : 0.5),
             BodySegments = 1 + rng.Next(4),                            // 1..4 — some long, segmented bodies
             ColorRgb = PickColor(rng, habitat),
             BellyRgb = PickColor(rng, habitat), // a second tone → two-tone bodies
-            Eyes = Weighted(rng, 0, 12, 1, 6, 2, 44, 3, 16, 4, 14, 6, 6, 8, 2), // eyeless / one / two / three / four / six / eight
+            // Cave dwellers are mostly eyeless (they navigate in the dark); surface fauna keep the normal mix.
+            Eyes = cave ? Weighted(rng, 0, 55, 1, 15, 2, 25, 4, 5)
+                        : Weighted(rng, 0, 12, 1, 6, 2, 44, 3, 16, 4, 14, 6, 6, 8, 2),
             Horns = Weighted(rng, 0, 50, 1, 18, 2, 15, 3, 12, 4, 5),   // none / one / two / three / four
             HasCrest = rng.NextDouble() < 0.32,                        // a dorsal frill on roughly a third
-            Glows = habitat == CreatureHabitat.Lava || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
+            // Lava + cave dwellers are bioluminescent (the only light down in the dark); others sometimes glow.
+            Glows = habitat == CreatureHabitat.Lava || cave || rng.NextDouble() < (activity == CreatureActivity.Nocturnal ? 0.3 : 0.12),
             BiomeAffinity = biomeCount <= 1 ? -1 : rng.Next(biomeCount), // native to one biome on multi-biome worlds
 
             DropItem = dropItem,
@@ -97,16 +103,18 @@ public static class CreatureGenerator
         };
     }
 
-    private static CreatureHabitat PickHabitat(System.Random rng, bool allowWater, bool allowLava)
+    private static CreatureHabitat PickHabitat(System.Random rng, bool allowWater, bool allowLava, bool allowCave)
     {
-        // Land/air always possible; water/lava only on suitable worlds.
+        // Land/air always possible; water/lava/cave/amphibian only on suitable worlds.
         var weights = new List<(int Value, int Weight)>
         {
             ((int)CreatureHabitat.Land, 50),
             ((int)CreatureHabitat.Air, 20),
         };
-        if (allowWater) weights.Add(((int)CreatureHabitat.Water, 20));
+        if (allowWater) weights.Add(((int)CreatureHabitat.Water, 18));
+        if (allowWater) weights.Add(((int)CreatureHabitat.Amphibian, 12)); // shoreline dwellers need water too
         if (allowLava) weights.Add(((int)CreatureHabitat.Lava, 10));
+        if (allowCave) weights.Add(((int)CreatureHabitat.Cave, 16));        // subterranean fauna fill the caves
         return (CreatureHabitat)WeightedList(rng, weights);
     }
 
@@ -135,6 +143,8 @@ public static class CreatureGenerator
     {
         CreatureHabitat.Water => 0,
         CreatureHabitat.Air => 2,
+        CreatureHabitat.Amphibian => new[] { 0, 2, 4 }[rng.Next(3)], // finned swimmers to short-legged crawlers
+        CreatureHabitat.Cave => new[] { 0, 4, 6, 8 }[rng.Next(4)],   // crawlers / many-legged cave things
         _ => new[] { 2, 4, 6 }[rng.Next(3)],
     };
 
@@ -156,7 +166,9 @@ public static class CreatureGenerator
         switch (habitat)
         {
             case CreatureHabitat.Water: r = 60; g = 130; b = 200; break;
+            case CreatureHabitat.Amphibian: r = 80; g = 150; b = 150; break; // teal, between water + land
             case CreatureHabitat.Lava: r = 210; g = 90; b = 40; break;
+            case CreatureHabitat.Cave: r = 190; g = 195; b = 210; break;     // pale, washed-out cave-dweller
             case CreatureHabitat.Air: r = 200; g = 200; b = 170; break;
             default: r = 110; g = 150; b = 80; break; // land
         }

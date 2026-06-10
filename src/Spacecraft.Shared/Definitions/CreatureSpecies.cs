@@ -7,6 +7,8 @@ public enum CreatureHabitat
     Water,
     Lava,
     Air,
+    Cave,       // subterranean: lives in caves underground (often eyeless + bioluminescent)
+    Amphibian,  // shorelines: at home both in shallow water and on the land beside it
 }
 
 /// <summary>When a creature is active; the rest of the cycle it sleeps/rests.</summary>
