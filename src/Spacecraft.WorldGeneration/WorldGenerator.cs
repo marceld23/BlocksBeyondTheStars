@@ -414,6 +414,13 @@ public sealed class WorldGenerator
         var dataCacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
         bool flora = planet.FloraDensity > 0;
 
+        // Per-world flora richness (2026-06-10 — "belebte Planeten"): each world rolls its own seeded
+        // multiplier (0.8..1.6, biased upward) on the planet type's flora + tree density, so the same type
+        // can be sparse scrubland on one world and lush growth on the next. Deterministic from the world
+        // seed (server + client preview agree); barren types (density 0) stay barren.
+        double floraMul = 0.8 + 0.8 * Noise.Value01(seed + 0xF10A, 11, 23, 37);
+        double floraDensity = System.Math.Min(0.9, planet.FloraDensity * floraMul);
+
         // World floor (B46): an unmineable bedrock layer bounds the dig depth so a player can't fall forever.
         // On real planets a band of lava sits just above it; airless moons + asteroids get solid rock instead.
         var bedrockId = _content.GetBlock("bedrock")?.NumericId ?? deepId;
@@ -435,7 +442,7 @@ public sealed class WorldGenerator
         var (fluidLevel, fluidId) = ResolveSeaFluid(planet);
 
         // Trees: multi-block trunk + leaf crown on grass/earth ground (a small auto density on flora worlds).
-        double treeDensity = planet.TreeDensity ?? (flora ? 0.012 : 0.0);
+        double treeDensity = (planet.TreeDensity ?? (flora ? 0.012 : 0.0)) * floraMul;
         var logId = _content.GetBlock("wood_log")?.NumericId ?? BlockId.Air;
         var leafId = _content.GetBlock("tree_leaves")?.NumericId ?? BlockId.Air;
         bool trees = treeDensity > 0.0 && !logId.IsAir && !leafId.IsAir;
@@ -639,7 +646,7 @@ public sealed class WorldGenerator
                 int fy = seabedY + 1;
                 int fly = fy - origin.Y;
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, worldZ) < planet.FloraDensity)
+                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, worldZ) < floraDensity)
                 {
                     chunk.Set(lx, fly, lz, floraId);
                 }
@@ -648,7 +655,7 @@ public sealed class WorldGenerator
             {
                 // Submerged column — the sea or an upland pond grows kelp/lily pads instead of land plants.
                 StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
-                    kelpId, lilyId, planet.FloraDensity);
+                    kelpId, lilyId, floraDensity);
             }
         }
 

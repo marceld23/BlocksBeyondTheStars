@@ -186,36 +186,47 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
-### ★ New batch — requested 2026-06-10 (after the URP merge; analysis-first where marked)
-1. **Planet enemies need real models/textures.** *(Answered: yes — the two-block-tall flat-red untextured
-   figures ARE the "planet enemies"*, the server's alien `PlanetEnemyList` entities (item 25), rendered by
-   `WorldEntities.cs` as plain scaled cubes (0.9×1.6×0.9, flat red — now LitColor so they shade/cast shadows,
-   but still no texture/shape).* **To do:** give them proper procedural alien bodies — reuse the creature
-   pipeline (`CreatureBuilder` hide textures + body parts) or a dedicated menacing silhouette + texture so they
-   read as enemies, not placeholders.
-2. **Sun path / moving shadows / sun colour — verify in playtest.** *(Answered from code: all three exist —
+### ★ New batch — requested 2026-06-10 — ✅ DONE 2026-06-10 (1, 3, 4; 2 = code-verified, playtest open)
+1. ✅ **Planet enemies — real bodies + assets** (was: two-block-tall flat-red untextured cubes in
+   `WorldEntities.cs`). Now a procedural blocky **alien fiend**: hunched chitin torso + pelvis, horned skull
+   with three glowing amber eyes (bloom catches them), clawed arms, digitigrade legs with talon feet, dorsal
+   spikes; skinned with a new AI **`enemy_hide`** chitin tile (OpenAI) on `LitColor` (lit + casts/receives
+   shadows under URP). **Animations** (procedural, like the avatar/creatures): speed-driven stalk cycle,
+   idle menace-sway + look-around, arms raised when hostile, **claw-swipe attack lunge** (hostile + in melee
+   range, throttled), hurt **flinch** on hull drops; faces its walk direction, or the player when hunting.
+   **Sounds** (ElevenLabs): `enemy_growl` (periodic idle), `enemy_attack`, `enemy_hurt`, `enemy_die` (on the
+   `PlanetEnemyDefeated` event), spatialised + per-enemy pitch/size variation. NOTICES updated.
+2. **Sun path / moving shadows / sun colour — code-verified ✅, playtest open.** All three exist:
    `Sky.ApplyLighting` rotates the sun with local time of day (`Euler(time*360−90, 160, 0)`, longitude-shifted
-   terminator), under URP the real-time shadows follow the directional light (so they wander/lengthen across
-   the day), and the sun Light + world tint + grade all use the per-system random star colour.)* **To do:**
-   playtest a full day cycle to confirm it reads well (shadow length at dawn/dusk, colour at noon); tune the
-   fixed 160° azimuth if the arc looks odd on some worlds.
-3. **BUG — mining sometimes rejected "Out of reach." while standing at the block.** Happens repeatedly in the
-   editor. Server check is `WithinReach` (`GameServer.cs:2117`, wrap-aware in X via `WrapDeltaX`, `MaxReach`).
-   Candidate causes to investigate: (a) client→server **position lag** — `MoveIntent` is sent unreliable; if the
-   server's `player.Position` trails the client (packet loss/throttle), a legal mine reads as out of reach;
-   (b) a **seam/canonicalisation mismatch** — client raycast hits a scene-space X that isn't canonicalised the
-   same way the server wraps it (then it would cluster near X≈0); (c) eye-vs-feet Y offset shrinking the
-   effective reach. Repro note: check whether it clusters at the longitude seam (world X near 0/circumference)
-   → that distinguishes (b) from (a). *(Cylinder wrap is a plausible suspect but the reach check itself IS
-   wrap-aware — the mismatch, if any, is more likely on the client's coordinate side.)*
-4. **ANALYSIS — collision trees (octree/BVH): used today? worth it?** Map what exists: Unity's physics already
-   BVHs the per-chunk MeshColliders client-side; the server uses direct voxel-grid lookups (O(1) per cell) for
-   block collision plus **O(n) linear scans** per tick for entity proximity (creatures/NPCs/enemies/containers/
-   doors — `NearestNpc`, `HabitatSuitable` rings, `WrapDistSq` loops). Analyse whether a spatial index (uniform
-   grid hash is likely a better fit than an octree for mostly-surface entities) would pay off for: per-tick
-   creature/enemy targeting, door/vendor proximity, projectile hits in space combat (`TickSpace`), and the
-   geyser/vent client scan. Deliverable: counts per tick at realistic populations + a recommendation
-   (probably: keep voxel grid for blocks, add a simple spatial hash for entities if populations grow).
+   terminator), under URP the real-time shadows follow the directional light (wander/lengthen across the day),
+   and the sun Light + world tint + grade use the per-system random star colour (grade share raised to 0.4).
+   **Playtest:** watch one full day cycle (shadow length at dawn/dusk, colour at noon); tune the fixed 160°
+   azimuth if the arc reads oddly on some worlds.
+3. ✅ **BUG fixed — mining rejected "Out of reach." while standing at the block.** Root cause: three stacked
+   measurement discrepancies — the client aims an 8 m ray **from the camera** at a block **face**, while the
+   server measured **body position → block centre** (eye offset ~0.8 + centre-vs-face up to ~0.87) off a
+   **10 Hz unreliable move stream** (position trails ~1 m while walking). Together they pushed legitimate mines
+   past `MaxReach`. Fix in `WithinReach` (`GameServer.cs`): measure to the block's **nearest face**, vertically
+   against the player's **body segment** (anchor-agnostic), X wrap-aware as before, plus 1 m slack for the move
+   stream. (`HandleMove` fully trusts positions anyway — the check is a sanity bound, not anti-cheat.)
+5. ✅ **Lively planets — creature + flora amounts per world (2026-06-10).** The live-fauna cap is no longer a
+   fixed `min(4×players, 12)`: `WorldCreatureCap` derives each world's population from its
+   `CreatureAbundance` (many 20 / few 10 base), its **size** (circumference/6000, 0.5–1.8×) and a **seeded
+   per-world jitter** (0.7–1.3×), scaled by √players — lush big worlds now carry ~25–45 live creatures around
+   the players, sparse small ones ~5–9; spawn pacing fills fast (1.5 s) below half the cap, then trickles
+   (4 s). **Flora:** worldgen rolls a per-world multiplier (0.8–1.6, seeded — `floraMul`) on the planet
+   type's flora + tree density, so the same type is scrub on one world and lush on the next (asteroids/
+   barren types stay 0; server + client preview agree). Flora growth stays capped at one plant per cell.
+4. ✅ **ANALYSIS done — collision trees: not worth it today.** Findings: **blocks** use direct voxel-grid
+   lookups (O(1) per cell — optimal; an octree would only add indirection); **client physics** (chunk
+   MeshColliders, raycasts) is already BVH-accelerated inside Unity/PhysX; **server entity proximity** is O(n)
+   linear scans per tick (`NearestNpc`, creature/enemy targeting, `WrapDistSq` loops) — but populations are
+   tiny by design: creatures cap at `min(perPlayer × players, 12)`, NPCs ~3–15/settlement, enemies similar →
+   worst case a few hundred distance checks per tick, far below profiling relevance. **Recommendation:** keep
+   the voxel grid for blocks; no octree/BVH server-side; IF entity caps are ever raised ~10× (big settlements,
+   herds), add a **uniform spatial hash** (cell ≈ interaction radius) for entities — simpler and faster than a
+   tree for mostly-surface, constantly-moving agents. Revisit only with a profiler trace showing tick time in
+   the scan loops.
 
 ### ★ Menu preview bugs — ✅ DONE 2026-06-10 (client built)
 - **Ship preview showed the wrong model** (menu → Ship → colour): the paint preview drew a hand-built cube

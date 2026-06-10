@@ -90,6 +90,31 @@ public sealed partial class GameServer
         _ => true, // Cathemeral
     };
 
+    /// <summary>This world's live-fauna cap (2026-06-10 — "belebte Planeten"): no fixed global limit. Each
+    /// world derives its own population from its <c>CreatureAbundance</c>, its SIZE (bigger planets carry
+    /// more fauna) and a seeded per-world jitter — so the same planet type can be teeming on one world and
+    /// sparse on the next — scaled gently by how many players are on the surface. Typical results: a lush
+    /// big world ~25–45 live creatures around the players, a sparse small one ~5–9 (old fixed cap: 12).</summary>
+    private int WorldCreatureCap(int players)
+    {
+        double baseN = _world.Planet.CreatureAbundance?.ToLowerInvariant() switch
+        {
+            "many" => 20.0,
+            "none" => 0.0,
+            _ => 10.0, // "few" / default
+        };
+
+        if (baseN <= 0)
+        {
+            return 0;
+        }
+
+        double size = System.Math.Clamp(_world.Circumference / 6000.0, 0.5, 1.8);
+        uint h = (uint)WorldGenerator.StableHash($"fauna:{_meta.Seed}:{_worlds.Active.LocationId}");
+        double jitter = 0.7 + 0.6 * (h % 1000 / 999.0); // 0.7..1.3, stable per world
+        return (int)System.Math.Round(baseN * size * jitter * System.Math.Sqrt(System.Math.Max(1, players)));
+    }
+
     private void TickCreatures(double dt)
     {
         // Orbital stations (void worlds) have no wildlife at all — only peaceful NPCs.
@@ -112,9 +137,12 @@ public sealed partial class GameServer
             return;
         }
 
-        int cap = System.Math.Min(CreatureCapPerPlayer * targets.Count, 12);
+        int cap = WorldCreatureCap(targets.Count);
         _creatureSpawnTimer += dt;
-        if (_creatureSpawnTimer >= CreatureSpawnInterval && _creatures.Count < cap)
+        // Fill faster while the world is far below its cap (a freshly visited world comes alive quickly),
+        // then ease to the slow trickle near the cap.
+        double interval = _creatures.Count < cap / 2 ? 1.5 : CreatureSpawnInterval;
+        if (_creatureSpawnTimer >= interval && _creatures.Count < cap)
         {
             _creatureSpawnTimer = 0;
             if (TrySpawnCreatureNear(targets[_creatures.Count % targets.Count].State))
