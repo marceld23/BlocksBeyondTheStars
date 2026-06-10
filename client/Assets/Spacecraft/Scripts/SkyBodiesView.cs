@@ -33,6 +33,7 @@ namespace Spacecraft.Client
         private string _builtFor = "\0"; // ActiveLocationId the current set was built for
         private float _requestTimer;
         private bool _subscribed;
+        private float _tod = -1f; // continuous local day clock (the env's TimeOfDay only steps per update)
 
         private void Update()
         {
@@ -51,6 +52,7 @@ namespace Spacecraft.Client
                     Clear();
                     _builtFor = Game.StarMap?.ActiveLocationId ?? "\0";
                     _requestTimer = 1.5f;
+                    _tod = -1f; // new world, new day clock — resync from its first env update
                 };
                 _subscribed = true;
             }
@@ -76,7 +78,22 @@ namespace Spacecraft.Client
             }
 
             bool show = !Game.SpaceViewActive && Game.Environment != null && _bodies.Count > 0;
-            float day = Game.Environment != null ? Mathf.Clamp01(Mathf.Sin(Game.LocalTimeOfDay * Mathf.PI)) : 1f;
+
+            // Continuous day clock: the server's TimeOfDay only arrives in periodic steps — the slow sun hides
+            // that, but our faster bodies would visibly JUMP between updates. Advance a local clock with real
+            // time (the world's day length) and softly resync it to the authoritative value (wrap-aware).
+            float target = Game.LocalTimeOfDay;
+            if (_tod < 0f)
+            {
+                _tod = target;
+            }
+
+            float dayLen = Mathf.Max(30f, Game.Environment?.DayLengthSeconds > 1 ? (float)Game.Environment.DayLengthSeconds : 600f);
+            _tod = Mathf.Repeat(_tod + Time.deltaTime / dayLen, 1f);
+            float err = Mathf.DeltaAngle(_tod * 360f, target * 360f) / 360f;
+            _tod = Mathf.Repeat(_tod + err * Mathf.Min(1f, Time.deltaTime * 0.4f), 1f);
+
+            float day = Mathf.Clamp01(Mathf.Sin(_tod * Mathf.PI));
             var cam = Camera.main;
 
             foreach (var b in _bodies)
@@ -92,8 +109,9 @@ namespace Spacecraft.Client
                 }
 
                 // The body's own sky cycle: its angle advances with the LOCAL day at its own rate + phase,
-                // on its own tilted path — the same maths family as the sun's arc, but per body.
-                float t = Game.LocalTimeOfDay * b.CyclesPerDay + b.Phase;
+                // on its own tilted path — the same maths family as the sun's arc, but per body. Uses the
+                // smoothed continuous clock so motion is glide, not server-update steps.
+                float t = _tod * b.CyclesPerDay + b.Phase;
                 var dir = -(Quaternion.Euler(t * 360f - 90f, b.Azimuth, 0f) * Vector3.forward);
 
                 bool up = dir.y > -0.04f;
