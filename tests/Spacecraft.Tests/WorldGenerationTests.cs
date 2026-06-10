@@ -257,11 +257,14 @@ public class WorldGenerationTests
         var planet = content.GetPlanet("rocky")!;
         var gen = new WorldGenerator(555, content);
 
+        // Continuity guard: neighbouring columns must never JUMP (a seam/noise bug shows as 10+ block
+        // discontinuities). Steeper-but-continuous flanks are allowed — the per-world terrain-drama factor
+        // ("Welten reicher" W-R1, up to ~1.5×) intentionally makes some worlds more rugged (was ≤4).
         int prev = gen.SurfaceHeight(planet, 0, 0);
         for (int x = 1; x < 64; x++)
         {
             int h = gen.SurfaceHeight(planet, x, 0);
-            Assert.True(System.Math.Abs(h - prev) <= 4, $"Unexpectedly steep terrain step at x={x}.");
+            Assert.True(System.Math.Abs(h - prev) <= 6, $"Unexpectedly steep terrain step at x={x}.");
             prev = h;
         }
     }

@@ -187,6 +187,24 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
+### ★ "Welten reicher" — PLAN (2026-06-10; decisions taken via Rückfragen)
+**Decisions:** all four measures in scope (terrain drama, POIs/dungeons, set-dressing, weather drama);
+**onboarding later as its own package**; POI density **moderate** (several small + 1–2 large per world);
+worldgen changes **may alter existing worlds** (same seed → new terrain; saved chunks/builds stay as stored).
+
+- **W-R1 — terrain drama** (worldgen): per-world seeded **drama factor** (~0.9–1.5×) on the amplitude so some
+  worlds roll gentle and others jagged; **ridge sharpening** (power-curve the heightmap on mountains/spires/
+  canyon styles → real crests + steeper walls); deepened canyon style.
+- **W-R2 — set-dressing** (worldgen stamps, existing blocks only): sparse **boulder clusters** (the world's
+  deep rock), **crystal shard outcrops** (crystal/cave-rich worlds), **dead trees** (bare trunks + stub
+  branches on dry/ashen worlds) — breaks the flat-grid monotony cheaply.
+- **W-R3 — POIs/dungeons** (moderate): several small **monoliths/stone circles** (data cache at the base) +
+  **1–2 buried vaults** per suitable world — a surface ruin ring hinting a shaft down to a stone chamber with
+  data caches + a loot container. Server-stamped, loot via the existing container system.
+- **W-R4 — weather drama** (client): **sandstorm/ash visibility crush** (fog density spikes), **aurora bands**
+  on cold worlds at night (additive waving sky ribbon), **dawn valley fog**.
+- **Onboarding** — deferred to its own package (per decision).
+
 ### ★ Three-pack (doors check / creature morphology / sky rests) — ✅ DONE 2026-06-10 (423 tests green)
 - **Auto-doors stations + ship + placeable door — ALREADY IMPLEMENTED, TODO was stale.** Verified end-to-end:
   `StationGenerator` emits `door_slide` markers (L306) → `RegisterStationDoors(station.Markers)` on boarding;

@@ -76,6 +76,12 @@ public sealed class WorldGenerator
         (1.30, 0.65), // canyons
     };
 
+    /// <summary>Per-world terrain drama ("Welten reicher" W-R1): a seeded ~0.9–1.5× multiplier on the relief,
+    /// so the same planet type rolls gentle on one world and jagged/dramatic on the next. Craters
+    /// (airless regolith) stay flat by design.</summary>
+    private static double DramaFor(long seed)
+        => 0.9 + 0.6 * ((seed * 2654435761L >> 16 & 0x3FF) / 1023.0);
+
     /// <summary>Computes the surface height (world Y) of a column for a planet.</summary>
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
@@ -91,11 +97,13 @@ public sealed class WorldGenerator
             return planet.BaseHeight + (int)System.Math.Round(flat + CraterCarve(seed, worldX, worldZ, planet));
         }
 
+        double drama = DramaFor(seed); // W-R1: per-world relief multiplier (gentle ↔ dramatic)
+
         // A planet may dictate an overall terrain SHAPE (item 21 V2) so worlds read structurally different —
         // mesas, dunes, spires, etc. — instead of every world using the same mixed blend.
         if (!string.IsNullOrEmpty(planet.TerrainStyle))
         {
-            return planet.BaseHeight + (int)System.Math.Round(StyledHeightOffset(planet, planet.TerrainStyle, seed, h, worldX, worldZ));
+            return planet.BaseHeight + (int)System.Math.Round(StyledHeightOffset(planet, planet.TerrainStyle, seed, h, worldX, worldZ) * drama);
         }
 
         // Regional terrain character: a large-scale field selects how rugged this area is (a blend across the
@@ -107,7 +115,7 @@ public sealed class WorldGenerator
             h = h * (1.0 - ridged) + r * ridged;
         }
 
-        return planet.BaseHeight + (int)System.Math.Round(h * planet.Amplitude * amp);
+        return planet.BaseHeight + (int)System.Math.Round(h * planet.Amplitude * amp * drama);
     }
 
     /// <summary>Height offset (blocks, added to BaseHeight) for a planet with an explicit <see cref="PlanetType.TerrainStyle"/>
@@ -129,12 +137,22 @@ public sealed class WorldGenerator
             case "mountains":
             {
                 double r = h * 0.25 + Ridge(h) * 0.75; // sharp, rugged
+                if (r > 0)
+                {
+                    r = System.Math.Pow(r, 1.35); // W-R1 crest sharpening: flatter mid-slopes, prouder peaks
+                }
+
                 return r * amp * 1.9;
             }
 
             case "canyons":
             {
                 double r = h * 0.35 + Ridge(h) * 0.65;
+                if (r < 0)
+                {
+                    r = -System.Math.Pow(-r, 0.8); // W-R1: broader, deeper canyon floors below the mesatops
+                }
+
                 return r * amp * 1.4; // deep ridged canyons + mesatops
             }
 
@@ -674,7 +692,99 @@ public sealed class WorldGenerator
             StampGeysers(planet, seed, chunk, coord, geyserVentId, fluidLevel);
         }
 
+        // Set-dressing ("Welten reicher" W-R2): sparse scatter props that break the flat-grid monotony —
+        // boulder clusters of the world's own rock, crystal shard outcrops on crystal-bearing worlds, and
+        // bare dead trees on dry atmospheric worlds. Existing blocks only; nothing carves terrain.
+        if (!planet.Void)
+        {
+            var boulderId = ResolveBlock(planet.DeepBlock);
+            var crystalId = _content.GetBlock("crystal")?.NumericId ?? BlockId.Air;
+            bool crystalWorld = !crystalId.IsAir
+                && (planet.Key.Contains("crystal") || planet.Ores.Exists(o => o.Block == "crystal") || planet.CaveThreshold > 0.62);
+            bool dryWorld = (planet.WaterAbundance ?? 0.55) <= 0.15 && !planet.IsAirless && !logId.IsAir;
+            StampSetDressing(planet, seed, chunk, coord, boulderId, crystalWorld ? crystalId : BlockId.Air,
+                dryWorld ? logId : BlockId.Air, fluidLevel);
+        }
+
         return chunk;
+    }
+
+    /// <summary>Stamps sparse scatter props ("Welten reicher" W-R2): boulder clusters (the world's deep rock),
+    /// crystal shard outcrops, and bare dead trees — per-column deterministic rolls with a margin scan so a
+    /// prop straddling a chunk edge generates identically from either side. Props sit ON the surface
+    /// (air cells only) and never spawn in seas/ponds.</summary>
+    private void StampSetDressing(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
+        BlockId boulderId, BlockId crystalId, BlockId deadLogId, int fluidLevel)
+    {
+        var origin = WorldConstants.ChunkOrigin(coord);
+        int cs = WorldConstants.ChunkSize;
+
+        void SetCell(int wx, int wy, int wz, BlockId block)
+        {
+            int lx = wx - origin.X, ly = wy - origin.Y, lz = wz - origin.Z;
+            if (lx < 0 || lx >= cs || ly < 0 || ly >= cs || lz < 0 || lz >= cs)
+            {
+                return;
+            }
+
+            if (chunk.Get(lx, ly, lz).IsAir)
+            {
+                chunk.Set(lx, ly, lz, block); // props fill air only — never carve terrain/other features
+            }
+        }
+
+        for (int wx = origin.X - 2; wx < origin.X + cs + 2; wx++)
+        for (int wz = origin.Z - 2; wz < origin.Z + cs + 2; wz++)
+        {
+            int cx = WorldConstants.WrapX(wx, _circumference);
+
+            // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
+            bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, wz) < 0.0012;
+            bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, wz) < 0.0008;
+            bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, wz) < 0.0009;
+            if (!boulder && !shard && !deadTree)
+            {
+                continue;
+            }
+
+            int sy = SurfaceHeight(planet, wx, wz);
+            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0)
+            {
+                continue; // dry ground only
+            }
+
+            int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, wz) * 997); // per-column shape hash
+
+            if (boulder)
+            {
+                // An irregular 2–4 block boulder cluster of the world's own rock.
+                SetCell(wx, sy + 1, wz, boulderId);
+                if ((h1 & 1) == 0) SetCell(wx + 1, sy + 1, wz, boulderId);
+                if ((h1 & 2) == 0) SetCell(wx, sy + 1, wz + 1, boulderId);
+                if ((h1 & 12) == 0) SetCell(wx, sy + 2, wz, boulderId); // the odd two-tall rock
+            }
+            else if (shard)
+            {
+                // A jutting crystal shard, 1–3 blocks tall (taller ones rarer).
+                int height = 1 + h1 % 3;
+                for (int dy = 1; dy <= height; dy++)
+                {
+                    SetCell(wx, sy + dy, wz, crystalId);
+                }
+            }
+            else if (deadTree)
+            {
+                // A bare dead trunk (3–5 tall) with a single stub branch near the top — no leaves.
+                int height = 3 + h1 % 3;
+                for (int dy = 1; dy <= height; dy++)
+                {
+                    SetCell(wx, sy + dy, wz, deadLogId);
+                }
+
+                int bx = (h1 & 4) == 0 ? 1 : -1;
+                SetCell(wx + bx, sy + height - 1, wz, deadLogId);
+            }
+        }
     }
 
     /// <summary>Stamps sparse geyser/vent marker blocks on the surface (item 21 follow-up): the topmost ground
