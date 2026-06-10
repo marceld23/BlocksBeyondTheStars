@@ -21,7 +21,7 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Item 21 — World variety: more, stranger, more varied worlds (V1–V5) — IN PROGRESS (2026-06-09)
+### ★ Item 21 — World variety: more, stranger, more varied worlds (V1–V5) — ✅ DONE (V1–V5 shipped + pushed, 2026-06-10; 405 tests green, client built). Follow-ups below.
 Decisions (asked & answered 2026-06-09): scope **full V1–V5**; priorities **terrain shapes + exotic world
 types + flora variety** (fauna/habitats included but secondary); exotic-world frequency **balanced**
 (noticeable, not dominating). OpenAI textures + ElevenLabs sounds approved for any new blocks/flora.
@@ -66,7 +66,20 @@ Plan (staged, each phase shippable + tested):
 - **V5 — signature alien terrain: ✅ DONE (2026-06-10, headline shipped).** `PlanetType.FloatingIslands` +
   worldgen sky-island slabs (grass-topped decks on tapered rocky underbellies, scattered by a region mask) high
   above the surface — new rare **skylands** world (low flats ground + islands) and the **corrupted** world also
-  floats. Reached by flying up / building. (Chasms + geysers/vents remain as optional future polish.)
+  floats. Reached by flying up / building.
+
+**Item 21 follow-ups (open, requested 2026-06-10):**
+- **Geysers + lava vents (terrain, V5 leftover):** sparse surface spouts — water geysers on wet worlds,
+  steam/lava vents on ashen/volcanic — with an erupting VFX + a hiss/eruption **sound**. (Chasms/sinkholes
+  also remain optional.)
+- **Sounds for the new worlds/fauna (ElevenLabs — none generated yet):**
+  - **Creature calls** for the new fauna (esp. cave dwellers + amphibians) — habitat-flavoured calls.
+  - **Cave echo / ambience** — dripping + reverberant echo underground (pairs with the new Cave habitat).
+  - **Per-world ambience** loops for the new world types: wind (skylands/highland), bubbling/heat
+    (ashen/lava), eerie fungal hum (fungal), distorted murmur (corrupted), surf (ocean), geyser hiss.
+  - Needs wiring into the audio system (a per-world/habitat ambience hook via `ClientAudio` + the env loops).
+- **Deferred from V3/V4:** richer creature morphology beyond legs/eyes (eyestalks, tentacles, gas-sacs);
+  full per-planet creature colour palettes (currently per-habitat tint + vivid exotics only).
 
 Key generation changes: FloraGenerator theme gating + new hosts in EnsureCoverage; CreatureGenerator new
 habitats + per-planet palette; WorldGenerator per-planet archetype set + new feature passes; PlanetType new
