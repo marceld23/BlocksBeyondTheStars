@@ -447,6 +447,8 @@ public sealed class WorldGenerator
         bool giantMushrooms = !stemId.IsAir && !capId.IsAir && !myceliumId.IsAir
             && biomes.Exists(b => b.Surface == myceliumId);
 
+        bool floatingIslands = planet.FloatingIslands; // item 21 V5: drifting sky-island slabs above the surface
+
         // Aquatic flora: kelp stalks rooted on the seabed + lily pads on the surface, only where the sea is
         // water (never lava). World gen places them directly in the submerged columns below.
         var kelpId = _content.GetBlock("flora_kelp")?.NumericId ?? BlockId.Air;
@@ -520,6 +522,22 @@ public sealed class WorldGenerator
             var surfaceId = biomes[biomeIndex].Surface;
             var subSurfaceId = biomes[biomeIndex].Sub;
 
+            // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
+            // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air.
+            int islandTop = int.MinValue, islandBottom = int.MaxValue;
+            if (floatingIslands)
+            {
+                double im = Noise.FbmCylX(seed + 0x15A4D, worldX, worldZ, _circumference, planet.TerrainScale * 1.4, octaves: 3);
+                if (im > 0.62)
+                {
+                    double t = (im - 0.62) / 0.38;       // 0..1 toward an island's centre
+                    int center = planet.BaseHeight + 28; // float clearly above the ground (still in view from it)
+                    int half = 2 + (int)(t * 8.0);       // 2..10 thick
+                    islandTop = center + half;
+                    islandBottom = center - half - (int)(t * 6.0); // tapered rocky underside
+                }
+            }
+
             // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
             // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
             BlockId? craterMetal = (planet.Cratered || _crateredWorld)
@@ -533,6 +551,12 @@ public sealed class WorldGenerator
                     if (worldY <= waterTop)
                     {
                         chunk.Set(lx, ly, lz, columnFluid); // sea fill in a basin, or an upland pond above it
+                    }
+                    else if (floatingIslands && worldY >= islandBottom && worldY <= islandTop)
+                    {
+                        // A sky island: grass-topped deck, sub-surface just under it, stone underbelly below.
+                        var ib = worldY == islandTop ? surfaceId : (worldY >= islandTop - 2 ? subSurfaceId : deepId);
+                        chunk.Set(lx, ly, lz, ib);
                     }
 
                     continue; // else air above the surface

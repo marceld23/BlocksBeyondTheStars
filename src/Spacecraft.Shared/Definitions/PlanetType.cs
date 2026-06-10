@@ -46,6 +46,10 @@ public sealed class PlanetType
     /// "mesa" (terraced plateaus + cliffs), "dunes" (parallel sand ridges), "spires" (sparse tall spikes).</summary>
     public string TerrainStyle { get; set; } = string.Empty;
 
+    /// <summary>Signature alien terrain (item 21 V5): when true, chunks of solid land float in the sky high
+    /// above the surface — drifting voxel islands you reach by flying up or building a tower. Off by default.</summary>
+    public bool FloatingIslands { get; set; }
+
     /// <summary>Airless barren bodies (landable asteroids, and — set per-world — airless moons): replace the
     /// rolling terrain with mostly flat regolith pocked with round impact craters (item 33).</summary>
     public bool Cratered { get; set; }

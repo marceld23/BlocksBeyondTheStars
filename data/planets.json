@@ -303,7 +303,7 @@
     "baseHeight": 64, "amplitude": 16, "terrainScale": 46.0, "terrainStyle": "canyons",
     "surfaceBlock": "alien_grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.70, "dataCacheRarity": 0.0026,
-    "weather": "dynamic", "stormChance": 0.45, "dayLengthSeconds": 580, "worldRadius": 820, "floraDensity": 0.12, "creatureAbundance": "many", "atmosphere": "toxic", "oxygenExtractability": 0.45, "spawnWeight": 5,
+    "weather": "dynamic", "stormChance": 0.45, "dayLengthSeconds": 580, "worldRadius": 820, "floraDensity": 0.12, "creatureAbundance": "many", "atmosphere": "toxic", "oxygenExtractability": 0.45, "spawnWeight": 5, "floatingIslands": true,
     "biomes": [
       { "surfaceBlock": "alien_grass", "subSurfaceBlock": "dirt" },
       { "surfaceBlock": "mud",         "subSurfaceBlock": "mud" },
@@ -336,6 +336,26 @@
       { "block": "copper_ore",   "rarity": 0.04, "minDepth": 4,  "maxDepth": 256 },
       { "block": "aluminium_ore","rarity": 0.03, "minDepth": 6,  "maxDepth": 256 },
       { "block": "gold_ore",     "rarity": 0.02, "minDepth": 20, "maxDepth": 256 }
+    ]
+  },
+  {
+    "key": "skylands", "baseTemperature": 16, "nameKey": "planet.skylands.name", "atmosphereHeight": 320, "cloudColor": 14081244, "cloudDensity": 0.4,
+    "baseHeight": 56, "amplitude": 8, "terrainScale": 52.0, "terrainStyle": "flats",
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0022,
+    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 850, "floraDensity": 0.11, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 3,
+    "floatingIslands": true,
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt" },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone" }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4,  "maxDepth": 256 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 256 },
+      { "block": "tin_ore",    "rarity": 0.03, "minDepth": 6,  "maxDepth": 256 },
+      { "block": "gold_ore",   "rarity": 0.02, "minDepth": 20, "maxDepth": 256 },
+      { "block": "carbon",     "rarity": 0.05, "minDepth": 6,  "maxDepth": 256 }
     ]
   },
   {

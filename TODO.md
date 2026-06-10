@@ -57,9 +57,16 @@ Plan (staged, each phase shippable + tested):
   drops + render (solid/leafy + glow). **Giant mushrooms** (mushroom_stem + mushroom_cap, new textures) as a
   multi-block worldgen stamp on fungal/mycelium worlds. Flora theme reaches exotic worlds via the V1b hosts.
   (Crystal-spire structures are covered by the V2 "spires" terrain style.)
-- **V4 — fauna habitats + alien morphology:** new Cave/subterranean + Amphibian habitats (living caves),
-  per-planet creature theme bias, richer morphology (eyestalks, tentacles, 8-legs, gasbag).
-- **V5 — signature alien terrain:** floating islands (skylands), chasms/sinkholes, geysers/lava vents.
+- **V4 — fauna habitats: ✅ DONE (2026-06-10).** New `CreatureHabitat` **Cave** (subterranean: spawns in real
+  underground cave pockets via a cave-floor probe; mostly eyeless + always bioluminescent; crawling/many-legged)
+  and **Amphibian** (shoreline: spawns in/beside water, finned, teal, swims). Gated per world (caves need
+  CaveThreshold>0; amphibian needs water life); server cave-floor spawn + roam-height + shore check; client
+  aquatic hides + swim for amphibians, glow path for cave dwellers. (8-leg already supported; richer morphology
+  beyond legs/eyes deferred.)
+- **V5 — signature alien terrain: ✅ DONE (2026-06-10, headline shipped).** `PlanetType.FloatingIslands` +
+  worldgen sky-island slabs (grass-topped decks on tapered rocky underbellies, scattered by a region mask) high
+  above the surface — new rare **skylands** world (low flats ground + islands) and the **corrupted** world also
+  floats. Reached by flying up / building. (Chasms + geysers/vents remain as optional future polish.)
 
 Key generation changes: FloraGenerator theme gating + new hosts in EnsureCoverage; CreatureGenerator new
 habitats + per-planet palette; WorldGenerator per-planet archetype set + new feature passes; PlanetType new
