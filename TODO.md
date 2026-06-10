@@ -3264,9 +3264,10 @@ persisted per player. Implemented with a single-threaded **ship cursor** (`_curr
 `_activeShipId` resolve to the served player; `OnPayload` + the public entry methods (`HandleTravel` top,
 `CraftShip`, `Craft`, `RequestDock`) `Serve(session)` first; combat-stat caches recompute on cursor set.
 Persistence is per player (`ship_<playerId>`). Built on branch `p4-per-player-ship-wip` then merged.
-**Remaining edge (→ P7):** two players on the *same* planet share that world's ship-stamp state (anchor/
-heal-tank); fine for different-planet play (the requirement), needs per-player ship-stamp for shared
-worlds.
+**~~Remaining edge (→ P7)~~ — RESOLVED (verified 2026-06-11, note was stale):** ship stamps are per player
+per world (`WorldManager.ShipStamps` is keyed by player id) and the per-player ship cursor resolves each
+player's own heal-tank/aboard/stamp (`SetCurrent`) — two players on the same planet each keep their own
+stamped ship.
 
 **Original P4 plan:** the fleet (`_ships`/`_activeShipId` in `GameServerShips`) is
 currently global; make it per-player via a **session cursor** (`_current`) so `_ship`/`_ships`/
