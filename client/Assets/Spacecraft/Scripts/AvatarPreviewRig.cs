@@ -39,13 +39,12 @@ namespace Spacecraft.Client
             _cam.fieldOfView = 30f;
             _cam.nearClipPlane = 0.1f;
             _cam.farClipPlane = 20f;
-            // Frame the whole figure from the front with a slight 3/4 angle, viewing from the −Z side. The
-            // LitColor shader keys off a FIXED light from (0.4, 0.7, −0.55) — i.e. the −Z side — so the avatar's
-            // lit side is its −Z side. We view (and turn the avatar to face) that side so the FACE catches the
-            // key light; viewing from +Z left the face on the shadow side and it washed out to a blank (B?).
-            // Aim with LookAt so the avatar is always centred.
-            _cam.transform.position = Origin + new Vector3(-0.6f, 1.35f, -3.9f);
-            _cam.transform.LookAt(Origin + new Vector3(0f, 1.2f, 0f));
+            // Frame a HEAD-AND-SHOULDERS PORTRAIT (slight 3/4 angle) so the face reads clearly — the old
+            // whole-figure framing left the face tiny near the top edge and it read as blank. Viewed from the −Z
+            // side: the LitColor shader keys off a FIXED light from (0.4, 0.7, −0.55) — the −Z side — so we view
+            // (and turn the avatar to face) that side so the FACE catches the key light. Aim with LookAt to centre.
+            _cam.transform.position = Origin + new Vector3(-0.42f, 1.80f, -2.05f);
+            _cam.transform.LookAt(Origin + new Vector3(0f, 1.72f, 0f));
 
             var lightGo = new GameObject("AvatarPreviewLight");
             lightGo.transform.SetParent(transform, false);
@@ -88,9 +87,9 @@ namespace Spacecraft.Client
         {
             if (_active && _model != null)
             {
-                // Gently sway around the face-toward-camera pose (±28°) instead of a full turntable, so the face
+                // Gently sway around the face-toward-camera pose (±20°) instead of a full turntable, so the face
                 // is always shown to the player (the point of the preview) and never spins to the unlit back.
-                float yaw = 180f + Mathf.Sin(Time.time * 0.7f) * 28f;
+                float yaw = 180f + Mathf.Sin(Time.time * 0.7f) * 20f;
                 _model.localRotation = Quaternion.Euler(0f, yaw, 0f);
             }
         }

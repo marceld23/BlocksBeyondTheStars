@@ -4,14 +4,19 @@ namespace Spacecraft.Client
 {
     /// <summary>
     /// A self-contained, live ship preview rendered into a <see cref="RenderTexture"/> for the in-game menu's
-    /// Ship paint tab (item 32). It builds the same little textured hull as the flight view (iron_wall body +
-    /// wings, glass cockpit, carbon engine) at an isolated far-away spot, lit by its own short-range point light,
-    /// and renders it with a dedicated camera — so nothing in the game world is touched. Recolour the hull live
-    /// with <see cref="SetHullColor"/>; the model slowly rotates while active.
+    /// Ship paint tab (item 32). It renders the player's REAL ship — the 1:1 voxel design the flight view + other
+    /// players see (via <see cref="ShipMeshBuilder"/>) — at an isolated far-away spot, lit by its own short-range
+    /// point light, with a dedicated camera so nothing in the game world is touched. Falls back to a hand-built
+    /// hull silhouette only when no voxel design is available yet (e.g. the player hasn't entered space). The
+    /// model slowly rotates while active; the live hull-colour tint applies to the silhouette fallback.
     /// </summary>
     public sealed class ShipPreviewRig : MonoBehaviour
     {
         public RenderTexture Texture { get; private set; }
+
+        /// <summary>The game root — used to fetch the player's real ship voxel design + the block atlas so the
+        /// preview can render the ACTUAL ship (set by the menu before EnsureBuilt).</summary>
+        public GameBootstrap Game;
 
         private Camera _cam;
         private Transform _model;
@@ -38,15 +43,13 @@ namespace Spacecraft.Client
             _cam.backgroundColor = new Color(0.04f, 0.07f, 0.12f, 1f);
             _cam.fieldOfView = 30f;
             _cam.nearClipPlane = 0.1f;
-            _cam.farClipPlane = 30f;
-            _cam.transform.position = Origin + new Vector3(2.6f, 2.0f, 4.4f); // a three-quarter view of the hull
-            _cam.transform.rotation = Quaternion.Euler(16f, 210f, 0f);
+            _cam.farClipPlane = 60f;
 
             var lightGo = new GameObject("ShipPreviewLight");
             lightGo.transform.SetParent(transform, false);
             var lamp = lightGo.AddComponent<Light>();
             lamp.type = LightType.Point;       // localized — won't light the rest of the scene
-            lamp.range = 16f;
+            lamp.range = 40f;
             lamp.intensity = 1.5f;
             lamp.transform.position = Origin + new Vector3(2f, 3f, 3.5f);
 
@@ -54,16 +57,34 @@ namespace Spacecraft.Client
             _model.SetParent(transform, false);
             _model.position = Origin;
 
-            _hullMat = LitTex("iron_wall", hull);
-            var glass = LitTex("glass", new Color(0.7f, 0.9f, 1f));
-            var engine = LitTex("carbon", new Color(0.78f, 0.78f, 0.82f));
+            // Prefer the player's REAL ship: the 1:1 voxel design the flight view + other players render. Falls
+            // back to the hand-built silhouette only when no design is available yet (e.g. never entered space).
+            var voxel = ShipMeshBuilder.BuildVoxelShip(Game, _model, Game?.ShipDesign, out float extent);
+            if (voxel != null)
+            {
+                // Frame any ship size: pull the camera back along a fixed 3/4 direction by the ship's extent.
+                float dist = extent * 1.5f + 2.2f;
+                var dir = new Vector3(0.55f, 0.42f, 0.92f).normalized;
+                _cam.transform.position = Origin + dir * dist;
+                _cam.transform.LookAt(Origin);
+                lamp.transform.position = Origin + new Vector3(extent, extent * 0.9f, extent);
+            }
+            else
+            {
+                _cam.transform.position = Origin + new Vector3(2.6f, 2.0f, 4.4f); // a three-quarter view of the hull
+                _cam.transform.rotation = Quaternion.Euler(16f, 210f, 0f);
 
-            // Same silhouette as SpaceView.BuildShip so the preview reads as the real flight ship.
-            Cube("Body", _model, new Vector3(0f, 0f, 0f), new Vector3(1.6f, 0.9f, 3.4f), _hullMat);
-            Cube("WingL", _model, new Vector3(-1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), _hullMat);
-            Cube("WingR", _model, new Vector3(1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), _hullMat);
-            Cube("Cockpit", _model, new Vector3(0f, 0.5f, 1.2f), new Vector3(0.9f, 0.6f, 1.0f), glass);
-            Cube("Engine", _model, new Vector3(0f, 0f, -1.9f), new Vector3(1.0f, 0.7f, 0.5f), engine);
+                _hullMat = LitTex("iron_wall", hull);
+                var glass = LitTex("glass", new Color(0.7f, 0.9f, 1f));
+                var engine = LitTex("carbon", new Color(0.78f, 0.78f, 0.82f));
+
+                // Same silhouette as SpaceView's cube fallback so a design-less preview still reads as a ship.
+                Cube("Body", _model, new Vector3(0f, 0f, 0f), new Vector3(1.6f, 0.9f, 3.4f), _hullMat);
+                Cube("WingL", _model, new Vector3(-1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), _hullMat);
+                Cube("WingR", _model, new Vector3(1.3f, 0f, -0.3f), new Vector3(1.2f, 0.2f, 1.4f), _hullMat);
+                Cube("Cockpit", _model, new Vector3(0f, 0.5f, 1.2f), new Vector3(0.9f, 0.6f, 1.0f), glass);
+                Cube("Engine", _model, new Vector3(0f, 0f, -1.9f), new Vector3(1.0f, 0.7f, 0.5f), engine);
+            }
 
             SetActive(false);
         }
