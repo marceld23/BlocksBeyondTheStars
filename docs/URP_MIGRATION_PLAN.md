@@ -62,11 +62,15 @@ composite + any remaining fullscreen passes (Cloud/Starfield/SunGlow if camera-b
   (GUIDs kept via .meta); soft shadows enabled on the asset (`m_SoftShadowsSupported: 1` — the sun already asks
   for Soft), shadow distance 50→90, 2 cascades.
 
+- ✅ **Water/glass** — `BlockAtlasTransparent` ported dual-pipeline (URP transparent pass; receives the sun
+  shadow on its directional term; water clarity + milky glass + energy-field look preserved; transparents cast
+  no shadows by design).
+- ✅ **Per-preset shadow cost** — `ClientSettings.Apply()` scales `urp.shadowDistance` by preset (Potato 0 =
+  shadows off for Pi-class machines, Low 40, Medium 70, High 90), since one URP asset serves all levels.
+
 **Remaining (each a dev-verified step):**
-- `BlockAtlasTransparent` (water/glass) URP port (transparent queue; receive shadows).
 - Sky/FX shaders `Cloud`/`Starfield`/`SunGlow` URP ports (render fine as SRPDefaultUnlit today; port for
   correctness + SRP batching).
-- **SSAO** — add URP's Screen Space Ambient Occlusion renderer feature (editor: on the URP Renderer asset).
 - **Diegetic visor HUD** — re-implement the `Spacecraft/Visor` composite as a URP `ScriptableRendererFeature`
   (full-screen blit after post) + restore the on/off + dezent toggle; until then the HUD is a flat overlay.
 - Tune shadow distance/cascades; verify the Potato preset.

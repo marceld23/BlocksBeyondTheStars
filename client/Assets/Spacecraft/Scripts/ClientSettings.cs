@@ -101,6 +101,20 @@ namespace Spacecraft.Client
             {
                 QualitySettings.SetQualityLevel(Mathf.Clamp((int)Preset, 0, levels - 1), applyExpensiveChanges: true);
             }
+
+            // URP: one pipeline asset serves every quality level, so scale the expensive part — shadow reach —
+            // by preset here (Potato/Pi: shadows off entirely; High: the full tuned distance).
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline
+                is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
+            {
+                urp.shadowDistance = Preset switch
+                {
+                    QualityPreset.Potato => 0f,
+                    QualityPreset.Low => 40f,
+                    QualityPreset.Medium => 70f,
+                    _ => 90f,
+                };
+            }
         }
     }
 }
