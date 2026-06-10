@@ -2116,12 +2116,27 @@ public sealed partial class GameServer
 
     private bool WithinReach(PlayerState player, Vector3i block)
     {
-        // Longitude wraps: measure the X distance the short way round so a block just across the seam
-        // (canonical X numerically far, physically adjacent) is still reachable.
-        double dx = WorldConstants.WrapDeltaX((block.X + 0.5) - player.Position.X, _world.Circumference);
-        double dy = (block.Y + 0.5) - player.Position.Y;
-        double dz = (block.Z + 0.5) - player.Position.Z;
-        return dx * dx + dy * dy + dz * dz <= MaxReach * MaxReach;
+        // The client aims an 8 m ray FROM THE CAMERA at a block FACE, while this check used to measure the
+        // BODY position to the block CENTRE off a move stream that only updates at 10 Hz (unreliable) — three
+        // stacked discrepancies (eye offset ~0.8, centre-vs-face up to ~0.87, movement lag ~1) that made
+        // legitimate mines bounce with "Out of reach" (2026-06-10 bug). Measure to the nearest point of the
+        // block instead — vertically against the player's body segment (anchor-agnostic), X the short way
+        // round the longitude seam — with a small slack for the move-stream lag. HandleMove fully trusts the
+        // reported position anyway, so this stays a sanity bound, not an anti-cheat wall.
+        double dx = System.Math.Abs(WorldConstants.WrapDeltaX((block.X + 0.5) - player.Position.X, _world.Circumference));
+        dx = System.Math.Max(0.0, dx - 0.5); // to the near face, not the centre
+
+        double by = block.Y + 0.5;
+        double lo = player.Position.Y - 0.5, hi = player.Position.Y + 1.8; // body segment (feet-or-centre anchored)
+        double dy = by < lo ? lo - by : by > hi ? by - hi : 0.0;
+        dy = System.Math.Max(0.0, dy - 0.5);
+
+        double dz = System.Math.Abs((block.Z + 0.5) - player.Position.Z);
+        dz = System.Math.Max(0.0, dz - 0.5);
+
+        const double slack = 1.0; // covers the 10 Hz move-stream trailing the true position while walking
+        double max = MaxReach + slack;
+        return dx * dx + dy * dy + dz * dz <= max * max;
     }
 
     /// <summary>Squared distance between two on-planet positions measured the short way round the longitude
