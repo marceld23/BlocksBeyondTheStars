@@ -187,7 +187,7 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
-### ★ "Welten reicher" — PLAN (2026-06-10; decisions taken via Rückfragen)
+### ★ "Welten reicher" — ✅ DONE 2026-06-10 (W-R1–W-R4 shipped; onboarding deferred by decision; 423 tests green)
 **Decisions:** all four measures in scope (terrain drama, POIs/dungeons, set-dressing, weather drama);
 **onboarding later as its own package**; POI density **moderate** (several small + 1–2 large per world);
 worldgen changes **may alter existing worlds** (same seed → new terrain; saved chunks/builds stay as stored).
