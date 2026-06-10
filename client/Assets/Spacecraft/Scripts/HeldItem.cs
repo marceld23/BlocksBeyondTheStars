@@ -13,38 +13,44 @@ namespace Spacecraft.Client
     {
         public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget }
 
-        /// <summary>Maps the selected inventory item to a held-item kind + tint (None = empty hands).</summary>
-        public static (Kind kind, Color tint) For(GameContent content, string itemKey)
+        /// <summary>Resolves a block key to its atlas texture + tile UV rect, so a held block shows its REAL
+        /// in-world texture instead of a flat map colour. Wired by GameBootstrap once the atlas exists; null
+        /// (or a null result) falls back to the tinted cube.</summary>
+        public static System.Func<string, (Texture2D Tex, Rect Uv)?> BlockTileResolver;
+
+        /// <summary>Maps the selected inventory item to a held-item kind + tint (+ the block key for
+        /// <see cref="Kind.Block"/>, so the held cube can carry the block's real atlas tile).</summary>
+        public static (Kind kind, Color tint, string blockKey) For(GameContent content, string itemKey)
         {
             if (string.IsNullOrEmpty(itemKey) || content == null)
             {
-                return (Kind.None, Color.white);
+                return (Kind.None, Color.white, null);
             }
 
             var def = content.GetItem(itemKey);
             if (def == null)
             {
-                return (Kind.None, Color.white);
+                return (Kind.None, Color.white, null);
             }
 
             if (!string.IsNullOrEmpty(def.PlacesBlock))
             {
-                return (Kind.Block, WorldMap.MapColor(def.PlacesBlock));
+                return (Kind.Block, WorldMap.MapColor(def.PlacesBlock), def.PlacesBlock);
             }
 
             var tool = def.Tool;
             if (tool == null)
             {
-                return (Kind.None, Color.white); // raw material — nothing meaningful to hold up
+                return (Kind.None, Color.white, null); // raw material — nothing meaningful to hold up
             }
 
             switch (tool.Kind)
             {
-                case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f));
-                case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f));
-                case ToolKind.Weapon: return IsRanged(itemKey) ? (Kind.Gun, GunTint(itemKey)) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f));
-                case ToolKind.Gadget: return (Kind.Gadget, GadgetTint(itemKey));
-                default: return (Kind.Tool, new Color(0.60f, 0.62f, 0.66f));
+                case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f), null);
+                case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f), null);
+                case ToolKind.Weapon: return IsRanged(itemKey) ? (Kind.Gun, GunTint(itemKey), null) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f), null);
+                case ToolKind.Gadget: return (Kind.Gadget, GadgetTint(itemKey), null);
+                default: return (Kind.Tool, new Color(0.60f, 0.62f, 0.66f), null);
             }
         }
 
@@ -69,8 +75,10 @@ namespace Spacecraft.Client
             return new Color(0.5f, 0.54f, 0.6f);
         }
 
-        /// <summary>Builds the held-item geometry under a new holder parented to <paramref name="parent"/>.</summary>
-        public static GameObject Build(Transform parent, Kind kind, Color tint)
+        /// <summary>Builds the held-item geometry under a new holder parented to <paramref name="parent"/>.
+        /// For blocks, <paramref name="blockKey"/> lets the cube carry its REAL atlas tile (textured hand
+        /// block instead of a flat colour); without a resolver/tile it falls back to the tint.</summary>
+        public static GameObject Build(Transform parent, Kind kind, Color tint, string blockKey = null)
         {
             if (kind == Kind.None)
             {
@@ -86,7 +94,18 @@ namespace Spacecraft.Client
             switch (kind)
             {
                 case Kind.Block:
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.16f), new Vector3(0.22f, 0.22f, 0.22f), tint);
+                    var blockGo = Cube(holder.transform, new Vector3(0f, 0f, 0.16f), new Vector3(0.22f, 0.22f, 0.22f), tint);
+                    if (blockKey != null && BlockTileResolver?.Invoke(blockKey) is { } tile)
+                    {
+                        // The block's real atlas tile: LitColor samples _MainTex with its ST transform in both
+                        // pipelines, so scale/offset map the cube's 0..1 face UVs onto the tile.
+                        var m = blockGo.GetComponent<Renderer>().sharedMaterial;
+                        m.color = Color.white;
+                        m.mainTexture = tile.Tex;
+                        m.mainTextureScale = new Vector2(tile.Uv.width, tile.Uv.height);
+                        m.mainTextureOffset = new Vector2(tile.Uv.x, tile.Uv.y);
+                    }
+
                     break;
 
                 case Kind.Drill:
@@ -129,7 +148,7 @@ namespace Spacecraft.Client
             return holder;
         }
 
-        private static void Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color)
+        private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "Part";
@@ -145,6 +164,7 @@ namespace Spacecraft.Client
 
             var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
             go.GetComponent<Renderer>().sharedMaterial = new Material(shader) { color = color };
+            return go;
         }
     }
 }

@@ -16,7 +16,12 @@ namespace Spacecraft.Client
         /// (the URP replacement for the old PostComposite `_Sc_GradeTint` path).</summary>
         public static UrpScenePost Instance { get; private set; }
 
+        /// <summary>For the menu-blur quick-win: while the in-game menu is open, a gaussian depth-of-field
+        /// blurs the world behind the translucent panels (premium glass look + readable text).</summary>
+        public GameBootstrap Game;
+
         private ColorAdjustments _grade;
+        private DepthOfField _menuBlur;
 
         private void Start()
         {
@@ -46,11 +51,31 @@ namespace Spacecraft.Client
             _grade.saturation.Override(6f);
             _grade.colorFilter.Override(Color.white);
 
+            // Menu blur (graphics quick-win): a gaussian DoF that blurs everything past arm's length while
+            // the in-game menu is open. Inactive during play; toggled in Update from Game.MenuOpen.
+            _menuBlur = profile.Add<DepthOfField>(false);
+            _menuBlur.mode.Override(DepthOfFieldMode.Gaussian);
+            _menuBlur.gaussianStart.Override(0.4f);
+            _menuBlur.gaussianEnd.Override(6f);
+            _menuBlur.gaussianMaxRadius.Override(1.2f);
+
             var volume = gameObject.AddComponent<Volume>();
             volume.isGlobal = true;
             volume.priority = 10f;
             volume.profile = profile;
             Instance = this;
+        }
+
+        private void Update()
+        {
+            if (_menuBlur != null && Game != null)
+            {
+                bool open = Game.MenuOpen;
+                if (_menuBlur.active != open)
+                {
+                    _menuBlur.active = open;
+                }
+            }
         }
 
         /// <summary>Applies the per-system/biome "mood" grade (URP path of <c>Sky.SetGrade</c>): the blended

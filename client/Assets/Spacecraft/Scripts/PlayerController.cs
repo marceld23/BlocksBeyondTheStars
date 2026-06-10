@@ -109,9 +109,9 @@ namespace Spacecraft.Client
             }
 
             _heldKey = key;
-            var (kind, tint) = HeldItem.For(Game?.Content, key);
-            Avatar?.SetHeldItem(kind, tint);
-            _viewmodel?.SetHeldItem(kind, tint);
+            var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
+            Avatar?.SetHeldItem(kind, tint, blockKey);
+            _viewmodel?.SetHeldItem(kind, tint, blockKey);
         }
 
         private void Update()

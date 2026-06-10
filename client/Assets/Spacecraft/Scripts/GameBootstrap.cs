@@ -326,6 +326,13 @@ namespace Spacecraft.Client
                 Atlas = null; // no atlas shader → fall back to the flat palette + vertex-colour material
             }
 
+            // Held blocks show their REAL atlas tile in the hand (graphics quick-win): resolve a block key
+            // to the atlas texture + its tile UV rect; HeldItem falls back to the flat tint without it.
+            HeldItem.BlockTileResolver = key =>
+                Atlas != null && Content?.GetBlock(key) is { } b && b.NumericId.Value != 0
+                    ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
+                    : null;
+
             Network = new NetworkClient();
             Network.JoinAccepted += m =>
             {

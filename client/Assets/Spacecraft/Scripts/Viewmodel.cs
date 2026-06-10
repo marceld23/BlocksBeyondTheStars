@@ -39,7 +39,7 @@ namespace Spacecraft.Client
         }
 
         /// <summary>Sets the held item (rebuilds only when it changes — call from the controller).</summary>
-        public void SetHeldItem(HeldItem.Kind kind, Color tint)
+        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null)
         {
             EnsureHolder();
             _kind = kind;
@@ -49,7 +49,7 @@ namespace Spacecraft.Client
                 Destroy(_holder.GetChild(i).gameObject);
             }
 
-            var mesh = HeldItem.Build(_holder, kind, tint);
+            var mesh = HeldItem.Build(_holder, kind, tint, blockKey);
             if (mesh != null)
             {
                 mesh.transform.localScale = Vector3.one * 0.9f;
@@ -99,8 +99,8 @@ namespace Spacecraft.Client
                 if (key != _evaKey)
                 {
                     _evaKey = key;
-                    var (k, t) = HeldItem.For(Game.Content, key);
-                    SetHeldItem(k, t); // builds the holder if needed + rebuilds the mesh
+                    var (k, t, bk) = HeldItem.For(Game.Content, key);
+                    SetHeldItem(k, t, bk); // builds the holder if needed + rebuilds the mesh
                 }
 
                 ApplyVisible();

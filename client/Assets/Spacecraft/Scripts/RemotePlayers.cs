@@ -106,8 +106,8 @@ namespace Spacecraft.Client
             if (m.Held != r.Held)
             {
                 r.Held = m.Held;
-                var (kind, tint) = HeldItem.For(Game?.Content, m.Held);
-                r.Avatar.SetHeldItem(kind, tint);
+                var (kind, tint, blockKey) = HeldItem.For(Game?.Content, m.Held);
+                r.Avatar.SetHeldItem(kind, tint, blockKey);
             }
         }
 

@@ -134,6 +134,19 @@ namespace Spacecraft.Client
                 bool collidable = collKey != "water" && collKey != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
+                // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
+                // Tree crowns keep the cutout shell (a volume), solid flora (cactus/crystal/caps) stay cubes.
+                // Cross plants get NO collider, so the player walks through grass/ferns instead of bumping.
+                if (atlas != null && foliage && collKey != null && collKey.StartsWith("flora_", System.StringComparison.Ordinal))
+                {
+                    float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
+                    var plantCol = new Color(matR, matG, 0.9f, emission);
+                    AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv,
+                        new Vector3(x, y, z), plantCol, uv, plantSky);
+                    continue;
+                }
+
                 for (int f = 0; f < Faces.Length; f++)
                 {
                     var dir = Faces[f];
@@ -211,6 +224,53 @@ namespace Spacecraft.Client
             }
 
             return (mesh, collider);
+        }
+
+        /// <summary>Adds a cross-billboard plant: two diagonal cutout quads through the cell, each emitted with
+        /// BOTH windings (the atlas shaders cull back faces), slightly inset to avoid z-fighting. Render-only —
+        /// no collider triangles, so small plants are walk-through.</summary>
+        private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector2> leafUv, Vector3 cell, Color col, Rect uv, float sky)
+        {
+            // The two crossed planes' floor diagonals (inset 0.08 from the cell edges).
+            var diagonals = new[]
+            {
+                (A: new Vector3(cell.x + 0.08f, cell.y, cell.z + 0.08f), B: new Vector3(cell.x + 0.92f, cell.y, cell.z + 0.92f)),
+                (A: new Vector3(cell.x + 0.92f, cell.y, cell.z + 0.08f), B: new Vector3(cell.x + 0.08f, cell.y, cell.z + 0.92f)),
+            };
+
+            foreach (var (a, b) in diagonals)
+            {
+                var up = Vector3.up;
+                var tangent = (Vector4)((b - a).normalized);
+                tangent.w = -1f;
+
+                for (int winding = 0; winding < 2; winding++)
+                {
+                    int baseIdx = verts.Count;
+                    if (winding == 0)
+                    {
+                        verts.Add(a); verts.Add(b); verts.Add(b + up); verts.Add(a + up);
+                    }
+                    else
+                    {
+                        verts.Add(b); verts.Add(a); verts.Add(a + up); verts.Add(b + up);
+                    }
+
+                    uvs.Add(new Vector2(uv.x, uv.y)); uvs.Add(new Vector2(uv.xMax, uv.y));
+                    uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.x, uv.yMax));
+                    for (int i = 0; i < 4; i++)
+                    {
+                        colors.Add(col);
+                        tangents.Add(tangent);
+                        skyUv.Add(new Vector2(sky, 1f)); // flora flag on — takes the planet's flora hue
+                        leafUv.Add(new Vector2(1f, 0f)); // cutout on — the tile's alpha mask shapes the plant
+                    }
+
+                    tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);
+                    tris.Add(baseIdx); tris.Add(baseIdx + 3); tris.Add(baseIdx + 2);
+                }
+            }
         }
 
         /// <summary>Relative brightness per face (top brightest, bottom darkest) for a lit-looking blocky world.</summary>

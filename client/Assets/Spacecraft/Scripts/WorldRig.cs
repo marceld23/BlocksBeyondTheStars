@@ -210,8 +210,9 @@ namespace Spacecraft.Client
             var geysers = root.AddComponent<GeyserView>();
             geysers.Game = boot;
 
-            // URP post-processing volume (bloom/tonemap/vignette/grade); no-op under Built-in RP (PostFx covers it).
-            root.AddComponent<UrpScenePost>();
+            // URP post-processing volume (bloom/tonemap/vignette/grade + menu blur); no-op under Built-in RP.
+            var urpPost = root.AddComponent<UrpScenePost>();
+            urpPost.Game = boot;
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();

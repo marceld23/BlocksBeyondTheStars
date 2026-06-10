@@ -215,7 +215,7 @@ namespace Spacecraft.Client
         }
 
         /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes).</summary>
-        public void SetHeldItem(HeldItem.Kind kind, Color tint)
+        public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null)
         {
             if (_handR == null)
             {
@@ -233,7 +233,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            _held = HeldItem.Build(_handR, kind, tint);
+            _held = HeldItem.Build(_handR, kind, tint, blockKey);
             if (_held != null)
             {
                 _held.transform.localPosition = new Vector3(0f, -0.1f, 0.06f); // in the palm, pointing forward
