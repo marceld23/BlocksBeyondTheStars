@@ -6,11 +6,12 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (118 files, incl. the splash intro, the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (122 files, incl. the splash intro, the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
-the death cues `space_death`/`player_death`, the per-species creature calls `creature_call_*`, and the
+the death cues `space_death`/`player_death`, the per-species creature calls `creature_call_*`, the
 item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`amb_wind_high` + the
-`geyser_erupt` eruption) are **AI-generated** with the
+`geyser_erupt` eruption, and the planet-enemy vocals `enemy_growl`/`enemy_attack`/`enemy_hurt`/`enemy_die`)
+are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**
@@ -28,7 +29,8 @@ non-block items, ship modules, space tools, and the Task-5 metal ingots + alloy/
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, and the item-21 `geyser_vent`) are
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, and the planet-enemy
+`enemy_hide` chitin tile) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.
