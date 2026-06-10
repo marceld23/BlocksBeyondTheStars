@@ -42,6 +42,10 @@ namespace Spacecraft.Client
         public bool ReducedEffects = false;
         public bool LargeUi = false;
 
+        /// <summary>Holographic visor HUD styling (curvature + chromatic fringe + scanlines + glow). On = the
+        /// stylised visor look; off = a clean, flat HUD overlay (better readability). Default on but subtle.</summary>
+        public bool VisorEffects = true;
+
         // Avatar appearance (M23b). Per-part colours; later armor overrides the matching part.
         public Color SkinColor = new Color(0.85f, 0.68f, 0.55f);
         public Color TorsoColor = new Color(0.20f, 0.45f, 0.80f);

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Spacecraft.Client
 {
@@ -13,6 +14,9 @@ namespace Spacecraft.Client
     public sealed class VisorHud : MonoBehaviour
     {
         public Camera MainCamera;
+
+        /// <summary>Client settings — read live so the "visor effect" toggle takes effect immediately.</summary>
+        public ClientSettings Settings;
 
         /// <summary>Free layer the diegetic HUD renders on (matches the "VisorHud" entry in TagManager, but
         /// used by index so it works even when a batch build hasn't baked the layer name).</summary>
@@ -41,6 +45,17 @@ namespace Spacecraft.Client
         {
             if (MainCamera == null)
             {
+                enabled = false;
+                return;
+            }
+
+            // URP migration: the diegetic visor is a 2nd camera → RenderTexture composited via OnRenderImage —
+            // neither the depthless RT nor OnRenderImage is supported by URP's render graph. Under URP, stay a
+            // flat screen-space HUD (UiKit.HudCamera stays null) until the composite is reworked as a URP
+            // ScriptableRendererFeature. Built-in RP keeps the full holographic visor.
+            if (GraphicsSettings.currentRenderPipeline != null)
+            {
+                Debug.Log("[VisorHud] URP active → flat HUD overlay (diegetic visor composite is Built-in-RP only for now).");
                 enabled = false;
                 return;
             }
@@ -85,6 +100,7 @@ namespace Spacecraft.Client
             _composite.VisorShader = shader;
             _composite.Hud = _rt;
             _composite.Intensity = _intensity;
+            _composite.Effects = Settings == null || Settings.VisorEffects;
 
             UiKit.HudCamera = _hudCam; // diegetic canvases created from here on target this camera
             _lastEuler = MainCamera.transform.eulerAngles;
@@ -111,6 +127,12 @@ namespace Spacecraft.Client
             if (!_active)
             {
                 return;
+            }
+
+            // Live "visor effect" toggle: read each frame so flipping it in Settings applies at once.
+            if (_composite != null && Settings != null)
+            {
+                _composite.Effects = Settings.VisorEffects;
             }
 
             // Resolution change → rebuild the RT and re-target.
@@ -217,6 +239,10 @@ namespace Spacecraft.Client
         public float Intensity = 1f;
         public Vector2 Parallax;
 
+        /// <summary>When false the HUD composites cleanly with NO stylisation (no curvature/chroma/scanlines/
+        /// glow) — a flat, maximally-readable overlay (the player's "visor effect off" setting).</summary>
+        public bool Effects = true;
+
         private Material _mat;
         private float _time;
 
@@ -238,18 +264,35 @@ namespace Spacecraft.Client
             }
 
             _mat.SetTexture("_HudTex", Hud);
-            _mat.SetFloat("_Intensity", Intensity);
-            _mat.SetFloat("_Curvature", 0.07f);   // outward-curved visor bow (softened)
-            _mat.SetFloat("_Chroma", 0.011f);     // chromatic edge fringing (softened)
-            _mat.SetFloat("_ScanCount", Mathf.Max(120f, Hud.height * 0.5f));
             _mat.SetFloat("_VisorTime", _time);
-            _mat.SetVector("_Parallax", new Vector4(Parallax.x, Parallax.y, 0f, 0f));
             _mat.SetFloat("_Aspect", src.height > 0 ? (float)src.width / src.height : 1.78f);
             _mat.SetFloat("_HudOpacity", 0.97f);
-            _mat.SetFloat("_Glow", 0.9f);         // emissive hologram glow
-            _mat.SetFloat("_Reflect", 0.10f);     // faint visor reflection of the world (softened)
             _mat.SetColor("_RimColor", new Color(0.4f, 0.85f, 1f, 1f));
-            _mat.SetFloat("_RimIntensity", 0.13f); // visor glass edge glow (softened)
+            _mat.SetFloat("_ScanCount", Mathf.Max(120f, Hud.height * 0.5f));
+
+            if (Effects)
+            {
+                // Stylised — but kept subtle ("dezent"): gentle bow, a whisper of chroma, soft glow.
+                _mat.SetFloat("_Intensity", Intensity);
+                _mat.SetFloat("_Curvature", 0.045f);  // outward-curved visor bow (subtle)
+                _mat.SetFloat("_Chroma", 0.005f);     // chromatic edge fringing (subtle)
+                _mat.SetVector("_Parallax", new Vector4(Parallax.x, Parallax.y, 0f, 0f));
+                _mat.SetFloat("_Glow", 0.6f);         // emissive hologram glow
+                _mat.SetFloat("_Reflect", 0.08f);     // faint visor reflection of the world
+                _mat.SetFloat("_RimIntensity", 0.10f); // visor glass edge glow
+            }
+            else
+            {
+                // Off — a clean, flat HUD overlay: no warp, no fringe, no scanlines/glow/rim/reflection.
+                _mat.SetFloat("_Intensity", 0f);
+                _mat.SetFloat("_Curvature", 0f);
+                _mat.SetFloat("_Chroma", 0f);
+                _mat.SetVector("_Parallax", Vector4.zero);
+                _mat.SetFloat("_Glow", 0f);
+                _mat.SetFloat("_Reflect", 0f);
+                _mat.SetFloat("_RimIntensity", 0f);
+            }
+
             Graphics.Blit(src, dst, _mat, 0);
         }
 

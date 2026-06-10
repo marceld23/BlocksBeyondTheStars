@@ -533,6 +533,10 @@ public sealed partial class GameServer
         }
 
         Send(session, new MissionList { Available = available.ToArray(), Active = active.ToArray() });
+
+        // Opening a settlement/station mission board greets the nearby quartermaster (item 15); a no-op aboard
+        // ship or anywhere no quartermaster is in reach.
+        GreetBoardQuartermaster(session);
     }
 
     private static NetMission BuildNetMission(MissionDefinition def, MissionProgress? pr, MaterialPool pool)

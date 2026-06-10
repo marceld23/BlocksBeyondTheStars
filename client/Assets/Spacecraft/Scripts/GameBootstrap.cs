@@ -461,7 +461,7 @@ namespace Spacecraft.Client
             {
                 if (Network.Connected)
                 {
-                    Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password);
+                    Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en");
                     Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
                     _joinSent = true;
                 }

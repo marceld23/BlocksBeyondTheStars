@@ -13,6 +13,10 @@ public sealed class JoinRequest
     public int ProtocolVersion { get; set; } = Spacecraft.Networking.Protocol.Version;
     public string PlayerName { get; set; } = string.Empty;
     public string? Password { get; set; }
+
+    /// <summary>The player's chosen UI language ("en"/"de"). The server remembers it so dynamic, server-authored
+    /// text (item 15: LLM NPC greetings) is generated in the player's language. Defaults to English.</summary>
+    public string Locale { get; set; } = "en";
 }
 
 public sealed class MoveIntent
@@ -63,6 +67,17 @@ public sealed class UnlockBlueprintIntent
 public sealed class SelectHotbarIntent
 {
     public int Slot { get; set; }
+}
+
+/// <summary>
+/// Client → server: rearrange the personal inventory by swapping two slots (B58 — customising the quick-bar,
+/// which is just inventory slots 0–8). The server validates indices + swaps. <see cref="ToSlot"/> = -1 means
+/// "stow out of the quick-bar": move the item into the first free backpack slot (≥ the quick-bar size).
+/// </summary>
+public sealed class MoveItemIntent
+{
+    public int FromSlot { get; set; }
+    public int ToSlot { get; set; }
 }
 
 /// <summary>Client asks for the star map (cockpit). Server replies with <see cref="StarMapData"/>.</summary>
@@ -1067,4 +1082,35 @@ public sealed class WorldEnvironment
 
     /// <summary>Active planet/biome key (e.g. "jungle", "desert", "ice", "lava") for client ambience.</summary>
     public string Biome { get; set; } = "rock";
+}
+
+/// <summary>
+/// Client → server: the player opened an interaction with a nearby NPC of this role ("vendor" / "quartermaster")
+/// and would like its greeting line (item 15). The server picks the nearest matching NPC it can verify is in
+/// reach, then replies with an <see cref="NpcGreeting"/>. Spam-safe: the server gates on proximity.
+/// </summary>
+public sealed class NpcGreetIntent
+{
+    /// <summary>The NPC role the player is interacting with: "vendor" or "quartermaster".</summary>
+    public string Role { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Server → client: a contextual greeting line to show as a speech bubble over an NPC (item 15). When an LLM
+/// backend is enabled the <see cref="Text"/> is LLM-authored in the player's language; when AI is off/unreachable
+/// the server sends an empty <see cref="Text"/> and the client shows a localized static fallback by role.
+/// </summary>
+public sealed class NpcGreeting
+{
+    /// <summary>The runtime NPC id (matches <see cref="NetNpc.Id"/>) the bubble belongs to.</summary>
+    public int NpcId { get; set; }
+
+    /// <summary>The NPC's coined name (for the fallback line / display); may be empty.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>The NPC role ("vendor" / "quartermaster") — selects the client-side fallback line.</summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>The greeting to show. Empty ⇒ the client renders its own localized fallback for the role.</summary>
+    public string Text { get; set; } = string.Empty;
 }

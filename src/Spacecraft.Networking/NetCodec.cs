@@ -151,6 +151,13 @@ public static class NetCodec
 
         // item 20 S4: deploy a station core to start a player-built station.
         Register(108, typeof(DeployStationCoreIntent));
+
+        // item 15: contextual NPC greetings (client asks on interaction; server replies with the line).
+        Register(109, typeof(NpcGreetIntent));      // Client -> Server
+        Register(110, typeof(NpcGreeting));         // Server -> Client
+
+        // B58: customisable quick-bar — client swaps two personal-inventory slots.
+        Register(111, typeof(MoveItemIntent));      // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

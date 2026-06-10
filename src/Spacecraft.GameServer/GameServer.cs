@@ -600,6 +600,7 @@ public sealed partial class GameServer
         }
 
         SampleHistories(deltaSeconds);
+        TickGreetings(); // push any LLM NPC greetings finished off-thread (item 15)
 
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
@@ -1119,6 +1120,7 @@ public sealed partial class GameServer
         {
             case MoveIntent move: HandleMove(session, move); break;
             case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
+            case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
             case MineBlockIntent mine: HandleMine(session, mine); break;
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
@@ -1176,6 +1178,7 @@ public sealed partial class GameServer
             case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
             case ClaimWreckIntent: HandleClaimWreck(session); break;
             case TravelIntent travel: HandleTravel(session, travel); break;
+            case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
         }
     }
 
@@ -1236,7 +1239,7 @@ public sealed partial class GameServer
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
-        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody };
+        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(join.Locale) };
         _sessions[connectionId] = session;
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
@@ -1386,7 +1389,7 @@ public sealed partial class GameServer
     /// tests, since the loopback transport only models a single networked client. The caller
     /// drives this player's actions through the authoritative server methods directly.
     /// </summary>
-    public PlayerSession AddLocalPlayer(string name)
+    public PlayerSession AddLocalPlayer(string name, string locale = "en")
     {
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
 
@@ -1401,7 +1404,7 @@ public sealed partial class GameServer
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
-        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody };
+        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(locale) };
         _sessions[connectionId] = session;
         SetupPlayerShip(session); // local/test players get their own ship too
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
@@ -1838,12 +1841,12 @@ public sealed partial class GameServer
             return;
         }
 
-        // Market barter is themed: a settlement only posts goods for its own trade (a mining village sells ore,
-        // a research city sells data), so different settlements offer different deals. Themeless market recipes
-        // trade anywhere (every vendor + the ship's own console).
+        // Market barter is themed per VENDOR (B55): each vendor posts the goods of its own profession, so different
+        // vendors at one settlement/station offer different deals (and station vendors can post themed goods, not
+        // just the themeless ones). Themeless market recipes trade anywhere (every vendor + the ship's own console).
         if (recipe.Station == CraftingStation.Market && !string.IsNullOrEmpty(recipe.MarketTheme))
         {
-            string vendorTheme = NearSettlementVendor(session.State) ? SettlementTradeFor(_settlementName) : string.Empty;
+            string vendorTheme = VendorThemeAt(session.State);
             if (!string.Equals(vendorTheme, recipe.MarketTheme, System.StringComparison.OrdinalIgnoreCase))
             {
                 CraftFail(session, recipe.Key, "This trade isn't offered here.");
@@ -2392,6 +2395,50 @@ public sealed partial class GameServer
             OxygenEnabled = r.OxygenEnabled,
             AdminCheatsActive = r.CheatsAllowed,
         });
+    }
+
+    /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,
+    /// slots 0..HotbarSlots-1). <c>ToSlot == -1</c> stows the item out of the quick-bar into the first free
+    /// backpack slot. Server-authoritative: validates indices, then swaps and re-syncs.</summary>
+    private void HandleMoveItem(PlayerSession session, MoveItemIntent intent)
+    {
+        var inv = session.State.Inventory;
+        int from = intent.FromSlot;
+        if (from < 0 || from >= inv.SlotCount || inv.Slots[from] is null)
+        {
+            return; // nothing to move
+        }
+
+        int to = intent.ToSlot;
+        if (to == -1)
+        {
+            to = inv.FirstEmptySlot(HotbarSlots); // stow into the backpack (past the quick-bar)
+            if (to < 0)
+            {
+                to = inv.FirstEmptySlot(0); // backpack full → any free slot
+            }
+
+            if (to < 0 || to == from)
+            {
+                return; // inventory full / nowhere to stow
+            }
+        }
+        else if (to < 0 || to >= inv.SlotCount || to == from)
+        {
+            return;
+        }
+
+        inv.Swap(from, to);
+        SendInventory(session);
+    }
+
+    /// <summary>Test seam: drives a quick-bar move/swap for a player (B58).</summary>
+    public void MoveItemForTest(string playerId, int fromSlot, int toSlot)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleMoveItem(session, new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
+        }
     }
 
     private void SendInventory(PlayerSession session)

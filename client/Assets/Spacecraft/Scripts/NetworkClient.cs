@@ -72,6 +72,9 @@ namespace Spacecraft.Client
         public event Action<TradeUpdate> TradeUpdated;
         public event Action<TradeClosed> TradeClosedReceived;
 
+        // Contextual NPC greetings (item 15): a speech-bubble line when interacting with a vendor/quartermaster.
+        public event Action<NpcGreeting> NpcGreetingReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -85,8 +88,12 @@ namespace Spacecraft.Client
 
         public void Connect(string host, int port) => _transport.Connect(host, port);
 
-        public void Join(string playerName, string password = null)
-            => Send(new JoinRequest { PlayerName = playerName, Password = password });
+        public void Join(string playerName, string password = null, string locale = "en")
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale });
+
+        /// <summary>Asks the server for the greeting line of the nearby NPC of this role ("vendor"/"quartermaster")
+        /// when opening its interaction (item 15). The server gates on proximity and replies with an NpcGreeting.</summary>
+        public void SendNpcGreet(string role) => Send(new NpcGreetIntent { Role = role });
 
         public void SendMove(Vector3 pos, float yaw, float pitch)
             => Send(new MoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
@@ -116,6 +123,10 @@ namespace Spacecraft.Client
             });
 
         public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });
+
+        /// <summary>Rearranges the personal inventory: swap two slots, or stow out of the quick-bar with toSlot=-1
+        /// (B58 — customising the quick-bar).</summary>
+        public void SendMoveItem(int fromSlot, int toSlot) => Send(new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
 
         // --- Ship docking (M18) ---
         public void SendDockRequest(string targetPlayer) => Send(new DockRequestIntent { TargetPlayer = targetPlayer });
@@ -294,6 +305,7 @@ namespace Spacecraft.Client
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
                 case TradeUpdate m: TradeUpdated?.Invoke(m); break;
                 case TradeClosed m: TradeClosedReceived?.Invoke(m); break;
+                case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;
             }
         }
 

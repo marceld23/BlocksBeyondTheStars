@@ -6,20 +6,60 @@ using Spacecraft.Shared.Missions;
 namespace Spacecraft.GameServer;
 
 /// <summary>
-/// Source of AI-generated <see cref="MissionPlan"/>s. The server stays authoritative: it
-/// validates whatever the provider returns. Implementations must never throw fatally — a
-/// failure returns null so the game keeps working without AI (`anf_mission_editor.md` §14).
+/// Context for an AI-authored NPC greeting line (item 15). All fields are plain data the backend
+/// turns into a short, in-character line; the server fills it from live game state.
+/// </summary>
+public sealed class NpcLineRequest
+{
+    /// <summary>The NPC's coined personal name (e.g. "Vega-7").</summary>
+    public string NpcName { get; set; } = string.Empty;
+
+    /// <summary>The NPC role: "vendor" or "quartermaster".</summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>The settlement's trade theme: "miners" / "traders" / "researchers" / "settlers".</summary>
+    public string Theme { get; set; } = string.Empty;
+
+    /// <summary>Whether the NPC is an android (researchers are robots) — flavours the tone.</summary>
+    public bool IsRobot { get; set; }
+
+    /// <summary>The settlement's display name (e.g. "Karth Town").</summary>
+    public string Settlement { get; set; } = string.Empty;
+
+    /// <summary>The player's display name.</summary>
+    public string PlayerName { get; set; } = string.Empty;
+
+    /// <summary>Relationship score with this player (−100..+100; 0 = first meeting).</summary>
+    public int Relationship { get; set; }
+
+    /// <summary>How many past interactions this player has had with the NPC (0 = stranger).</summary>
+    public int PastInteractions { get; set; }
+
+    /// <summary>Language to write the greeting in: "en" or "de".</summary>
+    public string Language { get; set; } = "en";
+}
+
+/// <summary>
+/// Source of AI-generated text. The server stays authoritative: it validates <see cref="MissionPlan"/>s and
+/// only ever shows greeting lines as flavour. Implementations must never throw fatally — a failure returns
+/// null so the game keeps working without AI (`anf_mission_editor.md` §14).
 /// </summary>
 public interface IAiMissionProvider
 {
     /// <summary>Returns a mission plan for the given context, or null if unavailable/disabled.</summary>
     MissionPlan? Generate(string context);
+
+    /// <summary>Returns a short, in-character NPC greeting for the context, or null if unavailable/disabled
+    /// (item 15). The caller falls back to a static localized line when this is null.</summary>
+    string? GenerateNpcLine(NpcLineRequest request);
 }
 
 /// <summary>AI disabled — always returns null. Default provider.</summary>
 public sealed class NullAiMissionProvider : IAiMissionProvider
 {
     public MissionPlan? Generate(string context) => null;
+
+    public string? GenerateNpcLine(NpcLineRequest request) => null;
 }
 
 /// <summary>
@@ -30,11 +70,15 @@ public sealed class NullAiMissionProvider : IAiMissionProvider
 public sealed class HttpAiMissionProvider : IAiMissionProvider
 {
     private readonly HttpClient _http;
-    private readonly string _url;
+    private readonly string _baseUrl;
+    private readonly string _missionUrl;
+    private readonly string _npcLineUrl;
 
     public HttpAiMissionProvider(string baseUrl, HttpClient? http = null)
     {
-        _url = baseUrl.TrimEnd('/') + "/mission-plan";
+        _baseUrl = baseUrl.TrimEnd('/');
+        _missionUrl = _baseUrl + "/mission-plan";
+        _npcLineUrl = _baseUrl + "/npc-line";
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
     }
 
@@ -43,7 +87,7 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         try
         {
             var body = new StringContent(JsonSerializer.Serialize(new { context }), Encoding.UTF8, "application/json");
-            using var response = _http.PostAsync(_url, body).GetAwaiter().GetResult();
+            using var response = _http.PostAsync(_missionUrl, body).GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -60,5 +104,34 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         {
             return null; // backend unreachable / invalid -> graceful fallback
         }
+    }
+
+    public string? GenerateNpcLine(NpcLineRequest request)
+    {
+        try
+        {
+            var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            using var response = _http.PostAsync(_npcLineUrl, body).GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var line = JsonSerializer.Deserialize<NpcLineResponse>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+            });
+            return string.IsNullOrWhiteSpace(line?.Text) ? null : line!.Text.Trim();
+        }
+        catch
+        {
+            return null; // backend unreachable / invalid -> static fallback
+        }
+    }
+
+    private sealed class NpcLineResponse
+    {
+        public string Text { get; set; } = string.Empty;
     }
 }

@@ -24,7 +24,11 @@ namespace Spacecraft.Client
             public string Label;
             public float GestureTimer;     // counts down to the next work gesture (mine/place/talk swing)
             public float GestureLo, GestureHi; // cadence range from the NPC's theme/role
+            public string Greeting;        // item 15: a contextual speech-bubble line (empty = none showing)
+            public float GreetingUntil;    // Time.time after which the bubble fades out
         }
+
+        private const float GreetingSeconds = 7f; // how long a greeting bubble stays up
 
         private readonly Dictionary<int, Npc> _npcs = new Dictionary<int, Npc>();
         private bool _subscribed;
@@ -35,6 +39,7 @@ namespace Spacecraft.Client
             {
                 Game.Network.NpcsReceived += OnNpcs;
                 Game.Network.WorldResetReceived += OnWorldReset;
+                Game.Network.NpcGreetingReceived += OnGreeting;
                 _subscribed = true;
             }
 
@@ -60,6 +65,29 @@ namespace Spacecraft.Client
         /// <summary>Changing world (planet ↔ station ↔ space) wipes the NPCs: each world keeps its own list with
         /// IDs that restart at 1, so without this the previous world's NPCs would linger — e.g. a space station's
         /// inhabitants left hanging in a planet's sky (B33). The new world's <see cref="NpcList"/> repopulates.</summary>
+        /// <summary>A contextual greeting for an NPC (item 15): show it as a speech bubble over that NPC. When the
+        /// server sends an empty line (AI off/unreachable) we render a localized static fallback by role, so a
+        /// greeting always appears regardless of whether an LLM backend is running.</summary>
+        private void OnGreeting(NpcGreeting m)
+        {
+            if (!_npcs.TryGetValue(m.NpcId, out var n))
+            {
+                return; // greeting for an NPC we aren't rendering (left the area) — ignore
+            }
+
+            string text = string.IsNullOrWhiteSpace(m.Text) ? FallbackGreeting(m.Role) : m.Text.Trim();
+            n.Greeting = text;
+            n.GreetingUntil = Time.time + GreetingSeconds;
+        }
+
+        /// <summary>The localized static greeting shown when no AI line is available, keyed by NPC role.</summary>
+        private string FallbackGreeting(string role)
+        {
+            var loc = Game?.Localizer;
+            string key = role == "quartermaster" ? "npc.greet.quartermaster" : "npc.greet.vendor";
+            return loc != null ? loc.Get(key) : string.Empty;
+        }
+
         private void OnWorldReset(WorldReset m)
         {
             foreach (var n in _npcs.Values)
@@ -173,6 +201,12 @@ namespace Spacecraft.Client
             foreach (var n in _npcs.Values)
             {
                 labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, n.Label, UiKit.Cyan);
+
+                // A live greeting bubble sits just above the nameplate (item 15).
+                if (!string.IsNullOrEmpty(n.Greeting) && Time.time < n.GreetingUntil)
+                {
+                    labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, $"“{n.Greeting}”", UiKit.TextCol);
+                }
             }
         }
 
@@ -182,6 +216,7 @@ namespace Spacecraft.Client
             {
                 Game.Network.NpcsReceived -= OnNpcs;
                 Game.Network.WorldResetReceived -= OnWorldReset;
+                Game.Network.NpcGreetingReceived -= OnGreeting;
             }
         }
 

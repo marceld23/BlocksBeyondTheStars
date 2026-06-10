@@ -13,6 +13,10 @@ public sealed class PlayerSession
     /// <summary>True once the player has completed the join handshake.</summary>
     public bool Joined { get; set; }
 
+    /// <summary>The player's UI language ("en"/"de") sent on join (item 15). Server-authored dynamic text — LLM
+    /// NPC greetings — is generated in this language. Connection-scoped (not persisted); defaults to English.</summary>
+    public string Locale { get; set; } = "en";
+
     /// <summary>The celestial-body id of the world this player is currently in. With multi-world, each
     /// player can be on a different body; the server sets <c>_worlds.Active</c> to this before handling the
     /// player's messages / streaming their chunks. Empty until the join places them. Mirrors

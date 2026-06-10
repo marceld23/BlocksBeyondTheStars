@@ -391,6 +391,7 @@ public sealed partial class GameServer
     {
         var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
         int added = 0;
+        int vendorIndex = 0;
         foreach (var (type, pos) in station.Markers)
         {
             string? role = type switch
@@ -407,10 +408,15 @@ public sealed partial class GameServer
                 continue; // heal-tank / structural markers don't get a crew member
             }
 
+            // Each station vendor gets its own profession (B55) so multiple traders on one station sell different
+            // goods; other crew stay "traders"-themed. The first vendor keeps the station's "traders" identity.
+            string npcTheme = role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
+            bool robotic = npcTheme == "researchers"; // research staff are service androids
+
             // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
             // floor surface (the integer Y) so the crew stands on the deck instead of floating over it.
             var standing = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z);
-            var npc = MakeNpc(role, "traders", robotic: false, standing, rng);
+            var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
             if (role == "quartermaster")
             {
                 npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)

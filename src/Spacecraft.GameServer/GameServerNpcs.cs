@@ -69,8 +69,8 @@ public sealed partial class GameServer
         // Each settlement has a deterministic trade profession (miners/traders/researchers/settlers) — it drives
         // the residents' outfits + work gestures AND which goods the vendor posts, so different settlements offer
         // different trades (the old per-NPC theme was the human/alien look, which the trade UI couldn't use).
-        string theme = SettlementTradeFor(_settlementName);
-        bool robotic = theme == "researchers"; // research outposts are staffed by service androids
+        string settlementTheme = SettlementTradeFor(_settlementName);
+        int vendorIndex = 0;
 
         foreach (var (type, pos) in _settlementMarkers)
         {
@@ -87,10 +87,15 @@ public sealed partial class GameServer
                 continue; // loot markers etc. don't get an NPC
             }
 
+            // Vendors each get their own profession (B55) so multiple vendors at one settlement sell different
+            // goods; settlers/the quartermaster keep the settlement's own theme (its identity).
+            string npcTheme = role == "vendor" ? VendorThemeFor(_settlementName, vendorIndex++, settlementTheme) : settlementTheme;
+            bool robotic = npcTheme == "researchers"; // research staff are service androids
+
             // NPCs have no physics, so place their feet exactly on top of the settlement floor block
             // (the marker Y sits inside it) — otherwise they render sunk into the ground.
             var standing = new Vector3f(pos.X, _settlementMin.Y + 1f, pos.Z);
-            var npc = MakeNpc(role, theme, robotic, standing, rng);
+            var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
             if (role == "quartermaster")
             {
                 npc.Name = CoinGiverName(_settlementName); // the mission-giver's name matches its missions (item 13)

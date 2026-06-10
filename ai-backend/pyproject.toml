@@ -1,11 +1,18 @@
 [project]
 name = "spacecraft-ai-backend"
 version = "0.1.0"
-description = "Optional AI mission backend for Spacecraft (separate Python service)"
+description = "Optional AI backend for Spacecraft (missions + NPC greetings; separate Python service)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
+    # LLM layer (item 15). Provider-agnostic via the OpenAI-compatible chat API, so the same code
+    # talks to LM Studio (self-hosted), OpenAI, or Claude (Anthropic's OpenAI-compatible endpoint),
+    # selected purely by env (base URL + model + key). LangGraph orchestrates the generation step.
+    "langchain>=0.3",
+    "langchain-openai>=0.2",
+    "langgraph>=0.2",
+    "python-dotenv>=1.0",
 ]
 
 [tool.uv]

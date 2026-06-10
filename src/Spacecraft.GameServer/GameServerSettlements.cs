@@ -224,6 +224,27 @@ public sealed partial class GameServer
             ? "settlers"
             : SettlementTrades[(uint)WorldGenerator.StableHash(name) % (uint)SettlementTrades.Length];
 
+    /// <summary>The trade profession for one vendor among several at a location (B55): the first vendor keeps the
+    /// location's own theme (so the place keeps its identity), and each additional vendor gets its own
+    /// deterministic profession — so a station/settlement with multiple vendors offers several distinct barters
+    /// (and visibly distinct crew) instead of every vendor selling the same goods.</summary>
+    private static string VendorThemeFor(string locationName, int vendorIndex, string baseTheme)
+        => vendorIndex <= 0
+            ? baseTheme
+            : SettlementTrades[(uint)WorldGenerator.StableHash(locationName + ":vendor:" + vendorIndex) % (uint)SettlementTrades.Length];
+
+    /// <summary>Test seam for the per-vendor theme derivation (B55).</summary>
+    public static string VendorThemeForTest(string locationName, int vendorIndex, string baseTheme)
+        => VendorThemeFor(locationName, vendorIndex, baseTheme);
+
+    /// <summary>The trade theme of the vendor the player is standing at (settlement or boarded station), or empty
+    /// when none is in reach (B55). Drives which themed market goods the server accepts — per actual vendor, not
+    /// one theme per location — so different vendors at one place trade different goods.</summary>
+    private string VendorThemeAt(Shared.State.PlayerState player)
+        => (NearSettlementVendor(player) || NearSpaceStationVendor(player)) && NearestNpc(player, "vendor") is { } v
+            ? v.Theme
+            : string.Empty;
+
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)
         => NearMarker(player, "vendor", SettlementVendorReach);

@@ -774,7 +774,7 @@ namespace Spacecraft.Client
             {
                 case "cockpit": Menu?.OpenMap(); break;
                 case "workshop": Menu?.OpenCrafting(); break;
-                case "market": Menu?.OpenMarket(); break;
+                case "market": Menu?.OpenMarket(); Game.Network?.SendNpcGreet("vendor"); break; // item 15: vendor greeting
                 case "cargo": Menu?.OpenInventory(); break;
                 default:
                     if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");

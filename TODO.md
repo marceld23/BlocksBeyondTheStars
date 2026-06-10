@@ -68,23 +68,158 @@ Plan (staged, each phase shippable + tested):
   above the surface — new rare **skylands** world (low flats ground + islands) and the **corrupted** world also
   floats. Reached by flying up / building.
 
-**Item 21 follow-ups (open, requested 2026-06-10):**
-- **Geysers + lava vents (terrain, V5 leftover):** sparse surface spouts — water geysers on wet worlds,
-  steam/lava vents on ashen/volcanic — with an erupting VFX + a hiss/eruption **sound**. (Chasms/sinkholes
-  also remain optional.)
-- **Sounds for the new worlds/fauna (ElevenLabs — none generated yet):**
-  - **Creature calls** for the new fauna (esp. cave dwellers + amphibians) — habitat-flavoured calls.
-  - **Cave echo / ambience** — dripping + reverberant echo underground (pairs with the new Cave habitat).
-  - **Per-world ambience** loops for the new world types: wind (skylands/highland), bubbling/heat
-    (ashen/lava), eerie fungal hum (fungal), distorted murmur (corrupted), surf (ocean), geyser hiss.
-  - Needs wiring into the audio system (a per-world/habitat ambience hook via `ClientAudio` + the env loops).
-- **Deferred from V3/V4:** richer creature morphology beyond legs/eyes (eyestalks, tentacles, gas-sacs);
-  full per-planet creature colour palettes (currently per-habitat tint + vivid exotics only).
+**Item 21 follow-ups — ✅ DONE 2026-06-10 (geysers + sounds; 422 tests green, client built):**
+- ✅ **Geysers + vents:** new `geyser_vent` block stamped sparsely by `WorldGenerator.StampGeysers` on wet
+  worlds (water geysers) and volcanic/ashen worlds (steam/lava vents), gated by `WaterAbundance`/`LavaAbundance`/
+  key. Client `GeyserView` (wired in `WorldRig`) scans nearby vent blocks and erupts a rising particle plume +
+  `geyser_erupt` hiss on a per-vent timer; plume colour follows the world (pale water vs ember/ash). Cosmetic
+  (no fluid/damage). Texture (OpenAI) + bilingual locale added.
+- ✅ **Creature calls — habitat-flavoured** (`CreatureView.CallForHabitat`): cave dwellers moan/drone/wail,
+  amphibians croak/gurgle, water burbles, lava hisses/rumbles, fliers shriek/trill (deterministic per species);
+  **cave dwellers' calls get a reverberant echo** (`AudioReverbFilter` Cave preset via `ClientAudio.At(echo:)`).
+- ✅ **Cave ambience:** `ClientAudio` now swaps to the existing `amb_cave` bed when the player is underground/
+  enclosed (`!ExposedToSky && !Aboard && !InSpace`), back to the sky bed on surfacing.
+- ✅ **Per-world ambience:** `BiomeBed` maps the new world keys → new ElevenLabs loops `amb_ocean` (surf),
+  `amb_ashen` (heat/bubbling), `amb_fungal` (hum), `amb_corrupted` (murmur), `amb_wind_high` (skylands/highland);
+  tundra→ice, savanna→forest, salt_flats→desert reuse existing beds.
+- **Still deferred from V3/V4:** richer creature morphology beyond legs/eyes (eyestalks, tentacles, gas-sacs);
+  full per-planet creature colour palettes (currently per-habitat tint + vivid exotics only). Chasms/sinkholes
+  optional. (Geyser as a gameplay element — launch/scald — left out by design; cosmetic only.)
 
 Key generation changes: FloraGenerator theme gating + new hosts in EnsureCoverage; CreatureGenerator new
 habitats + per-planet palette; WorldGenerator per-planet archetype set + new feature passes; PlanetType new
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
+
+### ★ Item 22 — LLM-authored NPC greetings (item 15) — L1 DONE (2026-06-10)
+Requested: use an LLM to generate NPC display texts (greetings) with game context: NPC name, player name,
+relationship, NPC type (quest-giver/trader), trade kind, mission type/kind.
+
+**DONE — L1 (greetings only), per the chosen decisions:** vendor + quartermaster greeting lines.
+- **Backend** (`ai-backend/`): new `POST /npc-line` using **LangChain + LangGraph**, provider-agnostic via the
+  **OpenAI-compatible** chat API → works with **LM Studio (self-hosted) / OpenAI / Claude**, switched purely by
+  env (`SPACECRAFT_AI_BASE_URL` / `_MODEL` / `_API_KEY`, see `.env.example`). With no model configured (or any
+  error) it returns a deterministic **bilingual template** line. `app/llm.py` (graph), `app/main.py` (endpoint).
+- **Networking**: `JoinRequest.Locale`, `NpcGreetIntent {Role}`, `NpcGreeting {NpcId,Name,Role,Text}` (NetCodec
+  109/110).
+- **Server** (`GameServerNpcGreeting.cs`): on interaction (vendor open → client `NpcGreetIntent`; mission board →
+  server-side in `SendMissionList`) it builds context from the **relationship memory** (value+tier, past visits),
+  NPC (name/role/theme/robot), settlement, and the player's **locale**, then sends a greeting. **Server-
+  authoritative, non-blocking** (LLM runs on a Task, drained in `TickGreetings`), **cached** by npcKey|locale|
+  tier, **proximity-gated**, 25 s re-open cooldown. AI off/unreachable → empty `Text`.
+- **Client**: locale flows in `Join`; `NpcView` shows the line as a **speech bubble** over the NPC; on empty
+  `Text` it renders a **localized static fallback** (`npc.greet.vendor` / `npc.greet.quartermaster`, DE+EN) so a
+  greeting always appears with or without an AI backend.
+- **Tests**: `NpcGreetingTests` (provider parsing, fallback-when-off, generate+cache+reuse, context carries
+  role+language, proximity gate) — full suite green (414).
+
+**Deferred (not in L1):** L0 real LLM behind `/mission-plan`; L2 richer memory flavour in the prompt (log of past
+trades/missions, per-NPC persona); L3 LLM mission-board text. Speech-bubble is uGUI world-label (no wrap) — fine
+for short lines; revisit if lines run long.
+
+--- original analysis kept below for the deferred stages ---
+
+**What already exists (good news):** an optional **AI backend over HTTP** (`AiLevel` Off/**TextOnly**/Suggest/
+Auto, `AiBackendUrl`; `HttpAiMissionProvider.Generate(context)` POSTs `/mission-plan`, 8s timeout, any error →
+null → graceful) with a `MissionPlan` carrying `GiverName`/`StartDialog`/`CompleteDialog`/`Description`. The
+Python backend (`ai-backend/app/main.py`) is a deterministic template — an LLM slots in behind the same
+contract. A real **player↔NPC relationship system** exists (`NpcRelationship`: Name, Role, Value −100..+100,
+last-10 interaction Log of Trade/MissionAccepted/Dialog; key `settle_<hash>:<role>`; `NpcRelationshipFor`).
+NPC context is available: Name/Role/Theme/IsRobot, settlement name + trade theme (miners/traders/researchers/
+settlers), mission objective types + difficulty. **Missing:** a real LLM; an NPC *greeting* path (today NPCs
+only show a "Name · Role" nameplate — no dialogue on approach/interact); bilingual handling of dynamic text.
+
+**Plan (staged, server-authoritative + graceful-degrading + cached):**
+- **L0 — real LLM behind the backend:** replace the Python template with an actual LLM call (same `/mission-plan`
+  contract) → mission Title/Description/StartDialog/CompleteDialog become LLM-authored. Smallest first step.
+- **L1 — NPC greeting line:** new backend endpoint (e.g. `/npc-line`) + a server flow that, when the player
+  interacts (open vendor / mission board / accept / complete), builds a context (NPC name+role+theme, player
+  name, relationship value+history, trade kind / mission kind, **language**) and gets back a 1–2 sentence
+  greeting; sent to the client via a new `NpcLine` message → shown as a speech bubble over the NPC + in the
+  trade/mission panel. **Async + cached** (key: npc + relationship-tier + language) so it never blocks the UI;
+  **static fallback** greeting when AI is Off/unreachable (game stays fully playable offline).
+- **L2 — memory/relationship flavour:** feed the interaction log + a relationship tier (stranger/known/trusted)
+  so the NPC "remembers" ("back again, pilot?") and tone shifts with standing; per-NPC persona from name/theme/
+  robot.
+- **L3 — mission flavour end-to-end:** route settlement-board missions through the LLM for per-mission text
+  (today they use static locale keys), with objectives/rewards still server-validated + clamped.
+
+**Decisions needed:** scope (greetings only vs also mission dialog/descriptions vs vendor patter); which LLM
+(OpenAI — SDK+key already in tools/ai-assets/.env — vs Claude); **bilingual** approach (generate in the
+player's active locale via a language hint — needs the player's locale sent to the server) ; keep it strictly
+optional + offline-safe (static fallback) ; caching to bound cost. **Localization caveat:** LLM text is
+dynamic, so it bypasses the locale-key system — generate directly in the player's language (DE/EN) rather than
+adding keys.
+
+### ★ B55 + B58 — ✅ DONE (2026-06-10; 422 tests green, client built)
+
+**Shipped:**
+- **B55** — each **vendor NPC** now gets its own seeded profession (`VendorThemeFor`: vendor 0 keeps the
+  location's theme, additional vendors deterministically vary) in both settlement (`SpawnSettlementNpcs`) and
+  station (`SpawnStationNpcs`) spawns, with per-NPC `robotic` from that theme. Trade validation now keys off the
+  **nearest vendor's theme** (`VendorThemeAt`) instead of one theme per location — so multiple vendors at one
+  place sell different goods (and station vendors can finally post *themed* goods, not only the themeless ones).
+  The client already shows per-vendor stock via `NetNpc.Theme`. Tests: `QuickbarVendorTests` (vendor-theme seam).
+- **B58** — customisable quick-bar: new `MoveItemIntent {FromSlot,ToSlot}` (NetCodec 111) + server
+  `HandleMoveItem` (swaps two personal-inventory slots; `ToSlot=-1` stows out of the quick-bar to the first free
+  backpack slot), `Inventory.Swap`/`FirstEmptySlot`. Client: inventory detail pane shows a **Quick-bar** row of 9
+  slots — click a slot to assign/swap the selected item, ✕ to stow it back; the refresh hash now includes an
+  item↔slot signature so a pure swap repaints. Bilingual locale keys added. Tests: `QuickbarVendorTests`
+  (Swap/FirstEmptySlot + server move/stow/no-op).
+
+**Original analysis kept below.**
+
+### ★ Graphics/immersion drive (2026-06-10)
+Analysis of in-game screenshots → measures to look more professional/immersive (full breakdown in chat).
+Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occlusion), an ACTIVE post stack
+(`PostFx`: bloom/ACES/SSAO/vignette/grade), world variety V1–V5, item-21 ambience. Key gaps + measures:
+- ✅ **HUD visor "dezent + abschaltbar"** (done 2026-06-10): softened the `Spacecraft/Visor` defaults
+  (chroma 0.011→0.005, curvature 0.07→0.045, glow 0.9→0.6) + a **Settings toggle** (`ClientSettings.VisorEffects`,
+  Settings tab) that composites a clean flat HUD when off (no chroma/curvature/scanlines/glow). Live-toggled.
+- ⏳ **URP migration (chosen focus)** — the fundamental lever (real shadows + Volume post + grading). Big,
+  staged, **developer-visual-verified per stage** (agent can't see the render). Full plan:
+  [docs/URP_MIGRATION_PLAN.md](docs/URP_MIGRATION_PLAN.md). Awaiting go-ahead to start Stage 0/1.
+- **Quick wins (not chosen this round, kept):** real shadows even in Built-in RP (sun `LightShadows`), held-item
+  real texture (currently a flat cube, `HeldItem.cs`), flora as cross-billboards (currently alpha-cutout cube
+  faces), menu backdrop blur (80% opaque quad, no blur).
+- **Worlds richer (not chosen this round, kept):** more dramatic terrain (amplitude/dunes/overhangs/spires),
+  more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
+  weather drama, a guiding progression/onboarding.
+
+### ★ Menu preview bugs — ✅ DONE 2026-06-10 (client built)
+- **Ship preview showed the wrong model** (menu → Ship → colour): the paint preview drew a hand-built cube
+  silhouette, not the player's real ship. Now `ShipPreviewRig` renders the **real 1:1 voxel ship** from
+  `Game.ShipDesign` via a shared `ShipMeshBuilder` (same atlas/`ChunkMesher` as the flight view + what other
+  players see), camera auto-framed to the ship's extent; falls back to the silhouette only when no design exists
+  yet (never entered space). `SpaceView` left untouched. (Atlas hull can't be runtime-tinted — same as in space.)
+- **Character preview showed "no face"** (menu → Settings/Character): the avatar was built WITH a face (same
+  `PlayerAvatar.Build` as remotes/NPCs, which do show faces) but the whole-figure framing left it tiny near the
+  top edge. Now `AvatarPreviewRig` frames a **head-and-shoulders portrait** (closer camera, look at head height,
+  sway ±20°) so the face is clearly visible. Face geometry/lighting unchanged (already correct + seen by others).
+
+**B55 — vendors all sell the same.** Today a vendor's stock = market recipes filtered by **one theme per
+location**: settlements use `SettlementTradeFor(name)` (single theme: miners/traders/researchers/settlers),
+**stations hardcode `"traders"`** for every vendor (`GameServerSpaceStations.SpawnStationNpcs` `MakeNpc(role,
+"traders", …)`). The client `VendorTradeUI.NearestVendorTheme()` already keys the shown stock off the **nearest
+vendor NPC's `Theme`**, and the server validates trades against the location theme (`GameServer.cs` ~1846).
+Recipes/theme: ~2–3 market recipes each for miners/traders/researchers/settlers + 2 themeless. So all vendors at
+one place share one theme → identical stock.
+**Plan:** give **each vendor NPC its own seeded theme** (from settlement/station seed ⊕ vendor index/home), so a
+place with N vendors offers N different trade themes (and, since theme drives outfit/robotic/cadence, visibly
+distinct crew). The client already reads per-vendor `NetNpc.Theme` → shows the right stock automatically. Change
+the **server trade validation to use the nearest vendor's theme** (not the location-wide theme). Deterministic;
+no new message needed. (Optional later: per-vendor price/quantity jitter; richer per-theme recipe pools.)
+
+**B58 — customisable hotbar.** The inventory is **slot-based** (`Inventory` = `ItemStack?[]`, personal = 24
+slots; hotbar = slots 0–8; `SelectedHotbarSlot` is just an index). `InventoryUpdate` already sends each stack's
+**`Slot`** index, so the client knows slot positions (`GameBootstrap.ItemInSlot(i)` reads slot i). The inventory
+tab (`CraftingTechShipUI.BuildInventoryList`) is currently a **category list**, not a slot grid. No move/swap
+intent exists.
+**Plan:** add a server **`MoveItemIntent {FromSlot, ToSlot}`** that swaps two personal-inventory slots (server-
+authoritative, validates indices) → `SendInventory`. Then a client affordance to move a stack into a hotbar slot
+(0–8). Two UI options (see decision): a proper slot grid w/ click-to-pick/place, or a lighter "assign to
+quick-slot 1–9" control on the existing inventory list + a 9-slot hotbar strip. "Customising the hotbar" = just
+rearranging the existing slots — no new data model.
 
 1. ✅ **Task 3 — softer shadows + lit cave mouths** (done 2026-06-07). The mesher's hard binary skylight is now
    a **soft sky-occlusion** (5×5 horizontal kernel): cave mouths feather into a soft-lit gradient and overhang
@@ -1951,9 +2086,9 @@ Client-only. *Playtest wanted.*
 
 ### Reported-bug batch (2026-06-08, after item 38) — B41–B59
 **STATUS 2026-06-08:** ✅ FIXED + built + 392 tests green: **B41a/b, B42, B43, B44, B45, B46, B47, B48, B49/B56,
-B50, B51, B52, B53, B54, B57, B59** (commits f2a0cc4, b5c8a82, 2e7e691, 27afca8). ⏳ STILL OPEN (in backlog):
-**B55** (vendor stock variety — needs the barter-stock seeding investigated), **B58** (customisable hotbar — a
-bigger UI feature), **Feature 40** (terrain-scanner gadget — new feature, analysis-first).
+B50, B51, B52, B53, B54, B57, B59** (commits f2a0cc4, b5c8a82, 2e7e691, 27afca8). ✅ **B55** (per-vendor trade
+themes) + **B58** (customisable quick-bar) DONE 2026-06-10 — see the B55+B58 block near the top. ⏳ STILL OPEN
+(in backlog): **Feature 40** (terrain-scanner gadget — new feature, analysis-first).
 - **B41 — Player-ship hatch sits *lengthwise* inside the ship (not parallel to / at the opening); + suffocated
   inside the ship on an airless planet. [TODO]** Two issues on the player's own landed ship: **(a)** the hatch
   door is oriented wrong — it should sit **at the doorway opening, parallel to it**, but renders **along the ship's

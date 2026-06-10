@@ -24,6 +24,9 @@ namespace Spacecraft.Client
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen.
         public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Space = 7 }
 
+        // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
+        private const int QuickSlots = 9;
+
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
         private Text _footer, _hint, _feedback;
@@ -112,9 +115,20 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // Item↔slot signature so a pure quick-bar swap (count + length unchanged) still triggers a rebuild
+            // (B58). Manual unchecked loop — LINQ Sum on large hash products would overflow.
+            int slotSig = 0;
+            if (Game.Personal != null)
+            {
+                foreach (var s in Game.Personal)
+                {
+                    unchecked { slotSig = slotSig * 31 + s.Slot * 92821 + (s.Item?.GetHashCode() ?? 0); }
+                }
+            }
+
             // Refresh when the authoritative data the screen shows changes (cheap hash).
             int h = (Game.Personal?.Length ?? 0) * 7 + (Game.Cargo?.Length ?? 0) * 13 + Game.UnlockedBlueprints.Count * 31
-                    + (Game.Personal?.Sum(s => s.Count) ?? 0) + (Game.OwnedShips?.Length ?? 0) * 101
+                    + (Game.Personal?.Sum(s => s.Count) ?? 0) + (Game.OwnedShips?.Length ?? 0) * 101 + slotSig
                     + (string.IsNullOrEmpty(Game.NearbyStation) ? 0 : Game.NearbyStation.GetHashCode())
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
@@ -702,6 +716,22 @@ namespace Spacecraft.Client
             UiKit.AddButton(_listContent, 510, y + 11, 80, 56, "+", () => { AdjustVolume(0.1f); RebuildList(); });
             y += 96f;
 
+            // Visor HUD effect on/off — toggles the holographic styling live (better readability when off).
+            bool visorOn = Menu?.Settings?.VisorEffects ?? true;
+            var visorBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+            {
+                if (Menu?.Settings != null)
+                {
+                    Menu.Settings.VisorEffects = !Menu.Settings.VisorEffects;
+                    Menu.Settings.Save();
+                    RebuildList();
+                }
+            });
+            UiKit.AddText(visorBtn.transform, 16, 0, 520, 78, L("ui.settings.visor"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(visorBtn.transform, 560, 0, 200, 78, visorOn ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                visorOn ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 96f;
+
             // Explicit save (on top of the periodic autosave).
             var save = UiKit.AddButton(_listContent, 0, y, 780, 78, L("ui.settings.save_game"), () =>
             {
@@ -781,6 +811,7 @@ namespace Spacecraft.Client
             var go = new GameObject("ShipPreviewRig");
             go.transform.SetParent(transform, false);
             _shipPreview = go.AddComponent<ShipPreviewRig>();
+            _shipPreview.Game = Game; // so the preview can render the player's real voxel ship
             _shipPreview.EnsureBuilt(Menu?.Settings?.HullColor ?? Color.gray);
         }
 
@@ -1177,6 +1208,52 @@ namespace Spacecraft.Client
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;
+
+            // Quick-bar assignment (B58): for a personal-inventory item, let the player drop it onto a quick-slot
+            // (the quick-bar = inventory slots 0..8). Click a slot to assign/swap; the ✕ stows it to the backpack.
+            if (_category != "cargo")
+            {
+                int fromSlot = -1;
+                if (Game.Personal != null)
+                {
+                    foreach (var s in Game.Personal)
+                    {
+                        if (s.Item == item) { fromSlot = s.Slot; break; }
+                    }
+                }
+
+                if (fromSlot >= 0)
+                {
+                    UiKit.AddText(_detail, 8, y, 620, 26, L("ui.inventory.quickbar"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                    y += 32f;
+                    for (int k = 0; k < QuickSlots; k++)
+                    {
+                        int kk = k;
+                        string slotItem = Game.ItemInSlot(k);
+                        string ic = string.IsNullOrEmpty(slotItem) ? null : IconFor(slotItem);
+                        var b = UiKit.AddButton(_detail, 8 + k * 68f, y, 62, 62, (k + 1).ToString(),
+                            () => { if (fromSlot != kk) Game.Network?.SendMoveItem(fromSlot, kk); }, ic);
+                        if (fromSlot == k)
+                        {
+                            var img = b.GetComponent<Image>();
+                            if (img != null) img.color = UiKit.Cyan; // the selected item already sits here
+                        }
+                    }
+
+                    y += 70f;
+                    if (fromSlot < QuickSlots) // already in the quick-bar → offer to stow it back to the backpack
+                    {
+                        UiKit.AddButton(_detail, 8, y, 300, 46, L("ui.inventory.remove_quickslot"),
+                            () => Game.Network?.SendMoveItem(fromSlot, -1));
+                        y += 54f;
+                    }
+                    else
+                    {
+                        UiKit.AddText(_detail, 8, y, 620, 24, L("ui.inventory.quickbar_hint"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                        y += 28f;
+                    }
+                }
+            }
 
             // Disassembly: if a (non-market) recipe builds this item, offer to break one back down into a
             // portion of its components at a workshop. Mirrors GameServer.Disassemble.

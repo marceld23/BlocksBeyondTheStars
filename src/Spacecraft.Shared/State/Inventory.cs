@@ -118,4 +118,31 @@ public sealed class Inventory
 
     /// <summary>Directly sets a slot (used when loading from storage).</summary>
     public void SetSlot(int index, ItemStack? stack) => _slots[index] = stack;
+
+    /// <summary>Swaps the contents of two slots (item 15 / B58 — the player rearranging their quick-bar). Either
+    /// slot may be empty. Out-of-range or equal indices are a no-op.</summary>
+    public void Swap(int a, int b)
+    {
+        if (a == b || a < 0 || b < 0 || a >= _slots.Length || b >= _slots.Length)
+        {
+            return;
+        }
+
+        (_slots[a], _slots[b]) = (_slots[b], _slots[a]);
+    }
+
+    /// <summary>The first empty slot index at or after <paramref name="from"/> (default 0), or -1 if the
+    /// inventory is full. Used to "stow" an item out of the quick-bar into the backpack (B58).</summary>
+    public int FirstEmptySlot(int from = 0)
+    {
+        for (int i = System.Math.Max(0, from); i < _slots.Length; i++)
+        {
+            if (_slots[i] is null || _slots[i]!.IsEmpty)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 }
