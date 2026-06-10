@@ -176,12 +176,13 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
 - ✅ **HUD visor "dezent + abschaltbar"** (done 2026-06-10): softened the `Spacecraft/Visor` defaults
   (chroma 0.011→0.005, curvature 0.07→0.045, glow 0.9→0.6) + a **Settings toggle** (`ClientSettings.VisorEffects`,
   Settings tab) that composites a clean flat HUD when off (no chroma/curvature/scanlines/glow). Live-toggled.
-- ⏳ **URP migration (chosen focus)** — the fundamental lever (real shadows + Volume post + grading). Big,
-  staged, **developer-visual-verified per stage** (agent can't see the render). Full plan:
-  [docs/URP_MIGRATION_PLAN.md](docs/URP_MIGRATION_PLAN.md). Awaiting go-ahead to start Stage 0/1.
-- **Quick wins (not chosen this round, kept):** real shadows even in Built-in RP (sun `LightShadows`), held-item
-  real texture (currently a flat cube, `HeldItem.cs`), flora as cross-billboards (currently alpha-cutout cube
-  faces), menu backdrop blur (80% opaque quad, no blur).
+- ✅ **URP migration — DONE 2026-06-10** (merged to main, dev-verified): real soft shadows (terrain + models +
+  creatures + enemies, cast + receive), URP Volume post (ACES/bloom/vignette/grade) + SSAO, diegetic visor via
+  a render-graph blit pass, per-system sun tint restored (grade share 0.4), all 12 shaders dual-pipeline,
+  Potato preset shadows off. Progress log: [docs/URP_MIGRATION_PLAN.md](docs/URP_MIGRATION_PLAN.md).
+- **Quick wins (kept, smaller now that URP shadows exist):** held-item real texture (currently a flat cube,
+  `HeldItem.cs`), flora as cross-billboards (currently alpha-cutout cube faces), menu backdrop blur (80%
+  opaque quad, no blur).
 - **Worlds richer (not chosen this round, kept):** more dramatic terrain (amplitude/dunes/overhangs/spires),
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
