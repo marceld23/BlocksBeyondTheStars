@@ -12,6 +12,12 @@ namespace Spacecraft.Client
     /// </summary>
     public sealed class UrpScenePost : MonoBehaviour
     {
+        /// <summary>Set while active under URP so <see cref="Sky"/> can drive the per-system/biome grade
+        /// (the URP replacement for the old PostComposite `_Sc_GradeTint` path).</summary>
+        public static UrpScenePost Instance { get; private set; }
+
+        private ColorAdjustments _grade;
+
         private void Start()
         {
             if (GraphicsSettings.currentRenderPipeline == null)
@@ -34,15 +40,40 @@ namespace Spacecraft.Client
             vignette.intensity.Override(0.26f);
             vignette.smoothness.Override(0.4f);
 
-            var grade = profile.Add<ColorAdjustments>(true);
-            grade.postExposure.Override(0.08f);
-            grade.contrast.Override(6f);
-            grade.saturation.Override(6f);
+            _grade = profile.Add<ColorAdjustments>(true);
+            _grade.postExposure.Override(0.08f);
+            _grade.contrast.Override(6f);
+            _grade.saturation.Override(6f);
+            _grade.colorFilter.Override(Color.white);
 
             var volume = gameObject.AddComponent<Volume>();
             volume.isGlobal = true;
             volume.priority = 10f;
             volume.profile = profile;
+            Instance = this;
+        }
+
+        /// <summary>Applies the per-system/biome "mood" grade (URP path of <c>Sky.SetGrade</c>): the blended
+        /// biome×sun tint becomes the colour filter (folded by the same 0.7 strength the Built-in grade used),
+        /// saturation/contrast map from the old multiplier form (1.0 = neutral) to URP's −100..100 scale.</summary>
+        public void ApplyGrade(Color blendedTint, float saturation, float contrast)
+        {
+            if (_grade == null)
+            {
+                return;
+            }
+
+            _grade.colorFilter.Override(Color.Lerp(Color.white, blendedTint, 0.7f));
+            _grade.saturation.Override(Mathf.Clamp((saturation - 1f) * 100f + 6f, -100f, 100f));
+            _grade.contrast.Override(Mathf.Clamp((contrast - 1f) * 100f + 6f, -100f, 100f));
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
         }
     }
 }

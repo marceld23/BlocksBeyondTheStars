@@ -114,6 +114,7 @@ namespace Spacecraft.Client
             {
                 Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 1f));   // neutral, full-bright
                 Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off
+                UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // …and off on the URP volume too
                 Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
@@ -249,10 +250,13 @@ namespace Spacecraft.Client
             var (tint, sat, contrast) = GradeFor(biome);
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
-            Color blended = tint * Color.Lerp(Color.white, norm, 0.25f);
+            // The star's hue folds into the grade so each system visibly tints its worlds (0.4 keeps it a
+            // light, atmospheric wash — raised from 0.25 so the per-system sun colour clearly reads).
+            Color blended = tint * Color.Lerp(Color.white, norm, 0.4f);
             blended.a = 0.7f; // grade strength
             Shader.SetGlobalColor(GradeTintId, blended);
             Shader.SetGlobalVector(GradeParamsId, new Vector4(sat, contrast, 0f, 0f));
+            UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP path (PostComposite is Built-in-only)
         }
 
         /// <summary>Per-biome colour-grade mood: (tint multiply, saturation, contrast).</summary>

@@ -24,7 +24,9 @@ namespace Spacecraft.Client
 
         private Camera _hudCam;
         private RenderTexture _rt;
-        private VisorComposite _composite;
+        private VisorComposite _composite;     // Built-in RP path (OnRenderImage)
+        private VisorUrpCompositor _urp;       // URP path (render-graph blit after post)
+        private float _urpTime;
         private int _w, _h;
         private Vector3 _lastEuler;
         private Vector2 _parallax;
@@ -45,17 +47,6 @@ namespace Spacecraft.Client
         {
             if (MainCamera == null)
             {
-                enabled = false;
-                return;
-            }
-
-            // URP migration: the diegetic visor is a 2nd camera → RenderTexture composited via OnRenderImage —
-            // neither the depthless RT nor OnRenderImage is supported by URP's render graph. Under URP, stay a
-            // flat screen-space HUD (UiKit.HudCamera stays null) until the composite is reworked as a URP
-            // ScriptableRendererFeature. Built-in RP keeps the full holographic visor.
-            if (GraphicsSettings.currentRenderPipeline != null)
-            {
-                Debug.Log("[VisorHud] URP active → flat HUD overlay (diegetic visor composite is Built-in-RP only for now).");
                 enabled = false;
                 return;
             }
@@ -96,23 +87,35 @@ namespace Spacecraft.Client
             // Keep the diegetic HUD out of the main camera's image so only the visor pass shows it.
             MainCamera.cullingMask &= ~(1 << layer);
 
-            _composite = MainCamera.gameObject.AddComponent<VisorComposite>();
-            _composite.VisorShader = shader;
-            _composite.Hud = _rt;
-            _composite.Intensity = _intensity;
-            _composite.Effects = Settings == null || Settings.VisorEffects;
+            if (GraphicsSettings.currentRenderPipeline != null)
+            {
+                // URP: composite via a render-graph blit pass after post (OnRenderImage never runs under URP).
+                _urp = new VisorUrpCompositor(MainCamera, shader);
+            }
+            else
+            {
+                _composite = MainCamera.gameObject.AddComponent<VisorComposite>();
+                _composite.VisorShader = shader;
+                _composite.Hud = _rt;
+                _composite.Intensity = _intensity;
+                _composite.Effects = Settings == null || Settings.VisorEffects;
+            }
 
             UiKit.HudCamera = _hudCam; // diegetic canvases created from here on target this camera
             _lastEuler = MainCamera.transform.eulerAngles;
             _active = true;
-            Debug.Log($"[VisorHud] engaged — holographic HUD on layer {layer}, RT {_w}x{_h}.");
+            Debug.Log($"[VisorHud] engaged — holographic HUD on layer {layer}, RT {_w}x{_h}, pipeline: "
+                      + (GraphicsSettings.currentRenderPipeline != null ? "URP (render graph)" : "Built-in (OnRenderImage)") + ".");
         }
 
         private void CreateRt()
         {
             _w = Mathf.Max(2, Screen.width);
             _h = Mathf.Max(2, Screen.height);
-            _rt = new RenderTexture(_w, _h, 0, RenderTextureFormat.ARGB32)
+            // URP's render graph requires a camera output texture to carry a depth buffer; Built-in is happy
+            // without one (and skipping it saves memory there).
+            int depth = GraphicsSettings.currentRenderPipeline != null ? 24 : 0;
+            _rt = new RenderTexture(_w, _h, depth, RenderTextureFormat.ARGB32)
             {
                 name = "VisorHudRT",
                 wrapMode = TextureWrapMode.Clamp,   // curvature samples just past the edge → transparent
@@ -172,6 +175,27 @@ namespace Spacecraft.Client
             {
                 _composite.Parallax = _parallax;
             }
+
+            // URP path: drive the visor material here each frame (the Built-in path does this in
+            // VisorComposite.OnRenderImage). Same subtle defaults + the same flat-HUD "effects off" branch.
+            if (_urp?.Material is { } m)
+            {
+                _urpTime += Time.deltaTime;
+                bool fx = Settings == null || Settings.VisorEffects;
+                m.SetTexture("_HudTex", _rt);
+                m.SetFloat("_VisorTime", _urpTime);
+                m.SetFloat("_Aspect", Screen.height > 0 ? (float)Screen.width / Screen.height : 1.78f);
+                m.SetFloat("_HudOpacity", 0.97f);
+                m.SetColor("_RimColor", new Color(0.4f, 0.85f, 1f, 1f));
+                m.SetFloat("_ScanCount", Mathf.Max(120f, _h * 0.5f));
+                m.SetFloat("_Intensity", fx ? _intensity : 0f);
+                m.SetFloat("_Curvature", fx ? 0.045f : 0f);
+                m.SetFloat("_Chroma", fx ? 0.005f : 0f);
+                m.SetVector("_Parallax", fx ? new Vector4(_parallax.x, _parallax.y, 0f, 0f) : Vector4.zero);
+                m.SetFloat("_Glow", fx ? 0.6f : 0f);
+                m.SetFloat("_Reflect", fx ? 0.08f : 0f);
+                m.SetFloat("_RimIntensity", fx ? 0.10f : 0f);
+            }
         }
 
         private void OnDestroy()
@@ -185,6 +209,9 @@ namespace Spacecraft.Client
             {
                 Destroy(_composite);
             }
+
+            _urp?.Dispose();
+            _urp = null;
 
             if (_rt != null)
             {

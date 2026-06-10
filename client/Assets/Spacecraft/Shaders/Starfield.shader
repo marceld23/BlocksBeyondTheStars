@@ -3,6 +3,7 @@
 // the Starfield component) fades the whole field in at night / in space and out during a bright day.
 // Background queue + ZWrite Off: stars draw right after the sky clear, and any opaque geometry (terrain,
 // the planet, the ship) drawn afterwards paints over them — so stars only show in open sky.
+// DUAL-PIPELINE: URP HLSL SubShader first, original Built-in CG below.
 Shader "Spacecraft/Starfield"
 {
     Properties
@@ -10,6 +11,66 @@ Shader "Spacecraft/Starfield"
         _MainTex ("Dot", 2D) = "white" {}
         _Brightness ("Brightness", Range(0,2)) = 1
     }
+
+    // ---------------- URP ----------------
+    SubShader
+    {
+        Tags { "Queue" = "Background" "RenderType" = "Background" "IgnoreProjector" = "True" "RenderPipeline" = "UniversalPipeline" }
+        Blend One One     // additive — stars add light onto the dark sky
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+            CBUFFER_START(UnityPerMaterial)
+                float _Brightness;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv : TEXCOORD0;
+                float2 tw : TEXCOORD1; // x = twinkle phase, y = twinkle speed
+                half4 color : COLOR;
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                half4 color : COLOR;
+                float tw : TEXCOORD1;
+            };
+
+            Varyings vert(Attributes v)
+            {
+                Varyings o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = v.uv;
+                float s = sin(_Time.y * v.tw.y + v.tw.x); // per-star pulse
+                o.tw = 0.72 + 0.28 * s; // twinkle with a brighter floor so stars never dim to near-black
+                o.color = v.color;
+                return o;
+            }
+
+            half4 frag(Varyings i) : SV_Target
+            {
+                half a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a; // soft round dot falloff
+                half3 col = i.color.rgb * a * i.tw * _Brightness;
+                return half4(col, 1);
+            }
+            ENDHLSL
+        }
+    }
+
+    // ---------------- Built-in RP (original, unchanged) ----------------
     SubShader
     {
         Tags { "Queue" = "Background" "RenderType" = "Background" "IgnoreProjector" = "True" }

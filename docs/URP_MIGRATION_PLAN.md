@@ -68,12 +68,22 @@ composite + any remaining fullscreen passes (Cloud/Starfield/SunGlow if camera-b
 - ✅ **Per-preset shadow cost** — `ClientSettings.Apply()` scales `urp.shadowDistance` by preset (Potato 0 =
   shadows off for Pi-class machines, Low 40, Medium 70, High 90), since one URP asset serves all levels.
 
-**Remaining (each a dev-verified step):**
-- Sky/FX shaders `Cloud`/`Starfield`/`SunGlow` URP ports (render fine as SRPDefaultUnlit today; port for
-  correctness + SRP batching).
-- **Diegetic visor HUD** — re-implement the `Spacecraft/Visor` composite as a URP `ScriptableRendererFeature`
-  (full-screen blit after post) + restore the on/off + dezent toggle; until then the HUD is a flat overlay.
-- Tune shadow distance/cascades; verify the Potato preset.
+- ✅ **Sky/FX shaders** — `Cloud`/`Starfield`/`SunGlow` ported dual-pipeline (URP HLSL with per-material
+  CBUFFERs for SRP batching; Built-in passes unchanged).
+- ✅ **Diegetic visor HUD under URP** — `Spacecraft/Visor` gained a URP Blit SubShader (world = `_BlitTexture`
+  via Blit.hlsl; include URP Core.hlsl FIRST — core Common.hlsl lacks the TEXTURE2D_X macros). New
+  `VisorUrpCompositor`: a render-graph blit pass (AddBlitPass + cameraColor swap) enqueued per-frame from
+  `RenderPipelineManager.beginCameraRendering` (code-only, no renderer-asset edits), running after post.
+  The HUD RT now carries a depth buffer under URP (render-graph requirement). The dezent/off toggle
+  (`ClientSettings.VisorEffects`) drives the URP material params each frame like the Built-in path.
+- ✅ **Per-system sun colour restored under URP** — the biome×sun colour grade (`Sky.SetGrade`) used to reach
+  the screen via PostComposite (Built-in only); now it also drives the URP volume
+  (`UrpScenePost.ApplyGrade` → colorFilter/saturation/contrast). The star hue share in the grade was raised
+  0.25 → 0.4 so each system's sun colour clearly tints its worlds; the space view keeps a neutral grade
+  (its sun corona is already star-coloured).
+
+**Remaining:** developer visual verification of the visor + sky/cloud/star/sun rendering + sun tint under URP,
+then merge to main.
 
 ## Stages (each ends with a developer visual check + a green build)
 
