@@ -733,8 +733,10 @@ public sealed class WorldGenerator
             }
         }
 
-        for (int wx = origin.X - 2; wx < origin.X + cs + 2; wx++)
-        for (int wz = origin.Z - 2; wz < origin.Z + cs + 2; wz++)
+        // Margin 6 so the widest feature (a stone circle, radius ~4) generates identically from either side
+        // of a chunk edge.
+        for (int wx = origin.X - 6; wx < origin.X + cs + 6; wx++)
+        for (int wz = origin.Z - 6; wz < origin.Z + cs + 6; wz++)
         {
             int cx = WorldConstants.WrapX(wx, _circumference);
 
@@ -742,7 +744,11 @@ public sealed class WorldGenerator
             bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, wz) < 0.0012;
             bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, wz) < 0.0008;
             bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, wz) < 0.0009;
-            if (!boulder && !shard && !deadTree)
+            // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
+            // landmark finds with a data cache at the base/centre worth detouring for.
+            bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, wz) < 0.00018;
+            bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, wz) < 0.00007;
+            if (!boulder && !shard && !deadTree && !monolith && !circle)
             {
                 continue;
             }
@@ -754,8 +760,49 @@ public sealed class WorldGenerator
             }
 
             int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, wz) * 997); // per-column shape hash
+            var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
 
-            if (boulder)
+            if (monolith)
+            {
+                // A lone weathered monolith, 5–7 tall, with a data cache leaning at its base.
+                int height = 5 + h1 % 3;
+                for (int dy = 1; dy <= height; dy++)
+                {
+                    SetCell(wx, sy + dy, wz, boulderId);
+                }
+
+                if (!cacheId.IsAir)
+                {
+                    SetCell(wx + 1, sy + 1, wz, cacheId);
+                }
+            }
+            else if (circle)
+            {
+                // A broken stone circle: pillars on a radius-4 ring (some collapsed), a data cache at the
+                // centre. Each pillar grounds on its own column so the ring follows the terrain.
+                (int X, int Z)[] ring = { (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3), (0, -4), (3, -3) };
+                for (int r = 0; r < ring.Length; r++)
+                {
+                    if (((h1 >> r) & 1) == 0 && r % 3 == 2)
+                    {
+                        continue; // the odd collapsed pillar
+                    }
+
+                    int px = wx + ring[r].X, pz = wz + ring[r].Z;
+                    int py = SurfaceHeight(planet, px, pz);
+                    int ph = 2 + ((h1 >> r) & 1);
+                    for (int dy = 1; dy <= ph; dy++)
+                    {
+                        SetCell(px, py + dy, pz, boulderId);
+                    }
+                }
+
+                if (!cacheId.IsAir)
+                {
+                    SetCell(wx, sy + 1, wz, cacheId);
+                }
+            }
+            else if (boulder)
             {
                 // An irregular 2–4 block boulder cluster of the world's own rock.
                 SetCell(wx, sy + 1, wz, boulderId);

@@ -304,6 +304,11 @@ public sealed partial class GameServer
             {
                 StampWreck();
             }
+
+            if (_config.PlaceVaults)
+            {
+                StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
+            }
         }
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)

@@ -87,6 +87,12 @@ public sealed class ServerConfig
     /// </summary>
     public bool PlaceWrecks { get; set; } = true;
 
+    /// <summary>
+    /// Whether the server may stamp buried vault ruins ("Welten reicher" W-R3) — 0–2 per world: a surface
+    /// pillar ring over a shaft down to a stone chamber with data caches + lootable containers.
+    /// </summary>
+    public bool PlaceVaults { get; set; } = true;
+
     // --- Singleplayer "Creative" world options (the player picks these at world creation). They are a
     // head-start sandbox: everything available + a starter set, while survival mechanics stay ON. Default
     // false = the normal "Explorer" experience. Persisted per world in WorldMetadata so they reapply on load. ---

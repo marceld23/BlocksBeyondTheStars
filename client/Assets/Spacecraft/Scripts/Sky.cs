@@ -298,6 +298,24 @@ namespace Spacecraft.Client
             RenderSettings.fogMode = FogMode.Linear;
             // Clear weather sees far; storms close in; night a touch hazier than day.
             float far = Mathf.Lerp(240f, 80f, weatherIntensity) * Mathf.Lerp(0.85f, 1f, day);
+
+            // Weather drama (W-R4): sandstorms + ash storms CRUSH visibility — a wall of dust you can get
+            // lost in, not just a tint. Scales with the storm's intensity.
+            string precip = Game?.Environment?.Precipitation ?? string.Empty;
+            if (precip is "sandstorm" or "ash")
+            {
+                far = Mathf.Lerp(far, 26f, Mathf.Clamp01(0.35f + weatherIntensity));
+            }
+
+            // Dawn/dusk valley fog (W-R4): a soft haze band around sunrise/sunset on calm days, burning off
+            // toward noon — mornings read moody instead of identical to midday.
+            float tod = Game?.Environment != null ? Game.LocalTimeOfDay : 0.5f;
+            float dawn = Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.27f) * 14f) + Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.73f) * 14f);
+            if (dawn > 0f && weatherIntensity < 0.4f)
+            {
+                far = Mathf.Lerp(far, far * 0.45f, dawn);
+            }
+
             RenderSettings.fogStartDistance = far * 0.35f;
             RenderSettings.fogEndDistance = far;
         }

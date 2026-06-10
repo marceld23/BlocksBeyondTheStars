@@ -55,6 +55,18 @@ public sealed partial class GameServer
             });
         }
 
+        // Buried vault ruins (W-R3): the surface pillar rings show on the map as discovery targets.
+        for (int i = 0; i < _vaultEntrances.Count; i++)
+        {
+            pois.Add(new NetPoi
+            {
+                Type = "vault_ruin",
+                Name = "Ruin " + (char)('A' + i),
+                X = _vaultEntrances[i].X,
+                Z = _vaultEntrances[i].Z,
+            });
+        }
+
         Send(session, new PlanetPoiList { Pois = pois.ToArray() });
     }
 

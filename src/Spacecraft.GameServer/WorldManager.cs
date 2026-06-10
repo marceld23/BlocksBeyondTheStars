@@ -69,6 +69,10 @@ internal sealed class LoadedWorld
     public string WreckName { get; set; } = string.Empty;
     public bool WreckClaimed { get; set; }
 
+    // Buried-vault stamp state ("Welten reicher" W-R3): surface entrances of this world's vault ruins.
+    public bool VaultsStamped { get; set; }
+    public List<Vector3i> VaultEntrances { get; } = new();
+
     // Per-world simulation timers/counters (so each resident world ticks independently). Weather + time
     // stay global for now (all resident worlds share the sky — a temporary limitation, refined in P7).
     public double CreatureSpawnTimer { get; set; }

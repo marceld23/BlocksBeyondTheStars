@@ -36,6 +36,7 @@ public sealed class ContainerLootTests : IDisposable
             StartPlanet = "rocky",
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
+            PlaceVaults = false, // these tests assert exact container counts — no vault loot in the world
             Rules = new GameRules { DeathPenalty = DeathPenalty.Normal, KeepInventoryOnDeath = false },
         };
         var server = new SvGameServer(config, _content, st, repo);

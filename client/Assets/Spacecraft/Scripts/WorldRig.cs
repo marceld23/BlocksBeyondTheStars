@@ -218,6 +218,10 @@ namespace Spacecraft.Client
             var oreScan = root.AddComponent<OreScanView>();
             oreScan.Game = boot;
 
+            // Night auroras on cold worlds ("Welten reicher" W-R4).
+            var aurora = root.AddComponent<AuroraView>();
+            aurora.Game = boot;
+
             // Block selection outline + mining/placing particle feedback (M27 polish).
             var miningFx = root.AddComponent<MiningFx>();
             miningFx.Game = boot;
