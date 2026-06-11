@@ -947,5 +947,6 @@
   "ui.worldopt.size.1": "Normal",
   "ui.worldopt.size.2": "Large",
   "ui.worldopt.size.3": "Huge",
-  "ui.vega.restart": "Restart tutorial"
+  "ui.vega.restart": "Restart tutorial",
+  "ui.vega.next": "Continue · [N]"
 }

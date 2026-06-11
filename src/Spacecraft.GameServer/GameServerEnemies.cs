@@ -2,6 +2,7 @@ using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.Definitions;
 using Spacecraft.Shared.Geometry;
+using Spacecraft.Shared.World;
 
 namespace Spacecraft.GameServer;
 
@@ -57,9 +58,13 @@ public sealed partial class GameServer
             BroadcastPlanetEnemies();
         }
 
-        // Proximity damage: each enemy hurts nearby players.
+        // Movement + proximity damage: enemies HUNT the nearest detectable player in range, and idly
+        // WANDER otherwise (they used to stand rooted at their spawn point forever).
+        bool moved = false;
         foreach (var enemy in _planetEnemies)
         {
+            moved |= MovePlanetEnemy(enemy, targets, dt);
+
             foreach (var session in targets)
             {
                 var p = session.State;
@@ -79,6 +84,98 @@ public sealed partial class GameServer
                 }
             }
         }
+
+        // Stream the new positions, throttled so a wandering pack doesn't flood the channel.
+        _enemySyncTimer += dt;
+        if (moved && _enemySyncTimer >= 0.2)
+        {
+            _enemySyncTimer = 0;
+            BroadcastPlanetEnemies();
+        }
+    }
+
+    private const float EnemyHuntRange = 28f;   // detection radius — inside it the fiend stalks the player
+    private const float EnemyStopRange = 1.6f;  // close enough — the proximity aura does the biting
+    private const float EnemyHuntSpeed = 3.1f;  // blocks/s while hunting (slightly slower than a running player)
+    private const float EnemyToughHuntSpeed = 3.7f;
+    private const float EnemyWanderSpeed = 1.1f;
+
+    private double _enemySyncTimer;
+    private readonly Dictionary<string, (double Heading, double Until)> _enemyWander = new();
+
+    /// <summary>Moves one planet enemy: hunt the nearest detectable player inside the hunt range, else
+    /// wander on a seeded heading that re-rolls every few seconds. Terrain-following (the enemy stands on
+    /// the surface at its new column); a cliff step taller than 3 blocks blocks the move and re-rolls the
+    /// wander heading. Returns true when the enemy actually moved.</summary>
+    private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, double dt)
+    {
+        // Nearest detectable (non-cloaked, non-god) player.
+        PlayerSession nearest = null;
+        double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
+        foreach (var s in targets)
+        {
+            if (s.State.GodMode || s.State.Stealthed)
+            {
+                continue;
+            }
+
+            double sq = WrapDistSq(s.State.Position, enemy.Position);
+            if (sq < bestSq)
+            {
+                bestSq = sq;
+                nearest = s;
+            }
+        }
+
+        double dx, dz;
+        float speed;
+        if (nearest != null)
+        {
+            if (bestSq <= EnemyStopRange * EnemyStopRange)
+            {
+                return false; // in biting range — hold position (the aura damages)
+            }
+
+            // The short way round both wrap seams toward the player.
+            dx = WorldConstants.WrapDeltaX(nearest.State.Position.X - enemy.Position.X, _world.Circumference);
+            dz = WorldConstants.WrapDeltaZ(nearest.State.Position.Z - enemy.Position.Z, _world.Circumference);
+            double len = System.Math.Sqrt(dx * dx + dz * dz);
+            if (len < 0.001)
+            {
+                return false;
+            }
+
+            dx /= len;
+            dz /= len;
+            speed = enemy.Kind == CombatEntityKind.AlienMonster ? EnemyToughHuntSpeed : EnemyHuntSpeed;
+        }
+        else
+        {
+            // Idle wander: keep a heading for a few seconds, then re-roll (seeded — no Random allocs).
+            if (!_enemyWander.TryGetValue(enemy.Id, out var w) || _uptime >= w.Until)
+            {
+                uint h = (uint)Spacecraft.WorldGeneration.WorldGenerator.StableHash(enemy.Id + ":" + (long)(_uptime * 10));
+                w = (h % 6283 / 1000.0, _uptime + 3.0 + h % 40 / 10.0); // heading 0..2π, 3..7 s
+                _enemyWander[enemy.Id] = w;
+            }
+
+            dx = System.Math.Cos(w.Heading);
+            dz = System.Math.Sin(w.Heading);
+            speed = EnemyWanderSpeed;
+        }
+
+        float nx = (float)WorldConstants.WrapX(enemy.Position.X + dx * speed * dt, _world.Circumference);
+        float nz = (float)WorldConstants.WrapZ(enemy.Position.Z + dz * speed * dt, _world.Circumference);
+        int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
+
+        if (System.Math.Abs(groundY - enemy.Position.Y) > 3f)
+        {
+            _enemyWander.Remove(enemy.Id); // cliff/spike in the way — stop and pick a new direction next tick
+            return false;
+        }
+
+        enemy.Position = new Vector3f(nx, groundY, nz);
+        return true;
     }
 
     private void SpawnPlanetEnemyNear(Shared.State.PlayerState player)
@@ -202,6 +299,7 @@ public sealed partial class GameServer
         }
 
         list.Remove(target);
+        _enemyWander.Remove(target.Id); // drop the dead enemy's wander state
         var pool = new MaterialPool(_content, p, _ship);
         foreach (var drop in target.Loot)
         {

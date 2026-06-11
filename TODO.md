@@ -91,6 +91,21 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ VEGA pacing + enemy movement (reported 2026-06-11) — ✅ FIXED (466 tests green, client built)
+1. **VEGA lines ran into each other (unreadable):** lines now wait for a KEYPRESS — each line types
+   out, shows "Weiter · [N]", and only advances on N (N also fast-completes the typewriter). A generous
+   25 s timeout still auto-advances an unattended panel; the key is ignored while the menu is open or a
+   text field (chat/beacon label) has focus. N was unbound before.
+2. **Planet enemies stood rooted at their spawn forever** (no movement code existed): fiends now HUNT
+   the nearest detectable player inside 28 blocks (3.1 b/s, tough ones 3.7, stop at biting range) and
+   WANDER on re-rolling headings otherwise; terrain-following with a 3-block cliff limit, wrap-aware on
+   both axes, position broadcasts throttled to 5/s. Test: `PlanetEnemies_HuntTheNearbyPlayer`.
+3. **Space hostiles (drones/UFOs/cruisers) also never moved** — client models existed (real multi-part
+   hulls), the server just never updated positions. They now PATROL a slow orbit around their post and
+   CHASE the ship inside their per-kind aggro range (drone 190/16/9, UFO 240/24/7, cruiser 260/36/4 =
+   aggro/stand-off/speed) with a sideways weave, never overshooting the stand-off ring. Test:
+   `SpaceHostiles_PatrolInsteadOfHangingStill`.
+
 ### ★ Bug round (reported 2026-06-11) — ✅ FIXED (464 tests green, client built)
 1. **VEGA tutorial UI unreachable/sticky:** the skip button sat on the HUD chip where the mouse is
    captured for camera control → moved into the Settings tab; the same button RESTARTS a finished/

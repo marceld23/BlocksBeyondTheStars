@@ -17,19 +17,20 @@ namespace Spacecraft.Client
         public ClientSettings Settings;
 
         private const float CharsPerSecond = 42f;
-        private const float HoldSeconds = 2.6f;       // extra read time after the typewriter finishes
-        private const float HoldPerChar = 0.045f;
+        private const float AutoAdvanceSeconds = 25f; // fallback so an unattended line never blocks forever
+        private const KeyCode ContinueKey = KeyCode.N;
 
         private Canvas _canvas;
         private GameObject _speech;
         private Text _speechText;
+        private Text _continueHint;
         private GameObject _chip;
         private Text _chipText;
 
         private readonly Queue<string> _queue = new Queue<string>();
         private string _current = string.Empty;
         private float _shown;     // characters revealed so far
-        private float _holdLeft;  // remaining display time once fully revealed
+        private float _holdLeft;  // auto-advance fallback once fully revealed
 
         private string _objectiveKey = string.Empty;
         private int _objProgress, _objTarget;
@@ -50,9 +51,12 @@ namespace Spacecraft.Client
             }
 
             UiKit.AddText(_speech.transform, nameX, 6, 300, 28, L("ui.vega.name"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speechText = UiKit.AddText(_speech.transform, 14, 38, 572, 106, string.Empty, 19, UiKit.TextCol, TextAnchor.UpperLeft);
+            _speechText = UiKit.AddText(_speech.transform, 14, 38, 572, 88, string.Empty, 19, UiKit.TextCol, TextAnchor.UpperLeft);
             _speechText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _speechText.verticalOverflow = VerticalWrapMode.Overflow;
+            // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable).
+            _continueHint = UiKit.AddText(_speech.transform, 14, 124, 572, 24, L("ui.vega.next"), 15, UiKit.CyanDim, TextAnchor.MiddleRight);
+            _continueHint.gameObject.SetActive(false);
             _speech.SetActive(false);
 
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
@@ -111,6 +115,12 @@ namespace Spacecraft.Client
             }
         }
 
+        /// <summary>True when the continue key should be ignored: the in-game menu is open, or a text
+        /// field (chat, beacon label) currently has keyboard focus.</summary>
+        private bool InputCaptured()
+            => (Game != null && Game.MenuOpen)
+               || UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject != null;
+
         private void Update()
         {
             if (_speechText == null)
@@ -122,8 +132,9 @@ namespace Spacecraft.Client
             {
                 _current = _queue.Dequeue();
                 _shown = 0f;
-                _holdLeft = HoldSeconds + _current.Length * HoldPerChar;
+                _holdLeft = AutoAdvanceSeconds;
                 _speech.SetActive(true);
+                _continueHint.gameObject.SetActive(false);
                 ClientAudio.Instance?.Cue("ai_blip"); // VEGA's radio chirp
             }
 
@@ -137,18 +148,29 @@ namespace Spacecraft.Client
                 return;
             }
 
+            bool pressed = Input.GetKeyDown(ContinueKey) && !InputCaptured();
+
             if (_shown < _current.Length)
             {
-                _shown = Mathf.Min(_current.Length, _shown + Time.deltaTime * CharsPerSecond);
+                // Still typing: the continue key fast-completes the reveal instead of skipping the line.
+                _shown = pressed ? _current.Length : Mathf.Min(_current.Length, _shown + Time.deltaTime * CharsPerSecond);
                 _speechText.text = _current.Substring(0, (int)_shown);
+                if (_shown >= _current.Length)
+                {
+                    _continueHint.gameObject.SetActive(true);
+                }
+
                 return;
             }
 
+            // Fully revealed: wait for the continue key (the lines used to run into each other —
+            // unreadable); a generous timeout still auto-advances an unattended panel.
             _holdLeft -= Time.deltaTime;
-            if (_holdLeft <= 0f || _queue.Count > 0) // next line waiting? move on a touch early
+            if (pressed || _holdLeft <= 0f)
             {
                 _current = string.Empty;
                 _speechText.text = string.Empty;
+                _continueHint.gameObject.SetActive(false);
             }
         }
 

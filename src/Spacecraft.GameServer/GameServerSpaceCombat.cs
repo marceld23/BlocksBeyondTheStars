@@ -54,6 +54,11 @@ public sealed class CombatEntity
 
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
+
+    // --- Hostile-NPC movement state (space drones/UFOs/cruisers patrol + chase; server-only) ---
+    public bool PatrolInitialized { get; set; }
+    public Vector3f PatrolCenter { get; set; }
+    public double PatrolPhase { get; set; }
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>
@@ -75,6 +80,9 @@ public sealed class SpaceInstance
     /// <summary>Seconds until the ship can take asteroid-collision damage again — a brief grace after a bump so a
     /// ram dents the shield/hull instead of stacking damage every tick and instantly destroying the ship (B56).</summary>
     public double CollisionCooldown { get; set; }
+
+    /// <summary>Throttle for streaming hostile-movement updates (drones/UFOs patrol + chase now).</summary>
+    public double HostileSyncTimer { get; set; }
 
     /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
     public double AsteroidRespawnTimer { get; set; }
@@ -803,6 +811,16 @@ public sealed partial class GameServer
 
             instance.ShipLastPosition = instance.ShipPosition;
 
+            // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
+            // comes in range (they used to hang motionless at their spawn points forever).
+            bool hostilesMoved = MoveSpaceHostiles(instance, dt);
+            instance.HostileSyncTimer += dt;
+            if (hostilesMoved && instance.HostileSyncTimer >= 0.15)
+            {
+                instance.HostileSyncTimer = 0;
+                BroadcastSpaceState(instance);
+            }
+
             float incoming = instance.Entities
                 .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
                 .Sum(e => e.DamagePerSecond);
@@ -867,6 +885,102 @@ public sealed partial class GameServer
         float rrad = 22f + (r % 3) * 6f; // 22 / 28 / 34
         var pos = new Vector3f(rrad * (float)System.Math.Cos(rang), ((r % 5) - 2) * 8f, rrad * (float)System.Math.Sin(rang));
         SpawnAsteroid(instance, pos, broadcast: true); // item 20 S3: voxel ore body (sends its mesh + state)
+    }
+
+    /// <summary>Per-kind movement profile for hostile space NPCs: how far they notice the ship, how close
+    /// they press in, and how fast they fly.</summary>
+    private static (float Aggro, float MinDist, float Speed) HostileProfile(CombatEntityKind kind) => kind switch
+    {
+        CombatEntityKind.Drone => (190f, 16f, 9f),
+        CombatEntityKind.Ufo => (240f, 24f, 7f),
+        CombatEntityKind.Cruiser => (260f, 36f, 4f),
+        _ => (0f, 0f, 0f),
+    };
+
+    /// <summary>Moves the instance's hostile NPCs: a slow patrol orbit around their post when the ship is
+    /// far, a closing chase (with a sideways weave so they read as flown, not railed) once it enters their
+    /// aggro range — stopping at a per-kind stand-off distance where their weapon aura works.</summary>
+    private bool MoveSpaceHostiles(SpaceInstance instance, double dt)
+    {
+        bool moved = false;
+        foreach (var e in instance.Entities)
+        {
+            if (!e.Hostile || e.Hull <= 0f)
+            {
+                continue;
+            }
+
+            var (aggro, minDist, speed) = HostileProfile(e.Kind);
+            if (speed <= 0f)
+            {
+                continue;
+            }
+
+            // Remember the spawn as the patrol post (first move initializes it).
+            if (!e.PatrolInitialized)
+            {
+                e.PatrolCenter = e.Position;
+                e.PatrolPhase = (uint)Spacecraft.WorldGeneration.WorldGenerator.StableHash(e.Id) % 628 / 100.0;
+                e.PatrolInitialized = true;
+            }
+
+            float dx = instance.ShipPosition.X - e.Position.X;
+            float dy = instance.ShipPosition.Y - e.Position.Y;
+            float dz = instance.ShipPosition.Z - e.Position.Z;
+            float distSq = dx * dx + dy * dy + dz * dz;
+
+            float tx, ty, tz;
+            float moveSpeed;
+            float maxStep = float.MaxValue;
+            if (distSq <= aggro * aggro && distSq > minDist * minDist)
+            {
+                // Chase: head for the ship with a sideways weave (perpendicular sway) so the approach arcs.
+                float dist = (float)System.Math.Sqrt(distSq);
+                float wob = (float)System.Math.Sin(_uptime * 1.7 + e.PatrolPhase) * 0.35f;
+                tx = dx / dist - dz / dist * wob;
+                ty = dy / dist;
+                tz = dz / dist + dx / dist * wob;
+                moveSpeed = speed;
+                maxStep = dist - minDist * 0.9f; // never overshoot past the stand-off ring (big-dt safe)
+            }
+            else if (distSq <= minDist * minDist)
+            {
+                continue; // at stand-off range — hold and let the weapon aura work
+            }
+            else
+            {
+                // Patrol: drift around the post on a slow circle (with a light vertical bob).
+                double t = _uptime * 0.15 + e.PatrolPhase;
+                float px = e.PatrolCenter.X + (float)System.Math.Cos(t) * 18f;
+                float py = e.PatrolCenter.Y + (float)System.Math.Sin(t * 2.0) * 4f;
+                float pz = e.PatrolCenter.Z + (float)System.Math.Sin(t) * 18f;
+                tx = px - e.Position.X;
+                ty = py - e.Position.Y;
+                tz = pz - e.Position.Z;
+                float len = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
+                if (len < 0.5f)
+                {
+                    continue; // already on the patrol ring
+                }
+
+                tx /= len;
+                ty /= len;
+                tz /= len;
+                moveSpeed = speed * 0.45f;
+            }
+
+            float norm = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
+            if (norm < 0.001f)
+            {
+                continue;
+            }
+
+            float step = System.Math.Min((float)(moveSpeed * dt), maxStep) / norm;
+            e.Position = new Vector3f(e.Position.X + tx * step, e.Position.Y + ty * step, e.Position.Z + tz * step);
+            moved = true;
+        }
+
+        return moved;
     }
 
     /// <summary>Damage hits the shield first, then the hull. Returns true when an Mk3 AI core evaded the
