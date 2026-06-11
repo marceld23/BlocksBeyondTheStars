@@ -749,6 +749,28 @@ public sealed partial class GameServer
             if (p.Health <= 0f)
             {
                 RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
+                continue;
+            }
+
+            // Periodic vitals sync: oxygen/hunger/energy/health drain + regen every tick SERVER-side, but
+            // PlayerStateUpdate used to go out only on discrete events — the HUD bars froze in between.
+            // Push the state twice a second whenever a vital has visibly moved since the last send.
+            session.VitalsSyncTimer += dt;
+            if (session.VitalsSyncTimer >= 0.5)
+            {
+                session.VitalsSyncTimer = 0;
+                bool changed = System.Math.Abs(p.Health - session.LastSentHealth) > 0.4f
+                    || System.Math.Abs(p.Oxygen - session.LastSentOxygen) > 0.4f
+                    || System.Math.Abs(p.SuitEnergy - session.LastSentEnergy) > 0.4f
+                    || System.Math.Abs(p.Hunger - session.LastSentHunger) > 0.4f;
+                if (changed)
+                {
+                    session.LastSentHealth = p.Health;
+                    session.LastSentOxygen = p.Oxygen;
+                    session.LastSentEnergy = p.SuitEnergy;
+                    session.LastSentHunger = p.Hunger;
+                    SendPlayerState(session);
+                }
             }
         }
     }
@@ -1577,12 +1599,13 @@ public sealed partial class GameServer
         if (current.IsAir)
         {
             // The client aimed at a block here but the server has air — its chunk view is STALE (a ghost block).
-            // This happens when something cleared the cell to air without the client learning of it (e.g. a
-            // structure stamp / re-stamp that SetBlock-cleared terrain but didn't broadcast, leaving an already-
-            // streamed client out of date). Heal it: confirm the empty cell now and re-stream the authoritative
-            // chunk so every ghost in it disappears — otherwise the player keeps "mining" a block that isn't there.
+            // Heal SILENTLY: the resync sends the corrective BlockChanged + re-streams the chunk, the client's
+            // voxel world fixes itself and the held drill simply hits the real block on its next tick. The old
+            // "Block is already empty." reject read as "mining is broken" to players and added nothing — the
+            // heal is the fix either way. Log the spot so the actual ghost SOURCE can be identified from
+            // reports (a SetBlock somewhere that skipped its broadcast).
             ResyncStaleChunk(session, pos);
-            Reject(session, "mine", "Block is already empty.");
+            _log.Warn($"Ghost block healed at {pos.X},{pos.Y},{pos.Z} for '{session.State.Name}' (client saw a block, server has air).");
             return;
         }
 

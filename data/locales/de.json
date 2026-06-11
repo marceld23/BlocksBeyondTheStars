@@ -953,5 +953,6 @@
   "ui.worldopt.size.2": "Groß",
   "ui.worldopt.size.3": "Riesig",
   "ui.vega.restart": "Tutorial neu starten",
-  "ui.vega.next": "Weiter · [N]"
+  "ui.vega.next": "Weiter · [N]",
+  "ui.scan.first_time": "Neue Entdeckung!"
 }

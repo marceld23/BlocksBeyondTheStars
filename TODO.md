@@ -91,6 +91,23 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ HUD vitals + ghost mining + scanner window (reported 2026-06-11) — ✅ FIXED (tests green, client built)
+1. **HUD vitals froze between events:** PlayerStateUpdate was only sent on explicit events (damage,
+   eat, respawn, ...) — slow drains (oxygen/hunger/suit energy ticking down in TickEnvironment) never
+   reached the client, so the bars looked stuck. The server now syncs vitals every 0.5 s whenever any
+   of health/O2/energy/hunger moved > 0.4 since the last send (changed-only, so idle players cost no
+   traffic). HUD audit: every element has a live data source and a purpose (location, 6 vitals rows,
+   hotbar, compass, ToD+temperature, toast, prompts, scan panel, wreck panel, damage flash).
+2. **"Block ist bereits abgebaut" again:** the reject toast is gone — a mine request hitting server-side
+   air now SILENTLY heals the client (chunk resync + neighbour re-mesh) and logs a server `Warn` with
+   the exact position, so the real desync source can be identified from logs when it next happens.
+3. **Scanner detail window:** the scan readout (bottom-left) is now a real detail panel — 360×150 (was
+   290×96), scanner icon, wrapped multi-line description, visible 12 s (was 8), and a first-time scan
+   shows a highlighted green "Neue Entdeckung! +X" knowledge line instead of just the total.
+4. **Held-item textures (question):** held BLOCKS already render with their real atlas texture tile
+   (`HeldItem.BlockTileResolver`); TOOLS/weapons/gadgets are procedural blocky meshes with flat tints
+   by design (no texture files involved). Open polish idea (backlog): texture decals for tools.
+
 ### ★ VEGA pacing + enemy movement (reported 2026-06-11) — ✅ FIXED (466 tests green, client built)
 1. **VEGA lines ran into each other (unreadable):** lines now wait for a KEYPRESS — each line types
    out, shows "Weiter · [N]", and only advances on N (N also fast-completes the typewriter). A generous

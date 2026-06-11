@@ -206,12 +206,22 @@ namespace Spacecraft.Client
             _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _hint = UiKit.AddText(root, 12, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
-            // Scan panel (bottom-left).
-            _scanPanel = Panel(root, 10, H - 96 - 48, 290, 96).gameObject;
-            _scanSubject = UiKit.AddText(_scanPanel.transform, 10, 6, 270, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _scanInfo = UiKit.AddText(_scanPanel.transform, 10, 28, 270, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _scanThreat = UiKit.AddText(_scanPanel.transform, 10, 48, 270, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _scanKnow = UiKit.AddText(_scanPanel.transform, 10, 68, 270, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+            // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
+            // threat, knowledge, and a highlighted "new discovery" line on a first-time scan.
+            _scanPanel = Panel(root, 10, H - 150 - 48, 360, 150).gameObject;
+            var scanIcon = UiKit.Icon("item_advanced_scanner") ?? UiKit.Icon("cat_target");
+            float scanTextX = 10f;
+            if (scanIcon != null)
+            {
+                UiKit.AddImage(_scanPanel.transform, 8, 6, 22, 22, scanIcon, UiKit.Cyan);
+                scanTextX = 36f;
+            }
+
+            _scanSubject = UiKit.AddText(_scanPanel.transform, scanTextX, 6, 340 - scanTextX, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _scanInfo = UiKit.AddText(_scanPanel.transform, 10, 34, 340, 56, string.Empty, 14, UiKit.TextCol, TextAnchor.UpperLeft);
+            _scanInfo.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _scanThreat = UiKit.AddText(_scanPanel.transform, 10, 94, 340, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _scanKnow = UiKit.AddText(_scanPanel.transform, 10, 116, 340, 22, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Wreck panel (right).
             _wreckPanel = Panel(root, W - 260f, 140, 250, 150).gameObject;
@@ -486,13 +496,24 @@ namespace Spacecraft.Client
         private void RefreshScan(Spacecraft.Shared.Localization.Localizer loc)
         {
             var scan = Game.LastScan;
-            bool show = scan != null && Time.time - Game.LastScanAt <= 8f;
+            bool show = scan != null && Time.time - Game.LastScanAt <= 12f;
             if (_scanPanel.activeSelf != show) _scanPanel.SetActive(show);
             if (!show) return;
             _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
             _scanInfo.text = scan.Info;
             _scanThreat.text = $"{loc.Get("ui.scan.threat")}: {scan.Threat}";
-            _scanKnow.text = $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}";
+
+            // A first-time discovery shows its knowledge GAIN highlighted; re-scans just show the total.
+            if (scan.FirstTime && scan.KnowledgeGained > 0)
+            {
+                _scanKnow.color = new Color(0.45f, 1f, 0.6f);
+                _scanKnow.text = $"{loc.Get("ui.scan.first_time")}  +{scan.KnowledgeGained}  ({loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal})";
+            }
+            else
+            {
+                _scanKnow.color = UiKit.TextCol;
+                _scanKnow.text = $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}";
+            }
         }
 
         /// <summary>Resolves a scan subject key to a readable, localized name (block / item / creature)
