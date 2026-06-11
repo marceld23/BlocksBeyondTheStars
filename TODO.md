@@ -112,6 +112,11 @@ sounds **yes** (ElevenLabs, blanket-approved).
    (babbling stream); the existing fluid-ambience scan in `ClientAudio` now classifies the nearby
    water with the SAME `WaterSurface` heuristic and picks surf/brook/generic-lap accordingly
    (`WaterBedFor`). NOTICES.md updated (125 sound files).
+5. **Follow-up fix (same day):** the surf/foam had hard per-block steps and wave displacement could
+   crack at block seams — foam + wave amplitude are now CORNER-smoothed in the mesher (each top-face
+   corner averages the 4 cells meeting there, banks counting as full-foam/zero-amplitude shore), so
+   shared corners get identical values from every face: smooth foam gradients, seamless waves, exact
+   flattening at the waterline. TEXCOORD2 repacked to x=mode, y=foam, z=amp factor, w=flow axis.
 
 ### ★ HUD vitals + ghost mining + scanner window (reported 2026-06-11) — ✅ FIXED (tests green, client built)
 1. **HUD vitals froze between events:** PlayerStateUpdate was only sent on explicit events (damage,

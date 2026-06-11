@@ -97,6 +97,48 @@ namespace Spacecraft.Client
                 return open / (float)total;
             }
 
+            // Per-cell water classification cache for this build (each cell is sampled by up to four
+            // corners; classify it once).
+            var waterCells = new Dictionary<(int X, int Y, int Z), Vector4>();
+            Vector4 WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
+            {
+                var key = (cwx, cwy, cwz);
+                if (!waterCells.TryGetValue(key, out var d))
+                {
+                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz);
+                    waterCells[key] = d;
+                }
+
+                return d;
+            }
+
+            // Corner-smoothed foam + wave-amplitude factor for the water-surface corner at (cwx, cwz):
+            // averaged over the 4 cells meeting there, so a corner shared by neighbouring faces gets the
+            // IDENTICAL value from each — foam fades in smooth gradients instead of per-block steps, and
+            // wave displacement stays crack-free across block (and body-type) boundaries. Bank/step cells
+            // count as shore: full foam, zero amplitude — waves die exactly at the waterline.
+            Vector2 WaterCorner(BlockId waterId, int cwx, int cwy, int cwz)
+            {
+                float foam = 0f, amp = 0f;
+                for (int ox = -1; ox <= 0; ox++)
+                for (int oz = -1; oz <= 0; oz++)
+                {
+                    int cx = cwx + ox, cz = cwz + oz;
+                    bool surface = worldBlock(cx, cwy, cz).Value == waterId.Value && worldBlock(cx, cwy + 1, cz).IsAir;
+                    if (!surface)
+                    {
+                        foam += 1f; // the shore itself
+                        continue;
+                    }
+
+                    var d = WaterCellData(waterId, cx, cwy, cz);
+                    foam += d.y;
+                    amp += d.x > 1.5f && d.x < 2.5f ? 1f : d.x > 0.5f && d.x < 1.5f ? 0.25f : 0f;
+                }
+
+                return new Vector2(foam * 0.25f, amp * 0.25f);
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -143,7 +185,7 @@ namespace Spacecraft.Client
                 // waves + coastal foam, calm lake, or flowing river — packed into the top face's
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
                 bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir;
-                Vector4 waterData = isWaterSurface ? WaterSurface.Classify(worldBlock, id, wx, wy, wz) : Vector4.zero;
+                Vector4 waterData = isWaterSurface ? WaterCellData(id, wx, wy, wz) : Vector4.zero;
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
@@ -204,11 +246,26 @@ namespace Spacecraft.Client
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     // Water top faces carry the water-body data instead of the (always-zero-for-water)
-                    // flora tint; only the transparent shader ever reads these vertices.
-                    var leaf = isWaterSurface && dir.Y == 1
-                        ? waterData
-                        : new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
-                    leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
+                    // flora tint; only the transparent shader ever reads these vertices. Foam + wave
+                    // amplitude are CORNER-smoothed (x=mode, y=foam, z=amp factor, w=flow axis 0=X/1=Z)
+                    // so they interpolate seamlessly across neighbouring blocks; mode/flow stay per-face.
+                    if (isWaterSurface && dir.Y == 1)
+                    {
+                        // Corner offsets follow FaceQuad's +Y order: (0,0) (0,1) (1,1) (1,0).
+                        var c00 = WaterCorner(id, wx, wy, wz);
+                        var c01 = WaterCorner(id, wx, wy, wz + 1);
+                        var c11 = WaterCorner(id, wx + 1, wy, wz + 1);
+                        var c10 = WaterCorner(id, wx + 1, wy, wz);
+                        leafUv.Add(new Vector4(waterData.x, c00.x, c00.y, waterData.w));
+                        leafUv.Add(new Vector4(waterData.x, c01.x, c01.y, waterData.w));
+                        leafUv.Add(new Vector4(waterData.x, c11.x, c11.y, waterData.w));
+                        leafUv.Add(new Vector4(waterData.x, c10.x, c10.y, waterData.w));
+                    }
+                    else
+                    {
+                        var leaf = new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
+                        leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
+                    }
                 }
             }
 

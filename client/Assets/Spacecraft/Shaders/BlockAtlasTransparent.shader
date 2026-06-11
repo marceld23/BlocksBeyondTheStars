@@ -45,7 +45,9 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float4 positionOS : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
-                float4 water : TEXCOORD2; // water top faces: x=mode (1 lake, 2 open, 3 river), y=foam, zw=flow axis
+                // Water top faces: x=mode (1 lake, 2 open, 3 river), y=foam (corner-smoothed),
+                // z=wave amplitude factor (corner-smoothed), w=flow axis (0=X, 1=Z).
+                float4 water : TEXCOORD2;
                 float4 color : COLOR; // r=gloss, g=metal, b=face shade, a=emission
             };
 
@@ -65,21 +67,17 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 Varyings o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
 
-                // Open water bobs on three crossed sine waves — displaced DOWN only (the rest surface is
-                // the block top), and flattened where the foam band starts so the shoreline stays flush
-                // with the terrain (no gaps against the bank). Lakes barely breathe; rivers stay level
-                // (their motion is the fragment-side flow ripple).
-                float mode = v.water.x;
-                float t = _Time.y;
-                if (mode > 1.5 && mode < 2.5)
+                // Water bobs on three crossed sine waves — displaced DOWN only (the rest surface is the
+                // block top). The amplitude factor is corner-smoothed by the mesher (open water 1, lake
+                // 0.25, river/bank 0) and further flattened into the foam band, so shared block corners
+                // displace identically — no cracks — and the shoreline stays flush with the terrain.
+                float amp = 0.12 * v.water.z * (1.0 - saturate(v.water.y));
+                if (amp > 0.0005)
                 {
+                    float t = _Time.y;
                     float w = sin(wp.x * 0.50 + t * 1.10) + sin(wp.z * 0.41 + t * 1.43)
                             + sin((wp.x + wp.z) * 0.27 + t * 0.70);
-                    wp.y -= 0.12 * (1.0 - saturate(v.water.y)) * (0.5 + w / 6.0);
-                }
-                else if (mode > 0.5 && mode < 1.5)
-                {
-                    wp.y -= 0.02 + 0.02 * sin(wp.x * 0.7 + wp.z * 0.9 + t * 0.5);
+                    wp.y -= amp * (0.5 + w / 6.0);
                 }
 
                 o.positionCS = TransformWorldToHClip(wp);
@@ -124,7 +122,7 @@ Shader "Spacecraft/BlockAtlasTransparent"
                         // River/brook: bright ripple bands + thin white streaks racing along the channel's
                         // flow axis. UVs cannot scroll inside an atlas tile, so the motion is procedural
                         // on world position.
-                        float2 flow = normalize(i.water.zw + float2(1e-4, 0));
+                        float2 flow = i.water.w < 0.5 ? float2(1.0, 0.0) : float2(0.0, 1.0);
                         float along = dot(i.wp.xz, flow);
                         float across = dot(i.wp.xz, float2(-flow.y, flow.x));
                         float ph = along * 1.9 - t * 5.5;
@@ -200,7 +198,9 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
-                float4 water : TEXCOORD2; // water top faces: x=mode (1 lake, 2 open, 3 river), y=foam, zw=flow axis
+                // Water top faces: x=mode (1 lake, 2 open, 3 river), y=foam (corner-smoothed),
+                // z=wave amplitude factor (corner-smoothed), w=flow axis (0=X, 1=Z).
+                float4 water : TEXCOORD2;
                 fixed4 color : COLOR; // r=gloss, g=metal, b=face shade, a=emission
             };
 
@@ -220,19 +220,16 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 v2f o;
                 float3 wp = mul(unity_ObjectToWorld, v.vertex).xyz;
 
-                // Same water motion as the URP pass: open water bobs down-only on crossed sines (flattened
-                // into the foam band so the shoreline stays flush), lakes barely breathe, rivers stay level.
-                float mode = v.water.x;
-                float t = _Time.y;
-                if (mode > 1.5 && mode < 2.5)
+                // Same water motion as the URP pass: down-only crossed sines scaled by the corner-
+                // smoothed amplitude factor (open 1, lake 0.25, river/bank 0) and flattened into the
+                // foam band — shared corners displace identically, the shoreline stays flush.
+                float amp = 0.12 * v.water.z * (1.0 - saturate(v.water.y));
+                if (amp > 0.0005)
                 {
+                    float t = _Time.y;
                     float w = sin(wp.x * 0.50 + t * 1.10) + sin(wp.z * 0.41 + t * 1.43)
                             + sin((wp.x + wp.z) * 0.27 + t * 0.70);
-                    wp.y -= 0.12 * (1.0 - saturate(v.water.y)) * (0.5 + w / 6.0);
-                }
-                else if (mode > 0.5 && mode < 1.5)
-                {
-                    wp.y -= 0.02 + 0.02 * sin(wp.x * 0.7 + wp.z * 0.9 + t * 0.5);
+                    wp.y -= amp * (0.5 + w / 6.0);
                 }
 
                 o.pos = UnityWorldToClipPos(wp);
@@ -273,7 +270,7 @@ Shader "Spacecraft/BlockAtlasTransparent"
                     {
                         // River/brook: ripple bands + white streaks racing along the flow axis (procedural
                         // on world position — atlas UVs cannot scroll).
-                        float2 flow = normalize(i.water.zw + float2(1e-4, 0));
+                        float2 flow = i.water.w < 0.5 ? float2(1.0, 0.0) : float2(0.0, 1.0);
                         float along = dot(i.wp.xz, flow);
                         float across = dot(i.wp.xz, float2(-flow.y, flow.x));
                         float ph = along * 1.9 - t * 5.5;

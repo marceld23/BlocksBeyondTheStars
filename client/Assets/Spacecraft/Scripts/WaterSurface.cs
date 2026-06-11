@@ -8,10 +8,11 @@ namespace Spacecraft.Client
     /// the horizontal extent of the connected surface around it. Purely local + client-side — no worldgen
     /// or network data involved — so it works on every world, old saves included.
     ///
-    /// The result is packed per-vertex into TEXCOORD2 of the water's top face for the transparent block
-    /// shader: x = mode (0 none, 1 calm lake/pond, 2 open water → gentle waves + coast foam, 3 river/
-    /// stream → fast-flow ripples), y = foam factor (1 at the shoreline fading to 0 three blocks out),
-    /// zw = flow axis for rivers (unit X or Z — the channel's long axis).
+    /// The result: x = mode (0 none, 1 calm lake/pond, 2 open water → gentle waves + coast foam,
+    /// 3 river/stream → fast-flow ripples), y = foam factor (1 at the shoreline fading to 0 three
+    /// blocks out), zw = flow axis for rivers (unit X or Z — the channel's long axis). The mesher
+    /// repacks this per-vertex (corner-smoothing foam and turning mode into a wave-amplitude factor)
+    /// before it reaches the transparent block shader via TEXCOORD2.
     /// </summary>
     public static class WaterSurface
     {
