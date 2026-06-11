@@ -21,6 +21,13 @@ namespace Spacecraft.Client
         private static readonly Color WaterBlue = new Color(0.24f, 0.46f, 0.72f);
         private static readonly Color LavaGlow = new Color(0.82f, 0.34f, 0.16f);
 
+        /// <summary>The location key a body's WORLD uses for its per-planet flora colours — MUST mirror
+        /// GameBootstrap's LocationName composition ("System · Planet"). Previews keyed on the bare body
+        /// name rolled a DIFFERENT vegetation hue than the leaves on the ground (the "purple planet from
+        /// orbit, green trees after landing" bug).</summary>
+        public static string LocationKeyFor(string systemName, string bodyName)
+            => string.IsNullOrEmpty(systemName) ? bodyName ?? string.Empty : $"{systemName} · {bodyName}";
+
         /// <summary>The mixed orbital ground colour for a body, or <paramref name="fallback"/> when the
         /// planet type is unknown to the content registry.</summary>
         public static Color GroundColor(GameContent content, BlockTextureAtlas atlas, long worldSeed,

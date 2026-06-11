@@ -697,10 +697,12 @@ namespace Spacecraft.Client
             float mapW = pw - pad * 2, mapH = mapW * 0.5f; // equirect 2:1 (latitude period = circ/2)
             float mapTop = 70f;
 
-            var body = FindStarMapBody(_choosePadBody);
+            var body = FindStarMapBody(_choosePadBody, out string bodySystem);
             string typeKey = body?.PlanetType;
             if (string.IsNullOrEmpty(typeKey)) { typeKey = Game?.Environment?.Biome; }
-            string locName = !string.IsNullOrEmpty(body?.Name) ? body.Name : Game?.LocationName ?? string.Empty;
+            string locName = !string.IsNullOrEmpty(body?.Name)
+                ? PlanetOrbitLook.LocationKeyFor(bodySystem, body.Name)
+                : Game?.LocationName ?? string.Empty;
             int circ = WorldConstants.CircumferenceFor(
                 !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home",
                 ClassOf(body?.Kind, typeKey));
@@ -754,9 +756,11 @@ namespace Spacecraft.Client
                 loc != null ? loc.Get("ui.action.close") : "Cancel (Esc)", CancelLandChooser);
         }
 
-        /// <summary>Finds a star-map body by id (the active system is searched too), or null.</summary>
-        private Spacecraft.Networking.Messages.NetBody FindStarMapBody(string bodyId)
+        /// <summary>Finds a star-map body by id (the active system is searched too), or null.
+        /// <paramref name="systemName"/> carries the owning system's name for the flora location key.</summary>
+        private Spacecraft.Networking.Messages.NetBody FindStarMapBody(string bodyId, out string systemName)
         {
+            systemName = string.Empty;
             var map = Game?.StarMap;
             if (map?.Systems == null || string.IsNullOrEmpty(bodyId))
             {
@@ -769,6 +773,7 @@ namespace Spacecraft.Client
                 {
                     if (b.Id == bodyId)
                     {
+                        systemName = sys.Name;
                         return b;
                     }
                 }
@@ -1765,6 +1770,7 @@ namespace Spacecraft.Client
                 // two planets/moons ever clip into each other at the compact view scale.
                 var ids = new List<string>();
                 var names = new List<string>();
+                var locKeys = new List<string>(); // "System · Body" — the key the body's WORLD seeds flora hues with
                 var positions = new List<Vector3>();
                 var radii = new List<float>();
                 var bodyTypes = new List<string>();
@@ -1773,6 +1779,7 @@ namespace Spacecraft.Client
                 void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type)
                 {
                     ids.Add(id); names.Add(name); kinds.Add(kind); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
+                    locKeys.Add(PlanetOrbitLook.LocationKeyFor(system?.Name, name));
                 }
 
                 // Pass 1: planets at their scaled orbit coords. Keep system coords + render pos so each moon
@@ -1877,7 +1884,7 @@ namespace Spacecraft.Client
                 // Spawn the separated bodies + register them as landable / keep-out.
                 for (int k = 0; k < positions.Count; k++)
                 {
-                    SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], names[k], positions[k], radii[k] * 2f, bodyTypes[k]);
+                    SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], locKeys[k], positions[k], radii[k] * 2f, bodyTypes[k]);
                     _landables.Add((ids[k], names[k], positions[k], radii[k]));
                     _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
                     maxDist = Mathf.Max(maxDist, positions[k].magnitude);

@@ -223,7 +223,8 @@ namespace Spacecraft.Client
                 // Data-driven body colour (surface block + per-planet flora hue + water/lava blend);
                 // the hand-kept palette only backstops unknown types.
                 var tint = PlanetOrbitLook.GroundColor(
-                    Game.Content, Game.Atlas, Game.WorldSeed, body.Name, body.PlanetType, TintFor(body.PlanetType));
+                    Game.Content, Game.Atlas, Game.WorldSeed,
+                    PlanetOrbitLook.LocationKeyFor(system.Name, body.Name), body.PlanetType, TintFor(body.PlanetType));
                 var mat = new Material(shader) { color = tint };
 
                 var mr = go.GetComponent<MeshRenderer>();

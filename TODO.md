@@ -114,6 +114,12 @@ generator (seed + type + circumference) can render any body's REAL world client-
    exotic-rare, spawnWeight 3), but bare and single-altitude. Now: more coverage (mask 0.60), ±12
    per-island altitude variation (layered drifting islands) and surface flora on island tops. Test:
    `Skylands_GenerateFloatingIslands_WithAnAirGapBelow`.
+6. **Follow-up fix ("purple planet from orbit, green trees on the ground"):** the GROUND seeds its
+   per-planet flora hues with `LocationName = "System · Planet"`, but every PREVIEW (orbit bake,
+   sky bodies, pad map) keyed `FloraTints` on the bare body name — two different keys, two
+   independent colour rolls. New `PlanetOrbitLook.LocationKeyFor(system, body)` mirrors the ground
+   rule and ALL preview call sites use it, so the vegetation colour you approach from space is the
+   one the leaves actually have after landing.
 
 ### ★ Invisible space stations + wrong planet colours (reported 2026-06-11) — ✅ FIXED (tests green, client built)
 **A) "No stations visible, but docking offered."** Cause: the bigger-stations round parked stations
