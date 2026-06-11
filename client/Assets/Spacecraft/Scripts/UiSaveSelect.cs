@@ -96,11 +96,20 @@ namespace Spacecraft.Client
             Toggle(96f, shell.L("ui.save.opt_kit"), optKit);
             RefreshMode(); // start on Explorer (sub-options hidden)
 
-            UiKit.AddButton(right, 20f, 372f, 320f, 50f, shell.L("ui.save.create"),
-                () => shell.StartSingleplayerWorld(name[0], 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0]), "btn_singleplayer");
-            UiKit.AddButton(right, 360f, 372f, 320f, 50f, shell.L("ui.save.random"),
-                () => shell.StartSingleplayerWorld("world_" + Random.Range(1000, 999999), 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0]), "btn_join");
-            UiKit.AddText(right, 20f, 436f, 660f, 90f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
+            // World options (sliders + presets): collected here, baked into the save at creation.
+            var worldOptions = new WorldCreationOptions();
+            GameObject optionsOverlay = null;
+            UiKit.AddButton(right, 20f, 372f, 660f, 46f, shell.L("ui.worldopt.open"), () =>
+            {
+                optionsOverlay ??= UiWorldOptions.Build(shell, root, worldOptions);
+                optionsOverlay.SetActive(true);
+            });
+
+            UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"),
+                () => shell.StartSingleplayerWorld(name[0], 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_singleplayer");
+            UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"),
+                () => shell.StartSingleplayerWorld("world_" + Random.Range(1000, 999999), 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_join");
+            UiKit.AddText(right, 20f, 486f, 660f, 50f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
 
             UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 

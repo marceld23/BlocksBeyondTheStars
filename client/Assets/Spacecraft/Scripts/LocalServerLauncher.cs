@@ -85,7 +85,8 @@ namespace Spacecraft.Client
         /// Unity main thread (it reads <c>Application.*</c> paths). Returns false only if the EXE is missing.
         /// Pair with <see cref="LaunchPrepared"/> (which can run off the main thread).</summary>
         public bool Prepare(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0,
-            bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false)
+            bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
+            string worldOptionArgs = null)
         {
             if (IsRunning)
             {
@@ -124,11 +125,14 @@ namespace Spacecraft.Client
                 (creativeUnlockAll ? " --unlock-all-blueprints true" : string.Empty) +
                 (creativeAllShips ? " --start-all-ships true" : string.Empty) +
                 (creativeKit ? " --creative-kit true" : string.Empty);
+            // World options (sliders at creation): non-default values only; the server bakes them into the
+            // new save's rules/description, so later launches don't need to repeat them.
+            string optionArgs = string.IsNullOrEmpty(worldOptionArgs) ? string.Empty : worldOptionArgs;
             _pendingPsi = new ProcessStartInfo
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name Singleplayer --world \"{worldName}\" " +
-                            $"--max-players 1 --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + creativeArgs,
+                            $"--max-players 1 --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + creativeArgs + optionArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

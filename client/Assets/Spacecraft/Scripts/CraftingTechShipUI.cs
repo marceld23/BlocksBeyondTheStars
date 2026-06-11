@@ -732,6 +732,36 @@ namespace Spacecraft.Client
                 visorOn ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
+            // World rules (world options, live edit): creatures + the three enemy activities. The server
+            // enforces the admin gate (non-admins get a reject toast); the rows re-render when the
+            // re-broadcast ServerRules lands.
+            UiKit.AddText(_listContent, 16, y, 760, 30, L("ui.worldopt.live_title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 40f;
+            void RuleRow(string label, string current, System.Action<string> send)
+            {
+                int idx = System.Array.IndexOf(WorldCreationOptions.Activity, current);
+                if (idx < 0) idx = 2;
+                string stepName = L("ui.worldopt.aa." + idx);
+                UiKit.AddText(_listContent, 16, y, 360, 56, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(_listContent, 380, y, 180, 56, stepName, 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
+                {
+                    if (idx > 0) { send(WorldCreationOptions.Activity[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                UiKit.AddButton(_listContent, 660, y + 6, 80, 44, "+", () =>
+                {
+                    if (idx < WorldCreationOptions.Activity.Length - 1) { send(WorldCreationOptions.Activity[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                y += 62f;
+            }
+
+            var rules = Game?.Rules;
+            RuleRow(L("ui.worldopt.creatures"), rules?.CreatureAbundance ?? "Normal", v => Game?.Network?.SendSetWorldRules(creatures: v));
+            RuleRow(L("ui.worldopt.planet_enemies"), rules?.PlanetEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(planetEnemies: v));
+            RuleRow(L("ui.worldopt.space_npcs"), rules?.SpaceNpcEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(spaceNpcs: v));
+            RuleRow(L("ui.worldopt.ufos"), rules?.AlienUfos ?? "Off", v => Game?.Network?.SendSetWorldRules(ufos: v));
+            y += 16f;
+
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).
             bool vegaOn = Menu?.Settings?.VegaHints ?? true;
             var vegaBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>

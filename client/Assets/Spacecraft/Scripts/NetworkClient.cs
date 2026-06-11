@@ -104,6 +104,16 @@ namespace Spacecraft.Client
         /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side; one-way).</summary>
         public void SendSkipOnboarding() => Send(new SkipOnboardingIntent());
 
+        /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
+        public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "")
+            => Send(new SetWorldRulesIntent
+            {
+                CreatureAbundance = creatures,
+                PlanetEnemies = planetEnemies,
+                SpaceNpcEnemies = spaceNpcs,
+                AlienUfos = ufos,
+            });
+
         public void SendMove(Vector3 pos, float yaw, float pitch)
             => Send(new MoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
 
