@@ -154,4 +154,77 @@ public static class Noise
         double cy = radius * System.Math.Sin(theta);
         return Value4D(seed, cx, worldY / scaleY, worldZ / scaleZ, cy);
     }
+
+    /// <summary>
+    /// 5D value noise in [0,1]: two <see cref="Value4D"/> layers (at integer v) interpolated along the fifth
+    /// axis — same dependency-free layering trick as <see cref="Value4D"/>, with a distinct layer prime so
+    /// the two stacked interpolations stay decorrelated. Used by the torus cave/ore noise (X-circle 2 dims +
+    /// Y + Z-circle 2 dims).
+    /// </summary>
+    public static double Value5D(long seed, double x, double y, double z, double w, double v)
+    {
+        long v0 = (long)System.Math.Floor(v);
+        double tv = Smooth(v - v0);
+        unchecked
+        {
+            const long layerPrime = unchecked((long)0x9E3779B97F4A7C15UL); // distinct from Value4D's FNV prime
+            long sa = seed + v0 * layerPrime;
+            long sb = seed + (v0 + 1) * layerPrime;
+            return Lerp(Value4D(sa, x, y, z, w), Value4D(sb, x, y, z, w), tv);
+        }
+    }
+
+    /// <summary>
+    /// FBM that is <b>exactly periodic in BOTH world axes</b> — X with period <paramref name="circX"/> and Z
+    /// with period <paramref name="circZ"/> — the seam-free generator for a TORUS world (round worlds: walk
+    /// any direction and loop seamlessly). Both axes are mapped onto circles of matching arc-length frequency
+    /// (local detail unchanged), so value and slope are continuous across every seam, diagonals included.
+    /// Replaces <see cref="FbmCylX"/> for round worlds.
+    /// </summary>
+    public static double FbmTorus(long seed, double worldX, double worldZ, double circX, double circZ,
+        double scale, int octaves, double lacunarity = 2.0, double gain = 0.5)
+    {
+        double thetaX = Tau * worldX / circX;
+        double radX = circX / (scale * Tau);
+        double cx = radX * System.Math.Cos(thetaX);
+        double cy = radX * System.Math.Sin(thetaX);
+
+        double thetaZ = Tau * worldZ / circZ;
+        double radZ = circZ / (scale * Tau);
+        double zx = radZ * System.Math.Cos(thetaZ);
+        double zy = radZ * System.Math.Sin(thetaZ);
+
+        double sum = 0, amp = 1, freq = 1, norm = 0;
+        for (int i = 0; i < octaves; i++)
+        {
+            // Periodic in both axes for every freq because cos/sin repeat exactly each lap.
+            sum += amp * Value4D(seed + i * 1013, cx * freq, zx * freq, cy * freq, zy * freq);
+            norm += amp;
+            amp *= gain;
+            freq *= lacunarity;
+        }
+
+        return norm > 0 ? sum / norm : 0;
+    }
+
+    /// <summary>
+    /// Single-octave value noise <b>periodic in both world axes</b> (X period <paramref name="circX"/>, Z
+    /// period <paramref name="circZ"/>) while Y stays linear — the torus counterpart of
+    /// <see cref="ValueCylX"/> for caves/ore veins on round worlds.
+    /// </summary>
+    public static double ValueTorus(long seed, double worldX, double worldY, double worldZ,
+        double circX, double circZ, double scaleX, double scaleY, double scaleZ)
+    {
+        double thetaX = Tau * worldX / circX;
+        double radX = circX / (scaleX * Tau);
+        double cx = radX * System.Math.Cos(thetaX);
+        double cy = radX * System.Math.Sin(thetaX);
+
+        double thetaZ = Tau * worldZ / circZ;
+        double radZ = circZ / (scaleZ * Tau);
+        double zx = radZ * System.Math.Cos(thetaZ);
+        double zy = radZ * System.Math.Sin(thetaZ);
+
+        return Value5D(seed, cx, worldY / scaleY, zx, cy, zy);
+    }
 }

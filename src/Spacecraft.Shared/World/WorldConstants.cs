@@ -37,8 +37,62 @@ public static class WorldConstants
     /// <summary>Chunk columns around a world of the given circumference.</summary>
     public static int ChunksAroundOf(int circumference) => circumference / ChunkSize;
 
-    /// <summary>Latitude (Z) bound from the equator for a world of the given circumference (a quarter of it).</summary>
+    /// <summary>Latitude (Z) bound from the equator for a world of the given circumference (a quarter of it).
+    /// LEGACY (pre-torus): kept only so older clients/messages keep a sensible value; movement no longer clamps.</summary>
     public static int LatitudeLimitFor(int circumference) => circumference / 4;
+
+    // --- Latitude (Z) wrap helpers — ROUND WORLDS (torus) ---
+    // The world now wraps north–south too: Z is periodic with period ≈ circumference/2 (a planet's
+    // pole-to-pole span), canonical domain centred on the equator: [−period/2, +period/2). The period is
+    // rounded down to a multiple of 32 so BOTH the period and the half-domain stay chunk-aligned (16); the
+    // old playable strip (±circ/4) maps almost exactly onto the canonical domain, so existing saves' edits
+    // stay in place (only a ≤16-block fringe right at the former invisible barrier re-maps).
+
+    /// <summary>The north–south wrap period for a world of the given circumference (≈ half of it, multiple of 32).</summary>
+    public static int LatitudePeriodFor(int circumference) => circumference / 2 / 32 * 32;
+
+    /// <summary>Wraps a world-Z coordinate into the canonical latitude domain [−period/2, +period/2).</summary>
+    public static int WrapZ(int z, int circumference)
+    {
+        int p = LatitudePeriodFor(circumference);
+        int half = p / 2;
+        int m = ((z + half) % p + p) % p;
+        return m - half;
+    }
+
+    /// <summary>Wraps a continuous world-Z coordinate into [−period/2, +period/2).</summary>
+    public static double WrapZ(double z, int circumference)
+    {
+        int p = LatitudePeriodFor(circumference);
+        double half = p / 2.0;
+        double m = ((z + half) % p + p) % p;
+        return m - half;
+    }
+
+    /// <summary>Shortest signed north–south distance across the latitude seam, in (−period/2, +period/2].</summary>
+    public static int WrapDeltaZ(int dz, int circumference)
+    {
+        int p = LatitudePeriodFor(circumference);
+        int m = ((dz % p) + p) % p;
+        return m > p / 2 ? m - p : m;
+    }
+
+    /// <summary>Shortest signed north–south distance (continuous) across the latitude seam.</summary>
+    public static double WrapDeltaZ(double dz, int circumference)
+    {
+        double p = LatitudePeriodFor(circumference);
+        double m = ((dz % p) + p) % p;
+        return m > p / 2 ? m - p : m;
+    }
+
+    /// <summary>Wraps a chunk-Z index into the canonical latitude chunk band.</summary>
+    public static int CanonicalChunkZ(int chunkZ, int circumference)
+    {
+        int chunks = LatitudePeriodFor(circumference) / ChunkSize; // even (period is a multiple of 32)
+        int half = chunks / 2;
+        int m = ((chunkZ + half) % chunks + chunks) % chunks;
+        return m - half;
+    }
 
     /// <summary>Wraps a world-X coordinate into [0, circumference).</summary>
     public static int WrapX(int x, int circumference)
@@ -78,14 +132,15 @@ public static class WorldConstants
 
     public static double WrapDeltaX(double dx) => WrapDeltaX(dx, Circumference);
 
-    /// <summary>Squared distance between two surface-world positions measured the short way round the
-    /// longitude seam (X wraps; Y/Z are linear). Use for every on-planet proximity check so a creature, door,
-    /// vendor or container just across the seam reads as adjacent, not a world away. (Don't use in space.)</summary>
+    /// <summary>Squared distance between two surface-world positions measured the short way round BOTH seams
+    /// (X wraps at the circumference, Z at the latitude period — round worlds; Y is linear). Use for every
+    /// on-planet proximity check so a creature, door, vendor or container just across either seam reads as
+    /// adjacent, not a world away. (Don't use in space.)</summary>
     public static double WrapDistanceSquared(Vector3f a, Vector3f b, int circumference)
     {
         double dx = WrapDeltaX((double)a.X - b.X, circumference);
         double dy = (double)a.Y - b.Y;
-        double dz = (double)a.Z - b.Z;
+        double dz = WrapDeltaZ((double)a.Z - b.Z, circumference);
         return dx * dx + dy * dy + dz * dz;
     }
 
@@ -101,15 +156,15 @@ public static class WorldConstants
 
     public static int CanonicalChunkX(int chunkX) => CanonicalChunkX(chunkX, Circumference);
 
-    /// <summary>Canonicalizes a chunk coordinate's longitude (X), leaving Y/Z untouched.</summary>
+    /// <summary>Canonicalizes a chunk coordinate's longitude (X) AND latitude (Z) — round worlds.</summary>
     public static ChunkCoord CanonicalChunk(ChunkCoord chunk, int circumference)
-        => new(CanonicalChunkX(chunk.X, circumference), chunk.Y, chunk.Z);
+        => new(CanonicalChunkX(chunk.X, circumference), chunk.Y, CanonicalChunkZ(chunk.Z, circumference));
 
     public static ChunkCoord CanonicalChunk(ChunkCoord chunk) => CanonicalChunk(chunk, Circumference);
 
-    /// <summary>Canonicalizes a world block position's longitude (X) into [0, circumference).</summary>
+    /// <summary>Canonicalizes a world block position: X into [0, circumference), Z into the latitude domain.</summary>
     public static Vector3i CanonicalBlock(Vector3i world, int circumference)
-        => new(WrapX(world.X, circumference), world.Y, world.Z);
+        => new(WrapX(world.X, circumference), world.Y, WrapZ(world.Z, circumference));
 
     public static Vector3i CanonicalBlock(Vector3i world) => CanonicalBlock(world, Circumference);
 

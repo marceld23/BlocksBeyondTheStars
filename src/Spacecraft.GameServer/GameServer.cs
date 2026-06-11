@@ -1478,16 +1478,15 @@ public sealed partial class GameServer
         // MVP: trust position but clamp to sane finite values. (Full movement validation later.)
         if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
         {
-            // Longitude wraps: the client transform runs unbounded as it laps the world, but the
-            // authoritative X is canonical [0, Circumference). Latitude (Z) is NOT wrapped — instead it's
-            // bounded by the pole barrier at ±LatitudeLimit, so a player can't wander off into an infinite
-            // north/south strip. On surface worlds only (stations/space have their own small coordinate space).
+            // ROUND WORLDS: the client transform runs unbounded as it laps the world in any direction; the
+            // authoritative position is canonical — X in [0, Circumference), Z in the latitude domain
+            // (±period/2, period ≈ circumference/2). The old pole clamp is gone: north–south wraps seamlessly
+            // like east–west. Stations/space keep their own small coordinate space (no wrap there).
             int circ = _world.Circumference; // this world's size (asteroids small, planets large)
             float z = move.Z;
             if (!InStation(session.State.PlayerId) && !InSpace(session.State.PlayerId))
             {
-                int lat = WorldConstants.LatitudeLimitFor(circ);
-                z = System.Math.Clamp(z, -lat, lat);
+                z = (float)WorldConstants.WrapZ((double)move.Z, circ);
             }
 
             session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X, circ), move.Y, z);

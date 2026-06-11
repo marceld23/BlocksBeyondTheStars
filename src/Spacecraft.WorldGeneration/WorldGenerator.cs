@@ -64,6 +64,21 @@ public sealed class WorldGenerator
 
     private long PlanetSeed(PlanetType planet) => _worldSeed ^ StableHash(planet.Key);
 
+    // --- Round-world (torus) noise wrappers: X periodic at the circumference, Z at the latitude period
+    // (≈ circumference/2), so terrain/caves/ores are seamless when circumnavigating in ANY direction. ---
+
+    /// <summary>This world's north–south wrap period (blocks).</summary>
+    private int LatPeriod => WorldConstants.LatitudePeriodFor(_circumference);
+
+    private double FbmT(long seed, double worldX, double worldZ, double scale, int octaves)
+        => Noise.FbmTorus(seed, worldX, worldZ, _circumference, LatPeriod, scale, octaves);
+
+    private double ValueT(long seed, double worldX, double worldY, double worldZ, double scaleX, double scaleY, double scaleZ)
+        => Noise.ValueTorus(seed, worldX, worldY, worldZ, _circumference, LatPeriod, scaleX, scaleY, scaleZ);
+
+    /// <summary>Canonical Z for per-column hash rolls (trees/flora/props), so stamps match across the Z seam.</summary>
+    private int Wz(int worldZ) => WorldConstants.WrapZ(worldZ, _circumference);
+
     // Terrain archetypes (amplitude multiplier, ridged amount): flats, rolling plains, hills, mountains,
     // canyons. A world uses a seed-picked subset, varied across the surface by a large-scale field, so areas
     // read as flat / rolling / mountainous and (high end) carve into canyons.
@@ -86,7 +101,7 @@ public sealed class WorldGenerator
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
         long seed = PlanetSeed(planet);
-        double n = Noise.FbmCylX(seed, worldX, worldZ, _circumference, planet.TerrainScale, octaves: 4);
+        double n = FbmT(seed, worldX, worldZ, planet.TerrainScale, octaves: 4);
         double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
 
         // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
@@ -163,14 +178,14 @@ public sealed class WorldGenerator
                 double raw = h * amp * 1.15;
                 double step = System.Math.Max(3.0, amp * 0.30);
                 double deck = System.Math.Floor(raw / step) * step;
-                double roll = Noise.FbmCylX(seed + 0x3E5A, worldX, worldZ, _circumference, planet.TerrainScale * 0.5, octaves: 2);
+                double roll = FbmT(seed + 0x3E5A, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
                 return deck + (roll - 0.5) * 2.0; // ±2-block texture on each deck
             }
 
             case "dunes":
             {
                 // Parallel wind-blown ridges: a ridged mid-frequency field laid over a gentle base.
-                double d = Noise.FbmCylX(seed + 0x0D0E, worldX, worldZ, _circumference, planet.TerrainScale * 0.45, octaves: 2);
+                double d = FbmT(seed + 0x0D0E, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
                 double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0); // 0..1 dune crests
                 return h * amp * 0.25 + ridged * amp * 0.85;
             }
@@ -179,7 +194,7 @@ public sealed class WorldGenerator
             {
                 // Mostly flat ground studded with sparse tall thin spikes (crystal needles / alien towers).
                 double basep = h * amp * 0.22;
-                double mask = Noise.FbmCylX(seed + 0x591E, worldX, worldZ, _circumference, planet.TerrainScale * 0.4, octaves: 2);
+                double mask = FbmT(seed + 0x591E, worldX, worldZ, planet.TerrainScale * 0.4, octaves: 2);
                 if (mask > 0.72)
                 {
                     double t = (mask - 0.72) / 0.28; // 0..1 toward the spike centre
@@ -206,7 +221,7 @@ public sealed class WorldGenerator
     /// (deepening toward its centre) ringed by a raised rim, scattered across otherwise-flat ground (item 33).</summary>
     private double CraterCarve(long seed, int worldX, int worldZ, PlanetType planet)
     {
-        double mask = Noise.FbmCylX(seed + 0x6A17, worldX, worldZ, _circumference, planet.TerrainScale * 1.7, octaves: 3);
+        double mask = FbmT(seed + 0x6A17, worldX, worldZ, planet.TerrainScale * 1.7, octaves: 3);
         double d = mask - CraterThreshold;
         if (d >= 0.0)
         {
@@ -243,20 +258,20 @@ public sealed class WorldGenerator
 
         // Per-crater gate: a coarse mask (larger than the crater spacing → ~constant within one crater, varying
         // between craters) leaves most craters bare and only some metal-bearing.
-        double region = Noise.FbmCylX(seed + 0x51A2, worldX, worldZ, _circumference, planet.TerrainScale * 3.5, octaves: 2);
+        double region = FbmT(seed + 0x51A2, worldX, worldZ, planet.TerrainScale * 3.5, octaves: 2);
         if (region < CraterMetalRegion)
         {
             return null; // this crater holds no metal
         }
 
         // Within a metal-bearing crater, a small-scale clump mask scatters a few lumps (high freq → tiny clumps).
-        double clump = Noise.FbmCylX(seed + 0x51A3, worldX, worldZ, _circumference, planet.TerrainScale * 0.22, octaves: 2);
+        double clump = FbmT(seed + 0x51A3, worldX, worldZ, planet.TerrainScale * 0.22, octaves: 2);
         if (clump < CraterMetalThreshold)
         {
             return null;
         }
 
-        int pick = (int)(Noise.Value01(seed + 0x51A4, WorldConstants.WrapX(worldX, _circumference), 5, worldZ)
+        int pick = (int)(Noise.Value01(seed + 0x51A4, WorldConstants.WrapX(worldX, _circumference), 5, Wz(worldZ))
                          * CraterFloorMetals.Length);
         if (pick >= CraterFloorMetals.Length)
         {
@@ -277,7 +292,7 @@ public sealed class WorldGenerator
         int rot = (int)((us >> 8) % (ulong)pool);       // …starting at a seed-rotated offset in the list
 
         // A broad field (much larger than the base terrain) picks a position across the subset + blends it.
-        double rug = Noise.FbmCylX(s, worldX, worldZ, _circumference, planet.TerrainScale * 6.0, octaves: 3);
+        double rug = FbmT(s, worldX, worldZ, planet.TerrainScale * 6.0, octaves: 3);
         double pos = (rug < 0 ? 0 : (rug > 0.9999 ? 0.9999 : rug)) * count; // [0, count)
         int i0 = (int)pos;
         int i1 = i0 + 1 < count ? i0 + 1 : count - 1;
@@ -350,7 +365,7 @@ public sealed class WorldGenerator
     /// surface, so a pond reads as a swimmable pool flush with the surrounding terrain (B7).</summary>
     private int PondDepthAt(PlanetType planet, long seed, int worldX, int worldZ, double threshold)
     {
-        double mask = Noise.FbmCylX(seed + 0x7A11, worldX, worldZ, _circumference, planet.TerrainScale * 4.0, octaves: 3);
+        double mask = FbmT(seed + 0x7A11, worldX, worldZ, planet.TerrainScale * 4.0, octaves: 3);
         double strength = (mask - threshold) / PondBand;
         if (strength <= 0.0)
         {
@@ -539,7 +554,7 @@ public sealed class WorldGenerator
             // banks) and fills it with water flush to the surface — a meandering river across low/mid terrain.
             if (rivers && columnFluid != seaWaterId && surfaceY > fluidLevel && surfaceY <= riverMaxY)
             {
-                double rl = Noise.FbmCylX(seed + 0x817E12, worldX, worldZ, _circumference, planet.TerrainScale * 2.5, octaves: 2);
+                double rl = FbmT(seed + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
                 double rv = System.Math.Abs(rl - 0.5);
                 if (rv < RiverHalfWidth)
                 {
@@ -563,7 +578,7 @@ public sealed class WorldGenerator
             int islandTop = int.MinValue, islandBottom = int.MaxValue;
             if (floatingIslands)
             {
-                double im = Noise.FbmCylX(seed + 0x15A4D, worldX, worldZ, _circumference, planet.TerrainScale * 1.4, octaves: 3);
+                double im = FbmT(seed + 0x15A4D, worldX, worldZ, planet.TerrainScale * 1.4, octaves: 3);
                 if (im > 0.62)
                 {
                     double t = (im - 0.62) / 0.38;       // 0..1 toward an island's centre
@@ -619,7 +634,7 @@ public sealed class WorldGenerator
                 // Carve caves below the surface layer (per-world cave frequency, item 21).
                 if (caveThreshold > 0.0 && depth > 1)
                 {
-                    double cave = Noise.ValueCylX(seed + 7777, worldX, worldY, worldZ, _circumference, 22.0, 16.0, 22.0);
+                    double cave = ValueT(seed + 7777, worldX, worldY, worldZ, 22.0, 16.0, 22.0);
                     if (cave > caveThreshold)
                     {
                         continue; // cave => air
@@ -644,7 +659,7 @@ public sealed class WorldGenerator
 
                     if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
                     {
-                        double r = Noise.Value01(seed + 4242, WorldConstants.WrapX(worldX, _circumference), worldY, worldZ);
+                        double r = Noise.Value01(seed + 4242, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ));
                         if (r < planet.DataCacheRarity)
                         {
                             block = dataCacheId;
@@ -664,7 +679,7 @@ public sealed class WorldGenerator
                 int fy = seabedY + 1;
                 int fly = fy - origin.Y;
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, worldZ) < floraDensity)
+                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < floraDensity)
                 {
                     chunk.Set(lx, fly, lz, floraId);
                 }
@@ -741,13 +756,13 @@ public sealed class WorldGenerator
             int cx = WorldConstants.WrapX(wx, _circumference);
 
             // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
-            bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, wz) < 0.0012;
-            bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, wz) < 0.0008;
-            bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, wz) < 0.0009;
+            bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, Wz(wz)) < 0.0012;
+            bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, Wz(wz)) < 0.0008;
+            bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, Wz(wz)) < 0.0009;
             // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
             // landmark finds with a data cache at the base/centre worth detouring for.
-            bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, wz) < 0.00018;
-            bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, wz) < 0.00007;
+            bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, Wz(wz)) < 0.00018;
+            bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, Wz(wz)) < 0.00007;
             if (!boulder && !shard && !deadTree && !monolith && !circle)
             {
                 continue;
@@ -759,7 +774,7 @@ public sealed class WorldGenerator
                 continue; // dry ground only
             }
 
-            int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, wz) * 997); // per-column shape hash
+            int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, Wz(wz)) * 997); // per-column shape hash
             var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
 
             if (monolith)
@@ -846,7 +861,7 @@ public sealed class WorldGenerator
         for (int wx = origin.X; wx < origin.X + cs; wx++)
         for (int wz = origin.Z; wz < origin.Z + cs; wz++)
         {
-            if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, wz) >= density)
+            if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, Wz(wz)) >= density)
             {
                 continue;
             }
@@ -895,7 +910,7 @@ public sealed class WorldGenerator
         for (int wx = origin.X - capR; wx < origin.X + cs + capR; wx++)
         for (int wz = origin.Z - capR; wz < origin.Z + cs + capR; wz++)
         {
-            if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, wz) >= density)
+            if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, Wz(wz)) >= density)
             {
                 continue;
             }
@@ -912,7 +927,7 @@ public sealed class WorldGenerator
                 continue; // not in water
             }
 
-            int height = 5 + (int)(Noise.Value01(seed + 0x5341, WorldConstants.WrapX(wx, _circumference), 19, wz) * 4.99); // 5..9
+            int height = 5 + (int)(Noise.Value01(seed + 0x5341, WorldConstants.WrapX(wx, _circumference), 19, Wz(wz)) * 4.99); // 5..9
             int topY = sy + height;
             for (int ty = sy + 1; ty <= topY; ty++)
             {
@@ -967,7 +982,7 @@ public sealed class WorldGenerator
         for (int wx = origin.X - crown; wx < origin.X + cs + crown; wx++)
         for (int wz = origin.Z - crown; wz < origin.Z + cs + crown; wz++)
         {
-            if (Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, wz) >= density)
+            if (Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= density)
             {
                 continue;
             }
@@ -989,7 +1004,7 @@ public sealed class WorldGenerator
                 continue; // B35: an upland pond/lake here — a tree would stand in the water
             }
 
-            int height = 4 + (int)(Noise.Value01(seed + 5151, WorldConstants.WrapX(wx, _circumference), 13, wz) * 3.99); // 4..7
+            int height = 4 + (int)(Noise.Value01(seed + 5151, WorldConstants.WrapX(wx, _circumference), 13, Wz(wz)) * 3.99); // 4..7
             int topY = sy + height;
 
             for (int ty = sy + 1; ty <= topY; ty++)
@@ -1067,7 +1082,7 @@ public sealed class WorldGenerator
 
             // Coarse 3D noise produces vein-like clusters; rarity is the fraction kept (scaled by this world's
             // richness so some worlds strike rich and others lean).
-            double n = Noise.ValueCylX(seed + 100 + i * 31, x, y, z, _circumference, 9.0, 9.0, 9.0);
+            double n = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0);
             if (n > 1.0 - System.Math.Clamp(ore.Rarity * richness, 0.0, 0.95))
             {
                 var oreBlock = _content.GetBlock(ore.Block);
@@ -1126,7 +1141,8 @@ public sealed class WorldGenerator
     /// large so each biome is a big contiguous region (so per-biome weather covers a meaningful area).</summary>
     private static int BiomeIndex(long seed, int worldX, int worldZ, int count, int circumference)
     {
-        double n = Noise.FbmCylX(seed ^ 0x0B10E, worldX, worldZ, circumference, 360.0, octaves: 3);
+        double n = Noise.FbmTorus(seed ^ 0x0B10E, worldX, worldZ, circumference,
+            WorldConstants.LatitudePeriodFor(circumference), 360.0, octaves: 3);
         int idx = (int)(n * count);
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }
@@ -1138,7 +1154,7 @@ public sealed class WorldGenerator
         int worldX, int worldZ, int surfaceY, int fluidLevel, BlockId kelpId, BlockId lilyId, double floraDensity)
     {
         int columnDepth = fluidLevel - surfaceY; // water cells above the seabed (>= 1 here)
-        double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX, _circumference), 11, worldZ);
+        double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX, _circumference), 11, Wz(worldZ));
 
         // Kelp needs at least a little depth; it grows from the seabed up a few cells, capped just below the
         // surface so the top of the column stays open water. Only if this world activated the kelp archetype.
@@ -1237,7 +1253,7 @@ public sealed class WorldGenerator
         ResolveFlora(planet);
         if (_floraBySurface.TryGetValue(surface.Value, out var pool) && pool.Length > 0)
         {
-            int idx = (int)(Noise.Value01(seed + 9101, WorldConstants.WrapX(worldX, _circumference), 3, worldZ) * pool.Length);
+            int idx = (int)(Noise.Value01(seed + 9101, WorldConstants.WrapX(worldX, _circumference), 3, Wz(worldZ)) * pool.Length);
             if (idx >= pool.Length)
             {
                 idx = pool.Length - 1;
