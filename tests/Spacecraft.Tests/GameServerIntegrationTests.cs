@@ -42,6 +42,7 @@ public sealed class GameServerIntegrationTests : IDisposable
         client.Poll();    // drain server replies
     }
 
+
     [Fact]
     public void Join_Mine_InventoryGrows_AndPersistsAcrossReload()
     {
@@ -86,9 +87,14 @@ public sealed class GameServerIntegrationTests : IDisposable
             dropItem = blockDef.Drops[0].Item;
             int before = session.State.Inventory.CountOf(dropItem);
 
-            client.Send(NetCodec.Encode(new MineBlockIntent { X = target.X, Y = target.Y, Z = target.Z }),
-                DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
+            // Hard blocks (stone etc.) take several bare-hand hits — keep hitting until it breaks,
+            // exactly like a player holding the mine button. Cap well above any hand-minable hardness.
+            for (int hit = 0; hit < 12 && !server.World.GetBlock(target).IsAir; hit++)
+            {
+                client.Send(NetCodec.Encode(new MineBlockIntent { X = target.X, Y = target.Y, Z = target.Z }),
+                    DeliveryMode.ReliableOrdered);
+                server.Tick(0.1);
+            }
 
             Assert.True(server.World.GetBlock(target).IsAir, "Block should be air after mining.");
             Assert.Equal(before + 1, session.State.Inventory.CountOf(dropItem));
@@ -242,7 +248,7 @@ public sealed class GameServerIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void WalkingTowardThePole_IsBoundedByTheLatitudeBarrier()
+    public void WalkingNorth_WrapsAroundTheWorld_NoPoleBarrier()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "pole"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -255,20 +261,21 @@ public sealed class GameServerIntegrationTests : IDisposable
         JoinAndDrain(server, client, "Wanderer");
         var session = server.Sessions[1];
 
-        int L = Spacecraft.Shared.World.WorldConstants.LatitudeLimitFor(server.World.Circumference);
+        // Round worlds: latitude wraps at the period (≈ circumference/2) instead of clamping at a barrier.
+        int P = Spacecraft.Shared.World.WorldConstants.LatitudePeriodFor(server.World.Circumference);
         float y = session.State.Position.Y;
 
-        // Walk far north past the pole: the authoritative Z is clamped to the barrier (not an infinite strip).
-        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = L + 500 }), DeliveryMode.ReliableOrdered);
+        // Walk far north past the seam: the authoritative Z wraps into the canonical domain (south side).
+        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = P / 2 + 10 }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
-        Assert.Equal(L, session.State.Position.Z, 3);
+        Assert.Equal(-(P / 2) + 10, session.State.Position.Z, 3);
 
-        // …and far south.
-        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = -(L + 500) }), DeliveryMode.ReliableOrdered);
+        // …a full lap lands you back where you started.
+        client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = P + 100 }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
-        Assert.Equal(-L, session.State.Position.Z, 3);
+        Assert.Equal(100f, session.State.Position.Z, 3);
 
-        // Within the band, latitude passes through unclamped (longitude still wraps separately).
+        // Within the band, latitude passes through unchanged (longitude still wraps separately).
         client.Send(NetCodec.Encode(new MoveIntent { X = 0, Y = y, Z = 100 }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
         Assert.Equal(100f, session.State.Position.Z, 3);

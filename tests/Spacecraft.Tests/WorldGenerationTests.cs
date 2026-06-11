@@ -34,7 +34,9 @@ public class WorldGenerationTests
         var content = Content();
         var asteroid = content.GetPlanet("asteroid")!;
         Assert.True(asteroid.Cratered, "the asteroid type is cratered");
-        var gen = new WorldGenerator(5, content);
+        // Seed picked so the 256x256 scan window contains metal-bearing deep craters under the torus
+        // noise field (the gates are a triple-conjunction, so not every seed hits inside one window).
+        var gen = new WorldGenerator(14, content);
 
         var metals = new System.Collections.Generic.HashSet<BlockId>();
         foreach (var k in new[] { "titanium_ore", "gold_ore", "platinum_ore", "cobalt_ore", "uranium_ore", "tungsten_ore", "neodymium_ore" })

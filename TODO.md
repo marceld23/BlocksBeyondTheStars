@@ -187,8 +187,29 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
-### ★ Round worlds — ANALYSIS (2026-06-11; W5 "poles" DROPPED by user decision, superseded by this)
+### ★ Round worlds (torus) — ✅ DONE 2026-06-11 (T1–T4 shipped; W5 "poles" DROPPED by user decision)
 **Goal:** the world should FEEL round — walking in ANY direction loops seamlessly (no invisible pole barrier).
+
+**Shipped (user approved "Ja, Torus umsetzen"):** the world is now a **torus** — Z (latitude) wraps exactly
+like X (longitude), with period = `LatitudePeriodFor(circ)` = circ/2 rounded down to a multiple of 32 (so the
+period AND the half-domain are chunk-aligned). Canonical Z domain [−period/2, +period/2) is centred on the
+equator ≈ the old playable strip, so existing saves' edits stay in-domain.
+- **T1 noise:** `Noise.Value5D` (two `Value4D` layers lerped along a 5th axis) + `FbmTorus`/`ValueTorus`
+  (BOTH ground axes circle-embedded); all 14 `FbmCylX`/`ValueCylX` call sites in `WorldGenerator` switched to
+  `FbmT`/`ValueT` wrappers; all per-column `Value01` hash rolls take `Wz(worldZ)` so stamps match across the seam.
+- **T2 shared+server:** `WrapZ`/`WrapDeltaZ`/`CanonicalChunkZ`; `CanonicalChunk`/`CanonicalBlock`/
+  `WrapDistanceSquared` are Z-aware; server move clamp removed — `HandleMove` wraps Z (`LatitudeLimitFor`
+  kept as legacy; `WorldEnvironment.LatitudeLimit` still sent, now unused by the client).
+- **T3 client:** `SceneZ` mirror of `SceneX` + `ScenePos` uses it (all entity views route through it);
+  `RepositionChunks` re-anchors on X OR Z; pole-barrier slide removed; `ClientWorld` block lookups canonicalize
+  Z; world map renders chunks/markers/distances seam-free on both axes; beacon labels/ship transit FX seam-aware.
+- **T4 tests:** `WorldWrapTests` extended to Z (periodic surface/biome/chunk identity across the latitude
+  seam, no-cliff at the former barrier, WrapZ/WrapDeltaZ behaviour, chunk-aligned period for any circumference);
+  `WalkingTowardThePole_IsBoundedByTheLatitudeBarrier` → `WalkingNorth_WrapsAroundTheWorld_NoPoleBarrier`.
+  Determinism fallout fixed (CrateredWorld seed re-pinned; mine test now hits until hard blocks break).
+  **428/428 green.**
+
+_Original analysis kept below for the option trade-offs (cube-sphere/pole-fold rejected)._
 
 **Today:** the world is a **cylinder** — X (longitude) wraps seamlessly (`WrapX`, noise on a circle via
 `FbmCylX`/`ValueCylX`), Z (latitude) is hard-clamped at ±`LatitudeLimit` (= circumference/4) by an invisible
@@ -230,7 +251,8 @@ barrier (server `GameServer.cs:1489` move clamp + client `PlayerController.cs:98
 
 **Recommendation:** Option 1 (torus, Z-period = circumference/2), staged like the original world-wrap work:
 T1 noise (torus FBM + Value5D + WorldGenerator call sites) → T2 WorldConstants + server (wrap Z, drop clamp)
-→ T3 client (SceneZ + reposition + barrier removal + map) → T4 tests + playtest. **Awaiting go-ahead.**
+→ T3 client (SceneZ + reposition + barrier removal + map) → T4 tests + playtest. **APPROVED + SHIPPED — see
+the DONE block above.**
 
 ### ★ "Welten reicher" — ✅ DONE 2026-06-10 (W-R1–W-R4 shipped; onboarding deferred by decision; 423 tests green)
 **Decisions:** all four measures in scope (terrain drama, POIs/dungeons, set-dressing, weather drama);
@@ -1661,11 +1683,11 @@ rearranging the existing slots — no new data model.
    (data-only):** add 1–2 intermediate ships (stats + craftCost on the new materials + blueprint + bilingual
    names + texture not needed since ships are voxel-built). Small + balance-driven. **Decision (user 2026-06-07):
    a balanced **corvette** between scout (fast/light) and hauler (slow/cargo) — mid hull/shield/cargo/speed.**
-27. **Already-listed future work (see "Not started / larger future work" near the end):** **W5 — poles**
-   (bound latitude Z with an ice-wall/barrier biome; relates to item 18), **per-species/planet flora colour
-   tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture audit**, **uGUI theme/icon polish**.
-   Kept in that section; pointer here so they're not forgotten. *(PvP ship combat + big cruisers stay **deferred
-   by design**.)*
+27. **Already-listed future work (see "Not started / larger future work" near the end):** ~~W5 — poles~~
+   (**dropped 2026-06-11 by user decision — superseded by the round-worlds torus, see its DONE block**),
+   **per-species/planet flora colour tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture
+   audit**, **uGUI theme/icon polish**. Kept in that section; pointer here so they're not forgotten. *(PvP ship
+   combat + big cruisers stay **deferred by design**.)*
 28. ✅ **Bug — multi-second freeze after "start new game" before the loading screen (done 2026-06-07; needs
    in-engine test).** Clicking Singleplayer → entering a new name / starting a new game → **several seconds of
    nothing**, *then* the loading screen (percent bar) appears.

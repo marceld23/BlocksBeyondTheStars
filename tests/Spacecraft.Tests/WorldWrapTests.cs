@@ -8,16 +8,17 @@ using Xunit;
 namespace Spacecraft.Tests;
 
 /// <summary>
-/// World wrap (W1): world-X is a wrapping longitude (cylinder world). These assert the user's core
-/// requirement — the eastern edge of the map lines up <i>exactly</i> with the western edge, with no
-/// visible seam — by checking generation is periodic across X = 0 ≡ X = Circumference and continuous
-/// (no cliff) where the seam meets.
+/// World wrap: world-X is a wrapping longitude and world-Z a wrapping latitude (torus world). These
+/// assert the user's core requirement — walking off any edge of the map lands you seamlessly on the
+/// opposite edge, with no visible seam — by checking generation is periodic across X = 0 ≡ X =
+/// Circumference AND Z = ±LatitudePeriod/2, and continuous (no cliff) where the seams meet.
 /// </summary>
 public class WorldWrapTests
 {
     private static GameContent Content() => ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
     private const int C = WorldConstants.Circumference;
+    private static readonly int P = WorldConstants.LatitudePeriodFor(C);
 
     [Fact]
     public void Circumference_IsAWholeNumberOfChunks()
@@ -62,6 +63,42 @@ public class WorldWrapTests
     }
 
     [Theory]
+    [InlineData("rocky")]
+    [InlineData("desert")]
+    [InlineData("varied")]
+    public void SurfaceHeight_IsPeriodic_AcrossTheLatitudeSeam(string planetKey)
+    {
+        var content = Content();
+        var planet = content.GetPlanet(planetKey)!;
+        var gen = new WorldGenerator(4242, content);
+
+        for (int x = -200; x <= 200; x += 23)
+        {
+            // The same latitude reached by walking a full lap north must be the identical column.
+            Assert.Equal(gen.SurfaceHeight(planet, x, 0), gen.SurfaceHeight(planet, x, P));
+            Assert.Equal(gen.SurfaceHeight(planet, x, 7), gen.SurfaceHeight(planet, x, P + 7));
+            Assert.Equal(gen.SurfaceHeight(planet, x, -3), gen.SurfaceHeight(planet, x, P - 3));
+        }
+    }
+
+    [Fact]
+    public void SurfaceHeight_HasNoCliff_AtTheLatitudeSeam()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("rocky")!;
+        var gen = new WorldGenerator(555, content);
+
+        // Crossing the former pole barrier (z = P/2 ≡ -P/2) must read like an ordinary neighbour
+        // step — the spot where the old wall stood is now invisible terrain.
+        int half = P / 2;
+        for (int x = 0; x < 400; x += 17)
+        {
+            int across = System.Math.Abs(gen.SurfaceHeight(planet, x, half) - gen.SurfaceHeight(planet, x, half - 1));
+            Assert.True(across <= 6, $"Latitude seam cliff at x={x}: step {across}.");
+        }
+    }
+
+    [Theory]
     [InlineData("varied")]
     [InlineData("rocky")]
     public void BiomeIndex_IsPeriodic_AcrossTheSeam(string planetKey)
@@ -74,6 +111,13 @@ public class WorldWrapTests
         {
             Assert.Equal(gen.BiomeIndexAt(planet, 0, z), gen.BiomeIndexAt(planet, C, z));
             Assert.Equal(gen.BiomeIndexAt(planet, 12, z), gen.BiomeIndexAt(planet, C + 12, z));
+        }
+
+        // And across the latitude seam (torus): a full lap north is the same biome.
+        for (int x = -300; x <= 300; x += 31)
+        {
+            Assert.Equal(gen.BiomeIndexAt(planet, x, 0), gen.BiomeIndexAt(planet, x, P));
+            Assert.Equal(gen.BiomeIndexAt(planet, x, -12), gen.BiomeIndexAt(planet, x, P - 12));
         }
     }
 
@@ -92,21 +136,35 @@ public class WorldWrapTests
 
         Assert.True(west.RawBlocks.SequenceEqual(east.RawBlocks),
             "Chunk a full lap away must regenerate identically (seam-free wrap).");
+
+        // Same promise north–south (torus): a full latitude lap regenerates the identical chunk.
+        int chunksNS = P / WorldConstants.ChunkSize;
+        var equator = gen.Generate(planet, new ChunkCoord(1, chunkY, 0));            // columns z = 0..15
+        var lapNorth = gen.Generate(planet, new ChunkCoord(1, chunkY, chunksNS));    // z = P..P+15
+
+        Assert.True(equator.RawBlocks.SequenceEqual(lapNorth.RawBlocks),
+            "Chunk a full latitude lap away must regenerate identically (seam-free torus wrap).");
     }
 
     [Fact]
-    public void CanonicalChunk_And_Block_WrapLongitudeOnly()
+    public void CanonicalChunk_And_Block_WrapBothAxes()
     {
-        // A chunk / block a whole lap away canonicalizes to the same X, leaving Y and Z untouched.
+        // A chunk / block a whole lap away (east OR north) canonicalizes to the same coordinate.
         var chunk = WorldConstants.CanonicalChunk(new ChunkCoord(WorldConstants.ChunksAround + 2, 5, -3));
         Assert.Equal(new ChunkCoord(2, 5, -3), chunk);
 
+        int chunksNS = P / WorldConstants.ChunkSize;
+        var lapped = WorldConstants.CanonicalChunk(new ChunkCoord(2, 5, -3 + chunksNS));
+        Assert.Equal(new ChunkCoord(2, 5, -3), lapped);
+
         var block = WorldConstants.CanonicalBlock(new Vector3i(C + 9, 70, -40));
         Assert.Equal(new Vector3i(9, 70, -40), block);
+        Assert.Equal(new Vector3i(9, 70, -40), WorldConstants.CanonicalBlock(new Vector3i(9, 70, -40 + P)));
 
-        // The chunk straddling the seam edge maps cleanly (16 divides C, so no chunk straddles it).
+        // The chunk straddling the seam edge maps cleanly (16 divides C and P, so no chunk straddles it).
         Assert.Equal(0, WorldConstants.CanonicalChunkX(WorldConstants.ChunksAround));
         Assert.Equal(WorldConstants.ChunksAround - 1, WorldConstants.CanonicalChunkX(-1));
+        Assert.Equal(-chunksNS / 2, WorldConstants.CanonicalChunkZ(chunksNS / 2, C)); // north edge ≡ south edge
     }
 
     [Fact]
@@ -125,6 +183,26 @@ public class WorldWrapTests
     }
 
     [Fact]
+    public void WrapZ_And_WrapDeltaZ_BehaveAcrossTheLatitudeSeam()
+    {
+        int half = P / 2;
+
+        // Canonical domain is [−P/2, +P/2) — the equator strip players spawn on stays put.
+        Assert.Equal(0, WorldConstants.WrapZ(0, C));
+        Assert.Equal(100, WorldConstants.WrapZ(100, C));
+        Assert.Equal(-half, WorldConstants.WrapZ(half, C));      // north edge ≡ south edge
+        Assert.Equal(half - 1, WorldConstants.WrapZ(-half - 1, C));
+        Assert.Equal(100, WorldConstants.WrapZ(100 + P, C));     // full lap → home
+
+        // Shortest way round: stepping 4 north across the seam is +4, not -(P-4).
+        Assert.Equal(4, WorldConstants.WrapDeltaZ(4, C));
+        Assert.Equal(-4, WorldConstants.WrapDeltaZ(-4, C));
+        Assert.Equal(4, WorldConstants.WrapDeltaZ(P + 4, C));
+        Assert.Equal(-4, WorldConstants.WrapDeltaZ(P - 4, C));   // P-4 north == 4 south
+        Assert.True(System.Math.Abs(WorldConstants.WrapDeltaZ(half + 5, C)) <= half);
+    }
+
+    [Fact]
     public void WrapDistanceSquared_MeasuresProximityAcrossTheSeam()
     {
         // Two points 4 blocks apart across X = 0 ≡ C read as 4², not (C-4)² — so a creature/door/vendor just
@@ -133,10 +211,16 @@ public class WorldWrapTests
         var east = new Vector3f(2, 64, 10);
         Assert.Equal(16.0, WorldConstants.WrapDistanceSquared(west, east), 3);
 
-        // Y and Z stay linear (not wrapped).
+        // Small Y/Z offsets are unaffected by the wraps.
         var a = new Vector3f(2, 64, 10);
         var b = new Vector3f(2, 70, 18);
         Assert.Equal(36.0 + 64.0, WorldConstants.WrapDistanceSquared(a, b), 3);
+
+        // Round worlds: the LATITUDE seam wraps too — two points 4 apart across ±period/2 read as 4².
+        int half = WorldConstants.LatitudePeriodFor(C) / 2;
+        var north = new Vector3f(10, 64, half - 2);
+        var south = new Vector3f(10, 64, -half + 2);
+        Assert.Equal(16.0, WorldConstants.WrapDistanceSquared(north, south), 3);
     }
 
     [Theory]
@@ -150,6 +234,14 @@ public class WorldWrapTests
         Assert.Equal(-1, WorldConstants.WrapDeltaX(circ - 1, circ)); // one east of the seam == one west
         Assert.Equal(circ / 16, WorldConstants.ChunksAroundOf(circ));
         Assert.Equal(circ / 4, WorldConstants.LatitudeLimitFor(circ));
+
+        // Round worlds: the latitude period is chunk-aligned on both the period AND the half-domain
+        // (multiple of 32), Z wraps periodically and a full N–S lap returns home.
+        int p = WorldConstants.LatitudePeriodFor(circ);
+        Assert.Equal(0, p % 32);
+        Assert.Equal(WorldConstants.WrapZ(100, circ), WorldConstants.WrapZ(100 + p, circ));
+        Assert.Equal(WorldConstants.WrapZ(-100, circ), WorldConstants.WrapZ(-100 + p, circ));
+        Assert.True(WorldConstants.WrapZ(p / 2 + 1, circ) < 0); // one step past the north seam → south side
     }
 
     [Fact]
