@@ -187,6 +187,51 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
   more landmarks/POIs (ruins/dungeons/rewarding cave systems), set-dressing props, ecosystem fauna behaviour,
   weather drama, a guiding progression/onboarding.
 
+### ★ Round worlds — ANALYSIS (2026-06-11; W5 "poles" DROPPED by user decision, superseded by this)
+**Goal:** the world should FEEL round — walking in ANY direction loops seamlessly (no invisible pole barrier).
+
+**Today:** the world is a **cylinder** — X (longitude) wraps seamlessly (`WrapX`, noise on a circle via
+`FbmCylX`/`ValueCylX`), Z (latitude) is hard-clamped at ±`LatitudeLimit` (= circumference/4) by an invisible
+barrier (server `GameServer.cs:1489` move clamp + client `PlayerController.cs:980` slide).
+
+**Options analysed:**
+1. **TORUS (wrap Z exactly like X) — RECOMMENDED.** Every direction loops seamlessly by construction
+   (diagonals included). Not a literal sphere (no poles — you loop instead of crossing a pole), but
+   indistinguishable in play: "round-feeling" voxel games ship exactly this.
+   *Key findings that make it cheap:*
+   - The height noise embeds X as a circle in 3D noise — the torus variant embeds BOTH axes as circles
+     (cosU,sinU,cosV,sinV) in **`Value4D`, which already exists** (used by `ValueCylX` for caves). Caves/ores
+     then need a mechanical **`Value5D`** extension (X-circle 2 + Y + Z-circle 2).
+   - **Climate is NOT latitude-based** (checked — no Z-temperature anywhere), so nothing breaks thermally.
+   - **Old saves stay compatible:** picking the Z-period = circumference/2 makes the canonical Z domain
+     [−C/4, +C/4) — EXACTLY today's playable strip, so every existing block edit remains in-domain (terrain
+     near the former barrier regenerates as the new seam; per the W-R decision, worldgen may change).
+   *Blast radius (measured):* `Noise` (torus FBM + Value5D; **16 call sites** in WorldGenerator switch to the
+   wrap-both variants); `WorldConstants` (`WrapZ`/`WrapDeltaZ`/canonical Z for blocks+chunks, drop
+   `LatitudeLimitFor` semantics → Z-period, extend `WrapDistanceSquared`); server (remove the move clamp,
+   wrap Z in `HandleMove`; all proximity checks already route through `WrapDistSq` — one helper change);
+   client (**`SceneZ` mirror of `SceneX`** — 11 ScenePos/SceneX call sites + `RepositionChunks` reposition in
+   Z too; remove the barrier slide; minimap/compass wrap Z); `WorldEnvironment.LatitudeLimit` field retired
+   (client keeps reading it harmlessly until removed); tests (extend the 10 `WorldWrapTests` to Z, replace
+   `WalkingTowardThePole_IsBoundedByTheLatitudeBarrier`).
+   *Effort:* a focused multi-commit package — Noise+worldgen ≈ the biggest chunk, then shared/server, then
+   client scene-wrap, then tests. Roughly the size of the original X-wrap work (W0–W4), with that code as
+   the template for every step.
+   *Risks:* subtle Z-seam proximity bugs (the X-seam bug class — mitigated by routing through the same
+   helpers); structures/stamps near the Z seam must canonicalise (stamps already use `CanonicalBlock` — gets
+   Z handling); minimap edge cases.
+2. **Cube-sphere (6 projected faces) — REJECTED.** The "true sphere" voxel approach: 6 chunk grids, edge
+   stitching, per-face bases, cross-face movement/meshing/persistence/networking. Months of work, breaks
+   nearly every coordinate assumption in the codebase. Not justified vs. option 1's result.
+3. **Pole-fold (sphere topology on the grid: crossing z=L teleports to x+C/2, mirrored) — REJECTED.**
+   Mathematically sound quotient space, but the fold line needs mirrored chunk rendering, fold-aware reach/
+   interaction deltas and a jarring heading flip when crossing — high bug surface, weird UX, little gain
+   over the torus.
+
+**Recommendation:** Option 1 (torus, Z-period = circumference/2), staged like the original world-wrap work:
+T1 noise (torus FBM + Value5D + WorldGenerator call sites) → T2 WorldConstants + server (wrap Z, drop clamp)
+→ T3 client (SceneZ + reposition + barrier removal + map) → T4 tests + playtest. **Awaiting go-ahead.**
+
 ### ★ "Welten reicher" — ✅ DONE 2026-06-10 (W-R1–W-R4 shipped; onboarding deferred by decision; 423 tests green)
 **Decisions:** all four measures in scope (terrain drama, POIs/dungeons, set-dressing, weather drama);
 **onboarding later as its own package**; POI density **moderate** (several small + 1–2 large per world);
