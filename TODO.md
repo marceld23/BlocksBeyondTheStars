@@ -1791,11 +1791,11 @@ rearranging the existing slots — no new data model.
    60; `requiredBlueprint: ship_corvette` (data_fragment 4 + titanium_plate 11 + cable 5); craftCost on the new
    materials (titanium/iron plate + cable + energy_cell + **steel** + **light_alloy** + **circuit_board**); DE/EN
    names. Data-only — 364 green (consistency + locale parity). *(Original note below.)*
-   **Intermediate ship tier** *(from item 16, Stage 4).* Stage 4 folded the new alloys/electronics onto the
-   existing ships (starter/hauler/scout) but **deferred a genuinely new mid-tier ship** between them. **To do
-   (data-only):** add 1–2 intermediate ships (stats + craftCost on the new materials + blueprint + bilingual
-   names + texture not needed since ships are voxel-built). Small + balance-driven. **Decision (user 2026-06-07):
-   a balanced **corvette** between scout (fast/light) and hauler (slow/cargo) — mid hull/shield/cargo/speed.**
+   **Intermediate ship tier — ✅ ALREADY SHIPPED (stale entry; verified 2026-06-11).** The decided corvette
+   exists in full since commit `387d95f` (+ voxel layout in `abe8eb3`): `ships.json` "corvette" (130 hull /
+   45 shield / speed+handling 1.1 / 60 cargo slots, craftCost on the new alloys/electronics, startModules),
+   `ship_corvette` blueprint, bilingual names/descs, `data/ship_layouts/ship_corvette.json`, covered by
+   `CreativeModeTests`. Nothing left to build — only the live balance feel (a playtest item).
 27. **Already-listed future work (see "Not started / larger future work" near the end):** ~~W5 — poles~~
    (**dropped 2026-06-11 by user decision — superseded by the round-worlds torus, see its DONE block**),
    **per-species/planet flora colour tint** (a `ChunkMesher` tint-UV pass, requested 2026-06-06), **texture
