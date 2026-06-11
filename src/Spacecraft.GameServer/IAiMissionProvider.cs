@@ -37,6 +37,39 @@ public sealed class NpcLineRequest
 
     /// <summary>Language to write the greeting in: "en" or "de".</summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>L2: a short persona descriptor the server derives deterministically per NPC
+    /// (e.g. "gruff veteran who speaks in short sentences"). Empty = no specific persona.</summary>
+    public string Persona { get; set; } = string.Empty;
+
+    /// <summary>L2: a compact log of what this NPC remembers of the player recently, oldest first
+    /// (e.g. "trade, trade, mission accepted"). Empty = nothing notable.</summary>
+    public string RecentEvents { get; set; } = string.Empty;
+
+    /// <summary>Ship-AI banter: the current game situation in one compact line (world, time of day,
+    /// progress) so VEGA can comment on it. Empty for settlement NPCs.</summary>
+    public string Situation { get; set; } = string.Empty;
+}
+
+/// <summary>L3: flavour-text context for ONE board mission whose objective/reward are already fixed
+/// by the server — the backend only writes Title + Description around them.</summary>
+public sealed class MissionTextRequest
+{
+    public string GiverName { get; set; } = string.Empty;
+    public string Place { get; set; } = string.Empty;
+    public string Theme { get; set; } = string.Empty;
+    public string NeedItem { get; set; } = string.Empty;
+    public int Required { get; set; }
+    public string RewardItem { get; set; } = string.Empty;
+    public int RewardCount { get; set; }
+    public string Language { get; set; } = "en";
+}
+
+/// <summary>L3: the generated board-mission posting text.</summary>
+public sealed class MissionTextResult
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -52,6 +85,10 @@ public interface IAiMissionProvider
     /// <summary>Returns a short, in-character NPC greeting for the context, or null if unavailable/disabled
     /// (item 15). The caller falls back to a static localized line when this is null.</summary>
     string? GenerateNpcLine(NpcLineRequest request);
+
+    /// <summary>Returns LLM flavour text for a fixed board mission (L3), or null if unavailable/disabled.
+    /// The caller keeps its localized static board text when this is null.</summary>
+    MissionTextResult? GenerateMissionText(MissionTextRequest request);
 }
 
 /// <summary>AI disabled — always returns null. Default provider.</summary>
@@ -60,6 +97,8 @@ public sealed class NullAiMissionProvider : IAiMissionProvider
     public MissionPlan? Generate(string context) => null;
 
     public string? GenerateNpcLine(NpcLineRequest request) => null;
+
+    public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
 }
 
 /// <summary>
@@ -74,11 +113,14 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
     private readonly string _missionUrl;
     private readonly string _npcLineUrl;
 
+    private readonly string _missionTextUrl;
+
     public HttpAiMissionProvider(string baseUrl, HttpClient? http = null)
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _missionUrl = _baseUrl + "/mission-plan";
         _npcLineUrl = _baseUrl + "/npc-line";
+        _missionTextUrl = _baseUrl + "/mission-text";
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
     }
 
@@ -127,6 +169,32 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         catch
         {
             return null; // backend unreachable / invalid -> static fallback
+        }
+    }
+
+    public MissionTextResult? GenerateMissionText(MissionTextRequest request)
+    {
+        try
+        {
+            var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            using var response = _http.PostAsync(_missionTextUrl, body).GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var text = JsonSerializer.Deserialize<MissionTextResult>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+            });
+            return string.IsNullOrWhiteSpace(text?.Title) || string.IsNullOrWhiteSpace(text?.Description)
+                ? null   // backend has no LLM (empty fields) or replied oddly → keep the static text
+                : text;
+        }
+        catch
+        {
+            return null; // backend unreachable / invalid -> static board text
         }
     }
 

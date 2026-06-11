@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Spacecraft.Networking.Messages;
+using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.State;
 using Spacecraft.Shared.World;
 
@@ -310,6 +312,7 @@ public sealed partial class GameServer
             }
 
             TickVegaMemory(session);
+            TickVegaBanterFor(session); // LLM smalltalk once onboarding is done (silent without AI)
         }
     }
 
@@ -416,6 +419,170 @@ public sealed partial class GameServer
         {
             SendVegaLine(session, "vega.sys.mk3", 3);
         }
+    }
+
+    // --- LLM banter (the "L-stages" flavour path): rare, contextual smalltalk once onboarding is done.
+    // Pure flavour on top of the scripted lines — generated off-thread through the same backend the NPC
+    // greetings use (role "ship_ai"), cached per situation bucket, and silently absent when AI is off.
+
+    private const double VegaBanterMinDelay = 420.0; // s between banter checks per player (~7 min)
+    private const double VegaBanterMaxDelay = 720.0;
+
+    /// <summary>Banter lines finished off-thread, waiting for the tick to send them.</summary>
+    private readonly ConcurrentQueue<(int ConnectionId, ShipAiLine Line)> _vegaBanterOutbox = new();
+
+    /// <summary>One banter line per situation bucket + locale (cost control, like the greeting cache).</summary>
+    private readonly ConcurrentDictionary<string, string> _vegaBanterCache = new();
+
+    private readonly ConcurrentDictionary<string, byte> _vegaBanterInFlight = new();
+
+    /// <summary>The compact situation line VEGA comments on (world, day phase, story progress).</summary>
+    private string VegaSituation(PlayerSession session)
+    {
+        var p = session.State;
+        string world = _world.Planet?.Key ?? "space";
+        string phase = _dayFraction is < 0.15 or > 0.85 ? "night" : _dayFraction is < 0.3 or > 0.7 ? "twilight" : "day";
+        int fragments = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
+        string aboard = p.AboardShip ? "aboard the ship" : "on foot";
+        return $"on a {world} world, {phase}, pilot is {aboard}, {fragments}/10 of VEGA's memory restored";
+    }
+
+    /// <summary>Situation bucket for the banter cache — coarse on purpose so lines get reused.</summary>
+    private string VegaBanterKey(PlayerSession session)
+    {
+        string world = _world.Planet?.Key ?? "space";
+        bool night = _dayFraction is < 0.15 or > 0.85;
+        return $"banter|{world}|{(night ? "night" : "day")}|{session.Locale}";
+    }
+
+    /// <summary>Rolls the per-player banter timer; when due (and AI is on, onboarding done), serves a
+    /// cached line or generates one off-thread. Called from <see cref="TickShipAi"/>'s 1 Hz path.</summary>
+    private void TickVegaBanterFor(PlayerSession session)
+    {
+        if (_config.AiLevel == AiLevel.Off || !VegaOnboardingDone(session.State))
+        {
+            return;
+        }
+
+        if (session.VegaBanterNextAt <= 0.0)
+        {
+            // First arm after join: don't banter into the first minutes of a session.
+            session.VegaBanterNextAt = _uptime + VegaBanterMinDelay * 0.75;
+            return;
+        }
+
+        if (_uptime < session.VegaBanterNextAt)
+        {
+            return;
+        }
+
+        session.VegaBanterNextAt = _uptime + VegaBanterMinDelay
+            + _vegaRng.NextDouble() * (VegaBanterMaxDelay - VegaBanterMinDelay);
+
+        string cacheKey = VegaBanterKey(session);
+        if (_vegaBanterCache.TryGetValue(cacheKey, out var cached))
+        {
+            SendVegaText(session, cached);
+            return;
+        }
+
+        if (!_vegaBanterInFlight.TryAdd(cacheKey, 1))
+        {
+            return;
+        }
+
+        var req = VegaBanterRequest(session);
+        int connId = session.ConnectionId;
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                var line = _ai.GenerateNpcLine(req);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    _vegaBanterCache[cacheKey] = line!;
+                    _vegaBanterOutbox.Enqueue((connId, BuildVegaTextLine(line!)));
+                }
+            }
+            catch
+            {
+                // flavour only — silence is the offline behaviour anyway
+            }
+            finally
+            {
+                _vegaBanterInFlight.TryRemove(cacheKey, out _);
+            }
+        });
+    }
+
+    /// <summary>The ship-AI line request — same backend + contract as NPC greetings, role "ship_ai".</summary>
+    private NpcLineRequest VegaBanterRequest(PlayerSession session)
+    {
+        var p = session.State;
+        return new NpcLineRequest
+        {
+            NpcName = "VEGA",
+            Role = "ship_ai",
+            IsRobot = true,
+            PlayerName = p.Name,
+            Relationship = System.Math.Min(100, p.Milestones.Count * 4), // standing grows with shared history
+            PastInteractions = p.Milestones.Count,
+            Language = session.Locale,
+            Persona = "dry, laconic ship AI with deadpan humour; loyal; an old fleet navigation core",
+            RecentEvents = string.Empty,
+            Situation = VegaSituation(session),
+        };
+    }
+
+    private static ShipAiLine BuildVegaTextLine(string text)
+        => new() { Text = text, Kind = 1 }; // advisor channel: the settings mute applies to banter too
+
+    /// <summary>Sends an LLM banter text directly (keeps the current objective chip fields).</summary>
+    private void SendVegaText(PlayerSession session, string text)
+        => Send(session, new ShipAiLine
+        {
+            Text = text,
+            ObjectiveKey = VegaObjectiveKey(session.State),
+            ObjectiveProgress = VegaObjectiveProgress(session),
+            ObjectiveTarget = VegaObjectiveTarget(session.State),
+            Kind = 1,
+        });
+
+    /// <summary>Drains banter lines finished off-thread. Called once per server tick.</summary>
+    private void TickVegaBanter()
+    {
+        while (_vegaBanterOutbox.TryDequeue(out var pending))
+        {
+            if (_sessions.TryGetValue(pending.ConnectionId, out var session) && session.Joined)
+            {
+                SendVegaText(session, pending.Line.Text);
+            }
+        }
+    }
+
+    /// <summary>Test seam: synchronously resolves the banter line VEGA would say right now — the same
+    /// request/provider/cache path the off-thread flow uses. Null when AI is off or the provider declines.</summary>
+    public string? VegaBanterForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session || _config.AiLevel == AiLevel.Off)
+        {
+            return null;
+        }
+
+        string cacheKey = VegaBanterKey(session);
+        if (_vegaBanterCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var line = _ai.GenerateNpcLine(VegaBanterRequest(session));
+        if (!string.IsNullOrWhiteSpace(line))
+        {
+            _vegaBanterCache[cacheKey] = line!;
+            return line;
+        }
+
+        return null;
     }
 
     /// <summary>Test seam: the player's milestone set (onboarding stages, hints, memory beats).</summary>

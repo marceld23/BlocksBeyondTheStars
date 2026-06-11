@@ -520,7 +520,12 @@ public sealed partial class GameServer
                 continue; // a board mission belonging to a board the player isn't standing at
             }
 
-            available.Add(BuildNetMission(def, null, pool));
+            if (IsBoardMissionId(def.Id))
+            {
+                RequestBoardMissionText(session, def); // L3: flavour text generates off-thread, refreshes when ready
+            }
+
+            available.Add(BuildNetMission(def, null, pool, session.Locale));
         }
 
         var active = new List<NetMission>();
@@ -529,7 +534,7 @@ public sealed partial class GameServer
             var def = GetMissionDef(pr.MissionId);
             if (def is not null)
             {
-                active.Add(BuildNetMission(def, pr, pool));
+                active.Add(BuildNetMission(def, pr, pool, session.Locale));
             }
         }
 
@@ -540,7 +545,7 @@ public sealed partial class GameServer
         GreetBoardQuartermaster(session);
     }
 
-    private static NetMission BuildNetMission(MissionDefinition def, MissionProgress? pr, MaterialPool pool)
+    private NetMission BuildNetMission(MissionDefinition def, MissionProgress? pr, MaterialPool pool, string locale)
     {
         var objectives = new NetMissionObjective[def.Objectives.Count];
         for (int i = 0; i < def.Objectives.Count; i++)
@@ -562,13 +567,18 @@ public sealed partial class GameServer
         }
 
         bool isPlayer = def.Source == MissionSource.Player;
+
+        // L3: a generated flavour text (in the player's locale) overrides the static board keys.
+        var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, locale) : null;
+
         return new NetMission
         {
             Id = def.Id,
             Source = def.Source.ToString(),
-            // System/admin missions carry localization keys; player missions carry free text.
-            Title = isPlayer ? def.Title : def.NameKey,
-            Description = isPlayer ? def.Description : def.DescriptionKey,
+            // System/admin missions carry localization keys; player missions and L3 texts carry free text.
+            Title = llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
+            Description = llmText?.Description ?? (isPlayer ? def.Description : def.DescriptionKey),
+            FreeText = isPlayer || llmText is not null,
             Status = pr?.Status.ToString() ?? "Available",
             Objectives = objectives,
             Rewards = def.Rewards.Select(r => new NetReward { Item = r.Item, Count = r.Count }).ToArray(),

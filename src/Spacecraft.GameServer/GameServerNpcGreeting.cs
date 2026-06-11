@@ -88,8 +88,61 @@ public sealed partial class GameServer
             Relationship = relValue,
             PastInteractions = interactions,
             Language = session.Locale,
+            Persona = PersonaFor(npcKey, npc.Theme, npc.IsRobot),       // L2: stable per-NPC voice
+            RecentEvents = RecentEventsLine(rel),                        // L2: what they remember
         };
         return (req, npcKey, cacheKey);
+    }
+
+    // L2: a small pool of persona voices, assigned deterministically per NPC (stable across visits)
+    // and flavoured by kind — androids get precise/literal voices, organics the warmer ones.
+    private static readonly string[] PersonaPoolOrganic =
+    {
+        "gruff veteran who speaks in short sentences but means well",
+        "cheerful chatterbox who loves local gossip",
+        "weary pragmatist counting the days to retirement",
+        "superstitious frontier soul who reads omens into everything",
+        "proud craftsman who respects good gear and hates waste",
+        "dry humorist who deadpans even good news",
+    };
+
+    private static readonly string[] PersonaPoolRobot =
+    {
+        "overly precise android that quantifies everything it says",
+        "politely literal android still learning small talk",
+        "old service unit with glitchy, antiquated courtesy phrases",
+    };
+
+    /// <summary>L2: deterministic persona descriptor for an NPC — same NPC, same voice, every visit.</summary>
+    private static string PersonaFor(string npcKey, string theme, bool isRobot)
+    {
+        var pool = isRobot ? PersonaPoolRobot : PersonaPoolOrganic;
+        ulong h = (ulong)Spacecraft.WorldGeneration.WorldGenerator.StableHash("persona:" + npcKey);
+        string persona = pool[(int)(h % (ulong)pool.Length)];
+        return string.IsNullOrEmpty(theme) ? persona : $"{persona}; lives among {theme}";
+    }
+
+    /// <summary>L2: the NPC's recent memory of this player as a compact line ("trade, mission accepted").</summary>
+    private static string RecentEventsLine(Spacecraft.Shared.State.NpcRelationship? rel)
+    {
+        if (rel is null || rel.Log.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>();
+        int from = System.Math.Max(0, rel.Log.Count - 5);
+        for (int i = from; i < rel.Log.Count; i++)
+        {
+            parts.Add(rel.Log[i].Kind switch
+            {
+                Spacecraft.Shared.State.NpcInteractionKind.Trade => "a trade",
+                Spacecraft.Shared.State.NpcInteractionKind.MissionAccepted => "took a mission",
+                _ => "a chat",
+            });
+        }
+
+        return string.Join(", ", parts);
     }
 
     /// <summary>Sends a greeting for an NPC to a player: a cached/static line immediately, plus (when AI is on and

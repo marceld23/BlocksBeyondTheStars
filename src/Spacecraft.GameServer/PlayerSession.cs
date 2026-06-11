@@ -75,6 +75,9 @@ public sealed class PlayerSession
     public double VegaThreatReadyAt { get; set; }
     public double VegaEvadeReadyAt { get; set; }
 
+    /// <summary>Uptime of the next LLM banter check (0 = not armed yet; armed on the first poll).</summary>
+    public double VegaBanterNextAt { get; set; }
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

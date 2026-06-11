@@ -5,7 +5,7 @@ A **separate, optional** Python service for the game server (see
 authoritative: it validates whatever this service returns, only ever shows greeting lines as
 flavour, and works fine when the service is off or unreachable.
 
-It serves two endpoints:
+It serves four endpoints:
 
 ## `POST /mission-plan`
 
@@ -23,7 +23,9 @@ matching the server model):
 }
 ```
 
-Still a deterministic template stand-in — the HTTP contract is the point.
+**L0: LLM-authored when a model is configured** (strict-JSON prompt; the allowed target/reward keys
+arrive inside the context string from the server), else the deterministic template stand-in. The
+C# server validates + clamps either way, so a hallucinated key just means “rejected”.
 
 ## `POST /npc-line` (item 15 — NPC greetings)
 
@@ -40,6 +42,22 @@ language. Request (PascalCase from the server; snake_case also accepted):
 
 → `{ "Text": "Willkommen zurück, Marcel. Möchtest du handeln?" }`
 
+The request also carries **L2 memory/persona fields** (`Persona`, `RecentEvents`) and — for the ship
+AI VEGA — a `Situation` line; `Role` may be `"vendor"`, `"quartermaster"` or `"ship_ai"` (VEGA
+banter; its no-LLM fallback is an EMPTY string, because the game has scripted VEGA lines).
+
+## `POST /mission-text` (L3 — board-mission flavour)
+
+Writes Title + Description around a FIXED board job (objective/reward stay server-coined):
+
+```json
+{ "GiverName": "Mira Voss", "Place": "Karth Town", "Theme": "miners",
+  "NeedItem": "iron_ore", "Required": 12, "RewardItem": "iron_plate", "RewardCount": 3,
+  "Language": "de" }
+```
+
+→ `{ "Title": "...", "Description": "..." }` — empty fields when no LLM is configured (the server
+keeps its localized static board text then).
 `GET /health` → `{ "status": "ok", "llm": true|false }` (`llm` = whether a model is configured).
 
 ## LLM provider (LangChain + LangGraph, OpenAI-compatible)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Spacecraft.Shared.Configuration;
 using Spacecraft.Shared.Missions;
 
@@ -28,7 +29,7 @@ public sealed partial class GameServer
         MissionPlan? plan;
         try
         {
-            plan = _ai.Generate(context);
+            plan = _ai.Generate(EnrichMissionContext(context));
         }
         catch
         {
@@ -59,5 +60,34 @@ public sealed partial class GameServer
         string verb = def.Active ? "published" : "drafted";
         _log.Info($"AI mission {verb}: '{def.Title}' ({id}).");
         return (true, $"AI mission {verb}: {def.Title} ({id}).");
+    }
+
+    /// <summary>L0: appends the allowed objective targets and reward items (real content keys) to the
+    /// admin's free-text context, so the LLM picks from them instead of hallucinating keys the
+    /// validator would reject. Bounded lists keep the prompt small.</summary>
+    private string EnrichMissionContext(string context)
+    {
+        var targets = new List<string>();
+        foreach (var b in _content.Blocks.Values)
+        {
+            if (b.Mineable && b.Drops.Count > 0 && targets.Count < 40)
+            {
+                targets.Add(b.Key);
+            }
+        }
+
+        var rewards = new List<string>();
+        foreach (var item in _content.Items.Values)
+        {
+            if (item.Category is Shared.Definitions.ItemCategory.Component or Shared.Definitions.ItemCategory.Consumable
+                && rewards.Count < 30)
+            {
+                rewards.Add(item.Key);
+            }
+        }
+
+        return $"{context}\n" +
+               $"Allowed objective targets (Mine/Collect/Deliver): {string.Join(", ", targets)}\n" +
+               $"Allowed reward items: {string.Join(", ", rewards)}";
     }
 }

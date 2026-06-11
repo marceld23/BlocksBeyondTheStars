@@ -608,6 +608,8 @@ public sealed partial class GameServer
 
         SampleHistories(deltaSeconds);
         TickGreetings(); // push any LLM NPC greetings finished off-thread (item 15)
+        TickMissionTexts(); // push mission-list refreshes when L3 board texts arrive
+        TickVegaBanter(); // push VEGA's LLM banter lines finished off-thread
 
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)

@@ -584,6 +584,10 @@ public sealed class NetMission
 
     /// <summary>Mission-giver NPC's name (item 13) — shown as "Mission from {GiverName}"; empty if none.</summary>
     public string GiverName { get; set; } = string.Empty;
+
+    /// <summary>True when <see cref="Title"/>/<see cref="Description"/> are display TEXT (player missions,
+    /// L3 LLM board texts) rather than locale keys — the client renders them verbatim then.</summary>
+    public bool FreeText { get; set; }
 }
 
 public sealed class MissionList
@@ -1155,6 +1159,10 @@ public sealed class ShipAiLine
 
     /// <summary>Optional {0} substitution for the line (already a display string, e.g. a world name).</summary>
     public string LineArg { get; set; } = string.Empty;
+
+    /// <summary>LLM-authored display TEXT (VEGA banter) — when non-empty the client shows this verbatim
+    /// instead of localizing <see cref="LineKey"/>. Always generated in the player's language.</summary>
+    public string Text { get; set; } = string.Empty;
 
     /// <summary>Locale key of the active objective chip; empty ⇒ clear the chip.</summary>
     public string ObjectiveKey { get; set; } = string.Empty;
