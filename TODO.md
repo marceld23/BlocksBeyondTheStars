@@ -91,6 +91,31 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ Item 22 — LLM stages — ✅ ALL SHIPPED 2026-06-11 (L0+L2+L3 + VEGA banter; L1 was 2026-06-10)
+**Shipped on top of L1 (same offline-safe pattern everywhere: async off-thread, cached, AiLevel-gated,
+static/localized fallback; provider-agnostic backend via LangChain/LangGraph + OpenAI-compatible env):**
+- **L0 — real LLM behind `/mission-plan`:** the backend now authors the full MissionPlan via a
+  strict-JSON LLM chain (fenced-JSON tolerant parser, shape check), falling back to the deterministic
+  template. The server enriches the admin context with the ALLOWED content keys (mineable targets +
+  component/consumable rewards, bounded lists — `EnrichMissionContext`) so the LLM can't hallucinate
+  keys the validator rejects. Validation/clamping unchanged (Suggest=draft, Auto=publish).
+- **L2 — memory/personas in the prompt:** `NpcLineRequest` carries `Persona` (deterministic per-NPC
+  voice from a 6-organic/3-android pool, stable across visits) and `RecentEvents` (last 5 interaction-log
+  entries as "a trade, took a mission"); the backend prompt includes both plus the relationship tier.
+- **L3 — LLM board-mission texts:** new `POST /mission-text` writes Title+Description around the FIXED
+  server-coined board job (objective/reward untouched), per player locale. Server: `GameServerMissionTexts.cs`
+  — off-thread generation on board open, cache per missionId|locale, live mission-list refresh when a text
+  lands, `NetMission.FreeText` flag so the client renders text verbatim vs. localizing keys (also fixes
+  player-mission titles rendering bracketed). AI off/declined ⇒ static localized board text.
+- **VEGA banter:** same `/npc-line` path with role `ship_ai` + a `Situation` line (world type, day phase,
+  fragment progress). Rare smalltalk (~7–12 min, only after onboarding), cached per world|day-phase|locale
+  bucket, sent via the new `ShipAiLine.Text` field (client shows verbatim; settings mute applies). With AI
+  off the banter is simply absent — the scripted VEGA lines cover everything else.
+- **Tests:** `LlmStagesTests` (11) — L0 context keys, L2 persona stability + recent events, L3 text+cache /
+  AI-off / provider-declined, banter role+situation+cache / AI-off silence, `/mission-text` HTTP contract.
+
+_Original L1 entry + analysis below._
+
 ### ★ Item 22 — LLM-authored NPC greetings (item 15) — L1 DONE (2026-06-10)
 Requested: use an LLM to generate NPC display texts (greetings) with game context: NPC name, player name,
 relationship, NPC type (quest-giver/trader), trade kind, mission type/kind.

@@ -24,9 +24,11 @@ public sealed class AiMissionTests : IDisposable
     private sealed class FakeProvider : IAiMissionProvider
     {
         private readonly MissionPlan? _plan;
+        public string? LastContext;
         public FakeProvider(MissionPlan? plan) => _plan = plan;
-        public MissionPlan? Generate(string context) => _plan;
+        public MissionPlan? Generate(string context) { LastContext = context; return _plan; }
         public string? GenerateNpcLine(NpcLineRequest request) => null;
+        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
     }
 
     private (SvGameServer server, SqliteWorldRepository repo) Start(AiLevel level, IAiMissionProvider provider, string world)

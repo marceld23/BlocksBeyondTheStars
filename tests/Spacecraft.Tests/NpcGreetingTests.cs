@@ -80,6 +80,7 @@ public sealed class NpcGreetingTests : IDisposable
         public FakeNpcProvider(string? line) => _line = line;
         public MissionPlan? Generate(string context) => null;
         public string? GenerateNpcLine(NpcLineRequest request) { Last = request; Calls++; return _line; }
+        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
     }
 
     /// <summary>Starts a world with an inhabited settlement that staffs a vendor, then drops a player onto the
