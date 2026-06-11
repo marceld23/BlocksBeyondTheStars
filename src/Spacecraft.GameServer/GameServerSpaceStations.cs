@@ -120,7 +120,10 @@ public sealed partial class GameServer
             Id = id,
             Name = string.IsNullOrWhiteSpace(name) ? "Orbital Station" : name,
             SizeTier = tier,
-            SpacePosition = new Vector3f(0f, 0f, 42f + index * 30f),
+            // WELL above the orbital plane (bodies sit near y=0 with radii ≤ ~35; the home planet hangs
+            // far below) and staggered outward — so even the big new station hulls never sit inside a
+            // planet's keep-out sphere or overlap each other.
+            SpacePosition = new Vector3f((index % 3 - 1) * 70f, 55f, 80f + index * 45f),
             // The station lives in its own void world now, so a clean grounded origin is fine (the void
             // gives it the free-floating-in-space look; no planet terrain anywhere near).
             Origin = new Vector3i(8, 64, 8),
@@ -134,10 +137,11 @@ public sealed partial class GameServer
         int roll = (int)(System.Math.Abs(seed) % 100);
         return roll switch
         {
-            < 45 => "small",
-            < 80 => "medium",
-            < 95 => "large",
-            _ => "huge",
+            < 38 => "small",
+            < 68 => "medium",
+            < 85 => "large",
+            < 95 => "huge",
+            _ => "colossal", // the rare mega-station: double halls, 4 floors, big crew
         };
     }
 
@@ -429,7 +433,7 @@ public sealed partial class GameServer
 
         // Extra wandering civilians/dockhands so the station feels populated — scaled by size, some are
         // maintenance androids, with a little size variation. Placed near existing markers (valid rooms).
-        int extra = station.SizeTier switch { "small" => 2, "large" => 7, "huge" => 11, _ => 4 };
+        int extra = station.SizeTier switch { "small" => 2, "large" => 8, "huge" => 13, "colossal" => 18, _ => 4 };
         var spots = station.Markers.Select(m => m.Pos).ToList();
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
