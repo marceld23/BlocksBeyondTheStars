@@ -677,8 +677,8 @@ namespace Spacecraft.Client
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
-            // Centre panel in the 1536×864 HUD space.
-            const float pw = 760f, ph = 660f;
+            // Centre panel in the 1536×864 HUD space (equirect map strip + button rows below).
+            const float pw = 760f, ph = 540f;
             float px = (UiKit.HudRefW - pw) * 0.5f, py = (UiKit.HudRefH - ph) * 0.5f;
             var panel = UiKit.AddPanel(_ui.transform, px, py, pw, ph, new Color(0.03f, 0.07f, 0.13f, 0.97f));
             panel.raycastTarget = true; // eat clicks behind the map
@@ -688,35 +688,41 @@ namespace Spacecraft.Client
             string bodyName = string.IsNullOrEmpty(_landTargetName) ? string.Empty : $" — {_landTargetName}";
             UiKit.AddText(panel.transform, 24, 18, pw - 48, 30, title + bodyName, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
-            // Square map area inside the panel.
+            // REAL planet map (the request "pads must be where they actually are"): an equirect strip of
+            // the whole body — full circumference × full latitude band — baked from the actual world
+            // generation (seas, lakes, height-shaded ground, this world's flora hue). Pads sit at their
+            // TRUE longitudes on it; before this the pads were normalised into their own bounding box on
+            // a blank panel (distorted positions, no terrain reference).
             const float pad = 40f;
-            float mapTop = 64f, mapSize = pw - pad * 2;
-            var map = UiKit.AddPanel(panel.transform, pad, mapTop, mapSize, mapSize, new Color(0.05f, 0.11f, 0.18f, 1f));
-            map.raycastTarget = true;
+            float mapW = pw - pad * 2, mapH = mapW * 0.5f; // equirect 2:1 (latitude period = circ/2)
+            float mapTop = 70f;
 
-            // Bounding box of all pads (with a margin) → normalise each pad onto the map square.
-            int minX = int.MaxValue, maxX = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
+            var body = FindStarMapBody(_choosePadBody);
+            string typeKey = body?.PlanetType;
+            if (string.IsNullOrEmpty(typeKey)) { typeKey = Game?.Environment?.Biome; }
+            string locName = !string.IsNullOrEmpty(body?.Name) ? body.Name : Game?.LocationName ?? string.Empty;
+            int circ = WorldConstants.CircumferenceFor(
+                !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home",
+                ClassOf(body?.Kind, typeKey));
+            int latP = WorldConstants.LatitudePeriodFor(circ);
+
+            var mapGo = new GameObject("PadMap", typeof(RectTransform));
+            mapGo.transform.SetParent(panel.transform, false);
+            UiKit.Place(mapGo, pad, mapTop, mapW, mapH);
+            var raw = mapGo.AddComponent<UnityEngine.UI.RawImage>();
+            raw.texture = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128);
+            raw.raycastTarget = true;
+
+            const float marker = 40f;
             foreach (var p in pads)
             {
-                if (p.X < minX) minX = p.X;
-                if (p.X > maxX) maxX = p.X;
-                if (p.Z < minZ) minZ = p.Z;
-                if (p.Z > maxZ) maxZ = p.Z;
-            }
-
-            if (pads.Length == 0) { minX = maxX = minZ = maxZ = 0; }
-            float spanX = System.Math.Max(1, maxX - minX), spanZ = System.Math.Max(1, maxZ - minZ);
-            float span = System.Math.Max(spanX, spanZ) * 1.15f; // keep aspect square + a margin
-            float cxw = (minX + maxX) * 0.5f, czw = (minZ + maxZ) * 0.5f;
-            const float marker = 46f;
-            float inner = mapSize - marker;
-
-            foreach (var p in pads)
-            {
-                float u = 0.5f + (p.X - cxw) / span; // 0..1 across the map
-                float v = 0.5f + (p.Z - czw) / span; // 0..1 down the map (north up)
-                float mx = pad + marker * 0.5f + u * inner - marker * 0.5f;
-                float my = mapTop + marker * 0.5f + v * inner - marker * 0.5f;
+                // True position on the strip: u = longitude / circumference, v = latitude in the band
+                // (north up). Pads ring the equator, so they line up mid-map at their real spots.
+                float u = Mathf.Repeat(p.X / (float)circ, 1f);
+                float vNorm = Mathf.Clamp01(0.5f + p.Z / (float)latP);
+                float mx = pad + u * mapW - marker * 0.5f;
+                float my = mapTop + (1f - vNorm) * mapH - marker * 0.5f;
+                mx = Mathf.Clamp(mx, pad - marker * 0.5f, pad + mapW - marker * 0.5f);
 
                 bool free = !p.Occupied;
                 var col = free ? new Color(0.16f, 0.55f, 0.30f, 0.98f) : new Color(0.45f, 0.12f, 0.12f, 0.98f);
@@ -746,6 +752,29 @@ namespace Spacecraft.Client
 
             UiKit.AddButton(panel.transform, (pw - 220) * 0.5f, ph - 64, 220, 46,
                 loc != null ? loc.Get("ui.action.close") : "Cancel (Esc)", CancelLandChooser);
+        }
+
+        /// <summary>Finds a star-map body by id (the active system is searched too), or null.</summary>
+        private Spacecraft.Networking.Messages.NetBody FindStarMapBody(string bodyId)
+        {
+            var map = Game?.StarMap;
+            if (map?.Systems == null || string.IsNullOrEmpty(bodyId))
+            {
+                return null;
+            }
+
+            foreach (var sys in map.Systems)
+            {
+                foreach (var b in sys.Bodies)
+                {
+                    if (b.Id == bodyId)
+                    {
+                        return b;
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Tears down the landing-pad map + re-locks the cursor for flight.</summary>
@@ -1722,7 +1751,7 @@ namespace Spacecraft.Client
             // Every body has its own size (deterministic from its id), so worlds + moons look big or small in
             // orbit instead of all identical — an approximate reflection of how varied the bodies are.
             float homeDiameter = OrbitDiameterFor(current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType) * 3.2f;
-            SpawnBody("HomePlanet", Game?.LocationName ?? "home", homePos, homeDiameter, homeType);
+            SpawnBody("HomePlanet", current?.Id, current?.Kind, Game?.LocationName ?? "home", homePos, homeDiameter, homeType);
             _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
@@ -1739,10 +1768,11 @@ namespace Spacecraft.Client
                 var positions = new List<Vector3>();
                 var radii = new List<float>();
                 var bodyTypes = new List<string>();
+                var kinds = new List<string>(); // star-map Kind — keys each body's true circumference
 
-                void Plan(string id, string name, Vector3 pos, float diameter, string type)
+                void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type)
                 {
-                    ids.Add(id); names.Add(name); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
+                    ids.Add(id); names.Add(name); kinds.Add(kind); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
                 }
 
                 // Pass 1: planets at their scaled orbit coords. Keep system coords + render pos so each moon
@@ -1763,7 +1793,7 @@ namespace Spacecraft.Client
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     float diameter = OrbitDiameterFor(b.Id, b.Kind, b.PlanetType);
-                    Plan(b.Id, b.Name, pos, diameter, type);
+                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type);
                     planets.Add((b.SystemX, b.SystemZ, pos, diameter * 0.5f));
                 }
 
@@ -1794,7 +1824,7 @@ namespace Spacecraft.Client
                         rel = dir * minClear;
                     }
 
-                    Plan(b.Id, b.Name, parent.Render + rel, moonDia, type);
+                    Plan(b.Id, b.Name, b.Kind, parent.Render + rel, moonDia, type);
                 }
 
                 // Pass 3: large landable asteroids — scattered like planets; you fly up + press E to land on
@@ -1810,7 +1840,7 @@ namespace Spacecraft.Client
                     string type = string.IsNullOrEmpty(b.PlanetType) ? "asteroid" : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     float diameter = OrbitDiameterFor(b.Id, b.Kind, type);
-                    Plan(b.Id, b.Name, pos, diameter, type);
+                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type);
                 }
 
                 // Separation pass: relax any overlapping pair apart in the x-z plane until every body has a
@@ -1847,7 +1877,7 @@ namespace Spacecraft.Client
                 // Spawn the separated bodies + register them as landable / keep-out.
                 for (int k = 0; k < positions.Count; k++)
                 {
-                    SpawnBody("SystemBody_" + ids[k], names[k], positions[k], radii[k] * 2f, bodyTypes[k]);
+                    SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], names[k], positions[k], radii[k] * 2f, bodyTypes[k]);
                     _landables.Add((ids[k], names[k], positions[k], radii[k]));
                     _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
                     maxDist = Mathf.Max(maxDist, positions[k].magnitude);
@@ -1873,27 +1903,63 @@ namespace Spacecraft.Client
              : kind == "Moon" ? WorldConstants.WorldSizeClass.Moon
              : WorldConstants.WorldSizeClass.Planet;
 
-        /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.
-        /// <paramref name="locationName"/> is the body's location key — it seeds the per-planet flora hue.</summary>
-        private void SpawnBody(string name, string locationName, Vector3 pos, float diameter, string planetType)
+        /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map
+        /// (seas, ground, this world's vegetation hue — what you see from orbit IS the world you land on),
+        /// plus a per-type cloud shell and an atmosphere haze rim scaled by atmosphere density.
+        /// <paramref name="bodyId"/> keys the body's true circumference; <paramref name="locationName"/>
+        /// seeds the per-planet flora hue.</summary>
+        private void SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType)
         {
             // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
             // red sun the whole system reads warm (a light wash — the biome tint stays recognisable).
             float sm = Mathf.Max(_sunColor.r, Mathf.Max(_sunColor.g, _sunColor.b));
             Color sunHue = sm > 0.001f ? new Color(_sunColor.r / sm, _sunColor.g / sm, _sunColor.b / sm) : Color.white;
 
-            var look = PlanetLookFor(planetType, locationName);
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.name = name;
             StripCollider(sphere);
             sphere.transform.SetParent(_root.transform, false);
             sphere.transform.localPosition = pos;
             sphere.transform.localScale = Vector3.one * diameter;
-            Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
-            sphere.GetComponent<Renderer>().sharedMaterial = Lit(bodyTint, LoadTex(look.tex), new Vector2(3f, 2f));
+
+            var planet = Game?.Content?.GetPlanet(planetType ?? string.Empty);
+            if (planet != null && Game != null)
+            {
+                int circ = WorldConstants.CircumferenceFor(
+                    string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId, ClassOf(kind, planetType));
+                var baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48);
+                Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
+                sphere.GetComponent<Renderer>().sharedMaterial = Lit(washTint, baked, new Vector2(1f, 1f));
+            }
+            else
+            {
+                var look = PlanetLookFor(planetType, locationName);
+                Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
+                sphere.GetComponent<Renderer>().sharedMaterial = Lit(bodyTint, LoadTex(look.tex), new Vector2(3f, 2f));
+            }
 
             var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
             AddCloudShell(sphere.transform, Color.Lerp(cloudCol, cloudCol * sunHue, 0.35f), cloudDen);
+
+            // Atmosphere haze: a thin translucent shell over everything — a breathable atmosphere reads
+            // as a denser, bluer glow than a toxic one; airless bodies stay crisp bare rock.
+            if (planet != null && !planet.IsAirless)
+            {
+                float atm = string.Equals(planet.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase) ? 1f : 0.7f;
+                var haze = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                haze.name = "Atmosphere";
+                StripCollider(haze);
+                haze.transform.SetParent(sphere.transform, false);
+                haze.transform.localScale = Vector3.one * 1.06f;
+                var hShader = Shader.Find("Spacecraft/Cloud") ?? Shader.Find("Unlit/Transparent");
+                var hCol = Color.Lerp(new Color(0.55f, 0.75f, 1f), sunHue, 0.25f);
+                var hMat = new Material(hShader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
+                hMat.SetColor("_Color", new Color(hCol.r, hCol.g, hCol.b, 0.08f + 0.08f * atm));
+                var hMr = haze.GetComponent<Renderer>();
+                hMr.sharedMaterial = hMat;
+                hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                hMr.receiveShadows = false;
+            }
         }
 
         private GameObject BuildShip(Transform parent)

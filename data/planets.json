@@ -83,7 +83,7 @@
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.70, "dataCacheRarity": 0.0015,
-    "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800, "floraDensity": 0.14, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 8,
+    "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800, "floraDensity": 0.14, "treeDensity": 0.045, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 8,
     "biomes": [
       { "surfaceBlock": "grass", "subSurfaceBlock": "dirt" },
       { "surfaceBlock": "mud",   "subSurfaceBlock": "mud" },

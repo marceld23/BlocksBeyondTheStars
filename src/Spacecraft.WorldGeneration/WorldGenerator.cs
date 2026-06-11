@@ -592,10 +592,13 @@ public sealed class WorldGenerator
             if (floatingIslands)
             {
                 double im = FbmT(seed + 0x15A4D, worldX, worldZ, planet.TerrainScale * 1.4, octaves: 3);
-                if (im > 0.62)
+                if (im > 0.60) // a little more island coverage — these worlds are ABOUT the sky islands
                 {
-                    double t = (im - 0.62) / 0.38;       // 0..1 toward an island's centre
-                    int center = planet.BaseHeight + 28; // float clearly above the ground (still in view from it)
+                    double t = (im - 0.60) / 0.40;       // 0..1 toward an island's centre
+                    // Per-island altitude varies ±12 on a broad band, so the sky reads as layered drifting
+                    // islands instead of one flat shelf at a single height.
+                    double alt = FbmT(seed + 0x15A4E, worldX, worldZ, planet.TerrainScale * 3.0, octaves: 2);
+                    int center = planet.BaseHeight + 28 + (int)((alt - 0.5) * 24.0);
                     int half = 2 + (int)(t * 8.0);       // 2..10 thick
                     islandTop = center + half;
                     islandBottom = center - half - (int)(t * 6.0); // tapered rocky underside
@@ -702,6 +705,18 @@ public sealed class WorldGenerator
                 // Submerged column — the sea or an upland pond grows kelp/lily pads instead of land plants.
                 StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
                     kelpId, lilyId, floraDensity);
+            }
+
+            // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
+            if (flora && islandTop != int.MinValue)
+            {
+                var isleFlora = FloraForSurface(planet, surfaceId, seed, worldX, worldZ);
+                int ify = islandTop + 1 - origin.Y;
+                if (!isleFlora.IsAir && ify >= 0 && ify < WorldConstants.ChunkSize
+                    && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < floraDensity)
+                {
+                    chunk.Set(lx, ify, lz, isleFlora);
+                }
             }
         }
 
@@ -995,7 +1010,12 @@ public sealed class WorldGenerator
         for (int wx = origin.X - crown; wx < origin.X + cs + crown; wx++)
         for (int wz = origin.Z - crown; wz < origin.Z + cs + crown; wz++)
         {
-            if (Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= density)
+            // FORESTS: a low-frequency mask gathers trees into real groves/woods — the old uniform
+            // sprinkle never read as a forest. Inside a forest patch the density is ~9x, on the
+            // fringe ~2x, and the open land between patches stays almost bare.
+            double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
+            double localDensity = density * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
+            if (Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
             {
                 continue;
             }

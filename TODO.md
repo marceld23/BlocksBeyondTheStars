@@ -91,6 +91,30 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ True-to-world orbit rendering + real pad map + forests + skylands (requested 2026-06-11) — ✅ SHIPPED (tests green, client built)
+**Decisions:** M-key map keeps its fog-of-war (untouched); "die Karte" = the LANDING-PAD CHOOSER;
+skylands now. Facts found: `Spacecraft.WorldGeneration.dll` ships with the client → the deterministic
+generator (seed + type + circumference) can render any body's REAL world client-side, no traffic.
+1. **`WorldMinimap.Bake`** (new): equirect map (full circumference × latitude band) sampled from the
+   actual generation — depth-shaded seas/lava seas (`SeaLevel` + the water-vs-lava rule), upland
+   ponds/lakes (`SurfacePondDepth`), height-shaded ground in the true surfaceBlock atlas colour, and
+   a vegetation wash in this world's OWN FloraTints hue. Cached per body+seed+size.
+2. **Landing-pad chooser shows the real world:** the old chooser normalised pads into their own
+   bounding box on a BLANK panel (distorted positions, no terrain — "pads are not where they really
+   are"/"map is empty"). Now it shows the baked 2:1 strip of the whole body with pads as buttons at
+   their TRUE longitudes/latitudes (green=free, red=occupied unchanged).
+3. **Orbit spheres = the real world map:** `SpawnBody` textures each body with its baked map (what
+   you see from orbit IS the world you land on — water, flora colour, material per the follow-up
+   ask), plus an **atmosphere haze shell** (breathable = denser/bluer than toxic; airless = none;
+   clouds unchanged). Falls back to the data-driven tint for unknown types.
+4. **Forests exist now:** a low-frequency forest mask gathers trees into groves (~9× density inside
+   a patch, ~bare between); jungle gets explicit `treeDensity 0.045`. Test:
+   `Trees_ClusterIntoForestGroves` (dense grove + treeless gaps over a region).
+5. **Skylands:** floating islands were ALREADY generated (`floatingIslands` flag — the type is just
+   exotic-rare, spawnWeight 3), but bare and single-altitude. Now: more coverage (mask 0.60), ±12
+   per-island altitude variation (layered drifting islands) and surface flora on island tops. Test:
+   `Skylands_GenerateFloatingIslands_WithAnAirGapBelow`.
+
 ### ★ Invisible space stations + wrong planet colours (reported 2026-06-11) — ✅ FIXED (tests green, client built)
 **A) "No stations visible, but docking offered."** Cause: the bigger-stations round parked stations
 at `Y=55` ABOVE the orbital plane (collision safety) — the ship cruises near Y=0, the 70-unit board
