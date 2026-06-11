@@ -225,6 +225,7 @@ public sealed partial class GameServer
             Y = station.Spawn.Y,
             Z = station.Spawn.Z,
         });
+        ShipAiOnStationBoarded(session); // VEGA onboarding: first station visit
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
         CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
     }

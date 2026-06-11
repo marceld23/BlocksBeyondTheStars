@@ -62,6 +62,19 @@ public sealed class PlayerSession
     /// (item 32). Default = the steel tint the ship hull used before hull colours existed.</summary>
     public int HullColor { get; set; } = 0xD1D6E0;
 
+    // --- Ship AI companion "VEGA" session bookkeeping (persisted progress lives in State.Milestones) ---
+
+    /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
+    public int VegaMineCount { get; set; }
+
+    /// <summary>Accumulator for the 1 Hz advisor poll.</summary>
+    public double VegaAdvisorAccum { get; set; }
+
+    /// <summary>Uptime gates pacing memory-fragment redemption and the space callouts.</summary>
+    public double VegaMemoryReadyAt { get; set; }
+    public double VegaThreatReadyAt { get; set; }
+    public double VegaEvadeReadyAt { get; set; }
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

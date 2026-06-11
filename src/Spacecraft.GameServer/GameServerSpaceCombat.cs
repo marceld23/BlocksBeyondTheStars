@@ -235,6 +235,8 @@ public sealed partial class GameServer
         Send(session, new ServerMessage { Text = $"Ship module built: {module.Key}" });
         SendInventory(session);
         SendShipCombatStatus(session);
+        SendPlayerState(session); // AiCoreTier may have changed (gates the client autopilot)
+        ShipAiOnModuleBuilt(session, module.Key); // VEGA welcomes her new core
     }
 
     // ---------------- Enter / leave space ----------------
@@ -281,6 +283,7 @@ public sealed partial class GameServer
 
         if (session is not null)
         {
+            ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
             SendSpaceState(session, instance, skipLaunch);
             SendShipCombatStatus(session);
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
@@ -805,7 +808,7 @@ public sealed partial class GameServer
                 .Sum(e => e.DamagePerSecond);
             if (incoming > 0f)
             {
-                ApplyShipDamage((float)(incoming * dt));
+                bool evaded = ApplyShipDamage((float)(incoming * dt));
                 if (_ship.Hull <= 0f)
                 {
                     DisableShip(instance);
@@ -817,6 +820,11 @@ public sealed partial class GameServer
                     if (FindSessionByPlayerId(playerId) is { } s)
                     {
                         SendShipCombatStatus(s);
+                        ShipAiThreatCallout(s); // Mk2+: VEGA calls out hostile contact (rate-limited)
+                        if (evaded)
+                        {
+                            ShipAiEvadeCallout(s); // Mk3: the dodge that just saved the hull
+                        }
                     }
                 }
             }
@@ -861,9 +869,15 @@ public sealed partial class GameServer
         SpawnAsteroid(instance, pos, broadcast: true); // item 20 S3: voxel ore body (sends its mesh + state)
     }
 
-    /// <summary>Damage hits the shield first, then the hull.</summary>
-    private void ApplyShipDamage(float amount)
+    /// <summary>Damage hits the shield first, then the hull. Returns true when an Mk3 AI core evaded the
+    /// whole event (VEGA's evasive manoeuvre — Phase C ability; no damage is applied then).</summary>
+    private bool ApplyShipDamage(float amount)
     {
+        if (VegaTryEvade())
+        {
+            return true;
+        }
+
         float toShield = System.Math.Min(_ship.Shield, amount);
         _ship.Shield -= toShield;
         amount -= toShield;
@@ -871,6 +885,8 @@ public sealed partial class GameServer
         {
             _ship.Hull = System.Math.Max(0f, _ship.Hull - amount);
         }
+
+        return false;
     }
 
     /// <summary>

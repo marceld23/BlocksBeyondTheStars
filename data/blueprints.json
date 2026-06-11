@@ -208,5 +208,15 @@
     "key": "plasma_blaster", "nameKey": "blueprint.plasma_blaster.name", "descriptionKey": "blueprint.plasma_blaster.desc",
     "category": "Weapon", "prerequisites": [ "laser_pistol" ], "knowledgeCost": 16,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "ai_core_mk2", "nameKey": "blueprint.ai_core_mk2.name", "descriptionKey": "blueprint.ai_core_mk2.desc",
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "ai_core_mk3", "nameKey": "blueprint.ai_core_mk3.name", "descriptionKey": "blueprint.ai_core_mk3.desc",
+    "category": "ShipExpansion", "prerequisites": [ "ai_core_mk2" ], "knowledgeCost": 24,
+    "unlockCost": [ { "item": "data_fragment", "count": 10 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 12 } ]
   }
 ]

@@ -426,6 +426,7 @@ public sealed partial class GameServer
 
         var (systemName, planetName) = ActiveLocationNames();
         OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
+        ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
         var pad = PlayerPad(session); // the pad claimed above (item 38)
         int surfaceY = _generator.SurfaceHeight(_world.Planet, pad.CenterX, pad.CenterZ);
         var spawn = _shipStamped ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
@@ -601,6 +602,7 @@ public sealed partial class GameServer
             TickNpcs(deltaSeconds);
             TickDoors(deltaSeconds);
             TickVoidRescue(deltaSeconds);
+            TickShipAi(deltaSeconds); // VEGA advisor hints + memory-fragment redemption
             StreamChunks();
         }
 
@@ -1184,6 +1186,7 @@ public sealed partial class GameServer
             case ClaimWreckIntent: HandleClaimWreck(session); break;
             case TravelIntent travel: HandleTravel(session, travel); break;
             case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
+            case SkipOnboardingIntent: HandleSkipOnboarding(session); break;
         }
     }
 
@@ -1275,6 +1278,7 @@ public sealed partial class GameServer
         SendLandingPads(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
+        ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }
@@ -1668,6 +1672,7 @@ public sealed partial class GameServer
         }
 
         OnBlockMined(session, def.Key);
+        ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.</summary>
@@ -1876,10 +1881,12 @@ public sealed partial class GameServer
         if (recipe.Station == Shared.Definitions.CraftingStation.Market && !session.State.AboardShip)
         {
             RecordVendorTrade(session.State);
+            ShipAiOnTradeOrMission(session); // VEGA onboarding: a vendor barter counts as the first trade
         }
 
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
+        ShipAiOnCraft(session); // VEGA onboarding: first successful craft
     }
 
     /// <summary>Fraction of a crafted item's recipe inputs recovered when it is disassembled.</summary>
@@ -1994,6 +2001,7 @@ public sealed partial class GameServer
 
         Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
         SendInventory(session);
+        ShipAiOnBlueprint(session); // VEGA onboarding: first blueprint researched
     }
 
     private void HandleAdminCommand(PlayerSession session, AdminCommandIntent cmd)
@@ -2338,6 +2346,7 @@ public sealed partial class GameServer
             InEva = p.InEva,
             AboveAtmosphere = p.AboveAtmosphere,
             StationName = CurrentStationName(p.PlayerId),
+            AiCoreTier = VegaCoreTier(session),
         });
     }
 

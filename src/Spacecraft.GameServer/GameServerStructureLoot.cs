@@ -70,8 +70,9 @@ public sealed partial class GameServer
             case "module": // a recoverable ship component — the valuable salvage
                 AddRandom(new[] { "energy_cell_1", "titanium_plate", "cable" }, 2, 1, 3);
                 break;
-            case "data_terminal": // research data
+            case "data_terminal": // research data + a recoverable shard of VEGA's fleet memory (her story arc)
                 AddRandom(new[] { "data_fragment" }, 1, 1, 2);
+                AddRandom(new[] { "ai_memory_fragment" }, 1, 1, 1);
                 break;
             default: // general salvage cache
                 AddRandom(new[] { "iron_plate", "cable", "carbon_composite", "silicate", "iron_ore", "copper_ore" }, 3, 1, 4);

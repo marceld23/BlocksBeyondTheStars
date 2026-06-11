@@ -303,6 +303,10 @@ public sealed partial class GameServer
             if (FindSessionByPlayerId(p) is { } s)
             {
                 Send(s, new TradeClosed { Completed = completed, Reason = reason });
+                if (completed)
+                {
+                    ShipAiOnTradeOrMission(s); // VEGA onboarding: a finished trade counts
+                }
             }
         }
     }

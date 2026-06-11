@@ -11,7 +11,8 @@ asset here **with its licence** before bundling it.
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
 the death cues `space_death`/`player_death`, the per-species creature calls `creature_call_*`, the
 item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`amb_wind_high` + the
-`geyser_erupt` eruption, and the planet-enemy vocals `enemy_growl`/`enemy_attack`/`enemy_hurt`/`enemy_die`)
+`geyser_erupt` eruption, the planet-enemy vocals `enemy_growl`/`enemy_attack`/`enemy_hurt`/`enemy_die`,
+and the ship-AI radio chirp `ai_blip` (VEGA companion))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
@@ -25,7 +26,8 @@ for the generating account's plan. Background **music** and the remaining UI/fee
 usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for
-non-block items, ship modules, space tools, and the Task-5 metal ingots + alloy/electronic components) are
+non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/electronic components, and the
+VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.

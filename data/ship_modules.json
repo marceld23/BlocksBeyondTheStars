@@ -90,5 +90,17 @@
     "mandatory": false, "requiredBlueprint": "laser_cannon_2",
     "buildCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 6 }, { "item": "glass", "count": 4 } ],
     "stats": { "weapon_class": 1, "weapon_damage": 45, "weapon_range": 70, "weapon_cooldown": 1.2, "weapon_energy": 5 }
+  },
+  {
+    "key": "ai_core_mk2", "nameKey": "module.ai_core_mk2.name", "descriptionKey": "module.ai_core_mk2.desc",
+    "mandatory": false, "requiredBlueprint": "ai_core_mk2",
+    "buildCost": [ { "item": "data_fragment", "count": 4 }, { "item": "cable", "count": 12 }, { "item": "energy_cell_1", "count": 2 }, { "item": "glass", "count": 4 } ],
+    "stats": { "ai_core": 2 }
+  },
+  {
+    "key": "ai_core_mk3", "nameKey": "module.ai_core_mk3.name", "descriptionKey": "module.ai_core_mk3.desc",
+    "mandatory": false, "requiredBlueprint": "ai_core_mk3",
+    "buildCost": [ { "item": "data_fragment", "count": 8 }, { "item": "titanium_plate", "count": 12 }, { "item": "energy_cell_1", "count": 6 }, { "item": "cable", "count": 20 } ],
+    "stats": { "ai_core": 3, "energy_production": 5 }
   }
 ]

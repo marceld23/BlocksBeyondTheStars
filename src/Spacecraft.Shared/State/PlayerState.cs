@@ -102,4 +102,9 @@ public sealed class PlayerState
 
     /// <summary>Accepted missions and their progress.</summary>
     public List<MissionProgress> Missions { get; set; } = new();
+
+    /// <summary>One-time progression milestones the ship AI (VEGA) has seen this player reach — onboarding
+    /// stages ("vega:stage:N"), advisor once-hints ("vega:hint:&lt;key&gt;") and restored memory fragments
+    /// ("vega:mem:N"). Server-authoritative, persisted; never removed once set.</summary>
+    public HashSet<string> Milestones { get; set; } = new();
 }

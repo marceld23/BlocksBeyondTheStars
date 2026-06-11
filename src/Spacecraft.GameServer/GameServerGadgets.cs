@@ -201,25 +201,28 @@ public sealed partial class GameServer
     /// crystal, data caches) and sends their positions to that player as <see cref="OreScanResult"/> — the
     /// client renders them as through-wall glow markers. Non-destructive; nearest hits win when the world is
     /// richer than the message cap.</summary>
-    private void UseTerrainScanner(PlayerSession session) => Send(session, BuildOreScan(session.State));
+    private void UseTerrainScanner(PlayerSession session)
+        => Send(session, BuildOreScan(session.State, VegaScannerRadiusBonus(session)));
 
-    /// <summary>Test seam: the scan result the terrain scanner would send for a player right now.</summary>
+    /// <summary>Test seam: the scan result the terrain scanner would send for a player right now
+    /// (including any AI-core radius bonus — VEGA crunches the returns).</summary>
     public OreScanResult OreScanForTest(string playerId)
-        => FindSessionByPlayerId(playerId) is { } s ? BuildOreScan(s.State) : new OreScanResult();
+        => FindSessionByPlayerId(playerId) is { } s ? BuildOreScan(s.State, VegaScannerRadiusBonus(s)) : new OreScanResult();
 
-    private OreScanResult BuildOreScan(Spacecraft.Shared.State.PlayerState state)
+    private OreScanResult BuildOreScan(Spacecraft.Shared.State.PlayerState state, int radiusBonus = 0)
     {
+        int radius = ScannerRadius + radiusBonus;
         var p = state.Position;
         var centre = WorldConstants.CanonicalBlock(new Vector3i(
             (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y), (int)System.Math.Floor(p.Z)));
 
         var hits = new List<(Vector3i Pos, ushort Block, int DistSq)>();
-        for (int dx = -ScannerRadius; dx <= ScannerRadius; dx++)
-        for (int dy = -ScannerRadius; dy <= ScannerRadius; dy++)
-        for (int dz = -ScannerRadius; dz <= ScannerRadius; dz++)
+        for (int dx = -radius; dx <= radius; dx++)
+        for (int dy = -radius; dy <= radius; dy++)
+        for (int dz = -radius; dz <= radius; dz++)
         {
             int distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq > ScannerRadius * ScannerRadius)
+            if (distSq > radius * radius)
             {
                 continue; // a pulse sphere, not a cube
             }

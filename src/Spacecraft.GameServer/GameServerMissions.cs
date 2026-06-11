@@ -135,6 +135,7 @@ public sealed partial class GameServer
 
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         SendMissionList(session);
+        ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
     }
 
     private void HandleTurnInMission(PlayerSession session, string missionId)

@@ -111,6 +111,7 @@ public sealed partial class GameServer
             KnowledgeTotal = p.KnowledgePoints,
         };
         Send(session, result);
+        ShipAiOnScan(session); // VEGA onboarding: first scan (any subject counts)
         return result;
     }
 

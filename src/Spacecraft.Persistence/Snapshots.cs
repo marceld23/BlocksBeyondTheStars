@@ -43,6 +43,7 @@ public sealed class PlayerSnapshot
     public List<InventorySlotDto> RationStore { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
     public List<MissionProgress> Missions { get; set; } = new();
+    public List<string> Milestones { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -116,6 +117,7 @@ public static class StateMapper
         RationStore = DumpInventory(p.RationStore),
         Inventory = DumpInventory(p.Inventory),
         Missions = p.Missions.Select(CloneProgress).ToList(),
+        Milestones = p.Milestones.ToList(),
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()
@@ -172,6 +174,7 @@ public static class StateMapper
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         RationStore = RestoreInventory(Spacecraft.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
+        Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

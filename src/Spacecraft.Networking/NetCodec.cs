@@ -161,6 +161,10 @@ public static class NetCodec
 
         // Feature 40: terrain-scanner pulse result (ore positions for the through-wall glow markers).
         Register(112, typeof(OreScanResult));       // Server -> Client
+
+        // Ship AI companion "VEGA" (onboarding/advisor/story lines + objective chip).
+        Register(113, typeof(ShipAiLine));          // Server -> Client
+        Register(114, typeof(SkipOnboardingIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

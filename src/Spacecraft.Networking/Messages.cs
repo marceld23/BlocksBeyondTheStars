@@ -494,6 +494,10 @@ public sealed class PlayerStateUpdate
 
     /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
     public string StationName { get; set; } = string.Empty;
+
+    /// <summary>AI-core tier of the player's active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the
+    /// client-side autopilot assist and the companion panel's ability hints.</summary>
+    public int AiCoreTier { get; set; } = 1;
 }
 
 public sealed class CraftResult
@@ -1136,4 +1140,36 @@ public sealed class NpcGreeting
 
     /// <summary>The greeting to show. Empty ⇒ the client renders its own localized fallback for the role.</summary>
     public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Server → client: a line from the player's SHIP AI ("VEGA") shown in the HUD companion panel, plus the
+/// current onboarding/advisor objective for the objective chip. Lines are locale KEYS (the client localizes),
+/// keeping the AI fully bilingual and offline-safe; <see cref="LineArg"/> fills an optional {0} placeholder
+/// with a proper noun (world/item name). Strictly per-player — every player has their own VEGA.
+/// </summary>
+public sealed class ShipAiLine
+{
+    /// <summary>Locale key of the spoken line; empty ⇒ objective-only update (no new speech).</summary>
+    public string LineKey { get; set; } = string.Empty;
+
+    /// <summary>Optional {0} substitution for the line (already a display string, e.g. a world name).</summary>
+    public string LineArg { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the active objective chip; empty ⇒ clear the chip.</summary>
+    public string ObjectiveKey { get; set; } = string.Empty;
+
+    /// <summary>Progress toward the objective (e.g. blocks mined so far). 0/0 ⇒ no counter shown.</summary>
+    public int ObjectiveProgress { get; set; }
+
+    public int ObjectiveTarget { get; set; }
+
+    /// <summary>0 = onboarding, 1 = advisor hint, 2 = memory/story, 3 = system (module/ability notices).</summary>
+    public byte Kind { get; set; }
+}
+
+/// <summary>Client → server: the player chose to skip the VEGA onboarding (grants all stage milestones;
+/// the advisor hints stay armed). One-way — there is no un-skip.</summary>
+public sealed class SkipOnboardingIntent
+{
 }
