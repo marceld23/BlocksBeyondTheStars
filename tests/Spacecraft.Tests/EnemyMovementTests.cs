@@ -65,6 +65,12 @@ public sealed class EnemyMovementTests : IDisposable
 
             Assert.NotEmpty(server.PlanetEnemies);
             var enemy = server.PlanetEnemies[0];
+
+            // Fiends spawn well OUTSIDE their 28-block detection range now (they roam until approached),
+            // so walk the prey into range first — the hunt behaviour is what's under test here.
+            pilot.State.Position = new Spacecraft.Shared.Geometry.Vector3f(
+                enemy.Position.X + 10f, enemy.Position.Y, enemy.Position.Z);
+
             var start = enemy.Position;
             double d0 = Math.Sqrt(
                 Math.Pow(pilot.State.Position.X - start.X, 2) + Math.Pow(pilot.State.Position.Z - start.Z, 2));
@@ -80,6 +86,29 @@ public sealed class EnemyMovementTests : IDisposable
             double d1 = Math.Sqrt(
                 Math.Pow(pilot.State.Position.X - now.X, 2) + Math.Pow(pilot.State.Position.Z - now.Z, 2));
             Assert.True(d1 < d0, $"the fiend should close in on the player (was {d0:F1}, now {d1:F1})");
+        }
+    }
+
+    [Fact]
+    public void PlanetEnemies_SpawnWellOutsideDetectionRange()
+    {
+        var server = Started("farspawn", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Prey");
+            pilot.State.AboardShip = false;
+
+            for (int i = 0; i < 40 && server.PlanetEnemies.Count == 0; i++)
+            {
+                server.Tick(0.5);
+            }
+
+            Assert.NotEmpty(server.PlanetEnemies);
+            var enemy = server.PlanetEnemies[0];
+            double d = Math.Sqrt(
+                Math.Pow(pilot.State.Position.X - enemy.Position.X, 2)
+                + Math.Pow(pilot.State.Position.Z - enemy.Position.Z, 2));
+            Assert.True(d >= 30, $"fiends must spawn outside detection range (28), not ambush-close (was {d:F1})");
         }
     }
 

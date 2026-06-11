@@ -290,12 +290,41 @@ namespace Spacecraft.Client
                         string k = Game.Content.BlockById(Game.World.GetBlock(px + dx, py + dy, pz + dz))?.Key ?? string.Empty;
                         if (k == "fire") found = "fire_crackle";       // a fire nearby crackles (item 30)
                         else if (k.Contains("lava")) found = "lava_bubble";
-                        else if (k.Contains("water")) found = "water_shore";
+                        else if (k.Contains("water")) found = WaterBedFor(px + dx, py + dy, pz + dz);
                     }
                 }
             }
 
             SetFluid(found);
+        }
+
+        /// <summary>Picks the looping water bed for a nearby water cell using the SAME surface
+        /// classification the mesher feeds the shader: flowing river/brook → babble, open water →
+        /// rolling surf, calm bounded lake/pond → the soft generic shoreline lap.</summary>
+        private string WaterBedFor(int wx, int wy, int wz)
+        {
+            var world = Game.World;
+            var id = world.GetBlock(wx, wy, wz);
+
+            // Climb to this column's water surface — the classification reads the surface layer.
+            int top = wy;
+            for (int i = 0; i < 8 && world.GetBlock(wx, top + 1, wz).Value == id.Value; i++)
+            {
+                top++;
+            }
+
+            if (!world.GetBlock(wx, top + 1, wz).IsAir)
+            {
+                return "water_shore"; // roofed water (cave pool under rock) — keep the generic bed
+            }
+
+            var data = WaterSurface.Classify(world.GetBlock, id, wx, top, wz);
+            if (data.x > 2.5f)
+            {
+                return "water_brook";
+            }
+
+            return data.x > 1.5f ? "water_surf" : "water_shore";
         }
 
         private void SetFluid(string id)

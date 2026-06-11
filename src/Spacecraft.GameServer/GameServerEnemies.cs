@@ -182,12 +182,13 @@ public sealed partial class GameServer
     {
         bool tougher = Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme;
 
-        // Spawn a comfortable distance away (not right on top of the player — that read as unfairly
-        // aggressive) and spread around them, then drop it onto the actual surface at that column so it
-        // never spawns buried in the terrain. The golden angle gives an even spread as more spawn.
+        // Spawn well OUTSIDE the 28-block detection range (9–13 felt like an ambush): fiends appear
+        // 35–50 blocks out, roam the area on wander headings, and only start hunting when the player
+        // comes near them. Spread around the player with the golden angle, then drop onto the actual
+        // surface at that column so they never spawn buried in the terrain.
         int n = _planetEnemies.Count;
         double ang = n * 2.39996323; // golden angle (radians)
-        float dist = 9f + (n % 3) * 2f; // 9..13 blocks out
+        float dist = 35f + (n % 4) * 5f; // 35..50 blocks out — beyond EnemyHuntRange
         int ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
         int ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
         int ey = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1; // stand on the ground, not in it

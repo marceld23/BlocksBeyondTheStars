@@ -139,6 +139,12 @@ namespace Spacecraft.Client
                 bool collidable = collKey != "water" && collKey != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Water SURFACE cells (air above) get a body classification — open water with gentle
+                // waves + coastal foam, calm lake, or flowing river — packed into the top face's
+                // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
+                bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir;
+                Vector4 waterData = isWaterSurface ? WaterSurface.Classify(worldBlock, id, wx, wy, wz) : Vector4.zero;
+
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
                 // Tree crowns keep the cutout shell (a volume), solid flora (cactus/crystal/caps) stay cubes.
@@ -197,7 +203,11 @@ namespace Spacecraft.Client
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
-                    var leaf = new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
+                    // Water top faces carry the water-body data instead of the (always-zero-for-water)
+                    // flora tint; only the transparent shader ever reads these vertices.
+                    var leaf = isWaterSurface && dir.Y == 1
+                        ? waterData
+                        : new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
                     leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                 }
             }

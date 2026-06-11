@@ -45,6 +45,7 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float4 positionOS : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+                float4 water : TEXCOORD2; // water top faces: x=mode (1 lake, 2 open, 3 river), y=foam, zw=flow axis
                 float4 color : COLOR; // r=gloss, g=metal, b=face shade, a=emission
             };
 
@@ -56,17 +57,37 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float3 wp : TEXCOORD2;
                 float4 mat : TEXCOORD3;
                 float fog : TEXCOORD4;
+                float4 water : TEXCOORD5;
             };
 
             Varyings vert(Attributes v)
             {
                 Varyings o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
+
+                // Open water bobs on three crossed sine waves — displaced DOWN only (the rest surface is
+                // the block top), and flattened where the foam band starts so the shoreline stays flush
+                // with the terrain (no gaps against the bank). Lakes barely breathe; rivers stay level
+                // (their motion is the fragment-side flow ripple).
+                float mode = v.water.x;
+                float t = _Time.y;
+                if (mode > 1.5 && mode < 2.5)
+                {
+                    float w = sin(wp.x * 0.50 + t * 1.10) + sin(wp.z * 0.41 + t * 1.43)
+                            + sin((wp.x + wp.z) * 0.27 + t * 0.70);
+                    wp.y -= 0.12 * (1.0 - saturate(v.water.y)) * (0.5 + w / 6.0);
+                }
+                else if (mode > 0.5 && mode < 1.5)
+                {
+                    wp.y -= 0.02 + 0.02 * sin(wp.x * 0.7 + wp.z * 0.9 + t * 0.5);
+                }
+
                 o.positionCS = TransformWorldToHClip(wp);
                 o.uv = v.uv;
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.wp = wp;
                 o.mat = v.color;
+                o.water = v.water;
                 o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
             }
@@ -95,6 +116,45 @@ Shader "Spacecraft/BlockAtlasTransparent"
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas).
                     alpha = tex.a;
+
+                    float mode = i.water.x;
+                    float t = _Time.y;
+                    if (mode > 2.5)
+                    {
+                        // River/brook: bright ripple bands + thin white streaks racing along the channel's
+                        // flow axis. UVs cannot scroll inside an atlas tile, so the motion is procedural
+                        // on world position.
+                        float2 flow = normalize(i.water.zw + float2(1e-4, 0));
+                        float along = dot(i.wp.xz, flow);
+                        float across = dot(i.wp.xz, float2(-flow.y, flow.x));
+                        float ph = along * 1.9 - t * 5.5;
+                        float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.7) * 1.2);
+                        col += light * 0.10 * rip;
+                        float streak = smoothstep(0.86, 1.0, sin(ph * 1.31 + across * 3.1));
+                        col = lerp(col, light * float3(0.95, 0.97, 1.0), streak * 0.35);
+                        alpha = saturate(alpha + streak * 0.20 + rip * 0.04);
+                    }
+                    else if (mode > 1.5)
+                    {
+                        // Open water: a soft moving sun glint, plus an animated rippled foam band where
+                        // the surface meets the shore (i.water.y fades over the last three blocks).
+                        float glint = pow(0.5 + 0.5 * sin(i.wp.x * 1.7 + i.wp.z * 1.3 + t * 1.9), 6.0);
+                        col += light * 0.06 * ndl * glint;
+                        float foam = i.water.y;
+                        if (foam > 0.01)
+                        {
+                            float cell = frac(sin(dot(floor(i.wp.xz * 3.0), float2(12.9898, 78.233))) * 43758.5453);
+                            float surge = 0.55 + 0.45 * sin(t * 1.6 + (i.wp.x + i.wp.z) * 0.9 + cell * 6.2832);
+                            float f = saturate(foam * surge * (0.6 + 0.6 * cell));
+                            col = lerp(col, light * float3(0.97, 0.99, 1.0), f * 0.85);
+                            alpha = saturate(alpha + f * 0.45);
+                        }
+                    }
+                    else if (mode > 0.5)
+                    {
+                        // Calm lake/pond: a barely-there slow shimmer, nothing more.
+                        col += light * 0.03 * (0.5 + 0.5 * sin(t * 0.6 + i.wp.x * 0.8 + i.wp.z * 1.1));
+                    }
                 }
                 else
                 {
@@ -140,6 +200,7 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
+                float4 water : TEXCOORD2; // water top faces: x=mode (1 lake, 2 open, 3 river), y=foam, zw=flow axis
                 fixed4 color : COLOR; // r=gloss, g=metal, b=face shade, a=emission
             };
 
@@ -148,6 +209,8 @@ Shader "Spacecraft/BlockAtlasTransparent"
                 float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 float3 wn : TEXCOORD1;
+                float3 wp : TEXCOORD3;
+                float4 water : TEXCOORD4;
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(2)
             };
@@ -155,9 +218,28 @@ Shader "Spacecraft/BlockAtlasTransparent"
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+                float3 wp = mul(unity_ObjectToWorld, v.vertex).xyz;
+
+                // Same water motion as the URP pass: open water bobs down-only on crossed sines (flattened
+                // into the foam band so the shoreline stays flush), lakes barely breathe, rivers stay level.
+                float mode = v.water.x;
+                float t = _Time.y;
+                if (mode > 1.5 && mode < 2.5)
+                {
+                    float w = sin(wp.x * 0.50 + t * 1.10) + sin(wp.z * 0.41 + t * 1.43)
+                            + sin((wp.x + wp.z) * 0.27 + t * 0.70);
+                    wp.y -= 0.12 * (1.0 - saturate(v.water.y)) * (0.5 + w / 6.0);
+                }
+                else if (mode > 0.5 && mode < 1.5)
+                {
+                    wp.y -= 0.02 + 0.02 * sin(wp.x * 0.7 + wp.z * 0.9 + t * 0.5);
+                }
+
+                o.pos = UnityWorldToClipPos(wp);
                 o.uv = v.uv;
                 o.wn = UnityObjectToWorldNormal(v.normal);
+                o.wp = wp;
+                o.water = v.water;
                 o.mat = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
@@ -184,6 +266,43 @@ Shader "Spacecraft/BlockAtlasTransparent"
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
                     // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas).
                     alpha = tex.a;
+
+                    float mode = i.water.x;
+                    float t = _Time.y;
+                    if (mode > 2.5)
+                    {
+                        // River/brook: ripple bands + white streaks racing along the flow axis (procedural
+                        // on world position — atlas UVs cannot scroll).
+                        float2 flow = normalize(i.water.zw + float2(1e-4, 0));
+                        float along = dot(i.wp.xz, flow);
+                        float across = dot(i.wp.xz, float2(-flow.y, flow.x));
+                        float ph = along * 1.9 - t * 5.5;
+                        float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.7) * 1.2);
+                        col += light * 0.10 * rip;
+                        float streak = smoothstep(0.86, 1.0, sin(ph * 1.31 + across * 3.1));
+                        col = lerp(col, light * fixed3(0.95, 0.97, 1.0), streak * 0.35);
+                        alpha = saturate(alpha + streak * 0.20 + rip * 0.04);
+                    }
+                    else if (mode > 1.5)
+                    {
+                        // Open water: moving sun glint + animated rippled foam against the shore.
+                        float glint = pow(0.5 + 0.5 * sin(i.wp.x * 1.7 + i.wp.z * 1.3 + t * 1.9), 6.0);
+                        col += light * 0.06 * ndl * glint;
+                        float foam = i.water.y;
+                        if (foam > 0.01)
+                        {
+                            float cell = frac(sin(dot(floor(i.wp.xz * 3.0), float2(12.9898, 78.233))) * 43758.5453);
+                            float surge = 0.55 + 0.45 * sin(t * 1.6 + (i.wp.x + i.wp.z) * 0.9 + cell * 6.2832);
+                            float f = saturate(foam * surge * (0.6 + 0.6 * cell));
+                            col = lerp(col, light * fixed3(0.97, 0.99, 1.0), f * 0.85);
+                            alpha = saturate(alpha + f * 0.45);
+                        }
+                    }
+                    else if (mode > 0.5)
+                    {
+                        // Calm lake/pond: a barely-there slow shimmer.
+                        col += light * 0.03 * (0.5 + 0.5 * sin(t * 0.6 + i.wp.x * 0.8 + i.wp.z * 1.1));
+                    }
                 }
                 else
                 {

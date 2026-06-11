@@ -91,6 +91,28 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ Enemy spawn distance + water effects (requested 2026-06-11) — ✅ SHIPPED (tests green, client built)
+**Decisions:** spawn distance **35–50 blocks** (outside the 28-block detection range); water ambient
+sounds **yes** (ElevenLabs, blanket-approved).
+1. **Planet enemies spawn far away now:** `SpawnPlanetEnemyNear` places fiends 35–50 blocks out (was
+   an ambush-like 9–13) — they roam on wander headings and only hunt when the player comes near.
+   Tests: `PlanetEnemies_SpawnWellOutsideDetectionRange` (new); the hunt test walks the prey into
+   range first.
+2. **Water-body classification (client-only, works on old saves):** new `WaterSurface.Classify` probes
+   the surface extent around each water top face (±X/±Z runs, cap 12): total width ≤ 5 → **river/
+   brook** (flow axis = long axis); one axis ≥ 24 → **open water**; else **calm lake/pond**. Nearest
+   shore distance → foam factor (full at the waterline, gone 3 blocks out). Packed per-vertex into
+   TEXCOORD2 of water top faces (flora tint is zero on water; only the transparent shader reads them).
+3. **Shader effects** (`BlockAtlasTransparent`, URP + Built-in): open water = gentle crossed-sine
+   vertex waves (down-only, flattened into the foam band so the shoreline stays flush) + animated
+   noise-rippled white foam against the coast + a soft moving sun glint; rivers = fast bright ripple
+   bands + thin white streaks racing along the flow axis (procedural on world-pos — atlas UVs can't
+   scroll); lakes = barely-there slow shimmer. Waterfall lips read as shore → white water at the edge.
+4. **Water ambient sounds:** ElevenLabs loops `water_surf` (rolling coastal surf) + `water_brook`
+   (babbling stream); the existing fluid-ambience scan in `ClientAudio` now classifies the nearby
+   water with the SAME `WaterSurface` heuristic and picks surf/brook/generic-lap accordingly
+   (`WaterBedFor`). NOTICES.md updated (125 sound files).
+
 ### ★ HUD vitals + ghost mining + scanner window (reported 2026-06-11) — ✅ FIXED (tests green, client built)
 1. **HUD vitals froze between events:** PlayerStateUpdate was only sent on explicit events (damage,
    eat, respawn, ...) — slow drains (oxygen/hunger/suit energy ticking down in TickEnvironment) never
