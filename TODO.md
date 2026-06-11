@@ -3720,14 +3720,18 @@ Everything builds + **302 tests pass** as of `0d988a9`.
   `AtmosphereWorld_GrowsAquaticFlora`, `AirlessFloraWorld_GrowsNoAquaticFlora`. **Aquatic fauna** already
   worked (water-habitat species generate on water-life planets + spawn in water columns + swim/dive).
   *Follow-up: generate kelp/lily textures (OpenAI) for parity with the other flora tiles.*
-- **Flora re-tint per species × biome × planet** — flora should get a **random final colour applied on top
-  of the texture** (texture-independent), **uniform per flora species within a biome/planet** (not per
-  individual). Creatures already do this (grayscale hides × species colour); flora can't yet because the
-  opaque block atlas shader has **no free albedo-tint channel** (vertex colour = gloss/metal/AO; UV1 =
-  skylight). Plan: (1) regenerate the flora tiles **grayscale** (OpenAI) so they tint cleanly; (2) add a
-  **tint UV channel** (e.g. TEXCOORD2 RGB) in `ChunkMesher` — white for normal blocks, a per-(species,
-  planet[, biome]) colour for flora; (3) the `BlockAtlas` shader multiplies albedo by it. Needs the planet
-  seed (+ a client-side biome-index for multi-biome worlds) plumbed to the mesher. Requested 2026-06-06.
+- **Flora re-tint per species × planet — ✅ SHIPPED 2026-06-11 (463 tests green, client built).**
+  Every flora species (flora_* + tree_leaves) now rolls ONE deterministic colour per world — uniform
+  within the world, different on the next — instead of the single per-planet hue. No texture regeneration
+  needed: the shader already desaturates flora to luminance before tinting, so the existing tiles tint
+  cleanly. Implementation: shared `FloraTints.For(seed, location, blockKey)` (FNV + HSV band, pure
+  function → all clients agree with zero traffic); `ChunkMesher` TEXCOORD2 grew from float2 to float4
+  (x = leaf flag as before, **yzw = per-species tint**; black = "no per-vertex tint"); both `BlockAtlas`
+  SubShaders (URP + Built-in) prefer the vertex tint and fall back to the global `_Sc_FloraTint` hue —
+  so meshes built WITHOUT a resolver (ship preview etc.) keep the old behaviour, and the global alpha
+  stays the master enable (off in space/menus). `GameBootstrap` rebuilds the tint map on join + world
+  change. Tests: `FloraTintTests` (determinism, per-species variance, per-world variance, colour band).
+  *(Per-BIOME variation within one world stays optional future polish.)*
 
 ### Not started / larger future work
 - **World wrap (walk around the planet)** — ✅ **W0–W4 shipped**: X is a wrapping longitude (cylinder
@@ -3739,7 +3743,12 @@ Everything builds + **302 tests pass** as of `0d988a9`.
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
   Full research in [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).
 - **Texture audit** — review/expand item & icon art and creature/NPC texture variety.
-- **uGUI theme polish** — remaining icon/symbol pass on the sci-fi theme.
+- **uGUI theme polish — ✅ icon pass SHIPPED 2026-06-11:** 10 new generated cyan line icons
+  (`map_player/ship/waypoint/beacon/pad/settlement/ruin/wreck/station` + `icon_vega`). The world map's
+  unicode-glyph markers are now SPRITES (player arrow rotates, pads pin to the edge as icons, POI types
+  get distinct art) with glyph fallback when an icon is missing; the glyph legend line became a real
+  icon legend row; the VEGA companion panel shows her avatar chip beside the name. Remaining (kept):
+  hover/selected states + spacing harmonisation across the newer screens.
 - **Deferred by design** (see [docs/SPACE_COMBAT_CONCEPT.md](docs/SPACE_COMBAT_CONCEPT.md)): PvP ship
   combat, large cruisers/bosses. (Per-player ships shipped in P4.)
 
