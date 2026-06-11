@@ -951,5 +951,6 @@
   "ui.worldopt.size.0": "Klein",
   "ui.worldopt.size.1": "Normal",
   "ui.worldopt.size.2": "Groß",
-  "ui.worldopt.size.3": "Riesig"
+  "ui.worldopt.size.3": "Riesig",
+  "ui.vega.restart": "Tutorial neu starten"
 }

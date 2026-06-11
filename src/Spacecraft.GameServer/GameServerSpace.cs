@@ -71,11 +71,82 @@ public sealed partial class GameServer
         for (int i = 0; i < count; i++)
         {
             // Pad 0 sits on the prime meridian (the home touchdown); the rest spread evenly round the body. Each
-            // longitude is marched to the nearest dry column so the ship never lands in water (B36).
+            // longitude is marched to the nearest dry AND reasonably flat column, so the ship neither lands in
+            // water (B36) nor perches on a terrain spike high over the surroundings (dramatic-terrain worlds).
             int baseX = WorldConstants.WrapX((int)(((double)i / count) * circ));
-            int cx = NudgePadToDry(baseX);
-            pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = 0, CenterY = _generator.SurfaceHeight(_world.Planet, cx, 0) });
+            int cx = NudgePadToDryAndFlat(baseX);
+            pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = 0, CenterY = PadGroundY(cx, 0) });
         }
+    }
+
+    /// <summary>The pad/ship ground height: the MEDIAN surface height over the landing footprint (centre +
+    /// four corners), not the centre column alone — one rocky spike at the centre no longer hoists the whole
+    /// ship metres above the surrounding ground. Deterministic, used by every pad-height consumer.</summary>
+    private int PadGroundY(int cx, int cz)
+    {
+        const int r = 4;
+        var h = new[]
+        {
+            _generator.SurfaceHeight(_world.Planet, cx, cz),
+            _generator.SurfaceHeight(_world.Planet, cx - r, cz - r),
+            _generator.SurfaceHeight(_world.Planet, cx + r, cz - r),
+            _generator.SurfaceHeight(_world.Planet, cx - r, cz + r),
+            _generator.SurfaceHeight(_world.Planet, cx + r, cz + r),
+        };
+        System.Array.Sort(h);
+        return h[2];
+    }
+
+    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
+    private int PadFootprintSpread(int cx, int cz)
+    {
+        const int r = 4;
+        int min = int.MaxValue, max = int.MinValue;
+        foreach (var (dx, dz) in new[] { (0, 0), (-r, -r), (r, -r), (-r, r), (r, r), (-r, 0), (r, 0), (0, -r), (0, r) })
+        {
+            int y = _generator.SurfaceHeight(_world.Planet, cx + dx, cz + dz);
+            min = System.Math.Min(min, y);
+            max = System.Math.Max(max, y);
+        }
+
+        return max - min;
+    }
+
+    /// <summary>Marches a pad longitude to the nearest column that is both DRY and reasonably FLAT
+    /// (footprint spread ≤ 5). Falls back to the flattest dry candidate seen, then to the dry nudge.</summary>
+    private int NudgePadToDryAndFlat(int baseX)
+    {
+        int bestX = NudgePadToDry(baseX);
+        int bestSpread = LandingFootprintWet(bestX, 0) ? int.MaxValue : PadFootprintSpread(bestX, 0);
+        if (bestSpread <= 5)
+        {
+            return bestX;
+        }
+
+        for (int step = 1; step <= 40; step++)
+        {
+            foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3), WorldConstants.WrapX(baseX - step * 3) })
+            {
+                if (LandingFootprintWet(x, 0))
+                {
+                    continue;
+                }
+
+                int spread = PadFootprintSpread(x, 0);
+                if (spread <= 5)
+                {
+                    return x; // flat + dry — done
+                }
+
+                if (spread < bestSpread)
+                {
+                    bestSpread = spread;
+                    bestX = x;
+                }
+            }
+        }
+
+        return bestX; // the flattest dry spot found (worst case: the old dry nudge)
     }
 
     /// <summary>Nudges a pad longitude to the nearest dry column (deterministic out-stepping), so the ship never
@@ -289,7 +360,7 @@ public sealed partial class GameServer
         }
 
         var pad = PlayerPad(session);
-        int surfaceY = _generator.SurfaceHeight(_world.Planet, pad.CenterX, pad.CenterZ);
+        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship stamp's median footprint height
         var spawn = _shipStamped ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
         session.State.RespawnPoint = _shipStamped ? _healTank : spawn;

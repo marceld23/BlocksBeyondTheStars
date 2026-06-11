@@ -101,8 +101,9 @@ namespace Spacecraft.Client
         /// when opening its interaction (item 15). The server gates on proximity and replies with an NpcGreeting.</summary>
         public void SendNpcGreet(string role) => Send(new NpcGreetIntent { Role = role });
 
-        /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side; one-way).</summary>
-        public void SendSkipOnboarding() => Send(new SkipOnboardingIntent());
+        /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
+        /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
+        public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "")

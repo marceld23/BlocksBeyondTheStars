@@ -1193,8 +1193,10 @@ public sealed class ShipAiLine
     public byte Kind { get; set; }
 }
 
-/// <summary>Client → server: the player chose to skip the VEGA onboarding (grants all stage milestones;
-/// the advisor hints stay armed). One-way — there is no un-skip.</summary>
+/// <summary>Client → server: skip the VEGA onboarding (grants all stage milestones; the advisor hints
+/// stay armed) — or, with <see cref="Restart"/>, wipe the stage milestones and run the tutorial again
+/// from the intro (the way back after a skip).</summary>
 public sealed class SkipOnboardingIntent
 {
+    public bool Restart { get; set; }
 }

@@ -168,10 +168,25 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The player skipped the tutorial: grant the whole chain, acknowledge once.</summary>
-    private void HandleSkipOnboarding(PlayerSession session)
+    /// <summary>The player skipped the tutorial (grant the whole chain) — or asked to RESTART it:
+    /// wipe the stage milestones + intro flag and boot the chain again from the first lesson.</summary>
+    private void HandleSkipOnboarding(PlayerSession session, SkipOnboardingIntent intent)
     {
         var p = session.State;
+        if (intent.Restart)
+        {
+            p.Milestones.Remove(VegaIntroMilestone);
+            foreach (var (id, _) in VegaStages)
+            {
+                p.Milestones.Remove(VegaStageKey(id));
+            }
+
+            session.VegaMineCount = 0;
+            _repo.SavePlayer(p);
+            ShipAiOnJoin(session); // re-runs the intro + first objective like a fresh player
+            return;
+        }
+
         p.Milestones.Add(VegaIntroMilestone);
         foreach (var (id, _) in VegaStages)
         {

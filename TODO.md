@@ -91,6 +91,23 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ Bug round (reported 2026-06-11) — ✅ FIXED (464 tests green, client built)
+1. **VEGA tutorial UI unreachable/sticky:** the skip button sat on the HUD chip where the mouse is
+   captured for camera control → moved into the Settings tab; the same button RESTARTS a finished/
+   skipped tutorial (`SkipOnboardingIntent.Restart` wipes the stage milestones and re-runs the intro —
+   the requested "wieder einschalten"). The chip's overflowing button text is gone with it, and the
+   panel canvas (a root-level object) is now destroyed with the world rig, so the objective chip no
+   longer floats over the main menu after leaving a world. Test: `Restart_AfterSkip_RunsTheTutorialAgain`.
+2. **Ship perched on a high pedestal:** ship stamp + pad heights used the SINGLE centre-column surface
+   height — a dramatic-terrain spike there hoisted the hull metres above the surroundings. Now
+   `PadGroundY` takes the MEDIAN footprint height (every consumer: stamp, landing spawn, first spawn,
+   pad list), and `BuildLandingPads` nudges pads to dry AND flat ground (footprint spread ≤ 5, flattest
+   fallback).
+3. **See-through holes when mining fast:** the stale-chunk resync (after a fast double-mine's "already
+   empty" reject) and the client ghost-heal re-meshed only the chunk itself — the NEIGHBOUR chunks'
+   now-exposed wall faces stayed missing. Both paths now mark the chunk + its six neighbours dirty
+   (`MarkChunkAndNeighborsDirty`); incoming streamed chunks refresh their neighbours' boundary faces too.
+
 ### ★ Bigger space stations — ✅ SHIPPED 2026-06-11 (459 tests green, client built)
 **Shipped (decisions: colossal tier YES, double halls YES, distribution 38/30/17/10/5, no old-save care):**
 - **Parametric room sizes:** `StationGenerator` rooms are no longer a fixed 7×6×7 — `Layout` returns

@@ -52,7 +52,9 @@ public sealed partial class GameServer
         var pad = _current != null ? PlayerPad(_current) : null;
         int cx = pad?.CenterX ?? 0, cz = pad?.CenterZ ?? 0;
 
-        int y0 = _generator.SurfaceHeight(_world.Planet, cx, cz);
+        // Median footprint height (not the centre column) — a terrain spike under the centre no longer
+        // hoists the hull onto a metres-high pedestal above the surrounding ground.
+        int y0 = PadGroundY(cx, cz);
         _shipAnchor = new Vector3i(cx, y0, cz);
 
         // Hull size from the active ship's design (data/ships.json), falling back to the starter.

@@ -179,6 +179,34 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
+    public void Restart_AfterSkip_RunsTheTutorialAgain()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Returner");
+
+        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.Contains("vega:stage:land", server.MilestonesForTest("Returner"));
+
+        // The way back: restart wipes the stage chain and re-runs the intro + first objective.
+        client.Send(NetCodec.Encode(new SkipOnboardingIntent { Restart = true }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        var milestones = server.MilestonesForTest("Returner");
+        Assert.DoesNotContain("vega:stage:mine", milestones);
+        Assert.DoesNotContain("vega:stage:land", milestones);
+        Assert.Contains("vega:intro", milestones); // re-armed by the fresh boot
+        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
+        Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey); // back at lesson one
+    }
+
+    [Fact]
     public void MemoryFragments_RedeemAboard_PacedWithKnowledgeReward()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));

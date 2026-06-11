@@ -25,7 +25,6 @@ namespace Spacecraft.Client
         private Text _speechText;
         private GameObject _chip;
         private Text _chipText;
-        private GameObject _skip;
 
         private readonly Queue<string> _queue = new Queue<string>();
         private string _current = string.Empty;
@@ -56,15 +55,11 @@ namespace Spacecraft.Client
             _speechText.verticalOverflow = VerticalWrapMode.Overflow;
             _speech.SetActive(false);
 
-            // Objective chip: small persistent strip below the speech spot.
+            // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
+            // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
+            // so a button on the chip was unreachable.)
             _chip = UiKit.AddPanel(_canvas.transform, 24, 760, 600, 44, new Color(0.05f, 0.10f, 0.16f, 0.66f)).gameObject;
-            _chipText = UiKit.AddText(_chip.transform, 14, 0, 440, 44, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft);
-            _skip = UiKit.AddButton(_chip.transform, 458, 6, 132, 32, L("ui.vega.skip"), () =>
-            {
-                Game?.Network?.SendSkipOnboarding();
-                _objectiveKey = string.Empty;
-                Refresh();
-            }).gameObject;
+            _chipText = UiKit.AddText(_chip.transform, 14, 0, 574, 44, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft);
             _chip.SetActive(false);
 
             if (Game?.Network != null)
@@ -162,6 +157,13 @@ namespace Spacecraft.Client
             if (Game?.Network != null)
             {
                 Game.Network.ShipAiLineReceived -= OnLine;
+            }
+
+            // The panel canvas is a root-level object (CreateDiegeticCanvas) — destroy it with the rig,
+            // or the objective chip would keep floating over the main menu after leaving the world.
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
             }
         }
     }

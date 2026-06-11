@@ -444,7 +444,7 @@ public sealed partial class GameServer
         OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
         ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
         var pad = PlayerPad(session); // the pad claimed above (item 38)
-        int surfaceY = _generator.SurfaceHeight(_world.Planet, pad.CenterX, pad.CenterZ);
+        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship stamp's median footprint height
         var spawn = _shipStamped ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
         session.State.RespawnPoint = _shipStamped ? _healTank : spawn;
@@ -1204,7 +1204,7 @@ public sealed partial class GameServer
             case ClaimWreckIntent: HandleClaimWreck(session); break;
             case TravelIntent travel: HandleTravel(session, travel); break;
             case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
-            case SkipOnboardingIntent: HandleSkipOnboarding(session); break;
+            case SkipOnboardingIntent skipOnboarding: HandleSkipOnboarding(session, skipOnboarding); break;
             case SetWorldRulesIntent worldRules: HandleSetWorldRules(session, worldRules); break;
         }
     }
@@ -1314,7 +1314,7 @@ public sealed partial class GameServer
             spawnZ = pad.CenterZ;
         }
 
-        int surfaceY = _generator.SurfaceHeight(_world.Planet, spawnX, spawnZ);
+        int surfaceY = PadGroundY(spawnX, spawnZ); // median footprint height — same level the ship stamps at
         var spawn = new Vector3f(spawnX + 0.5f, surfaceY + 2f, spawnZ + 0.5f);
         var state = new PlayerState
         {

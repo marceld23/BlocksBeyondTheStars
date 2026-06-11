@@ -778,6 +778,17 @@ namespace Spacecraft.Client
                 vegaOn ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
+            // Skip the running tutorial / restart a finished one. Lives HERE (not on the HUD chip) because
+            // gameplay captures the mouse — the menu is where the cursor is free to click.
+            bool onboarding = Game?.OnboardingActive ?? false;
+            var tut = UiKit.AddButton(_listContent, 0, y, 780, 78, onboarding ? L("ui.vega.skip") : L("ui.vega.restart"), () =>
+            {
+                Game?.Network?.SendSkipOnboarding(restart: !onboarding);
+                Invoke(nameof(RebuildList), 0.35f);
+            });
+            tut.GetComponent<Image>().color = new Color(0.16f, 0.28f, 0.40f);
+            y += 96f;
+
             // Explicit save (on top of the periodic autosave).
             var save = UiKit.AddButton(_listContent, 0, y, 780, 78, L("ui.settings.save_game"), () =>
             {

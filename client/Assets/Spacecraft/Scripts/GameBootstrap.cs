@@ -61,6 +61,10 @@ namespace Spacecraft.Client
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
 
+        /// <summary>True while the VEGA onboarding chain is active (an objective chip is showing) — the
+        /// Settings tab offers "skip tutorial" then, "restart tutorial" otherwise.</summary>
+        public bool OnboardingActive { get; private set; }
+
         // Per-species flora tints for the current world (seed + location → one colour per flora block),
         // resolved by the chunk mesher into TEXCOORD2.yzw. Rebuilt on join and on every world change.
         private long _worldSeed;
@@ -441,6 +445,7 @@ namespace Spacecraft.Client
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
             };
             Network.WorldResetReceived += OnWorldReset;
+            Network.ShipAiLineReceived += m => OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
             Network.ScanResultReceived += m =>
             {
                 LastScan = m;
@@ -487,7 +492,9 @@ namespace Spacecraft.Client
                     var c = LastMineCell;
                     if (World.ApplyBlockChange(c.x, c.y, c.z, 0, out var ghostCoord))
                     {
-                        _dirty.Add(ghostCoord);
+                        // Neighbours too: a ghost on a chunk border leaves the adjacent chunk's
+                        // now-exposed wall faces missing otherwise (see-through hole when mining fast).
+                        MarkChunkAndNeighborsDirty(ghostCoord);
                     }
                 }
             };
@@ -584,7 +591,23 @@ namespace Spacecraft.Client
         {
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
             World.StoreChunk(coord, m.Blocks);
+            MarkChunkAndNeighborsDirty(coord);
+        }
+
+        /// <summary>Marks a chunk AND its six neighbours for re-meshing. A freshly stored/resynced chunk
+        /// changes which boundary faces its neighbours must draw (e.g. the stale-chunk resync after a fast
+        /// double-mine) — re-meshing only the chunk itself left see-through holes in the neighbours' walls.
+        /// Cheap: only chunks that already have a mesh actually rebuild.</summary>
+        private void MarkChunkAndNeighborsDirty(ChunkCoord coord)
+        {
             _dirty.Add(coord);
+            foreach (var d in _faceDirs)
+            {
+                _dirty.Add(new ChunkCoord(
+                    WorldConstants.CanonicalChunkX(coord.X + d.X, Circumference),
+                    coord.Y + d.Y,
+                    WorldConstants.CanonicalChunkZ(coord.Z + d.Z, Circumference)));
+            }
         }
 
         /// <summary>Scans straight up from the player's head for a roof/ceiling — false = covered (cave/indoors).</summary>
