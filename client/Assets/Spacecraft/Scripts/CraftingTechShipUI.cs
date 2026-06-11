@@ -604,7 +604,7 @@ namespace Spacecraft.Client
             foreach (var m in missions)
             {
                 string status = m.Objectives.Length > 0 ? $"{m.Objectives[0].Progress}/{m.Objectives[0].Required}" : string.Empty;
-                AddCard(y, L(m.Title), "cat_mission", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
+                AddCard(y, MissionText(m), "cat_mission", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
                 y += 88f;
             }
 
@@ -1401,7 +1401,7 @@ namespace Spacecraft.Client
             }
 
             float y = 0f;
-            UiKit.AddText(_detail, 8, y, 620, 40, L(m2.Title), 28, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            UiKit.AddText(_detail, 8, y, 620, 40, MissionText(m2), 28, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 46f;
             // Mission-giver NPC (item 13): "Mission from {Name}".
             if (!string.IsNullOrEmpty(m2.GiverName))
@@ -1411,10 +1411,10 @@ namespace Spacecraft.Client
             }
 
             // The mission's flavour/instructions. System missions send a locale key (resolved via L);
-            // player-posted missions send their raw typed text (L returns it unchanged).
+            // player-posted missions and L3 LLM board texts send display text (FreeText) shown verbatim.
             if (!string.IsNullOrEmpty(m2.Description))
             {
-                UiKit.AddText(_detail, 8, y, 620, 60, L(m2.Description), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+                UiKit.AddText(_detail, 8, y, 620, 60, m2.FreeText ? m2.Description : L(m2.Description), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += 64f;
             }
 
@@ -1724,6 +1724,10 @@ namespace Spacecraft.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>A mission's display title: FreeText (player missions, L3 LLM board texts) verbatim,
+        /// otherwise the locale key resolved.</summary>
+        private string MissionText(NetMission m) => m.FreeText ? m.Title : L(m.Title);
         private string ItemName(string item) => L($"item.{item}.name");
         private string Desc(string key)
         {

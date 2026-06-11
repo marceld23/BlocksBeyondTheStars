@@ -72,7 +72,12 @@ namespace Spacecraft.Client
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
 
-            if (!string.IsNullOrEmpty(m.LineKey) && !(m.Kind == 1 && Settings is { VegaHints: false }))
+            bool muted = m.Kind == 1 && Settings is { VegaHints: false };
+            if (!string.IsNullOrEmpty(m.Text) && !muted)
+            {
+                _queue.Enqueue(m.Text); // LLM-authored line (already in the player's language)
+            }
+            else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
                 string text = L(m.LineKey);
                 if (!string.IsNullOrEmpty(m.LineArg) && text.Contains("{0}"))
