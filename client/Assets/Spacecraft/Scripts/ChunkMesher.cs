@@ -24,7 +24,8 @@ namespace Spacecraft.Client
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
-        public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null)
+        public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
+            System.Func<BlockId, Color> floraTint = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();   // submesh 0: opaque blocks
@@ -33,7 +34,9 @@ namespace Spacecraft.Client
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
             var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
-            var leafUv = new List<Vector2>(); // x = foliage flag (1 = clip the tile's alpha → cutout leaves)
+            // x = foliage flag (1 = clip the tile's alpha → cutout leaves); yzw = per-species flora tint RGB
+            // (black = "no per-vertex tint" → the shader falls back to the global planet hue).
+            var leafUv = new List<Vector4>();
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
@@ -118,10 +121,12 @@ namespace Spacecraft.Client
                 // Emission (ores/crystals/lava/light blocks glow — the bloom pass catches them, and they
                 // stay lit at night). Packed into the vertex-colour alpha for the atlas shader.
                 float emission = atlas != null ? BlockEmission(content, id) : 0f;
-                // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these to the planet's
-                // uniform flora hue — the small plants AND tree crowns (B38), so a planet's foliage reads as one
-                // hue; tree trunks keep their natural bark colour.
-                float floraFlag = IsFloraBlock(content, id) ? 1f : 0f;
+                // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these. With a tint
+                // resolver every SPECIES rolls its own per-world colour (TEXCOORD2.yzw); without one the
+                // shader falls back to the planet's uniform flora hue. Tree trunks keep their bark colour.
+                bool isFlora = IsFloraBlock(content, id);
+                float floraFlag = isFlora ? 1f : 0f;
+                Color speciesTint = isFlora && floraTint != null ? floraTint(id) : Color.black;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
@@ -143,7 +148,7 @@ namespace Spacecraft.Client
                     float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
                     var plantCol = new Color(matR, matG, 0.9f, emission);
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv,
-                        new Vector3(x, y, z), plantCol, uv, plantSky);
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint);
                     continue;
                 }
 
@@ -192,7 +197,7 @@ namespace Spacecraft.Client
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
-                    var leaf = new Vector2(leafFlag, 0f);
+                    var leaf = new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
                     leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                 }
             }
@@ -208,7 +213,7 @@ namespace Spacecraft.Client
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
             mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, flora-tint flag in .y
-            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x
+            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, per-species tint in .yzw
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
@@ -230,7 +235,8 @@ namespace Spacecraft.Client
         /// BOTH windings (the atlas shaders cull back faces), slightly inset to avoid z-fighting. Render-only —
         /// no collider triangles, so small plants are walk-through.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
-            List<Vector4> tangents, List<Vector2> skyUv, List<Vector2> leafUv, Vector3 cell, Color col, Rect uv, float sky)
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, Vector3 cell, Color col, Rect uv, float sky,
+            Color tint)
         {
             // The two crossed planes' floor diagonals (inset 0.08 from the cell edges).
             var diagonals = new[]
@@ -263,8 +269,8 @@ namespace Spacecraft.Client
                     {
                         colors.Add(col);
                         tangents.Add(tangent);
-                        skyUv.Add(new Vector2(sky, 1f)); // flora flag on — takes the planet's flora hue
-                        leafUv.Add(new Vector2(1f, 0f)); // cutout on — the tile's alpha mask shapes the plant
+                        skyUv.Add(new Vector2(sky, 1f)); // flora flag on — takes the species/world tint
+                        leafUv.Add(new Vector4(1f, tint.r, tint.g, tint.b)); // cutout on + per-species tint
                     }
 
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);

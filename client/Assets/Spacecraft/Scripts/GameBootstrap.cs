@@ -3,6 +3,7 @@ using System.IO;
 using Spacecraft.Networking.Messages;
 using Spacecraft.Shared.Content;
 using Spacecraft.Shared.Localization;
+using Spacecraft.Shared.Primitives;
 using Spacecraft.Shared.World;
 using UnityEngine;
 
@@ -59,6 +60,40 @@ namespace Spacecraft.Client
 
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
+
+        // Per-species flora tints for the current world (seed + location → one colour per flora block),
+        // resolved by the chunk mesher into TEXCOORD2.yzw. Rebuilt on join and on every world change.
+        private long _worldSeed;
+        private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
+
+        /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location,
+        /// so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
+        private void RebuildFloraTints()
+        {
+            if (Content == null)
+            {
+                return;
+            }
+
+            var map = new System.Collections.Generic.Dictionary<ushort, Color>();
+            foreach (var def in Content.Blocks.Values)
+            {
+                if (!def.Key.StartsWith("flora_", System.StringComparison.Ordinal) && def.Key != "tree_leaves")
+                {
+                    continue;
+                }
+
+                var (r, g, b) = Spacecraft.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key);
+                map[def.NumericId.Value] = new Color(r, g, b);
+            }
+
+            _floraTintByBlock = map;
+        }
+
+        /// <summary>The mesher's tint lookup: a flora block's per-world colour, black (= "use the global
+        /// planet hue") when unknown.</summary>
+        private Color FloraTintFor(BlockId id)
+            => _floraTintByBlock != null && _floraTintByBlock.TryGetValue(id.Value, out var c) ? c : Color.black;
 
         /// <summary>Whether we're currently inside the ship (authoritative; enables cargo crafting).</summary>
         public bool Aboard { get; private set; }
@@ -355,6 +390,8 @@ namespace Spacecraft.Client
                     : $"{m.SystemName} · {m.PlanetName}";
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
+                _worldSeed = m.WorldSeed;
+                RebuildFloraTints(); // per-species flora colours for this world (seed + location)
                 WorldReady = false;          // hold the loading overlay until we settle onto the first world
                 WorldLoadStarted?.Invoke();
             };
@@ -576,6 +613,7 @@ namespace Spacecraft.Client
         private void OnWorldReset(Spacecraft.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
+            RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
 
             foreach (var go in _chunkObjects.Values)
             {
@@ -714,7 +752,7 @@ namespace Spacecraft.Client
                 return;
             }
 
-            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas);
+            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor);
 
             if (!_chunkObjects.TryGetValue(coord, out var go))
             {

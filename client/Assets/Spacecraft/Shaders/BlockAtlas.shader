@@ -60,7 +60,7 @@ Shader "Spacecraft/BlockAtlas"
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight, y = flora flag
-                float2 leaf : TEXCOORD2; // x = foliage flag
+                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = per-species flora tint (black = use global)
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
             };
 
@@ -72,7 +72,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD3;
                 float2 skyl : TEXCOORD4;
-                float2 leaf : TEXCOORD5;
+                float4 leaf : TEXCOORD5;
                 float4 mat : TEXCOORD6;
                 float  fog : TEXCOORD7;
             };
@@ -104,8 +104,11 @@ Shader "Spacecraft/BlockAtlas"
                 float3 albedo = texel.rgb;
                 if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
                 {
+                    // Per-SPECIES tint from the mesh (TEXCOORD2.yzw) when present; meshes built without a
+                    // tint resolver carry black there and keep the planet's uniform global hue.
+                    float3 tint = dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01 ? i.leaf.yzw : _Sc_FloraTint.rgb;
                     float lum = dot(albedo, float3(0.299, 0.587, 0.114));
-                    albedo = lerp(albedo, lum * _Sc_FloraTint.rgb * 1.6, 0.85);
+                    albedo = lerp(albedo, lum * tint * 1.6, 0.85);
                 }
 
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
@@ -244,7 +247,7 @@ Shader "Spacecraft/BlockAtlas"
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = flora flag
-                float2 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout this face)
+                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = per-species flora tint
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -256,7 +259,7 @@ Shader "Spacecraft/BlockAtlas"
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD4; // world tangent xyz + bitangent handedness w
                 float2 skyl : TEXCOORD5; // x = skylight, y = flora flag
-                float2 leaf : TEXCOORD6; // x = foliage flag
+                float4 leaf : TEXCOORD6; // x = foliage flag, yzw = per-species flora tint
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(3)
             };
@@ -289,13 +292,14 @@ Shader "Spacecraft/BlockAtlas"
 
                 fixed3 albedo = texel.rgb;
 
-                // Flora re-tint: where the flora flag is set, drop the tile to its luminance and re-colour it
-                // by the planet's uniform flora hue, so all of a world's plant life shares one base colour
-                // regardless of the underlying tile (a hint of the tile's own hue is kept for richness).
+                // Flora re-tint: where the flora flag is set, drop the tile to its luminance and re-colour
+                // it. The mesh carries a per-SPECIES x per-world tint (TEXCOORD2.yzw); meshes built without
+                // a tint resolver carry black there and fall back to the planet's uniform global hue.
                 if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
                 {
+                    float3 tint = dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01 ? i.leaf.yzw : _Sc_FloraTint.rgb;
                     float lum = dot(albedo, float3(0.299, 0.587, 0.114));
-                    albedo = lerp(albedo, lum * _Sc_FloraTint.rgb * 1.6, 0.85);
+                    albedo = lerp(albedo, lum * tint * 1.6, 0.85);
                 }
 
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;
