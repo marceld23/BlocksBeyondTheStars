@@ -91,6 +91,80 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ World-creation options ("Weltoptionen") — ✅ SHIPPED 2026-06-11 (455 tests green, client built)
+**Shipped (decisions: core 9 + survival sliders; exotic slider + advanced per-type page; gameplay knobs
+live-editable by the world admin; presets Friedlich/Standard/Feindselig):**
+- **Creation UI** (`UiWorldOptions` overlay from the world picker): preset row + discrete sliders in two
+  columns — Leben/Bedrohungen (Kreaturen, Planeten-Gegner, Feindschiffe, UFOs), Überleben (O2, Hunger,
+  Gefahren, Todesstrafe), Generierte Welt (Flora, Erz, Siedlungen, Wracks, Tresore, Stationen, Exoten,
+  Universumsgröße) + **Erweitert-Seite** with a frequency slider per selectable planet type (fills
+  `PlanetTypeFrequencies`, which replaces all data weights once touched). Fully bilingual (~60 keys).
+- **Plumbing:** `WorldCreationOptions.ToArgs()` emits only NON-default server CLI overrides
+  (`--creatures/--planet-enemies/--ufos/--flora/--ore/--settlements/--planet-wrecks/--vaults/--stations/
+  --exotic/--systems/--planets-min/max/--moons-max/--oxygen/--hunger/--hazards/--death-penalty/
+  --planet-types k=v,…`) → `ApplyCommandLine` → baked into the save at creation. **The world OWNS its
+  rules:** `WorldMetadata.RulesOverride` replaces the launch config's rules on every load.
+- **Enforcement:** creature cap × abundance rule (Off ⇒ lifeless, incl. join-time seeding);
+  `WorldGenerator.SetWorldOptionFactors` (flora/tree × ore richness, deterministic from meta);
+  settlement/wreck/vault stamp chances × `StructureFactor`; `UniverseGenerator` scales EXOTIC planet
+  weights (new data flag `exotic` on 7 types) by the exotic-worlds frequency; previously-unwired
+  `RareResources` now drives ore. PlanetEnemies/SpaceNpcs/UFOs were already enforced — now exposed.
+- **Live edit:** `SetWorldRulesIntent` (NetCodec **115**, world-admin-gated) updates creatures + the three
+  enemy activities at runtime, persists into `RulesOverride` and re-broadcasts `ServerRules` (which now
+  carries the four values); in-game Settings tab got a "Weltregeln (Admin)" stepper section.
+- **Tests:** `WorldOptionsTests` (9) — CLI parsing, rules bake+reload survival, lifeless-at-Off, live edit
+  persists, role gate, exotic Off/Frequent galaxy shape, flora-factor-0 barren surface, Settlements=Off gate.
+
+_Original analysis below._
+
+### ★ World-creation options ("Weltoptionen") — ANALYSIS + PLAN (2026-06-11, decided + implemented above)
+**Request:** sliders at world creation — creature frequency, world/planet-type frequencies, alien enemies
+on/off + frequency, etc. Analyse what CAN be made configurable, propose a sensible option set, ask back.
+
+**Findings — much of the machinery already exists, it just isn't exposed at creation:**
+- **Enforced today, hidden from the UI:** `GameRules.PlanetEnemies` / `SpaceNpcEnemies` / `AlienUfos`
+  (each `AlienActivity` Off/Rare/Normal/Frequent/Extreme — spawn caps scale with the level, Frequent+
+  spawns tougher enemies). Singleplayer hardcodes `--space-npcs Normal` in `LocalServerLauncher`.
+  Also enforced: hazards, oxygen, hunger, death penalty, PvP, weapon mode (all GameRules).
+- **`WorldDescription` (in ServerConfig + WorldMetadata) already does universe shape:** StarSystemCount,
+  PlanetsPerSystemMin/Max, MoonsPerPlanetMin/Max, SpaceStations + (space-)Wrecks `Frequency`, and a full
+  **`PlanetTypeFrequencies` dict** — all RESPECTED by `UniverseGenerator` (type frequencies override the
+  per-type SpawnWeights). `AsteroidFields`, `RareResources`, `Danger` are defined but **unwired**.
+- **Defined but unwired rules:** `AggressiveAliens`, `PassiveCreatures` — sent to the client, enforced
+  nowhere (creature aggression/spawning ignores them today).
+- **No knob exists yet for:** creature abundance (`WorldCreatureCap` formula has no config factor),
+  flora density (worldgen `floraMul` 0.8–1.6 is seed-only), ore richness (per-world jitter, seed-only),
+  on-planet POI density (settlements/wrecks/vaults are bool `PlaceX` + fixed moderate density).
+- **Flow:** `UiSaveSelect` (name + Explorer/Creative + 3 checkboxes) → `AppShell.StartSingleplayerWorld`
+  → `LocalServerLauncher` CLI args → `ServerConfig.ApplyCommandLine` → baked into `WorldMetadata` at
+  first creation (the creative-flags pattern — new options follow it; dedicated servers get the same
+  knobs via config/server.json `Rules`/`World`).
+
+**Proposed option set (world-creation "Weltoptionen" panel):**
+1. *Kreaturen (Tiere)* — Aus/Wenig/Normal/Viel/Sehr viel → multiplier on `WorldCreatureCap` + pacing
+   (wires `PassiveCreatures` Off for "Aus").
+2. *Alien-Gegner (Planeten)* — direct `Rules.PlanetEnemies` (Off–Extreme). The headline ask.
+3. *Weltraum-Gegner / UFOs* — `Rules.SpaceNpcEnemies` + `AlienUfos` (replace the hardcoded CLI value).
+4. *Flora-Dichte* — new multiplier 0.5–2.0 onto worldgen `floraMul` (creation-only; baked into chunks).
+5. *Erz-Reichtum* — wire the existing unused `WorldDescription.RareResources` into the per-world ore
+   richness (creation-only).
+6. *Strukturen: Siedlungen / Wracks / Vaults* — Aus/Selten/Normal/Häufig each (replaces bool `PlaceX`,
+   adds a density factor to the stamp gates; creation-only).
+7. *Universumsgröße* — preset Klein/Normal/Groß/Riesig → StarSystemCount 4/8/12/18 + planets/moons ranges.
+8. *Exotische Welten* — single slider scaling the SpawnWeights of exotic planet types (via
+   `PlanetTypeFrequencies`), instead of 17 per-type sliders. (Optional advanced per-type page — ask.)
+9. *Raumstationen* — `Description.SpaceStations` frequency.
+10. *(optional) Survival-Schärfe* — oxygen/hunger/hazards/death penalty exist in GameRules; expose? — ask.
+
+**Decisions (answered 2026-06-11):** scope = core 9 **+ survival sliders** (O2/hunger/hazards/death
+penalty — two-page panel); planet types = **both** (one "Exotische Welten" slider + an advanced per-type
+page over `PlanetTypeFrequencies`); **gameplay knobs (creatures/enemies) live-editable in-game by the
+world admin**, worldgen knobs creation-only; **presets Friedlich/Standard/Feindselig** above the sliders.
+→ IN PROGRESS. Stages: S1 shared (fields/enums + CLI + WorldMetadata rules override) → S2 server
+enforcement (creature cap factor, flora/ore factors into WorldGenerator, structure-frequency gates,
+exotic weights, live rules intent) → S3 client UI (creation panel + presets + advanced page + in-game
+admin section, bilingual) → S4 tests + build.
+
 ### ★ Item 22 — LLM stages — ✅ ALL SHIPPED 2026-06-11 (L0+L2+L3 + VEGA banter; L1 was 2026-06-10)
 **Shipped on top of L1 (same offline-safe pattern everywhere: async off-thread, cached, AiLevel-gated,
 static/localized fallback; provider-agnostic backend via LangChain/LangGraph + OpenAI-compatible env):**
