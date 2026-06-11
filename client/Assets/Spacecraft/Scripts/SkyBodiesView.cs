@@ -180,6 +180,20 @@ namespace Spacecraft.Client
                 return;
             }
 
+            // The body the player stands on — its system position anchors the perspective: apparent sizes
+            // follow real system-space distance (size ≈ radius / distance), so from a MOON its parent planet
+            // looms huge overhead, from an asteroid nearby bodies read large, and from a planet the rest of
+            // the system stays suitably small.
+            NetBody current = null;
+            foreach (var body in system.Bodies)
+            {
+                if (body.Id == map.ActiveLocationId)
+                {
+                    current = body;
+                    break;
+                }
+            }
+
             foreach (var body in system.Bodies)
             {
                 bool landable = body.Kind is "Planet" or "Moon"
@@ -214,6 +228,27 @@ namespace Spacecraft.Client
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 mr.receiveShadows = false;
 
+                // Apparent size from REAL system-space distance: a per-class "radius" divided by how far the
+                // body is from the world we stand on. A moon's parent planet sits ~90-145 units away → it
+                // fills a chunk of the sky; a neighbour planet hundreds of units out → a small disc; from an
+                // asteroid, nearby planets/moons loom accordingly (the planet largest).
+                float radius = cls switch
+                {
+                    WorldConstants.WorldSizeClass.Asteroid => 6f + (h % 3),
+                    WorldConstants.WorldSizeClass.Moon => 16f + (h % 4),
+                    _ => 36f + (h % 6),
+                };
+                float dist = 600f; // fallback when coords are missing
+                if (current != null)
+                {
+                    float dx = body.SystemX - current.SystemX;
+                    float dy = body.SystemY - current.SystemY;
+                    float dz = body.SystemZ - current.SystemZ;
+                    dist = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
+                }
+
+                float apparent = Mathf.Clamp(250f * radius / Mathf.Max(dist, 40f), 2.5f, 120f);
+
                 _bodies.Add(new SkyBody
                 {
                     Go = go,
@@ -228,12 +263,7 @@ namespace Spacecraft.Client
                     },
                     Phase = (h >> 7) % 1000 / 1000f,
                     Azimuth = (h >> 3) % 360,
-                    Size = cls switch
-                    {
-                        WorldConstants.WorldSizeClass.Asteroid => 5f + (h % 7),    //  5..11
-                        WorldConstants.WorldSizeClass.Moon => 14f + (h % 10),      // 14..23
-                        _ => 22f + (h % 14),                                       // 22..35
-                    },
+                    Size = apparent,
                 });
             }
         }
