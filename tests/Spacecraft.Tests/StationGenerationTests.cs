@@ -8,7 +8,9 @@ namespace Spacecraft.Tests;
 /// <summary>
 /// Procedural space stations: modules (rooms) assembled from building blocks and joined together
 /// into one voxel structure. The solid hull encloses hollow rooms, so the exterior the player sees
-/// matches the interior they walk through. Deterministic from the seed; size tiers scale the build.
+/// matches the interior they walk through. Deterministic from the seed; size tiers scale module
+/// count, FLOOR count and ROOM size (small/medium keep the classic 7×6×7 rooms; large/huge/colossal
+/// grow them), and the big tiers merge the hangar — at colossal also the market — into double halls.
 /// </summary>
 public sealed class StationGenerationTests
 {
@@ -44,17 +46,20 @@ public sealed class StationGenerationTests
         Assert.Contains(s.Modules, m => m.Type == "hangar");
     }
 
-    [Fact]
-    public void Modules_AreHollowRooms_WithSolidWalls()
+    [Theory]
+    [InlineData("small")]
+    [InlineData("large")]
+    [InlineData("colossal")]
+    public void Modules_AreHollowRooms_WithSolidWalls(string tier)
     {
         var c = Content();
-        var s = StationGenerator.Generate("medium", 7, c);
+        var s = StationGenerator.Generate(tier, 7, c);
         ushort air = 0;
 
         // Each module's centre is interior air; its room walls are solid blocks somewhere around it.
         foreach (var m in s.Modules)
         {
-            int cx = m.Origin.X + 3, cy = m.Origin.Y + 2, cz = m.Origin.Z + 3;
+            int cx = m.Origin.X + s.RoomW / 2, cy = m.Origin.Y + 2, cz = m.Origin.Z + s.RoomL / 2;
             Assert.Equal(air, s.Get(cx, cy, cz)); // hollow inside
         }
 
@@ -84,8 +89,8 @@ public sealed class StationGenerationTests
         {
             if (byGrid.ContainsKey((m.Grid.X + 1, m.Grid.Y, m.Grid.Z)))
             {
-                int x = m.Origin.X + 6; // shared wall plane (RoomW-1)
-                int z = m.Origin.Z + 3; // door centre
+                int x = m.Origin.X + s.RoomW - 1; // shared wall plane
+                int z = m.Origin.Z + s.RoomL / 2; // door centre
                 if (s.Get(x, m.Origin.Y + 1, z) == air || s.Get(x, m.Origin.Y + 2, z) == air)
                 {
                     foundDoor = true;
@@ -111,10 +116,11 @@ public sealed class StationGenerationTests
             var s = StationGenerator.Generate("large", seed, c);
             var hangar = s.Modules.First(m => m.Type == "hangar");
             var o = hangar.Origin;
+            int mouthTop = s.RoomH >= 8 ? 5 : 3;
 
             int glazed = 0, holes = 0;
-            for (int x = o.X + 1; x <= o.X + 5; x++)
-            for (int y = o.Y + 1; y <= o.Y + 3; y++)
+            for (int x = o.X + 1; x <= o.X + s.RoomW - 2; x++)
+            for (int y = o.Y + 1; y <= o.Y + mouthTop; y++)
             {
                 ushort b = s.Get(x, y, o.Z);
                 if (b == field) glazed++;
@@ -138,13 +144,94 @@ public sealed class StationGenerationTests
     }
 
     [Fact]
-    public void SizeTiers_ScaleTheBuild()
+    public void SizeTiers_ScaleModules_Floors_AndRoomSize()
     {
         var c = Content();
         var small = StationGenerator.Generate("small", 5, c);
+        var large = StationGenerator.Generate("large", 5, c);
         var huge = StationGenerator.Generate("huge", 5, c);
+        var colossal = StationGenerator.Generate("colossal", 5, c);
 
-        Assert.True(huge.Modules.Count > small.Modules.Count);
-        Assert.True(huge.Height >= small.Height);
+        // More rooms per tier, colossal on top.
+        Assert.True(large.Modules.Count > small.Modules.Count);
+        Assert.True(huge.Modules.Count > large.Modules.Count);
+        Assert.True(colossal.Modules.Count > huge.Modules.Count);
+
+        // BIGGER rooms per tier (the user's headline ask): small keeps 7×6×7, large 9×7×9, huge+ 11×8×11.
+        Assert.Equal((7, 6, 7), (small.RoomW, small.RoomH, small.RoomL));
+        Assert.Equal((9, 7, 9), (large.RoomW, large.RoomH, large.RoomL));
+        Assert.Equal((11, 8, 11), (huge.RoomW, huge.RoomH, huge.RoomL));
+        Assert.Equal((11, 8, 11), (colossal.RoomW, colossal.RoomH, colossal.RoomL));
+
+        Assert.True(huge.Height > small.Height); // more floors of taller rooms
+        Assert.True(colossal.Width * colossal.Length > small.Width * small.Length);
+    }
+
+    [Fact]
+    public void BigTiers_MergeTheHangarIntoADoubleHall()
+    {
+        var c = Content();
+        ushort air = 0;
+
+        // The hangar merge needs an eligible neighbour room, which the random walk provides in almost
+        // every layout — require it to happen across a handful of seeds and validate the open wall.
+        bool validated = false;
+        int merged = 0;
+        for (long seed = 1; seed <= 8 && !validated; seed++)
+        {
+            var s = StationGenerator.Generate("huge", seed, c);
+            var hall = s.Modules.Where(m => m.Type == "hangar_hall").Cast<StationModule?>().FirstOrDefault();
+            if (hall is null)
+            {
+                continue;
+            }
+
+            merged++;
+            var hangar = s.Modules.First(m => m.Type == "hangar");
+
+            // The shared wall between hangar and hall partner must be FULLY open (no doorway wall left):
+            // probe the wall plane between the two origins at mid-height across the interior span.
+            var a = hangar.Origin;
+            var b = hall.Value.Origin;
+            int openCells = 0;
+            if (a.X != b.X) // ±X partner: wall plane at the higher origin's X
+            {
+                int plane = System.Math.Max(a.X, b.X) == b.X ? b.X : a.X;
+                int x = plane == a.X ? a.X : b.X; // min-corner of the right-hand room = shared plane
+                x = System.Math.Max(a.X, b.X);    // the shared wall sits at the larger origin X
+                for (int z = 1; z <= s.RoomL - 2; z++)
+                {
+                    if (s.Get(x, a.Y + 2, System.Math.Min(a.Z, b.Z) + z) == air) openCells++;
+                }
+            }
+            else // ±Z partner
+            {
+                int z = System.Math.Max(a.Z, b.Z);
+                for (int xx = 1; xx <= s.RoomW - 2; xx++)
+                {
+                    if (s.Get(System.Math.Min(a.X, b.X) + xx, a.Y + 2, z) == air) openCells++;
+                }
+            }
+
+            Assert.True(openCells >= s.RoomW - 4,
+                $"Seed {seed}: the merged hangar hall's shared wall should be fully open (got {openCells} open cells).");
+            validated = true;
+        }
+
+        Assert.True(validated, $"No huge station across 8 seeds produced a merged hangar hall (merged={merged}).");
+    }
+
+    [Fact]
+    public void Colossal_AlsoMergesAMarketHall()
+    {
+        var c = Content();
+        bool found = false;
+        for (long seed = 1; seed <= 8 && !found; seed++)
+        {
+            var s = StationGenerator.Generate("colossal", seed, c);
+            found = s.Modules.Any(m => m.Type == "market_hall");
+        }
+
+        Assert.True(found, "Colossal stations should merge a market double hall in typical layouts.");
     }
 }

@@ -50,6 +50,9 @@ public sealed class SpaceStationBoardingTests : IDisposable
     {
         server.EnterSpace(playerId);
         var station = server.SpaceEntitiesFor(playerId).First(e => e.Kind == CombatEntityKind.SpaceStation);
+        // Stations now park well above the orbital plane (clear of every planet) — fly up to one
+        // before docking, exactly like a player would (the board range check is real).
+        server.ShipMove(playerId, station.Position.X, station.Position.Y, station.Position.Z - 8f);
         server.BoardStation(playerId, station.Id);
         return station;
     }
@@ -165,6 +168,7 @@ public sealed class SpaceStationBoardingTests : IDisposable
             p.InEva = true; // floating on a spacewalk next to the parked ship
 
             var station = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.SpaceStation);
+            server.ShipMove("Pilot", station.Position.X, station.Position.Y, station.Position.Z - 8f); // float over
             server.BoardStation("Pilot", station.Id);
             Assert.True(server.InStation("Pilot"));
             Assert.False(p.InEva); // inside the station now — the spacewalk ended

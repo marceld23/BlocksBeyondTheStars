@@ -91,6 +91,59 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ Bigger space stations — ✅ SHIPPED 2026-06-11 (459 tests green, client built)
+**Shipped (decisions: colossal tier YES, double halls YES, distribution 38/30/17/10/5, no old-save care):**
+- **Parametric room sizes:** `StationGenerator` rooms are no longer a fixed 7×6×7 — `Layout` returns
+  (modules, floors, room W/H/L) per tier and every helper scales: small 3×(7×6×7) / medium 5×(7×6×7)
+  UNCHANGED; large 10 modules, 2 floors, **9×7×9** rooms; huge 16, 3 floors, **11×8×11**; new
+  **colossal** 24 modules, 4 floors, 11×8×11. `StationStructure` exposes RoomW/H/L.
+- **Double halls:** huge+ merges the hangar with a neighbour room (full shared wall removed → one big
+  dock hall, mouth force-field on every open face half); colossal also merges a market hall (second
+  vendor marker → two stalls). Hangar selection now prefers a cell whose -Z face is open space.
+- **Scaling details:** viewport band 3-high on tall rooms, 3×3 floor shafts on big rooms, 2-deep corner
+  chamfers on round modules (no dead pockets), relative furnishing (longer counters, second stall row,
+  twin heal tanks, bunk rows, centre ceiling light), solar wings span the room. Doorways stay the
+  standard 2×3 airlock cut so the sliding-door entities fit every tier.
+- **Server:** tier roll 38/30/17/10/5 (`StationTier`); crew count small 2 / medium 4 / large 8 / huge 13
+  / colossal 18. **Planet clearance (user follow-up):** stations now park WELL ABOVE the orbital plane
+  and staggered outward (`(i%3−1)·70, 55, 80+i·45`) — bodies sit near y=0 with radii ≤ ~35 and the home
+  planet hangs at y=−150, so even colossal hulls can never overlap a planet's keep-out sphere.
+- **Tests:** StationGenerationTests rewritten size-relative + new coverage (per-tier room dims/floors,
+  hangar double hall fully open, colossal market hall); boarding tests fly to the station first (the
+  board-range check is real). 459 green.
+
+### ★ Bigger space stations — ANALYSIS + PLAN (2026-06-11, decided + implemented above)
+**Request:** generated stations should get SIGNIFICANTLY bigger — larger rooms AND more rooms; small
+stations (like today) must keep existing alongside the big ones.
+
+**Findings (StationGenerator + GameServerSpaceStations):**
+- Stations are module-grid assemblies: tiers small 45 % (3 modules, 1 floor) / medium 35 % (5, 1) /
+  large 15 % (9, 2) / huge 5 % (14, 3), tier rolled from the seed (`StationTier`).
+- **Every room is a fixed 7×6×7 shell (5×4×5 interior — genuinely cramped)**: `RoomW/H/L` are consts;
+  ALL helpers (room stamp, doors 2-wide, 2×2 floor shafts, viewport band, hangar mouth, furnishing,
+  exterior greebles, marker positions) hardcode that footprint.
+- Furnishing uses absolute coords (1..5) → must become relative to scale.
+- NPC headcount scales by tier (2/4/7/11). Hand-designed templates bypass generation (untouched).
+- **Existing-save caveat:** stations re-stamp deterministically each boot and persist as block edits.
+  A CHANGED generator overwrites only the new structure's non-air cells — remains of the old station
+  would survive around it (hybrid garbage). A clean upgrade needs wipe-old-bounds-then-restamp (station
+  meta remembers the stamped dims), or new sizes apply to new saves only.
+
+**Proposal:**
+- small/medium: UNCHANGED (3/5 modules, rooms 7×6×7) — the "wie jetzt" stations.
+- large: 10 modules, 2 floors, rooms **9×7×9** (interior 7×5×7).
+- huge: 16 modules, 3 floors, rooms **11×8×11** (interior 9×6×9) + the hangar as a **double hall**
+  (2 merged grid cells — a real dock you fly your eyes through).
+- NEW tier **"colossal"** (rare): ~24 modules, 4 floors, rooms 11×8×11, double hangar AND double
+  market hall, 4-floor shaft column, ~18 NPCs.
+- Tier roll: small 38 / medium 30 / large 17 / huge 10 / colossal 5 (today 45/35/15/5).
+- Mechanics that scale with room size: doorways 3-wide/4-tall on ≥9-rooms, viewport band 3-high on
+  ≥8-high rooms, 3×3 shafts, furnishing relative + denser on big rooms (double console banks, more
+  bunks, market stalls), more ceiling lights, bigger solar wings/domes.
+**Decisions (answered 2026-06-11):** colossal tier YES; double halls YES (hangar ≥ huge, market at
+colossal); distribution 38/30/17/10/5; **no backward-compat care for old savegames** (the new generator
+simply applies; doorways stay the standard 2×3 cut so the sliding-door entities keep fitting). → IN PROGRESS.
+
 ### ★ World-creation options ("Weltoptionen") — ✅ SHIPPED 2026-06-11 (455 tests green, client built)
 **Shipped (decisions: core 9 + survival sliders; exotic slider + advanced per-type page; gameplay knobs
 live-editable by the world admin; presets Friedlich/Standard/Feindselig):**
