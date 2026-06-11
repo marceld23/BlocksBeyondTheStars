@@ -1586,8 +1586,10 @@ public sealed partial class GameServer
     private void HandleMine(PlayerSession session, MineBlockIntent mine)
     {
         // Longitude wraps: canonicalize X up front so reach, protection, mining progress and the broadcast
-        // all agree, whatever lap the client's unbounded transform reported the block from.
-        var pos = WorldConstants.CanonicalBlock(new Vector3i(mine.X, mine.Y, mine.Z));
+        // all agree, whatever lap the client's unbounded transform reported the block from. MUST use THIS
+        // world's circumference: the no-arg default (6000) silently mapped every block intent beyond
+        // X=6000 onto a column thousands of blocks away on bigger worlds — "cannot mine anything".
+        var pos = WorldConstants.CanonicalBlock(new Vector3i(mine.X, mine.Y, mine.Z), _world.Circumference);
 
         // A player-built door fills an air cell as an entity — mining it removes the door + returns the item.
         if (RemovePlayerDoorAt(session, pos))
@@ -1762,7 +1764,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var pos = WorldConstants.CanonicalBlock(new Vector3i(place.X, place.Y, place.Z)); // longitude wraps
+        var pos = WorldConstants.CanonicalBlock(new Vector3i(place.X, place.Y, place.Z), _world.Circumference); // wraps at THIS world's seam
         if (!_world.GetBlock(pos).IsAir)
         {
             Reject(session, "place", "Target is not empty.");

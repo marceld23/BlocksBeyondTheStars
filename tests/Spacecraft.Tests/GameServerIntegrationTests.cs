@@ -248,6 +248,61 @@ public sealed class GameServerIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Mining_AtAnUnwrappedLongitude_BreaksTheRealBlock_OnThisWorldsSize()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "wrapmine"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+
+        var config = Config();
+        config.WorldName = "wrapmine";
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Lapper");
+        var session = server.Sessions[1];
+
+        // The regression needs a body whose size is NOT the legacy constant: MineBlockIntent positions
+        // used to be wrapped with the DEFAULT 6000 regardless of the world, mismapping every coordinate
+        // beyond 6000 onto a column thousands of blocks away on differently-sized worlds — in-game this
+        // read as "cannot mine any block". (If a future seed makes this body exactly 6000, change the
+        // seed — the guard keeps the regression coverage honest.)
+        int C = server.World.Circumference;
+        Assert.NotEqual(0, C % Spacecraft.Shared.World.WorldConstants.Circumference); // also rules out 12000 — a multiple would wrap "correctly" by luck
+
+        // The topmost solid block right under the player's feet (same approach as Join_Mine).
+        int px = (int)System.Math.Floor(session.State.Position.X);
+        int pz = (int)System.Math.Floor(session.State.Position.Z);
+        int topY = (int)System.Math.Ceiling(session.State.Position.Y);
+        Vector3i target = default;
+        bool found = false;
+        for (int y = topY; y > topY - 12; y--)
+        {
+            var pos = new Vector3i(px, y, pz);
+            var b = server.World.GetBlock(pos);
+            if (!b.IsAir && server.World.Definition(b) is { Mineable: true })
+            {
+                target = pos;
+                found = true;
+                break;
+            }
+        }
+
+        Assert.True(found, "Expected a mineable block under the spawn.");
+
+        // Mine through the FULL authoritative intent path at the unwrapped twin a whole lap east —
+        // exactly what a client reports after lapping the world (its transform runs unbounded).
+        for (int hit = 0; hit < 12 && !server.World.GetBlock(target).IsAir; hit++)
+        {
+            client.Send(NetCodec.Encode(new MineBlockIntent { X = target.X + C, Y = target.Y, Z = target.Z }),
+                DeliveryMode.ReliableOrdered);
+            server.Tick(0.05);
+        }
+
+        Assert.True(server.World.GetBlock(target).IsAir,
+            "mining at x + circumference must break the canonical block — wrap must use THIS world's size");
+    }
+
+    [Fact]
     public void WalkingNorth_WrapsAroundTheWorld_NoPoleBarrier()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "pole"));

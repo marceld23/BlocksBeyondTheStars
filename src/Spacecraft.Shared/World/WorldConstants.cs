@@ -156,17 +156,17 @@ public static class WorldConstants
 
     public static int CanonicalChunkX(int chunkX) => CanonicalChunkX(chunkX, Circumference);
 
-    /// <summary>Canonicalizes a chunk coordinate's longitude (X) AND latitude (Z) — round worlds.</summary>
+    /// <summary>Canonicalizes a chunk coordinate's longitude (X) AND latitude (Z) — round worlds.
+    /// NO default-circumference overload ON PURPOSE (same for <see cref="CanonicalBlock"/>): worlds
+    /// vary in size (asteroids 800 … planets 12000), and wrapping with the default 6000 silently
+    /// mangles coordinates on every other world — that was the "cannot mine any block" bug. Always
+    /// pass the world's own circumference.</summary>
     public static ChunkCoord CanonicalChunk(ChunkCoord chunk, int circumference)
         => new(CanonicalChunkX(chunk.X, circumference), chunk.Y, CanonicalChunkZ(chunk.Z, circumference));
-
-    public static ChunkCoord CanonicalChunk(ChunkCoord chunk) => CanonicalChunk(chunk, Circumference);
 
     /// <summary>Canonicalizes a world block position: X into [0, circumference), Z into the latitude domain.</summary>
     public static Vector3i CanonicalBlock(Vector3i world, int circumference)
         => new(WrapX(world.X, circumference), world.Y, WrapZ(world.Z, circumference));
-
-    public static Vector3i CanonicalBlock(Vector3i world) => CanonicalBlock(world, Circumference);
 
     // --- Per-world size ---
 

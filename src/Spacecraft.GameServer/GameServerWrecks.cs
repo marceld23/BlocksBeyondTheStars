@@ -171,7 +171,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        var pos = WorldConstants.CanonicalBlock(new Vector3i(x, y, z)); // longitude wraps
+        var pos = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference); // wraps at THIS world's seam
         if (!TryGetWreckRepairTarget(pos, out var required))
         {
             Reject(session, "wreck_repair", "That cell is not part of the wreck's repair mask.");
@@ -280,7 +280,7 @@ public sealed partial class GameServer
 
             // The wreck anchor sits at a raw offset that can be negative; the actual blocks live in the
             // canonical longitude space, so emit canonical breach positions (matches what the client renders).
-            var world = WorldConstants.CanonicalBlock(new Vector3i(_wreckOrigin.X + x, _wreckOrigin.Y + y, _wreckOrigin.Z + z));
+            var world = WorldConstants.CanonicalBlock(new Vector3i(_wreckOrigin.X + x, _wreckOrigin.Y + y, _wreckOrigin.Z + z), _world.Circumference);
             if (_world.GetBlock(world).Value == intact)
             {
                 continue;
@@ -303,7 +303,7 @@ public sealed partial class GameServer
 
         // Longitude wraps: measure the local X the short way round so a canonical repair coordinate maps
         // back onto the (possibly negative-anchored) wreck mask.
-        int lx = WorldConstants.WrapDeltaX(world.X - _wreckOrigin.X);
+        int lx = WorldConstants.WrapDeltaX(world.X - _wreckOrigin.X, _world.Circumference);
         int ly = world.Y - _wreckOrigin.Y;
         int lz = world.Z - _wreckOrigin.Z;
         if (!_wreck.InBounds(lx, ly, lz))

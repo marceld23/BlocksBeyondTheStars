@@ -91,6 +91,25 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ "Cannot mine ANY block" — ROOT CAUSE FOUND + FIXED (2026-06-11, tests green, client built)
+The recurring "Block ist bereits abgebaut" / silent-heal mining failures finally had a smoking gun:
+the new ghost-heal Warn log showed mine intents arriving at **X≈5997 on a world that wraps before
+that**. Root cause: `WorldConstants.CanonicalBlock`/`CanonicalChunk` had **no-argument overloads
+hard-wired to the legacy 6000 circumference**, but worlds vary in size (asteroids 800–1600, moons
+2500–4000, planets 5000–12000). `HandleMine`/`HandlePlace` (and friends) wrapped the client's
+unbounded coordinate with 6000 BEFORE `ServerWorld` could wrap it with the world's true size —
+mapping every block intent beyond X=6000 (or after lapping a smaller world) onto a column thousands
+of blocks away: server saw air there → every mine "failed silently". Fixes:
+- `HandleMine`/`HandlePlace`, wreck repair/breach mapping, terrain blaster + ore scanner spheres,
+  ship-stamp protection sets (`_shipExtra`, `BlockInStamp` now takes the circumference), and the
+  landing-pad longitude pickers now all wrap with **`_world.Circumference`**.
+- The no-arg `CanonicalBlock`/`CanonicalChunk` overloads are **deleted** (footgun) — every caller
+  must pass the world's own circumference; the compiler now catches the whole bug class.
+- Regression test `Mining_AtAnUnwrappedLongitude_BreaksTheRealBlock_OnThisWorldsSize`: mines through
+  the full intent path at `x + circumference` on a body whose size is NOT a multiple of 6000 (guard
+  asserts that) — fails on the old code, green now. The earlier seam test only used
+  `ServerWorld.GetBlock/SetBlock` directly (which always wrapped correctly) and missed this.
+
 ### ★ Enemy spawn distance + water effects (requested 2026-06-11) — ✅ SHIPPED (tests green, client built)
 **Decisions:** spawn distance **35–50 blocks** (outside the 28-block detection range); water ambient
 sounds **yes** (ElevenLabs, blanket-approved).

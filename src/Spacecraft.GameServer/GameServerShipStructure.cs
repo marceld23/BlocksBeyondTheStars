@@ -140,7 +140,7 @@ public sealed partial class GameServer
         {
             var p = new Vector3i(x, y, z);
             _world.SetBlock(p, id);
-            _shipExtra.Add(WorldConstants.CanonicalBlock(p)); // canonical so protection matches after longitude wrap
+            _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference)); // canonical so protection matches after longitude wrap
         }
 
         int wingY = y0 + System.Math.Max(1, _shipHeight / 2);   // wings at hull mid-height
@@ -366,31 +366,31 @@ public sealed partial class GameServer
                     continue;
                 case "glass":
                     _world.SetBlock(p, glass);
-                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                     continue;
                 case "light":
                 case "headlight":
                     _world.SetBlock(p, lightW);
-                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                     continue;
                 case "light_red":
                     _world.SetBlock(p, lightR);
-                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                     continue;
                 case "light_green":
                     _world.SetBlock(p, lightG);
-                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                     continue;
                 case "engine":
                     _world.SetBlock(p, dark);
-                    _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                    _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                     continue;
             }
 
             if (cell.Kind == "station")
             {
                 AddStation(cell.Id, wx, wy, wz, StationBlockKey(cell.Id));
-                _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+                _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
                 if (cell.Id == "medbay")
                 {
                     medbay = new Vector3f(wx + 0.5f, wy + 1f, wz + 0.5f);
@@ -401,7 +401,7 @@ public sealed partial class GameServer
 
             // Any block key (iron_wall, carbon cargo, …) → that block; unknown ids fall back to hull.
             _world.SetBlock(p, _content.GetBlock(cell.Id)?.NumericId ?? wall);
-            _shipExtra.Add(WorldConstants.CanonicalBlock(p));
+            _shipExtra.Add(WorldConstants.CanonicalBlock(p, _world.Circumference));
         }
 
         // Guarantee a flush, solid floor across the footprint (fills layout gaps + the cleared terrain)
@@ -413,7 +413,7 @@ public sealed partial class GameServer
             if (_world.GetBlock(fp).IsAir)
             {
                 _world.SetBlock(fp, wall);
-                _shipExtra.Add(WorldConstants.CanonicalBlock(fp));
+                _shipExtra.Add(WorldConstants.CanonicalBlock(fp, _world.Circumference));
             }
         }
 
@@ -594,7 +594,7 @@ public sealed partial class GameServer
         // Protected if the block belongs to ANY player's ship in this world.
         foreach (var s in _worlds.Active.ShipStamps.Values)
         {
-            if (BlockInStamp(s, p))
+            if (BlockInStamp(s, p, _world.Circumference))
             {
                 return true;
             }
@@ -603,8 +603,9 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Whether a block belongs to one ship's structure (hull box + silhouette, or layout cells).</summary>
-    private static bool BlockInStamp(ShipStamp s, Vector3i p)
+    /// <summary>Whether a block belongs to one ship's structure (hull box + silhouette, or layout cells).
+    /// Takes the world's circumference because the wrap differs per world size.</summary>
+    private static bool BlockInStamp(ShipStamp s, Vector3i p, int circumference)
     {
         if (!s.Stamped)
         {
@@ -613,7 +614,7 @@ public sealed partial class GameServer
 
         // Longitude wraps: a ship anchored near X=0 has exterior cells at negative X that persist at
         // canonical (wrapped) coordinates, so compare X the short way round and key Extra canonically.
-        p = WorldConstants.CanonicalBlock(p);
+        p = WorldConstants.CanonicalBlock(p, circumference);
 
         if (s.IsLayout)
         {
@@ -621,7 +622,7 @@ public sealed partial class GameServer
         }
 
         var a = s.Anchor;
-        int dx = WorldConstants.WrapDeltaX(p.X - a.X);
+        int dx = WorldConstants.WrapDeltaX(p.X - a.X, circumference);
         bool inHull = dx >= -s.HalfX && dx <= s.HalfX
                && p.Y >= a.Y && p.Y <= a.Y + s.Height
                && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ;
@@ -651,7 +652,7 @@ public sealed partial class GameServer
             if (s.Stamped)
             {
                 var a = s.Anchor;
-                double dx = WorldConstants.WrapDeltaX(p.X - a.X); // longitude wraps
+                double dx = WorldConstants.WrapDeltaX(p.X - a.X, _world.Circumference); // longitude wraps
                 if (dx >= -s.HalfX && dx <= s.HalfX
                     && p.Y >= a.Y && p.Y <= a.Y + s.Height
                     && p.Z >= a.Z - s.HalfZ && p.Z <= a.Z + s.HalfZ)

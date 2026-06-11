@@ -73,7 +73,7 @@ public sealed partial class GameServer
             // Pad 0 sits on the prime meridian (the home touchdown); the rest spread evenly round the body. Each
             // longitude is marched to the nearest dry AND reasonably flat column, so the ship neither lands in
             // water (B36) nor perches on a terrain spike high over the surroundings (dramatic-terrain worlds).
-            int baseX = WorldConstants.WrapX((int)(((double)i / count) * circ));
+            int baseX = WorldConstants.WrapX((int)(((double)i / count) * circ), circ);
             int cx = NudgePadToDryAndFlat(baseX);
             pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = 0, CenterY = PadGroundY(cx, 0) });
         }
@@ -125,7 +125,7 @@ public sealed partial class GameServer
 
         for (int step = 1; step <= 40; step++)
         {
-            foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3), WorldConstants.WrapX(baseX - step * 3) })
+            foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3, _world.Circumference), WorldConstants.WrapX(baseX - step * 3, _world.Circumference) })
             {
                 if (LandingFootprintWet(x, 0))
                 {
@@ -161,9 +161,9 @@ public sealed partial class GameServer
 
         for (int step = 1; step <= 40; step++)
         {
-            int xp = WorldConstants.WrapX(baseX + step * 3);
+            int xp = WorldConstants.WrapX(baseX + step * 3, _world.Circumference);
             if (!LandingFootprintWet(xp, 0)) { return xp; }
-            int xm = WorldConstants.WrapX(baseX - step * 3);
+            int xm = WorldConstants.WrapX(baseX - step * 3, _world.Circumference);
             if (!LandingFootprintWet(xm, 0)) { return xm; }
         }
 
@@ -419,7 +419,7 @@ public sealed partial class GameServer
         var pads = new NetLandingPad[total];
         for (int i = 0; i < total; i++)
         {
-            int x = WorldConstants.WrapX((int)(((i + 0.5) / total) * circ));
+            int x = WorldConstants.WrapX((int)(((i + 0.5) / total) * circ), circ);
             string occ = PadOccupantName(body.Id, i) ?? string.Empty;
             pads[i] = new NetLandingPad { Index = i, X = x, Z = 0, Occupied = occ.Length > 0, Occupant = occ };
         }

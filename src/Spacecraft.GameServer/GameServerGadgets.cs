@@ -159,7 +159,7 @@ public sealed partial class GameServer
     private void UseTerrainBlaster(PlayerSession session, Vector3f target)
     {
         var center = WorldConstants.CanonicalBlock(new Vector3i(
-            (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)));
+            (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)), _world.Circumference);
 
         for (int dx = -BlasterRadius; dx <= BlasterRadius; dx++)
         for (int dy = -BlasterRadius; dy <= BlasterRadius; dy++)
@@ -170,7 +170,7 @@ public sealed partial class GameServer
                 continue; // carve a sphere, not a cube
             }
 
-            var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz));
+            var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
             var b = _world.GetBlock(p);
             if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p))
             {
@@ -214,7 +214,7 @@ public sealed partial class GameServer
         int radius = ScannerRadius + radiusBonus;
         var p = state.Position;
         var centre = WorldConstants.CanonicalBlock(new Vector3i(
-            (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y), (int)System.Math.Floor(p.Z)));
+            (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y), (int)System.Math.Floor(p.Z)), _world.Circumference);
 
         var hits = new List<(Vector3i Pos, ushort Block, int DistSq)>();
         for (int dx = -radius; dx <= radius; dx++)
@@ -227,7 +227,7 @@ public sealed partial class GameServer
                 continue; // a pulse sphere, not a cube
             }
 
-            var cell = WorldConstants.CanonicalBlock(new Vector3i(centre.X + dx, centre.Y + dy, centre.Z + dz));
+            var cell = WorldConstants.CanonicalBlock(new Vector3i(centre.X + dx, centre.Y + dy, centre.Z + dz), _world.Circumference);
             var b = _world.GetBlock(cell);
             if (b.IsAir)
             {

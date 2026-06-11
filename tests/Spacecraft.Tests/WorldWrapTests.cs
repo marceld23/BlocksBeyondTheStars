@@ -150,16 +150,16 @@ public class WorldWrapTests
     public void CanonicalChunk_And_Block_WrapBothAxes()
     {
         // A chunk / block a whole lap away (east OR north) canonicalizes to the same coordinate.
-        var chunk = WorldConstants.CanonicalChunk(new ChunkCoord(WorldConstants.ChunksAround + 2, 5, -3));
+        var chunk = WorldConstants.CanonicalChunk(new ChunkCoord(WorldConstants.ChunksAround + 2, 5, -3), C);
         Assert.Equal(new ChunkCoord(2, 5, -3), chunk);
 
         int chunksNS = P / WorldConstants.ChunkSize;
-        var lapped = WorldConstants.CanonicalChunk(new ChunkCoord(2, 5, -3 + chunksNS));
+        var lapped = WorldConstants.CanonicalChunk(new ChunkCoord(2, 5, -3 + chunksNS), C);
         Assert.Equal(new ChunkCoord(2, 5, -3), lapped);
 
-        var block = WorldConstants.CanonicalBlock(new Vector3i(C + 9, 70, -40));
+        var block = WorldConstants.CanonicalBlock(new Vector3i(C + 9, 70, -40), C);
         Assert.Equal(new Vector3i(9, 70, -40), block);
-        Assert.Equal(new Vector3i(9, 70, -40), WorldConstants.CanonicalBlock(new Vector3i(9, 70, -40 + P)));
+        Assert.Equal(new Vector3i(9, 70, -40), WorldConstants.CanonicalBlock(new Vector3i(9, 70, -40 + P), C));
 
         // The chunk straddling the seam edge maps cleanly (16 divides C and P, so no chunk straddles it).
         Assert.Equal(0, WorldConstants.CanonicalChunkX(WorldConstants.ChunksAround));
