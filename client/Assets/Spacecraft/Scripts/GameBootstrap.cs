@@ -68,6 +68,10 @@ namespace Spacecraft.Client
         // Per-species flora tints for the current world (seed + location → one colour per flora block),
         // resolved by the chunk mesher into TEXCOORD2.yzw. Rebuilt on join and on every world change.
         private long _worldSeed;
+
+        /// <summary>The world seed (from JoinAccepted) — drives the per-world flora colours, also for
+        /// OTHER bodies seen from orbit (FloraTints is a pure function of seed + location + species).</summary>
+        public long WorldSeed => _worldSeed;
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
         /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location,

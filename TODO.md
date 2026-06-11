@@ -91,6 +91,32 @@ habitats + per-planet palette; WorldGenerator per-planet archetype set + new fea
 fields (spawnWeight, terrain style, flora/creature theme, feature toggles); UniverseGenerator per-type
 weights. New blocks → textures (OpenAI) + atlas + locale (bilingual).
 
+### ★ Invisible space stations + wrong planet colours (reported 2026-06-11) — ✅ FIXED (tests green, client built)
+**A) "No stations visible, but docking offered."** Cause: the bigger-stations round parked stations
+at `Y=55` ABOVE the orbital plane (collision safety) — the ship cruises near Y=0, the 70-unit board
+sphere still fired the dock prompt while the station hung overhead outside the natural line of
+sight, and the radar disc has no elevation. Fixes (decisions: full package):
+- Stations now sit at **Y=40, Z=90+i·45** — still above every possible body sphere (bodies at y=0
+  with radius ≤ ~31, so y=40 is safe wherever the client's layout puts them) but visibly ~25° up
+  ahead from the cruise plane instead of straight overhead.
+- The space model scales by size tier (`NetCombatEntity.Scale`, small 1.0 … colossal 2.3; keep-out
+  shell scales along) — a colossal station now dwarfs a small one from the cockpit.
+- The radar's station readout shows **▲/▼** when the station sits >10 above/below the ship.
+
+**B) "Planet looks green from space but is a flat mud world."** Cause: THREE divergent hardcoded
+palette maps (`SpaceView.PlanetLook` — which even matched `"rock"` instead of the real key
+`"rocky"`, so rocky + all item-21 V1 types fell to a pseudo-random `HashColor`; `SkyBodiesView.
+TintFor`; `StationBackdrop.PlanetColor`). Swamp was hand-tinted olive-green over a mud texture.
+Fix (data-driven, one source of truth — incl. the follow-up ask "flora-rich worlds should show
+their own flora colour, watery ones water, or a mix"): new `PlanetOrbitLook.GroundColor` =
+average colour of the type's real **surfaceBlock** atlas tile (`BlockTextureAtlas.AverageColor`,
+cached) → blended toward the world's OWN per-planet flora hue (the same `FloraTints` roll that
+paints the plants; weight = the type's `FloraDensity`; mushroom worlds key off the cap colour)
+→ toward water-blue by `WaterAbundance` → toward lava-glow by `LavaAbundance`. The space-view
+spheres also use the real surface-block texture now. All three call sites share the helper; the
+old palettes remain only as unknown-type backstops. A mud flat reads brown, a lush world reads in
+ITS vegetation colour, an ocean world blue — current and future types automatically correct.
+
 ### ★ "Cannot mine ANY block" — ROOT CAUSE FOUND + FIXED (2026-06-11, tests green, client built)
 The recurring "Block ist bereits abgebaut" / silent-heal mining failures finally had a smoking gun:
 the new ghost-heal Warn log showed mine intents arriving at **X≈5997 on a world that wraps before

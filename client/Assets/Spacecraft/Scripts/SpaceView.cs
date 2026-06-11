@@ -514,9 +514,10 @@ namespace Spacecraft.Client
                     Vector3 sp = new Vector3(e.X, e.Y, e.Z);
                     Vector3 d = pos - sp;
                     float dist = d.magnitude;
-                    if (dist < StationKeepOut && dist > 0.0001f)
+                    float keep = StationKeepOut * Mathf.Max(1f, e.Scale); // bigger tiers have a bigger hull shell
+                    if (dist < keep && dist > 0.0001f)
                     {
-                        pos = sp + d / dist * StationKeepOut;
+                        pos = sp + d / dist * keep;
                     }
                 }
             }
@@ -1721,7 +1722,7 @@ namespace Spacecraft.Client
             // Every body has its own size (deterministic from its id), so worlds + moons look big or small in
             // orbit instead of all identical — an approximate reflection of how varied the bodies are.
             float homeDiameter = OrbitDiameterFor(current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType) * 3.2f;
-            SpawnBody("HomePlanet", homePos, homeDiameter, homeType);
+            SpawnBody("HomePlanet", Game?.LocationName ?? "home", homePos, homeDiameter, homeType);
             _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
@@ -1846,7 +1847,7 @@ namespace Spacecraft.Client
                 // Spawn the separated bodies + register them as landable / keep-out.
                 for (int k = 0; k < positions.Count; k++)
                 {
-                    SpawnBody("SystemBody_" + ids[k], positions[k], radii[k] * 2f, bodyTypes[k]);
+                    SpawnBody("SystemBody_" + ids[k], names[k], positions[k], radii[k] * 2f, bodyTypes[k]);
                     _landables.Add((ids[k], names[k], positions[k], radii[k]));
                     _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
                     maxDist = Mathf.Max(maxDist, positions[k].magnitude);
@@ -1872,15 +1873,16 @@ namespace Spacecraft.Client
              : kind == "Moon" ? WorldConstants.WorldSizeClass.Moon
              : WorldConstants.WorldSizeClass.Planet;
 
-        /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.</summary>
-        private void SpawnBody(string name, Vector3 pos, float diameter, string planetType)
+        /// <summary>Spawns one real celestial body: a lit, textured sphere with a per-type cloud shell.
+        /// <paramref name="locationName"/> is the body's location key — it seeds the per-planet flora hue.</summary>
+        private void SpawnBody(string name, string locationName, Vector3 pos, float diameter, string planetType)
         {
             // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
             // red sun the whole system reads warm (a light wash — the biome tint stays recognisable).
             float sm = Mathf.Max(_sunColor.r, Mathf.Max(_sunColor.g, _sunColor.b));
             Color sunHue = sm > 0.001f ? new Color(_sunColor.r / sm, _sunColor.g / sm, _sunColor.b / sm) : Color.white;
 
-            var look = PlanetLook(planetType);
+            var look = PlanetLookFor(planetType, locationName);
             var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.name = name;
             StripCollider(sphere);
@@ -2372,6 +2374,12 @@ namespace Spacecraft.Client
                             "Cruiser" => BuildCruiserModel(_root.transform),
                             _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
                         };
+
+                        // Stations scale by size tier (server-sent) — a colossal hull dwarfs a small one.
+                        if (e.Kind == "SpaceStation" && e.Scale > 0.01f)
+                        {
+                            go.transform.localScale = Vector3.one * e.Scale;
+                        }
 
                         _entities[e.Id] = go;
                     }
@@ -3013,6 +3021,26 @@ namespace Spacecraft.Client
 
         /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
         /// keys get a stable hash-derived colour so every world type still looks distinct.</summary>
+        /// <summary>Data-driven orbital look: sphere texture = the type's REAL surface block, tinted with a
+        /// partial cast of the mixed orbit colour (ground + this world's own flora hue + water/lava) — so a
+        /// mud flat reads brown and a lush world reads in ITS vegetation colour. Falls back to the legacy
+        /// palette when the type is unknown (the old hardcoded map mis-coloured every newer planet type).</summary>
+        private (Color tint, string tex) PlanetLookFor(string key, string locationName)
+        {
+            var legacy = PlanetLook(key);
+            var planet = Game?.Content?.GetPlanet(key ?? string.Empty);
+            if (planet == null)
+            {
+                return legacy;
+            }
+
+            Color ground = PlanetOrbitLook.GroundColor(
+                Game.Content, Game.Atlas, Game.WorldSeed, locationName, key, legacy.tint);
+            // Partial cast only: the surface texture already carries the ground colour — full
+            // multiplication would double-saturate and darken the sphere.
+            return (Color.Lerp(Color.white, ground, 0.55f), planet.SurfaceBlock);
+        }
+
         private static (Color tint, string tex) PlanetLook(string key)
         {
             switch ((key ?? string.Empty).ToLowerInvariant())

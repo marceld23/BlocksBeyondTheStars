@@ -76,6 +76,7 @@ public sealed partial class GameServer
                 Hull = 1f,
                 HullMax = 1f,
                 Position = station.SpacePosition,
+                Scale = StationModelScale(station.SizeTier), // a colossal station LOOKS colossal from the cockpit
             });
         }
     }
@@ -120,10 +121,11 @@ public sealed partial class GameServer
             Id = id,
             Name = string.IsNullOrWhiteSpace(name) ? "Orbital Station" : name,
             SizeTier = tier,
-            // WELL above the orbital plane (bodies sit near y=0 with radii ≤ ~35; the home planet hangs
-            // far below) and staggered outward — so even the big new station hulls never sit inside a
-            // planet's keep-out sphere or overlap each other.
-            SpacePosition = new Vector3f((index % 3 - 1) * 70f, 55f, 80f + index * 45f),
+            // Above the orbital plane but back in VIEW: bodies sit at y=0 with radii ≤ ~31, so y=40
+            // still clears every possible body sphere wherever the client's layout puts them — while
+            // a pilot cruising the plane sees the station ~25° up ahead instead of straight overhead
+            // (at the old y=55/z=80+ they were invisible from the cockpit yet still dock-promptable).
+            SpacePosition = new Vector3f((index % 3 - 1) * 70f, 40f, 90f + index * 45f),
             // The station lives in its own void world now, so a clean grounded origin is fine (the void
             // gives it the free-floating-in-space look; no planet terrain anywhere near).
             Origin = new Vector3i(8, 64, 8),
@@ -131,6 +133,18 @@ public sealed partial class GameServer
         _stationsById[id] = station;
         return station;
     }
+
+    /// <summary>Visual scale of the client's space model per size tier (the interior already scales;
+    /// from the cockpit a colossal station should dwarf a small one too).</summary>
+    private static float StationModelScale(string tier) => tier switch
+    {
+        "small" => 1f,
+        "medium" => 1.25f,
+        "large" => 1.55f,
+        "huge" => 1.9f,
+        "colossal" => 2.3f,
+        _ => 1f,
+    };
 
     private static string StationTier(long seed)
     {

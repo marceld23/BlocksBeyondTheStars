@@ -115,6 +115,7 @@ namespace Spacecraft.Client
 
             string nearestStation = null;
             float nearestDist = float.MaxValue;
+            float nearestUp = 0f; // station height relative to the ship — the radar's 2D disc drops it
 
             int i = 0;
             foreach (var e in Game.Space.Entities)
@@ -139,6 +140,7 @@ namespace Spacecraft.Client
                 {
                     nearestDist = dir.magnitude;
                     nearestStation = e.Name;
+                    nearestUp = world.y - camPos.y;
                 }
 
                 var blip = Blip(i++);
@@ -192,7 +194,10 @@ namespace Spacecraft.Client
             // Readout under the radar: prefer a station name (dockable), else the nearest planet to head for.
             if (nearestStation != null)
             {
-                _stationLabel.text = $"{nearestStation} · {Mathf.RoundToInt(nearestDist)}m";
+                // The disc is flat — an arrow says "it's above/below you" so a station parked over the
+                // flight plane isn't searched for at eye level.
+                string vert = nearestUp > 10f ? " ▲" : nearestUp < -10f ? " ▼" : string.Empty;
+                _stationLabel.text = $"{nearestStation} · {Mathf.RoundToInt(nearestDist)}m{vert}";
             }
             else if (nearestBody != null)
             {

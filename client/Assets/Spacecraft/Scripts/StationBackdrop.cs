@@ -76,7 +76,11 @@ namespace Spacecraft.Client
             planet.transform.localPosition = new Vector3(230f, -80f, 620f);
             planet.transform.localScale = Vector3.one * 300f;
             var litShader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
-            planet.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = PlanetColor(PlanetBiome()) };
+            string biome = PlanetBiome();
+            // Data-driven planet colour (surface block + flora/water blend) with the palette as backstop.
+            var planetCol = PlanetOrbitLook.GroundColor(
+                Game.Content, Game.Atlas, Game.WorldSeed, Game?.LocationName ?? string.Empty, biome, PlanetColor(biome));
+            planet.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = planetCol };
 
             // The system's sun, in its own colour (additive glow billboard).
             Color sunCol = Game.Environment != null ? Rgb(Game.Environment.SunColor) : new Color(1f, 0.96f, 0.88f);

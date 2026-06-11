@@ -85,6 +85,35 @@ namespace Spacecraft.Client
             NormalTexture.Apply(updateMipmaps: true);
         }
 
+        private readonly System.Collections.Generic.Dictionary<ushort, Color> _avgColor = new();
+
+        /// <summary>Average opaque colour of a block's atlas tile (cached) — "what this ground looks
+        /// like from far away", used for the orbital planet-sphere colours.</summary>
+        public Color AverageColor(ushort id)
+        {
+            if (_avgColor.TryGetValue(id, out var cached))
+            {
+                return cached;
+            }
+
+            var px = Texture.GetPixels(id % Cols * Tile, id / Cols * Tile, Tile, Tile);
+            float r = 0f, g = 0f, b = 0f;
+            int n = 0;
+            for (int i = 0; i < px.Length; i += 4) // every 4th pixel is plenty for an average
+            {
+                if (px[i].a < 0.5f)
+                {
+                    continue;
+                }
+
+                r += px[i].r; g += px[i].g; b += px[i].b; n++;
+            }
+
+            var avg = n > 0 ? new Color(r / n, g / n, b / n) : new Color(0.5f, 0.5f, 0.5f);
+            _avgColor[id] = avg;
+            return avg;
+        }
+
         /// <summary>UV rect of a block's tile (with a tiny inset to avoid bleeding).</summary>
         public Rect TileUv(ushort id)
         {

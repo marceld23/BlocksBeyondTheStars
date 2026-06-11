@@ -729,6 +729,10 @@ public sealed class NetCombatEntity
     public float X { get; set; }
     public float Y { get; set; }
     public float Z { get; set; }
+
+    /// <summary>Visual model scale (stations: by size tier — a colossal hull dwarfs a small one).
+    /// Contractless-additive: payloads without the field leave the default 1.</summary>
+    public float Scale { get; set; } = 1f;
 }
 
 /// <summary>Authoritative ship hull/shield, sent on join and whenever they change.</summary>

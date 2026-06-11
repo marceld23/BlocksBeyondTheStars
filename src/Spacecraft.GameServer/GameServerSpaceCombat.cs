@@ -27,6 +27,9 @@ public sealed class CombatEntity
     public string Name { get; set; } = string.Empty;
     public bool Hostile { get; set; }
 
+    /// <summary>Visual scale multiplier for the client's space model (stations: by size tier).</summary>
+    public float Scale { get; set; } = 1f;
+
     /// <summary>For planet fauna: the procedural species id this entity is an instance of.</summary>
     public string SpeciesId { get; set; } = string.Empty;
 
@@ -1061,6 +1064,7 @@ public sealed partial class GameServer
         X = e.Position.X,
         Y = e.Position.Y,
         Z = e.Position.Z,
+        Scale = e.Scale,
     };
 
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false)

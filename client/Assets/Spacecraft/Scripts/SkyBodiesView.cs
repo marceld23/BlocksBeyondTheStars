@@ -220,7 +220,10 @@ namespace Spacecraft.Client
 
                 go.transform.SetParent(transform, true);
                 var shader = Shader.Find("Spacecraft/LitColor") ?? Shader.Find("Unlit/Color");
-                var tint = TintFor(body.PlanetType);
+                // Data-driven body colour (surface block + per-planet flora hue + water/lava blend);
+                // the hand-kept palette only backstops unknown types.
+                var tint = PlanetOrbitLook.GroundColor(
+                    Game.Content, Game.Atlas, Game.WorldSeed, body.Name, body.PlanetType, TintFor(body.PlanetType));
                 var mat = new Material(shader) { color = tint };
 
                 var mr = go.GetComponent<MeshRenderer>();
@@ -268,7 +271,8 @@ namespace Spacecraft.Client
             }
         }
 
-        /// <summary>Sky tint per planet type — a readable wash of the world's character.</summary>
+        /// <summary>Sky tint per planet type — fallback only (the data-driven
+        /// <see cref="PlanetOrbitLook.GroundColor"/> is the primary source).</summary>
         private static Color TintFor(string planetType) => (planetType ?? string.Empty).ToLowerInvariant() switch
         {
             "ice" or "tundra" => new Color(0.82f, 0.90f, 0.96f),
