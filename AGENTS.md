@@ -84,7 +84,9 @@ dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local serve
 ```
 
 To confirm a client rebuild actually happened, check the `BlocksBeyondTheStars.Client.dll` timestamp in the
-build output (the `.exe` timestamp is not reliable).
+build output (the `.exe` timestamp is not reliable). The full build guide — pipeline details,
+freshness verification and the known "works in the Editor, broken in the build" pitfalls — is in
+[docs/DEVELOPER.md](docs/DEVELOPER.md).
 
 ## Project conventions
 

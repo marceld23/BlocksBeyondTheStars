@@ -24,7 +24,8 @@ We're hoping for community support! Get involved and join in — your name could
 *(This is the same credit shown in the game's Credits screen — `ui.credits.body`.)*
 
 > **Status & docs:** [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in
-> [docs/USER_MANUAL.md](docs/USER_MANUAL.md); deeper design notes are under [docs/](docs/). (The
+> [docs/USER_MANUAL.md](docs/USER_MANUAL.md); building and verifying builds is in
+> [docs/DEVELOPER.md](docs/DEVELOPER.md); deeper design notes are under [docs/](docs/). (The
 > original German requirement specs under `plans/` were consolidated and removed.)
 > Docs and code comments are **English**. In-game text is **bilingual (German + English)**.
 
@@ -79,7 +80,9 @@ dotnet run --project src/BlocksBeyondTheStars.Api          # start the admin UI 
 ```
 
 The playable Windows client is built with `scripts/build-client.ps1` (publishes the shared libs +
-the bundled server and runs a Unity batch build; requires the Unity Editor).
+the bundled server and runs a Unity batch build; requires the Unity Editor). See
+[docs/DEVELOPER.md](docs/DEVELOPER.md) for the full build guide, how to verify a build is
+fresh, and known build pitfalls.
 
 Server configuration lives in `config/server.json` (created on first run) and is editable
 via the admin UI. See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
