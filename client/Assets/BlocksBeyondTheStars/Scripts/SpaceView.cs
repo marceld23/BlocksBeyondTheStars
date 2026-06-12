@@ -2553,6 +2553,9 @@ namespace BlocksBeyondTheStars.Client
         private Text _hint;
         private Text _board;
         private Text _cargo;
+        private Text _instruments;         // flight readout: speed / throttle / heading (+ hull/shield)
+        private Vector3 _instLastCamPos;
+        private float _instSpeed;          // smoothed speed for a steady readout
         private string _nearStationId;
         private string _nearStationName;
         private const float BoardRange = 66f; // just inside the server's 70-unit board range
@@ -2662,6 +2665,23 @@ namespace BlocksBeyondTheStars.Client
             _cargo.alignment = TextAnchor.MiddleLeft;
             _cargo.horizontalOverflow = HorizontalWrapMode.Overflow;
             _cargo.raycastTarget = false;
+
+            // Flight instruments (bottom-left): smoothed speed, throttle, heading + hull/shield.
+            // Avionics-style abbreviations (SPD/THR/HDG) — identical in DE and EN cockpits.
+            var instGo = new GameObject("Instruments", typeof(RectTransform));
+            instGo.transform.SetParent(_ui.transform, false);
+            var irt = instGo.GetComponent<RectTransform>();
+            irt.anchorMin = irt.anchorMax = new Vector2(0f, 0f);
+            irt.pivot = new Vector2(0f, 0f);
+            irt.sizeDelta = new Vector2(620f, 26f);
+            irt.anchoredPosition = new Vector2(20f, 20f);
+            _instruments = instGo.AddComponent<Text>();
+            _instruments.font = UiKit.Font;
+            _instruments.fontSize = 19;
+            _instruments.color = UiKit.Cyan;
+            _instruments.alignment = TextAnchor.MiddleLeft;
+            _instruments.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _instruments.raycastTarget = false;
 
             // Aiming dot at screen centre — brightens cyan when the laser has a target locked.
             var chGo = new GameObject("Crosshair", typeof(RectTransform));
@@ -2902,6 +2922,8 @@ namespace BlocksBeyondTheStars.Client
                 _cargo.gameObject.SetActive(true);
             }
 
+            UpdateInstruments();
+
             // Lens flare only during free flight (hidden behind the launch/landing/boarding fades + EVA).
             if (_phase == Phase.Cruise && !_eva)
             {
@@ -2969,6 +2991,43 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
             }
+        }
+
+        /// <summary>Flight instruments: smoothed speed (camera delta — the camera rides the ship),
+        /// throttle, heading, plus hull/shield while combat data is present. Shown in cruise only.</summary>
+        private void UpdateInstruments()
+        {
+            if (_instruments == null)
+            {
+                return;
+            }
+
+            bool show = _phase == Phase.Cruise && !_eva && Camera != null;
+            if (_instruments.gameObject.activeSelf != show)
+            {
+                _instruments.gameObject.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+            float raw = (Camera.transform.position - _instLastCamPos).magnitude / dt;
+            _instLastCamPos = Camera.transform.position;
+            _instSpeed = Mathf.Lerp(_instSpeed, Mathf.Min(raw, 999f), 0.15f);
+
+            int thr = Mathf.RoundToInt(Mathf.Clamp01(Input.GetAxis("Vertical")) * 100f);
+            int hdg = Mathf.RoundToInt(Mathf.Repeat(_yaw, 360f));
+            string text = $"SPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
+            var combat = Game?.ShipCombat;
+            if (combat != null)
+            {
+                text += $"   HULL {Mathf.CeilToInt(combat.Hull)}   SHD {Mathf.CeilToInt(combat.Shield)}";
+            }
+
+            _instruments.text = text;
         }
 
         private void OnDestroy()

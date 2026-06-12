@@ -220,6 +220,11 @@ namespace BlocksBeyondTheStars.Client
             var geysers = root.AddComponent<GeyserView>();
             geysers.Game = boot;
 
+            // Ship-station decor (cockpit console + holo map, medbay tank, terminals, workshop sparks).
+            var stationDecor = root.AddComponent<StationDecorView>();
+            stationDecor.Game = boot;
+            stationDecor.Camera = cam;
+
             // URP post-processing volume (bloom/tonemap/vignette/grade + menu blur); no-op under Built-in RP.
             var urpPost = root.AddComponent<UrpScenePost>();
             urpPost.Game = boot;
