@@ -54,9 +54,28 @@ public sealed class LandingPadTests : IDisposable
         var server = NewServer("range");
         server.AddLocalPlayer("Pilot"); // loads the home body + builds its pads
 
-        // A body always has at least one pad and never more than the largest class allows (planet: up to 8).
-        Assert.InRange(server.LandingPadCount, 1, 8);
+        // Counts are DOUBLED (×2): a body always has at least two pads and never more than the largest class
+        // allows (planet: up to 8 base → 16 doubled).
+        Assert.InRange(server.LandingPadCount, 2, 16);
         Assert.All(server.LandingPadCenters, p => Assert.Equal(0, p.Z)); // pads sit on the equator band
+    }
+
+    [Fact]
+    public void PadCount_IsDoubled_AndMapMatchesTheWorld()
+    {
+        var server = NewServer("doubled");
+        server.AddLocalPlayer("Pilot"); // loads the home body + builds its pads
+
+        int worldPads = server.LandingPadCount;
+
+        // Doubling produces an even count, and at least two pads (the smallest base count is 1 → 2).
+        Assert.True(worldPads >= 2, "a doubled body has at least two pads");
+        Assert.True(worldPads % 2 == 0, "a doubled pad count is always even");
+
+        // Consistency: the approach landing map / pad chooser advertises EXACTLY the pads that exist in the
+        // world — both derive from the same PadCountFor source of truth.
+        Assert.Equal(worldPads, server.ApproachMapPadCountForTest());
+        Assert.Equal(worldPads, server.LandingPadCenters.Count);
     }
 
     [Fact]

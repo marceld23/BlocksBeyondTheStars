@@ -41,8 +41,13 @@ public sealed partial class GameServer
         return new System.Random(unchecked((int)(seed ^ (seed >> 32))));
     }
 
-    /// <summary>How many pads a body has: a seeded-random count varying within its size-class range, so it
-    /// differs body to body — asteroids 1–2, moons 2–4, planets 4–8 (fewest → most by world size).</summary>
+    /// <summary>How many pads a body has: a seeded-random base count varying within its size-class range,
+    /// DOUBLED so each body offers twice as many landing spots — asteroids 2–4, moons 4–8, planets 8–16
+    /// (fewest → most by world size). The ×2 is applied AFTER the single deterministic draw, so the same
+    /// seed still yields the same base count (determinism preserved) — only the multiplier scales it.
+    /// This is the single source of truth for the pad count: BOTH BuildLandingPads (the in-world placement)
+    /// and HandleRequestLandingPads (the approach landing map / pad chooser) derive their count from here,
+    /// so the map always shows exactly the spots that exist in the world.</summary>
     private int PadCountFor(string locationId, string planetKey, CelestialKind kind)
     {
         var cls = WorldConstants.SizeClassFor(kind, planetKey);
@@ -52,7 +57,8 @@ public sealed partial class GameServer
             WorldConstants.WorldSizeClass.Moon => (2, 4),
             _ => (4, 8),
         };
-        return lo + PadRng(locationId).Next(hi - lo + 1);
+        int baseCount = lo + PadRng(locationId).Next(hi - lo + 1);
+        return baseCount * 2; // double the landing spots per world (kept consistent across both consumers)
     }
 
     /// <summary>(Re)builds the active world's deterministic pad set: a seeded-random count spread around the
@@ -401,8 +407,13 @@ public sealed partial class GameServer
 
             msg ??= new ShipTransitFx
             {
-                PlayerId = mover.State.PlayerId, Name = mover.State.Name,
-                X = x, Y = y, Z = z, Landing = landing, Hull = mover.HullColor,
+                PlayerId = mover.State.PlayerId,
+                Name = mover.State.Name,
+                X = x,
+                Y = y,
+                Z = z,
+                Landing = landing,
+                Hull = mover.HullColor,
             };
 
             // The mover's REAL voxel ship design rides ahead of the FX, so the watcher's animation
@@ -441,6 +452,17 @@ public sealed partial class GameServer
 
     /// <summary>Number of pads on the active world.</summary>
     public int LandingPadCount => _landingPads.Count;
+
+    /// <summary>Test hook: the number of pads the approach landing map / pad chooser would advertise for the
+    /// active body — i.e. the count <see cref="HandleRequestLandingPads"/> derives. It must equal
+    /// <see cref="LandingPadCount"/>: the map shows exactly the spots that exist in the world.</summary>
+    public int ApproachMapPadCountForTest()
+    {
+        var body = _galaxy?.FindBody(_world.LocationId);
+        var kind = body?.Kind ?? CelestialKind.Planet;
+        string planetKey = body?.PlanetType ?? _world.PlanetKey;
+        return PadCountFor(body?.Id ?? _world.LocationId, planetKey, kind);
+    }
 
     /// <summary>Pad centres (index, x, z) on the active world, for tests/inspection.</summary>
     public IReadOnlyList<(int Index, int X, int Z)> LandingPadCenters
