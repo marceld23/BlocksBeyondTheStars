@@ -218,5 +218,20 @@
     "key": "ai_core_mk3", "nameKey": "blueprint.ai_core_mk3.name", "descriptionKey": "blueprint.ai_core_mk3.desc",
     "category": "ShipExpansion", "prerequisites": [ "ai_core_mk2" ], "knowledgeCost": 24,
     "unlockCost": [ { "item": "data_fragment", "count": 10 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 12 } ]
+  },
+  {
+    "key": "station_vendor", "nameKey": "blueprint.station_vendor.name", "descriptionKey": "blueprint.station_vendor.desc",
+    "category": "Station", "prerequisites": [], "knowledgeCost": 6,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 2 }, { "item": "metal_panel", "count": 6 } ]
+  },
+  {
+    "key": "station_mission_board", "nameKey": "blueprint.station_mission_board.name", "descriptionKey": "blueprint.station_mission_board.desc",
+    "category": "Station", "prerequisites": [], "knowledgeCost": 4,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 3 } ]
+  },
+  {
+    "key": "station_container", "nameKey": "blueprint.station_container.name", "descriptionKey": "blueprint.station_container.desc",
+    "category": "Station", "prerequisites": [],
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]
   }
 ]

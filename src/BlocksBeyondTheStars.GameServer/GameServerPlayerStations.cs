@@ -82,7 +82,9 @@ public sealed partial class GameServer
         var s = new SpaceStructure
         {
             Id = "pstation:" + playerId + ":" + (_nextStationSeq++),
-            Kind = "station", OwnerId = playerId, Position = at,
+            Kind = "station",
+            OwnerId = playerId,
+            Position = at,
         };
         s.Set(new Vector3i(0, 0, 0), core);
         s.Width = s.Height = s.Length = 1;
@@ -137,7 +139,11 @@ public sealed partial class GameServer
         // Registry entry so BoardStation can dock it; its interior is stamped from the player's cells.
         _stationsById[s.Id] = new BoardableStation
         {
-            Id = s.Id, Name = s.Name, SizeTier = "small", SpacePosition = s.Position, Origin = new Vector3i(8, 64, 8),
+            Id = s.Id,
+            Name = s.Name,
+            SizeTier = "small",
+            SpacePosition = s.Position,
+            Origin = new Vector3i(8, 64, 8),
         };
 
         // A neutral dock contact so EVA "press E to board" works (like the NPC stations).
@@ -145,8 +151,13 @@ public sealed partial class GameServer
         {
             instance.Entities.Add(new CombatEntity
             {
-                Id = s.Id, Kind = CombatEntityKind.SpaceStation, Name = s.Name, Hostile = false,
-                Hull = 1f, HullMax = 1f, Position = s.Position,
+                Id = s.Id,
+                Kind = CombatEntityKind.SpaceStation,
+                Name = s.Name,
+                Hostile = false,
+                Hull = 1f,
+                HullMax = 1f,
+                Position = s.Position,
             });
         }
 
@@ -173,9 +184,14 @@ public sealed partial class GameServer
 
         sys.Bodies.Add(new CelestialBody
         {
-            Id = id, Name = name, Kind = CelestialKind.SpaceStation, SystemId = sys.Id,
+            Id = id,
+            Name = name,
+            Kind = CelestialKind.SpaceStation,
+            SystemId = sys.Id,
             Status = GenerationStatus.Discovered,
-            SystemX = current?.SystemX ?? 0f, SystemY = current?.SystemY ?? 0f, SystemZ = current?.SystemZ ?? 0f,
+            SystemX = current?.SystemX ?? 0f,
+            SystemY = current?.SystemY ?? 0f,
+            SystemZ = current?.SystemZ ?? 0f,
         });
     }
 
@@ -184,8 +200,14 @@ public sealed partial class GameServer
         string loc = instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id;
         _repo.SaveSpaceStructure(new StoredSpaceStructure
         {
-            Id = s.Id, OwnerId = s.OwnerId, Name = s.Name, Location = loc,
-            PosX = s.Position.X, PosY = s.Position.Y, PosZ = s.Position.Z, Boardable = s.Boardable,
+            Id = s.Id,
+            OwnerId = s.OwnerId,
+            Name = s.Name,
+            Location = loc,
+            PosX = s.Position.X,
+            PosY = s.Position.Y,
+            PosZ = s.Position.Z,
+            Boardable = s.Boardable,
             Blocks = SerializeCells(s.Cells),
         });
     }
@@ -241,14 +263,22 @@ public sealed partial class GameServer
 
             var s = new SpaceStructure
             {
-                Id = row.Id, Kind = "station", OwnerId = row.OwnerId, Name = row.Name, Boardable = row.Boardable,
+                Id = row.Id,
+                Kind = "station",
+                OwnerId = row.OwnerId,
+                Name = row.Name,
+                Boardable = row.Boardable,
                 Position = new Vector3f(row.PosX, row.PosY, row.PosZ),
             };
             DeserializeCells(row.Blocks, s);
             _playerStationCells[row.Id] = s;
             _stationsById[row.Id] = new BoardableStation
             {
-                Id = row.Id, Name = row.Name, SizeTier = "small", SpacePosition = s.Position, Origin = new Vector3i(8, 64, 8),
+                Id = row.Id,
+                Name = row.Name,
+                SizeTier = "small",
+                SpacePosition = s.Position,
+                Origin = new Vector3i(8, 64, 8),
             };
             AddStationBodyToGalaxy(row.Id, row.Name);
         }
@@ -280,8 +310,13 @@ public sealed partial class GameServer
             {
                 instance.Entities.Add(new CombatEntity
                 {
-                    Id = s.Id, Kind = CombatEntityKind.SpaceStation, Name = s.Name, Hostile = false,
-                    Hull = 1f, HullMax = 1f, Position = s.Position,
+                    Id = s.Id,
+                    Kind = CombatEntityKind.SpaceStation,
+                    Name = s.Name,
+                    Hostile = false,
+                    Hull = 1f,
+                    HullMax = 1f,
+                    Position = s.Position,
                 });
             }
         }
@@ -323,10 +358,10 @@ public sealed partial class GameServer
         if (!hull.IsAir)
         {
             for (int dx = -1; dx <= 1; dx++)
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
-            }
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
+                }
         }
 
         _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
@@ -335,9 +370,79 @@ public sealed partial class GameServer
         station.Spawn = new Vector3f(cx + 0.5f, fy + 1f, cz + 0.5f);
         station.Markers.Clear();
         station.Markers.Add(("spawn", station.Spawn));
+
+        // Manual placeables (Feature 2): vendor / mission-board / container blocks the owner built into their
+        // station become interaction points, reusing the SAME trade/mission/loot code paths procedural
+        // stations use (SpawnStationNpcs staffs the vendor/board markers; placed containers are lootable).
+        RegisterPlayerStationPlaceables(station, src, minX, minY, minZ);
+
         station.Structure = null; // player station: no procedural structure bounds
         station.Stamped = true;
         _log.Info($"Player station '{station.Name}' stamped into its void world at ({station.Origin.X},{station.Origin.Y},{station.Origin.Z}).");
+    }
+
+    /// <summary>Scans a player station's own placed cells for the manual placeable blocks and wires them as
+    /// interaction points in the stamped void world: a <c>station_vendor</c> / <c>mission_board</c> becomes a
+    /// station marker (so <see cref="SpawnStationNpcs"/> staffs it and <see cref="NearSpaceStationVendor"/> /
+    /// <see cref="NearSpaceStationMissionBoard"/> fire for boarders), and a <c>station_container</c> becomes a
+    /// lootable/stash-able container reusing the existing crate code paths. The blocks themselves persist via
+    /// the station's cells, so these interaction points are re-derived on every board (nothing auto-spawns).</summary>
+    private void RegisterPlayerStationPlaceables(BoardableStation station, SpaceStructure src, int minX, int minY, int minZ)
+    {
+        var vendor = _content.GetBlock("station_vendor")?.NumericId ?? BlockId.Air;
+        var board = _content.GetBlock("mission_board")?.NumericId ?? BlockId.Air;
+        var container = _content.GetBlock("station_container")?.NumericId ?? BlockId.Air;
+
+        bool hasBoard = false;
+        foreach (var kv in src.Cells)
+        {
+            var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
+            var center = new Vector3f(w.X + 0.5f, w.Y + 0.5f, w.Z + 0.5f);
+
+            if (!vendor.IsAir && kv.Value.Value == vendor.Value)
+            {
+                station.Markers.Add(("vendor", center));
+            }
+            else if (!board.IsAir && kv.Value.Value == board.Value)
+            {
+                station.Markers.Add(("mission_board", center));
+                hasBoard = true;
+            }
+            else if (!container.IsAir && kv.Value.Value == container.Value)
+            {
+                RegisterStationContainer(station, w);
+            }
+        }
+
+        // Seed the mission board's first window so it offers jobs even before any player opens the list; the
+        // per-player window then slides it (item 13). Mirrors the procedural-station stamp.
+        if (hasBoard)
+        {
+            string prefix = $"station_{(uint)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(station.Id) % 100000u}_";
+            StockBoard(prefix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
+        }
+    }
+
+    /// <summary>Registers a player-placed station container as an (empty) lootable/stash-able crate in the
+    /// active station world, reusing the existing container code paths. The container BLOCK persists via the
+    /// station's cells, so the entity is re-derived per board (its in-session contents are runtime only).</summary>
+    private void RegisterStationContainer(BoardableStation station, Vector3i pos)
+    {
+        string id = "scontainer_" + station.Id + "_" + pos.X + "_" + pos.Y + "_" + pos.Z;
+        if (_containers.Any(c => c.Id == id))
+        {
+            return;
+        }
+
+        _containers.Add(new StoredContainer
+        {
+            Id = id,
+            Planet = _world.LocationId,
+            Kind = "crate",
+            Position = pos,
+            Items = new List<Shared.State.ItemStack>(),
+        });
+        BroadcastContainers();
     }
 
     // ---------------- Test hooks ----------------
