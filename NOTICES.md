@@ -1,6 +1,6 @@
 # NOTICES
 
-Spacecraft is licensed under the MIT License (see `LICENSE`). This file records attribution
+Blocks Beyond the Stars is licensed under the MIT License (see `LICENSE`). This file records attribution
 for third-party software and assets bundled with the project. Add every new dependency or
 asset here **with its licence** before bundling it.
 
@@ -63,9 +63,9 @@ fonts) are accepted. Copyleft (e.g. CC-BY-SA for code-coupled assets) and non-co
 
 Server / shared (.NET, via NuGet — see each project's `.csproj` for exact versions):
 
-- **LiteNetLib** — MIT — reliable UDP transport (`Spacecraft.Networking`).
+- **LiteNetLib** — MIT — reliable UDP transport (`BlocksBeyondTheStars.Networking`).
 - **MessagePack-CSharp** — MIT — network serialization (`NetCodec`).
-- **Microsoft.Data.Sqlite** — MIT — SQLite persistence (`Spacecraft.Persistence`).
+- **Microsoft.Data.Sqlite** — MIT — SQLite persistence (`BlocksBeyondTheStars.Persistence`).
 - **System.Text.Json** — MIT — config/definition/locale serialization.
 - **xUnit** — Apache-2.0 — test framework (test project only, not shipped).
 

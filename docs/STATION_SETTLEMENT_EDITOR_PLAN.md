@@ -14,25 +14,25 @@ Both structures are **procedurally generated voxel grids** stamped into the worl
 markers — the same shape the editors must produce.
 
 ### Space stations
-- [`StationGenerator`](../src/Spacecraft.WorldGeneration/StationGenerator.cs) →
+- [`StationGenerator`](../src/BlocksBeyondTheStars.WorldGeneration/StationGenerator.cs) →
   `StationStructure` (`Width/Height/Length`, a flat `ushort[]` block grid, `SizeTier`,
   `IReadOnlyList<StationMarker>` and `StationModule`s).
 - Built from a **seed + size tier** by laying out **module rooms** (`hub / hangar / market / mission /
   medbay / quarters / corridor`) on a 3D module grid via a seeded random walk; each module is a hollow
   `iron_wall` room; module count/types scale small→huge. Markers = vendor / mission board / heal-tank /
   hangar interaction points.
-- Placed by [`GameServerSpaceStations.cs`](../src/Spacecraft.GameServer/GameServerSpaceStations.cs):
+- Placed by [`GameServerSpaceStations.cs`](../src/BlocksBeyondTheStars.GameServer/GameServerSpaceStations.cs):
   **`StationGenerator.Generate(station.SizeTier, sSeed, _content)`** → stamped into a space instance;
   markers drive vendors/boards; NPCs spawned separately (`SpawnStationNpcs`).
 
 ### Settlements (villages / towns)
-- [`SettlementGenerator`](../src/Spacecraft.WorldGeneration/SettlementGenerator.cs) →
+- [`SettlementGenerator`](../src/BlocksBeyondTheStars.WorldGeneration/SettlementGenerator.cs) →
   `SettlementStructure` (`Width/Height/Length`, `ushort[]`, `Tier` = `village|town`, `Ruined`,
   `Inhabitant` = `human|alien`, `SettlementMarker`s, `BuildingCount`).
 - Built from a **seed** by laying **buildings on plots** (8-stride grid, 6×6 footprint): villages are
   single-storey in the **biome's surface material**, towns multi-storey iron/glass; one building hosts a
   vendor + mission board. Markers = vendor / mission_board / npc / loot.
-- Placed by [`GameServerSettlements.cs`](../src/Spacecraft.GameServer/GameServerSettlements.cs):
+- Placed by [`GameServerSettlements.cs`](../src/BlocksBeyondTheStars.GameServer/GameServerSettlements.cs):
   **`SettlementGenerator.Generate(tier, ruined, sSeed, surface, _content)`** → stamped onto terrain.
 
 ### The ship-editor pattern we reuse
@@ -115,7 +115,7 @@ a later **P5 — procedural enrichment** pass tackles lever 2.
 ## 2. Design
 
 ### 2.1 Shared layout models (mirror `ShipLayout`)
-Add to `Spacecraft.Shared.Definitions`:
+Add to `BlocksBeyondTheStars.Shared.Definitions`:
 
 ```csharp
 StationLayout    { Key, Width, Height, Length, SizeTier, List<LayoutCell> Cells, List<LayoutMarker> Markers }

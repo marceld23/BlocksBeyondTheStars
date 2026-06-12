@@ -86,7 +86,7 @@ share one source of truth.
 ## 5. Save / export format
 
 On **Save**, the editor writes a self-contained bundle to a known export folder (e.g.
-`%USERPROFILE%/…/Spacecraft/ship_exports/<key>/`):
+`%USERPROFILE%/…/Blocks Beyond the Stars/ship_exports/<key>/`):
 - `ship.json` — a `ShipDefinition` (key, name, description, stats, cargo, required blueprint, craft
   cost) + a `layout` pointer.
 - `layout.json` — the voxel design: `{ width, height, length, cells: [ {x,y,z, kind, block|station} ] }`.

@@ -1,8 +1,8 @@
-"""Generate the Spacecraft application / .exe icon — drawn procedurally (no API, free).
+"""Generate the BlocksBeyondTheStars application / .exe icon — drawn procedurally (no API, free).
 
 Produces a 1024x1024 RGBA PNG: a rounded dark-space tile with a planet arc, a faint orbit ring and a
 bold rocket in the game's HUD cyan. Bold shapes only, so it stays readable when Windows scales it down
-to 16/32/48 px in the taskbar and Explorer. Unity embeds it into Spacecraft.exe at build time (see
+to 16/32/48 px in the taskbar and Explorer. Unity embeds it into BlocksBeyondTheStars.exe at build time (see
 BuildScript.EnsureAppIcon). It must live in a normal (non-Editor) asset folder, otherwise the player
 build strips it and falls back to the default Unity icon.
 
@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 SIZE = 1024
-OUT = Path(__file__).resolve().parents[2] / "client" / "Assets" / "Spacecraft" / "Icon" / "spacecraft_icon.png"
+OUT = Path(__file__).resolve().parents[2] / "client" / "Assets" / "BlocksBeyondTheStars" / "Icon" / "app_icon.png"
 
 CYAN = (90, 220, 255)
 DEEP_TOP = (12, 20, 52)

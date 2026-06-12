@@ -1,7 +1,7 @@
 [project]
-name = "spacecraft-ai-assets"
+name = "blocks-beyond-the-stars-ai-assets"
 version = "0.1.0"
-description = "AI asset generators for Spacecraft: text -> sound effect (ElevenLabs) and text -> image/texture (OpenAI). One file per run, cost-gated."
+description = "AI asset generators for BlocksBeyondTheStars: text -> sound effect (ElevenLabs) and text -> image/texture (OpenAI). One file per run, cost-gated."
 requires-python = ">=3.10"
 dependencies = [
     "openai>=1.40",

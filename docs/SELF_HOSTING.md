@@ -1,6 +1,6 @@
-# Self-Hosting a Spacecraft Server
+# Self-Hosting a Blocks Beyond the Stars Server
 
-Spacecraft is designed so players can host their own server on a Windows PC, a Linux box,
+Blocks Beyond the Stars is designed so players can host their own server on a Windows PC, a Linux box,
 a VPS, or a Raspberry Pi 5 — without installing .NET (the packages are self-contained).
 
 ## 1. Get a server package
@@ -9,9 +9,9 @@ Download or build a package for your platform:
 
 | Platform | Package |
 |---|---|
-| Windows x64 | `spacecraft-server-win-x64.zip` |
-| Linux x64 | `spacecraft-server-linux-x64.zip` |
-| Linux ARM64 / Raspberry Pi 5 | `spacecraft-server-linux-arm64.zip` |
+| Windows x64 | `blocks-beyond-the-stars-server-win-x64.zip` |
+| Linux x64 | `blocks-beyond-the-stars-server-linux-x64.zip` |
+| Linux ARM64 / Raspberry Pi 5 | `blocks-beyond-the-stars-server-linux-arm64.zip` |
 
 Build them yourself from a checkout with the .NET 8 SDK:
 
@@ -27,10 +27,10 @@ Build them yourself from a checkout with the .NET 8 SDK:
 ```text
 1. Unzip the package.
 2. Run the server executable:
-     Windows:  Spacecraft.GameServer.exe
-     Linux:    ./Spacecraft.GameServer
+     Windows:  BlocksBeyondTheStars.GameServer.exe
+     Linux:    ./BlocksBeyondTheStars.GameServer
 3. A default config/server.json is created on first launch.
-4. (Optional) Run the admin UI:  Spacecraft.Api(.exe)
+4. (Optional) Run the admin UI:  BlocksBeyondTheStars.Api(.exe)
 5. Friends connect to your IP on the gameplay port.
 ```
 
@@ -43,7 +43,7 @@ Created on first run; editable directly or through the admin UI.
 
 | Key | Meaning | Default |
 |---|---|---|
-| `serverName` | Display name | `Spacecraft Server` |
+| `serverName` | Display name | `Blocks Beyond the Stars Server` |
 | `worldName` | Save folder under `saves/` | `world_001` |
 | `gameplayPort` | UDP port for the game (open/forward this) | `31415` |
 | `adminPort` | HTTP port for the admin UI | `31416` |
@@ -77,7 +77,7 @@ in the dashboard. You can view status, edit configuration, create backups, and t
 - A world lives in `saves/<worldName>/world.db` (SQLite) with `backups/` and `logs/`
   alongside — fully portable; copy the folder to move or back up a world.
 - Backups are transactionally consistent copies (`VACUUM INTO`). Create them from the
-  admin UI, the Tools CLI (`Spacecraft.Tools backup saves <world>`), or on a schedule.
+  admin UI, the Tools CLI (`BlocksBeyondTheStars.Tools backup saves <world>`), or on a schedule.
 - The world is `seed + parameters + player edits`: the procedural terrain is regenerated,
   only your changes are stored, keeping saves small.
 

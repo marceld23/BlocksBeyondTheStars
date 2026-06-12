@@ -51,13 +51,13 @@ is a *complete* game.
 
 ## Key architecture decision — Singleplayer hosting
 
-`Spacecraft.Shared` / `WorldGeneration` / `Networking` are **netstandard2.1** (already loaded
-in Unity). But `Spacecraft.GameServer` and `Spacecraft.Persistence` are **net8.0** and
+`BlocksBeyondTheStars.Shared` / `WorldGeneration` / `Networking` are **netstandard2.1** (already loaded
+in Unity). But `BlocksBeyondTheStars.GameServer` and `BlocksBeyondTheStars.Persistence` are **net8.0** and
 Persistence uses **native SQLite**, so they cannot simply be dropped into the Unity (Mono)
 runtime. Two ways to make "Singleplayer" host a server:
 
 - **Option A — bundle the server, launch as a child process (recommended for MVP).** Ship the
-  published `Spacecraft.GameServer` executable inside the client (e.g. `StreamingAssets/server/`).
+  published `BlocksBeyondTheStars.GameServer` executable inside the client (e.g. `StreamingAssets/server/`).
   On "Singleplayer", start it bound to `127.0.0.1` on a free port, then connect the normal
   `NetworkClient` to it; stop it on quit. **Pro:** uses the real server unchanged, works today,
   identical behaviour to multiplayer. **Con:** a child process + a few hundred ms startup.
@@ -88,7 +88,7 @@ Implemented:
   a few retries (handles the local server still starting up); snaps the player to the server's
   authoritative spawn once.
 - **Curated per-block palette + per-face shading** baked into vertex colours via the built-in
-  `Spacecraft/VertexColorOpaque` shader (a clean blocky look without a texture atlas yet).
+  `BlocksBeyondTheStars/VertexColorOpaque` shader (a clean blocky look without a texture atlas yet).
 - **Settings applied**: mouse sensitivity + invert-Y → `PlayerController`; view distance →
   the local server; fullscreen/quality via `ClientSettings.Apply`.
 - **Clean return to menu** (Esc): tears down the world, disconnects, stops the local server,
@@ -1140,7 +1140,7 @@ Original notes (remaining work):
   only).
 - **Block textures — DONE (procedural):** `BlockTextureAtlas` generates a 32×32-per-block atlas
   in code (grain, ore speckles, metal panel+rivets, ice/glass streak, circuit grid, dark edges);
-  `ChunkMesher` UV-maps faces into it and the `Spacecraft/BlockAtlas` shader samples it × per-face
+  `ChunkMesher` UV-maps faces into it and the `BlocksBeyondTheStars/BlockAtlas` shader samples it × per-face
   shade. No image assets bundled. Hand-authored/AI art can replace the atlas later (same UVs).
 - **Still to do:** procedural (or authored) **UI icons & symbols** (hotbar/items, station,
   compass, vitals, menu tabs); first-person **tool/hand** visuals; mining/placing **feedback**
@@ -1172,8 +1172,8 @@ Original notes (remaining work):
 
 ### M28 — Build & distribution — **tooling DONE / needs a real build run**
 - Windows **player build** (.exe) bundling the server (Option A), data and assets — tooling in
-  place: `Spacecraft/Editor/BuildScript.cs` (`BuildWindows`: generates a minimal `Launcher.unity`
-  with one `AppShell`, builds StandaloneWindows64 → `Build/Windows/Spacecraft.exe`, auto-includes
+  place: `BlocksBeyondTheStars/Editor/BuildScript.cs` (`BuildWindows`: generates a minimal `Launcher.unity`
+  with one `AppShell`, builds StandaloneWindows64 → `Build/Windows/BlocksBeyondTheStars.exe`, auto-includes
   `StreamingAssets/` = data + bundled server) and `scripts/build-client.ps1` (one command: runs the
   sync-libs + publish-server prereqs, then the headless Unity batch build; `-SkipPrereqs` to skip).
 - **Next:** run `./scripts/build-client.ps1` on a machine with Unity 6000.4.x → a self-contained

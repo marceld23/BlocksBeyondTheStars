@@ -1,4 +1,4 @@
-"""Spacecraft optional AI backend.
+"""BlocksBeyondTheStars optional AI backend.
 
 A separate, optional Python service (technical requirements / anf_mission_editor.md §3). It serves
 LLM-authored flavour and content, and the authoritative C#/.NET server stays in charge of all of it:
@@ -29,7 +29,7 @@ from .llm import (
     llm_enabled,
 )
 
-app = FastAPI(title="Spacecraft AI Backend", version="0.3.0")
+app = FastAPI(title="BlocksBeyondTheStars AI Backend", version="0.3.0")
 
 
 class MissionRequest(BaseModel):

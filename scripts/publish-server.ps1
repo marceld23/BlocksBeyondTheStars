@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Publishes the Spacecraft dedicated server + admin UI as self-hosting packages.
+  Publishes the BlocksBeyondTheStars dedicated server + admin UI as self-hosting packages.
 
 .DESCRIPTION
   Produces self-contained, single-file builds (no .NET install needed on the host) for
@@ -34,9 +34,9 @@ foreach ($rid in $Runtimes) {
         '-o', $out
     )
 
-    dotnet publish (Join-Path $repo 'src/Spacecraft.GameServer') @common
-    dotnet publish (Join-Path $repo 'src/Spacecraft.Api') @common
-    dotnet publish (Join-Path $repo 'src/Spacecraft.Tools') @common
+    dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') @common
+    dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.Api') @common
+    dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.Tools') @common
 
     # Bundle content and a default config.
     Copy-Item (Join-Path $repo 'data') (Join-Path $out 'data') -Recurse -Force
@@ -47,7 +47,7 @@ foreach ($rid in $Runtimes) {
         Set-Content -Path (Join-Path $configDir 'README.txt') -Value 'server.json is generated on first launch; edit it or use the admin UI.'
     }
 
-    $zip = Join-Path $artifacts "spacecraft-server-$rid.zip"
+    $zip = Join-Path $artifacts "blocks-beyond-the-stars-server-$rid.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip
     Write-Host "    Package: $zip" -ForegroundColor Green

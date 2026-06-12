@@ -5,7 +5,7 @@
   the server.
 
 .DESCRIPTION
-  Run this after changing Spacecraft.Shared / WorldGeneration / Networking, then refresh
+  Run this after changing BlocksBeyondTheStars.Shared / WorldGeneration / Networking, then refresh
   the Unity Editor. DLLs land in client/Assets/Plugins; content lands in
   client/Assets/StreamingAssets/data.
 #>
@@ -18,9 +18,9 @@ New-Item -ItemType Directory -Force $plugins | Out-Null
 New-Item -ItemType Directory -Force $streaming | Out-Null
 
 $projects = @(
-    'src/Spacecraft.Shared',
-    'src/Spacecraft.WorldGeneration',
-    'src/Spacecraft.Networking'
+    'src/BlocksBeyondTheStars.Shared',
+    'src/BlocksBeyondTheStars.WorldGeneration',
+    'src/BlocksBeyondTheStars.Networking'
 )
 
 # Publish (not just build) each library so its NuGet dependencies (MessagePack, LiteNetLib,

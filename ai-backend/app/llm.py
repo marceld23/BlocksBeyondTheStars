@@ -1,4 +1,4 @@
-"""LLM layer for the Spacecraft AI backend (items 15 + L0/L2/L3).
+"""LLM layer for the BlocksBeyondTheStars AI backend (items 15 + L0/L2/L3).
 
 Generates NPC greeting lines, ship-AI (VEGA) banter, full mission plans and board-mission flavour
 text. It is **provider-agnostic**: everything goes through the OpenAI-compatible chat API, so the
@@ -32,10 +32,10 @@ except Exception:  # python-dotenv not installed yet — env vars still work, ju
 
 # --- Configuration (env) ---------------------------------------------------------------------
 # A model + base URL together enable the LLM; otherwise the deterministic fallbacks are used.
-_BASE_URL = os.getenv("SPACECRAFT_AI_BASE_URL", "").strip()
-_API_KEY = os.getenv("SPACECRAFT_AI_API_KEY", "").strip()
-_MODEL = os.getenv("SPACECRAFT_AI_MODEL", "").strip()
-_TEMPERATURE = float(os.getenv("SPACECRAFT_AI_TEMPERATURE", "0.8"))
+_BASE_URL = os.getenv("BBTS_AI_BASE_URL", "").strip()
+_API_KEY = os.getenv("BBTS_AI_API_KEY", "").strip()
+_MODEL = os.getenv("BBTS_AI_MODEL", "").strip()
+_TEMPERATURE = float(os.getenv("BBTS_AI_TEMPERATURE", "0.8"))
 
 
 def _language_name(code: str) -> str:

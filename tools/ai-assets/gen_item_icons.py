@@ -28,7 +28,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 OUT = Path("out/item_icons")
-CLIENT_ICONS = Path("../../client/Assets/Spacecraft/../..") / "client" / "Assets" / "Resources" / "icons"
+CLIENT_ICONS = Path("../../client/Assets/BlocksBeyondTheStars/../..") / "client" / "Assets" / "Resources" / "icons"
 # Resolve the client icons dir relative to the repo root regardless of CWD quirks.
 CLIENT_ICONS = (Path(__file__).resolve().parents[2] / "client" / "Assets" / "Resources" / "icons")
 

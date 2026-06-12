@@ -1,9 +1,10 @@
-# AGENTS.md — Guide for AI Agents Working on Spacecraft
+# AGENTS.md — Guide for AI Agents Working on Blocks Beyond the Stars
 
-This file orients any AI agent (or developer) contributing to **Spacecraft**.
-Read it before making changes.
+This file orients any AI agent (or developer) contributing to **Blocks Beyond the Stars**
+(renamed 2026-06-12 from the former working title; solution, namespaces, binaries and paths
+all use `BlocksBeyondTheStars`). Read it before making changes.
 
-## What Spacecraft is
+## What Blocks Beyond the Stars is
 
 A block-based 3D space crafting game for Windows. The player starts with a small
 spaceship, explores procedurally generated planets, mines resources, crafts gear,
@@ -34,18 +35,21 @@ LAN/self-hosting and anti-cheat correct by construction.
 ## Repository layout
 
 ```
-src/Spacecraft.Shared/          data models, data-driven definitions, localization, protocol DTOs
-src/Spacecraft.WorldGeneration/ seed-based deterministic chunk generation
-src/Spacecraft.Persistence/     SQLite repository, savegame layout, autosave
-src/Spacecraft.Networking/      transport abstraction (LiteNetLib + loopback), messages
-src/Spacecraft.GameServer/      authoritative tick loop + console host
-src/Spacecraft.Api/             admin web UI + API
-src/Spacecraft.Tools/           backup/export/debug CLI
-tests/Spacecraft.Tests/         xUnit tests
+src/BlocksBeyondTheStars.Shared/          data models, data-driven definitions, localization, protocol DTOs
+src/BlocksBeyondTheStars.WorldGeneration/ seed-based deterministic chunk generation
+src/BlocksBeyondTheStars.Persistence/     SQLite repository, savegame layout, autosave
+src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + loopback), messages
+src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
+src/BlocksBeyondTheStars.Api/             admin web UI + API
+src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
+tests/BlocksBeyondTheStars.Tests/         xUnit tests
 client/                         Unity project
+ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
+tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
 data/locales/                   localization resource files (en.json, de.json)
-docs/                           ADRs, protocol docs, self-hosting guide
+docs/                           user manual, self-hosting guide, design/plan docs, ADRs
+scripts/                        build-client.ps1 + publish scripts
 ```
 
 Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
@@ -73,16 +77,20 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
 ## Build & test
 
 ```powershell
-dotnet build Spacecraft.sln      # build everything
+dotnet build BlocksBeyondTheStars.sln      # build everything
 dotnet test                      # run all xUnit tests
-dotnet run --project src/Spacecraft.GameServer   # start a local server
+dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local server
+./scripts/build-client.ps1       # full Windows client (shared libs + bundled server + Unity batch build)
 ```
+
+To confirm a client rebuild actually happened, check the `BlocksBeyondTheStars.Client.dll` timestamp in the
+build output (the `.exe` timestamp is not reliable).
 
 ## Project conventions
 
 - C#: `LangVersion=latest`, nullable enabled, 4-space indent, Allman braces
   (see `.editorconfig`). Records/`init` work on netstandard2.1 via the
-  `IsExternalInit` polyfill in `Spacecraft.Shared/Compatibility`.
+  `IsExternalInit` polyfill in `BlocksBeyondTheStars.Shared/Compatibility`.
 - The author is JAM Software; follow sensible, consistent C# conventions.
 
 ## Roadmap

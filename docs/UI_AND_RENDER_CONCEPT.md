@@ -58,7 +58,7 @@ the target the art/UX pass (M27 + a new render milestone) works toward. All in�
 ## 5. Splash screen overhaul (new rendering)
 
 - Replace the current static splash with a **rendered intro**: an animated **starfield / slow
-  warp‑streak** background, the **SpaceCraft logo** revealing with a glow/scanline sweep, a thin
+  warp‑streak** background, the **Blocks Beyond the Stars logo** revealing with a glow/scanline sweep, a thin
   progress/​"initialising" line, then a smooth fade into the main menu. A short **hyperspace‑style**
   flourish ties it to the in‑game warp jump. Skippable (key/click), shortened by "reduced effects".
 - Built as a real rendered scene (camera + code‑built starfield/particles + the logo), not an IMGUI

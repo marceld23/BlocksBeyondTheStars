@@ -49,8 +49,8 @@ Write-Host "Building Windows player (this can take a few minutes)..." -Foregroun
 
 & $UnityPath -batchmode -quit -nographics `
     -projectPath $project `
-    -executeMethod Spacecraft.Client.EditorTools.BuildScript.BuildWindows `
-    -spacecraftOut $Out `
+    -executeMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows `
+    -buildOut $Out `
     -logFile $log
 $unityExit = $LASTEXITCODE
 
@@ -62,13 +62,13 @@ $deadline = (Get-Date).AddMinutes(25)
 do {
     Start-Sleep -Seconds 4
     $running   = [bool](Get-Process Unity -ErrorAction SilentlyContinue)
-    $hasResult = [bool](Select-String -Path $log -Pattern 'Spacecraft build:|Scripts have compiler errors' -Quiet -ErrorAction SilentlyContinue)
+    $hasResult = [bool](Select-String -Path $log -Pattern 'BlocksBeyondTheStars build:|Scripts have compiler errors' -Quiet -ErrorAction SilentlyContinue)
 } while (((Get-Date) -lt $deadline) -and ($running -or -not $hasResult))
 Start-Sleep -Seconds 2 # let the final log lines flush
 
 # Don't trust the exit code alone: a script-compile failure can still exit 0 and skip the build.
 # Treat it as success only if the editor logged the BuildScript success marker and no compile errors.
-$succeeded   = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Spacecraft build: Succeeded' -Quiet)
+$succeeded   = (Test-Path $log) -and (Select-String -Path $log -Pattern 'BlocksBeyondTheStars build: Succeeded' -Quiet)
 $compileFail = (Test-Path $log) -and (Select-String -Path $log -Pattern 'Scripts have compiler errors' -Quiet)
 
 # The success marker + no compile errors is authoritative (per the comment above); the raw exit code is NOT
@@ -79,4 +79,4 @@ if ($compileFail -or -not $succeeded) {
     Write-Error "Build FAILED ($why). See $log"
 }
 
-Write-Host "Build complete → $(Join-Path $project $Out)\Spacecraft.exe" -ForegroundColor Green
+Write-Host "Build complete → $(Join-Path $project $Out)\BlocksBeyondTheStars.exe" -ForegroundColor Green

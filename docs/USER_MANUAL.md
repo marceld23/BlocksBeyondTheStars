@@ -1,4 +1,4 @@
-# SpaceCraft — User Manual
+# Blocks Beyond the Stars — User Manual
 
 The central reference for **how to play**: controls, game mechanics, the in-game editors, and the
 chat/admin commands. This is a living document.
@@ -8,15 +8,23 @@ chat/admin commands. This is a living document.
 > truth for player-facing operation. (Written in English per project doc policy; in-game text itself is
 > bilingual DE/EN.)
 
-Last updated: 2026-06-04.
+Last updated: 2026-06-12.
 
 ---
 
 ## 1. Starting the game
 
-- Launch the client (`Spacecraft.exe`). From the main menu: **Singleplayer** → pick an existing save or
+- Launch the client (`BlocksBeyondTheStars.exe`). From the main menu: **Singleplayer** → pick an existing save or
   start a **New world** (name + seed), or join a server.
+- **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
+  Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, UFOs),
+  survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
+  wrecks, vaults, stations, exotic worlds, universe size), plus an **advanced page** with a frequency
+  slider per planet type. The world *owns* its rules from then on; the world admin can live-edit the
+  creature/enemy activity later in-game (Settings tab → "Weltregeln").
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
+- On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
+  VEGA). Veteran saves get a one-line "systems online" instead.
 
 ---
 
@@ -26,9 +34,9 @@ Last updated: 2026-06-04.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if equipped), thrusting upward until suit energy runs out |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if equipped); **in water: swim up / surface** |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
-| **Right-click** | Place the selected hotbar block |
+| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **F** | Attack the nearest creature / swing the held tool |
@@ -40,6 +48,7 @@ Last updated: 2026-06-04.
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
 | **V** | Toggle first / third-person camera |
+| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character) |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
 | **Enter** | Open the chat box (Esc cancels) |
@@ -61,6 +70,7 @@ Enter space by launching the ship; on foot you board/leave via the cockpit. Whil
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
 | **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
+| **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to the nearest station / landable body; any manual input takes the helm back |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
@@ -77,6 +87,9 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   click-to-set waypoints.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
+- **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
+  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N**. Advisor hints can
+  be muted (Settings → VEGA hints); the tutorial can be skipped or **restarted** from the Settings tab.
 
 ---
 
@@ -91,6 +104,11 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 - **Suit energy** (max 100): powers the stealth-suit cloak and the **jetpack** (hold Space in the air to
   thrust up); both stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank.
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
+
+### Swimming & diving
+- Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and
+  surface. Water **breaks falls**. Deep, swimmable water (lakes, ponds, seas) is common on wet worlds;
+  oxygen keeps draining while submerged on non-breathable worlds.
 
 ### Mining & tools
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
@@ -109,6 +127,17 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 ### Ship, modules, building
 - A ship is a set of fitted **modules** (cockpit, reactor, life support, workshop, medbay, cargo holds,
   lab, refinery, …). Modules enable on-board stations and cargo capacity. Build/expand from the Ship tab.
+
+### VEGA — the ship AI
+- **Onboarding (new worlds):** VEGA guides you through an 8-stage chain (mine → craft → scan → unlock a
+  blueprint → launch → dock a station → trade/take a mission → land elsewhere), each stage tracked on the
+  objective chip. **Skippable and restartable** from the Settings tab; veteran saves skip automatically.
+- **Advisor:** one-time contextual hints (low oxygen/energy/hunger, full inventory, first nightfall,
+  "ruins detected", world-type flavour). Mute via Settings → **VEGA hints**.
+- **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
+  the **autopilot** (press **P** in flight); `ai_core_mk3` adds a 12 % evasive-manoeuvre damage negation.
+- **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them
+  aboard (+3 knowledge each) and tells her backstory over 10 beats; the final beat teaches the Mk3 blueprint.
 
 ### Space flight & combat
 - Fly within local space instances; asteroids + NPC drones can damage hull/shield. No permanent ship
@@ -137,7 +166,11 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 
 ### Scanning & knowledge
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**
-  used to unlock blueprints; the readout shows subject/info/threat/knowledge.
+  used to unlock blueprints; the readout shows subject/info/threat/knowledge (first-time scans highlight
+  the "new discovery" bonus).
+- **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
+  pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
+  as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
 
 ### Hyperspace travel
 - Open Tab → Map and pick a destination. Travel within the same system is free; jumping to **another star

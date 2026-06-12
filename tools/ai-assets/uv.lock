@@ -617,7 +617,7 @@ wheels = [
 ]
 
 [[package]]
-name = "spacecraft-ai-assets"
+name = "blocks-beyond-the-stars-ai-assets"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

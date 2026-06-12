@@ -6,6 +6,6 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Authors>JAM Software</Authors>
-    <Product>Spacecraft</Product>
+    <Product>Blocks Beyond the Stars</Product>
   </PropertyGroup>
 </Project>

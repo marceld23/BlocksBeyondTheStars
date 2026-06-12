@@ -58,7 +58,7 @@ Thumbs.db
 # (anchored to repo root so Unity's client/Packages/ is NOT caught)
 %APPDATA%/
 /packages/
-tests/Spacecraft.Tests/bin/
-tests/Spacecraft.Tests/obj/
+tests/BlocksBeyondTheStars.Tests/bin/
+tests/BlocksBeyondTheStars.Tests/obj/
 client/build-console.log
 .roo/mcp.json

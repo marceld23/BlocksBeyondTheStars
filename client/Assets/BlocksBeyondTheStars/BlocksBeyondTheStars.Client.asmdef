@@ -1,0 +1,23 @@
+{
+  "name": "BlocksBeyondTheStars.Client",
+  "rootNamespace": "BlocksBeyondTheStars.Client",
+  "references": [
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "BlocksBeyondTheStars.Shared.dll",
+    "BlocksBeyondTheStars.WorldGeneration.dll",
+    "BlocksBeyondTheStars.Networking.dll",
+    "MessagePack.dll",
+    "LiteNetLib.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

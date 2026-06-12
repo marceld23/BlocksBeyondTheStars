@@ -1,4 +1,4 @@
-# SpaceCraft — Project Status
+# Blocks Beyond the Stars — Project Status
 
 The single source of truth for **what is built** and **what is still open**. Design notes and deep
 plans live under [docs/](docs/) (committed); this file is the high-level status. Player-facing operation
@@ -6,13 +6,14 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **302 passing**. Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **471 passing** (2026-06-12). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
-`Co-Authored-By: Claude Opus 4.8` trailer; paid/AI asset generation is gated (propose + approve first).
+Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
+(no per-batch gate).
 
-Architecture: Unity 6 (Built-in RP) client + authoritative .NET 8 server, everything built in code (no
-scene authoring). One shared world; contractless MessagePack networking; deterministic seed world-gen;
-SQLite persistence.
+Architecture: Unity 6 (URP since 2026-06-10) client + authoritative .NET 8 server, everything built in
+code (no scene authoring). One shared world; contractless MessagePack networking; deterministic seed
+world-gen; SQLite persistence.
 
 ---
 
@@ -20,6 +21,35 @@ SQLite persistence.
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
+
+### ★ Game renamed to "Blocks Beyond the Stars" (2026-06-12) — ✅ DONE
+**Part 1 — display title.** Splash + main-menu + loading logos, Unity `productName` (ProjectSettings
+**and** `BuildScript.EnsureAppIcon`, which overrides it at build time), credits (en/de),
+README/AGENTS/USER_MANUAL/docs titles. The **in-game menu** no longer shows the game title — it carries
+a localized **"Ship Interface"** heading (`ui.shipmenu.title`: EN "SHIP INTERFACE" / DE "BORDKONSOLE").
+The productName change moves `persistentDataPath` to `…/LocalLow/JuMaVe Games/Blocks Beyond the Stars/`;
+`AppShell.MigrateRenamedPersistentData()` adopts the old folder (settings, singleplayer saves, editor
+exports) on first start.
+
+**Part 2 — full technical rename** (decided: verbose `BlocksBeyondTheStars`, GitHub repo renamed too).
+Solution + all 8 projects/folders/assemblies/namespaces (`BlocksBeyondTheStars.*`), Unity
+`Assets/BlocksBeyondTheStars/` (folder + asmdefs + icon `app_icon.png`, all via `git mv` so GUIDs
+survive), shader paths `BlocksBeyondTheStars/...` incl. the always-included list, build/publish
+scripts (`-buildOut` arg, packages `blocks-beyond-the-stars-server-<rid>.zip`), LiteNetLib connection
+key, ai-backend env prefix `BBTS_AI_*` + package names, NOTICES/docs sweep. Safe by design: saves are
+plain JSON (no type names) and the wire protocol uses stable byte tags, so renames don't break
+saves/protocol; scene files reference scripts by GUID. Historical entries below this line keep the old
+name — they describe the past. The only remaining "Spacecraft" literals in code are the persistent-data
+migration (must match the old on-disk folder) and this changelog.
+
+### ★ Docs sync (2026-06-12) — ✅ DONE
+README/AGENTS/manual/AI-backend doc brought up to the shipped state: README status section rewritten
+(playable game, torus worlds, 17 planet types, VEGA, multiplayer; 471 tests), repo layout + build now
+include `ai-backend/`, `tools/` and `scripts/build-client.ps1`, new "Optional AI backend" section, URP in
+the tech stack. USER_MANUAL gains swimming/diving, VEGA (incl. **N** advance + **P** autopilot keys,
+AI cores, memory fragments), the terrain scanner and the world-creation options. AI_MISSION_BACKEND.md
+now covers L0–L3 + VEGA banter (dead `plans/` reference removed). This TODO header: test count 302→471,
+Built-in RP→URP, asset-gen convention updated to blanket-approved.
 
 ### ★ Item 21 — World variety: more, stranger, more varied worlds (V1–V5) — ✅ DONE (V1–V5 shipped + pushed, 2026-06-10; 405 tests green, client built). Follow-ups below.
 Decisions (asked & answered 2026-06-09): scope **full V1–V5**; priorities **terrain shapes + exotic world

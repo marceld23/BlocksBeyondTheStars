@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes the Spacecraft dedicated server + admin UI as self-hosting packages
+# Publishes the BlocksBeyondTheStars dedicated server + admin UI as self-hosting packages
 # (self-contained, single-file) for Windows x64, Linux x64 and Linux ARM64 (Pi 5).
 #
 # Usage:
@@ -23,15 +23,15 @@ for RID in "${RUNTIMES[@]}"; do
     COMMON=(-c Release -r "$RID" -p:SelfContained=true -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true -o "$OUT")
 
-    dotnet publish "$REPO/src/Spacecraft.GameServer" "${COMMON[@]}"
-    dotnet publish "$REPO/src/Spacecraft.Api" "${COMMON[@]}"
-    dotnet publish "$REPO/src/Spacecraft.Tools" "${COMMON[@]}"
+    dotnet publish "$REPO/src/BlocksBeyondTheStars.GameServer" "${COMMON[@]}"
+    dotnet publish "$REPO/src/BlocksBeyondTheStars.Api" "${COMMON[@]}"
+    dotnet publish "$REPO/src/BlocksBeyondTheStars.Tools" "${COMMON[@]}"
 
     cp -r "$REPO/data" "$OUT/data"
     mkdir -p "$OUT/config"
 
-    ( cd "$OUT" && zip -rq "$ARTIFACTS/spacecraft-server-$RID.zip" . )
-    echo "    Package: $ARTIFACTS/spacecraft-server-$RID.zip"
+    ( cd "$OUT" && zip -rq "$ARTIFACTS/blocks-beyond-the-stars-server-$RID.zip" . )
+    echo "    Package: $ARTIFACTS/blocks-beyond-the-stars-server-$RID.zip"
 done
 
 echo "Done. Packages are in $ARTIFACTS"

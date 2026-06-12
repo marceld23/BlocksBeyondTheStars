@@ -1,0 +1,12 @@
+{
+  "name": "BlocksBeyondTheStars.Client.Editor",
+  "rootNamespace": "BlocksBeyondTheStars.Client.EditorTools",
+  "references": [
+    "BlocksBeyondTheStars.Client"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

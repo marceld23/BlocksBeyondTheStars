@@ -1,13 +1,17 @@
-# Spacecraft
+# Blocks Beyond the Stars
 
 A block-based 3D space crafting game for Windows. You start with a small spaceship,
 explore procedurally generated planets, mine resources, craft gear, research blueprints,
 and grow your ship — built from day one as a client/server game so multiplayer and
 self-hosting come naturally.
 
+> **Naming note:** the game was renamed on 2026-06-12 from its former working title "Spacecraft" —
+> display title, solution, namespaces, binaries and asset paths all use **Blocks Beyond the Stars** /
+> `BlocksBeyondTheStars` now. Old client installs migrate their settings/saves automatically on first start.
+
 ## About this project
 
-**SpaceCraft — JuMaVe Games**
+**Blocks Beyond the Stars — JuMaVe Games**
 
 A family project:
 
@@ -36,7 +40,7 @@ oxygen, damage, blueprints or travel.
 
 | Area | Choice |
 |---|---|
-| Client | Unity 6 LTS (6000.4.x) + C# (Windows) — see [`client/`](client/) |
+| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows) — see [`client/`](client/) |
 | Server | .NET 8, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
 | Database | SQLite (default, portable, Raspberry Pi friendly); PostgreSQL later |
@@ -46,19 +50,21 @@ oxygen, damage, blueprints or travel.
 ## Repository layout
 
 ```
-src/Spacecraft.Shared/          data models, data-driven definitions, localization, protocol DTOs
-src/Spacecraft.WorldGeneration/ seed-based deterministic chunk generation
-src/Spacecraft.Persistence/     SQLite repository, savegame layout, autosave, backups
-src/Spacecraft.Networking/      transport abstraction (LiteNetLib + loopback), messages, codec
-src/Spacecraft.GameServer/      authoritative tick loop + console host
-src/Spacecraft.Api/             admin web UI + API
-src/Spacecraft.Tools/           validate/info/backup CLI
-tests/Spacecraft.Tests/         xUnit tests
+src/BlocksBeyondTheStars.Shared/          data models, data-driven definitions, localization, protocol DTOs
+src/BlocksBeyondTheStars.WorldGeneration/ seed-based deterministic chunk generation
+src/BlocksBeyondTheStars.Persistence/     SQLite repository, savegame layout, autosave, backups
+src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + loopback), messages, codec
+src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
+src/BlocksBeyondTheStars.Api/             admin web UI + API
+src/BlocksBeyondTheStars.Tools/           validate/info/backup CLI
+tests/BlocksBeyondTheStars.Tests/         xUnit tests
 client/                         Unity project (scripts + scaffold; open in the Unity Editor)
+ai-backend/                     optional Python LLM service (mission/NPC/ship-AI text) — game runs without it
+tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)
 data/locales/                   localization (en.json, de.json)
-docs/                           self-hosting guide, ADRs
-scripts/                        publish scripts for self-hosting packages
+docs/                           user manual, self-hosting guide, design/plan docs, ADRs
+scripts/                        build-client.ps1 + publish scripts for self-hosting packages
 ```
 
 ## Build, test, run
@@ -66,11 +72,14 @@ scripts/                        publish scripts for self-hosting packages
 Requires the **.NET 8 SDK**.
 
 ```powershell
-dotnet build Spacecraft.sln       # build everything
+dotnet build BlocksBeyondTheStars.sln       # build everything
 dotnet test                       # run all tests
-dotnet run --project src/Spacecraft.GameServer   # start a local dedicated server (UDP 31415)
-dotnet run --project src/Spacecraft.Api          # start the admin UI (http://127.0.0.1:31416)
+dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local dedicated server (UDP 31415)
+dotnet run --project src/BlocksBeyondTheStars.Api          # start the admin UI (http://127.0.0.1:31416)
 ```
+
+The playable Windows client is built with `scripts/build-client.ps1` (publishes the shared libs +
+the bundled server and runs a Unity batch build; requires the Unity Editor).
 
 Server configuration lives in `config/server.json` (created on first run) and is editable
 via the admin UI. See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
@@ -78,10 +87,19 @@ via the admin UI. See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
 ### Tools CLI
 
 ```powershell
-dotnet run --project src/Spacecraft.Tools -- validate data
-dotnet run --project src/Spacecraft.Tools -- info saves world_001
-dotnet run --project src/Spacecraft.Tools -- backup saves world_001
+dotnet run --project src/BlocksBeyondTheStars.Tools -- validate data
+dotnet run --project src/BlocksBeyondTheStars.Tools -- info saves world_001
+dotnet run --project src/BlocksBeyondTheStars.Tools -- backup saves world_001
 ```
+
+### Optional AI backend (LLM)
+
+[`ai-backend/`](ai-backend/) is a separate, optional Python service (FastAPI + LangChain/LangGraph,
+provider-agnostic via the OpenAI-compatible chat API — LM Studio / OpenAI / Claude, chosen by env)
+that writes mission texts and NPC/ship-AI dialogue. The game is fully playable without it — every
+AI text has a scripted, localized fallback, and the C# server validates everything the service
+returns. See [ai-backend/README.md](ai-backend/README.md) and
+[docs/AI_MISSION_BACKEND.md](docs/AI_MISSION_BACKEND.md).
 
 ### Self-hosting packages
 
@@ -95,12 +113,18 @@ Produces self-contained, single-file packages (no .NET install needed on the hos
 
 Blocks, items, recipes, blueprints, ship modules and planets are JSON in `data/`; no code
 changes are needed to add content. Player-facing names use localization keys resolved from
-`data/locales/{en,de}.json`. Validate with `Spacecraft.Tools validate`.
+`data/locales/{en,de}.json`. Validate with `BlocksBeyondTheStars.Tools validate`.
 
 ## Status
 
-MVP backend is implemented and tested end-to-end (join → mine → inventory → save/load,
-crafting, blueprint gating, game modes, respawn, universe, cheats, missions, admin content,
-WebSocket gateway). See [TODO.md](TODO.md) for the current Done/Open status, the
+A fully playable client + server game: procedurally generated worlds that wrap east–west (walk
+around the planet, seam-free), 17 planet types including exotic ones (skylands, fungal, corrupted,
+ocean, …), swimming/diving, mining → crafting → blueprints → ship building, real system-scale space
+flight with stations, settlements and NPCs, multiplayer with per-player ships and trading, the
+VEGA ship-AI onboarding/advisor companion, world-creation options, in-game content editors, and an
+optional LLM backend for dynamic dialogue/mission text. Self-hostable dedicated server (Raspberry
+Pi friendly). Currently 471 xUnit tests pass.
+
+See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
 for contributor rules.

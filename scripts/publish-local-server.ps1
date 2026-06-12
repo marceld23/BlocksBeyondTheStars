@@ -3,7 +3,7 @@
   Publishes the dedicated server into the Unity client for Singleplayer hosting (Option A).
 
 .DESCRIPTION
-  Builds a self-contained, single-file Spacecraft.GameServer and places it in
+  Builds a self-contained, single-file BlocksBeyondTheStars.GameServer and places it in
   client/Assets/StreamingAssets/server/. On "Singleplayer" the client launches this
   executable as a child process bound to loopback (see LocalServerLauncher.cs and
   docs/CLIENT_COMPLETION_PLAN.md). The server reuses the client's synced data/ content
@@ -28,7 +28,7 @@ if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Force $out | Out-Null
 
 Write-Host "Publishing dedicated server ($Runtime) into the client ..." -ForegroundColor Cyan
-dotnet publish (Join-Path $repo 'src/Spacecraft.GameServer') `
+dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') `
     -c Release -r $Runtime --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -o $out | Out-Null

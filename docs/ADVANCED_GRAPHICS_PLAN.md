@@ -1,7 +1,7 @@
 # Advanced Graphics Plan — Shell Shaders, Parallax & Beyond
 
 Status: **planned (research + roadmap)** — nothing here is implemented yet. This document researches
-advanced real-time rendering techniques and lays out how to apply them **maximally** in Spacecraft to
+advanced real-time rendering techniques and lays out how to apply them **maximally** in Blocks Beyond the Stars to
 make the game look noticeably richer, while staying realistic about our constraints. Pick phases off
 the bottom as polish milestones.
 
@@ -47,7 +47,7 @@ threshold, so strands appear to thin out toward the tips. Cheap, fully real-time
 again by Acerola's "fur" breakdown; classic Lengyel "concentric shells".)
 
 **How in our engine (Built-in RP, code):**
-- A `Spacecraft/Shell` shader with the geometry drawn **K times** (K≈16–48 for fur, 4–8 for short
+- A `BlocksBeyondTheStars/Shell` shader with the geometry drawn **K times** (K≈16–48 for fur, 4–8 for short
   grass). Two options: (a) a multi-pass shader, or (b) draw the mesh K times via
   `Graphics.DrawMeshInstanced` with a per-instance shell index — (b) is more flexible and GPU-instanced.
 - Per shell: extrude position `+= normal * shellHeight * (i/K)`; sample a tiling strand-noise (a single
@@ -77,7 +77,7 @@ offset the UV so the surface appears to have real depth (bricks recess, rock cra
 inset bolts) — with self-occlusion, unlike simple parallax. No extra geometry.
 
 **How in our engine:**
-- Extend `Spacecraft/BlockAtlas` (and `LitColor` for hard-surface meshes) with a **height channel**.
+- Extend `BlocksBeyondTheStars/BlockAtlas` (and `LitColor` for hard-surface meshes) with a **height channel**.
   Pack height into the **alpha of the existing atlas tile** (or a parallel height atlas `.bytes`) so we
   don't change the vertex layout much. We need a **tangent** per vertex — voxel faces are axis-aligned,
   so the tangent is trivial to set per face direction in the mesh builder.
@@ -128,7 +128,7 @@ bloom catches them; pulse via time. Cheap, dramatic. Needs the `LitColor`/`Block
 - **Volumetric light shafts / god rays** from the sun (screen-space radial blur masked by the sun, or true
   volumetric in URP). Strong mood, especially through station windows / forests.
 
-**D. Water & lava.** A proper `Spacecraft/Water` shader: animated normal scroll, Fresnel reflection,
+**D. Water & lava.** A proper `BlocksBeyondTheStars/Water` shader: animated normal scroll, Fresnel reflection,
 depth-based colour + transparency, shoreline foam (depth difference), and **planar reflections** (a second
 camera) for metal/water — cheaper than SSR in Built-in RP. Lava: emissive flow + heat haze (distortion).
 

@@ -44,7 +44,7 @@ projection problem; the cylinder gives the walk-around-the-world feel for a frac
 
 Today terrain is a **pure, non-periodic** function of `(x, z)` — `WorldGenerator.SurfaceHeight`,
 `BiomeIndexAt`, caves, and ore all feed raw `x` into `Fbm2D` / the `Noise` hash, which is a chaotic
-XOR-multiply chain with **no periodicity** (`src/Spacecraft.WorldGeneration/Noise.cs`,
+XOR-multiply chain with **no periodicity** (`src/BlocksBeyondTheStars.WorldGeneration/Noise.cs`,
 `WorldGenerator.cs:47-74`). Wrapping `x` naively (`x % C`) would put two unrelated noise values next to each
 other at the seam → a hard cliff/biome wall.
 

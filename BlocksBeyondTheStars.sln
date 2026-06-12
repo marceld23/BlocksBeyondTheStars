@@ -1,0 +1,78 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D5BFF529-F193-4741-A68E-64309534FDD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Api", "src\BlocksBeyondTheStars.Api\BlocksBeyondTheStars.Api.csproj", "{272C63C1-D696-4BB2-8D7F-318C413D42A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.GameServer", "src\BlocksBeyondTheStars.GameServer\BlocksBeyondTheStars.GameServer.csproj", "{F391640C-AF7B-44AF-B45D-0ABC582A13B5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Networking", "src\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj", "{2496306C-4447-4B03-9B8A-D597B20655D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Persistence", "src\BlocksBeyondTheStars.Persistence\BlocksBeyondTheStars.Persistence.csproj", "{213DCF75-639A-44A1-987C-BD4AB6EBA8F6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Shared", "src\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj", "{C90AEF02-7A7B-4444-AB88-547C700C790F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Tools", "src\BlocksBeyondTheStars.Tools\BlocksBeyondTheStars.Tools.csproj", "{C8436596-2C80-4DEE-A2DC-82832025EBEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.WorldGeneration", "src\BlocksBeyondTheStars.WorldGeneration\BlocksBeyondTheStars.WorldGeneration.csproj", "{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{FF46D2FF-F25E-4693-9D75-3BB4B77699E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlocksBeyondTheStars.Tests", "tests\BlocksBeyondTheStars.Tests\BlocksBeyondTheStars.Tests.csproj", "{D528A556-77BA-4A06-88B5-A8AD1C19E068}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{272C63C1-D696-4BB2-8D7F-318C413D42A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{272C63C1-D696-4BB2-8D7F-318C413D42A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{272C63C1-D696-4BB2-8D7F-318C413D42A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{272C63C1-D696-4BB2-8D7F-318C413D42A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F391640C-AF7B-44AF-B45D-0ABC582A13B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F391640C-AF7B-44AF-B45D-0ABC582A13B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F391640C-AF7B-44AF-B45D-0ABC582A13B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F391640C-AF7B-44AF-B45D-0ABC582A13B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2496306C-4447-4B03-9B8A-D597B20655D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2496306C-4447-4B03-9B8A-D597B20655D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2496306C-4447-4B03-9B8A-D597B20655D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2496306C-4447-4B03-9B8A-D597B20655D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{213DCF75-639A-44A1-987C-BD4AB6EBA8F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{213DCF75-639A-44A1-987C-BD4AB6EBA8F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{213DCF75-639A-44A1-987C-BD4AB6EBA8F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{213DCF75-639A-44A1-987C-BD4AB6EBA8F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C90AEF02-7A7B-4444-AB88-547C700C790F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C90AEF02-7A7B-4444-AB88-547C700C790F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C90AEF02-7A7B-4444-AB88-547C700C790F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C90AEF02-7A7B-4444-AB88-547C700C790F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8436596-2C80-4DEE-A2DC-82832025EBEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8436596-2C80-4DEE-A2DC-82832025EBEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8436596-2C80-4DEE-A2DC-82832025EBEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8436596-2C80-4DEE-A2DC-82832025EBEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D528A556-77BA-4A06-88B5-A8AD1C19E068}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D528A556-77BA-4A06-88B5-A8AD1C19E068}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D528A556-77BA-4A06-88B5-A8AD1C19E068}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D528A556-77BA-4A06-88B5-A8AD1C19E068}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{272C63C1-D696-4BB2-8D7F-318C413D42A1} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{F391640C-AF7B-44AF-B45D-0ABC582A13B5} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{2496306C-4447-4B03-9B8A-D597B20655D9} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{213DCF75-639A-44A1-987C-BD4AB6EBA8F6} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{C90AEF02-7A7B-4444-AB88-547C700C790F} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{C8436596-2C80-4DEE-A2DC-82832025EBEC} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{D2D3EC4E-6435-4ADD-85B2-011F7AD231EC} = {D5BFF529-F193-4741-A68E-64309534FDD9}
+		{D528A556-77BA-4A06-88B5-A8AD1C19E068} = {FF46D2FF-F25E-4693-9D75-3BB4B77699E3}
+	EndGlobalSection
+EndGlobal

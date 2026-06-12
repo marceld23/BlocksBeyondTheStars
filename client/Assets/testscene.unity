@@ -147,7 +147,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1228b0c2048c96245ac6f7977b27e597, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Spacecraft.Client::Spacecraft.Client.AppShell
+  m_EditorClassIdentifier: BlocksBeyondTheStars.Client::BlocksBeyondTheStars.Client.AppShell
   Host: 127.0.0.1
   Port: 31415
   PlayerName: Pilot

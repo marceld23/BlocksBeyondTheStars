@@ -1,4 +1,4 @@
-# Spacecraft AI Backend (optional)
+# Blocks Beyond the Stars — AI Backend (optional)
 
 A **separate, optional** Python service for the game server (see
 [docs/AI_MISSION_BACKEND.md](../docs/AI_MISSION_BACKEND.md)). The C#/.NET game server stays
@@ -70,9 +70,9 @@ LangGraph wraps it in a one-node graph (easy to extend with moderation/retry nod
 Copy `.env.example` → `.env` and set one provider:
 
 ```bash
-SPACECRAFT_AI_BASE_URL=http://localhost:1234/v1   # LM Studio
-SPACECRAFT_AI_MODEL=local-model
-SPACECRAFT_AI_API_KEY=lm-studio                   # ignored by LM Studio
+BBTS_AI_BASE_URL=http://localhost:1234/v1   # LM Studio
+BBTS_AI_MODEL=local-model
+BBTS_AI_API_KEY=lm-studio                   # ignored by LM Studio
 ```
 
 With **no** model configured the endpoint returns a deterministic **bilingual template** line, so

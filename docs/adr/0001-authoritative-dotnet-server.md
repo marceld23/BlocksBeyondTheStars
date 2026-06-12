@@ -6,7 +6,7 @@
 
 ## Context
 
-Spacecraft must be a 3D Windows game that becomes multiplayer-capable and self-hostable
+Blocks Beyond the Stars must be a 3D Windows game that becomes multiplayer-capable and self-hostable
 (including on a Raspberry Pi 5) without a painful rewrite. We must decide where game truth
 lives, what runs the server, and how data is stored and exchanged.
 

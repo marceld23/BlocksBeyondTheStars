@@ -1,4 +1,4 @@
-# Spacecraft Unity Client
+# Blocks Beyond the Stars — Unity Client
 
 The Unity client is **presentation and input only** — it renders the world the .NET server
 reports and sends player *intents*. It never decides game outcomes.
@@ -8,7 +8,7 @@ reports and sends player *intents*. It never decides game outcomes.
 - Unity **6 LTS** (6000.4.9f1; see `ProjectSettings/ProjectVersion.txt`). The project was
   started on 2022.3 LTS and migrated to Unity 6 — on first open Unity finalizes the project
   files (and the exact editor-revision hash) automatically.
-- A running Spacecraft server (`dotnet run --project ../src/Spacecraft.GameServer`).
+- A running Blocks Beyond the Stars server (`dotnet run --project ../src/BlocksBeyondTheStars.GameServer`).
 
 ## One-time setup
 
@@ -19,8 +19,8 @@ and copy the data-driven content into `StreamingAssets`:
 ../scripts/sync-client-libs.ps1
 ```
 
-This places `Spacecraft.Shared.dll`, `Spacecraft.WorldGeneration.dll`,
-`Spacecraft.Networking.dll` (and their dependencies) into `Assets/Plugins/`, and the
+This places `BlocksBeyondTheStars.Shared.dll`, `BlocksBeyondTheStars.WorldGeneration.dll`,
+`BlocksBeyondTheStars.Networking.dll` (and their dependencies) into `Assets/Plugins/`, and the
 `data/` content (definitions + `locales/`) into `Assets/StreamingAssets/data/`.
 
 > If Unity reports a duplicate of a `System.*` assembly it already ships, delete that one
@@ -36,7 +36,7 @@ Publish the server into the client once:
 ../scripts/publish-local-server.ps1
 ```
 
-This builds a self-contained `Spacecraft.GameServer` into `Assets/StreamingAssets/server/`.
+This builds a self-contained `BlocksBeyondTheStars.GameServer` into `Assets/StreamingAssets/server/`.
 The client reuses `StreamingAssets/data` and writes saves under the user's persistent data
 path. Without this step, use **Join Server** against a manually started server instead.
 
@@ -70,11 +70,11 @@ For a self-contained singleplayer build, sync content + bundle the server, then 
 ../scripts/build-client.ps1            # uses Unity 6000.4.x in batch mode
 ```
 
-`build-client.ps1` runs `Spacecraft/Build Windows Player` (an editor menu item too) which
-generates the launcher scene (one `AppShell` object) and writes `Build/Windows/Spacecraft.exe`.
+`build-client.ps1` runs `BlocksBeyondTheStars/Build Windows Player` (an editor menu item too) which
+generates the launcher scene (one `AppShell` object) and writes `Build/Windows/BlocksBeyondTheStars.exe`.
 Everything under `Assets/StreamingAssets/` (data + the published server) is bundled automatically.
 
-## Scripts (`Assets/Spacecraft/Scripts/`)
+## Scripts (`Assets/BlocksBeyondTheStars/Scripts/`)
 
 | Script | Role |
 |---|---|

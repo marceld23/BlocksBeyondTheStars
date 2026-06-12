@@ -18,8 +18,8 @@ documented folder layout so dropping in real assets needs no code change.
 
 | Question | Decision (MVP) |
 |---|---|
-| Name | **Spacecraft** (working title kept; revisit before any public release). |
-| Logo | Text logo "SPACECRAFT" + a simple blocky-ship glyph placeholder. No commissioned art yet. |
+| Name | **Blocks Beyond the Stars** (renamed 2026-06-12 from the former working title; solution/namespaces/binaries renamed to `BlocksBeyondTheStars` too). |
+| Logo | Text logo "BLOCKS BEYOND THE STARS" + a simple blocky-ship glyph placeholder. No commissioned art yet. |
 | Style | **Clean, friendly sci-fi** — it's a father-and-son game; not dark/gritty. |
 | Colours | Primary deep space blue `#0B1E3B`, accent cyan `#39C0ED`, warning amber `#FFB300`. |
 | Build badge | Show **"PROTOTYPE / DEV BUILD"** + version on splash and main menu. |
@@ -36,7 +36,7 @@ documented folder layout so dropping in real assets needs no code change.
 MVP entries (the spec's first-version list, §4.2):
 
 ```
-SPACECRAFT
+BLOCKS BEYOND THE STARS
   [ Singleplayer / Local World ]   -> starts an in-process server (SP = local server)
   [ Join Server ]                  -> host:port entry (LAN/self-hosted)
   [ Settings ]
@@ -99,7 +99,7 @@ and atlas are a later milestone.
 ## Asset folder layout (so real assets drop in without code changes)
 
 ```
-client/Assets/Spacecraft/
+client/Assets/BlocksBeyondTheStars/
   Art/Textures/blocks/        # 32x32 atlas + per-block tiles (later)
   Art/Textures/ui/            # icons, logo, splash art (later)
   Art/Models/                 # tools, props, ships (later)

@@ -7,7 +7,7 @@ cleaner cross-platform lighting model — the "fundamental" graphics upgrade.
 ## ⚠️ Hard constraint (read first)
 
 The coding agent **cannot see the rendered image** — it can only confirm the headless build *compiles*
-(`Spacecraft build: Succeeded`). A broken shader renders **magenta/black yet still "builds"**. URP also
+(`BlocksBeyondTheStars build: Succeeded`). A broken shader renders **magenta/black yet still "builds"**. URP also
 **breaks every Built-in-RP shader until ported**. Therefore this migration MUST be **staged**, and at each
 stage the **developer verifies the look in the Unity editor** (Play mode) before continuing. Do it on a
 branch so it's trivially revertible.
@@ -20,7 +20,7 @@ branch so it's trivially revertible.
   `PostBloom`, `PostComposite`.
 - Post-FX via **`OnRenderImage`** (`PostFx.cs`: bright-pass+Gaussian bloom, ACES tonemap, SSAO, vignette,
   per-biome grade). **URP never calls `OnRenderImage`** → must be reworked.
-- Diegetic **visor HUD**: a 2nd UI camera → RT, composited by `Spacecraft/Visor` in `OnRenderImage`
+- Diegetic **visor HUD**: a 2nd UI camera → RT, composited by `BlocksBeyondTheStars/Visor` in `OnRenderImage`
   (`VisorHud.cs` / `VisorComposite`). Also must move to a URP render feature.
 - Sun is a directional light with **shadows OFF** (`Sky.cs`) — the main thing URP buys us.
 - Block shader already does per-pixel normals + sun diffuse + specular + baked AO + skylight occlusion, driven
@@ -39,7 +39,7 @@ composite + any remaining fullscreen passes (Cloud/Starfield/SunGlow if camera-b
 ## Progress (branch `urp-migration`)
 
 - ✅ **Stage 0** — URP 17.4.0 installed (via the editor Package Manager; batch resolve hit an EPERM/AV lock).
-- ✅ **Enable/Disable menu** — `Assets/Spacecraft/Editor/UrpMigration.cs` (`Spacecraft → URP`): assigns the URP
+- ✅ **Enable/Disable menu** — `Assets/BlocksBeyondTheStars/Editor/UrpMigration.cs` (`BlocksBeyondTheStars → URP`): assigns the URP
   asset to Graphics + every Quality level (and reverts), logs the effective pipeline. Uses the base
   `RenderPipelineAsset` type, so no URP asmdef ref needed.
 - ✅ **BlockAtlas** dual-pipeline (URP forward + **shadow receive** + **ShadowCaster**; Built-in pass unchanged).
@@ -58,7 +58,7 @@ composite + any remaining fullscreen passes (Cloud/Starfield/SunGlow if camera-b
   exe grew ~9 MB (URP shader variants). GraphicsSettings + all Quality levels reference the URP asset, so
   shipped builds are URP now.
 - ✅ **SSAO** renderer feature added (by the developer, on the URP Renderer asset).
-- ✅ **Assets tidied + shadows tuned:** pipeline assets moved to `Assets/Settings/SpacecraftURP(.Renderer).asset`
+- ✅ **Assets tidied + shadows tuned:** pipeline assets moved to `Assets/Settings/BlocksBeyondTheStarsURP(.Renderer).asset`
   (GUIDs kept via .meta); soft shadows enabled on the asset (`m_SoftShadowsSupported: 1` — the sun already asks
   for Soft), shadow distance 50→90, 2 cascades.
 
@@ -70,7 +70,7 @@ composite + any remaining fullscreen passes (Cloud/Starfield/SunGlow if camera-b
 
 - ✅ **Sky/FX shaders** — `Cloud`/`Starfield`/`SunGlow` ported dual-pipeline (URP HLSL with per-material
   CBUFFERs for SRP batching; Built-in passes unchanged).
-- ✅ **Diegetic visor HUD under URP** — `Spacecraft/Visor` gained a URP Blit SubShader (world = `_BlitTexture`
+- ✅ **Diegetic visor HUD under URP** — `BlocksBeyondTheStars/Visor` gained a URP Blit SubShader (world = `_BlitTexture`
   via Blit.hlsl; include URP Core.hlsl FIRST — core Common.hlsl lacks the TEXTURE2D_X macros). New
   `VisorUrpCompositor`: a render-graph blit pass (AddBlitPass + cameraColor swap) enqueued per-frame from
   `RenderPipelineManager.beginCameraRendering` (code-only, no renderer-asset edits), running after post.
@@ -100,7 +100,7 @@ then merge to main.
   Adjustments; per-biome grade driven from `Sky`/biome) + enable URP **SSAO** renderer feature; delete
   `PostFx` + `Post*` shaders. **DEV CHECK:** bloom/tonemap/AO/vignette look right at each quality preset.
 - **Stage 4 — sky + HUD passes:** port `Cloud`, `Starfield`, `SunGlow`; re-implement the **visor composite**
-  (`Spacecraft/Visor` + the dezent/off toggle already added) as a `ScriptableRendererFeature` after post.
+  (`BlocksBeyondTheStars/Visor` + the dezent/off toggle already added) as a `ScriptableRendererFeature` after post.
   **DEV CHECK:** sky, clouds, stars, sun, and the diegetic HUD composite correctly; visor on/off works.
 - **Stage 5 — real shadows + lighting:** turn the sun's shadows on (soft), set ambient + optional fog;
   tune shadow distance/bias. **DEV CHECK:** terrain/structures cast + receive shadows; no peter-panning/acne.
