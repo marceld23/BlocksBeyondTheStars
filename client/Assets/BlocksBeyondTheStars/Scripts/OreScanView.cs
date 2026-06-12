@@ -84,9 +84,9 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.localScale = Vector3.one * 0.65f; // smaller than the block — reads as "inside" it
 
                 Color tint = TintFor(i < scan.Block.Length ? scan.Block[i] : (ushort)0);
-                var mat = new Material(_glow) { color = tint * 0.8f };
+                var mat = new Material(_glow) { color = ShaderColor.Srgb(tint * 0.8f) };
                 go.GetComponent<Renderer>().sharedMaterial = mat;
-                _markers.Add(new Marker { Go = go, Mat = mat, Base = tint * 0.8f, Phase = i * 0.61f });
+                _markers.Add(new Marker { Go = go, Mat = mat, Base = ShaderColor.Srgb(tint * 0.8f), Phase = i * 0.61f });
             }
         }
 

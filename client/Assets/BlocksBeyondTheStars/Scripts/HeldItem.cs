@@ -163,7 +163,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.localScale = scale;
 
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            go.GetComponent<Renderer>().sharedMaterial = new Material(shader) { color = color };
+            go.GetComponent<Renderer>().sharedMaterial = new Material(shader) { color = ShaderColor.Srgb(color) };
             return go;
         }
     }

@@ -99,7 +99,9 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var (r, g, b) = BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key);
-                map[def.NumericId.Value] = new Color(r, g, b);
+                // The mesher writes these into TEXCOORD2 and the block shader multiplies them raw —
+                // convert the sRGB-authored hue at this boundary (no-op in Gamma space).
+                map[def.NumericId.Value] = ShaderColor.Srgb(new Color(r, g, b));
             }
 
             _floraTintByBlock = map;

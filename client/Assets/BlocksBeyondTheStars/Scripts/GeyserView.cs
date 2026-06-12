@@ -114,8 +114,8 @@ namespace BlocksBeyondTheStars.Client
             public void Init(Color lo, Color hi)
             {
                 var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-                var matLo = new Material(shader) { color = lo };
-                var matHi = new Material(shader) { color = hi };
+                var matLo = new Material(shader) { color = ShaderColor.Srgb(lo) };
+                var matHi = new Material(shader) { color = ShaderColor.Srgb(hi) };
 
                 for (int i = 0; i < 16; i++)
                 {

@@ -123,7 +123,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material Mat(Color c)
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = c };
+            return new Material(shader) { color = ShaderColor.Srgb(c) };
         }
 
         /// <summary>Fades/shrinks an effect cube out over a short life, then destroys it.</summary>

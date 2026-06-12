@@ -139,8 +139,8 @@ namespace BlocksBeyondTheStars.Client
             root.transform.position = pos;
 
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var body = new Material(shader) { color = hull };
-            var glass = new Material(shader) { color = new Color(0.4f, 0.7f, 1f) };
+            var body = new Material(shader) { color = ShaderColor.Srgb(hull) };
+            var glass = new Material(shader) { color = ShaderColor.Srgb(new Color(0.4f, 0.7f, 1f)) };
 
             Cube("Hull", root.transform, new Vector3(0f, 0f, 0f), new Vector3(2.4f, 1.1f, 4.2f), body);
             Cube("Nose", root.transform, new Vector3(0f, 0.1f, 2.6f), new Vector3(1.4f, 0.8f, 1.4f), body);
@@ -150,7 +150,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Engine block at the rear + a downward thruster flame (bright unlit) with a glow light.
             Cube("Engine", root.transform, new Vector3(0f, -0.1f, -2.2f), new Vector3(1.6f, 0.9f, 0.8f), body);
-            var flameMat = new Material(Shader.Find("Unlit/Color") ?? shader) { color = new Color(1f, 0.6f, 0.2f) };
+            var flameMat = new Material(Shader.Find("Unlit/Color") ?? shader) { color = ShaderColor.Srgb(new Color(1f, 0.6f, 0.2f)) };
             Cube("Flame", root.transform, new Vector3(0f, -0.9f, -1.8f), new Vector3(0.9f, 1.4f, 0.9f), flameMat);
 
             engine = AddEngineGlow(root.transform);

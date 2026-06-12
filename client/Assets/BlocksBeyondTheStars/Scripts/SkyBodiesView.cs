@@ -132,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
                 // A touch brighter at night (like a real moon dominating the dark sky), dimmer by day,
                 // fading out right at the horizon.
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
-                b.Mat.color = b.Tint * Mathf.Lerp(1.25f, 0.85f, day) * horizon;
+                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 0.85f, day) * horizon);
             }
         }
 
@@ -225,7 +225,7 @@ namespace BlocksBeyondTheStars.Client
                 var tint = PlanetOrbitLook.GroundColor(
                     Game.Content, Game.Atlas, Game.WorldSeed,
                     PlanetOrbitLook.LocationKeyFor(system.Name, body.Name), body.PlanetType, TintFor(body.PlanetType));
-                var mat = new Material(shader) { color = tint };
+                var mat = new Material(shader) { color = ShaderColor.Srgb(tint) };
 
                 var mr = go.GetComponent<MeshRenderer>();
                 mr.sharedMaterial = mat;

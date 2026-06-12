@@ -135,7 +135,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material LitTex(string texKey, Color tint)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = tint };
+            var m = new Material(shader) { color = ShaderColor.Srgb(tint) };
             var tex = LoadTex(texKey);
             if (tex != null)
             {

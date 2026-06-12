@@ -22,6 +22,22 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Professional-look pass (WP-1…16) — IN PROGRESS (2026-06-12)
+Driven by [docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) (what's missing)
+and [docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md)
+(WP-1…16, one commit per WP; playtests consolidated into PT-1 after WP-1 and PT-2 after WP-15).
+- **WP-1 — Linear color space** ✅ code + build green (2026-06-12). `m_ActiveColorSpace: 1`; new
+  `ShaderColor.Srgb()` boundary helper applied at every script→shader colour upload (Sky globals,
+  flora-tint map, lamp, sun discs, clouds, doors, FX/material factories across ~25 files); the
+  derived normal atlas is now created with `linear: true` (data, not colour). Engine-managed colour
+  properties (Light.color, RenderSettings, camera background, uGUI, URP colorFilter) intentionally
+  NOT wrapped — Unity/URP convert those. Built-in-RP `PostFx` fallback stays gamma-tuned (URP is the
+  shipping path). **PT-1 visual checkpoint still pending** (verify the 8 scenarios from the plan;
+  retune candidates: flora blend, grade strength, emission ×2, bloom threshold, vertex AO).
+- **WP-2 — Sci-fi UI font** ✅ (2026-06-12): bundled Rajdhani-Medium (OFL, full DE glyph coverage
+  verified via fontTools) under `Resources/fonts/`, first in the `UiKit.Font` fallback chain;
+  licence recorded in NOTICES.md. Visual check at PT-2.
+
 ### ★ In-game multiplayer hosting ("Host Game") — ✅ SHIPPED (2026-06-12; 475 tests green)
 **Decisions (2026-06-12):** name verification = **token-based name ownership** (first join under a name
 claims it via a per-install client secret; later joins must present it) + online-duplicate rejection;

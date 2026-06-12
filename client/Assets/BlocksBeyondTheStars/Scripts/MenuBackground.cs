@@ -90,14 +90,14 @@ namespace BlocksBeyondTheStars.Client
                 if (_beacon != null)
                 {
                     bool on = Mathf.Sin(_t * 4f) > 0.4f;
-                    _beacon.sharedMaterial.color = on ? new Color(1f, 0.35f, 0.35f) : new Color(0.3f, 0.06f, 0.06f);
+                    _beacon.sharedMaterial.color = ShaderColor.Srgb(on ? new Color(1f, 0.35f, 0.35f) : new Color(0.3f, 0.06f, 0.06f));
                 }
 
                 // Engine flicker: glow length + light intensity pulse.
                 float pulse = 0.8f + Mathf.Sin(_t * 14f) * 0.12f + Mathf.Sin(_t * 5f) * 0.08f;
                 if (_engineGlowL != null) _engineGlowL.localScale = new Vector3(0.5f, 0.5f, 1.4f * pulse);
                 if (_engineGlowR != null) _engineGlowR.localScale = new Vector3(0.5f, 0.5f, 1.4f * pulse);
-                if (_engineMat != null) _engineMat.color = new Color(0.5f, 0.85f, 1f) * (0.9f + pulse * 0.2f);
+                if (_engineMat != null) _engineMat.color = ShaderColor.Srgb(new Color(0.5f, 0.85f, 1f) * (0.9f + pulse * 0.2f));
                 if (_engineLight != null) _engineLight.intensity = 1.8f + pulse * 0.8f;
             }
 
@@ -188,7 +188,7 @@ namespace BlocksBeyondTheStars.Client
             var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
             var mat = new Material(shader) { mainTexture = CloudTexture() };
             mat.renderQueue = 3000;
-            mat.SetColor(Shader.PropertyToID("_Color"), new Color(0.95f, 0.97f, 1f, 0.7f));
+            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(new Color(0.95f, 0.97f, 1f, 0.7f)));
             shell.GetComponent<Renderer>().sharedMaterial = mat;
             return shell.transform;
         }
@@ -251,14 +251,14 @@ namespace BlocksBeyondTheStars.Client
         private static Material Unlit(Color c)
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = c };
+            return new Material(shader) { color = ShaderColor.Srgb(c) };
         }
 
         /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>
         private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = c };
+            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
             if (tex != null)
             {
                 m.mainTexture = tex;

@@ -160,7 +160,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Color flora = Rgb(env.FloraTint);
                 flora.a = 1f;
-                Shader.SetGlobalColor(FloraTintId, flora);
+                Shader.SetGlobalColor(FloraTintId, ShaderColor.Srgb(flora));
             }
             else
             {
@@ -182,7 +182,7 @@ namespace BlocksBeyondTheStars.Client
             // Stations use a clean neutral interior light (not the system sun's tint).
             Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : sunColor * (brightness * weatherDim);
             tint.a = 1f; // marks the global as "set" for the shaders
-            Shader.SetGlobalColor(LightId, tint);
+            Shader.SetGlobalColor(LightId, ShaderColor.Srgb(tint));
 
             // Ship interior lighting: the block shader darkens indoors/underground by skylight occlusion
             // (so caves need a lamp). The ship is your home, though, so feed an "indoor fill" the shader
@@ -218,7 +218,9 @@ namespace BlocksBeyondTheStars.Client
                 sky = Color.Lerp(nightSky, daySky, day);
             }
             sky.a = 1f;
-            Shader.SetGlobalColor(SkyId, sky);
+            // The shader global gets the linear value; the engine-managed consumers below (ambient, camera
+            // background, fog) keep the sRGB-composed `sky` — Unity converts those itself.
+            Shader.SetGlobalColor(SkyId, ShaderColor.Srgb(sky));
 
             // Star-tinted flat ambient (B37 rest): the custom block shader ignores Unity's ambient, but
             // standard/Lit-shaded props (and URP's ambient term) pick it up — so even those follow the
@@ -260,8 +262,9 @@ namespace BlocksBeyondTheStars.Client
             // light, atmospheric wash — raised from 0.25 so the per-system sun colour clearly reads).
             Color blended = tint * Color.Lerp(Color.white, norm, 0.4f);
             blended.a = 0.7f; // grade strength
-            Shader.SetGlobalColor(GradeTintId, blended);
+            Shader.SetGlobalColor(GradeTintId, ShaderColor.Srgb(blended));
             Shader.SetGlobalVector(GradeParamsId, new Vector4(sat, contrast, 0f, 0f));
+            // ApplyGrade keeps the sRGB value: URP's ColorAdjustments colorFilter converts internally.
             UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP path (PostComposite is Built-in-only)
         }
 
@@ -350,7 +353,7 @@ namespace BlocksBeyondTheStars.Client
             float a = Mathf.Clamp01(sunHeight * 1.6f + 0.3f) * (spaceSky ? 1.25f : 1f);
             Color c = sunColor;
             c.a = Mathf.Clamp01(a);
-            _sunDiscMat.SetColor(ColorId, c);
+            _sunDiscMat.SetColor(ColorId, ShaderColor.Srgb(c));
         }
 
         private void OnDisable()

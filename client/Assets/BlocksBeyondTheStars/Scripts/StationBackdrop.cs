@@ -80,7 +80,7 @@ namespace BlocksBeyondTheStars.Client
             // Data-driven planet colour (surface block + flora/water blend) with the palette as backstop.
             var planetCol = PlanetOrbitLook.GroundColor(
                 Game.Content, Game.Atlas, Game.WorldSeed, Game?.LocationName ?? string.Empty, biome, PlanetColor(biome));
-            planet.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = planetCol };
+            planet.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = ShaderColor.Srgb(planetCol) };
 
             // The system's sun, in its own colour (additive glow billboard).
             Color sunCol = Game.Environment != null ? Rgb(Game.Environment.SunColor) : new Color(1f, 0.96f, 0.88f);
@@ -92,7 +92,7 @@ namespace BlocksBeyondTheStars.Client
             sun.transform.localScale = Vector3.one * 150f;
             var sunShader = Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
             _sunMat = new Material(sunShader) { mainTexture = GlowTexture() };
-            _sunMat.SetColor("_Color", sunCol);
+            _sunMat.SetColor("_Color", ShaderColor.Srgb(sunCol));
             var smr = sun.GetComponent<MeshRenderer>();
             smr.sharedMaterial = _sunMat;
             smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

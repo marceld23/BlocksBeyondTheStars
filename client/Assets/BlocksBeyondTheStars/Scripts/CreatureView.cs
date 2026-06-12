@@ -184,7 +184,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var sh = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
                 _stasisMat = new Material(sh);
-                _stasisMat.SetColor("_Color", new Color(0.5f, 0.8f, 1f, 0.32f)); // translucent icy blue
+                _stasisMat.SetColor("_Color", ShaderColor.Srgb(new Color(0.5f, 0.8f, 1f, 0.32f))); // translucent icy blue
                 _stasisMat.renderQueue = 3000;
             }
 
@@ -272,7 +272,7 @@ namespace BlocksBeyondTheStars.Client
         private void SpawnAttackFx(Vector3 at)
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            var mat = new Material(shader) { color = new Color(1f, 0.2f, 0.15f) };
+            var mat = new Material(shader) { color = ShaderColor.Srgb(new Color(1f, 0.2f, 0.15f)) };
             for (int i = 0; i < 3; i++)
             {
                 var go = GameObject.CreatePrimitive(PrimitiveType.Cube);

@@ -139,7 +139,7 @@ namespace BlocksBeyondTheStars.Client
                 _clouds[i].rotation = Quaternion.LookRotation(camPos - _clouds[i].position);
                 // Clouds are wider than tall.
                 _clouds[i].localScale = new Vector3(_size[i] * 1.8f, _size[i], _size[i]);
-                _mats[i].SetColor(ColorId, tint);
+                _mats[i].SetColor(ColorId, ShaderColor.Srgb(tint));
             }
         }
 

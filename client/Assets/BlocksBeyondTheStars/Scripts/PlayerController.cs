@@ -461,7 +461,7 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 p = t.position, f = t.forward;
                 Shader.SetGlobalVector(LampPosId, new Vector4(p.x, p.y, p.z, 26f));   // range
                 Shader.SetGlobalVector(LampDirId, new Vector4(f.x, f.y, f.z, 0.80f)); // cone cos (~37°)
-                Shader.SetGlobalColor(LampColId, new Color(1.6f, 1.5f, 1.3f, 1f));    // warm, HDR intensity
+                Shader.SetGlobalColor(LampColId, ShaderColor.Srgb(new Color(1.6f, 1.5f, 1.3f, 1f))); // warm, HDR intensity
                 EnsureLampCone();
             }
             else
@@ -493,7 +493,7 @@ namespace BlocksBeyondTheStars.Client
             _lampCone.AddComponent<MeshFilter>().sharedMesh = BuildConeMesh(10f, 1.9f, 24);
             var mr = _lampCone.AddComponent<MeshRenderer>();
             var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Color");
-            mr.sharedMaterial = new Material(shader) { color = new Color(1f, 0.94f, 0.76f, 0.06f) };
+            mr.sharedMaterial = new Material(shader) { color = ShaderColor.Srgb(new Color(1f, 0.94f, 0.76f, 0.06f)) };
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
         }

@@ -35,7 +35,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _mat = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"))
             {
-                color = new Color(0.68f, 0.80f, 1f),
+                color = ShaderColor.Srgb(new Color(0.68f, 0.80f, 1f)),
             };
 
             _drops = new Transform[Pool];
@@ -87,7 +87,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var s = StyleFor(precip, env.Weather == "storm");
-            if (_mat.color != s.Color) { _mat.color = s.Color; } // all drops share one material → one precip form at a time
+            Color drop = ShaderColor.Srgb(s.Color);
+            if (_mat.color != drop) { _mat.color = drop; } // all drops share one material → one precip form at a time
             int count = Mathf.RoundToInt(Pool * Mathf.Clamp01(0.4f + env.Intensity * 0.6f) * s.Density);
             var camPos = Cam.transform.position;
             float dt = Time.deltaTime, t = Time.time;

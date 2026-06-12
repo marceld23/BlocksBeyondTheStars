@@ -88,7 +88,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 float shimmer = 0.85f + 0.15f * Mathf.Sin(Time.time * 6f);
                 float alpha = 0.42f * d.Anim * shimmer;
-                d.FieldMat.SetColor(FieldColorId, new Color(0.35f, 0.80f, 1f, alpha));
+                d.FieldMat.SetColor(FieldColorId, ShaderColor.Srgb(new Color(0.35f, 0.80f, 1f, alpha)));
             }
         }
 
@@ -220,7 +220,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var mat = new Material(_fieldShader);
-            mat.SetColor(FieldColorId, new Color(0.35f, 0.80f, 1f, 0f)); // alpha set each frame from the open amount
+            mat.SetColor(FieldColorId, ShaderColor.Srgb(new Color(0.35f, 0.80f, 1f, 0f))); // alpha set each frame from the open amount
             mat.renderQueue = 3000; // transparent
             return mat;
         }
@@ -277,7 +277,7 @@ namespace BlocksBeyondTheStars.Client
                 _doorShader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             }
 
-            r.sharedMaterial = new Material(_doorShader) { color = c };
+            r.sharedMaterial = new Material(_doorShader) { color = ShaderColor.Srgb(c) };
         }
 
         private static void StripCollider(GameObject go)

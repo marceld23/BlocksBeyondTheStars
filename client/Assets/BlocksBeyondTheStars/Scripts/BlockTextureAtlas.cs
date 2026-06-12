@@ -52,7 +52,9 @@ namespace BlocksBeyondTheStars.Client
         private void BuildNormalAtlas()
         {
             int w = Cols * Tile, h = Rows * Tile;
-            NormalTexture = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: true)
+            // linear: normals are data, not colour — without this flag a Linear-color-space build would
+            // sRGB-decode the encoded normals on sample and break the per-pixel lighting on every block.
+            NormalTexture = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: true, linear: true)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,

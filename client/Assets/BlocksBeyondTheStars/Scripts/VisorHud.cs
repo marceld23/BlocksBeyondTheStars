@@ -186,7 +186,7 @@ namespace BlocksBeyondTheStars.Client
                 m.SetFloat("_VisorTime", _urpTime);
                 m.SetFloat("_Aspect", Screen.height > 0 ? (float)Screen.width / Screen.height : 1.78f);
                 m.SetFloat("_HudOpacity", 0.97f);
-                m.SetColor("_RimColor", new Color(0.4f, 0.85f, 1f, 1f));
+                m.SetColor("_RimColor", ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
                 m.SetFloat("_ScanCount", Mathf.Max(120f, _h * 0.5f));
                 m.SetFloat("_Intensity", fx ? _intensity : 0f);
                 m.SetFloat("_Curvature", fx ? 0.045f : 0f);
@@ -294,7 +294,7 @@ namespace BlocksBeyondTheStars.Client
             _mat.SetFloat("_VisorTime", _time);
             _mat.SetFloat("_Aspect", src.height > 0 ? (float)src.width / src.height : 1.78f);
             _mat.SetFloat("_HudOpacity", 0.97f);
-            _mat.SetColor("_RimColor", new Color(0.4f, 0.85f, 1f, 1f));
+            _mat.SetColor("_RimColor", ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
             _mat.SetFloat("_ScanCount", Mathf.Max(120f, Hud.height * 0.5f));
 
             if (Effects)

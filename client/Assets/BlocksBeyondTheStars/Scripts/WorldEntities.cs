@@ -271,16 +271,16 @@ namespace BlocksBeyondTheStars.Client
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
             var hideTex = LoadTex("enemy_hide");
-            _hideMat = new Material(lit) { color = new Color(0.72f, 0.2f, 0.16f) };
-            _hideDarkMat = new Material(lit) { color = new Color(0.4f, 0.12f, 0.1f) };
+            _hideMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.72f, 0.2f, 0.16f)) };
+            _hideDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.4f, 0.12f, 0.1f)) };
             if (hideTex != null)
             {
                 _hideMat.mainTexture = hideTex;
                 _hideDarkMat.mainTexture = hideTex;
             }
 
-            _clawMat = new Material(lit) { color = new Color(0.85f, 0.8f, 0.66f) };  // bone
-            _eyeMat = new Material(unlit) { color = new Color(1f, 0.85f, 0.2f) };    // glowing amber (bloom picks it up)
+            _clawMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.85f, 0.8f, 0.66f)) };  // bone
+            _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.85f, 0.2f)) };    // glowing amber (bloom picks it up)
         }
 
         private static Texture2D LoadTex(string key)

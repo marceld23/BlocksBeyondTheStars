@@ -198,7 +198,7 @@ namespace BlocksBeyondTheStars.Client
             // Live hull re-tint: the player can change their ship colour from the menu mid-flight (item 32).
             if (_hullMat != null && Game.HullRgb != _appliedHullRgb)
             {
-                _hullMat.color = Rgb(Game.HullRgb);
+                _hullMat.color = ShaderColor.Srgb(Rgb(Game.HullRgb));
                 _appliedHullRgb = Game.HullRgb;
             }
 
@@ -1961,7 +1961,7 @@ namespace BlocksBeyondTheStars.Client
                 var hShader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
                 var hCol = Color.Lerp(new Color(0.55f, 0.75f, 1f), sunHue, 0.25f);
                 var hMat = new Material(hShader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
-                hMat.SetColor("_Color", new Color(hCol.r, hCol.g, hCol.b, 0.08f + 0.08f * atm));
+                hMat.SetColor("_Color", ShaderColor.Srgb(new Color(hCol.r, hCol.g, hCol.b, 0.08f + 0.08f * atm)));
                 var hMr = haze.GetComponent<Renderer>();
                 hMr.sharedMaterial = hMat;
                 hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -2297,7 +2297,7 @@ namespace BlocksBeyondTheStars.Client
 
             var shader = Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
             var mat = new Material(shader) { mainTexture = GenerateGlowTexture() };
-            mat.SetColor("_Color", color);
+            mat.SetColor("_Color", ShaderColor.Srgb(color));
 
             var mr = go.GetComponent<MeshRenderer>();
             mr.sharedMaterial = mat;
@@ -2389,7 +2389,7 @@ namespace BlocksBeyondTheStars.Client
                     av.Suit.SetActive(rp.Eva);
                     if (av.HullMat != null)
                     {
-                        av.HullMat.color = Rgb(rp.Hull != 0 ? rp.Hull : 0xD1D6E0); // their chosen hull colour (item 32)
+                        av.HullMat.color = ShaderColor.Srgb(Rgb(rp.Hull != 0 ? rp.Hull : 0xD1D6E0)); // their chosen hull colour (item 32)
                     }
                 }
             }
@@ -2795,7 +2795,7 @@ namespace BlocksBeyondTheStars.Client
             if (_hatchMat != null)
             {
                 float b = _eva ? 0.55f + 0.45f * (0.5f + 0.5f * Mathf.Sin(Time.time * 4.5f)) : 0.7f;
-                _hatchMat.color = new Color(0.15f * b + 0.05f, 0.85f * b, 1f * b);
+                _hatchMat.color = ShaderColor.Srgb(new Color(0.15f * b + 0.05f, 0.85f * b, 1f * b));
             }
 
             // Decay the hit feedback.
@@ -3034,7 +3034,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material Unlit(Color c)
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = c };
+            return new Material(shader) { color = ShaderColor.Srgb(c) };
         }
 
         private Material _asteroidMat; // shared stone material for the field's asteroids (rebuilt per view)
@@ -3075,7 +3075,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = c };
+            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
             if (tex != null)
             {
                 m.mainTexture = tex;
@@ -3209,7 +3209,7 @@ namespace BlocksBeyondTheStars.Client
             mat.renderQueue = 3000;
             var c = color;
             c.a = Mathf.Clamp01(0.55f + density * 0.4f);
-            mat.SetColor(Shader.PropertyToID("_Color"), c);
+            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(c));
 
             var mr = shell.GetComponent<Renderer>();
             mr.sharedMaterial = mat;

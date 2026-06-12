@@ -378,7 +378,7 @@ namespace BlocksBeyondTheStars.Client
         private static Material Lit(Color color, Texture2D tex)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = color };
+            var m = new Material(shader) { color = ShaderColor.Srgb(color) };
             if (tex != null)
             {
                 m.mainTexture = tex;
