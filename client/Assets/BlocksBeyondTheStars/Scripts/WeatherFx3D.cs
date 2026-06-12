@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -6,10 +7,13 @@ namespace BlocksBeyondTheStars.Client
     /// In-world weather (M27 polish, P7 weather rest): actual 3D rain falling around the player during
     /// rain/storm, plus storm fog that cuts view distance. The rain is a recycled pool of thin unlit
     /// streaks (the same robust "cubes in code" approach as the space view — no particle-shader stripping
-    /// risk in builds). Both are gated like the rest of weather: only with open sky overhead (not in caves
-    /// or under a roof), not in the space view, and hidden while a menu is up. Density/speed/slant scale
-    /// with the authoritative <c>WorldEnvironment.Intensity</c>. The looping rain/storm bed + thunder live
-    /// in <see cref="ClientAudio"/>; the screen wash + lightning flash in <see cref="WeatherFx"/>.
+    /// risk in builds). Drops are gated per *column*, not by the player's own sky exposure: each drop only
+    /// spawns where the sky is open above it and dies on hitting a solid block, so rain stays visible
+    /// outside a cave mouth while the player stands inside, yet never falls through roofs or ceilings.
+    /// Storm fog keys on the player's exposure (global fog would fill the cave/room). Both are off in the
+    /// space view and while a menu is up. Density/speed/slant scale with the authoritative
+    /// <c>WorldEnvironment.Intensity</c>. The looping rain/storm bed + thunder live in
+    /// <see cref="ClientAudio"/>; the screen wash + lightning flash in <see cref="WeatherFx"/>.
     /// </summary>
     public sealed class WeatherFx3D : MonoBehaviour
     {
@@ -23,6 +27,11 @@ namespace BlocksBeyondTheStars.Client
         private float[] _speed;
         private Material _mat;
         private readonly System.Random _rng = new System.Random(13);
+
+        // Per-column "open sky above?" cache so per-drop spawn checks stay cheap; cleared once a
+        // second so block edits and freshly streamed chunks are picked up.
+        private readonly Dictionary<long, bool> _skyOpen = new Dictionary<long, bool>(256);
+        private float _skyCacheTimer;
 
         // Saved global fog state so storm fog restores cleanly when the weather clears / we leave the world.
         private bool _fogSaved;
@@ -75,15 +84,25 @@ namespace BlocksBeyondTheStars.Client
         {
             var env = Game?.Environment;
             string precip = env?.Precipitation ?? "none";
-            bool active = env != null && precip != "none"
-                          && Game.ExposedToSky && !Game.SpaceViewActive && !Game.MenuOpen;
+            // Deliberately NOT gated on Game.ExposedToSky: per-column checks below decide where drops
+            // may fall, so rain stays visible outside the cave mouth while the player stands inside.
+            bool active = env != null && precip != "none" && !Game.SpaceViewActive && !Game.MenuOpen;
 
-            ApplyFog(env, precip, active);
+            // Storm fog is global, so it still keys on the player's own exposure — otherwise a
+            // sheltered cave/room would fill with fog too.
+            ApplyFog(env, precip, active && Game.ExposedToSky);
 
             if (Cam == null || !active)
             {
                 HideAll();
                 return;
+            }
+
+            _skyCacheTimer -= Time.deltaTime;
+            if (_skyCacheTimer <= 0f)
+            {
+                _skyCacheTimer = 1f;
+                _skyOpen.Clear();
             }
 
             var s = StyleFor(precip, env.Weather == "storm");
@@ -108,15 +127,23 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!d.gameObject.activeSelf)
                 {
+                    if (!TryRespawn(d, camPos))
+                    {
+                        continue; // no open-sky column found this frame (e.g. deep underground)
+                    }
+
                     d.gameObject.SetActive(true);
-                    Respawn(d, camPos);
                 }
 
                 float wobble = Mathf.Sin(t * 2.2f + i) * s.Drift; // flakes/embers/sand swirl sideways
                 var p = d.position + new Vector3((s.Slant + wobble) * dt, -_speed[i] * s.Fall * dt, wobble * 0.4f * dt);
-                if (p.y < camPos.y - 7f || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f))
+                if (p.y < camPos.y - 7f || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f)
+                    || InsideBlock(p))
                 {
-                    Respawn(d, camPos);
+                    if (!TryRespawn(d, camPos))
+                    {
+                        d.gameObject.SetActive(false);
+                    }
                 }
                 else
                 {
@@ -127,12 +154,64 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void Respawn(Transform d, Vector3 camPos)
+        /// <summary>Moves the drop to a fresh spawn above the camera, but only into a column with open
+        /// sky overhead — drops must never appear under a cave ceiling or roof. False = no open column
+        /// found this frame; the caller keeps the drop hidden and retries next frame.</summary>
+        private bool TryRespawn(Transform d, Vector3 camPos)
         {
-            d.position = camPos + new Vector3(
-                (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius,
-                SpawnUp + (float)_rng.NextDouble() * 6f,
-                (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius);
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                var p = camPos + new Vector3(
+                    (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius,
+                    SpawnUp + (float)_rng.NextDouble() * 6f,
+                    (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius);
+                if (ColumnOpen(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))
+                {
+                    d.position = p;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>True when the drop entered a solid world block (terrain, roof, cave ceiling) —
+        /// it must stop there instead of falling through into view below.</summary>
+        private bool InsideBlock(Vector3 p)
+        {
+            var w = Game?.World;
+            return w != null
+                && !w.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)).IsAir;
+        }
+
+        /// <summary>Open sky above this spawn point? Same scan as <c>GameBootstrap.ComputeExposedToSky</c>,
+        /// but per rain column instead of per player, cached per column for a second.</summary>
+        private bool ColumnOpen(int x, int yFrom, int z)
+        {
+            var w = Game?.World;
+            if (w == null)
+            {
+                return true;
+            }
+
+            long key = ((long)x << 32) ^ (uint)z;
+            if (_skyOpen.TryGetValue(key, out bool open))
+            {
+                return open;
+            }
+
+            open = true;
+            for (int y = yFrom; y <= yFrom + 40; y++)
+            {
+                if (!w.GetBlock(x, y, z).IsAir)
+                {
+                    open = false;
+                    break;
+                }
+            }
+
+            _skyOpen[key] = open;
+            return open;
         }
 
         private void HideAll()

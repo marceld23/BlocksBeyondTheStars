@@ -22,6 +22,18 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Rain invisible when looking out of a cave (reported 2026-06-12) — ✅ FIXED
+**Symptom:** during rain, stepping into a cave and looking out shows no rain outside the entrance;
+stepping back out, it rains again. **Root cause:** `WeatherFx3D` gated the whole 280-drop pool on
+`Game.ExposedToSky` — the *player's* head-up scan — so being covered hid every drop in the world,
+including those over open ground in view. **Fix:** drops are now gated per *column*: `TryRespawn`
+only places a drop where the sky is open above its spawn point (per-column cache, 1 s TTL, same
+scan as `ComputeExposedToSky`), and a falling drop dies on entering a solid block — so rain stays
+visible outside the cave mouth and no longer falls through roofs/ceilings/terrain into view.
+Storm fog still keys on the player's own exposure (global fog would fill the sheltered cave/room).
+Screen wash (`WeatherFx`) + muted rain bed (`ClientAudio`) stay player-gated on purpose: sheltered =
+no drops on the lens, muffled audio.
+
 ### ★ Professional-look pass (WP-1…16) — ✅ IMPLEMENTED (2026-06-12); PT-1/PT-2 playtests pending
 Driven by [docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) and
 [docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md)
