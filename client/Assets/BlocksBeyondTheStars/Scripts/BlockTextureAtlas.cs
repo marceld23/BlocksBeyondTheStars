@@ -310,6 +310,92 @@ namespace BlocksBeyondTheStars.Client
                     for (int x = 2; x < Tile - 2; x++) Texture.SetPixel(ox + x, oy + Tile / 2, new Color(0.42f, 0.44f, 0.49f));
                     break;
 
+                case "strip_light_cyan":
+                case "strip_light_warm":
+                {
+                    // A bright horizontal light band through the dark housing — the emission term makes
+                    // the band glow in its colour while the housing stays a dark trim.
+                    Color band = key == "strip_light_cyan" ? new Color(0.62f, 0.95f, 1f) : new Color(1f, 0.85f, 0.55f);
+                    for (int x = 2; x < Tile - 2; x++)
+                    {
+                        for (int yb = Tile / 2 - 5; yb <= Tile / 2 + 5; yb++)
+                        {
+                            float core = 1f - Mathf.Abs(yb - Tile / 2) / 6f; // brightest at the centre line
+                            var c = Color.Lerp(band * 0.45f, band, core);
+                            Texture.SetPixel(ox + x, oy + yb, new Color(c.r, c.g, c.b, 1f));
+                        }
+                    }
+
+                    break;
+                }
+
+                case "medbay_panel":
+                    // Clean panel: thin seam border + a small medical cross at the centre.
+                    for (int i = 1; i < Tile - 1; i++)
+                    {
+                        Texture.SetPixel(ox + i, oy + 1, new Color(0.70f, 0.80f, 0.86f));
+                        Texture.SetPixel(ox + i, oy + Tile - 2, new Color(0.70f, 0.80f, 0.86f));
+                        Texture.SetPixel(ox + 1, oy + i, new Color(0.70f, 0.80f, 0.86f));
+                        Texture.SetPixel(ox + Tile - 2, oy + i, new Color(0.70f, 0.80f, 0.86f));
+                    }
+
+                    for (int i = -7; i <= 7; i++)
+                    {
+                        for (int w = -2; w <= 2; w++)
+                        {
+                            Texture.SetPixel(ox + Tile / 2 + i, oy + Tile / 2 + w, new Color(0.25f, 0.65f, 0.85f));
+                            Texture.SetPixel(ox + Tile / 2 + w, oy + Tile / 2 + i, new Color(0.25f, 0.65f, 0.85f));
+                        }
+                    }
+
+                    break;
+
+                case "lab_panel":
+                    // Cool tech panel: a faint seam grid (reads as console housing).
+                    for (int i = 8; i < Tile; i += 16)
+                    {
+                        for (int j = 2; j < Tile - 2; j++)
+                        {
+                            Texture.SetPixel(ox + i, oy + j, new Color(0.55f, 0.70f, 0.80f));
+                            Texture.SetPixel(ox + j, oy + i, new Color(0.55f, 0.70f, 0.80f));
+                        }
+                    }
+
+                    break;
+
+                case "cargo_floor":
+                    // Black diagonal hazard stripes over the amber base.
+                    for (int x = 0; x < Tile; x++)
+                    {
+                        for (int yb = 0; yb < Tile; yb++)
+                        {
+                            if (((x + yb) / 8) % 2 == 0)
+                            {
+                                Texture.SetPixel(ox + x, oy + yb, new Color(0.13f, 0.13f, 0.14f));
+                            }
+                        }
+                    }
+
+                    break;
+
+                case "engine_panel":
+                    // Dark industrial panel with orange warning corners + a centre seam.
+                    for (int i = 0; i < 10; i++)
+                    {
+                        for (int j = 0; j < 10 - i; j++)
+                        {
+                            Texture.SetPixel(ox + 2 + j, oy + 2 + i, new Color(0.95f, 0.55f, 0.12f));
+                            Texture.SetPixel(ox + Tile - 3 - j, oy + Tile - 3 - i, new Color(0.95f, 0.55f, 0.12f));
+                        }
+                    }
+
+                    for (int x = 2; x < Tile - 2; x++)
+                    {
+                        Texture.SetPixel(ox + x, oy + Tile / 2, new Color(0.34f, 0.35f, 0.38f));
+                    }
+
+                    break;
+
                 case "iron_ore":
                     Speckle(ox, oy, rng, new Color(0.75f, 0.55f, 0.40f), 26);
                     break;
@@ -642,6 +728,12 @@ namespace BlocksBeyondTheStars.Client
             "glass" => new Color(0.82f, 0.91f, 0.95f), // milky/frosted, not clear (you can tell it's glass)
             "force_field" => new Color(0.35f, 0.80f, 1f),
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
+            "strip_light_cyan" => new Color(0.22f, 0.26f, 0.30f), // dark housing; the bright band is painted in Decorate
+            "strip_light_warm" => new Color(0.28f, 0.24f, 0.20f),
+            "medbay_panel" => new Color(0.91f, 0.95f, 0.97f),     // clean white-blue (medbay)
+            "lab_panel" => new Color(0.75f, 0.85f, 0.91f),        // cool tech blue (lab/cockpit/console)
+            "cargo_floor" => new Color(0.85f, 0.63f, 0.10f),      // hazard amber (cargo)
+            "engine_panel" => new Color(0.23f, 0.23f, 0.25f),     // dark industrial (workshop/engine)
             "water" => new Color(0.20f, 0.42f, 0.85f),
             "lava" => new Color(0.90f, 0.35f, 0.10f),
             "fire" => new Color(1.00f, 0.45f, 0.12f),  // bright flame (glows via emission, alpha-blended)

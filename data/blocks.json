@@ -100,5 +100,12 @@
   { "key": "ash",          "nameKey": "block.ash.name",          "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 2829355, "drops": [] },
   { "key": "radio_beacon", "nameKey": "block.radio_beacon.name", "hardness": 1.8, "requiredTool": "none", "minToolTier": 0, "emission": 0.45, "drops": [ { "item": "radio_beacon", "count": 1 } ] },
   { "key": "bedrock",      "nameKey": "block.bedrock.name",      "hardness": 0,   "requiredTool": "none", "minToolTier": 0, "mineable": false, "color": 2434341, "drops": [] },
-  { "key": "station_core", "nameKey": "block.station_core.name", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.55, "color": 4180470, "drops": [ { "item": "station_core", "count": 1 } ] }
+  { "key": "station_core", "nameKey": "block.station_core.name", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.55, "color": 4180470, "drops": [ { "item": "station_core", "count": 1 } ] },
+
+  { "key": "strip_light_cyan", "nameKey": "block.strip_light_cyan.name", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.9,  "color": 5300479,  "drops": [] },
+  { "key": "strip_light_warm", "nameKey": "block.strip_light_warm.name", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.85, "color": 16763000, "drops": [] },
+  { "key": "medbay_panel",     "nameKey": "block.medbay_panel.name",     "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 15266552, "drops": [] },
+  { "key": "lab_panel",        "nameKey": "block.lab_panel.name",        "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 12573160, "drops": [] },
+  { "key": "cargo_floor",      "nameKey": "block.cargo_floor.name",      "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 14196760, "drops": [] },
+  { "key": "engine_panel",     "nameKey": "block.engine_panel.name",     "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 3816000,  "drops": [] }
 ]

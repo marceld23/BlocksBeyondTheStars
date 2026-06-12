@@ -65,6 +65,7 @@ public sealed partial class GameServer
         if (layout != null && layout.Cells.Count > 0)
         {
             StampShipLayout(cx, cz, y0, layout);
+            PaintStationAccents(); // per-room floor identity, also for designed ships
             RegisterDoors(); // pick up any door cells the designed ship carries
             return;
         }
@@ -127,6 +128,20 @@ public sealed partial class GameServer
         for (int z = cz - _shipHalfZ + 1; z <= cz + _shipHalfZ - 1; z += 2)
         {
             _world.SetBlock(new Vector3i(cx, ceiling, z), lightBlock);
+        }
+
+        // Wall light strips (room-identity pass): cyan strips along both side walls above the window
+        // band, so the cabin reads as a lit sci-fi interior, not a metal box. Needs a tall-enough hull
+        // (the strip row must sit strictly between the windows at y0+2 and the ceiling).
+        var stripCyan = _content.GetBlock("strip_light_cyan")?.NumericId ?? BlockId.Air;
+        if (!stripCyan.IsAir && _shipHeight >= 4)
+        {
+            int stripY = y0 + 3;
+            for (int z = cz - _shipHalfZ + 1; z <= cz + _shipHalfZ - 1; z += 2)
+            {
+                _world.SetBlock(new Vector3i(cx - _shipHalfX, stripY, z), stripCyan);
+                _world.SetBlock(new Vector3i(cx + _shipHalfX, stripY, z), stripCyan);
+            }
         }
 
         // Exterior silhouette so the landed ship reads like the space ship from outside: side wings,
@@ -193,6 +208,8 @@ public sealed partial class GameServer
 
         // Respawn at an open tile in the middle of the ship (next to the heal-tank).
         _healTank = new Vector3f(cx + 0.5f, y0 + 2f, cz + 0.5f);
+
+        PaintStationAccents(); // per-room floor identity around each station marker
 
         // Flush rear doorstep: the hull is a flat box anchored at the centre's surface height, so on sloped
         // ground the rear hatch can otherwise hang in the air (or get buried). Carve a short, level pad out
@@ -442,6 +459,45 @@ public sealed partial class GameServer
         }
 
         _stations.Add((type, new Vector3f(x + 0.5f, y, z + 0.5f)));
+    }
+
+    /// <summary>Room-identity pass: paints a 3×3 accent pad into the floor layer under each station
+    /// marker (medbay white/blue, lab/cockpit/console cool tech, cargo hazard amber, workshop dark
+    /// industrial, quarters dark panel), so the rooms read at a glance. Works for both the parametric
+    /// box ship and designed layouts (only existing solid floor cells are recoloured, never air).</summary>
+    private void PaintStationAccents()
+    {
+        foreach (var (type, pos) in _stations)
+        {
+            string accentKey = type switch
+            {
+                "medbay" => "medbay_panel",
+                "lab" or "cockpit" or "console" => "lab_panel",
+                "cargo" => "cargo_floor",
+                "workshop" => "engine_panel",
+                "quarters" => "metal_panel",
+                _ => null,
+            };
+
+            if (accentKey == null || _content.GetBlock(accentKey) is not { } accent)
+            {
+                continue;
+            }
+
+            int sx = (int)System.Math.Floor(pos.X), sz = (int)System.Math.Floor(pos.Z);
+            int floorY = (int)System.Math.Floor(pos.Y) - 1; // the shell layer the marker stands on
+            for (int x = sx - 1; x <= sx + 1; x++)
+            {
+                for (int z = sz - 1; z <= sz + 1; z++)
+                {
+                    var p = new Vector3i(x, floorY, z);
+                    if (!_world.GetBlock(p).IsAir)
+                    {
+                        _world.SetBlock(p, accent.NumericId);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>True when the player has stepped out of the ship's hull box — through the hatch, off the
