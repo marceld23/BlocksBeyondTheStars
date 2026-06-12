@@ -8,7 +8,8 @@ namespace BlocksBeyondTheStars.Client
     /// players see (via <see cref="ShipMeshBuilder"/>) — at an isolated far-away spot, lit by its own short-range
     /// point light, with a dedicated camera so nothing in the game world is touched. Falls back to a hand-built
     /// hull silhouette only when no voxel design is available yet (e.g. the player hasn't entered space). The
-    /// model slowly rotates while active; the live hull-colour tint applies to the silhouette fallback.
+    /// model slowly rotates while active; a hull-colour change retints the silhouette material or re-meshes the
+    /// voxel ship (the paint lives in its mesh's tint stream, item 32).
     /// </summary>
     public sealed class ShipPreviewRig : MonoBehaviour
     {
@@ -21,6 +22,8 @@ namespace BlocksBeyondTheStars.Client
         private Camera _cam;
         private Transform _model;
         private Material _hullMat;
+        private GameObject _voxelShip; // the real voxel-ship model (null when the silhouette fallback shows)
+        private Color _voxelHull;      // the hull colour meshed into _voxelShip (paint lives in the mesh)
         private bool _active;
 
         // Far from any terrain/player so the main camera never sees it and the point light touches nothing else.
@@ -57,11 +60,14 @@ namespace BlocksBeyondTheStars.Client
             _model.SetParent(transform, false);
             _model.position = Origin;
 
-            // Prefer the player's REAL ship: the 1:1 voxel design the flight view + other players render. Falls
-            // back to the hand-built silhouette only when no design is available yet (e.g. never entered space).
-            var voxel = ShipMeshBuilder.BuildVoxelShip(Game, _model, Game?.ShipDesign, out float extent);
+            // Prefer the player's REAL ship: the 1:1 voxel design the flight view + other players render, with
+            // the chosen hull colour painted into its mesh (item 32). Falls back to the hand-built silhouette
+            // only when no design is available yet (e.g. never entered space).
+            var voxel = ShipMeshBuilder.BuildVoxelShip(Game, _model, Game?.ShipDesign, out float extent, hull);
             if (voxel != null)
             {
+                _voxelShip = voxel;
+                _voxelHull = hull;
                 // Frame any ship size: pull the camera back along a fixed 3/4 direction by the ship's extent.
                 float dist = extent * 1.5f + 2.2f;
                 var dir = new Vector3(0.55f, 0.42f, 0.92f).normalized;
@@ -89,12 +95,20 @@ namespace BlocksBeyondTheStars.Client
             SetActive(false);
         }
 
-        /// <summary>Retints the hull live as the player cycles the colour.</summary>
+        /// <summary>Retints the hull live as the player cycles the colour. The silhouette fallback retints its
+        /// material; the voxel ship carries the paint in its mesh's tint stream, so it is re-meshed (the ship
+        /// model is small — a rebuild per click is cheap).</summary>
         public void SetHullColor(Color hull)
         {
             if (_hullMat != null)
             {
-                _hullMat.color = hull;
+                _hullMat.color = ShaderColor.Srgb(hull);
+            }
+            else if (_voxelShip != null && _voxelHull != hull)
+            {
+                Destroy(_voxelShip);
+                _voxelShip = ShipMeshBuilder.BuildVoxelShip(Game, _model, Game?.ShipDesign, out _, hull);
+                _voxelHull = hull;
             }
         }
 

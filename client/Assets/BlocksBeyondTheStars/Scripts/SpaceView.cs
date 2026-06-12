@@ -67,12 +67,12 @@ namespace BlocksBeyondTheStars.Client
         private Transform _exhaust;
         private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
         private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
-        private int _appliedHullRgb = -1; // last hull colour applied to _hullMat, to detect live changes
+        private int _appliedHullRgb = -1; // last hull colour applied (cube material tint or voxel re-mesh), to detect live changes
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; }
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; }
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
@@ -196,10 +196,19 @@ namespace BlocksBeyondTheStars.Client
             ReconcileStructs();
 
             // Live hull re-tint: the player can change their ship colour from the menu mid-flight (item 32).
-            if (_hullMat != null && Game.HullRgb != _appliedHullRgb)
+            // Cube fallback: re-tint the material; voxel ship: the paint lives in the mesh's tint stream,
+            // so re-mesh the (small) ship voxels with the new colour.
+            if (Game.HullRgb != _appliedHullRgb)
             {
-                _hullMat.color = ShaderColor.Srgb(Rgb(Game.HullRgb));
-                _appliedHullRgb = Game.HullRgb;
+                if (_hullMat != null)
+                {
+                    _hullMat.color = ShaderColor.Srgb(Rgb(Game.HullRgb));
+                    _appliedHullRgb = Game.HullRgb;
+                }
+                else if (_shipVox != null)
+                {
+                    RebuildShipVoxels(); // updates _appliedHullRgb
+                }
             }
 
             // Server says we left. A hyperspace jump (its full-screen warp covers the transition) or a
@@ -2098,8 +2107,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds the player's ship as a 1:1 voxel mesh from the server's design (item 20 S1): meshes the
         /// sparse block grid with the same <see cref="ChunkMesher"/> + block atlas the planet world uses, centred on
         /// the ship pivot so it flies + rotates like the old cube model. Keeps the glowing tail hatch marker +
-        /// thruster exhaust so the EVA/throttle FX still work. The atlas hull can't be runtime-tinted, so the hull
-        /// colour (item 32) doesn't apply here — _hullMat stays null (its use sites are null-guarded).</summary>
+        /// thruster exhaust so the EVA/throttle FX still work. The hull colour (item 32) is painted into the mesh's
+        /// tint stream (see <see cref="ShipMeshBuilder.HullPaint"/>) — _hullMat stays null (its use sites are
+        /// null-guarded); a live colour change re-meshes the ship voxels instead.</summary>
         private GameObject BuildVoxelShip(Transform parent, BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d)
         {
             var ship = new GameObject("Ship");
@@ -2145,13 +2155,17 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_shipVox != null)
             {
-                BuildVoxChunks(_shipVox, _shipCells, _shipCentre);
+                BuildVoxChunks(_shipVox, _shipCells, _shipCentre,
+                    ShipMeshBuilder.HullPaint(Game.Content, Rgb(Game.HullRgb))); // hull paint (item 32)
+                _appliedHullRgb = Game.HullRgb;
             }
         }
 
         /// <summary>Clears <paramref name="parent"/> and (re)builds voxel chunk meshes + colliders from a sparse
-        /// block grid, centred on <paramref name="centre"/> — shared by the ship (S1/S2) and asteroids (S3).</summary>
-        private void BuildVoxChunks(Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre)
+        /// block grid, centred on <paramref name="centre"/> — shared by the ship (S1/S2, with the hull paint
+        /// resolver) and asteroids (S3, unpainted).</summary>
+        private void BuildVoxChunks(Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
+            System.Func<BlockId, Color> paint = null)
         {
             for (int i = parent.childCount - 1; i >= 0; i--)
             {
@@ -2197,7 +2211,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas);
+                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint);
                 if (mesh.vertexCount == 0)
                 {
                     continue;
@@ -2448,17 +2462,21 @@ namespace BlocksBeyondTheStars.Client
                     av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
 
                     // Upgrade the generic hull to the pilot's REAL voxel ship once its design arrived
-                    // (the server cross-sends every instance member's design as "ship_remote").
-                    if (!av.Voxel && Game.RemoteShipDesignFor(rp.PlayerId) is { } rd && ShipMeshBuilder.HasDesign(rd))
+                    // (the server cross-sends every instance member's design as "ship_remote"), and re-mesh
+                    // it when the pilot repaints the hull mid-flight (the paint lives in the mesh, item 32).
+                    int hullRgb = rp.Hull != 0 ? rp.Hull : 0xD1D6E0;
+                    if ((!av.Voxel || av.HullRgb != hullRgb)
+                        && Game.RemoteShipDesignFor(rp.PlayerId) is { } rd && ShipMeshBuilder.HasDesign(rd))
                     {
-                        var vox = ShipMeshBuilder.BuildVoxelShip(Game, av.Root.transform, rd, out _);
+                        var vox = ShipMeshBuilder.BuildVoxelShip(Game, av.Root.transform, rd, out _, Rgb(hullRgb));
                         if (vox != null)
                         {
                             Destroy(av.Ship);
                             vox.transform.localScale = Vector3.one * FlightShipScale; // same compact flight scale as the own ship
                             av.Ship = vox;
-                            av.HullMat = null; // a voxel ship carries its real block textures — no flat tint
+                            av.HullMat = null; // a voxel ship carries its real block textures — paint is meshed in
                             av.Voxel = true;
+                            av.HullRgb = hullRgb;
                         }
                     }
 
@@ -2466,7 +2484,7 @@ namespace BlocksBeyondTheStars.Client
                     av.Suit.SetActive(rp.Eva);
                     if (av.HullMat != null)
                     {
-                        av.HullMat.color = ShaderColor.Srgb(Rgb(rp.Hull != 0 ? rp.Hull : 0xD1D6E0)); // their chosen hull colour (item 32)
+                        av.HullMat.color = ShaderColor.Srgb(Rgb(hullRgb)); // their chosen hull colour (item 32)
                     }
                 }
             }

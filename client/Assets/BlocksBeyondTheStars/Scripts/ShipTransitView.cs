@@ -148,7 +148,10 @@ namespace BlocksBeyondTheStars.Client
             var pos = new Vector3(Game.SceneX(fx.X), startY, Game.SceneZ(fx.Z));
 
             // The mover's REAL voxel ship when its design is cached (the server sends it ahead of the
-            // FX); the hand-built silhouette in their hull colour stays as the fallback.
+            // FX), painted in their hull colour (item 32); the hand-built silhouette in the same colour
+            // stays as the fallback.
+            int hullRgb = fx.Hull != 0 ? fx.Hull : 0xD1D6E0; // 0 = never set — the default steel tint
+            var hull = new Color(((hullRgb >> 16) & 0xFF) / 255f, ((hullRgb >> 8) & 0xFF) / 255f, (hullRgb & 0xFF) / 255f);
             GameObject root = null;
             Light engine = null;
             var design = Game.RemoteShipDesignFor(fx.PlayerId);
@@ -156,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 root = new GameObject("ShipTransit");
                 root.transform.position = pos;
-                if (ShipMeshBuilder.BuildVoxelShip(Game, root.transform, design, out _) != null)
+                if (ShipMeshBuilder.BuildVoxelShip(Game, root.transform, design, out _, hull) != null)
                 {
                     engine = AddEngineGlow(root.transform);
                 }
@@ -169,7 +172,6 @@ namespace BlocksBeyondTheStars.Client
 
             if (root == null)
             {
-                var hull = new Color(((fx.Hull >> 16) & 0xFF) / 255f, ((fx.Hull >> 8) & 0xFF) / 255f, (fx.Hull & 0xFF) / 255f);
                 root = BuildShip(pos, hull, out engine);
             }
 

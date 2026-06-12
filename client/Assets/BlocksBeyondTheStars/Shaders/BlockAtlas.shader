@@ -59,8 +59,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
-                float2 sky : TEXCOORD1;  // x = skylight, y = flora flag
-                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = per-species flora tint (black = use global)
+                float2 sky : TEXCOORD1;  // x = skylight, y = tint mode (1 flora, 2 hull paint)
+                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = flora/hull tint (black = use global flora hue)
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
             };
 
@@ -102,7 +102,14 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 }
 
                 float3 albedo = texel.rgb;
-                if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
+                if (i.skyl.y > 1.5)
+                {
+                    // Hull paint (item 32): multiply the per-ship tint (TEXCOORD2.yzw) into the albedo —
+                    // the same look as the old tinted-silhouette hull (_Color * tex), independent of the
+                    // flora globals so painted ships read identically on planets and in space.
+                    albedo *= i.leaf.yzw;
+                }
+                else if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
                 {
                     // Per-SPECIES tint from the mesh (TEXCOORD2.yzw) when present; meshes built without a
                     // tint resolver carry black there and keep the planet's uniform global hue.
@@ -246,8 +253,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
-                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = flora flag
-                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = per-species flora tint
+                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = tint mode (1 flora, 2 hull paint)
+                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = flora/hull tint
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -292,10 +299,16 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 fixed3 albedo = texel.rgb;
 
+                // Hull paint (item 32): multiply the per-ship tint (TEXCOORD2.yzw) into the albedo — the
+                // same look as the old tinted-silhouette hull (_Color * tex), independent of flora globals.
+                if (i.skyl.y > 1.5)
+                {
+                    albedo *= i.leaf.yzw;
+                }
                 // Flora re-tint: where the flora flag is set, drop the tile to its luminance and re-colour
                 // it. The mesh carries a per-SPECIES x per-world tint (TEXCOORD2.yzw); meshes built without
                 // a tint resolver carry black there and fall back to the planet's uniform global hue.
-                if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
+                else if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
                 {
                     float3 tint = dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01 ? i.leaf.yzw : _Sc_FloraTint.rgb;
                     float lum = dot(albedo, float3(0.299, 0.587, 0.114));

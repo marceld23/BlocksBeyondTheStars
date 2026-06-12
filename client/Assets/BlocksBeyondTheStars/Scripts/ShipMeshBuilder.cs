@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -18,11 +19,22 @@ namespace BlocksBeyondTheStars.Client
         public static bool HasDesign(BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d)
             => d != null && d.Block != null && d.Block.Length > 0;
 
+        /// <summary>Per-block paint resolver for ship meshes (item 32): the ship's hull colour for the
+        /// paintable hull block (<c>iron_wall</c>), black (= unpainted) for every other block. The colour is
+        /// converted at this boundary (<see cref="ShaderColor.Srgb"/>) because the mesher writes it raw into
+        /// the mesh's tint stream.</summary>
+        public static System.Func<BlockId, Color> HullPaint(GameContent content, Color hull)
+        {
+            var tint = ShaderColor.Srgb(hull);
+            return id => content.BlockById(id)?.Key == "iron_wall" ? tint : Color.black;
+        }
+
         /// <summary>Builds the centred voxel ship under <paramref name="parent"/> and reports its largest
-        /// dimension via <paramref name="extent"/> (so a preview can frame its camera to any ship size). Returns
+        /// dimension via <paramref name="extent"/> (so a preview can frame its camera to any ship size). When
+        /// <paramref name="hull"/> is an opaque colour the hull blocks are painted with it (item 32). Returns
         /// null when the design or the block atlas/material isn't ready (caller falls back to a placeholder).</summary>
         public static GameObject BuildVoxelShip(GameBootstrap game, Transform parent,
-            BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, out float extent)
+            BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, out float extent, Color hull = default)
         {
             extent = 2f;
             if (game == null || game.ChunkMaterial == null || game.Atlas == null || game.Content == null || !HasDesign(d))
@@ -46,13 +58,14 @@ namespace BlocksBeyondTheStars.Client
 
             var ship = new GameObject("VoxelShip");
             ship.transform.SetParent(parent, false);
-            BuildVoxChunks(game, ship.transform, cells, centre);
+            BuildVoxChunks(game, ship.transform, cells, centre, hull.a > 0f ? HullPaint(game.Content, hull) : null);
             return ship;
         }
 
         /// <summary>Meshes a sparse block grid into chunk meshes under <paramref name="parent"/>, centred on
         /// <paramref name="centre"/> (mirrors SpaceView.BuildVoxChunks; no colliders — display only).</summary>
-        private static void BuildVoxChunks(GameBootstrap game, Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre)
+        private static void BuildVoxChunks(GameBootstrap game, Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
+            System.Func<BlockId, Color> paint)
         {
             int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
             int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
@@ -88,7 +101,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, _) = ChunkMesher.Build(chunk, game.Content, WorldBlock, game.Atlas);
+                var (mesh, _) = ChunkMesher.Build(chunk, game.Content, WorldBlock, game.Atlas, paintTint: paint);
                 if (mesh.vertexCount == 0)
                 {
                     continue;

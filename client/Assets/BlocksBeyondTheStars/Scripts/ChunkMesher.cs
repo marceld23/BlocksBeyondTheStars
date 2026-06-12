@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
-            System.Func<BlockId, Color> floraTint = null)
+            System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();   // submesh 0: opaque blocks
@@ -33,9 +33,10 @@ namespace BlocksBeyondTheStars.Client
             var colliderTris = new List<int>(); // solid faces only (no fluids) → the collision mesh
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
-            var skyUv = new List<Vector2>(); // per-vertex skylight (1 = sees sky, 0 = underground/indoors)
-            // x = foliage flag (1 = clip the tile's alpha → cutout leaves); yzw = per-species flora tint RGB
-            // (black = "no per-vertex tint" → the shader falls back to the global planet hue).
+            var skyUv = new List<Vector2>(); // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint)
+            // x = foliage flag (1 = clip the tile's alpha → cutout leaves); yzw = the face's tint RGB —
+            // per-species flora colour (mode 1; black = the shader falls back to the global planet hue)
+            // or the ship's hull paint (mode 2).
             var leafUv = new List<Vector4>();
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
 
@@ -167,8 +168,13 @@ namespace BlocksBeyondTheStars.Client
                 // resolver every SPECIES rolls its own per-world colour (TEXCOORD2.yzw); without one the
                 // shader falls back to the planet's uniform flora hue. Tree trunks keep their bark colour.
                 bool isFlora = IsFloraBlock(content, id);
-                float floraFlag = isFlora ? 1f : 0f;
                 Color speciesTint = isFlora && floraTint != null ? floraTint(id) : Color.black;
+                // Hull paint (item 32): ship meshes pass a per-block paint resolver — a painted face raises
+                // the tint-mode flag (TEXCOORD1.y) to 2 and carries the ship's hull colour in TEXCOORD2.yzw
+                // (the atlas shader multiplies it into the albedo; black = unpainted).
+                Color paint = !isFlora && paintTint != null ? paintTint(id) : Color.black;
+                bool painted = paint.r + paint.g + paint.b > 0.001f;
+                float floraFlag = isFlora ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
@@ -280,7 +286,8 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        var leaf = new Vector4(leafFlag, speciesTint.r, speciesTint.g, speciesTint.b);
+                        var tint = painted ? paint : speciesTint;
+                        var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
                 }
@@ -296,8 +303,8 @@ namespace BlocksBeyondTheStars.Client
             mesh.SetTriangles(trisT, 1);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
-            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, flora-tint flag in .y
-            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, per-species tint in .yzw
+            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, tint mode in .y (1 flora, 2 hull paint)
+            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, flora/hull tint in .yzw
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();

@@ -22,6 +22,47 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Ship hull colour pick has no visible effect (reported 2026-06-12) — ✅ FIXED (real voxel-hull tint)
+**Symptom:** cycling the hull colour in the menu's Ship → paint tab updates the small swatch, but the
+ship itself never changes — neither the rotating menu preview nor the ship in flight.
+**Root cause (NOT the URP/linear migration):** the hull tint (item 32) only ever applied to the
+*hand-built silhouette* ship (the `LitTex("iron_wall", tint)` materials). Since `43ea96c` (2026-06-10,
+"menu previews show the real ship") the paint tab renders the player's REAL voxel ship via
+`ShipMeshBuilder` with the shared block-atlas chunk materials, which carry no per-ship tint —
+`ShipPreviewRig._hullMat` stays null and `SetHullColor()` is a null-guarded no-op. The voxel flight
+ship has the same (documented) gap: `SpaceView.BuildVoxelShip` — "_hullMat stays null". Because the
+voxel design is sent on every space entry, the silhouette fallback (the only tintable path) is
+practically never shown, so the tint is visually dead everywhere. WP-1 + the URP port are exonerated:
+`LitColor` kept `_Color` in both SubShaders, it is in `m_AlwaysIncludedShaders`, and the build-time
+tints go through `ShaderColor.Srgb()` — only the timing (RP work landed the same days) made the
+graphics engine look like the culprit.
+**All silently no-op tint sites (each null-guarded):**
+1. menu preview — `ShipPreviewRig.SetHullColor` (voxel path → `_hullMat` null)
+2. own flight ship — `SpaceView` live retint (~line 199) + `BuildVoxelShip` (no tint by design)
+3. remote players' space ships — `SpaceView` sets `av.HullMat = null` on the voxel path (~line 2460)
+4. remote landings/launches on planets — `ShipTransitView` voxel path untinted (silhouette fallback tints)
+The colour itself still round-trips end-to-end (`ClientSettings.HullColor` → `GameBootstrap.HullRgb` →
+`SendAppearance` → `PlayerSession.HullColor` → `NetSpacePlayer.Hull`) — persisted + broadcast but unused.
+**Secondary find (a real WP-1 leftover):** `ShipPreviewRig.SetHullColor` assigns `_hullMat.color = hull`
+WITHOUT `ShaderColor.Srgb()`, so the one still-working retint path (silhouette fallback) retints in the
+wrong colour space (washed out vs the Srgb-converted build-time tint).
+**Fix (option a, real voxel-hull tint — implemented 2026-06-12):** the ship meshers now paint
+hull blocks per face. `ChunkMesher.Build` takes an optional `paintTint` resolver; a painted face
+raises the TEXCOORD1.y tint-mode flag to **2** (1 stays flora) and carries the hull colour in
+TEXCOORD2.yzw. `BlockAtlas.shader` (both SubShaders) multiplies that tint into the albedo for
+mode-2 faces — same look as the old tinted silhouette (`_Color * tex`), independent of the
+`_Sc_FloraTint` global so it works in space too. `ShipMeshBuilder.HullPaint(content, colour)` is
+the shared resolver (paints `iron_wall`, Srgb-converted at the mesh boundary) and
+`BuildVoxelShip(..., Color hull)` passes it through. Wired at all 4 sites: menu preview
+(`ShipPreviewRig` — re-meshes the small voxel model on colour change, silhouette retint got the
+missing `Srgb()`), own flight ship (`SpaceView.RebuildShipVoxels`; a live colour change re-meshes
+instead of the old null-guarded material no-op), remote ships in space (`SyncRemotePlayers`
+rebuilds when `rp.Hull` changes), and remote landings/launches (`ShipTransitView`, with the
+`fx.Hull == 0` → default-steel guard). **Known limit (as designed in item 32):** the player's OWN
+landed ship is STAMPED into the world grid and meshes via the world chunk path without a paint
+resolver — tinting there would tint every `iron_wall` in the world; left as the documented
+follow-up.
+
 ### ★ Rain invisible when looking out of a cave (reported 2026-06-12) — ✅ FIXED
 **Symptom:** during rain, stepping into a cave and looking out shows no rain outside the entrance;
 stepping back out, it rains again. **Root cause:** `WeatherFx3D` gated the whole 280-drop pool on
