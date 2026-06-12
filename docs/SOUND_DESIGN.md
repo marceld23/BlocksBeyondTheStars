@@ -127,11 +127,13 @@ station NPC markers + trade/mission interactions.
 | lava bubbling loop, water/shore loop | near fluid | 2 | EL |
 | day vs night ambience shift | world clock | 2 | proc/EL |
 
-## 11. Music — *MIDI / code-synth (free); recorded later*
+## 11. Music — ✅ SHIPPED (context cross-fade, 2026-06-12)
 
-Context tracks, cross-faded: **menu, planet-exploration ✓ (ambient loop), space, combat/tension**
-= ~4 tracks. Today: one synth ambient loop in-game. Next: a menu track (AppShell-level) + a
-tenser space/combat variant with context cross-fade. Optional later: recorded/CC0 music.
+Context tracks, cross-faded over ~2.5 s: **in-game menu ✓, planet ✓, space ✓, combat ✓** — four
+AI-generated ElevenLabs ambient loops (`Resources/audio/music_menu|planet|space|combat.mp3`, 24 s
+seamless) with mood-matched code-synth fallbacks in `ClientMusic` (so the game stays musical
+without assets). Combat is inferred client-side (hull+shield drop while in space → 14 s tension
+window). Still open: a main-menu (AppShell-level) music hook — `ClientMusic` lives in the world rig.
 
 ---
 

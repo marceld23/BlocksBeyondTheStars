@@ -18,8 +18,10 @@ are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**
-for the generating account's plan. Background **music** and the remaining UI/feedback cues stay
-**generated procedurally in code** (`ClientMusic`, `ClientAudio`).
+for the generating account's plan. Background **music** is four AI-generated ambient loops
+(`music_menu`/`music_planet`/`music_space`/`music_combat`, same ElevenLabs API + terms) with
+code-synthesized fallbacks; the remaining UI/feedback cues stay **generated procedurally in code**
+(`ClientMusic`, `ClientAudio`).
 
 **UI icons:** `client/Assets/Resources/icons/*.png` (40 files, incl. menu category icons, the world-map
 marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with the

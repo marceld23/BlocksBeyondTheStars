@@ -167,9 +167,10 @@ namespace BlocksBeyondTheStars.Client
             audio.Game = boot;
             audio.Settings = shell.Settings;
 
-            // Procedural background music (M26).
+            // Context-aware background music (menu/planet/space/combat cross-fade).
             var music = root.AddComponent<ClientMusic>();
             music.Settings = shell.Settings;
+            music.Game = boot;
 
             // Real space view + launch/landing sequences (M25b).
             var space = root.AddComponent<SpaceView>();
