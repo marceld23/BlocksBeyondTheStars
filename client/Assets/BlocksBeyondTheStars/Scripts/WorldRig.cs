@@ -230,6 +230,10 @@ namespace BlocksBeyondTheStars.Client
             shipDamage.Game = boot;
             shipDamage.Camera = cam;
 
+            // Ship-restamp materialize sweep (holo ring + shimmer when the hull is swapped at a pad).
+            var shipBuild = root.AddComponent<ShipBuildFx>();
+            shipBuild.Game = boot;
+
             // URP post-processing volume (bloom/tonemap/vignette/grade + menu blur); no-op under Built-in RP.
             var urpPost = root.AddComponent<UrpScenePost>();
             urpPost.Game = boot;

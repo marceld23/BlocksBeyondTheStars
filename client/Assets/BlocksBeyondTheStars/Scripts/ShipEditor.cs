@@ -175,6 +175,7 @@ namespace BlocksBeyondTheStars.Client
                 _blocksLabel.text = $"Blocks placed: {_design.Count}";
             }
 
+            UpdateGhost(flying || _mouseOverUi);
             if (!flying && !_mouseOverUi)
             {
                 if (Input.GetMouseButtonDown(0))
@@ -188,15 +189,16 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void TryPlace()
+        /// <summary>Resolves the cell a placement would land in (floor hit or hit-block neighbour).</summary>
+        private bool TryGetTargetCell(out Vector3i cell)
         {
+            cell = default;
             var ray = _cam.ScreenPointToRay(Input.mousePosition);
             if (!Physics.Raycast(ray, out var hit, 200f))
             {
-                return;
+                return false;
             }
 
-            Vector3i cell;
             if (hit.collider.gameObject == _floor)
             {
                 cell = new Vector3i(Mathf.FloorToInt(hit.point.x), 0, Mathf.FloorToInt(hit.point.z));
@@ -206,6 +208,54 @@ namespace BlocksBeyondTheStars.Client
                 var t = hit.collider.transform.position;
                 var hc = new Vector3i(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y), Mathf.FloorToInt(t.z));
                 cell = new Vector3i(hc.X + Mathf.RoundToInt(hit.normal.x), hc.Y + Mathf.RoundToInt(hit.normal.y), hc.Z + Mathf.RoundToInt(hit.normal.z));
+            }
+
+            return true;
+        }
+
+        private GameObject _ghost;
+        private Material _ghostValid, _ghostInvalid;
+
+        /// <summary>The placement ghost: a softly pulsing translucent cube at the target cell —
+        /// green when the placement is valid, red when out of bounds or occupied.</summary>
+        private void UpdateGhost(bool hidden)
+        {
+            if (_ghost == null)
+            {
+                _ghost = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                _ghost.name = "PlacementGhost";
+                Destroy(_ghost.GetComponent<Collider>()); // must never block the picking ray
+                _ghost.transform.SetParent(transform, false);
+                var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+                _ghostValid = new Material(shader) { renderQueue = 3000 };
+                _ghostValid.SetColor("_Color", ShaderColor.Srgb(new Color(0.30f, 1f, 0.60f, 0.30f)));
+                _ghostInvalid = new Material(shader) { renderQueue = 3000 };
+                _ghostInvalid.SetColor("_Color", ShaderColor.Srgb(new Color(1f, 0.25f, 0.20f, 0.30f)));
+            }
+
+            Vector3i cell = default;
+            bool show = !hidden && TryGetTargetCell(out cell);
+            if (_ghost.activeSelf != show)
+            {
+                _ghost.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            bool valid = InBounds(cell) && !_design.ContainsKey(cell);
+            _ghost.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
+            _ghost.transform.localScale = Vector3.one * (1.0f + 0.04f * Mathf.Sin(Time.unscaledTime * 5f));
+            _ghost.GetComponent<Renderer>().sharedMaterial = valid ? _ghostValid : _ghostInvalid;
+        }
+
+        private void TryPlace()
+        {
+            if (!TryGetTargetCell(out var cell))
+            {
+                return;
             }
 
             if (InBounds(cell) && !_design.ContainsKey(cell))
