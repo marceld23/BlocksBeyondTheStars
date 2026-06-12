@@ -51,6 +51,8 @@ namespace BlocksBeyondTheStars.Client
         private string _causeKey = string.Empty;
         private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
 
+        private int _lastSelSlot = -1; // hotbar selection tick state
+
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
         private Canvas _flyCanvas; // own overlay canvas so the visor distortion can't bend the fly-ins
@@ -210,6 +212,35 @@ namespace BlocksBeyondTheStars.Client
             var fly = iconGo.AddComponent<FlyIcon>();
             fly.From = new Vector2(sp.x, sp.y) - center;
             fly.To = new Vector2(0f, -Screen.height * 0.5f + 70f); // the hotbar zone (bottom-centre)
+        }
+
+        /// <summary>A quick scale tick (1 → 1.1 → 1 over 0.12 s) on the newly selected hotbar slot.</summary>
+        private sealed class SlotTick : MonoBehaviour
+        {
+            private const float Life = 0.12f;
+            private float _t;
+
+            public void Restart()
+            {
+                _t = 0f;
+                enabled = !UiKit.ReducedMotion;
+                if (!enabled)
+                {
+                    transform.localScale = Vector3.one;
+                }
+            }
+
+            private void Update()
+            {
+                _t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(_t / Life);
+                transform.localScale = Vector3.one * (1f + Mathf.Sin(k * Mathf.PI) * 0.1f);
+                if (k >= 1f)
+                {
+                    transform.localScale = Vector3.one;
+                    enabled = false;
+                }
+            }
         }
 
         /// <summary>Eases a pickup icon from its spawn point into the hotbar zone, shrinking, then dies.</summary>
@@ -481,6 +512,16 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A quick scale tick on the newly selected slot (skipped for the initial selection).
+            int selNow = Game.SelectedHotbarSlot;
+            if (selNow != _lastSelSlot && _lastSelSlot >= 0 && selNow >= 0 && selNow < Slots)
+            {
+                var border = _hotbar[selNow].Border.gameObject;
+                (border.GetComponent<SlotTick>() ?? border.AddComponent<SlotTick>()).Restart();
+            }
+
+            _lastSelSlot = selNow;
+
             for (int i = 0; i < Slots; i++)
             {
                 var s = _hotbar[i];
@@ -605,7 +646,12 @@ namespace BlocksBeyondTheStars.Client
         {
             var scan = Game.LastScan;
             bool show = scan != null && Time.time - Game.LastScanAt <= 12f;
-            if (_scanPanel.activeSelf != show) _scanPanel.SetActive(show);
+            if (_scanPanel.activeSelf != show)
+            {
+                _scanPanel.SetActive(show);
+                if (show) { UiKit.TransitionIn(_scanPanel); }
+            }
+
             if (!show) return;
             _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
             _scanInfo.text = scan.Info;
@@ -651,7 +697,12 @@ namespace BlocksBeyondTheStars.Client
         {
             var wreck = Game.Wreck;
             bool show = wreck != null;
-            if (_wreckPanel.activeSelf != show) _wreckPanel.SetActive(show);
+            if (_wreckPanel.activeSelf != show)
+            {
+                _wreckPanel.SetActive(show);
+                if (show) { UiKit.TransitionIn(_wreckPanel); }
+            }
+
             if (!show) return;
             _wreckName.text = wreck.WreckName;
             int done = wreck.Total - wreck.Remaining;

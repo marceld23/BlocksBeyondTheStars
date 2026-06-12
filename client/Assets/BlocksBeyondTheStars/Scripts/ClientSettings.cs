@@ -118,6 +118,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Screen.fullScreen = Fullscreen;
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
+            UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;
             if (levels > 0)

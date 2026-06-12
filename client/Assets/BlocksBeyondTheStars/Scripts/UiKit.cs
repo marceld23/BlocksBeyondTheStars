@@ -57,6 +57,90 @@ namespace BlocksBeyondTheStars.Client
         public static Sprite PanelSprite => _panelSprite != null ? _panelSprite : _panelSprite = RoundedSprite(18, 3);
         public static Sprite ButtonSprite => _buttonSprite != null ? _buttonSprite : _buttonSprite = RoundedSprite(14, 2);
 
+        /// <summary>Set from <see cref="ClientSettings.Apply"/>: reduced-effects users keep instant panel snaps.</summary>
+        public static bool ReducedMotion;
+
+        /// <summary>Fade+rise-in transition (~0.14 s, unscaled) on a UI root: attaches/reuses a CanvasGroup
+        /// and animates alpha 0→1 plus a small upward slide. Instant under <see cref="ReducedMotion"/>.
+        /// Canvas roots only fade (their RectTransform is driven by the canvas).</summary>
+        public static void TransitionIn(GameObject root, float slide = 14f)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var group = root.GetComponent<CanvasGroup>();
+            if (group == null)
+            {
+                group = root.AddComponent<CanvasGroup>();
+            }
+
+            if (ReducedMotion)
+            {
+                group.alpha = 1f;
+                return;
+            }
+
+            var run = root.GetComponent<UiTransition>();
+            if (run == null)
+            {
+                run = root.AddComponent<UiTransition>();
+            }
+
+            run.Begin(group, slide);
+        }
+
+        private sealed class UiTransition : MonoBehaviour
+        {
+            private const float Life = 0.14f;
+            private CanvasGroup _group;
+            private RectTransform _rt;
+            private Vector2 _home;
+            private float _slide, _t;
+            private bool _homed;
+
+            public void Begin(CanvasGroup group, float slide)
+            {
+                _group = group;
+                _rt = GetComponent<Canvas>() == null ? transform as RectTransform : null; // canvas roots fade only
+                if (_rt != null && !_homed)
+                {
+                    _home = _rt.anchoredPosition;
+                    _homed = true;
+                }
+
+                _slide = slide;
+                _t = 0f;
+                enabled = true;
+                Apply(0f);
+            }
+
+            private void Update()
+            {
+                _t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(_t / Life);
+                Apply(k * k * (3f - 2f * k)); // smoothstep
+                if (k >= 1f)
+                {
+                    enabled = false;
+                }
+            }
+
+            private void Apply(float k)
+            {
+                if (_group != null)
+                {
+                    _group.alpha = k;
+                }
+
+                if (_rt != null)
+                {
+                    _rt.anchoredPosition = _home + Vector2.down * (_slide * (1f - k));
+                }
+            }
+        }
+
         /// <summary>Creates a screen-space overlay canvas that scales with the screen (fixes high-DPI), plus an EventSystem.</summary>
         private static Texture2D _radar;
 

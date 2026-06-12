@@ -83,6 +83,7 @@ namespace BlocksBeyondTheStars.Client
             RebuildSidebar();
             RebuildList();
             RebuildDetail();
+            UiKit.TransitionIn(_canvas.gameObject); // fade-in on open + tab change
         }
 
         private string _pendingCategory; // a category to select when the mode next opens (e.g. "market")
