@@ -22,21 +22,51 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Professional-look pass (WP-1…16) — IN PROGRESS (2026-06-12)
-Driven by [docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) (what's missing)
-and [docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md)
-(WP-1…16, one commit per WP; playtests consolidated into PT-1 after WP-1 and PT-2 after WP-15).
-- **WP-1 — Linear color space** ✅ code + build green (2026-06-12). `m_ActiveColorSpace: 1`; new
-  `ShaderColor.Srgb()` boundary helper applied at every script→shader colour upload (Sky globals,
-  flora-tint map, lamp, sun discs, clouds, doors, FX/material factories across ~25 files); the
-  derived normal atlas is now created with `linear: true` (data, not colour). Engine-managed colour
-  properties (Light.color, RenderSettings, camera background, uGUI, URP colorFilter) intentionally
-  NOT wrapped — Unity/URP convert those. Built-in-RP `PostFx` fallback stays gamma-tuned (URP is the
-  shipping path). **PT-1 visual checkpoint still pending** (verify the 8 scenarios from the plan;
-  retune candidates: flora blend, grade strength, emission ×2, bloom threshold, vertex AO).
-- **WP-2 — Sci-fi UI font** ✅ (2026-06-12): bundled Rajdhani-Medium (OFL, full DE glyph coverage
-  verified via fontTools) under `Resources/fonts/`, first in the `UiKit.Font` fallback chain;
-  licence recorded in NOTICES.md. Visual check at PT-2.
+### ★ Professional-look pass (WP-1…16) — ✅ IMPLEMENTED (2026-06-12); PT-1/PT-2 playtests pending
+Driven by [docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) and
+[docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md)
+(one commit per WP). Style rules now codified in [docs/ART_BIBLE.md](docs/ART_BIBLE.md).
+**Verification:** client batch builds green, 475 tests green (locale parity incl. the new block
+names). **Open:** the two human playtest checkpoints — **PT-1** (linear-color-space parity: 8
+scenarios + retune candidates flora blend / grade strength / emission ×2 / bloom threshold /
+vertex AO) and **PT-2** (one structured pass over WP-2…15: fonts/DE text, camera toggle, O₂ +
+damage pulses, mining flash + fly-in, craft/unlock celebration, UI transitions, music contexts,
+block variants, ship rooms/cockpit/decor/thrusters/damage/ghost+materialize).
+- **WP-1 Linear color space** ✅ — `m_ActiveColorSpace: 1`; `ShaderColor.Srgb()` boundary helper at
+  every script→shader colour upload (~25 files); normal atlas `linear: true`; engine-managed colour
+  properties intentionally unwrapped; Built-in-RP `PostFx` fallback stays gamma-tuned.
+- **WP-2 Sci-fi UI font** ✅ — bundled Rajdhani-Medium (OFL, DE glyphs verified), first in
+  `UiKit.Font`; NOTICES updated.
+- **WP-3 Camera-motion toggle** ✅ — `ClientSettings.CameraMotion` gates bob/FOV-kick/shake
+  (settings row, DE+EN).
+- **WP-4 Event post-FX** ✅ — low-O₂ pulsing blue vignette + escalating two-beep alarm, red damage
+  vignette kick, `UrpScenePost.Burst()` chroma/grain API; all honour ReducedEffects.
+- **WP-5 Mining loop** ✅ — final-hit flash + the mined tile flies into the hotbar (id sampled
+  during MiningProgress).
+- **WP-6 Craft/unlock celebration** ✅ — card pulse + floating label on craft; tech-node pulse,
+  unlock label + `tech_unlock` fanfare on blueprint unlock (inventory-diff detection).
+- **WP-7 UI transitions** ✅ — `UiKit.TransitionIn` (fade+rise 0.14 s) on menu/tab + scan/wreck
+  panels; hotbar selection tick; instant under ReducedEffects (`UiKit.ReducedMotion`).
+- **WP-8 Music contexts** ✅ — menu/planet/space/combat cross-fade; four ElevenLabs ambient loops
+  (`music_*.mp3`) + mood-matched procedural fallbacks; combat inferred from hull+shield drops.
+  SOUND_DESIGN §11 shipped (still open: an AppShell-level main-menu hook).
+- **WP-9 Block variants** ✅ — 2 procedural variant tiles per natural block + 90° top/bottom UV
+  rotation from a deterministic world-position hash; ship/tech panels excluded.
+- **WP-10 Ship room identity** ✅ — 7 new blocks (light strips, panels, hazard floor, engine
+  nozzle); `PaintStationAccents` lays per-room 3×3 floor pads (both stamp paths); box ships get
+  cyan side-wall light strips; restamps re-stream chunks (no ghost blocks).
+- **WP-11/12 Cockpit + station decor** ✅ — `StationDecorView`: cockpit console + animated screen +
+  holographic system map (star-map data, proximity-gated); medbay tank pulse; lab/console
+  terminals; workshop sparks. Space view gains a flight readout (SPD/THR/HDG + HULL/SHD).
+- **WP-13 Thruster/transit FX** ✅ — throttle-scaled exhaust particle stream; pad-dust bursts on
+  other players' touchdown/lift-off; `engine_nozzle` glow keeps landed ships alive. (Own-launch
+  pad dust deferred — camera sits inside the ship during the sequence.)
+- **WP-14 Ship damage** ✅ — hit sparks at the hull in combat; aboard: interior spark bursts
+  <50% hull, pulsing red emergency light + `hull_alarm` <25% (hysteresis at 30%).
+- **WP-15 Build preview + materialize** ✅ — ship-editor placement ghost (green/red, pulsing);
+  restamp materialize sweep (rising holo ring + shimmer, keyed off ShipStations changes).
+- **WP-16 Docs** ✅ — `docs/ART_BIBLE.md` (normative style + palette + checklist); stale
+  ADVANCED_GRAPHICS_PLAN header fixed; gap-analysis statuses closed.
 
 ### ★ In-game multiplayer hosting ("Host Game") — ✅ SHIPPED (2026-06-12; 475 tests green)
 **Decisions (2026-06-12):** name verification = **token-based name ownership** (first join under a name

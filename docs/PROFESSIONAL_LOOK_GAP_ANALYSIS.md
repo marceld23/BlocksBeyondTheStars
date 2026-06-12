@@ -1,6 +1,11 @@
 # Professional Look — Gap Analysis
 
-Status: **analysis only — nothing in this document is implemented work.**
+Status: **analysis — implementation pass WP-1…16 executed 2026-06-12** (see
+[PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md) and TODO.md).
+Closed by that pass: G1 (linear, PT-1 pending), G8, G13 (partially: accents+strips), G14, G15,
+G16 (partially), G17, G18, G19, G20, G21, G22, G23, G25, G26 (fly-in), G27, G28, G29, G32.
+Still open (tracked in ADVANCED_GRAPHICS_PLAN phases 2–4): G2–G7, G9–G12, G24, G30, G31, G4/G5
+partially (burst API exists, events mostly unwired; no screenshot mode).
 Date: 2026-06-12
 
 This document compares the external "professional look" plan (*stylized voxel sci-fi with premium

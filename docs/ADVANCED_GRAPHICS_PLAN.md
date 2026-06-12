@@ -1,9 +1,11 @@
 # Advanced Graphics Plan — Shell Shaders, Parallax & Beyond
 
-Status: **planned (research + roadmap)** — nothing here is implemented yet. This document researches
-advanced real-time rendering techniques and lays out how to apply them **maximally** in Blocks Beyond the Stars to
-make the game look noticeably richer, while staying realistic about our constraints. Pick phases off
-the bottom as polish milestones.
+Status: **partially shipped.** Phase 0 (URP migration, 2026-06-10), Phase 1 (post stack + emissive)
+and Phase 1.5 (normal mapping) are ✅ done — and since 2026-06-12 the project renders in **Linear
+color space** (see the professional-look pass in TODO.md and docs/ART_BIBLE.md). Phases 2–4 below
+remain the research + roadmap for the next polish milestones. The "Built-in RP" constraints in §0
+describe the historical starting point; URP is the shipping pipeline today (the hand-written
+shaders are dual-pipeline).
 
 Related: [docs/UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) (the broader UI + renderer overhaul),
 the M27 render pass in [TODO.md](../TODO.md), and the "more professional look with effects" design note.
