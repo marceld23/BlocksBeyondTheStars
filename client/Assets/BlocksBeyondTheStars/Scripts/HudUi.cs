@@ -49,6 +49,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _dmgCause;
         private float _prevHealth = 100f, _flashTimer, _causeTimer;
         private string _causeKey = string.Empty;
+        private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
 
         private void LateUpdate()
         {
@@ -84,7 +85,10 @@ namespace BlocksBeyondTheStars.Client
                 _flashTimer = Mathf.Min(0.6f, 0.22f + drop * 0.03f); // a bigger hit flashes longer
                 _causeTimer = 2.2f;
                 _causeKey = InferDamageCause();
+                UrpScenePost.Instance?.PulseVignette(0.4f + Mathf.Clamp01(drop / 25f) * 0.6f); // vignette kick
             }
+
+            UpdateOxygenAlarm(dt);
 
             _prevHealth = h;
 
@@ -101,6 +105,29 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool showCause = _causeTimer > 0f && Game.Health > 0f && !Game.MenuOpen;
                 _dmgCause.text = showCause && Game.Localizer != null ? Game.Localizer.Get(_causeKey) : string.Empty;
+            }
+        }
+
+        /// <summary>Low-oxygen warning: under 25% O₂ a pulsing blue vignette ramps in (UrpScenePost) and a
+        /// periodic two-beep alarm plays, its interval shrinking as oxygen runs out. Silent when healthy,
+        /// breathable air keeps O₂ at 100 so it never fires there.</summary>
+        private void UpdateOxygenAlarm(float dt)
+        {
+            float o2 = Game.Oxygen;
+            float alarm = o2 <= 25f && Game.Health > 0f ? Mathf.Clamp01((25f - o2) / 25f) : 0f;
+            UrpScenePost.Instance?.SetOxygenAlarm(alarm);
+
+            if (alarm <= 0f)
+            {
+                _o2BeepTimer = 0f; // first beep fires immediately when the alarm next trips
+                return;
+            }
+
+            _o2BeepTimer -= dt;
+            if (_o2BeepTimer <= 0f)
+            {
+                _o2BeepTimer = Mathf.Lerp(4f, 1.2f, alarm); // urgent = faster
+                ClientAudio.Instance?.Cue("o2_warning", 0.45f + alarm * 0.35f);
             }
         }
 

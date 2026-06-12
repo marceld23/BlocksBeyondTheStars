@@ -22,8 +22,8 @@ namespace BlocksBeyondTheStars.Client
             "asteroid_break", "ship_destroyed", "ship_shield_hit", "ship_hull_hit", "hurt_player",
             "ship_laser", "ship_mine",
             "thunder_1", "thunder_2", "thunder_3",
-            // ui
-            "ui_hover", "ui_click", "ui_confirm", "ui_back",
+            // ui / vitals
+            "ui_hover", "ui_click", "ui_confirm", "ui_back", "o2_warning",
             // ship / space
             "hyperspace_jump", "station_board", "scan_ping", "lamp_toggle", "teleport",
             "ship_launch", "ship_landing",
@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client
             "ui_click" => Beep("ui_click", 760f, 0.07f, 0.22f),
             "ui_confirm" => Arp("ui_confirm", 0.20f, 0.22f, up: true),
             "ui_back" => Arp("ui_back", 0.20f, 0.22f, up: false),
+            "o2_warning" => Alarm("o2_warning", 950f, 0.5f),
             "hyperspace_jump" => Warp("hyperspace_jump"),
             "station_board" => Airlock("station_board"),
             "scan_ping" => Ping("scan_ping"),
@@ -106,6 +107,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 float t = i / (float)Rate;
                 d[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * Mathf.Exp(-t * 18f) * vol;
+            }
+        });
+
+        /// <summary>Two urgent beeps with a short gap — the low-oxygen warning cue.</summary>
+        private static AudioClip Alarm(string name, float freq, float vol) => Buf(name, 0.46f, d =>
+        {
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float lt = t < 0.23f ? t : t - 0.23f;  // the envelope restarts for the second beep
+                float gate = lt < 0.14f ? 1f : 0f;
+                d[i] = Mathf.Sin(2f * Mathf.PI * freq * lt) * Mathf.Exp(-lt * 22f) * gate * vol;
             }
         });
 
