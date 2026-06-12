@@ -3099,7 +3099,17 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    rebuilt. Playtest: fly to a body, press E → pick a pad; fill a small body's pads in MP to see FULL + the refuse;
    watch another player's ship land/launch. *(Star-map "Travel" auto-picks the first free pad; the in-flight E/L is
    the manual chooser.)*
-39. **Document where the ASP admin dashboard is reached.** *(Docs only — backlog, requested 2026-06-08.)* There is
+39. ✅ **Document where the ASP admin dashboard is reached (done 2026-06-12).** Investigated + **verified by
+   running it**: `BlocksBeyondTheStars.Api` is a standalone ASP.NET Core host that binds
+   `http://{adminBindAddress}:{adminPort}` (default **`http://127.0.0.1:31416/`**) from the `config/server.json`
+   **next to its own executable** (same resolution as the game server → in a published package both share one
+   config; under `dotnet run` each has its own `bin/.../config/`). `/` serves the embedded HTML dashboard
+   (status / config editing / backups / log tail / admin missions / content packs); `/api/*` is the JSON API,
+   gated by an `X-Admin-Password` header when `adminPassword` is set (no password → loopback-bind reliance +
+   a status warning); plus a public `/portal` landing page and the `/play` browser-client placeholder.
+   **Documented:** new "Admin dashboard" section in `README.md` + expanded `docs/SELF_HOSTING.md` §5 (start,
+   URL, auth, full API route table, curl/Invoke-RestMethod example, dev-mode config caveat). *(Original entry:)*
+   *(Docs only — backlog, requested 2026-06-08.)* There is
    an ASP.NET server admin component (`src/Spacecraft.Api`); **find out how/where its admin dashboard is opened**
    (which executable/host serves it, the **URL/port**, any route/auth, and how to launch it) and **make sure that's
    written in the README** (and/or the project docs) so it's discoverable — currently it doesn't appear to be

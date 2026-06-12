@@ -87,6 +87,16 @@ fresh, and known build pitfalls.
 Server configuration lives in `config/server.json` (created on first run) and is editable
 via the admin UI. See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
 
+### Admin dashboard
+
+`BlocksBeyondTheStars.Api` is a standalone web host serving the server admin dashboard at
+**`http://127.0.0.1:31416/`** (`adminBindAddress`/`adminPort` in `config/server.json`):
+status, config editing, backups, log tail and mission/content tools — optionally gated by
+an admin password. Start it with `dotnet run --project src/BlocksBeyondTheStars.Api`, or in a
+server package run `BlocksBeyondTheStars.Api(.exe)` from the install folder (next to the game
+server, so both share `config/server.json`). URL, auth and the full HTTP API are documented
+in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) §5.
+
 ### Tools CLI
 
 ```powershell

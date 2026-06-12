@@ -69,10 +69,54 @@ Created on first run; editable directly or through the admin UI.
   is **not** reachable from outside. Only change `adminBindAddress` if you understand the
   risk, and always set an `adminPassword` first.
 
-## 5. Admin UI
+## 5. Admin UI (dashboard + HTTP API)
 
-Open `http://<adminBindAddress>:<adminPort>/`. If an `adminPassword` is set, enter it once
-in the dashboard. You can view status, edit configuration, create backups, and tail logs.
+The admin UI is its own small executable, **`BlocksBeyondTheStars.Api(.exe)`**, shipped in the
+server package next to the game server. It reads the **same `config/server.json`**
+(resolved relative to its own folder), so run it from the server install directory. Start
+it and open the dashboard in a browser:
+
+```text
+http://127.0.0.1:31416/        i.e. http://<adminBindAddress>:<adminPort>/
+```
+
+The dashboard shows server/world status and lets you edit the configuration, create and
+list backups, tail the server log, and manage admin missions / content packs. If an
+`adminPassword` is configured, enter it in the dashboard's password field — it is sent as
+an `X-Admin-Password` header with every API call. Without a password the UI relies on the
+loopback bind and shows a warning in the status. Live operations on a *running* server
+(kick/ban, start/stop) are intentionally not part of this UI.
+
+From a source checkout the same UI runs with
+`dotnet run --project src/BlocksBeyondTheStars.Api`. Note that it then resolves
+`config/server.json` relative to its **own build folder** (`bin/Debug/net8.0/`), not the
+game server's — for a shared config run both executables from one published install
+directory.
+
+### HTTP API
+
+Everything the dashboard does is plain HTTP under `/api` (JSON; add the
+`X-Admin-Password` header when a password is set):
+
+| Route | Meaning |
+|---|---|
+| `GET /api/status` | Server/world snapshot (name, world, ports, players, backups, warnings) |
+| `GET` / `PUT /api/config` | Read / replace `config/server.json` |
+| `GET` / `POST /api/backups` | List / create a world backup |
+| `GET /api/logs?lines=200` | Tail the server log |
+| `GET` / `POST /api/missions`, `DELETE /api/missions/{id}` | Admin mission editor |
+| `GET` / `POST /api/content-pack` | Export / import a content pack |
+
+Example call without the dashboard:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:31416/api/status -Headers @{ 'X-Admin-Password' = '<password>' }
+# or: curl -H "X-Admin-Password: <password>" http://127.0.0.1:31416/api/status
+```
+
+The host also serves a public-facing **`/portal`** landing page (server name, client
+download / browser-play links for players) and the `/play` placeholder for the future
+browser client.
 
 ## 6. Backups & saves
 
