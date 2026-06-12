@@ -2747,11 +2747,11 @@ namespace BlocksBeyondTheStars.Client
             // Avionics-style abbreviations (SPD/THR/HDG) — identical in DE and EN cockpits.
             var instGo = new GameObject("Instruments", typeof(RectTransform));
             instGo.transform.SetParent(_ui.transform, false);
-            var irt = instGo.GetComponent<RectTransform>();
-            irt.anchorMin = irt.anchorMax = new Vector2(0f, 0f);
-            irt.pivot = new Vector2(0f, 0f);
-            irt.sizeDelta = new Vector2(620f, 26f);
-            irt.anchoredPosition = new Vector2(20f, 20f);
+            var insRt = instGo.GetComponent<RectTransform>();
+            insRt.anchorMin = insRt.anchorMax = new Vector2(0f, 0f);
+            insRt.pivot = new Vector2(0f, 0f);
+            insRt.sizeDelta = new Vector2(620f, 26f);
+            insRt.anchoredPosition = new Vector2(20f, 20f);
             _instruments = instGo.AddComponent<Text>();
             _instruments.font = UiKit.Font;
             _instruments.fontSize = 19;
