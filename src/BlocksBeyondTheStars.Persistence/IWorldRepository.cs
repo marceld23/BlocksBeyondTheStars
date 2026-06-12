@@ -142,6 +142,11 @@ public interface IWorldRepository : IDisposable
     /// <summary>Removes all stored edits for an in-space voxel structure (e.g. the ship hull was reset).</summary>
     void DeleteStructureEdits(string structureId);
 
+    /// <summary>Deletes all world block edits inside an axis-aligned box (inclusive). Ship-as-object
+    /// migration: pre-object saves persisted the stamped hull as block edits — placing the ship object
+    /// clears that residue from its volume so the old block hull doesn't reappear.</summary>
+    void DeleteBlockEdits(string planet, Vector3i min, Vector3i max);
+
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);
 

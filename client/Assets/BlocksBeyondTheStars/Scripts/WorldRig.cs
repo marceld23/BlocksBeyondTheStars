@@ -122,6 +122,11 @@ namespace BlocksBeyondTheStars.Client
             var shipTransit = root.AddComponent<ShipTransitView>();
             shipTransit.Game = boot;
 
+            // Ships parked on this world as placed voxel objects (ship-as-object): the own + other players'
+            // landed ships, painted in their hull colours, with colliders to walk on/in.
+            var landedShips = root.AddComponent<LandedShipView>();
+            landedShips.Game = boot;
+
             // Hyperspace warp animation (plays on a system-to-system jump).
             var warp = root.AddComponent<HyperspaceWarp>();
             warp.Game = boot;

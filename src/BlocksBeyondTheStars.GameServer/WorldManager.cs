@@ -37,21 +37,21 @@ internal sealed class LoadedWorld
     public List<GameServer.LandingPad> LandingPads { get; } = new(); // fixed, map-planned landing pads (item 38)
     public List<StoredContainer> Containers { get; } = new();
 
-    // Per-player ship structures stamped into THIS world (one per player present, each at their own
-    // landing zone). Block protection + interior checks cover every player's ship; respawn/stations use
+    // Per-player ships PARKED on THIS world as placed structure objects (one per player present, each at
+    // their own landing pad). Interior/keep-out checks cover every player's ship; respawn/stations use
     // the player's own. Keyed by player id.
-    public Dictionary<string, ShipStamp> ShipStamps { get; } = new();
+    public Dictionary<string, LandedShip> LandedShips { get; } = new();
 
-    /// <summary>The ship-stamp record for a player in this world, created empty on first access.</summary>
-    public ShipStamp StampFor(string playerId)
+    /// <summary>The landed-ship record for a player in this world, created empty on first access.</summary>
+    public LandedShip LandedFor(string playerId)
     {
-        if (!ShipStamps.TryGetValue(playerId, out var stamp))
+        if (!LandedShips.TryGetValue(playerId, out var ship))
         {
-            stamp = new ShipStamp();
-            ShipStamps[playerId] = stamp;
+            ship = new LandedShip();
+            LandedShips[playerId] = ship;
         }
 
-        return stamp;
+        return ship;
     }
 
     // Settlement stamp state.
@@ -110,21 +110,22 @@ internal sealed class LoadedWorld
     public System.Random EnvRng { get; set; } = new(1);
 }
 
-/// <summary>One player's ship stamped into a world (its hull anchor + size, heal-tank, station markers and
-/// protected blocks). Each player gets their own at their own landing zone, so two players on one planet
-/// never share a start point or ship.</summary>
-internal sealed class ShipStamp
+/// <summary>One player's ship PARKED on a world as a placed voxel structure OBJECT (ship-as-object — the
+/// hull is no longer stamped into the world grid). Each player gets their own at their own landing pad, so
+/// two players on one planet never share a start point or ship. Gameplay anchors (heal-tank, stations,
+/// doors) are pre-resolved to world coordinates from the structure-local cells + the origin.</summary>
+internal sealed class LandedShip
 {
-    public bool Stamped { get; set; }
-    public bool IsLayout { get; set; }           // stamped from a designed voxel layout (irregular shape)
-    public Vector3i Anchor { get; set; }          // hull floor-centre block
-    public int HalfX { get; set; } = 2;           // hull half-extents (from the ship design)
-    public int Height { get; set; } = 4;
-    public int HalfZ { get; set; } = 3;
-    public Vector3f HealTank { get; set; }        // medbay respawn point
-    public HashSet<Vector3i> Extra { get; } = new(); // exterior/silhouette + layout cells (protected)
-    public List<(string Type, Vector3f Pos)> Stations { get; } = new();
-    public List<Vector3f> Doors { get; } = new(); // designed-ship doorway markers (sci-fi slide doors)
+    public bool Placed { get; set; }
+    public Vector3i Origin { get; set; }              // world cell of the structure-local origin (0,0,0)
+    public SpaceStructure Structure { get; set; } = new();
+    public Vector3f HealTank { get; set; }            // medbay respawn point (world coords)
+    public List<(string Type, Vector3f Pos)> Stations { get; } = new(); // world coords
+    public List<Vector3f> Doors { get; } = new();     // doorway base centres (world coords)
+
+    /// <summary>Maps a world cell into the structure-local grid (longitude wrap-aware on X).</summary>
+    public Vector3i ToLocal(Vector3i world, int circumference)
+        => new(WorldConstants.WrapDeltaX(world.X - Origin.X, circumference), world.Y - Origin.Y, world.Z - Origin.Z);
 }
 
 /// <summary>

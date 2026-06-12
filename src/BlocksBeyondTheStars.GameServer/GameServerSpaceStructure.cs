@@ -41,6 +41,21 @@ public sealed class SpaceStructure
     /// <summary>The sparse block grid — only non-air cells are stored.</summary>
     public Dictionary<Vector3i, BlockId> Cells { get; } = new();
 
+    /// <summary>The design-derived cells (hull/glass/lights/engines/station markers) snapshotted BEFORE the
+    /// player's persisted edits apply. On-foot edits (landed ship + ship interior) may never mine these —
+    /// the hull is not damageable and modules are not removable; only player-added blocks come out again.
+    /// (The space EVA keeps its existing hull-mining rules for repairs.)</summary>
+    public HashSet<Vector3i> Baseline { get; } = new();
+
+    /// <summary>Interior station markers (medbay/cockpit/workshop/…) in structure-local cells.</summary>
+    public List<(string Type, Vector3i Cell)> StationCells { get; } = new();
+
+    /// <summary>Doorway base cells (sci-fi slide doors fill these openings) in structure-local coords.</summary>
+    public List<Vector3i> DoorCells { get; } = new();
+
+    /// <summary>The medbay heal-tank cell (respawn point), if the design carries one.</summary>
+    public Vector3i? MedbayCell { get; set; }
+
     public void Set(Vector3i pos, BlockId block)
     {
         if (block.IsAir)
@@ -92,19 +107,28 @@ public sealed partial class GameServer
             {
                 var p = new Vector3i(cell.X, cell.Y, cell.Z);
 
-                // Station tiles are interior interaction markers (handled on the walkable planet stamp); in the
-                // space mesh leave them as air so the interior stays hollow.
+                // Station tiles: an interior interaction marker block + the gameplay anchor (ship-as-object:
+                // the structure IS the walkable ship everywhere now, so the stations live in it).
                 if (cell.Kind == "station")
                 {
+                    s.Set(p, _content.GetBlock(StationBlockKey(cell.Id))?.NumericId ?? wall);
+                    s.StationCells.Add((cell.Id, p));
+                    if (cell.Id == "medbay")
+                    {
+                        s.MedbayCell = p;
+                    }
+
                     continue;
                 }
 
                 switch (cell.Id)
                 {
                     case "hatch":
+                        continue; // an open entry renders as a hole
                     case "door_slide":
                     case "door_hinge":
-                        continue; // openings render as holes
+                        s.DoorCells.Add(p); // a server-authoritative slide door fills this opening
+                        continue;
                     case "glass": s.Set(p, glass); continue;
                     case "light":
                     case "headlight": s.Set(p, lightW); continue;
@@ -117,7 +141,19 @@ public sealed partial class GameServer
                 s.Set(p, _content.GetBlock(cell.Id)?.NumericId ?? wall);
             }
 
-            ApplyPersistedShipEdits(s);
+            // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never
+            // falls out of the walkable interior — mirrors the old stamped-ship floor guarantee.
+            for (int fx = 0; fx < layout.Width; fx++)
+            for (int fz = 0; fz < layout.Length; fz++)
+            {
+                var fp = new Vector3i(fx, 0, fz);
+                if (s.Get(fp).IsAir)
+                {
+                    s.Set(fp, wall);
+                }
+            }
+
+            FinishShipStructure(s);
             return s;
         }
 
@@ -142,12 +178,54 @@ public sealed partial class GameServer
             bool door = z == 0 && (x == halfX - 1 || x == halfX || x == halfX + 1) && (y == 1 || y == 2);
             if (door)
             {
-                continue; // rear hatch opening
+                continue; // rear hatch opening (a slide door fills it, see DoorCells below)
             }
 
+            // Window panes at eye height: a band along the front (+Z) and both side walls (matching the
+            // old stamped box ship), so the cabin has proper windows to see out of.
             bool frontWin = z == halfZ * 2 && y == 2 && x > 0 && x < halfX * 2;
-            s.Set(new Vector3i(x, y, z), frontWin ? glass : wall);
+            bool sideWin = (x == 0 || x == halfX * 2) && y == 2 && z > 0 && z < halfZ * 2;
+            s.Set(new Vector3i(x, y, z), frontWin || sideWin ? glass : wall);
         }
+
+        // The rear hatch gets a real door (server-authoritative slide door at the opening's centre column).
+        s.DoorCells.Add(new Vector3i(halfX, 1, 0));
+
+        // Interior dressing (ported from the old stamped box ship): emissive ceiling panels down the roof
+        // centre + cyan wall light strips above the window band, so the cabin reads as a lit sci-fi interior.
+        var ceilingLight = _content.GetBlock("data_cache")?.NumericId ?? glass;
+        for (int zc = 1; zc <= halfZ * 2 - 1; zc += 2)
+        {
+            s.Set(new Vector3i(halfX, height, zc), ceilingLight);
+        }
+
+        var stripCyan = _content.GetBlock("strip_light_cyan")?.NumericId ?? BlockId.Air;
+        if (!stripCyan.IsAir && height >= 4)
+        {
+            for (int zc = 1; zc <= halfZ * 2 - 1; zc += 2)
+            {
+                s.Set(new Vector3i(0, 3, zc), stripCyan);
+                s.Set(new Vector3i(halfX * 2, 3, zc), stripCyan);
+            }
+        }
+
+        // Interior station markers on the floor (same placement as the old stamped box ship: corners + walls,
+        // kept inside the shell). NOTE: the box ship's heal-tank/respawn stays at the CABIN CENTRE (MedbayCell
+        // unset → the placement falls back to the centre), matching the old stamp's spawn point.
+        void BoxStation(string type, int x, int z)
+        {
+            var cell = new Vector3i(x, 1, z);
+            s.Set(cell, _content.GetBlock(StationBlockKey(type))?.NumericId ?? wall);
+            s.StationCells.Add((type, cell));
+        }
+
+        BoxStation("medbay", 1, 1);
+        BoxStation("cockpit", halfX, halfZ * 2 - 1);
+        BoxStation("workshop", halfX * 2 - 1, halfZ);
+        BoxStation("cargo", 1, halfZ);
+        BoxStation("quarters", halfX * 2 - 1, 1);
+        BoxStation("lab", 1, halfZ * 2 - 1);
+        BoxStation("console", halfX * 2 - 1, halfZ * 2 - 1);
 
         // Exterior silhouette so the box reads as a SHIP from outside (bug fix): side wings, rear engine
         // nozzles, nav lights at the wingtips, and a raised glass cockpit canopy toward the front. (Cells may
@@ -176,14 +254,60 @@ public sealed partial class GameServer
         s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 1), glass);
         s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 2), glass);
 
-        ApplyPersistedShipEdits(s);
+        FinishShipStructure(s);
         return s;
     }
 
-    /// <summary>Re-applies the player's persisted EVA hull edits (item 20 S4 durable save) on top of the
+    /// <summary>Common ship-structure finish: paints the per-room floor accents, snapshots the protected
+    /// design baseline (hull + modules — never minable on foot), then applies the player's persisted edits
+    /// on top (added blocks; in-space EVA hull repairs/removals).</summary>
+    private void FinishShipStructure(SpaceStructure s)
+    {
+        PaintStructureAccents(s);
+        s.Baseline.Clear();
+        s.Baseline.UnionWith(s.Cells.Keys);
+        ApplyPersistedShipEdits(s);
+    }
+
+    /// <summary>Room-identity pass (ship-as-object port of the stamped PaintStationAccents): a 3×3 accent
+    /// pad in the floor layer under each station marker so the rooms read at a glance. Only recolours
+    /// existing solid floor cells, never air.</summary>
+    private void PaintStructureAccents(SpaceStructure s)
+    {
+        foreach (var (type, cell) in s.StationCells)
+        {
+            string? accentKey = type switch
+            {
+                "medbay" => "medbay_panel",
+                "lab" or "cockpit" or "console" => "lab_panel",
+                "cargo" => "cargo_floor",
+                "workshop" => "engine_panel",
+                "quarters" => "metal_panel",
+                _ => null,
+            };
+
+            if (accentKey == null || _content.GetBlock(accentKey) is not { } accent)
+            {
+                continue;
+            }
+
+            for (int x = cell.X - 1; x <= cell.X + 1; x++)
+            for (int z = cell.Z - 1; z <= cell.Z + 1; z++)
+            {
+                var p = new Vector3i(x, cell.Y - 1, z);
+                if (!s.Get(p).IsAir)
+                {
+                    s.Set(p, accent.NumericId);
+                }
+            }
+        }
+    }
+
+    /// <summary>Re-applies the player's persisted hull edits (item 20 S4 durable save) on top of the
     /// freshly rebuilt ship voxel baseline, so mined-out / built-on cells survive a server restart and
-    /// re-entry into space. Only player deltas are stored (mirrors the per-cell planet block-edit model),
-    /// keeping it Raspberry-Pi-friendly. An edit setting a cell to air is honoured via <see cref="SpaceStructure.Set"/>.</summary>
+    /// re-entry into space — and, ship-as-object, carry into the landed ship + walkable interior too.
+    /// Only player deltas are stored (mirrors the per-cell planet block-edit model), keeping it
+    /// Raspberry-Pi-friendly. An edit setting a cell to air is honoured via <see cref="SpaceStructure.Set"/>.</summary>
     private void ApplyPersistedShipEdits(SpaceStructure s)
     {
         foreach (var edit in _repo.LoadStructureEdits(s.Id))
@@ -202,7 +326,8 @@ public sealed partial class GameServer
         var p = session.State;
         if (!_playerInstance.TryGetValue(p.PlayerId, out var iid) || !_spaceInstances.TryGetValue(iid, out var instance))
         {
-            Reject(session, "structure", "You are not in space.");
+            // Not in space → on foot: edit YOUR parked ship (landed world / walkable ship interior).
+            HandleLandedShipEdit(session, intent);
             return;
         }
 
@@ -244,6 +369,13 @@ public sealed partial class GameServer
         var pos = new Vector3i(intent.X, intent.Y, intent.Z);
         if (intent.Mine)
         {
+            // Ship MODULES (station markers) are never removable — not even on an EVA hull pass.
+            if (s.Kind == "ship" && s.StationCells.Any(sc => sc.Cell == pos))
+            {
+                Reject(session, "structure", "Ship modules cannot be removed.");
+                return;
+            }
+
             var existing = s.Get(pos);
             if (existing.IsAir)
             {
@@ -359,6 +491,133 @@ public sealed partial class GameServer
                 PersistStation(instance, s);
             }
         }
+    }
+
+    /// <summary>On-foot ship editing (ship-as-object): place/mine cells of YOUR parked ship — on the landed
+    /// world or in the walkable ship interior. The design baseline is protected (the hull cannot be damaged,
+    /// modules cannot be removed), but the player may furnish free interior space and take those own blocks
+    /// out again. Edits persist as the same per-cell structure deltas the space EVA uses, so they carry
+    /// across landing, flight and the interior.</summary>
+    private void HandleLandedShipEdit(PlayerSession session, StructureEditIntent intent)
+    {
+        var p = session.State;
+        var rec = _worlds.Active.LandedFor(p.PlayerId);
+        if (!rec.Placed || rec.Structure.Id != intent.StructureId)
+        {
+            Reject(session, "structure", "No such structure here.");
+            return;
+        }
+
+        var s = rec.Structure;
+        var pos = new Vector3i(intent.X, intent.Y, intent.Z);
+
+        // Reach: the player must be near the edited cell (mirrors the world dig reach, with slack for the
+        // camera-ray aim).
+        var cellCentre = new Vector3f(
+            rec.Origin.X + pos.X + 0.5f, rec.Origin.Y + pos.Y + 0.5f, rec.Origin.Z + pos.Z + 0.5f);
+        if (WrapDistSq(p.Position, cellCentre) > 10f * 10f)
+        {
+            Reject(session, "structure", "Too far away.");
+            return;
+        }
+
+        if (intent.Mine)
+        {
+            if (s.Baseline.Contains(pos))
+            {
+                Reject(session, "structure", s.StationCells.Any(sc => sc.Cell == pos)
+                    ? "Ship modules cannot be removed."
+                    : "The ship hull cannot be damaged.");
+                return;
+            }
+
+            var existing = s.Get(pos);
+            if (existing.IsAir)
+            {
+                Reject(session, "structure", "Nothing to mine there.");
+                return;
+            }
+
+            s.Set(pos, BlockId.Air);
+            _repo.SetStructureBlock(s.Id, pos, BlockId.AirValue);
+
+            if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
+            {
+                var pool = new MaterialPool(_content, p, _ship);
+                foreach (var drop in def.Drops)
+                {
+                    pool.Add(drop.Item, drop.Count);
+                }
+
+                SendInventory(session);
+            }
+
+            BroadcastToWorld(new StructureBlockChanged
+            {
+                StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue,
+            });
+            return;
+        }
+
+        // Place: only into free space INSIDE the ship bounds, attached to something (no floating junk).
+        if (pos.X < 0 || pos.X >= s.Width || pos.Y < 0 || pos.Y > s.Height || pos.Z < 0 || pos.Z >= s.Length)
+        {
+            Reject(session, "structure", "Only inside the ship.");
+            return;
+        }
+
+        if (!s.Get(pos).IsAir)
+        {
+            Reject(session, "structure", "Target is not empty.");
+            return;
+        }
+
+        bool attached = !s.Get(new Vector3i(pos.X + 1, pos.Y, pos.Z)).IsAir
+            || !s.Get(new Vector3i(pos.X - 1, pos.Y, pos.Z)).IsAir
+            || !s.Get(new Vector3i(pos.X, pos.Y + 1, pos.Z)).IsAir
+            || !s.Get(new Vector3i(pos.X, pos.Y - 1, pos.Z)).IsAir
+            || !s.Get(new Vector3i(pos.X, pos.Y, pos.Z + 1)).IsAir
+            || !s.Get(new Vector3i(pos.X, pos.Y, pos.Z - 1)).IsAir;
+        if (!attached)
+        {
+            Reject(session, "structure", "Nothing to attach the block to.");
+            return;
+        }
+
+        var item = _content.GetItem(intent.ItemKey);
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        {
+            Reject(session, "structure", "Item cannot be placed.");
+            return;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null)
+        {
+            Reject(session, "structure", "Unknown block for item.");
+            return;
+        }
+
+        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        var buildPool = new MaterialPool(_content, p, _ship);
+        if (!free)
+        {
+            if (buildPool.Count(intent.ItemKey) < 1)
+            {
+                Reject(session, "structure", "You do not have that block.");
+                return;
+            }
+
+            buildPool.Remove(new[] { new ItemAmount(intent.ItemKey, 1) });
+            SendInventory(session);
+        }
+
+        s.Set(pos, blockDef.NumericId);
+        _repo.SetStructureBlock(s.Id, pos, blockDef.NumericId.Value);
+        BroadcastToWorld(new StructureBlockChanged
+        {
+            StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value,
+        });
     }
 
     /// <summary>Test hook: run an EVA structure edit (item 20 S2).</summary>

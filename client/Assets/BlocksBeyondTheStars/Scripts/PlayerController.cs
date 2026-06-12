@@ -1163,13 +1163,24 @@ namespace BlocksBeyondTheStars.Client
             // miss a block that's clearly there (the rebuild's re-cook, a seam, or just its shorter reach) — which
             // is exactly the "I aim at the next block and nothing happens" bug (B32). The voxel grid is the source
             // of truth and always in sync, so this never silently fails when a block is in front of you.
-            if (!AimBlock(out var hitCell, out var placeCell))
+            // Parked ship OBJECTS (ship-as-object) live outside the world grid, so the march tests them too.
+            if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip))
             {
                 return;
             }
 
             if (mine)
             {
+                if (aimedShip != null)
+                {
+                    // A parked ship's cell: a structure edit, not a world dig. The server enforces the rules
+                    // (hull + modules protected; only player-added blocks come out again).
+                    var l = ShipLocal(aimedShip, hitCell);
+                    Game.Network.SendStructureEdit(aimedShip.StructureId, l.x, l.y, l.z, mine: true);
+                    TriggerSwing();
+                    return;
+                }
+
                 Game.LastMineCell = hitCell; // so an "already empty" rejection can clear the ghost here (B32)
                 Game.Network.SendMine(hitCell.x, hitCell.y, hitCell.z);
                 TriggerSwing();
@@ -1182,6 +1193,16 @@ namespace BlocksBeyondTheStars.Client
                 var def = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item);
                 if (def != null && !string.IsNullOrEmpty(def.PlacesBlock))
                 {
+                    // Placing INSIDE a parked ship furnishes the cabin: route to a structure edit (the
+                    // block becomes part of the ship and persists with it), not a world place.
+                    var boundsShip = Game.LandedShipBoundsAt(placeCell.x, placeCell.y, placeCell.z, out var lp);
+                    if (boundsShip != null)
+                    {
+                        Game.Network.SendStructureEdit(boundsShip.StructureId, lp.X, lp.Y, lp.Z, mine: false, item);
+                        TriggerSwing();
+                        return;
+                    }
+
                     if (def.PlacesBlock == "radio_beacon" && BeaconLabelUi.Instance != null)
                     {
                         // Name the beacon before placing it — the typed label travels with the place (item 37).
@@ -1199,6 +1220,67 @@ namespace BlocksBeyondTheStars.Client
                     TriggerSwing();
                 }
             }
+        }
+
+        /// <summary>A world cell mapped into a parked ship's structure-local grid (wrap-aware on X).</summary>
+        private Vector3Int ShipLocal(LandedShipModel ship, Vector3Int worldCell)
+            => new Vector3Int(
+                BlocksBeyondTheStars.Shared.World.WorldConstants.WrapDeltaX(worldCell.x - ship.Origin.X, Game.Circumference),
+                worldCell.y - ship.Origin.Y,
+                worldCell.z - ship.Origin.Z);
+
+        /// <summary>Like <see cref="AimBlock"/>, but the march also targets the cells of parked ship OBJECTS
+        /// (ship-as-object): whichever solid cell the ray reaches first wins. <paramref name="ship"/> is set
+        /// when the hit belongs to a parked ship — mine/place then route to a structure edit.</summary>
+        private bool AimTarget(out Vector3Int hitCell, out Vector3Int placeCell, out LandedShipModel ship)
+        {
+            hitCell = default;
+            placeCell = default;
+            ship = null;
+            if (Game?.World == null || Camera == null)
+            {
+                return false;
+            }
+
+            Vector3 o = Camera.transform.position;
+            Vector3 dir = Camera.transform.forward;
+            int x = Mathf.FloorToInt(o.x), y = Mathf.FloorToInt(o.y), z = Mathf.FloorToInt(o.z);
+            int px = x, py = y, pz = z;
+
+            int sx = dir.x >= 0 ? 1 : -1, sy = dir.y >= 0 ? 1 : -1, sz = dir.z >= 0 ? 1 : -1;
+            float invx = Mathf.Abs(dir.x) > 1e-6f ? 1f / Mathf.Abs(dir.x) : float.PositiveInfinity;
+            float invy = Mathf.Abs(dir.y) > 1e-6f ? 1f / Mathf.Abs(dir.y) : float.PositiveInfinity;
+            float invz = Mathf.Abs(dir.z) > 1e-6f ? 1f / Mathf.Abs(dir.z) : float.PositiveInfinity;
+            float tMaxX = float.IsInfinity(invx) ? float.PositiveInfinity : (dir.x > 0 ? (x + 1 - o.x) : (o.x - x)) * invx;
+            float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
+            float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
+
+            float t = 0f;
+            for (int i = 0; i < 80 && t <= Reach; i++)
+            {
+                var id = Game.World.GetBlock(x, y, z);
+                if (!id.IsAir && !IsFluidBlock(id))
+                {
+                    hitCell = new Vector3Int(x, y, z);
+                    placeCell = new Vector3Int(px, py, pz);
+                    return true;
+                }
+
+                if (!Game.LandedShipBlockAt(x, y, z, out var s, out _).IsAir)
+                {
+                    hitCell = new Vector3Int(x, y, z);
+                    placeCell = new Vector3Int(px, py, pz);
+                    ship = s;
+                    return true;
+                }
+
+                px = x; py = y; pz = z;
+                if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
+                else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }
+                else { z += sz; t = tMaxZ; tMaxZ += invz; }
+            }
+
+            return false;
         }
 
         /// <summary>Ray-marches the voxel grid (Amanatides &amp; Woo) along the aim ray and returns the first

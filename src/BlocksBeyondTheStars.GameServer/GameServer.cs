@@ -304,11 +304,11 @@ public sealed partial class GameServer
         // (the caller stamps it). Weather is initialised above so the env reads its clear/space-sky settings.
         if (!planet.Void)
         {
+            BuildLandingPads(); // FIRST: the pads must reach worldgen before any pad-area chunk generates
             InitFluids();
             InitFire();
             InitFlora();
             InitCreatures();
-            BuildLandingPads();
             LoadContainers();
 
             if (_config.PlaceSettlements)
@@ -356,11 +356,7 @@ public sealed partial class GameServer
         _floraRegrow.Clear();
         _fluidLevel.Clear();
         _activeFluid.Clear();
-        _stations.Clear();
-        _shipExtra.Clear();
-        _shipStamped = false;
-        _shipIsLayout = false;
-        _healTank = default;
+        _worlds.Active.LandedShips.Clear(); // parked-ship objects are per-world; a fresh world starts empty
     }
 
     /// <summary>
@@ -428,7 +424,7 @@ public sealed partial class GameServer
         LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
         session.CurrentLocationId = body.Id;
 
-        // Stamp this player's own ship into the destination world before placing them.
+        // Park this player's own ship object on the destination world before placing them.
         SetCurrent(session);
         if (_ship is not null)
         {
@@ -437,17 +433,17 @@ public sealed partial class GameServer
 
         if (_config.PlaceStarterShip)
         {
-            StampShip();
+            PlaceLandedShip();
         }
 
         var (systemName, planetName) = ActiveLocationNames();
         OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
         ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
         var pad = PlayerPad(session); // the pad claimed above (item 38)
-        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship stamp's median footprint height
-        var spawn = _shipStamped ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
+        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
+        var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
-        session.State.RespawnPoint = _shipStamped ? _healTank : spawn;
+        session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
         session.State.AboardShip = true;
         session.SentChunks.Clear();
         BroadcastShipTransit(session, body.Id, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent (item 38)
@@ -455,6 +451,7 @@ public sealed partial class GameServer
         Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
         SendPlayerState(session);
         SendShipCombatStatus(session);
+        SendLandedShips(session); // every parked ship object on this world (incl. the player's own)
         SendShipPlacement(session);
         SendShipStations(session);
         SendPlanetPois(session);
@@ -481,7 +478,7 @@ public sealed partial class GameServer
     private static string ShipSaveKey(string playerId) => "ship_" + playerId;
 
     /// <summary>Sets up a freshly-joined player's ship: points the cursor at them, loads or creates their
-    /// own ship, registers it as their active ship, and stamps it into their (active) world. A player owns
+    /// own ship, registers it as their active ship, and parks it on their (active) world. A player owns
     /// their own fleet (multiple ships possible via crafting/wreck-claim) with exactly one active ship.</summary>
     private void SetupPlayerShip(PlayerSession session)
     {
@@ -492,7 +489,7 @@ public sealed partial class GameServer
         RecomputeShipCombatStats();
         if (_config.PlaceStarterShip)
         {
-            StampShip(); // stamp this player's ship into their world
+            PlaceLandedShip(); // park this player's ship object on their world
             session.State.RespawnPoint = _healTank;
         }
 
@@ -1000,12 +997,12 @@ public sealed partial class GameServer
         SetCurrent(session);
         if (_config.PlaceStarterShip)
         {
-            StampShip();
+            PlaceLandedShip();
         }
 
         session.CurrentLocationId = homeLoc;
-        p.Position = _shipStamped ? _healTank : p.RespawnPoint;
-        p.RespawnPoint = _shipStamped ? _healTank : p.RespawnPoint;
+        p.Position = _shipPlaced ? _healTank : p.RespawnPoint;
+        p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
         p.AboardShip = true;
         session.SentChunks.Clear();
 
@@ -1023,6 +1020,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         SendEnvironment(session);
         SendInventory(session);
+        SendLandedShips(session); // the respawn world's parked ship objects
         SendPlanetPois(session);
         SendCreatures(session);
         SendContainers(session);
@@ -1125,6 +1123,7 @@ public sealed partial class GameServer
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
             SetActiveWorld(loc);
+            RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
             if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
             {
@@ -1342,6 +1341,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         SendRules(session);
         SendShipCombatStatus(session);
+        SendLandedShips(session); // every parked ship object on the join world
         SendShipPlacement(session);
         SendShipStations(session);
         SendPlanetPois(session);
@@ -1384,7 +1384,7 @@ public sealed partial class GameServer
             PlayerId = name,
             Name = name,
             Position = spawn,
-            RespawnPoint = _shipStamped ? _healTank : spawn, // the heal-tank in the ship's Medbay
+            RespawnPoint = _shipPlaced ? _healTank : spawn, // the heal-tank in the ship's Medbay
             AboardShip = true,
             // The very first player to join becomes the world admin (world creator).
             Role = _repo.ListPlayerIds().Count == 0

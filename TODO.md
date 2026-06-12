@@ -22,9 +22,47 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Landed ship as a real object instead of a world stamp (analysed 2026-06-12) — ANALYSIS ONLY, decision pending
+### ★ Landed ship as a real object instead of a world stamp — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** the landed ship should be its own placed voxel OBJECT (own mesh, own colliders, hull-paint
 applies) instead of being STAMPED into the world block grid.
+
+**Shipped (decisions: interior world converted too; pads levelled in worldgen; hull/modules protected
+but interior furnishing allowed + persisted; other players' parked ships as painted objects):**
+- **Server:** `LandedShip` (WorldManager) replaces `ShipStamp`; `PlaceLandedShip`/`RemoveLandedShip`
+  (GameServerShipStructure.cs rewritten) park/remove the per-player structure object on the pad —
+  nothing is written into the world grid. `BuildShipStructure` is now the FULL ship everywhere:
+  station marker blocks + `StationCells`/`DoorCells`/`MedbayCell`, box-ship interior dressing
+  (ceiling lights, wall strips, windows), floor guarantee, room accents, and a `Baseline` snapshot
+  (design cells) taken before the persisted player deltas apply. Launch (`EnterSpace`) removes the
+  parked object + always rebuilds the flight structure from baseline+deltas (lossless — all ship
+  edits persist now); logout removes the object; a repaint while landed re-broadcasts it
+  (`HandleSetAppearance`). The walk-in ship interior world (`shipint:`) places the same object
+  instead of stamping — one grid everywhere (EVA edits visible inside, furnishing visible outside).
+- **Edit rules (on foot, landed + interior):** `HandleLandedShipEdit` — mine only NON-baseline cells
+  ("The ship hull cannot be damaged." / "Ship modules cannot be removed."), place only into air
+  INSIDE the ship bounds and attached to a cell; inventory/drops mirror the EVA flow; every edit
+  persists as the same per-cell structure delta (`SetStructureBlock`) the space EVA uses. Station
+  markers are now also protected in the space EVA path.
+- **Worldgen:** `WorldGenerator.FlattenLandingPads` levels every planned pad at generation time
+  (surface block at pad height, clear above, caves plugged 8 deep) — `BuildLandingPads` hands the
+  deterministic pad set to the generator before any pad chunk generates; per-landing terrain
+  mutation (keep-out, foundation, doorstep) is gone.
+- **Net:** `LandedShipState` (tag 116) place/replace/remove + world-join snapshots; cell edits ride
+  the existing `StructureBlockChanged`. Door registry probes the structure grid for ship doors.
+- **Client:** `LandedShipView` renders every parked ship (ChunkMesher + hull paint + MeshColliders,
+  torus-seam-aware); `PlayerController.AimTarget` marches ship cells too and routes mine/place to
+  `StructureEditIntent` (placing inside the cabin = furnishing); `ComputeExposedToSky` counts
+  `Aboard` + ship roofs as covered; rain dies on ship hulls (`WeatherFx3D`).
+- **Migration:** placing a ship deletes legacy STAMPED-hull block edits in its pad volume
+  (`DeleteBlockEdits` + chunk regen + re-stream), so old saves don't show a double hull.
+- **Verification:** full suite green (490/490, incl. wreck repair/claim — that mechanic is untouched
+  world-stamp machinery; claiming flows into the new placement via SwitchShip). Client batch build green.
+**Known limits (playtest checks):** entering the ship is now a 1-block step up (the object sits ON
+the pad; jump in — the old stamp was flush); ship cells mine instantly (EVA parity, no hold
+progress); the aim marker/scanner don't highlight ship cells; footstep sounds inside the ship read
+the world grid (air).
+
+**Original analysis (2026-06-12):**
 
 **How it works today (the stamp):** `StampShip()`/`StampShipLayout()`
 ([GameServerShipStructure.cs](src/BlocksBeyondTheStars.GameServer/GameServerShipStructure.cs)) writes the

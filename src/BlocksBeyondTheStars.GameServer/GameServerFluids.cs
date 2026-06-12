@@ -135,9 +135,9 @@ public sealed partial class GameServer
     private bool FluidCanEnter(Vector3i p)
         => _world.GetBlock(p).IsAir && !InShipInterior(p);
 
-    /// <summary>True if a cell lies inside any landed ship's interior (cheap no-op when no ship is stamped).</summary>
+    /// <summary>True if a cell lies inside any parked ship's bounds (cheap no-op when no ship is placed).</summary>
     private bool InShipInterior(Vector3i p)
-        => _worlds.Active.ShipStamps.Count > 0
+        => _worlds.Active.LandedShips.Count > 0
         && ShipInteriorContains(new Vector3f(p.X + 0.5f, p.Y + 0.5f, p.Z + 0.5f));
 
     private void FillFluid(Vector3i pos, BlockId kind, byte level)

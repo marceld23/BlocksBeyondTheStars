@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -163,6 +164,78 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The cached voxel design of another player's ship, or null when none arrived yet.</summary>
         public SpaceShipDesign RemoteShipDesignFor(string playerId)
             => !string.IsNullOrEmpty(playerId) && _remoteShipDesigns.TryGetValue(playerId, out var d) ? d : null;
+
+        /// <summary>Ships parked on the current world as placed structure objects (ship-as-object), keyed by
+        /// structure id ("ship:&lt;playerId&gt;"). <see cref="LandedShipView"/> renders them; aiming and the
+        /// weather column scans query them — the hull is NOT part of the world block grid.</summary>
+        public readonly System.Collections.Generic.Dictionary<string, LandedShipModel> LandedShips = new();
+
+        /// <summary>Raised whenever a parked ship is placed, removed or one of its cells changes.</summary>
+        public event System.Action LandedShipsChanged;
+
+        /// <summary>The parked-ship SOLID cell at a world position, or air. Outputs the ship + the
+        /// structure-local cell so on-foot aiming can mine/place via StructureEditIntent.</summary>
+        public BlockId LandedShipBlockAt(int x, int y, int z, out LandedShipModel ship, out BlocksBeyondTheStars.Shared.Geometry.Vector3i local)
+        {
+            foreach (var s in LandedShips.Values)
+            {
+                int dx = WorldConstants.WrapDeltaX(x - s.Origin.X, Circumference);
+                int dy = y - s.Origin.Y, dz = z - s.Origin.Z;
+                if (dx < -3 || dy < -1 || dz < -3 || dx > s.Width + 3 || dy > s.Height + 2 || dz > s.Length + 3)
+                {
+                    continue; // outside the bounds (+ a silhouette margin for wings/nozzles)
+                }
+
+                var l = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(dx, dy, dz);
+                var b = s.Get(l);
+                if (!b.IsAir)
+                {
+                    ship = s;
+                    local = l;
+                    return b;
+                }
+            }
+
+            ship = null;
+            local = default;
+            return BlockId.Air;
+        }
+
+        /// <summary>The parked ship whose interior BOUNDS contain a world cell (for routing block placement
+        /// inside the ship to a structure edit), or null.</summary>
+        public LandedShipModel LandedShipBoundsAt(int x, int y, int z, out BlocksBeyondTheStars.Shared.Geometry.Vector3i local)
+        {
+            foreach (var s in LandedShips.Values)
+            {
+                int dx = WorldConstants.WrapDeltaX(x - s.Origin.X, Circumference);
+                int dy = y - s.Origin.Y, dz = z - s.Origin.Z;
+                if (dx >= 0 && dx < s.Width && dy >= 0 && dy <= s.Height && dz >= 0 && dz < s.Length)
+                {
+                    local = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(dx, dy, dz);
+                    return s;
+                }
+            }
+
+            local = default;
+            return null;
+        }
+
+        /// <summary>True when a parked ship's bounding box roofs this column above the given height — a cheap
+        /// cover test so weather treats ship roofs like solid cover without scanning cells.</summary>
+        public bool LandedShipCovers(int x, int y, int z)
+        {
+            foreach (var s in LandedShips.Values)
+            {
+                int dx = WorldConstants.WrapDeltaX(x - s.Origin.X, Circumference);
+                if (dx >= -2 && dx <= s.Width + 2 && z >= s.Origin.Z - 2 && z <= s.Origin.Z + s.Length + 2
+                    && y < s.Origin.Y + s.Height)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
         public bool InSpace { get; private set; }
         public bool SpaceSkipLaunch { get; private set; }    // entered space already airborne (helm) → no take-off anim
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
@@ -470,6 +543,42 @@ namespace BlocksBeyondTheStars.Client
                     _remoteShipDesigns[m.Id.Substring(5)] = m; // keyed by the owning player's id
                 }
             };
+            // Ship-as-object: ships parked on this world arrive/leave as placed structure objects.
+            Network.LandedShipReceived += m =>
+            {
+                if (m.Removed)
+                {
+                    LandedShips.Remove(m.StructureId);
+                }
+                else
+                {
+                    var ship = new LandedShipModel
+                    {
+                        StructureId = m.StructureId,
+                        OwnerId = m.PlayerId,
+                        Origin = new Vector3i(m.OriginX, m.OriginY, m.OriginZ),
+                        Hull = m.Hull,
+                        Width = m.Width, Height = m.Height, Length = m.Length,
+                    };
+                    for (int i = 0; i < m.Block.Length; i++)
+                    {
+                        ship.Cells[new Vector3i(m.X[i], m.Y[i], m.Z[i])] = new BlockId(m.Block[i]);
+                    }
+
+                    LandedShips[m.StructureId] = ship;
+                }
+
+                LandedShipsChanged?.Invoke();
+            };
+            // A parked ship's cell changed (on-foot furnishing / repairs) — update the model + re-mesh.
+            Network.StructureBlockChangedReceived += m =>
+            {
+                if (LandedShips.TryGetValue(m.StructureId, out var ship))
+                {
+                    ship.Set(new Vector3i(m.X, m.Y, m.Z), new BlockId(m.Block));
+                    LandedShipsChanged?.Invoke();
+                }
+            };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = m.Reason; };
             Network.StationBoardedReceived += m => LastMessage = $"Boarded {m.Name}.";
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
@@ -658,6 +767,11 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
+            if (Aboard)
+            {
+                return false; // inside the ship (server-authoritative) — the hull object roofs the player
+            }
+
             int px = Mathf.FloorToInt(PlayerPosition.x);
             int py = Mathf.FloorToInt(PlayerPosition.y);
             int pz = Mathf.FloorToInt(PlayerPosition.z);
@@ -669,7 +783,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return true;
+            // Parked ship OBJECTS are not in the world grid — standing under a wing/hull still counts as covered.
+            return !LandedShipCovers(px, py + 2, pz);
         }
 
         /// <summary>The active world changed (travel): drop all chunks/meshes so the new planet streams in.</summary>
@@ -677,6 +792,10 @@ namespace BlocksBeyondTheStars.Client
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
             RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
+
+            // Parked ship objects belong to the world we just left; the new world re-sends its own.
+            LandedShips.Clear();
+            LandedShipsChanged?.Invoke();
 
             foreach (var go in _chunkObjects.Values)
             {

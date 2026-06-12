@@ -35,6 +35,11 @@ public sealed class ServerWorld
     /// Varies by body size (asteroids small, planets large); the seam-free generation + chunk keys all use it.</summary>
     public int Circumference { get; }
 
+    /// <summary>This world's planned landing pads for generation-time terrain levelling (ship-as-object).
+    /// Filled by the server's deterministic pad planning right after the world becomes resident — BEFORE
+    /// any pad-area chunk generates — and re-applied to the shared generator per chunk generation.</summary>
+    public List<LandingPadFlatten> LandingPadFlats { get; } = new();
+
     public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet, string locationId, int circumference)
     {
         _content = content;
@@ -60,6 +65,7 @@ public sealed class ServerWorld
         }
 
         _generator.SetCircumference(Circumference); // generate this world at its own size
+        _generator.SetLandingPads(LandingPadFlats); // level this world's planned pads (ship-as-object)
         var chunk = _generator.Generate(Planet, coord);
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {
@@ -92,6 +98,37 @@ public sealed class ServerWorld
     }
 
     public BlockDefinition? Definition(BlockId id) => _content.BlockById(id);
+
+    /// <summary>Drops cached chunks intersecting an axis-aligned box (inclusive) so they regenerate on next
+    /// access — used after deleting persisted block edits in that volume (legacy ship-stamp cleanup).</summary>
+    public void ForgetChunksIn(Vector3i min, Vector3i max)
+    {
+        var minC = WorldConstants.WorldToChunk(min);
+        var maxC = WorldConstants.WorldToChunk(max);
+        var toRemove = new List<ChunkCoord>();
+        foreach (var coord in _loaded.Keys)
+        {
+            // Compare on the canonical X of the box corners (the cache keys are canonical already).
+            if (coord.Y < minC.Y || coord.Y > maxC.Y || coord.Z < minC.Z || coord.Z > maxC.Z)
+            {
+                continue;
+            }
+
+            for (int cx = minC.X; cx <= maxC.X; cx++)
+            {
+                if (WorldConstants.CanonicalChunkX(cx, Circumference) == coord.X)
+                {
+                    toRemove.Add(coord);
+                    break;
+                }
+            }
+        }
+
+        foreach (var coord in toRemove)
+        {
+            _loaded.Remove(coord);
+        }
+    }
 
     /// <summary>Unloads cached chunks that are not within <paramref name="keep"/> of any anchor.</summary>
     public int UnloadFarChunks(IReadOnlyCollection<ChunkCoord> anchors, int keepRadius)

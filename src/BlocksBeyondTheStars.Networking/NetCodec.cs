@@ -168,6 +168,9 @@ public static class NetCodec
 
         // World options: live admin edit of the gameplay rules (creatures + enemy activities).
         Register(115, typeof(SetWorldRulesIntent)); // Client -> Server
+
+        // Ship-as-object: a parked ship on a world as a placed voxel structure (place/replace/remove).
+        Register(116, typeof(LandedShipState));     // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

@@ -43,6 +43,81 @@ public sealed class WorldGenerator
     /// <summary>Marks the active world as cratered regardless of its planet type (used for airless moons).</summary>
     public void SetCratered(bool cratered) => _crateredWorld = cratered;
 
+    // The active world's planned landing pads. Pad terrain is FLATTENED at generation time (the landed
+    // ship is a placed structure object, not stamped blocks — it needs level, clear ground). Set beside
+    // SetCircumference whenever the active world changes; empty = no flattening (void worlds, tests).
+    private IReadOnlyList<LandingPadFlatten> _landingPads = System.Array.Empty<LandingPadFlatten>();
+
+    /// <summary>Sets the active world's landing pads so <see cref="Generate"/> levels their terrain.</summary>
+    public void SetLandingPads(IReadOnlyList<LandingPadFlatten> pads)
+        => _landingPads = pads ?? System.Array.Empty<LandingPadFlatten>();
+
+    /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
+    private int? PadSurfaceAt(int worldX, int worldZ)
+    {
+        for (int i = 0; i < _landingPads.Count; i++)
+        {
+            var p = _landingPads[i];
+            int dx = WorldConstants.WrapDeltaX(worldX - p.CenterX, _circumference);
+            int dz = worldZ - p.CenterZ;
+            if (dx * dx + dz * dz <= p.Radius * p.Radius)
+            {
+                return p.SurfaceY;
+            }
+        }
+
+        return null;
+    }
+
+    private const int PadFoundationDepth = 8; // plug caves this deep under a pad (no falling into one)
+
+    /// <summary>Levels the landing pads inside a freshly generated chunk: everything above the pad's
+    /// surface height becomes air (terrain bumps, trees, props, flora, stray water), the surface cell gets
+    /// the column's natural surface block, and caves directly below are plugged so the pad never collapses
+    /// into a cavern. Runs as a post-pass so every feature stamp is covered uniformly.</summary>
+    private void FlattenLandingPads(ChunkData chunk, ChunkCoord coord,
+        List<(BlockId Surface, BlockId Sub)> biomes, long seed)
+    {
+        if (_landingPads.Count == 0)
+        {
+            return;
+        }
+
+        var origin = WorldConstants.ChunkOrigin(coord);
+        int cs = WorldConstants.ChunkSize;
+        for (int lx = 0; lx < cs; lx++)
+        for (int lz = 0; lz < cs; lz++)
+        {
+            int worldX = origin.X + lx;
+            int worldZ = origin.Z + lz;
+            if (PadSurfaceAt(worldX, worldZ) is not int padY)
+            {
+                continue;
+            }
+
+            int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
+            var surfaceId = biomes[biomeIndex].Surface;
+            var subSurfaceId = biomes[biomeIndex].Sub;
+
+            for (int ly = 0; ly < cs; ly++)
+            {
+                int worldY = origin.Y + ly;
+                if (worldY > padY)
+                {
+                    chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
+                }
+                else if (worldY == padY)
+                {
+                    chunk.Set(lx, ly, lz, surfaceId); // a natural, level pad surface
+                }
+                else if (worldY >= padY - PadFoundationDepth && chunk.Get(lx, ly, lz).IsAir)
+                {
+                    chunk.Set(lx, ly, lz, subSurfaceId); // plug caves directly under the pad
+                }
+            }
+        }
+    }
+
     // World options (creation-time, from the save's WorldDescription): global factors on top of the
     // seeded per-world variation. 1.0 = unchanged; deterministic because they come from persisted meta.
     private double _floraFactor = 1.0;
@@ -748,6 +823,10 @@ public sealed class WorldGenerator
             StampSetDressing(planet, seed, chunk, coord, boulderId, crystalWorld ? crystalId : BlockId.Air,
                 dryWorld ? logId : BlockId.Air, fluidLevel);
         }
+
+        // Landing pads (ship-as-object): level + clear the planned pad areas so the placed ship structure
+        // always sits on flat, solid, vegetation-free ground.
+        FlattenLandingPads(chunk, coord, biomes, seed);
 
         return chunk;
     }

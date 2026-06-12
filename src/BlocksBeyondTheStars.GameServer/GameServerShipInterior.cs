@@ -55,14 +55,16 @@ public sealed partial class GameServer
             _spaceInstances.Remove(instanceId); // ShipPosition is saved above; restored on return
         }
 
-        // Load the ship interior as its own void world and stamp the existing ship layout into it.
+        // Load the ship interior as its own void world and park the ship structure OBJECT in it
+        // (ship-as-object: the same structure the flight view renders — design + persisted edits —
+        // so interior furnishing and EVA hull edits are one and the same grid everywhere).
         string shipLoc = "shipint:" + playerId;
         LoadWorld(ShipInteriorType, shipLoc);
         SetCurrent(session);
-        StampShip();
+        PlaceLandedShip();
 
         session.CurrentLocationId = shipLoc;
-        session.State.Position = _shipStamped ? _healTank : session.State.Position;
+        session.State.Position = _shipPlaced ? _healTank : session.State.Position;
         session.State.AboardShip = true; // inside the hull → life support, oxygen safe
         session.State.InEva = false;     // entering from an EVA ends the spacewalk
         session.SentChunks.Clear();
@@ -72,6 +74,8 @@ public sealed partial class GameServer
         SendPlayerState(session);
         SendEnvironment(session);
         SendInventory(session);
+        SendLandedShips(session); // the ship object itself — the world is void apart from it
+        SendShipStations(session);
         SendDoors(session);
         _log.Info($"Player '{session.State.Name}' stepped inside their ship (world '{shipLoc}').");
     }

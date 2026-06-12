@@ -802,6 +802,42 @@ public sealed class SpaceShipDesign
     public ushort[] Block { get; set; } = System.Array.Empty<ushort>();
 }
 
+/// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT
+/// (ship-as-object — the hull is no longer stamped into the world grid). Sent on world join (one per
+/// parked ship), on landing/ship-switch (placed/replaced) and on launch (<see cref="Removed"/>). Cell
+/// edits afterwards ride the existing <see cref="StructureBlockChanged"/> keyed by <see cref="StructureId"/>.</summary>
+public sealed class LandedShipState
+{
+    /// <summary>The owning player.</summary>
+    public string PlayerId { get; set; } = string.Empty;
+
+    /// <summary>Structure id ("ship:&lt;playerId&gt;") — the same id structure edits use.</summary>
+    public string StructureId { get; set; } = string.Empty;
+
+    /// <summary>True = the ship left (launch/owner logout); the client despawns the object.</summary>
+    public bool Removed { get; set; }
+
+    /// <summary>World position of the structure-local origin (cell 0,0,0).</summary>
+    public int OriginX { get; set; }
+    public int OriginY { get; set; }
+    public int OriginZ { get; set; }
+
+    /// <summary>The owner's hull paint colour (0xRRGGBB; 0 = default steel).</summary>
+    public int Hull { get; set; }
+
+    /// <summary>Design bounding-box size in blocks.</summary>
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Length { get; set; }
+
+    /// <summary>Per-cell block coordinates (structure-local) and the block id placed there. Same length.
+    /// Empty when <see cref="Removed"/>.</summary>
+    public int[] X { get; set; } = System.Array.Empty<int>();
+    public int[] Y { get; set; } = System.Array.Empty<int>();
+    public int[] Z { get; set; } = System.Array.Empty<int>();
+    public ushort[] Block { get; set; } = System.Array.Empty<ushort>();
+}
+
 /// <summary>Client → server: place or mine one block on a voxel <see cref="SpaceShipDesign"/> structure while
 /// on an EVA spacewalk (item 20, S2). Coordinates are design-local cells (the same space the structure was sent
 /// in). The free-space analogue of <see cref="PlaceBlockIntent"/>/<see cref="MineBlockIntent"/>.</summary>

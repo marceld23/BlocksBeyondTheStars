@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// longitudes nudged onto dry land. Pads are <b>communal</b>: occupancy is <b>live</b> — a pad counts as taken
 /// only while a player is standing on the body (not flown off to space), so it frees the moment they leave.
 /// Landing lets the player pick a free pad; a body whose pads are all occupied is <b>full</b> and refuses
-/// landing. No one may build on a pad (the pad is reserved); the ship is stamped onto the player's pad.
+/// landing. No one may build on a pad (the pad is reserved); the ship is PLACED on the player's pad as a
+/// structure object (ship-as-object) and the pad terrain is levelled by worldgen.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -82,6 +83,16 @@ public sealed partial class GameServer
             int baseX = WorldConstants.WrapX((int)(((double)i / count) * circ), circ);
             int cx = NudgePadToDryAndFlat(baseX);
             pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = 0, CenterY = PadGroundY(cx, 0) });
+        }
+
+        // Hand the planned pads to worldgen so their terrain is levelled at generation time (ship-as-object:
+        // the landed ship is a placed structure that needs flat, clear ground). Must run before any pad-area
+        // chunk generates — BuildLandingPads only needs noise queries, so it is safe this early.
+        var flats = _world.LandingPadFlats;
+        flats.Clear();
+        foreach (var pad in pads)
+        {
+            flats.Add(new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius));
         }
     }
 
@@ -362,16 +373,17 @@ public sealed partial class GameServer
         SetCurrent(session);
         if (_config.PlaceStarterShip)
         {
-            StampShip();
+            PlaceLandedShip();
         }
 
         var pad = PlayerPad(session);
-        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship stamp's median footprint height
-        var spawn = _shipStamped ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
+        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
+        var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
-        session.State.RespawnPoint = _shipStamped ? _healTank : spawn;
+        session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
         session.State.AboardShip = true;
         SendPlayerState(session);
+        SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
         SendLandingPads(session);
         BroadcastShipTransit(session, session.CurrentLocationId, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent
     }

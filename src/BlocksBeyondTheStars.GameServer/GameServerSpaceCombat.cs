@@ -282,11 +282,18 @@ public sealed partial class GameServer
             _spaceInstances[instanceId] = instance;
         }
 
-        // Tell the players still on the body that this ship is launching — they see it rise off its pad (item 38).
+        // Tell the players still on the body that this ship is launching — they see it rise off its pad
+        // (item 38) — and remove the parked ship OBJECT from the pad: the ship is flying now, it can't
+        // stand on the ground at the same time (ship-as-object).
         if (session is not null && !skipLaunch)
         {
             var p = session.State.Position;
             BroadcastShipTransit(session, locationId, p.X, p.Y - 1f, p.Z, landing: false);
+        }
+
+        if (session is not null && SetActiveWorld(session.CurrentLocationId))
+        {
+            RemoveLandedShip(session);
         }
 
         instance.Players.Add(playerId);
@@ -300,14 +307,12 @@ public sealed partial class GameServer
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
 
             // item 20 S1: carry the player's ship as a voxel structure in the instance + send it so the flight
-            // view renders the real designed ship (1:1) instead of the hand-built cube model. Reuse an already-
-            // built structure for this instance so EVA edits (S2) survive while you stay out here.
+            // view renders the real designed ship (1:1) instead of the hand-built cube model. Rebuilt fresh on
+            // every entry: ALL ship edits persist as per-cell deltas now (EVA hull work, interior furnishing),
+            // so the rebuild is lossless and picks up edits made while landed.
             var structureId = "ship:" + playerId;
-            if (!instance.Structures.TryGetValue(structureId, out var structure))
-            {
-                structure = BuildShipStructure(playerId);
-                instance.Structures[structure.Id] = structure; // keyed by structure id ("ship:<playerId>")
-            }
+            var structure = BuildShipStructure(playerId);
+            instance.Structures[structure.Id] = structure; // keyed by structure id ("ship:<playerId>")
 
             SendShipDesign(session, structure);
 

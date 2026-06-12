@@ -272,17 +272,18 @@ public sealed partial class GameServer
         SetCurrent(session);
         if (_config.PlaceStarterShip)
         {
-            StampShip();
+            PlaceLandedShip();
         }
 
         session.CurrentLocationId = returnLoc;
-        session.State.Position = _shipStamped ? _healTank : session.State.RespawnPoint;
+        session.State.Position = _shipPlaced ? _healTank : session.State.RespawnPoint;
         session.State.AboardShip = true;
         session.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
         Send(session, new WorldReset { PlanetType = returnType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
         SendPlayerState(session);
+        SendLandedShips(session); // the return world's parked ship objects
         SendShipPlacement(session);
         SendShipStations(session);
         SendPlanetPois(session);

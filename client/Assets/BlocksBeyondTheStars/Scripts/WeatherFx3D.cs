@@ -175,13 +175,19 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
-        /// <summary>True when the drop entered a solid world block (terrain, roof, cave ceiling) —
-        /// it must stop there instead of falling through into view below.</summary>
+        /// <summary>True when the drop entered a solid world block (terrain, roof, cave ceiling) or a parked
+        /// ship's cell (ship-as-object — the hull is not in the world grid) — it must stop there instead of
+        /// falling through into view below.</summary>
         private bool InsideBlock(Vector3 p)
         {
             var w = Game?.World;
-            return w != null
-                && !w.GetBlock(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)).IsAir;
+            if (w == null)
+            {
+                return false;
+            }
+
+            int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);
+            return !w.GetBlock(x, y, z).IsAir || !Game.LandedShipBlockAt(x, y, z, out _, out _).IsAir;
         }
 
         /// <summary>Open sky above this spawn point? Same scan as <c>GameBootstrap.ComputeExposedToSky</c>,
@@ -208,6 +214,12 @@ namespace BlocksBeyondTheStars.Client
                     open = false;
                     break;
                 }
+            }
+
+            // Parked ship objects roof their columns too (the hull is not in the world grid).
+            if (open && Game.LandedShipCovers(x, yFrom, z))
+            {
+                open = false;
             }
 
             _skyOpen[key] = open;

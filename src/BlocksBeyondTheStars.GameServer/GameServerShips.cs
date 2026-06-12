@@ -125,15 +125,13 @@ public sealed partial class GameServer
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
 
-        if (_shipStamped)
+        if (_shipPlaced)
         {
-            // Landed: carve out the old hull and stamp the new design on the same pad, then re-stream the
-            // ship's chunks so the client swaps the old hull for the new one right away (no reload needed).
-            ClearStampedShip();
-            StampShip(); // the new design may be a different size
+            // Landed: replace the parked ship object with the new design on the same pad — the placement
+            // broadcast swaps the object on every client at once (no world re-stream needed).
+            PlaceLandedShip();
             if (_current is { Joined: true })
             {
-                RestreamShipChunks(_current);
                 SendShipStations(_current);
                 SendDoors(_current);
             }

@@ -127,6 +127,10 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
   breaks and yields its **drops**. Powerful drills can clear a small radius.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined.
+- **Your ship is a real parked object** on its landing pad (pads are naturally flat). You can
+  **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
+  the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
+  modules (medbay, cockpit, …) cannot be removed. Step or hop up through the hatch to enter.
 
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, lab, machine room, detoxifier, market

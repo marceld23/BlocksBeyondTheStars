@@ -46,37 +46,36 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
-    public void ShipKeepOut_ClearsTreesOnAndAboveTheHull()
+    public void LandingPad_TerrainIsFlattenedAndClear()
     {
-        // B31: vegetation in the ship's footprint (and just above/around it) is cleared, so trees never end up
-        // standing on or poking through the landed hull.
-        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "keepout"));
+        // Ship-as-object: pad terrain is levelled by WORLDGEN (FlattenLandingPads) — flat solid ground at
+        // the pad height, nothing (terrain bumps, trees, flora) above it — so the placed ship object always
+        // sits on clear, level ground. Replaces the old per-landing keep-out/terrain mutation (B31).
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "padflat"));
         using (repo)
         {
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = "keepout", Seed = 1, StartPlanet = "jungle",
+                WorldName = "padflat", Seed = 1, StartPlanet = "jungle",
                 AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
             server.AddLocalPlayer("Host");
 
-            var a = server.ShipAnchorBlock;
-            var log = _content.GetBlock("wood_log")!.NumericId;
-            var leaves = _content.GetBlock("tree_leaves")!.NumericId;
-
-            // Plant a tree right on the ship: a trunk in the cabin footprint + leaves above the roof.
-            var trunk = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(a.X, a.Y + 1, a.Z);
-            var crown = new BlocksBeyondTheStars.Shared.Geometry.Vector3i(a.X, a.Y + 6, a.Z);
-            server.World.SetBlock(trunk, log);
-            server.World.SetBlock(crown, leaves);
-
-            server.ClearShipKeepOutForTest(a.X, a.Z, 2, 2, a.Y, 3);
-
-            Assert.True(server.World.GetBlock(trunk).IsAir, "a trunk in the hull footprint must be cleared");
-            Assert.True(server.World.GetBlock(crown).IsAir, "leaves above the roof must be cleared");
+            var a = server.ShipAnchorBlock; // (pad centre, pad surface height, pad centre)
+            foreach (var (dx, dz) in new[] { (0, 0), (-4, 0), (4, 0), (0, -4), (0, 4), (3, 3), (-3, -3) })
+            {
+                int x = a.X + dx, z = a.Z + dz;
+                Assert.False(server.World.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, a.Y, z)).IsAir,
+                    $"the pad surface at ({dx},{dz}) must be solid, level ground");
+                for (int dy = 1; dy <= 6; dy++)
+                {
+                    Assert.True(server.World.GetBlock(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(x, a.Y + dy, z)).IsAir,
+                        $"the air above the pad at ({dx},{dz}) +{dy} must be clear of terrain/trees");
+                }
+            }
         }
     }
 
@@ -124,9 +123,10 @@ public sealed class ShipStructureTests : IDisposable
         var server = Started(placeShip: true, out var repo);
         using (repo)
         {
-            var a = server.ShipAnchorBlock; // (cx, y0 floor, cz)
+            var a = server.ShipAnchorBlock; // (cx, pad ground, cz) — the ship object sits ON the pad (+1)
             // The ship's hatch door (the energy door nearest the ship anchor) must sit at cabin-floor level —
-            // one block above the floor anchor — never up at the hull roof (B27).
+            // the structure floor rests on the pad, so the doorway base is two above the ground anchor —
+            // never up at the hull roof (B27).
             var hatch = server.DoorSnapshots
                 .Where(d => (d.Kind == "energy" || d.Kind == "slide")
                             && System.Math.Abs(d.Pos.X - a.X) < 6f && System.Math.Abs(d.Pos.Z - a.Z) < 8f)
@@ -134,7 +134,7 @@ public sealed class ShipStructureTests : IDisposable
                 .FirstOrDefault();
 
             Assert.NotEqual(0, hatch.Id); // a ship hatch door exists
-            Assert.InRange(hatch.Pos.Y - a.Y, 0.5f, 1.5f); // ~floor level, not the roof
+            Assert.InRange(hatch.Pos.Y - a.Y, 1.5f, 2.5f); // ~cabin-floor level, not the roof
         }
     }
 

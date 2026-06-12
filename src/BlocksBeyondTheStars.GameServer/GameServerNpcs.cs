@@ -154,7 +154,7 @@ public sealed partial class GameServer
         }
 
         var targets = JoinedInActiveWorld()
-            .Where(s => (!_shipStamped || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
+            .Where(s => (!_shipPlaced || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
             .ToList();
 
         if (targets.Count == 0)

@@ -57,11 +57,11 @@ public sealed partial class GameServer
         return !HasGroundWithin(pos, VoidProbeDepth);
     }
 
-    /// <summary>A safe place to stand in the active world: the ship's heal-tank if a ship is stamped, else
+    /// <summary>A safe place to stand in the active world: the ship's heal-tank if a ship is parked, else
     /// the landing-zone surface.</summary>
     private Vector3f SafeSpawnPoint(string playerId)
     {
-        if (_shipStamped)
+        if (_shipPlaced)
         {
             return _healTank;
         }

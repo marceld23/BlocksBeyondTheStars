@@ -72,18 +72,26 @@ public sealed partial class GameServer
             }
         }
 
-        // Designed-ship doorways (every player's ship stamped into this world — sci-fi sliders). The ship's own
-        // hatch gets a tighter open range so it stays sealed/closed where you spawn inside, opening only when you
-        // walk right up to it to leave.
-        foreach (var stamp in _worlds.Active.ShipStamps.Values)
+        // Ship doorways (every player's ship PARKED on this world — ship-as-object: the hull is a placed
+        // structure, so the door's jamb/gap probe reads the structure grid, not the world). The ship's own
+        // hatch gets a tighter open range so it stays sealed/closed where you spawn inside, opening only when
+        // you walk right up to it to leave.
+        foreach (var rec in _worlds.Active.LandedShips.Values)
         {
-            foreach (var pos in stamp.Doors)
+            if (!rec.Placed)
+            {
+                continue;
+            }
+
+            foreach (var pos in rec.Doors)
             {
                 // The ship's doors are energy doors (item 35): a slide door with a passable blue energy field
                 // shown in the opening while open. Auto-open like a slide door (handled above). The hatch is the
                 // wide gap in the ship's front (-Z) wall, which runs along X → force the door across X so it sits
                 // parallel to the opening, not lengthwise in the cabin (B41a).
-                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange, forceAxisX: true));
+                var ship = rec;
+                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange, forceAxisX: true,
+                    solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir));
             }
         }
 
@@ -114,8 +122,11 @@ public sealed partial class GameServer
 
     /// <summary>Builds a door at a marker, probing the surrounding blocks to find the wall axis and the full
     /// width of the air gap so the panel/collider lines up with the doorway regardless of how it was cut.</summary>
-    private ServerDoor MakeDoor(string kind, Vector3f markerPos, float openRange = SlideDoorOpenRange, bool? forceAxisX = null)
+    private ServerDoor MakeDoor(string kind, Vector3f markerPos, float openRange = SlideDoorOpenRange, bool? forceAxisX = null,
+        System.Func<int, int, int, bool>? solid = null)
     {
+        solid ??= IsSolidBlock; // default probe = the world grid; ship doors probe their structure instead
+
         int bx = (int)System.Math.Floor(markerPos.X);
         int by = (int)System.Math.Floor(markerPos.Y);
         int bz = (int)System.Math.Floor(markerPos.Z);
@@ -123,20 +134,20 @@ public sealed partial class GameServer
         // The jambs are solid along the wall axis; the passage is open along the other. Decide which — unless the
         // caller already knows it (the ship hatch is a wide gap in the front wall, where a ±1 jamb probe at the
         // centre is ambiguous and would wrongly default to Z, putting the door lengthwise in the cabin — B41a).
-        bool xJamb = IsSolidBlock(bx - 1, by, bz) || IsSolidBlock(bx + 1, by, bz);
-        bool zJamb = IsSolidBlock(bx, by, bz - 1) || IsSolidBlock(bx, by, bz + 1);
+        bool xJamb = solid(bx - 1, by, bz) || solid(bx + 1, by, bz);
+        bool zJamb = solid(bx, by, bz - 1) || solid(bx, by, bz + 1);
         bool axisX = forceAxisX ?? (xJamb && !zJamb ? true : (zJamb && !xJamb ? false : xJamb));
 
         // Scan the contiguous air gap along the wall axis (bounded, so a fully open area can't run away).
         int lo = 0, hi = 0;
         for (int s = 1; s <= 3; s++)
         {
-            if (IsSolidBlock(axisX ? bx - s : bx, by, axisX ? bz : bz - s)) { break; }
+            if (solid(axisX ? bx - s : bx, by, axisX ? bz : bz - s)) { break; }
             lo = -s;
         }
         for (int s = 1; s <= 3; s++)
         {
-            if (IsSolidBlock(axisX ? bx + s : bx, by, axisX ? bz : bz + s)) { break; }
+            if (solid(axisX ? bx + s : bx, by, axisX ? bz : bz + s)) { break; }
             hi = s;
         }
 
