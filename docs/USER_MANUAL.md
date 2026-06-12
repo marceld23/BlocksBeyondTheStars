@@ -139,6 +139,17 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 - **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them
   aboard (+3 knowledge each) and tells her backstory over 10 beats; the final beat teaches the Mk3 blueprint.
 
+### Dynamic AI text (optional LLM backend)
+- A server can enable an optional AI text service that makes some flavour text dynamic: **NPC greeting
+  speech bubbles** (vendors and mission-board givers greet you personally, in your language, aware of
+  your past visits), **mission-board flavour text** (title/description written around the fixed job),
+  occasional extra **VEGA banter**, and admin-generated missions (`/ai <prompt>`, see §7).
+- It is **off by default**, and the game is fully playable without it — every AI line has a localized
+  scripted fallback (DE+EN), so you simply see the standard text instead. AI text is flavour only;
+  it never decides gameplay (the server validates everything).
+- Enabling it is a server-side setup: run the `ai-backend/` service and set `aiLevel` in the server
+  config — see [SELF_HOSTING.md](SELF_HOSTING.md) §8.
+
 ### Space flight & combat
 - Fly within local space instances; asteroids + NPC drones can damage hull/shield. No permanent ship
   loss in the current PvE slice.
@@ -249,7 +260,7 @@ is logged (`[CHEAT] …`). Type **`/help`** in chat to see the list in-game.
 | `/fly` | Toggle creative flight (no gravity) |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |
-| `/ai <prompt>` | Generate an AI mission (content tool, not a cheat) |
+| `/ai <prompt>` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](SELF_HOSTING.md) §8) |
 | `/help` | List the admin commands in chat |
 
 The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` stays a normal chat
