@@ -34,6 +34,14 @@ namespace BlocksBeyondTheStars.Client
         private string _category = "all";
         private string _selected = string.Empty;
         private string _search = string.Empty;
+
+        // Celebration state (craft/unlock juice): the card with this content key pulses until the
+        // deadline and a floating label announces the result. Fed by CraftCompleted + the
+        // unlocked-blueprints diff in Update.
+        private string _celebrateKey;
+        private float _celebrateUntil;
+        private System.Collections.Generic.HashSet<string> _knownBlueprints;
+        private bool _craftHooked;
         private bool _craftableOnly;
         private int _lastDataHash = -1;
         private bool _built;
@@ -115,6 +123,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (!_craftHooked && Game.Network != null)
+            {
+                Game.Network.CraftCompleted += OnCraftResult;
+                _craftHooked = true;
+            }
+
+            DetectBlueprintUnlocks();
+
             // Item↔slot signature so a pure quick-bar swap (count + length unchanged) still triggers a rebuild
             // (B58). Manual unchecked loop — LINQ Sum on large hash products would overflow.
             int slotSig = 0;
@@ -144,10 +160,158 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Craft success → the crafted item's card pulses + a "+ item" label floats up (the
+        /// failure path already reads via the feedback line + error tone).</summary>
+        private void OnCraftResult(BlocksBeyondTheStars.Networking.Messages.CraftResult m)
+        {
+            if (!m.Success || Game?.Content == null
+                || !Game.Content.Recipes.TryGetValue(m.RecipeKey ?? string.Empty, out var recipe))
+            {
+                return;
+            }
+
+            var output = recipe.Outputs.FirstOrDefault();
+            if (output == null)
+            {
+                return;
+            }
+
+            _celebrateKey = output.Item;
+            _celebrateUntil = Time.unscaledTime + 2.5f;
+            SpawnFloatLabel("+ " + ItemName(output.Item), UiKit.Ok);
+            _lastDataHash = 0; // force a rebuild so the pulsing card attaches
+        }
+
+        /// <summary>Client-side blueprint-unlock detection: the server confirms an unlock only via the
+        /// inventory snapshot (no dedicated message), so diff the unlocked set. The first observation
+        /// just baselines, and a multi-key jump is a join/admin snapshot — neither fires the fanfare.</summary>
+        private void DetectBlueprintUnlocks()
+        {
+            var cur = Game.UnlockedBlueprints;
+            if (cur == null)
+            {
+                return;
+            }
+
+            if (_knownBlueprints == null)
+            {
+                _knownBlueprints = new System.Collections.Generic.HashSet<string>(cur);
+                return;
+            }
+
+            string fresh = null;
+            int freshCount = 0;
+            foreach (var key in cur)
+            {
+                if (!_knownBlueprints.Contains(key))
+                {
+                    fresh = key;
+                    freshCount++;
+                }
+            }
+
+            if (freshCount == 0)
+            {
+                return;
+            }
+
+            _knownBlueprints = new System.Collections.Generic.HashSet<string>(cur);
+            if (freshCount > 1)
+            {
+                return;
+            }
+
+            _celebrateKey = fresh;
+            _celebrateUntil = Time.unscaledTime + 3f;
+            ClientAudio.Instance?.Cue("tech_unlock", 0.8f);
+            SpawnFloatLabel(L($"blueprint.{fresh}.name") + " — " + L("ui.tech.unlocked"), UiKit.Cyan);
+            _lastDataHash = 0; // rebuild so the unlocked node pulses + statuses refresh
+        }
+
+        /// <summary>A celebration label that rises from the centre of the menu and fades out.</summary>
+        private void SpawnFloatLabel(string text, Color color)
+        {
+            if (_canvas == null)
+            {
+                return;
+            }
+
+            var t = UiKit.AddText(_canvas.transform, W * 0.5f - 400f, H * 0.42f, 800f, 44f, text, 30,
+                color, TextAnchor.MiddleCenter, FontStyle.Bold);
+            t.raycastTarget = false;
+            t.gameObject.AddComponent<FloatLabel>();
+        }
+
+        private sealed class FloatLabel : MonoBehaviour
+        {
+            private const float Life = 1.6f;
+            private float _t;
+            private Text _text;
+
+            private void Awake() => _text = GetComponent<Text>();
+
+            private void Update()
+            {
+                _t += Time.unscaledDeltaTime;
+                transform.localPosition += Vector3.up * (Time.unscaledDeltaTime * 46f);
+                if (_text != null)
+                {
+                    var c = _text.color;
+                    c.a = Mathf.Clamp01(1f - _t / Life);
+                    _text.color = c;
+                }
+
+                if (_t >= Life)
+                {
+                    Destroy(gameObject);
+                }
+            }
+        }
+
+        /// <summary>Pulses a card's background toward a celebratory green-cyan until the deadline.</summary>
+        private sealed class CardPulse : MonoBehaviour
+        {
+            public float Until;
+
+            private Image _img;
+            private Color _base;
+
+            private void Awake()
+            {
+                _img = GetComponent<Image>();
+                if (_img != null)
+                {
+                    _base = _img.color;
+                }
+            }
+
+            private void Update()
+            {
+                if (_img == null || Time.unscaledTime >= Until)
+                {
+                    if (_img != null)
+                    {
+                        _img.color = _base;
+                    }
+
+                    Destroy(this);
+                    return;
+                }
+
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 7f);
+                _img.color = Color.Lerp(_base, new Color(0.30f, 0.95f, 0.75f, 0.95f), k * 0.6f);
+            }
+        }
+
         // --- construction ---
 
         private void OnDestroy()
         {
+            if (_craftHooked && Game?.Network != null)
+            {
+                Game.Network.CraftCompleted -= OnCraftResult;
+            }
+
             // Top-level canvas — destroy it with the component so the menu doesn't linger after teardown.
             if (_canvas != null)
             {
@@ -975,6 +1139,12 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(card.transform, tx, 8, cw - tx - 16, 40, title, 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(card.transform, tx, 44, cw - tx - 16, 28, status, 18, statusCol, TextAnchor.MiddleLeft);
+
+            // Freshly crafted / freshly unlocked → the card pulses for a moment (celebration juice).
+            if (!string.IsNullOrEmpty(contentKey) && contentKey == _celebrateKey && Time.unscaledTime < _celebrateUntil)
+            {
+                card.gameObject.AddComponent<CardPulse>().Until = _celebrateUntil;
+            }
         }
 
         // --- detail pane ---
