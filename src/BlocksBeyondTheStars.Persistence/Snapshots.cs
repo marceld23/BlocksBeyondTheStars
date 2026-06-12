@@ -34,6 +34,7 @@ public sealed class PlayerSnapshot
     public bool AboardShip { get; set; } = true;
     public string CurrentLocationId { get; set; } = string.Empty; // the body the player was last on (load returns here)
     public string Role { get; set; } = "Player";
+    public string NameTokenHash { get; set; } = string.Empty;
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
     public int KnowledgePoints { get; set; }
@@ -108,6 +109,7 @@ public static class StateMapper
         AboardShip = p.AboardShip,
         CurrentLocationId = p.CurrentLocationId,
         Role = p.Role.ToString(),
+        NameTokenHash = p.NameTokenHash,
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
         KnowledgePoints = p.KnowledgePoints,
@@ -166,6 +168,7 @@ public static class StateMapper
         AboardShip = s.AboardShip,
         CurrentLocationId = s.CurrentLocationId,
         Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,
+        NameTokenHash = s.NameTokenHash ?? string.Empty,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
         KnowledgePoints = s.KnowledgePoints,

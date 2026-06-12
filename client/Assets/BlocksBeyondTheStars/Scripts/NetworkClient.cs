@@ -94,8 +94,8 @@ namespace BlocksBeyondTheStars.Client
 
         public void Connect(string host, int port) => _transport.Connect(host, port);
 
-        public void Join(string playerName, string password = null, string locale = "en")
-            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale });
+        public void Join(string playerName, string password = null, string locale = "en", string token = null)
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token });
 
         /// <summary>Asks the server for the greeting line of the nearby NPC of this role ("vendor"/"quartermaster")
         /// when opening its interaction (item 15). The server gates on proximity and replies with an NpcGreeting.</summary>

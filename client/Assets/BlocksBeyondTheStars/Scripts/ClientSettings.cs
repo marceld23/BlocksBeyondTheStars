@@ -38,6 +38,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Last singleplayer world the player launched (pre-selected in the world picker).</summary>
         public string LastWorld = "singleplayer";
 
+        /// <summary>The player's name — shown to other players and keying the server-side player state.</summary>
+        public string PlayerName = "Pilot";
+
+        /// <summary>Per-install secret backing name verification: sent with every join; the first join
+        /// under a name claims it, later joins must match. Generated once on load, never shown in UI.</summary>
+        public string PlayerToken = "";
+
         // Accessibility (flags wired now; visual effects applied when the render layer lands)
         public bool ReducedEffects = false;
         public bool LargeUi = false;
@@ -67,11 +74,12 @@ namespace BlocksBeyondTheStars.Client
 
         public static ClientSettings Load()
         {
+            ClientSettings settings = null;
             try
             {
                 if (File.Exists(FilePath))
                 {
-                    return JsonUtility.FromJson<ClientSettings>(File.ReadAllText(FilePath)) ?? new ClientSettings();
+                    settings = JsonUtility.FromJson<ClientSettings>(File.ReadAllText(FilePath));
                 }
             }
             catch (Exception e)
@@ -79,7 +87,14 @@ namespace BlocksBeyondTheStars.Client
                 Debug.LogWarning($"Could not read client settings, using defaults: {e.Message}");
             }
 
-            return new ClientSettings();
+            settings ??= new ClientSettings();
+            if (string.IsNullOrEmpty(settings.PlayerToken))
+            {
+                settings.PlayerToken = Guid.NewGuid().ToString("N");
+                settings.Save(); // persist the claim secret right away so it survives a crash before the next save
+            }
+
+            return settings;
         }
 
         public void Save()

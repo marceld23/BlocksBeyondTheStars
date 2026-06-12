@@ -50,6 +50,7 @@ Created on first run; editable directly or through the admin UI.
 | `maxPlayers` | Connection cap | `4` |
 | `serverPassword` | Required to join (empty = none) | `""` |
 | `whitelistEnabled` / `whitelist` | Restrict who may join | `false` / `[]` |
+| `adminPlayers` | Player names granted the Admin role on join (CLI: `--admins "a,b"`) | `[]` |
 | `adminPassword` | Required for admin API calls | `""` |
 | `autoSaveIntervalMinutes` | Autosave cadence | `5` |
 | `backupIntervalMinutes` | Backup cadence | `60` |
@@ -60,6 +61,19 @@ Created on first run; editable directly or through the admin UI.
 | `adminBindAddress` | Admin UI bind address | `127.0.0.1` |
 | `aiLevel` | Optional AI text backend: `Off`, `Suggest` (AI missions land as drafts), `Auto` (published) — see §8 | `Off` |
 | `aiBackendUrl` | Base URL of the optional AI backend | `http://127.0.0.1:8077` |
+
+### Player names & name verification
+
+A player's name keys their server-side state (inventory, position, role). Two protections
+are built in: a name that is **currently online** cannot join a second time, and the first
+join under a name **claims** it with a per-install client secret — later joins must present
+the same secret or are rejected ("name belongs to another player"). Only a hash of the
+secret is stored in the save. The very first player ever to join a fresh world becomes its
+**WorldAdmin**; names listed in `adminPlayers` get the Admin role on join.
+
+> **In-game hosting:** the client's main-menu **Host Game** runs this same server as a
+> child process (any singleplayer save, "open to LAN" style) with `--max-players`,
+> an optional `--password`, and the host's name in `--admins`.
 
 ## 4. Ports & networking
 
@@ -127,10 +141,12 @@ browser client.
 - The world is `seed + parameters + player edits`: the procedural terrain is regenerated,
   only your changes are stored, keeping saves small.
 
-## 7. Singleplayer
+## 7. Singleplayer & in-game hosting
 
-Singleplayer runs the **same** server in-process via an in-memory loopback transport, so
-there is no separate code path — what works solo works in multiplayer.
+Singleplayer launches the **same** dedicated server as a bundled child process bound to
+loopback, so there is no separate code path — what works solo works in multiplayer. The
+main menu's **Host Game** opens that exact path to friends: it raises the player cap, adds
+an optional join password, and announces the host's LAN address in-game.
 
 ## 8. Optional AI backend (dynamic LLM text)
 

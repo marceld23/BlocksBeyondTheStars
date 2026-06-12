@@ -16,8 +16,25 @@ namespace BlocksBeyondTheStars.Client
             var canvas = UiKit.CreateCanvas("SaveSelectUI");
             var root = canvas.transform;
 
-            UiKit.AddLogo(root, 360f, 70f, 900f, 96f, shell.L("ui.save.title"), 56);
-            UiKit.AddText(root, 364f, 180f, 1000f, 26f, shell.L("ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // Host mode ("Host Game" on the main menu): the same picker — any singleplayer save can be
+            // hosted, "open to LAN" style — plus a host bar (max players + optional join password).
+            bool host = shell.HostMode;
+            int[] maxPlayers = { 4 };
+            string[] hostPass = { "" };
+            void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, WorldCreationOptions options = null)
+            {
+                if (host)
+                {
+                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], 0, unlockAll, allShips, kit, options);
+                }
+                else
+                {
+                    shell.StartSingleplayerWorld(world, 0, unlockAll, allShips, kit, options);
+                }
+            }
+
+            UiKit.AddLogo(root, 360f, 70f, 900f, 96f, shell.L(host ? "ui.host.title" : "ui.save.title"), 56);
+            UiKit.AddText(root, 364f, 180f, 1000f, 26f, shell.L(host ? "ui.host.subtitle" : "ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // ── Existing worlds (left) ────────────────────────────────────────────────────────
             var left = UiKit.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.PanelFill).transform;
@@ -39,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < shown; i++)
                 {
                     string w = worlds[i];
-                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, $"▸  {w}", () => shell.StartSingleplayerWorld(w), "btn_singleplayer");
+                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, $"▸  {w}", () => Launch(w), "btn_singleplayer");
                     UiKit.AddButton(left, 640f, 56f + i * 62f, 60f, 54f, "✕", () =>
                     {
                         target[0] = w;
@@ -106,10 +123,31 @@ namespace BlocksBeyondTheStars.Client
             });
 
             UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"),
-                () => shell.StartSingleplayerWorld(name[0], 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_singleplayer");
+                () => Launch(name[0], creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_singleplayer");
             UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"),
-                () => shell.StartSingleplayerWorld("world_" + Random.Range(1000, 999999), 0, creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_join");
+                () => Launch("world_" + Random.Range(1000, 999999), creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_join");
             UiKit.AddText(right, 20f, 486f, 660f, 50f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            // ── Host options (host mode only): player cap + optional join password ───────────────
+            if (host)
+            {
+                var bar = UiKit.AddPanel(root, 850f, 800f, 700f, 100f, UiKit.PanelFill).transform;
+                UiKit.AddText(bar, 20f, 8f, 300f, 24f, shell.L("ui.host.max_players"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                Text count = null;
+                UiKit.AddButton(bar, 20f, 38f, 46f, 46f, "-", () =>
+                {
+                    maxPlayers[0] = Mathf.Max(2, maxPlayers[0] - 1);
+                    if (count != null) count.text = maxPlayers[0].ToString();
+                });
+                count = UiKit.AddText(bar, 74f, 38f, 60f, 46f, maxPlayers[0].ToString(), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                UiKit.AddButton(bar, 142f, 38f, 46f, 46f, "+", () =>
+                {
+                    maxPlayers[0] = Mathf.Min(16, maxPlayers[0] + 1);
+                    if (count != null) count.text = maxPlayers[0].ToString();
+                });
+                UiKit.AddText(bar, 240f, 8f, 440f, 24f, shell.L("ui.host.password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddInput(bar, 240f, 38f, 440f, 46f, hostPass[0], v => hostPass[0] = v);
+            }
 
             UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 

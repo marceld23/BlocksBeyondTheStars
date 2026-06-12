@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _log;
         private RectTransform _inputRow;
         private InputField _input;
-        private bool _typing, _subscribed, _built;
+        private bool _typing, _subscribed, _built, _hostAnnounced;
         private int _openFrame = -1;
         private const int MaxLog = 40;
 
@@ -35,6 +35,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.ChatReceived += OnChat;
                 _subscribed = true;
+            }
+
+            // In-game host: announce the LAN address once (chat scrollback + toast) so the host
+            // can tell friends where to join.
+            if (!_hostAnnounced && !string.IsNullOrEmpty(Game.HostInfo) && Game.Localizer != null)
+            {
+                _hostAnnounced = true;
+                string line = Game.Localizer.Get("ui.host.address_line").Replace("{addr}", Game.HostInfo);
+                _lines.Add($"<color=#80E5D2>{line}</color>");
+                RefreshLog();
+                Game.ShowMessage(line);
             }
 
             // Open the input with Enter (when no other panel is open).

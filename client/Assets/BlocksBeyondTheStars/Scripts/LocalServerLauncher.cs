@@ -83,10 +83,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Main-thread step: validate the bundled server EXE + build the launch info. Must run on the
         /// Unity main thread (it reads <c>Application.*</c> paths). Returns false only if the EXE is missing.
-        /// Pair with <see cref="LaunchPrepared"/> (which can run off the main thread).</summary>
+        /// Pair with <see cref="LaunchPrepared"/> (which can run off the main thread).
+        /// In-game multiplayer hosting reuses this path with <paramref name="maxPlayers"/> &gt; 1, an
+        /// optional <paramref name="password"/>, and <paramref name="adminName"/> = the host's player name
+        /// (passed as <c>--admins</c> so the host is admin even on a save where someone else joined first).</summary>
         public bool Prepare(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
-            string worldOptionArgs = null)
+            string worldOptionArgs = null,
+            int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null)
         {
             if (IsRunning)
             {
@@ -128,11 +132,20 @@ namespace BlocksBeyondTheStars.Client
             // World options (sliders at creation): non-default values only; the server bakes them into the
             // new save's rules/description, so later launches don't need to repeat them.
             string optionArgs = string.IsNullOrEmpty(worldOptionArgs) ? string.Empty : worldOptionArgs;
+            // Multiplayer hosting: a join password + the host's name as a server-side admin.
+            string hostArgs =
+                (string.IsNullOrEmpty(password) ? string.Empty : $" --password \"{password}\"") +
+                (string.IsNullOrEmpty(adminName) ? string.Empty : $" --admins \"{adminName}\"");
+            if (string.IsNullOrWhiteSpace(serverName))
+            {
+                serverName = "Singleplayer";
+            }
+
             _pendingPsi = new ProcessStartInfo
             {
                 FileName = exe,
-                Arguments = $"--port {Port} --name Singleplayer --world \"{worldName}\" " +
-                            $"--max-players 1 --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + creativeArgs + optionArgs,
+                Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

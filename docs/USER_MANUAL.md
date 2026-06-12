@@ -15,7 +15,19 @@ Last updated: 2026-06-12.
 ## 1. Starting the game
 
 - Launch the client (`BlocksBeyondTheStars.exe`). From the main menu: **Singleplayer** → pick an existing save or
-  start a **New world** (name + seed), or join a server.
+  start a **New world** (name + seed), **Host Game** → host a world for friends, or **Join Server**.
+- **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
+  can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
+  and an optional **join password**. The game starts the bundled server locally and you join immediately;
+  you are the world's admin (the very first player of a fresh world is its **WorldAdmin**; the host's
+  name is additionally passed as a server admin). The address friends join is announced in chat and as a
+  HUD toast ("Hosting — friends can join at ip:port"). The session ends (and the world saves) when the
+  host quits. Friends outside your LAN need a port forward of that UDP port.
+- **Join Server:** enter your **player name**, the server address, port and (if the server has one) the
+  password. **Name verification:** the first join under a name claims it for your installation — later
+  joins under that name from other machines are rejected ("name belongs to another player"), and a name
+  that is currently online can't join twice. So pick your name once and keep it; it also keys your
+  inventory/progress on each server.
 - **World options** ("Weltoptionen") at world creation: pick a preset (**Friedlich / Standard /
   Feindselig**) or tune sliders — life & threats (creatures, planet enemies, enemy ships, UFOs),
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,

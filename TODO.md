@@ -22,6 +22,93 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ In-game multiplayer hosting ("Host Game") — ✅ SHIPPED (2026-06-12; 475 tests green)
+**Decisions (2026-06-12):** name verification = **token-based name ownership** (first join under a name
+claims it via a per-install client secret; later joins must present it) + online-duplicate rejection;
+hostable worlds = **the existing singleplayer saves** ("open to LAN" style, one world list); hosting
+port stays **31550** (no clash with a locally running dedicated server on 31415).
+
+**Shipped (all three stages):**
+- **S1 — server.** `JoinRequest.Token` (contractless MessagePack → wire-compatible); `HandleJoin` rejects
+  a name that is already online (case-insensitive; `PlayerId == name`, so a duplicate would alias the
+  same state) and enforces token ownership: `PlayerState.NameTokenHash` (SHA-256, persisted via
+  `PlayerSnapshot`) — claimed on first tokened join (legacy/tokenless records adopt the first token they
+  see), mismatches rejected with a DE/EN-localized reason. New `--admins "a,b"` CLI →
+  `ServerConfig.AdminPlayers`. Tests: `NameVerificationTests` (duplicate-online reject, claim across
+  server restarts, legacy adoption, --admins grants Admin).
+- **S2 — client identity.** `ClientSettings.PlayerName` (persisted) + `ClientSettings.PlayerToken`
+  (GUID, generated on first load); the connect dialog gained **player name** + **server password**
+  fields (name saved on connect); `WorldRig`→`GameBootstrap` now pass password + token into the join. A
+  refused join no longer strands the player on the loading screen: `GameBootstrap.JoinRejectedReason` →
+  AppShell returns to the menu and shows the reason (`MenuNotice`).
+- **S3 — host flow.** Main-menu **Host Game** opens the SAME world picker in host mode (any
+  singleplayer save or a new world) plus a host bar: **max players** (2–16 stepper) and an optional
+  **join password**. `AppShell.StartHostWorld` → shared `StartLocalWorld` →
+  `LocalServerLauncher.Prepare(..., maxPlayers, password, serverName, adminName)` (singleplayer defaults
+  unchanged: cap 1, name "Singleplayer"); the host's name goes into `--admins`, the host auto-joins
+  127.0.0.1:31550 exactly like singleplayer (first join of a fresh world = WorldAdmin). The LAN address
+  (`AppShell.LocalLanIp`) is announced once in chat + as a HUD toast (`ui.host.address_line`). Quitting
+  the host stops the server (LAN-session semantics). Docs: USER_MANUAL §1 + SELF_HOSTING §3/§7.
+  Internet play stays manual port-forwarding (no UPnP).
+**Goal:** launch a multiplayer server from inside the game. Host picks a world + max players (+ optional
+password), the bundled server starts locally, the host joins immediately and is admin; joining players
+need **name verification**.
+
+**Current state — the foundation already exists (this is the singleplayer path):**
+- Singleplayer IS in-game hosting already: `AppShell.StartSingleplayerWorld` (`AppShell.cs:217`) prepares
+  `LocalServerLauncher` (`LocalServerLauncher.cs`), which spawns the bundled dedicated server from
+  `StreamingAssets/server/` as a child process on loopback:31550 with `--max-players 1`, then the client
+  connects to it like any remote server (loading screen first; `Process.Start` on a background thread so a
+  Defender first-scan can't freeze the menu; server stopped on leave/quit).
+- The dedicated server already takes everything hosting needs via CLI (`ServerConfig.ApplyCommandLine`):
+  `--port/--world/--name/--max-players/--password/--seed/--view-distance` + all world options. The
+  LiteNetLib UDP transport is multi-client; presence/docking/trading multiplayer protocol is shipped.
+- Admin roles exist (`PlayerRole`: Player/Moderator/Admin/WorldAdmin, `PlayerState.cs:7`): the FIRST player
+  ever to join a fresh world becomes **WorldAdmin** (`GameServer.cs:1349`); names in
+  `ServerConfig.AdminPlayers` get Admin on join (`GameServer.cs:1281`). So "host = admin + joins
+  immediately" falls out naturally: the host connects to 127.0.0.1 before anyone has the address → first
+  join → WorldAdmin. (Hosting an existing singleplayer save: the host is already its WorldAdmin.)
+
+**What's missing (gaps):**
+1. **No name verification — the key gap.** `HandleJoin` (`GameServer.cs:1249`) never checks whether the
+   name is already online, and `PlayerId == name` (`GameServer.cs:1343`) — a second client joining with
+   the same name loads the SAME `PlayerState` → state corruption + identity/admin spoofing (joining with
+   the host's name = becoming WorldAdmin). Matches the old backlog note "multiplayer player-name
+   reservation".
+2. **Client player name is hardcoded** — `AppShell.PlayerName = "Pilot"` (`AppShell.cs:32`); no UI edits
+   it and it isn't persisted in `ClientSettings` → all default clients collide on "Pilot".
+3. **Join dialog** (`UiMainMenu.cs:61`) has only Host + Port — no name, no password field; `WorldRig`
+   never sets `boot.Password` (`GameBootstrap.cs:550` would send it) → password-protected servers are
+   unjoinable from the UI.
+4. **No "Host Game" UI/flow** — `LocalServerLauncher.Prepare` hardcodes `--max-players 1` + server name
+   "Singleplayer"; needs maxPlayers/password/serverName parameters + a menu entry.
+5. `AdminPlayers` has no CLI arg (config-file only) — a small `--admins` arg makes "host is always admin"
+   robust even on saves where someone else joined first historically.
+
+**Plan (staged, each stage shippable + tested):**
+- **S1 — server: name reservation + verification.** (a) Reject a join whose name is already online
+  (`JoinRejected("Name already in use")`). (b) Name ownership: the client sends a per-install secret token
+  in `JoinRequest` (GUID, persisted in `ClientSettings`; new field → NetCodec registration!); the first
+  join under a name stores the token's hash with the player record; later joins must present the matching
+  token or are rejected. Protects the host/admin identity from spoofing. (c) `--admins "<names>"` CLI →
+  `ServerConfig.AdminPlayers`. Unit tests for all three.
+- **S2 — client: identity + password UI.** Editable player name persisted in `ClientSettings` (default
+  "Pilot"); join dialog gains name + password fields; `WorldRig` passes the password into
+  `GameBootstrap`.
+- **S3 — host flow.** "Host Game" menu path (reuse the singleplayer world picker + world options + a small
+  host panel: max players, optional password). `LocalServerLauncher.Prepare` gains
+  maxPlayers/password/serverName; pass `--admins <hostName>`; after launch the host auto-joins
+  127.0.0.1 exactly like singleplayer (same loading flow); show the LAN address (+ copy) so friends can
+  join; quitting the game stops the server (LAN-session semantics, like the singleplayer launcher today).
+
+**Feasibility: YES** — hosting reuses the proven singleplayer mechanism; effort ≈ 2–3 days total
+(S1 ~1d, S2 ~0.5d, S3 ~1d). Internet play stays manual port-forwarding for now (no UPnP).
+
+**Open questions (asked 2026-06-12):** (1) verification strength — online-collision reject only, or
+token-based name ownership (recommended; without it the admin can be impersonated when offline)?
+(2) hostable worlds = the existing singleplayer saves ("open to LAN" style, recommended) or a separate
+multiplayer world list? (3) hosting port: keep 31550 (current SP port) or the dedicated default 31415?
+
 ### ★ Game renamed to "Blocks Beyond the Stars" (2026-06-12) — ✅ DONE
 **Part 1 — display title.** Splash + main-menu + loading logos, Unity `productName` (ProjectSettings
 **and** `BuildScript.EnsureAppIcon`, which overrides it at build time), credits (en/de),

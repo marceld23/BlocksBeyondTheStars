@@ -26,10 +26,15 @@ namespace BlocksBeyondTheStars.Client
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
 
-        // Join target edited on the main menu.
+        // Join target edited on the main menu. PlayerName is loaded from / persisted to
+        // ClientSettings (Awake / the connect dialog); Password is session-only.
         public string Host = "127.0.0.1";
         public string Port = "31415";
         public string PlayerName = "Pilot";
+        public string Password = "";
+
+        /// <summary>One-shot notice shown on the main menu (e.g. why the last join was refused).</summary>
+        public string MenuNotice = "";
 
         private SplashScreen _splash;
         private StudioSplash _studio;
@@ -49,6 +54,10 @@ namespace BlocksBeyondTheStars.Client
             Settings = ClientSettings.Load();
             Settings.Apply();
             LoadLocalizer();
+            if (!string.IsNullOrWhiteSpace(Settings.PlayerName))
+            {
+                PlayerName = Settings.PlayerName.Trim();
+            }
 
             // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
             // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
@@ -209,18 +218,54 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.MainMenu;
         }
 
+        /// <summary>True while the save-select screen is picking a world to HOST (multiplayer)
+        /// instead of singleplayer — set by the main menu, read by <see cref="UiSaveSelect"/>.</summary>
+        public bool HostMode { get; private set; }
+
+        /// <summary>While hosting: the LAN address friends can join ("ip:port"), shown in-game. Else empty.</summary>
+        public string HostInfo { get; private set; } = "";
+
         /// <summary>Opens the singleplayer world picker (choose an existing save or start a new one).</summary>
-        public void StartSingleplayer() => Phase = ShellPhase.SaveSelect;
+        public void StartSingleplayer()
+        {
+            HostMode = false;
+            Phase = ShellPhase.SaveSelect;
+        }
+
+        /// <summary>Opens the world picker in host mode (any singleplayer save can be hosted, "open to LAN" style).</summary>
+        public void StartHost()
+        {
+            HostMode = true;
+            Phase = ShellPhase.SaveSelect;
+        }
 
         /// <summary>Launches singleplayer on a specific world (creates it if new); seed 0 = derive from name. The
         /// creative flags are only honoured when the world is first created (the server bakes them into the save).</summary>
         public void StartSingleplayerWorld(string worldName, long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
             WorldCreationOptions worldOptions = null)
+            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, worldOptions,
+                maxPlayers: 1, password: null);
+
+        /// <summary>Hosts a multiplayer world in-game: launches the bundled server on a singleplayer save
+        /// with the chosen player cap (+ optional join password) and joins it immediately. The host's
+        /// player name is passed as <c>--admins</c>, so the host is always an admin (the very first
+        /// player of a fresh world is its WorldAdmin anyway).</summary>
+        public void StartHostWorld(string worldName, int maxPlayers, string password, long seed = 0,
+            bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
+            WorldCreationOptions worldOptions = null)
+            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, worldOptions,
+                Mathf.Clamp(maxPlayers, 2, 16), password);
+
+        private void StartLocalWorld(string worldName, long seed,
+            bool creativeUnlockAll, bool creativeAllShips, bool creativeKit, WorldCreationOptions worldOptions,
+            int maxPlayers, string password)
         {
-            // Singleplayer hosts the bundled dedicated server as a child process bound to
-            // loopback (Option A), then connects to it like any other server.
+            // Singleplayer AND in-game hosting run the bundled dedicated server as a child process
+            // (Option A), then connect to it like any other server; hosting just opens the player cap.
+            bool hosting = maxPlayers > 1;
             _hostLocal = true;
+            MenuNotice = "";
             Settings.LastWorld = worldName;
             Settings.Save();
 
@@ -229,10 +274,13 @@ namespace BlocksBeyondTheStars.Client
             // blocking Process.Start (a Defender first-scan of the freshly-built EXE can stall it for seconds)
             // would freeze the menu so "nothing happens" before the loading screen appears.
             if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
-                    creativeUnlockAll, creativeAllShips, creativeKit, worldOptions?.ToArgs()))
+                    creativeUnlockAll, creativeAllShips, creativeKit, worldOptions?.ToArgs(),
+                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName))
             {
                 Host = _localServer.Host;
                 Port = _localServer.Port.ToString();
+                Password = password ?? "";
+                HostInfo = hosting ? $"{LocalLanIp()}:{_localServer.Port}" : "";
                 _loading.MinShow = 2.5f; // give the server time to start listening
                 _serverPending = true;
             }
@@ -240,14 +288,49 @@ namespace BlocksBeyondTheStars.Client
             {
                 // No bundled server (not published yet): fall back to a manually started one.
                 Host = "127.0.0.1";
+                Password = "";
+                HostInfo = "";
             }
 
             Phase = ShellPhase.Loading;
         }
 
+        /// <summary>The machine's LAN IPv4 (the address friends on the same network join), or loopback.</summary>
+        private static string LocalLanIp()
+        {
+            try
+            {
+                foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up
+                        || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                    {
+                        continue;
+                    }
+
+                    foreach (var addr in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                            && !addr.Address.ToString().StartsWith("169.254.")) // skip link-local
+                        {
+                            return addr.Address.ToString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to loopback — the host can still read the port from the dialog.
+            }
+
+            return "127.0.0.1";
+        }
+
         public void StartJoin()
         {
             _hostLocal = false;
+            HostInfo = "";
+            MenuNotice = "";
             _loading.MinShow = 0.6f;
             Phase = ShellPhase.Loading;
         }
@@ -272,6 +355,8 @@ namespace BlocksBeyondTheStars.Client
                 _localServer.Stop();
                 _hostLocal = false;
             }
+
+            HostInfo = "";
         }
 
         private void OnApplicationQuit() => _localServer.Stop();
@@ -561,6 +646,15 @@ namespace BlocksBeyondTheStars.Client
             var igBoot = Phase == ShellPhase.InGame && _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
             bool chatActive = (igBoot != null && igBoot.ChatTyping) || _chatTypingPrev;
             _chatTypingPrev = igBoot != null && igBoot.ChatTyping;
+
+            // The server refused our join (wrong password, name in use / verified by someone else, full):
+            // bail back to the menu and show the reason there instead of waiting on the loading overlay.
+            if (igBoot != null && !string.IsNullOrEmpty(igBoot.JoinRejectedReason))
+            {
+                MenuNotice = igBoot.JoinRejectedReason;
+                ReturnToMenu();
+                return;
+            }
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {

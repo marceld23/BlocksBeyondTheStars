@@ -1275,7 +1275,42 @@ public sealed partial class GameServer
             return;
         }
 
+        // Name reservation: one live session per name — PlayerId == name, so a second client under
+        // the same name would alias (and corrupt) the same player state.
+        bool de = NormalizeLocale(join.Locale) == "de";
+        if (_sessions.Values.Any(s => s.Joined && string.Equals(s.State.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            SendTo(connectionId, new JoinRejected
+            {
+                Reason = de
+                    ? $"Der Name '{name}' ist auf diesem Server gerade online."
+                    : $"The name '{name}' is already online on this server.",
+            });
+            return;
+        }
+
         var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+
+        // Name verification: the first join under a name claims it with the client's per-install token;
+        // later joins must present the matching token (protects the host/admin identity from spoofing).
+        // Unclaimed records (legacy saves / tokenless clients) adopt the first token they see.
+        string tokenHash = HashNameToken(join.Token);
+        if (!string.IsNullOrEmpty(state.NameTokenHash) && state.NameTokenHash != tokenHash)
+        {
+            SendTo(connectionId, new JoinRejected
+            {
+                Reason = de
+                    ? $"Der Name '{name}' gehört einem anderen Spieler (Namens-Verifikation)."
+                    : $"The name '{name}' belongs to another player (name verification).",
+            });
+            return;
+        }
+
+        if (string.IsNullOrEmpty(state.NameTokenHash) && !string.IsNullOrEmpty(tokenHash))
+        {
+            state.NameTokenHash = tokenHash;
+            _repo.SavePlayer(state); // persist the claim immediately, not only on the next save cycle
+        }
 
         // A configured admin name is granted the Admin role (the world creator keeps WorldAdmin).
         if (state.Role != PlayerRole.WorldAdmin && _config.AdminPlayers.Contains(name))
@@ -1323,6 +1358,12 @@ public sealed partial class GameServer
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }
+
+    /// <summary>SHA-256 hex of a join token; empty/missing token → empty hash (name stays unclaimed).</summary>
+    private static string HashNameToken(string? token)
+        => string.IsNullOrEmpty(token)
+            ? string.Empty
+            : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
 
     private PlayerState CreateNewPlayer(string name)
     {

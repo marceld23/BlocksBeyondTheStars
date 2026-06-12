@@ -26,6 +26,9 @@ namespace BlocksBeyondTheStars.Client
             boot.Host = shell.Host;
             boot.Port = int.TryParse(shell.Port, out var p) && p > 0 ? p : 31415;
             boot.PlayerName = string.IsNullOrWhiteSpace(shell.PlayerName) ? "Pilot" : shell.PlayerName;
+            boot.Password = shell.Password ?? "";
+            boot.Token = shell.Settings.PlayerToken ?? "";
+            boot.HostInfo = shell.HostInfo ?? "";
             boot.German = shell.Settings.Language == "de";
             boot.ChunkMaterial = material;
             boot.SkinRgb = Rgb(shell.Settings.SkinColor);

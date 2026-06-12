@@ -87,6 +87,11 @@ public sealed class PlayerState
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
 
+    /// <summary>Name verification: SHA-256 hex of the per-install secret the name's first join presented.
+    /// Later joins under this name must present the matching token. Empty = unclaimed (legacy save or a
+    /// tokenless client) — the next join that brings a token claims the name. Persisted.</summary>
+    public string NameTokenHash { get; set; } = string.Empty;
+
     /// <summary>Stealth field active (from a stealth suit) — creatures/enemies ignore the player. Not persisted.</summary>
     public bool Stealthed { get; set; }
 

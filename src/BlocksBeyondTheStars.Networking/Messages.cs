@@ -14,6 +14,11 @@ public sealed class JoinRequest
     public string PlayerName { get; set; } = string.Empty;
     public string? Password { get; set; }
 
+    /// <summary>Per-install secret proving name ownership (name verification): the first join under a
+    /// name claims it; later joins must present the same token or are rejected. Only its hash is stored
+    /// server-side. Optional — clients without one leave the name unclaimed.</summary>
+    public string? Token { get; set; }
+
     /// <summary>The player's chosen UI language ("en"/"de"). The server remembers it so dynamic, server-authored
     /// text (item 15: LLM NPC greetings) is generated in the player's language. Defaults to English.</summary>
     public string Locale { get; set; } = "en";

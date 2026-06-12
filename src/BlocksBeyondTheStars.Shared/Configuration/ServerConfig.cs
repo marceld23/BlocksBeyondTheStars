@@ -208,6 +208,12 @@ public sealed class ServerConfig
                 case "password":
                     ServerPassword = value; applied.Add("password");
                     break;
+                case "admins":
+                case "admin-players":
+                    // Comma-separated player names granted the Admin role on join (in-game hosting
+                    // passes the host's name so the host is always admin, even on older saves).
+                    AdminPlayers = SplitNames(value); applied.Add("admins");
+                    break;
                 case "seed":
                     if (long.TryParse(value, out var sd)) { Seed = sd; applied.Add("seed"); }
                     break;
@@ -298,4 +304,8 @@ public sealed class ServerConfig
 
         return applied;
     }
+
+    /// <summary>Splits a comma-separated name list, trimming entries and dropping empties.</summary>
+    private static List<string> SplitNames(string value)
+        => value.Split(',').Select(n => n.Trim()).Where(n => n.Length > 0).ToList();
 }

@@ -22,6 +22,13 @@ namespace BlocksBeyondTheStars.Client
         public string PlayerName = "Pilot";
         public string Password = "";
 
+        /// <summary>Per-install name-verification secret (see <see cref="ClientSettings.PlayerToken"/>).</summary>
+        public string Token = "";
+
+        /// <summary>While this client hosts the server in-game: the "ip:port" friends join over the LAN
+        /// (announced in chat + as a toast). Empty when joining a remote server or in singleplayer.</summary>
+        public string HostInfo = "";
+
         [Header("Localization")]
         public bool German = false;
 
@@ -328,6 +335,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while the space view owns the camera (on-foot control is frozen).</summary>
         public bool SpaceViewActive;
 
+        /// <summary>Set when the server refused our join (wrong password, name in use/verified, full…).
+        /// AppShell watches this and returns to the menu showing the reason.</summary>
+        public string JoinRejectedReason { get; private set; } = string.Empty;
+
         /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
         public string LastMessage { get; private set; } = string.Empty;
 
@@ -411,7 +422,11 @@ namespace BlocksBeyondTheStars.Client
                 WorldReady = false;          // hold the loading overlay until we settle onto the first world
                 WorldLoadStarted?.Invoke();
             };
-            Network.JoinRejected += m => Debug.LogWarning($"Join rejected: {m.Reason}");
+            Network.JoinRejected += m =>
+            {
+                Debug.LogWarning($"Join rejected: {m.Reason}");
+                JoinRejectedReason = string.IsNullOrEmpty(m.Reason) ? "Join rejected." : m.Reason;
+            };
             Network.ChunkReceived += OnChunk;
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
@@ -547,7 +562,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Network.Connected)
                 {
-                    Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en");
+                    Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
+                        string.IsNullOrEmpty(Token) ? null : Token);
                     Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
                     _joinSent = true;
                 }
