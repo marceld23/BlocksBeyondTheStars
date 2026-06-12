@@ -169,11 +169,13 @@ public sealed partial class GameServer
                 }
             }
 
-            // Rear engine nozzles (dark, off), outboard of the centre hatch so they never block the way out
-            // (the rear -Z hatch occupies the three centre columns cx-1..cx+1; engines sit at the rear corners).
+            // Rear engine nozzles (faint idle glow via the engine_nozzle block), outboard of the centre
+            // hatch so they never block the way out (the rear -Z hatch occupies the three centre columns
+            // cx-1..cx+1; engines sit at the rear corners).
+            var nozzle = _content.GetBlock("engine_nozzle")?.NumericId ?? dark;
             for (int d = 1; d <= 2; d++)
             {
-                Ext(cx + s * _shipHalfX, y0 + 1, cz - _shipHalfZ - d, dark);
+                Ext(cx + s * _shipHalfX, y0 + 1, cz - _shipHalfZ - d, nozzle);
             }
         }
 

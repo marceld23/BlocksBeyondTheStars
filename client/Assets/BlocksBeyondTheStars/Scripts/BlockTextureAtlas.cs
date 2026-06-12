@@ -378,6 +378,27 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
 
+                case "engine_nozzle":
+                {
+                    // A glowing nozzle-throat ring — with the block's emission this is the faint idle
+                    // glow that keeps a landed ship's engines from looking dead.
+                    float c2 = (Tile - 1) * 0.5f;
+                    for (int x = 0; x < Tile; x++)
+                    {
+                        for (int yb = 0; yb < Tile; yb++)
+                        {
+                            float d = Mathf.Sqrt((x - c2) * (x - c2) + (yb - c2) * (yb - c2));
+                            if (d >= 18f && d <= 24f)
+                            {
+                                float k = 1f - Mathf.Abs(d - 21f) / 3f;
+                                Texture.SetPixel(ox + x, oy + yb, Color.Lerp(new Color(0.25f, 0.16f, 0.10f), new Color(1f, 0.55f, 0.20f), k));
+                            }
+                        }
+                    }
+
+                    break;
+                }
+
                 case "engine_panel":
                     // Dark industrial panel with orange warning corners + a centre seam.
                     for (int i = 0; i < 10; i++)
@@ -734,6 +755,7 @@ namespace BlocksBeyondTheStars.Client
             "lab_panel" => new Color(0.75f, 0.85f, 0.91f),        // cool tech blue (lab/cockpit/console)
             "cargo_floor" => new Color(0.85f, 0.63f, 0.10f),      // hazard amber (cargo)
             "engine_panel" => new Color(0.23f, 0.23f, 0.25f),     // dark industrial (workshop/engine)
+            "engine_nozzle" => new Color(0.17f, 0.17f, 0.20f),    // dark housing; the throat ring glows (Decorate)
             "water" => new Color(0.20f, 0.42f, 0.85f),
             "lava" => new Color(0.90f, 0.35f, 0.10f),
             "fire" => new Color(1.00f, 0.45f, 0.12f),  // bright flame (glows via emission, alpha-blended)

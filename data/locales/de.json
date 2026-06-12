@@ -821,6 +821,7 @@
   "block.lab_panel.name": "Labor-Paneel",
   "block.cargo_floor.name": "Frachtmarkierung",
   "block.engine_panel.name": "Triebwerkspaneel",
+  "block.engine_nozzle.name": "Triebwerksdüse",
   "block.bedrock.name": "Grundgestein",
   "item.radio_beacon.name": "Funkfeuer",
   "item.radio_beacon.desc": "Platziere es als beschrifteten Wegpunkt — erscheint auf Karte und Kompass. Hingehen und E drücken zum Umbenennen; Abbauen gibt es zurück.",

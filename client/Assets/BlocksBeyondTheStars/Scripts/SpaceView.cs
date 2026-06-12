@@ -272,6 +272,59 @@ namespace BlocksBeyondTheStars.Client
                 float len = 0.6f + throttle * 2.6f + Mathf.Sin(Time.time * 8f) * 0.04f;
                 _exhaust.localScale = new Vector3(0.6f, 0.6f, len);
                 _exhaust.localPosition = new Vector3(0f, 0f, -2.0f - len * 0.5f);
+
+                // Exhaust particle stream: small fading bits shoot backwards, rate scales with throttle.
+                if (_phase == Phase.Cruise && throttle > 0.1f)
+                {
+                    _exhaustSpawnTimer -= Time.deltaTime;
+                    if (_exhaustSpawnTimer <= 0f)
+                    {
+                        _exhaustSpawnTimer = Mathf.Lerp(0.12f, 0.035f, throttle);
+                        SpawnExhaustBit(throttle);
+                    }
+                }
+            }
+        }
+
+        private float _exhaustSpawnTimer;
+        private Material _exhaustBitMat;
+
+        /// <summary>One exhaust bit: spawned at the flame tip, flying backwards with jitter, fading fast.</summary>
+        private void SpawnExhaustBit(float throttle)
+        {
+            if (_exhaust == null)
+            {
+                return;
+            }
+
+            _exhaustBitMat ??= Unlit(new Color(0.65f, 0.88f, 1f));
+            var back = _exhaust.parent != null ? -_exhaust.parent.forward : -_exhaust.forward;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            StripCollider(go);
+            go.transform.position = _exhaust.position + back * (_exhaust.localScale.z * 0.5f);
+            go.transform.localScale = Vector3.one * 0.18f;
+            go.GetComponent<Renderer>().sharedMaterial = _exhaustBitMat;
+            var bit = go.AddComponent<ExhaustBit>();
+            bit.Vel = back * (14f + throttle * 10f) + Random.insideUnitSphere * 1.6f;
+        }
+
+        /// <summary>A short-lived exhaust cube: flies backwards, shrinks, self-destroys.</summary>
+        private sealed class ExhaustBit : MonoBehaviour
+        {
+            public Vector3 Vel;
+
+            private const float Life = 0.35f;
+            private float _t;
+
+            private void Update()
+            {
+                _t += Time.deltaTime;
+                transform.position += Vel * Time.deltaTime;
+                transform.localScale = Vector3.one * 0.18f * Mathf.Max(0f, 1f - _t / Life);
+                if (_t >= Life)
+                {
+                    Destroy(gameObject);
+                }
             }
         }
 

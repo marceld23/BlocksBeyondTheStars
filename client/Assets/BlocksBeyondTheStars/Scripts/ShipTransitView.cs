@@ -24,6 +24,7 @@ namespace BlocksBeyondTheStars.Client
             public float T;
             public bool Landing;
             public float GroundY;
+            public bool Dusted; // pad dust fired (touchdown / lift-off moment)
         }
 
         private readonly List<Transit> _active = new();
@@ -65,6 +66,63 @@ namespace BlocksBeyondTheStars.Client
                 if (tr.Engine != null)
                 {
                     tr.Engine.intensity = 2.5f * near;
+                }
+
+                // Pad dust: a ground burst right at touchdown (landing) / at lift-off (launch start).
+                bool dustMoment = tr.Landing ? tr.T >= 0.93f : tr.T <= 0.05f;
+                if (!tr.Dusted && dustMoment)
+                {
+                    tr.Dusted = true;
+                    DustBurst(new Vector3(tr.Root.position.x, tr.GroundY + 0.6f, tr.Root.position.z));
+                }
+            }
+        }
+
+        private static Material _dustMat;
+
+        /// <summary>A radial pad-dust burst kicked up by the thrusters (8 expanding, fading puffs).</summary>
+        private static void DustBurst(Vector3 pos)
+        {
+            _dustMat ??= new Material(Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"))
+            {
+                color = ShaderColor.Srgb(new Color(0.55f, 0.50f, 0.42f)),
+            };
+
+            for (int i = 0; i < 8; i++)
+            {
+                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                var col = p.GetComponent<Collider>();
+                if (col != null)
+                {
+                    Destroy(col);
+                }
+
+                p.transform.position = pos;
+                p.transform.localScale = Vector3.one * 0.35f;
+                p.GetComponent<Renderer>().sharedMaterial = _dustMat;
+                float a = i / 8f * Mathf.PI * 2f;
+                p.AddComponent<DustBit>().Vel = new Vector3(Mathf.Cos(a) * 5f, 1.6f, Mathf.Sin(a) * 5f);
+            }
+        }
+
+        /// <summary>A dust puff: drifts outward, expands while fading down, self-destroys.</summary>
+        private sealed class DustBit : MonoBehaviour
+        {
+            public Vector3 Vel;
+
+            private const float Life = 0.8f;
+            private float _t;
+
+            private void Update()
+            {
+                _t += Time.deltaTime;
+                Vel += Vector3.down * 4f * Time.deltaTime;
+                transform.position += Vel * Time.deltaTime;
+                float k = _t / Life;
+                transform.localScale = Vector3.one * (0.35f * (1f + k * 1.2f) * Mathf.Max(0f, 1f - k));
+                if (_t >= Life)
+                {
+                    Destroy(gameObject);
                 }
             }
         }
