@@ -43,6 +43,10 @@ public sealed class WorldGenerator
     /// <summary>Marks the active world as cratered regardless of its planet type (used for airless moons).</summary>
     public void SetCratered(bool cratered) => _crateredWorld = cratered;
 
+    /// <summary>The current cratered-world flag (so a caller can save/restore it around a transient query
+    /// for a different body, e.g. computing another body's landing pads).</summary>
+    public bool Cratered => _crateredWorld;
+
     // The active world's planned landing pads. Pad terrain is FLATTENED at generation time (the landed
     // ship is a placed structure object, not stamped blocks — it needs level, clear ground). Set beside
     // SetCircumference whenever the active world changes; empty = no flattening (void worlds, tests).

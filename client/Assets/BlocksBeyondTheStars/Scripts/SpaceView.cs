@@ -804,7 +804,9 @@ namespace BlocksBeyondTheStars.Client
             foreach (var p in pads)
             {
                 // True position on the strip: u = longitude / circumference, v = latitude in the band
-                // (north up). Pads ring the equator, so they line up mid-map at their real spots.
+                // (north up). Pads are scattered across BOTH longitude and latitude, so they spread over the
+                // map at their real spots (the server sends each pad's true X/Z; this is the same data the
+                // ship actually lands on).
                 float u = Mathf.Repeat(p.X / (float)circ, 1f);
                 float vNorm = Mathf.Clamp01(0.5f + p.Z / (float)latP);
                 float mx = pad + u * mapW - marker * 0.5f;

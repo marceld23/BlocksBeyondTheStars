@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -8,8 +9,9 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// Fixed, pre-planned landing pads (item 38). Each body has a deterministic set of landing pads — a
-/// seeded-random count within its size-class range (asteroids fewest, moons more, planets most) at stable
-/// longitudes nudged onto dry land. Pads are <b>communal</b>: occupancy is <b>live</b> — a pad counts as taken
+/// seeded-random count within its size-class range (asteroids fewest, moons more, planets most) scattered
+/// across BOTH longitude and latitude, nudged onto dry land. Pads are <b>communal</b>: occupancy is
+/// <b>live</b> — a pad counts as taken
 /// only while a player is standing on the body (not flown off to space), so it frees the moment they leave.
 /// Landing lets the player pick a free pad; a body whose pads are all occupied is <b>full</b> and refuses
 /// landing. No one may build on a pad (the pad is reserved); the ship is PLACED on the player's pad as a
@@ -62,9 +64,9 @@ public sealed partial class GameServer
         return baseCount * 2; // double the landing spots per world (kept consistent across both consumers)
     }
 
-    /// <summary>(Re)builds the active world's deterministic pad set: a seeded-random count spread around the
-    /// equator at stable longitudes, each nudged onto dry, settlement-clear ground. Idempotent — called on
-    /// every world load (the pads aren't persisted; they're recomputed from the body seed).</summary>
+    /// <summary>(Re)builds the active world's deterministic pad set and hands it to worldgen for terrain
+    /// levelling. Idempotent — called on every world load (the pads aren't persisted; they're recomputed from
+    /// the body seed).</summary>
     private void BuildLandingPads()
     {
         var pads = _landingPads;
@@ -72,22 +74,11 @@ public sealed partial class GameServer
 
         var body = _galaxy?.FindBody(_world.LocationId);
         var kind = body?.Kind ?? CelestialKind.Planet;
-        int count = PadCountFor(_world.LocationId, _world.PlanetKey, kind);
-        int circ = _world.Circumference;
-
-        for (int i = 0; i < count; i++)
-        {
-            // Pad 0 sits on the prime meridian (the home touchdown); the rest spread evenly round the body. Each
-            // longitude is marched to the nearest dry AND reasonably flat column, so the ship neither lands in
-            // water (B36) nor perches on a terrain spike high over the surroundings (dramatic-terrain worlds).
-            int baseX = WorldConstants.WrapX((int)(((double)i / count) * circ), circ);
-            int cx = NudgePadToDryAndFlat(baseX);
-            pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = 0, CenterY = PadGroundY(cx, 0) });
-        }
+        pads.AddRange(ComputeLandingPads(_world.Planet, kind, _world.LocationId, _world.Circumference));
 
         // Hand the planned pads to worldgen so their terrain is levelled at generation time (ship-as-object:
         // the landed ship is a placed structure that needs flat, clear ground). Must run before any pad-area
-        // chunk generates — BuildLandingPads only needs noise queries, so it is safe this early.
+        // chunk generates — ComputeLandingPads only needs noise queries, so it is safe this early.
         var flats = _world.LandingPadFlats;
         flats.Clear();
         foreach (var pad in pads)
@@ -96,32 +87,97 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The pad/ship ground height: the MEDIAN surface height over the landing footprint (centre +
-    /// four corners), not the centre column alone — one rocky spike at the centre no longer hoists the whole
-    /// ship metres above the surrounding ground. Deterministic, used by every pad-height consumer.</summary>
-    private int PadGroundY(int cx, int cz)
+    /// <summary>The single source of truth for a body's landing pads — usable for ANY body, loaded or not, so
+    /// the in-world placement and the pre-landing pad-chooser map agree exactly. Pads are spread across BOTH
+    /// longitude (X) and latitude (Z) — pad 0 is the prime-meridian/equator home touchdown, the rest are
+    /// scattered with a golden-ratio latitude sequence + an even longitude spread — each nudged onto dry,
+    /// reasonably flat ground. Deterministic from the body seed. Configures the shared generator for the target
+    /// body (circumference + airless-moon cratering) and restores it afterwards.</summary>
+    private List<LandingPad> ComputeLandingPads(PlanetType planet, CelestialKind kind, string locationId, int circ)
+    {
+        int savedCirc = _generator.Circumference;
+        bool savedCratered = _generator.Cratered;
+        _generator.SetCircumference(circ);
+        bool airlessMoon = kind == CelestialKind.Moon
+            && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        _generator.SetCratered(airlessMoon);
+
+        try
+        {
+            int count = PadCountFor(locationId, planet.Key, kind);
+            int latP = WorldConstants.LatitudePeriodFor(circ);
+            // Keep pads inside a navigable mid-latitude band (so they spread well on the map without touching
+            // the latitude wrap), and ensure the footprint fits.
+            int latBand = System.Math.Min((int)(latP * 0.38), latP / 2 - LandingPadRadius - 8);
+            if (latBand < 0)
+            {
+                latBand = 0;
+            }
+
+            // A stable per-body latitude offset so different bodies don't share the same scatter pattern.
+            double latOffset = (WorldGenerator.StableHash("padlat:" + locationId) & 0x3FF) / 1024.0;
+
+            var pads = new List<LandingPad>(count);
+            for (int i = 0; i < count; i++)
+            {
+                int baseX, baseZ;
+                if (i == 0)
+                {
+                    baseX = 0;
+                    baseZ = 0; // home touchdown: prime meridian, equator
+                }
+                else
+                {
+                    baseX = WorldConstants.WrapX((int)((i / (double)count) * circ), circ);
+                    double gz = (i * 0.61803398875 + latOffset) % 1.0; // golden-ratio stratified latitude
+                    baseZ = (int)System.Math.Round((gz - 0.5) * 2.0 * latBand);
+                }
+
+                // March the longitude (at this pad's latitude) to the nearest dry + reasonably flat column, so
+                // a ship never lands in water (B36) or perches on a terrain spike (dramatic-terrain worlds).
+                int cx = NudgePadToDryAndFlat(planet, baseX, baseZ);
+                pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = baseZ, CenterY = PadGroundY(planet, cx, baseZ) });
+            }
+
+            return pads;
+        }
+        finally
+        {
+            _generator.SetCircumference(savedCirc);
+            _generator.SetCratered(savedCratered);
+        }
+    }
+
+    /// <summary>The pad/ship ground height on the ACTIVE world: the MEDIAN surface height over the landing
+    /// footprint (centre + four corners), not the centre column alone — one rocky spike no longer hoists the
+    /// whole ship. Used by every ship-placement consumer.</summary>
+    private int PadGroundY(int cx, int cz) => PadGroundY(_world.Planet, cx, cz);
+
+    /// <summary>As <see cref="PadGroundY(int,int)"/> but for an explicit planet (the generator must already be
+    /// configured for that body's circumference) — so pads can be computed for any body, loaded or not.</summary>
+    private int PadGroundY(PlanetType planet, int cx, int cz)
     {
         const int r = 4;
         var h = new[]
         {
-            _generator.SurfaceHeight(_world.Planet, cx, cz),
-            _generator.SurfaceHeight(_world.Planet, cx - r, cz - r),
-            _generator.SurfaceHeight(_world.Planet, cx + r, cz - r),
-            _generator.SurfaceHeight(_world.Planet, cx - r, cz + r),
-            _generator.SurfaceHeight(_world.Planet, cx + r, cz + r),
+            _generator.SurfaceHeight(planet, cx, cz),
+            _generator.SurfaceHeight(planet, cx - r, cz - r),
+            _generator.SurfaceHeight(planet, cx + r, cz - r),
+            _generator.SurfaceHeight(planet, cx - r, cz + r),
+            _generator.SurfaceHeight(planet, cx + r, cz + r),
         };
         System.Array.Sort(h);
         return h[2];
     }
 
     /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
-    private int PadFootprintSpread(int cx, int cz)
+    private int PadFootprintSpread(PlanetType planet, int cx, int cz)
     {
         const int r = 4;
         int min = int.MaxValue, max = int.MinValue;
         foreach (var (dx, dz) in new[] { (0, 0), (-r, -r), (r, -r), (-r, r), (r, r), (-r, 0), (r, 0), (0, -r), (0, r) })
         {
-            int y = _generator.SurfaceHeight(_world.Planet, cx + dx, cz + dz);
+            int y = _generator.SurfaceHeight(planet, cx + dx, cz + dz);
             min = System.Math.Min(min, y);
             max = System.Math.Max(max, y);
         }
@@ -129,12 +185,14 @@ public sealed partial class GameServer
         return max - min;
     }
 
-    /// <summary>Marches a pad longitude to the nearest column that is both DRY and reasonably FLAT
-    /// (footprint spread ≤ 5). Falls back to the flattest dry candidate seen, then to the dry nudge.</summary>
-    private int NudgePadToDryAndFlat(int baseX)
+    /// <summary>Marches a pad longitude (at a fixed latitude) to the nearest column that is both DRY and
+    /// reasonably FLAT (footprint spread ≤ 5). Falls back to the flattest dry candidate seen, then to the dry
+    /// nudge. Uses the generator's currently-configured circumference for the wrap.</summary>
+    private int NudgePadToDryAndFlat(PlanetType planet, int baseX, int baseZ)
     {
-        int bestX = NudgePadToDry(baseX);
-        int bestSpread = LandingFootprintWet(bestX, 0) ? int.MaxValue : PadFootprintSpread(bestX, 0);
+        int circ = _generator.Circumference;
+        int bestX = NudgePadToDry(planet, baseX, baseZ);
+        int bestSpread = LandingFootprintWet(planet, bestX, baseZ) ? int.MaxValue : PadFootprintSpread(planet, bestX, baseZ);
         if (bestSpread <= 5)
         {
             return bestX;
@@ -142,14 +200,14 @@ public sealed partial class GameServer
 
         for (int step = 1; step <= 40; step++)
         {
-            foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3, _world.Circumference), WorldConstants.WrapX(baseX - step * 3, _world.Circumference) })
+            foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3, circ), WorldConstants.WrapX(baseX - step * 3, circ) })
             {
-                if (LandingFootprintWet(x, 0))
+                if (LandingFootprintWet(planet, x, baseZ))
                 {
                     continue;
                 }
 
-                int spread = PadFootprintSpread(x, 0);
+                int spread = PadFootprintSpread(planet, x, baseZ);
                 if (spread <= 5)
                 {
                     return x; // flat + dry — done
@@ -166,34 +224,38 @@ public sealed partial class GameServer
         return bestX; // the flattest dry spot found (worst case: the old dry nudge)
     }
 
-    /// <summary>Nudges a pad longitude to the nearest dry column (deterministic out-stepping), so the ship never
-    /// lands in a sea or upland pond (B36). Returns the original X on an all-ocean world (seabed pad fallback —
-    /// Task 1 gives the cabin a dry, watertight interior).</summary>
-    private int NudgePadToDry(int baseX)
+    /// <summary>Nudges a pad longitude (at a fixed latitude) to the nearest dry column (deterministic
+    /// out-stepping), so the ship never lands in a sea or upland pond (B36). Returns the original X on an
+    /// all-ocean band (seabed pad fallback — the cabin floor is a dry platform anyway).</summary>
+    private int NudgePadToDry(PlanetType planet, int baseX, int baseZ)
     {
-        if (!LandingFootprintWet(baseX, 0))
+        int circ = _generator.Circumference;
+        if (!LandingFootprintWet(planet, baseX, baseZ))
         {
             return baseX;
         }
 
         for (int step = 1; step <= 40; step++)
         {
-            int xp = WorldConstants.WrapX(baseX + step * 3, _world.Circumference);
-            if (!LandingFootprintWet(xp, 0)) { return xp; }
-            int xm = WorldConstants.WrapX(baseX - step * 3, _world.Circumference);
-            if (!LandingFootprintWet(xm, 0)) { return xm; }
+            int xp = WorldConstants.WrapX(baseX + step * 3, circ);
+            if (!LandingFootprintWet(planet, xp, baseZ)) { return xp; }
+            int xm = WorldConstants.WrapX(baseX - step * 3, circ);
+            if (!LandingFootprintWet(planet, xm, baseZ)) { return xm; }
         }
 
         return baseX;
     }
 
-    /// <summary>True if the pad (its centre or any radius edge) sits over surface water — a sea or an upland
-    /// pond — so a lake covering part of the pad still counts as wet (B36).</summary>
-    private bool LandingFootprintWet(int cx, int cz)
+    /// <summary>True if the pad (its centre or any radius edge) sits over surface water/lava on the ACTIVE
+    /// world.</summary>
+    private bool LandingFootprintWet(int cx, int cz) => LandingFootprintWet(_world.Planet, cx, cz);
+
+    /// <summary>As above but for an explicit planet (the generator must already be configured for that body's
+    /// circumference) — so a ship never touches down in a sea or pond, on any body (B36/B54).</summary>
+    private bool LandingFootprintWet(PlanetType planet, int cx, int cz)
     {
         int r = LandingPadRadius;
-        // Avoid BOTH a water sea/pond and a lava sea — a ship should never touch down in either (B36/B54).
-        bool Wet(int x, int z) => _generator.IsSurfaceWater(_world.Planet, x, z) || _generator.IsSurfaceLava(_world.Planet, x, z);
+        bool Wet(int x, int z) => _generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z);
         return Wet(cx, cz) || Wet(cx - r, cz) || Wet(cx + r, cz) || Wet(cx, cz - r) || Wet(cx, cz + r);
     }
 
@@ -448,17 +510,33 @@ public sealed partial class GameServer
             return;
         }
 
-        int total = PadCountFor(body.Id, body.PlanetType ?? string.Empty, body.Kind);
-        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty));
-        var pads = new NetLandingPad[total];
-        for (int i = 0; i < total; i++)
+        // Compute the body's REAL pads (same source of truth as the in-world placement), so the chooser map
+        // shows each pad exactly where the ship will touch down — including its true latitude (Z), not a line.
+        var computed = ComputeLandingPadsForBody(body);
+        var pads = new NetLandingPad[computed.Count];
+        for (int i = 0; i < computed.Count; i++)
         {
-            int x = WorldConstants.WrapX((int)(((i + 0.5) / total) * circ), circ);
-            string occ = PadOccupantName(body.Id, i) ?? string.Empty;
-            pads[i] = new NetLandingPad { Index = i, X = x, Z = 0, Occupied = occ.Length > 0, Occupant = occ };
+            var p = computed[i];
+            string occ = PadOccupantName(body.Id, p.Index) ?? string.Empty;
+            pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
         }
 
         Send(session, new LandingPadList { BodyId = body.Id, Pads = pads });
+    }
+
+    /// <summary>The real pad set for a body (the chooser path). Resolves the body's planet type + circumference,
+    /// then delegates to the shared <see cref="ComputeLandingPads"/>. Empty for a body with no surface (a
+    /// station/wreck you dock with rather than land on).</summary>
+    private List<LandingPad> ComputeLandingPadsForBody(CelestialBody body)
+    {
+        var planet = _content.GetPlanet(body.PlanetType ?? string.Empty);
+        if (planet is null)
+        {
+            return new List<LandingPad>();
+        }
+
+        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty));
+        return ComputeLandingPads(planet, body.Kind, body.Id, circ);
     }
 
     // --- test hooks ---
@@ -466,16 +544,22 @@ public sealed partial class GameServer
     /// <summary>Number of pads on the active world.</summary>
     public int LandingPadCount => _landingPads.Count;
 
-    /// <summary>Test hook: the number of pads the approach landing map / pad chooser would advertise for the
-    /// active body — i.e. the count <see cref="HandleRequestLandingPads"/> derives. It must equal
-    /// <see cref="LandingPadCount"/>: the map shows exactly the spots that exist in the world.</summary>
-    public int ApproachMapPadCountForTest()
+    /// <summary>Test hook: the pad centres (index, x, z) the approach landing map / pad chooser would advertise
+    /// for the active body — i.e. what <see cref="HandleRequestLandingPads"/> derives. It MUST equal
+    /// <see cref="LandingPadCenters"/>: the chooser map shows each pad exactly where the ship lands.</summary>
+    public IReadOnlyList<(int Index, int X, int Z)> ApproachMapPadsForTest()
     {
         var body = _galaxy?.FindBody(_world.LocationId);
-        var kind = body?.Kind ?? CelestialKind.Planet;
-        string planetKey = body?.PlanetType ?? _world.PlanetKey;
-        return PadCountFor(body?.Id ?? _world.LocationId, planetKey, kind);
+        if (body is null)
+        {
+            return System.Array.Empty<(int, int, int)>();
+        }
+
+        return ComputeLandingPadsForBody(body).ConvertAll(p => (p.Index, p.CenterX, p.CenterZ));
     }
+
+    /// <summary>Test hook: the number of pads the approach landing map advertises for the active body.</summary>
+    public int ApproachMapPadCountForTest() => ApproachMapPadsForTest().Count;
 
     /// <summary>Pad centres (index, x, z) on the active world, for tests/inspection.</summary>
     public IReadOnlyList<(int Index, int X, int Z)> LandingPadCenters

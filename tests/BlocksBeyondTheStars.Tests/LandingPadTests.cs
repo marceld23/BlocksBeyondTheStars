@@ -57,7 +57,11 @@ public sealed class LandingPadTests : IDisposable
         // Counts are DOUBLED (×2): a body always has at least two pads and never more than the largest class
         // allows (planet: up to 8 base → 16 doubled).
         Assert.InRange(server.LandingPadCount, 2, 16);
-        Assert.All(server.LandingPadCenters, p => Assert.Equal(0, p.Z)); // pads sit on the equator band
+
+        // Pads spread across BOTH longitude and latitude — they no longer all sit on one equator line.
+        var centers = server.LandingPadCenters;
+        Assert.True(centers.Select(p => p.Z).Distinct().Count() >= 2, "pads spread across latitudes, not a single horizontal line");
+        Assert.True(centers.Select(p => p.X).Distinct().Count() >= 2, "pads spread across longitudes");
     }
 
     [Fact]
@@ -73,9 +77,11 @@ public sealed class LandingPadTests : IDisposable
         Assert.True(worldPads % 2 == 0, "a doubled pad count is always even");
 
         // Consistency: the approach landing map / pad chooser advertises EXACTLY the pads that exist in the
-        // world — both derive from the same PadCountFor source of truth.
+        // world — same count AND same positions (both derive from the same ComputeLandingPads source of truth),
+        // so a pad on the chooser map is exactly where the ship touches down.
         Assert.Equal(worldPads, server.ApproachMapPadCountForTest());
         Assert.Equal(worldPads, server.LandingPadCenters.Count);
+        Assert.Equal(server.LandingPadCenters, server.ApproachMapPadsForTest());
     }
 
     [Fact]

@@ -39,20 +39,21 @@ namespace BlocksBeyondTheStars.Client
             _cam.fieldOfView = 30f;
             _cam.nearClipPlane = 0.1f;
             _cam.farClipPlane = 20f;
-            // Frame a HEAD-AND-SHOULDERS PORTRAIT (slight 3/4 angle) so the face reads clearly — the old
-            // whole-figure framing left the face tiny near the top edge and it read as blank. Viewed from the −Z
-            // side: the LitColor shader keys off a FIXED light from (0.4, 0.7, −0.55) — the −Z side — so we view
-            // (and turn the avatar to face) that side so the FACE catches the key light. Aim with LookAt to centre.
-            _cam.transform.position = Origin + new Vector3(-0.42f, 1.80f, -2.05f);
-            _cam.transform.LookAt(Origin + new Vector3(0f, 1.72f, 0f));
+            // Frame the WHOLE FIGURE (slight 3/4 angle) so all four part colours — skin, torso, arms, legs —
+            // are visible at once; this is a colour preview, so head-to-toe must fit (a head-and-shoulders
+            // portrait hid the legs). Viewed from the −Z side: the LitColor shader keys off a FIXED light from
+            // (0.4, 0.7, −0.55) — the −Z side — so we view (and turn the avatar to face) that side so the front
+            // catches the key light. Distance set so the ~1.85 m figure fits the portrait with margin.
+            _cam.transform.position = Origin + new Vector3(-0.85f, 1.05f, -3.95f);
+            _cam.transform.LookAt(Origin + new Vector3(0f, 0.95f, 0f));
 
             var lightGo = new GameObject("AvatarPreviewLight");
             lightGo.transform.SetParent(transform, false);
             var lamp = lightGo.AddComponent<Light>();
             lamp.type = LightType.Point;       // localized — won't light the rest of the scene
-            lamp.range = 14f;
+            lamp.range = 16f;
             lamp.intensity = 1.5f;
-            lamp.transform.position = Origin + new Vector3(-1.2f, 2.2f, 3f);
+            lamp.transform.position = Origin + new Vector3(-1.5f, 2.4f, -3.2f); // front-side fill (camera side)
 
             _model = new GameObject("AvatarPreviewModel").transform;
             _model.SetParent(transform, false);

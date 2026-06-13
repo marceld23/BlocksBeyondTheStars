@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
             _cam.backgroundColor = new Color(0.04f, 0.07f, 0.12f, 1f);
             _cam.fieldOfView = 30f;
             _cam.nearClipPlane = 0.1f;
-            _cam.farClipPlane = 60f;
+            _cam.farClipPlane = 200f; // big ships sit far back; don't clip them
 
             var lightGo = new GameObject("ShipPreviewLight");
             lightGo.transform.SetParent(transform, false);
@@ -68,12 +68,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 _voxelShip = voxel;
                 _voxelHull = hull;
-                // Frame any ship size: pull the camera back along a fixed 3/4 direction by the ship's extent.
-                float dist = extent * 1.5f + 2.2f;
+                // Frame any ship size: pull the camera back along a fixed 3/4 direction far enough that the
+                // whole hull fits the preview with margin. The old 1.5×extent was too close — big ships spilled
+                // out of the window; at FOV 30 a bounding sphere of ~0.7×extent needs ~2.6×extent of distance.
+                float dist = extent * 2.6f + 3.0f;
                 var dir = new Vector3(0.55f, 0.42f, 0.92f).normalized;
                 _cam.transform.position = Origin + dir * dist;
                 _cam.transform.LookAt(Origin);
-                lamp.transform.position = Origin + new Vector3(extent, extent * 0.9f, extent);
+                lamp.transform.position = Origin + new Vector3(extent + 2f, extent * 0.9f + 2f, extent + 2f);
             }
             else
             {
