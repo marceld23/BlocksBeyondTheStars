@@ -217,8 +217,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
                     var plantCol = new Color(matR, matG, 0.9f, emission);
+                    // Per-plant size variance (a grass field is tall + short tufts, not a uniform lawn): a
+                    // deterministic bell scale from the world cell, so all clients agree. Height varies more
+                    // than width; they're keyed off different salts so a plant can be tall + slender or low + bushy.
+                    float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f);
+                    float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint);
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantH, plantW);
                     continue;
                 }
 
@@ -322,23 +327,40 @@ namespace BlocksBeyondTheStars.Client
             return (mesh, collider);
         }
 
+        /// <summary>A deterministic per-cell "bell" size factor centred on 1.0 (average of two pseudo-randoms
+        /// → triangular, so most plants are about normal and extremes are rare). <paramref name="salt"/> picks
+        /// an independent axis (height vs width); pure function of the world cell, so all clients agree.</summary>
+        private static float CrossPlantScale(int wx, int wy, int wz, int salt, float amp)
+        {
+            int h = unchecked((wx * 73856093) ^ (wy * 19349663) ^ (wz * 83492791) ^ (salt * 26699));
+            uint u = (uint)h;
+            float a = (u & 0xFFFF) / 65535f;
+            float b = ((u >> 16) & 0xFFFF) / 65535f;
+            float t = (a + b) * 0.5f;
+            return 1f + (t - 0.5f) * 2f * amp;
+        }
+
         /// <summary>Adds a cross-billboard plant: two diagonal cutout quads through the cell, each emitted with
         /// BOTH windings (the atlas shaders cull back faces), slightly inset to avoid z-fighting. Render-only —
-        /// no collider triangles, so small plants are walk-through.</summary>
+        /// no collider triangles, so small plants are walk-through. <paramref name="heightScale"/> /
+        /// <paramref name="widthScale"/> give each plant its own size (so a field reads as tall + short tufts).</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint)
+            Color tint, float heightScale = 1f, float widthScale = 1f)
         {
-            // The two crossed planes' floor diagonals (inset 0.08 from the cell edges).
+            // The two crossed planes' floor diagonals, inset symmetrically from the cell centre (so the width
+            // scales about the middle), clamped inside the cell to avoid bleeding into neighbours.
+            float half = Mathf.Clamp(0.42f * widthScale, 0.18f, 0.49f);
+            float lo = 0.5f - half, hi = 0.5f + half;
             var diagonals = new[]
             {
-                (A: new Vector3(cell.x + 0.08f, cell.y, cell.z + 0.08f), B: new Vector3(cell.x + 0.92f, cell.y, cell.z + 0.92f)),
-                (A: new Vector3(cell.x + 0.92f, cell.y, cell.z + 0.08f), B: new Vector3(cell.x + 0.08f, cell.y, cell.z + 0.92f)),
+                (A: new Vector3(cell.x + lo, cell.y, cell.z + lo), B: new Vector3(cell.x + hi, cell.y, cell.z + hi)),
+                (A: new Vector3(cell.x + hi, cell.y, cell.z + lo), B: new Vector3(cell.x + lo, cell.y, cell.z + hi)),
             };
 
             foreach (var (a, b) in diagonals)
             {
-                var up = Vector3.up;
+                var up = Vector3.up * heightScale;
                 var tangent = (Vector4)((b - a).normalized);
                 tangent.w = -1f;
 

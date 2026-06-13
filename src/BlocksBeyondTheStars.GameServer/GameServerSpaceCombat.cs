@@ -44,6 +44,12 @@ public sealed class CombatEntity
 
     /// <summary>For asteroids: size tier (2 = large, 1 = medium, 0 = small). Large ones split when destroyed.</summary>
     public int AsteroidTier { get; set; }
+
+    /// <summary>Per-individual COSMETIC size multiplier (a fauna instance's own size within its species, so a
+    /// population reads as a mix of small + large animals). 1 = the species' normal size. Multiplied into the
+    /// rendered creature size on the wire; does NOT affect health/damage/loot.</summary>
+    public float SizeScale { get; set; } = 1f;
+
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public Vector3f Position { get; set; }

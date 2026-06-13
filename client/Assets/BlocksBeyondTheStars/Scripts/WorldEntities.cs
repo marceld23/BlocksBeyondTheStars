@@ -184,7 +184,11 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureMaterials();
             int h = Hash(id);
-            float size = 0.92f + (h % 23) / 23f * 0.28f;          // 0.92..1.2 — slight size variation
+            // Per-individual size (a "bell" ±30% from the id, matching the fauna variance) so a pack reads as
+            // a mix of runts and big ones, most near the normal size.
+            uint uh = (uint)h;
+            float sa = (uh & 0xFF) / 255f, sb = ((uh >> 8) & 0xFF) / 255f;
+            float size = 1f + ((sa + sb) * 0.5f - 0.5f) * 2f * 0.30f; // ~0.7..1.3, centred 1.0
             var en = new Entry
             {
                 Seed = (h & 0x3ff) * 0.137f,

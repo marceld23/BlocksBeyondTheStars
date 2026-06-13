@@ -307,9 +307,11 @@ public sealed partial class GameServer
 
     /// <summary>Adds a live creature of the species at the position.</summary>
     private void SpawnCreature(CreatureSpecies sp, Vector3f pos)
-        => _creatures.Add(new CombatEntity
+    {
+        string id = NextEntityId();
+        _creatures.Add(new CombatEntity
         {
-            Id = NextEntityId(),
+            Id = id,
             Kind = sp.Hostile ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
             SpeciesId = sp.Id,
             Hostile = sp.Hostile,
@@ -317,8 +319,28 @@ public sealed partial class GameServer
             HullMax = sp.MaxHealth,
             Position = pos,
             DamagePerSecond = sp.AttackDamage,
+            SizeScale = FaunaSizeScale(id), // this individual's own size within its species (cosmetic)
             Loot = { new ItemAmount(sp.DropItem, sp.DropCount) },
         });
+    }
+
+    /// <summary>A per-individual COSMETIC size factor (a "bell" centred on 1.0, ±30% — the average of two
+    /// pseudo-randoms is triangular, so most animals are about normal and runts/giants are rare). Derived
+    /// from the entity id so it stays stable for that individual. Does not change health/damage/loot.</summary>
+    private static float FaunaSizeScale(string id)
+    {
+        int h = 0;
+        foreach (char c in id)
+        {
+            h = unchecked(h * 31 + c);
+        }
+
+        uint u = (uint)h;
+        float a = (u & 0xFFFF) / 65535f;
+        float b = ((u >> 16) & 0xFFFF) / 65535f;
+        float t = (a + b) * 0.5f;
+        return 1f + (t - 0.5f) * 2f * 0.30f;
+    }
 
     /// <summary>
     /// Immediately seeds fauna around a spot so a world feels alive the moment a player enters or
@@ -598,7 +620,7 @@ public sealed partial class GameServer
             Habitat = (sp?.Habitat ?? CreatureHabitat.Land).ToString(),
             Activity = (sp?.Activity ?? CreatureActivity.Diurnal).ToString(),
             Temperament = (sp?.Temperament ?? CreatureTemperament.Passive).ToString(),
-            Size = sp?.Size ?? 1f,
+            Size = (sp?.Size ?? 1f) * e.SizeScale, // species size × this individual's own variance (cosmetic)
             Legs = sp?.Legs ?? 4,
             HasWings = sp?.HasWings ?? false,
             HasTail = sp?.HasTail ?? false,

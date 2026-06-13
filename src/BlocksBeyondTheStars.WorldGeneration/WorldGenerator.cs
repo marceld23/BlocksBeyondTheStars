@@ -999,7 +999,7 @@ public sealed class WorldGenerator
     {
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
-        const int capR = 3;          // cap radius (bottom layer)
+        const int maxCapR = 4;       // the widest a cap can grow — the chunk-edge scan margin must cover it
         const double density = 0.012; // per-column chance on mycelium ground
 
         void SetCell(int wx, int wy, int wz, BlockId block, bool overwrite)
@@ -1018,8 +1018,8 @@ public sealed class WorldGenerator
             chunk.Set(lx, ly, lz, block);
         }
 
-        for (int wx = origin.X - capR; wx < origin.X + cs + capR; wx++)
-        for (int wz = origin.Z - capR; wz < origin.Z + cs + capR; wz++)
+        for (int wx = origin.X - maxCapR; wx < origin.X + cs + maxCapR; wx++)
+        for (int wz = origin.Z - maxCapR; wz < origin.Z + cs + maxCapR; wz++)
         {
             if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, Wz(wz)) >= density)
             {
@@ -1038,15 +1038,22 @@ public sealed class WorldGenerator
                 continue; // not in water
             }
 
-            int height = 5 + (int)(Noise.Value01(seed + 0x5341, WorldConstants.WrapX(wx, _circumference), 19, Wz(wz)) * 4.99); // 5..9
+            // Per-mushroom size (loosely-coupled stem height + cap): a shared bell factor with independent
+            // jitter on each, so a fungal grove reads as a mix of small and towering capped fungi.
+            double sizeF = SizeFactor(seed + 0x53410, wx, wz, 0.30);  // overall size, ±30% (bell)
+            double hJit = SizeFactor(seed + 0x53411, wx, wz, 0.12);  // independent stem-height jitter
+            double cJit = SizeFactor(seed + 0x53412, wx, wz, 0.12);  // independent cap jitter
+            int height = System.Math.Clamp((int)System.Math.Round(7.0 * sizeF * hJit), 4, 12);   // ~5..9 before
+            int capR = System.Math.Clamp((int)System.Math.Round(3.0 * sizeF * cJit), 2, maxCapR); // 2..4
             int topY = sy + height;
             for (int ty = sy + 1; ty <= topY; ty++)
             {
                 SetCell(wx, ty, wz, stemId, overwrite: true);
             }
 
-            // A domed cap: shrinking discs stacked above the stem top.
-            for (int dy = 0; dy <= 2; dy++)
+            // A domed cap: shrinking discs stacked above the stem top (taller dome for bigger caps).
+            int capLayers = capR - 1;
+            for (int dy = 0; dy <= capLayers; dy++)
             {
                 int rr = capR - dy;
                 for (int dx = -rr; dx <= rr; dx++)
@@ -1061,15 +1068,28 @@ public sealed class WorldGenerator
         }
     }
 
-    /// <summary>Stamps multi-block trees (a wood trunk + a rounded leaf crown) on grass/earth columns. Scans a
-    /// margin around the chunk so a tree straddling a chunk edge generates the same from either chunk; the
-    /// per-column roll wraps in X so the longitude seam matches too. Deterministic from the seed.</summary>
+    /// <summary>A deterministic per-instance size factor centred on 1.0 (a "bell" — the average of two
+    /// uniform samples is triangular, so most individuals sit near the species size and extremes are rare).
+    /// <paramref name="amp"/> is the half-range (0.30 = ±30%). Pure function of the world column, so it is
+    /// identical on the server and every client (vegetation is meshed from the same blocks).</summary>
+    private double SizeFactor(long salt, int wx, int wz, double amp)
+    {
+        int cx = WorldConstants.WrapX(wx, _circumference);
+        double u = (Noise.Value01(salt, cx, 23, Wz(wz)) + Noise.Value01(salt ^ 0x9E3779B9, cx, 41, Wz(wz))) * 0.5;
+        return 1.0 + (u - 0.5) * 2.0 * amp;
+    }
+
+    /// <summary>Stamps multi-block trees (a wood trunk + a rounded leaf crown) on grass/earth columns. Each
+    /// tree gets a size of its own — trunk height and crown radius vary per instance (loosely coupled: a
+    /// bigger tree tends to have both, plus independent jitter), so a wood reads as a mix of saplings and
+    /// giants. Scans a margin (the MAX crown) around the chunk so a tree straddling an edge generates the
+    /// same from either chunk; the per-column roll wraps in X. Deterministic from the seed.</summary>
     private void StampTrees(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
         List<(BlockId Surface, BlockId Sub)> biomes, BlockId logId, BlockId leafId, double density, int fluidLevel)
     {
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
-        const int crown = 2;
+        const int maxCrown = 3; // the widest a crown can grow — the chunk-edge scan margin must cover it
         var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
         var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
@@ -1090,8 +1110,8 @@ public sealed class WorldGenerator
             chunk.Set(lx, ly, lz, block);
         }
 
-        for (int wx = origin.X - crown; wx < origin.X + cs + crown; wx++)
-        for (int wz = origin.Z - crown; wz < origin.Z + cs + crown; wz++)
+        for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
+        for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
         {
             // FORESTS: a low-frequency mask gathers trees into real groves/woods — the old uniform
             // sprinkle never read as a forest. Inside a forest patch the density is ~9x, on the
@@ -1120,7 +1140,13 @@ public sealed class WorldGenerator
                 continue; // B35: an upland pond/lake here — a tree would stand in the water
             }
 
-            int height = 4 + (int)(Noise.Value01(seed + 5151, WorldConstants.WrapX(wx, _circumference), 13, Wz(wz)) * 3.99); // 4..7
+            // Per-tree size (loosely-coupled height + crown): a shared bell factor sets the overall scale,
+            // with a smaller independent jitter on each so trunk height and crown width still vary apart.
+            double sizeF = SizeFactor(seed + 0x71EE5, wx, wz, 0.30);              // overall tree size, ±30% (bell)
+            double hJit = SizeFactor(seed + 0x71EE6, wx, wz, 0.12);              // independent height jitter
+            double cJit = SizeFactor(seed + 0x71EE7, wx, wz, 0.12);              // independent crown jitter
+            int height = System.Math.Clamp((int)System.Math.Round(5.5 * sizeF * hJit), 3, 10);   // ~4..7 before, now ~3..10
+            int crownR = System.Math.Clamp((int)System.Math.Round(2.0 * sizeF * cJit), 1, maxCrown); // 1..3
             int topY = sy + height;
 
             for (int ty = sy + 1; ty <= topY; ty++)
@@ -1128,13 +1154,14 @@ public sealed class WorldGenerator
                 SetCell(wx, ty, wz, logId, overwrite: true);
             }
 
-            for (int dy = -1; dy <= 2; dy++)
-            for (int dx = -crown; dx <= crown; dx++)
-            for (int dz = -crown; dz <= crown; dz++)
+            // A roughly spherical canopy whose radius (and height) scale with the crown size.
+            for (int dy = -1; dy <= crownR; dy++)
+            for (int dx = -crownR; dx <= crownR; dx++)
+            for (int dz = -crownR; dz <= crownR; dz++)
             {
-                if (dx * dx + dz * dz + dy * dy > crown * crown + 1)
+                if (dx * dx + dz * dz + dy * dy > crownR * crownR + 1)
                 {
-                    continue; // a roughly spherical canopy
+                    continue;
                 }
 
                 SetCell(wx + dx, topY + dy, wz + dz, leafId, overwrite: false);

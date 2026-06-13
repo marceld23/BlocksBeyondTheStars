@@ -228,6 +228,10 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
   Flora regrows when its host block survives.
+- **Individuals of a kind vary in size.** Within any one species/type, each plant, tree or animal gets its
+  own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
+  trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
+  size doesn't change its health, damage or loot).
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
