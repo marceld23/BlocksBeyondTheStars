@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **500 passing** (2026-06-13). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **506 passing** (2026-06-13). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,31 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Player alliances — shared station/base access, no friendly fire, alliance + Funk tab — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** two players form an alliance and gain access to each other's built space stations and planet bases, and
+cannot harm one another even with PVP enabled. A new in-game menu tab forms/ends alliances and hosts a radio (Funk)
+chat window (read recent messages + write). The player **ship is excluded** — only its owner may board it.
+Decisions: pairwise mutual (friend-style, not transitive) · allies = full co-owners (build/mine/use) + **new base
+build-protection** · reuse the existing global radio in the tab · **stations become private** (owner + allies board).
+**What was built:**
+- **Server:** `GameServerAlliances.cs` — symmetric alliance graph + `AreAllied` predicate; request/accept/dissolve
+  handshake (mirrors ship docking); server-wide persisted graph (`alliance` SQLite table) loaded at start; pending
+  requests cleared on disconnect; roster sent on join + tab open. Access guards: EVA station-structure edits allow
+  allied **stations** (never ships — `GameServerSpaceStructure`); player-built stations are now **private to board**
+  (`CanBoardStation`: owner + allies + admin; NPC/procedural stations stay open — `BoardStation` + `TravelToStation`);
+  **new planet-base protection zone** around `base_core` (`IsBaseProtected`, cube radius 8) wired into mine/place/
+  area-mine/blaster — owner + allies bypass, the core itself stays owner-only so an ally can't dissolve the base.
+  Non-aggression is a documented `AreAllied` hook at the (not-yet-implemented) player-damage points.
+- **Networking:** `Messages/AllianceMessages.cs` (request-list/request/response/dissolve intents + `AllianceList` +
+  `AllianceRequestNotice`); NetCodec tags 126–131. **Persistence:** `StoredAlliance` + `alliance` table (Save/List/Delete).
+- **Client:** `NetworkClient` events/sends; `GameBootstrap` roster state + a shared recent-Funk feed; a new
+  **Alliances** menu tab (`GameMenu.Tab`/`CraftingTechShipUI.Mode`) with three views — Allies (accept/decline/end),
+  Find players (propose to any online player), Radio/Funk (live scrollback reusing the global chat + transmit box).
+- **Data:** bilingual `ui.tab.alliances` / `ui.alliance.*` / `ui.funk.*` (de+en). **Tests:** `AllianceTests` (6).
+**Open/follow-ups:** alliances are pairwise only (no named groups/roles) · base zone is a fixed cube (radius 8), not
+the actual built footprint · friendly-fire enforcement is a forward hook (player-vs-player damage isn't implemented
+yet) · the "find players" picker lists currently-online players. Needs `sync-client-libs` + a Unity client build.
 
 ### ★ Dyeable materials + craftable coloured light blocks — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** recolour any building material (e.g. blue mud) via one always-available recipe that works for all
