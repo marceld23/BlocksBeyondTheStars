@@ -21,8 +21,9 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public GameMenu Menu;
 
-        // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen.
-        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Space = 7 }
+        // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
+        // space lives on the Map tab now — there is no separate Space tab.)
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6 }
 
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
@@ -45,6 +46,11 @@ namespace BlocksBeyondTheStars.Client
         private bool _craftableOnly;
         private int _lastDataHash = -1;
         private bool _built;
+        // The page (mode+category / selection) last rendered into each scroll view. A rebuild that changes
+        // the page scrolls back to the top; an in-place refresh (live data, volume/colour cycling) keeps the
+        // player's scroll position. Without this, switching from a scrolled-down page (e.g. Settings) to a
+        // short one (e.g. Space) leaves it scrolled past the top, hiding the first rows (the launch button).
+        private string _listPage, _detailPage;
         private AvatarPreviewRig _avatarPreview; // live faced-avatar preview for the colour menu (B25)
         private ShipPreviewRig _shipPreview; // live ship preview for the Ship paint tab (item 32)
 
@@ -78,6 +84,7 @@ namespace BlocksBeyondTheStars.Client
             _search = string.Empty;
             _craftableOnly = false;
             _lastDataHash = -1;
+            _listPage = _detailPage = null; // a fresh open / tab switch always scrolls both panes to the top
             _canvas.enabled = true;
             BuildHeader();
             RebuildSidebar();
@@ -370,7 +377,9 @@ namespace BlocksBeyondTheStars.Client
             ClearChildren(_header);
             var p = _header;
 
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.space" };
+            // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
+            // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
+            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings" };
             float x = 40f;
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -488,10 +497,6 @@ namespace BlocksBeyondTheStars.Client
                     list.Clear();
                     list.Add(("appearance", L("ui.settings.character"), "cat_suit"));
                     break;
-                case Mode.Space:
-                    list.Clear();
-                    list.Add(("space", L("ui.tab.space"), "cat_target"));
-                    break;
             }
 
             return list;
@@ -520,10 +525,16 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Map: y = BuildMapList(); break;
                 case Mode.Missions: y = BuildMissionsList(); break;
                 case Mode.Character: y = BuildCharacterList(); break;
-                case Mode.Space: y = BuildSpaceList(); break;
             }
 
             SetContentHeight(_listContent, y);
+            string listPage = _mode + "|" + _category;
+            if (listPage != _listPage)
+            {
+                _listPage = listPage;
+                ScrollToTop(_listContent); // a new page starts at the top, not wherever the last one was scrolled
+            }
+
             _footer.text = production ? L("ui.craft.source") + "   |   " + L("ui.craft.station_" + StationKey()) : string.Empty;
             if (_feedback != null)
             {
@@ -709,18 +720,21 @@ namespace BlocksBeyondTheStars.Client
 
         private float BuildMapList()
         {
+            // The flight context action lives at the top of the Map tab (the travel hub) — there is no
+            // separate Space tab. Shown first so it's always at the top + visible, whatever the map's load state.
+            float y = BuildFlightAction();
+
             var map = Game.StarMap;
             if (map == null || map.Systems.Length == 0)
             {
-                UiKit.AddText(_listContent, 8, 8, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
-                return 40f;
+                UiKit.AddText(_listContent, 8, y, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return y + 40f;
             }
 
             var sys = map.Systems.FirstOrDefault(s => "sys:" + s.Name == _category)
                       ?? map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId))
                       ?? map.Systems[0];
 
-            float y = 0f;
             foreach (var b in sys.Bodies)
             {
                 bool here = b.Id == map.ActiveLocationId;
@@ -1075,47 +1089,34 @@ namespace BlocksBeyondTheStars.Client
             s.Save();
         }
 
-        private float BuildSpaceList()
+        /// <summary>The flight context action at the top of the Map tab: launch into space from a surface,
+        /// take the helm again from inside the parked ship (switch back to the flight view with NO take-off,
+        /// since you never landed), or leave space to land on the body you're orbiting. Returns the y below it.</summary>
+        private float BuildFlightAction()
         {
-            float y = 0f;
-            var c = Game.ShipCombat;
-            if (c != null)
+            string label;
+            System.Action act;
+            if (Game.InSpace)
             {
-                UiKit.AddText(_listContent, 8, y, 760, 28, $"{L("ui.hud.hull")}: {Mathf.RoundToInt(c.Hull)}/{Mathf.RoundToInt(c.HullMax)}    {L("ui.hud.shield")}: {Mathf.RoundToInt(c.Shield)}/{Mathf.RoundToInt(c.ShieldMax)}", 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-                y += 36f;
+                label = L("ui.space.leave");
+                act = () => Game.Network?.SendLeaveSpace();
+            }
+            else if (Game.LoadingPlanetType == "ship_interior")
+            {
+                // Inside the ship while it floats in space: take the helm again — this just switches back to
+                // the flight view (no planet take-off — you never landed), so you simply fly on.
+                label = L("ui.station.helm");
+                act = () => Game.Network?.SendExitShip();
+            }
+            else
+            {
+                label = L("ui.space.enter");
+                act = () => Game.Network?.SendEnterSpace();
             }
 
-            if (!Game.InSpace)
-            {
-                // Inside the ship while it floats in space: this is the helm — take it to fly again, with NO
-                // planet take-off animation (you never landed). On a real surface it's the launch-into-space.
-                if (Game.LoadingPlanetType == "ship_interior")
-                {
-                    UiKit.AddButton(_listContent, 0, y, 280, 56, L("ui.station.helm"), () => Game.Network?.SendExitShip());
-                }
-                else
-                {
-                    UiKit.AddButton(_listContent, 0, y, 280, 56, L("ui.space.enter"), () => Game.Network?.SendEnterSpace());
-                }
-
-                return y + 70f;
-            }
-
-            UiKit.AddButton(_listContent, 0, y, 280, 56, L("ui.space.leave"), () => Game.Network?.SendLeaveSpace());
-            y += 70f;
-
-            var space = Game.Space;
-            if (space != null)
-            {
-                foreach (var e in space.Entities)
-                {
-                    AddCard(y, e.Kind, "cat_target", $"{Mathf.RoundToInt(e.Hull)}/{Mathf.RoundToInt(e.HullMax)}", new Color(1f, 0.6f, 0.5f),
-                        "ent:" + e.Id, () => { _selected = "ent:" + e.Id; RebuildDetail(); });
-                    y += 88f;
-                }
-            }
-
-            return y;
+            var btn = UiKit.AddButton(_listContent, 0, 0, 760, 60, label, act);
+            btn.GetComponent<Image>().color = new Color(0.13f, 0.34f, 0.52f); // space-blue accent = the primary action
+            return 76f;
         }
 
         private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null)
@@ -1159,6 +1160,15 @@ namespace BlocksBeyondTheStars.Client
 
             ClearChildren(_detail);
 
+            // A new detail page (different tab / category / selected entry) starts at the top — top-anchored
+            // content makes y=0 the top regardless of the size set further down, so it's safe to reset here.
+            string detailPage = _mode + "|" + _category + "|" + _selected;
+            if (detailPage != _detailPage)
+            {
+                _detailPage = detailPage;
+                ScrollToTop(_detail);
+            }
+
             // Exactly one preview rig may be live at a time, else each rig's camera also picks up the OTHER rig's
             // model and they bleed into each other (B53: the colour tab showed the ship, the paint tab showed both).
             bool showAvatar = _mode == Mode.Character;
@@ -1194,7 +1204,6 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Inventory: y = DetailInventory(); break;
                 case Mode.Map: y = DetailMap(); break;
                 case Mode.Missions: y = DetailMissions(); break;
-                case Mode.Space: y = DetailSpace(); break;
             }
 
             SetContentHeight(_detail, y + 20f);
@@ -1651,27 +1660,6 @@ namespace BlocksBeyondTheStars.Client
             return y + 70f;
         }
 
-        private float DetailSpace()
-        {
-            var e = Game.Space?.Entities.FirstOrDefault(x => x.Id == _selected.Substring(4));
-            if (e == null)
-            {
-                return 0f;
-            }
-
-            float y = 0f;
-            UiKit.AddText(_detail, 8, y, 620, 40, e.Kind, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
-            y += 48f;
-            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.hud.hull")}: {Mathf.RoundToInt(e.Hull)}/{Mathf.RoundToInt(e.HullMax)}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-            y += 40f;
-            string weapon = e.Kind == "Asteroid" ? "asteroid_breaker" : "ship_cannon_1";
-            UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.action.fire"), () =>
-            {
-                ClientAudio.Instance?.Cue("ship_weapon");
-                Game.Network?.SendFireWeapon(weapon, e.Id);
-            });
-            return y + 70f;
-        }
 
         private float ShipStats(ShipDefinition def, float y)
         {
@@ -1894,9 +1882,26 @@ namespace BlocksBeyondTheStars.Client
             return content;
         }
 
+        private const float ContentBottomPad = 28f; // breathing room so the last row clears the mask edge
+
         private static void SetContentHeight(RectTransform content, float h)
         {
-            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(h, content.GetComponent<RectTransform>().rect.height));
+            // Floor the content at the VIEWPORT height (so it fills the masked area) but let it SHRINK back
+            // for short pages — flooring at the content's own current height (the old code) never shrank, so
+            // a tall page left the scroll range stuck large. Add bottom padding so the last row isn't clipped.
+            float viewportH = content.parent is RectTransform vp ? vp.rect.height : 0f;
+            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(h + ContentBottomPad, viewportH));
+        }
+
+        /// <summary>Scrolls a list/detail view back to the top — called when its page changes so a position
+        /// carried over from a previous (taller) page can't hide the new page's first rows.</summary>
+        private static void ScrollToTop(RectTransform content)
+        {
+            content.anchoredPosition = new Vector2(content.anchoredPosition.x, 0f);
+            if (content.parent != null && content.parent.GetComponent<ScrollRect>() is { } sr)
+            {
+                sr.velocity = Vector2.zero; // kill any fling momentum so it stays at the top
+            }
         }
 
         private void AddSearchBox(Transform parent, float x, float y, float w, float h)

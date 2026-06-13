@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
         public ClientSettings Settings;   // for in-game character customization
         public PlayerAvatar Avatar;       // local avatar, recoloured live
 
-        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Space }
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character }
 
         private Tab _tab = Tab.Inventory;
         private bool _open;
