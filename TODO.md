@@ -17,6 +17,26 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ In-game Wiki (Codex) + data-cube Arcade minigames (embedded browser) — ✅ IMPLEMENTED (2026-06-13, browser pending manual UWB install)
+**Goal:** play small bundled HTML5/JS minigames in-game, and read an in-game wiki — both rendered by an
+embedded browser. Minigames are found as "data cubes" on planets (download → personal collection); the wiki
+shows general content always but gates Systems/Worlds to the player's discoveries. Highscores local-only,
+not user-moddable. Full design: [docs/MINIGAMES_AND_WIKI.md](docs/MINIGAMES_AND_WIKI.md).
+**What was built:**
+- **Server (verified, in the bundled server):** `PlayerState.UnlockedGames` (+ snapshot persistence, SP+MP);
+  `GameServerDataCubes.cs` scatters 0–N cubes per body (≈45% none) deterministically from the seed and
+  validates proximity on download; net messages `DataCubeList`/`UnlockGameIntent`/`GameUnlocks` (NetCodec
+  118–120); `ServerConfig.PlaceDataCubes`.
+- **Client:** `EmbeddedBrowser` (one shared UWB surface, behind the `BBS_UWB` define) + `LocalContentServer`
+  (loopback static server + dynamic `wiki/wiki-state.json`); `MinigameCatalog` (seed→game); `DataCubeView`
+  (glowing textured cube, light, hum + download SFX, E-label) + PlayerController E-interact; `WikiUI` +
+  `ArcadeUI` full-screen screens reached from **Codex**/**Arcade** buttons in the menu header; `GameBootstrap`
+  mirrors `UnlockedGames` + builds the discovered-systems/worlds JSON; local highscores in `ClientSettings`.
+- **Content:** 4 bundled games (Snake, 2048, Memory, Breakout) + a data-generated wiki SPA + authored guide
+  articles, all bilingual; assets `Resources/props/data_cube.png` + `Resources/audio/data_cube_{hum,download}.mp3`.
+- **Pending manual step:** install UnityWebBrowser + set the `BBS_UWB` define (see the doc). Until then the
+  browser shows a placeholder; everything else (cubes, downloads, collection, highscores) already works.
+
 ## ▶ Open backlog — priority order (updated 2026-06-07)
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →

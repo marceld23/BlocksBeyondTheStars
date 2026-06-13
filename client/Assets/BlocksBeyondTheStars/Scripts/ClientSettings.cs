@@ -1,9 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
 {
+    /// <summary>One minigame's local personal best, stored as a flat pair so Unity's JsonUtility can persist
+    /// it (it can't serialize a Dictionary). Highscores are LOCAL and per-player — there is no leaderboard.</summary>
+    [Serializable]
+    public sealed class MinigameScore
+    {
+        public string Key = "";
+        public int Best;
+    }
+
     /// <summary>Graphics quality presets, including a Potato/Pi profile for weak machines and Pi-hosted servers.</summary>
     public enum QualityPreset { Potato, Low, Medium, High }
 
@@ -89,6 +99,42 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Show the ship AI's (VEGA) advisor hints and story lines. The onboarding objective chip
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
+
+        /// <summary>Local personal-best scores for the bundled arcade minigames, keyed by game key. Local only —
+        /// no server leaderboard. Stored as a flat list so JsonUtility can persist it.</summary>
+        public List<MinigameScore> MinigameScores = new List<MinigameScore>();
+
+        /// <summary>The player's best recorded score for a minigame (0 if never played).</summary>
+        public int GetMinigameBest(string key)
+        {
+            if (string.IsNullOrEmpty(key) || MinigameScores == null) return 0;
+            for (int i = 0; i < MinigameScores.Count; i++)
+            {
+                if (MinigameScores[i].Key == key) return MinigameScores[i].Best;
+            }
+
+            return 0;
+        }
+
+        /// <summary>Records a minigame score, keeping only the personal best. Returns true if it was a new best
+        /// (so the caller can save + celebrate).</summary>
+        public bool RecordMinigameScore(string key, int score)
+        {
+            if (string.IsNullOrEmpty(key) || score <= 0) return false;
+            MinigameScores ??= new List<MinigameScore>();
+            for (int i = 0; i < MinigameScores.Count; i++)
+            {
+                if (MinigameScores[i].Key == key)
+                {
+                    if (score <= MinigameScores[i].Best) return false;
+                    MinigameScores[i].Best = score;
+                    return true;
+                }
+            }
+
+            MinigameScores.Add(new MinigameScore { Key = key, Best = score });
+            return true;
+        }
 
         private static string FilePath => Path.Combine(Application.persistentDataPath, "client_settings.json");
 

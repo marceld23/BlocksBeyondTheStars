@@ -1,0 +1,64 @@
+/* Shared sci-fi/holographic frame for bundled minigames — matches the in-game UI (dark space, cyan glow). */
+:root {
+  --bg: #050a14;
+  --panel: rgba(10, 20, 36, 0.92);
+  --cyan: #46d6ff;
+  --cyan-dim: #2a8bb0;
+  --ink: #cfe9f5;
+  --ok: #7CFFB0;
+  --warn: #ffc04d;
+  --grid: rgba(70, 214, 255, 0.12);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(70,214,255,0.10), transparent 60%),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+.wrap {
+  height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+}
+.hud {
+  display: flex; gap: 28px; align-items: baseline;
+  font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.hud b { color: var(--cyan); font-size: 26px; margin-left: 6px; }
+.title {
+  color: var(--cyan); font-size: 26px; letter-spacing: 0.14em; text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(70,214,255,0.45);
+}
+.stage {
+  position: relative;
+  border: 1px solid rgba(70,214,255,0.35);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(70,214,255,0.06);
+  padding: 10px;
+}
+canvas { display: block; image-rendering: pixelated; }
+.hint { font-size: 15px; color: var(--cyan-dim); letter-spacing: 0.05em; }
+.btn {
+  margin-top: 4px;
+  border: 1px solid var(--cyan); color: var(--cyan); background: transparent;
+  padding: 8px 22px; border-radius: 6px; font: inherit; font-size: 17px;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.btn:hover { background: var(--cyan); color: #04121c; }
+.overlay {
+  position: absolute; inset: 0; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(4, 10, 20, 0.82); border-radius: 10px;
+  text-align: center; padding: 20px;
+}
+.overlay.show { display: flex; }
+.overlay h2 { margin: 0; color: var(--cyan); font-size: 30px; letter-spacing: 0.1em; }
+.overlay p { margin: 0; color: var(--ink); font-size: 18px; }

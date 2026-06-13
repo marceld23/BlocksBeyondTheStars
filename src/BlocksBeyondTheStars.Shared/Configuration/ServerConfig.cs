@@ -93,6 +93,20 @@ public sealed class ServerConfig
     /// </summary>
     public bool PlaceVaults { get; set; } = true;
 
+    /// <summary>
+    /// Whether the server may scatter "data cubes" on a body's surface — 0–N per world (some bodies get
+    /// none): glowing download terminals that grant the player a small bundled minigame for their personal
+    /// arcade collection. Deterministic from the world seed; carry no gameplay effect.
+    /// </summary>
+    public bool PlaceDataCubes { get; set; } = true;
+
+    /// <summary>
+    /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
+    /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
+    /// left off on shared/dedicated servers (where the random scatter applies as normal).
+    /// </summary>
+    public bool GuaranteeStartDataCube { get; set; }
+
     // --- Singleplayer "Creative" world options (the player picks these at world creation). They are a
     // head-start sandbox: everything available + a starter set, while survival mechanics stay ON. Default
     // false = the normal "Explorer" experience. Persisted per world in WorldMetadata so they reapply on load. ---
@@ -228,6 +242,9 @@ public sealed class ServerConfig
                     break;
                 case "creative-kit":
                     if (bool.TryParse(value, out var ck)) { CreativeStarterKit = ck; applied.Add("creative-kit"); }
+                    break;
+                case "guarantee-start-cube":
+                    if (bool.TryParse(value, out var gsc)) { GuaranteeStartDataCube = gsc; applied.Add("guarantee-start-cube"); }
                     break;
 
                 // --- World options (creation-time; the server bakes them into the save's metadata) ---

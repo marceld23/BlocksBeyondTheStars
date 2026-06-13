@@ -17,7 +17,12 @@ namespace BlocksBeyondTheStars.Client
 
         private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character }
 
+        /// <summary>Which full-screen browser sub-screen (if any) replaces the tab view while the menu is open.
+        /// The Wiki ("Codex") and Arcade are reached from buttons in the menu header.</summary>
+        private enum BrowserScreen { None, Wiki, Arcade }
+
         private Tab _tab = Tab.Inventory;
+        private BrowserScreen _browser = BrowserScreen.None;
         private bool _open;
         private bool _wasInSpaceView;
         private bool _hyperjumpHooked;
@@ -48,13 +53,35 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Drive the uGUI screen (CraftingTechShipUI renders every tab).
+            // Drive the uGUI screen (CraftingTechShipUI renders every tab; Wiki/Arcade are separate screens).
             if (!_open || Game?.Localizer == null || Game.Content == null)
             {
                 _ui?.Hide();
+                _wikiUi?.Hide();
+                _arcadeUi?.Hide();
                 return;
             }
 
+            if (_browser == BrowserScreen.Wiki)
+            {
+                _ui?.Hide();
+                _arcadeUi?.Hide();
+                EnsureWikiUi();
+                _wikiUi.Show();
+                return;
+            }
+
+            if (_browser == BrowserScreen.Arcade)
+            {
+                _ui?.Hide();
+                _wikiUi?.Hide();
+                EnsureArcadeUi();
+                _arcadeUi.Show();
+                return;
+            }
+
+            _wikiUi?.Hide();
+            _arcadeUi?.Hide();
             EnsureUi();
             _ui.ShowMode((CraftingTechShipUI.Mode)_tab);
         }
@@ -64,6 +91,15 @@ namespace BlocksBeyondTheStars.Client
         public void OpenCrafting() => OpenAt(Tab.Crafting);
         public void OpenMap() => OpenAt(Tab.Map);
         public void OpenMissions() => OpenAt(Tab.Missions);
+
+        /// <summary>Opens the in-game Wiki ("Codex") browser screen — an always-available menu point.</summary>
+        public void OpenWiki() { EnsureBrowserHost(); _browser = BrowserScreen.Wiki; SetOpen(true); }
+
+        /// <summary>Opens the Arcade collection browser screen — an always-available menu point.</summary>
+        public void OpenArcade() { EnsureBrowserHost(); _browser = BrowserScreen.Arcade; SetOpen(true); }
+
+        /// <summary>Returns from a browser sub-screen (Wiki/Arcade) to the normal menu tabs.</summary>
+        public void CloseBrowser() => _browser = BrowserScreen.None;
 
         /// <summary>Opens the dedicated vendor trade (barter) screen — a focused "give X → get Y" view, not the
         /// full crafting menu (B22). The two are mutually exclusive (see <see cref="SetOpen"/>).</summary>
@@ -112,7 +148,10 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
+                _browser = BrowserScreen.None;
                 _ui?.Hide();
+                _wikiUi?.Hide();
+                _arcadeUi?.Hide();
             }
         }
 
@@ -131,6 +170,52 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private CraftingTechShipUI _ui;
+        private WikiUI _wikiUi;
+        private ArcadeUI _arcadeUi;
+        private EmbeddedBrowser _host;
+
+        /// <summary>Creates (once) the shared embedded-browser host that backs the Wiki + Arcade screens, wiring
+        /// its score handler (local highscores) and the wiki's live discovered-systems/worlds provider.</summary>
+        public EmbeddedBrowser EnsureBrowserHost()
+        {
+            if (_host == null)
+            {
+                var go = new GameObject("EmbeddedBrowser");
+                go.transform.SetParent(transform, false);
+                _host = go.AddComponent<EmbeddedBrowser>();
+                _host.SetScoreHandler((key, score) =>
+                {
+                    if (Settings != null && Settings.RecordMinigameScore(key, score)) Settings.Save();
+                });
+                if (_host.Content != null)
+                {
+                    _host.Content.WikiStateProvider = () => Game != null ? Game.WikiStateJson : "{}";
+                }
+            }
+
+            return _host;
+        }
+
+        private void EnsureWikiUi()
+        {
+            if (_wikiUi != null) return;
+            var go = new GameObject("WikiUI");
+            go.transform.SetParent(transform, false);
+            _wikiUi = go.AddComponent<WikiUI>();
+            _wikiUi.Game = Game;
+            _wikiUi.Menu = this;
+        }
+
+        private void EnsureArcadeUi()
+        {
+            if (_arcadeUi != null) return;
+            var go = new GameObject("ArcadeUI");
+            go.transform.SetParent(transform, false);
+            _arcadeUi = go.AddComponent<ArcadeUI>();
+            _arcadeUi.Game = Game;
+            _arcadeUi.Menu = this;
+            _arcadeUi.Settings = Settings;
+        }
 
         private void EnsureUi()
         {
@@ -146,8 +231,9 @@ namespace BlocksBeyondTheStars.Client
             _ui.Menu = this;
         }
 
-        /// <summary>Switches the active tab from the uGUI screen (Crafting/Tech/Ship bar).</summary>
-        public void SwitchFromUi(int tab) => SwitchTo((Tab)tab);
+        /// <summary>Switches the active tab from the uGUI screen (Crafting/Tech/Ship bar). Also leaves any open
+        /// browser sub-screen so a tab click always returns to the tab view.</summary>
+        public void SwitchFromUi(int tab) { _browser = BrowserScreen.None; SwitchTo((Tab)tab); }
 
         /// <summary>Closes the whole menu from the uGUI screen's X button.</summary>
         public void CloseFromUi() => SetOpen(false);

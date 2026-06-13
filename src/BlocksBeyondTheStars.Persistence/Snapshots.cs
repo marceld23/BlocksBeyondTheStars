@@ -45,6 +45,7 @@ public sealed class PlayerSnapshot
     public List<InventorySlotDto> Inventory { get; set; } = new();
     public List<MissionProgress> Missions { get; set; } = new();
     public List<string> Milestones { get; set; } = new();
+    public List<string> UnlockedGames { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -120,6 +121,7 @@ public static class StateMapper
         Inventory = DumpInventory(p.Inventory),
         Missions = p.Missions.Select(CloneProgress).ToList(),
         Milestones = p.Milestones.ToList(),
+        UnlockedGames = p.UnlockedGames.ToList(),
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()
@@ -178,6 +180,7 @@ public static class StateMapper
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),
+        UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

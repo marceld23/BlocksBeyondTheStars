@@ -67,6 +67,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<DoorList> DoorsReceived;
         public event Action<MiningProgress> MiningProgressReceived;
 
+        // Data-cube minigames: cubes to render on the current world + the player's downloaded-games collection.
+        public event Action<DataCubeList> DataCubesReceived;
+        public event Action<GameUnlocks> GameUnlocksReceived;
+
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult> ScanResultReceived;
         public event Action<WreckRepairStatus> WreckRepairStatusChanged;
@@ -252,6 +256,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
         public void SendDoorInteract(int doorId) => Send(new DoorInteractIntent { DoorId = doorId });
 
+        /// <summary>Downloads the data cube the player is standing at into their arcade collection. The client
+        /// resolves which game the cube holds (from its seed); the server validates proximity to the cube.</summary>
+        public void SendUnlockGame(int cubeId, string gameKey) => Send(new UnlockGameIntent { CubeId = cubeId, GameKey = gameKey ?? string.Empty });
+
         // --- Navigation & missions (M23) ---
         public void SendRequestStarMap() => Send(new RequestStarMap());
 
@@ -326,6 +334,8 @@ namespace BlocksBeyondTheStars.Client
                 case WorldReset m: WorldResetReceived?.Invoke(m); break;
                 case NpcList m: NpcsReceived?.Invoke(m); break;
                 case DoorList m: DoorsReceived?.Invoke(m); break;
+                case DataCubeList m: DataCubesReceived?.Invoke(m); break;
+                case GameUnlocks m: GameUnlocksReceived?.Invoke(m); break;
                 case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
                 case ScanResult m: ScanResultReceived?.Invoke(m); break;
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;

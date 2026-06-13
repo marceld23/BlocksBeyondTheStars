@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Cosmic Snake</title>
+<link rel="stylesheet" href="../_shared/arcade.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="title" id="title">Cosmic Snake</div>
+  <div class="hud">
+    <span id="lblScore">Score</span><b id="score">0</b>
+    <span id="lblBest">Best</span><b id="best">0</b>
+  </div>
+  <div class="stage">
+    <canvas id="c" width="528" height="528"></canvas>
+    <div class="overlay" id="over">
+      <h2 id="overTitle">Game Over</h2>
+      <p id="overScore"></p>
+      <button class="btn" id="again">Restart</button>
+    </div>
+  </div>
+  <div class="hint" id="hint">Arrow keys or WASD to steer</div>
+</div>
+<script src="../_shared/bridge.js"></script>
+<script>
+(function () {
+  var T = {
+    title: { en: "Cosmic Snake", de: "Kosmische Schlange" },
+    score: { en: "Score", de: "Punkte" },
+    best:  { en: "Best",  de: "Beste" },
+    over:  { en: "Game Over", de: "Verloren" },
+    again: { en: "Restart", de: "Neustart" },
+    hint:  { en: "Arrow keys or WASD to steer", de: "Pfeiltasten oder WASD zum Steuern" },
+    final: { en: "You scored ", de: "Du erreichtest " }
+  };
+  document.documentElement.lang = BBS.lang;
+  document.getElementById('title').textContent = BBS.t(T.title);
+  document.getElementById('lblScore').textContent = BBS.t(T.score);
+  document.getElementById('lblBest').textContent = BBS.t(T.best);
+  document.getElementById('hint').textContent = BBS.t(T.hint);
+  document.getElementById('again').textContent = BBS.t(T.again);
+  document.getElementById('overTitle').textContent = BBS.t(T.over);
+
+  var cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  var N = 24, CELL = cv.width / N;
+  var snake, dir, nextDir, food, score, best = BBS.best, alive, acc, step;
+  var bestEl = document.getElementById('best'), scoreEl = document.getElementById('score');
+  bestEl.textContent = best;
+
+  function reset() {
+    snake = [{ x: 12, y: 12 }, { x: 11, y: 12 }, { x: 10, y: 12 }];
+    dir = { x: 1, y: 0 }; nextDir = dir;
+    score = 0; alive = true; acc = 0; step = 0.11;
+    scoreEl.textContent = '0';
+    placeFood();
+    document.getElementById('over').classList.remove('show');
+  }
+  function placeFood() {
+    do { food = { x: (Math.random() * N) | 0, y: (Math.random() * N) | 0 }; }
+    while (snake.some(function (s) { return s.x === food.x && s.y === food.y; }));
+  }
+  function setDir(x, y) {
+    if (snake.length > 1 && x === -dir.x && y === -dir.y) return; // no instant reverse
+    nextDir = { x: x, y: y };
+  }
+  window.addEventListener('keydown', function (e) {
+    var k = e.key.toLowerCase();
+    if (k === 'arrowup' || k === 'w') setDir(0, -1);
+    else if (k === 'arrowdown' || k === 's') setDir(0, 1);
+    else if (k === 'arrowleft' || k === 'a') setDir(-1, 0);
+    else if (k === 'arrowright' || k === 'd') setDir(1, 0);
+    else if ((k === ' ' || k === 'enter') && !alive) reset();
+    else return;
+    e.preventDefault();
+  });
+  document.getElementById('again').addEventListener('click', reset);
+
+  function tick() {
+    dir = nextDir;
+    var head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.y < 0 || head.x >= N || head.y >= N ||
+        snake.some(function (s) { return s.x === head.x && s.y === head.y; })) {
+      die(); return;
+    }
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score += 10; scoreEl.textContent = score;
+      if (score > best) { best = score; bestEl.textContent = best; }
+      step = Math.max(0.05, step - 0.003); // speed up
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+  function die() {
+    alive = false;
+    BBS.reportScore(score);
+    document.getElementById('overScore').textContent = BBS.t(T.final) + score + '.';
+    document.getElementById('over').classList.add('show');
+  }
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = 'rgba(70,214,255,0.10)';
+    for (var i = 1; i < N; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, cv.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(cv.width, i * CELL); ctx.stroke();
+    }
+    ctx.fillStyle = '#7CFFB0';
+    ctx.shadowColor = '#7CFFB0'; ctx.shadowBlur = 12;
+    ctx.fillRect(food.x * CELL + 3, food.y * CELL + 3, CELL - 6, CELL - 6);
+    ctx.shadowBlur = 0;
+    for (var j = 0; j < snake.length; j++) {
+      ctx.fillStyle = j === 0 ? '#46d6ff' : 'rgba(70,214,255,' + (0.85 - j * 0.012) + ')';
+      ctx.fillRect(snake[j].x * CELL + 1, snake[j].y * CELL + 1, CELL - 2, CELL - 2);
+    }
+  }
+  var last = 0;
+  function loop(t) {
+    var dt = (t - last) / 1000; last = t;
+    if (alive) { acc += dt; while (acc >= step) { acc -= step; tick(); } }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  reset();
+  requestAnimationFrame(function (t) { last = t; loop(t); });
+})();
+</script>
+</body>
+</html>

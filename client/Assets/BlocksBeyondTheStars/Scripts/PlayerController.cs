@@ -771,6 +771,26 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A data cube within reach downloads its minigame into the Arcade collection (item: arcade).
+            if (DataCubeView.Instance != null)
+            {
+                int cube = DataCubeView.Instance.NearestDataCube(transform.position, 3.2f, out string gameKey, out bool owned);
+                if (cube != 0)
+                {
+                    if (owned)
+                    {
+                        Game.ShowMessage(Game.Localizer?.Get("ui.datacube.already") ?? "Already in your Arcade.");
+                    }
+                    else if (!string.IsNullOrEmpty(gameKey))
+                    {
+                        Game.Network?.SendUnlockGame(cube, gameKey);
+                        ClientAudio.Instance?.At("data_cube_download", transform.position, 1f, 1f);
+                    }
+
+                    return;
+                }
+            }
+
             if (string.IsNullOrEmpty(Game.NearbyStation))
             {
                 return;

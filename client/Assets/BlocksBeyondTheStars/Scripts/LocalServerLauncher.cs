@@ -123,6 +123,9 @@ namespace BlocksBeyondTheStars.Client
             string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
             // Singleplayer enables free space flight + PvE space combat so it's reachable solo.
             const string spaceArgs = " --free-flight true --space-combat PvE --space-npcs Normal";
+            // Solo/host convenience: guarantee a data cube next to the start landing pad (only this bundled
+            // launcher sets it; dedicated/shared servers use the normal random scatter).
+            const string startCubeArg = " --guarantee-start-cube true";
             // "Creative" world options (only set when the player picked them at creation; the server bakes them
             // into the save on first launch, so they persist regardless of later launches).
             string creativeArgs =
@@ -145,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + startCubeArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

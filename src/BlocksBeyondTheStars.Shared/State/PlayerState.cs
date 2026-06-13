@@ -123,4 +123,11 @@ public sealed class PlayerState
     /// A known system reveals its bodies + mini star map on the travel screen; an unknown one is a single
     /// "jump here" entry until visited. Server-authoritative, persisted. The current system always counts.</summary>
     public HashSet<string> KnownSystems { get; set; } = new();
+
+    /// <summary>Minigame keys the player has "downloaded" from data cubes found on planets — their personal
+    /// arcade collection, playable from the in-game menu. Server-authoritative, persisted; never removed once
+    /// set. The keys are opaque to the server (the client maps them to bundled HTML/JS games); they carry no
+    /// gameplay effect, so this is pure cosmetic progression like a collectible. Mirrors <see
+    /// cref="UnlockedBlueprints"/>.</summary>
+    public HashSet<string> UnlockedGames { get; set; } = new();
 }

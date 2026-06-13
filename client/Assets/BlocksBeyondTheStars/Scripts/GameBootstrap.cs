@@ -407,6 +407,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Blueprint keys the player has unlocked (synced from the server) — drives craftable/locked UI.</summary>
         public System.Collections.Generic.HashSet<string> UnlockedBlueprints { get; private set; } = new();
 
+        /// <summary>Minigame keys the player has downloaded from data cubes (synced from the server) — drives
+        /// the Arcade collection menu. Mirrors <see cref="UnlockedBlueprints"/>.</summary>
+        public System.Collections.Generic.HashSet<string> UnlockedGames { get; private set; } = new();
+
+        /// <summary>Data cubes on the current world (synced from the server) — rendered by <c>DataCubeView</c>.</summary>
+        public NetDataCube[] DataCubes { get; private set; } = System.Array.Empty<NetDataCube>();
+
+        /// <summary>Pre-built JSON of the player's discovered systems/worlds + language for the in-game wiki's
+        /// discovery-gated chapters. Built on the main thread (so the loopback content server can read this
+        /// immutable string race-free) whenever the star map, language or unlocks change.</summary>
+        public string WikiStateJson { get; private set; } = "{}";
+
         /// <summary>Current knowledge total, kept in sync via inventory updates (item 11 — shown in the trade UI).</summary>
         public int Knowledge { get; private set; }
 
@@ -431,6 +443,56 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
+
+        /// <summary>Rebuilds <see cref="WikiStateJson"/> from the current star map for the wiki's discovery-gated
+        /// Systems &amp; Worlds chapters: only systems the player has entered and bodies they have landed on are
+        /// included. Cheap; called on the main thread when the map/language/unlocks change.</summary>
+        private void RebuildWikiState()
+        {
+            var sb = new System.Text.StringBuilder(512);
+            sb.Append("{\"lang\":\"").Append(German ? "de" : "en").Append("\",\"systems\":[");
+            var systems = StarMap?.Systems ?? System.Array.Empty<NetStarSystem>();
+            var knownSys = new System.Collections.Generic.HashSet<string>(StarMap?.KnownSystemIds ?? System.Array.Empty<string>());
+            var landed = new System.Collections.Generic.HashSet<string>(StarMap?.LandedBodyIds ?? System.Array.Empty<string>());
+
+            bool firstSys = true;
+            var worlds = new System.Text.StringBuilder(512);
+            bool firstWorld = true;
+            foreach (var sys in systems)
+            {
+                if (sys == null || !knownSys.Contains(sys.Id)) continue;
+                if (!firstSys) sb.Append(','); firstSys = false;
+                sb.Append("{\"id\":\"").Append(JsonEscape(sys.Id)).Append("\",\"name\":\"").Append(JsonEscape(sys.Name)).Append("\"}");
+
+                foreach (var body in sys.Bodies ?? System.Array.Empty<NetBody>())
+                {
+                    if (body == null || !landed.Contains(body.Id)) continue;
+                    if (!firstWorld) worlds.Append(','); firstWorld = false;
+                    worlds.Append("{\"id\":\"").Append(JsonEscape(body.Id))
+                          .Append("\",\"name\":\"").Append(JsonEscape(body.Name))
+                          .Append("\",\"type\":\"").Append(JsonEscape(body.PlanetType ?? string.Empty))
+                          .Append("\",\"systemId\":\"").Append(JsonEscape(sys.Id))
+                          .Append("\",\"systemName\":\"").Append(JsonEscape(sys.Name)).Append("\"}");
+                }
+            }
+
+            sb.Append("],\"worlds\":[").Append(worlds).Append("]}");
+            WikiStateJson = sb.ToString();
+        }
+
+        private static string JsonEscape(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            var sb = new System.Text.StringBuilder(s.Length + 4);
+            foreach (char c in s)
+            {
+                if (c == '"' || c == '\\') { sb.Append('\\').Append(c); }
+                else if (c == '\n') { sb.Append("\\n"); }
+                else if (c >= ' ') { sb.Append(c); }
+            }
+
+            return sb.ToString();
+        }
 
         /// <summary>The last cell the player tried to mine (set by the controller) — if the server rejects the
         /// dig as already-empty, the client clears its ghost block there to heal a stale chunk view (B32).</summary>
@@ -529,7 +591,16 @@ namespace BlocksBeyondTheStars.Client
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; };
-            Network.StarMapReceived += m => StarMap = m;
+            Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
+            Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
+            Network.GameUnlocksReceived += m =>
+            {
+                var incoming = new System.Collections.Generic.HashSet<string>(m.Unlocked ?? System.Array.Empty<string>());
+                bool grew = incoming.Count > UnlockedGames.Count;
+                UnlockedGames = incoming;
+                RebuildWikiState();
+                if (grew) LastMessage = Localizer?.Get("ui.arcade.downloaded") ?? "Game downloaded to your Arcade.";
+            };
             Network.MissionsReceived += m => Missions = m;
             Network.ShipCombatStatusChanged += m => ShipCombat = m;
             Network.SpaceStateReceived += m =>

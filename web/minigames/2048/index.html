@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>2048</title>
+<link rel="stylesheet" href="../_shared/arcade.css" />
+<style>
+  #grid { display: grid; grid-template-columns: repeat(4, 96px); grid-gap: 10px; }
+  .cell {
+    width: 96px; height: 96px; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; font-size: 34px; font-weight: 700;
+    background: rgba(70,214,255,0.06); color: var(--ink);
+    border: 1px solid rgba(70,214,255,0.15); transition: transform 0.08s;
+  }
+  .v2{background:#0d2233}.v4{background:#10303f}.v8{background:#15506b;color:#eaffff}
+  .v16{background:#1c6f8f;color:#04121c}.v32{background:#2a8bb0;color:#04121c}
+  .v64{background:#46d6ff;color:#04121c}.v128{background:#5ee0a8;color:#04121c}
+  .v256{background:#7CFFB0;color:#04121c}.v512{background:#ffd86b;color:#04121c}
+  .v1024{background:#ffb14d;color:#04121c}.v2048{background:#ff8a3d;color:#04121c;box-shadow:0 0 24px #ff8a3d}
+  .cell.big { font-size: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title" id="title">2048</div>
+  <div class="hud">
+    <span id="lblScore">Score</span><b id="score">0</b>
+    <span id="lblBest">Best</span><b id="best">0</b>
+  </div>
+  <div class="stage">
+    <div id="grid"></div>
+    <div class="overlay" id="over">
+      <h2 id="overTitle">Game Over</h2>
+      <p id="overScore"></p>
+      <button class="btn" id="again">Restart</button>
+    </div>
+  </div>
+  <div class="hint" id="hint">Arrow keys or WASD to slide &amp; merge</div>
+</div>
+<script src="../_shared/bridge.js"></script>
+<script>
+(function () {
+  var T = {
+    score: { en: "Score", de: "Punkte" }, best: { en: "Best", de: "Beste" },
+    over: { en: "Game Over", de: "Verloren" }, win: { en: "2048! Keep going", de: "2048! Weiter so" },
+    again: { en: "Restart", de: "Neustart" },
+    hint: { en: "Arrow keys or WASD to slide & merge", de: "Pfeiltasten oder WASD zum Schieben & Verschmelzen" },
+    final: { en: "You scored ", de: "Du erreichtest " }
+  };
+  document.documentElement.lang = BBS.lang;
+  document.getElementById('lblScore').textContent = BBS.t(T.score);
+  document.getElementById('lblBest').textContent = BBS.t(T.best);
+  document.getElementById('hint').textContent = BBS.t(T.hint);
+  document.getElementById('again').textContent = BBS.t(T.again);
+
+  var gridEl = document.getElementById('grid'), scoreEl = document.getElementById('score'), bestEl = document.getElementById('best');
+  var cells = [];
+  for (var i = 0; i < 16; i++) { var d = document.createElement('div'); d.className = 'cell'; gridEl.appendChild(d); cells.push(d); }
+  var board, score, best = BBS.best, won, dead;
+  bestEl.textContent = best;
+
+  function reset() {
+    board = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+    score = 0; won = false; dead = false; scoreEl.textContent = '0';
+    document.getElementById('over').classList.remove('show');
+    spawn(); spawn(); render();
+  }
+  function spawn() {
+    var empty = []; for (var i = 0; i < 16; i++) if (board[i] === 0) empty.push(i);
+    if (!empty.length) return;
+    board[empty[(Math.random() * empty.length) | 0]] = Math.random() < 0.9 ? 2 : 4;
+  }
+  function render() {
+    for (var i = 0; i < 16; i++) {
+      var v = board[i];
+      cells[i].textContent = v ? v : '';
+      cells[i].className = 'cell' + (v ? ' v' + v : '') + (v >= 1024 ? ' big' : '');
+    }
+  }
+  function slide(row) { // returns merged row of length 4 + adds to score
+    var a = row.filter(function (x) { return x; });
+    for (var i = 0; i < a.length - 1; i++) {
+      if (a[i] === a[i + 1]) { a[i] *= 2; score += a[i]; if (a[i] === 2048) won = true; a.splice(i + 1, 1); }
+    }
+    while (a.length < 4) a.push(0);
+    return a;
+  }
+  function rowsEqual(a, b) { for (var i = 0; i < 4; i++) if (a[i] !== b[i]) return false; return true; }
+  function move(dir) { // 0 left 1 right 2 up 3 down
+    if (dead) return;
+    var moved = false;
+    for (var line = 0; line < 4; line++) {
+      var idx = [];
+      for (var k = 0; k < 4; k++) {
+        if (dir === 0) idx.push(line * 4 + k);
+        else if (dir === 1) idx.push(line * 4 + (3 - k));
+        else if (dir === 2) idx.push(k * 4 + line);
+        else idx.push((3 - k) * 4 + line);
+      }
+      var before = idx.map(function (i) { return board[i]; });
+      var after = slide(before.slice());
+      if (!rowsEqual(before, after)) { moved = true; for (var j = 0; j < 4; j++) board[idx[j]] = after[j]; }
+    }
+    if (moved) {
+      if (score > best) { best = score; bestEl.textContent = best; }
+      scoreEl.textContent = score;
+      spawn(); render();
+      if (won) { showOver(BBS.t(T.win)); won = false; }
+      else if (!movesLeft()) end();
+    }
+  }
+  function movesLeft() {
+    for (var i = 0; i < 16; i++) {
+      if (board[i] === 0) return true;
+      var r = i % 4, c = (i / 4) | 0;
+      if (r < 3 && board[i] === board[i + 1]) return true;
+      if (c < 3 && board[i] === board[i + 4]) return true;
+    }
+    return false;
+  }
+  function showOver(titleText) {
+    document.getElementById('overTitle').textContent = titleText;
+    document.getElementById('overScore').textContent = BBS.t(T.final) + score + '.';
+    document.getElementById('over').classList.add('show');
+  }
+  function end() { dead = true; BBS.reportScore(score); showOver(BBS.t(T.over)); }
+
+  window.addEventListener('keydown', function (e) {
+    var k = e.key.toLowerCase(), dir = -1;
+    if (k === 'arrowleft' || k === 'a') dir = 0;
+    else if (k === 'arrowright' || k === 'd') dir = 1;
+    else if (k === 'arrowup' || k === 'w') dir = 2;
+    else if (k === 'arrowdown' || k === 's') dir = 3;
+    else if ((k === ' ' || k === 'enter') && dead) { reset(); e.preventDefault(); return; }
+    else return;
+    e.preventDefault(); move(dir);
+  });
+  document.getElementById('again').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

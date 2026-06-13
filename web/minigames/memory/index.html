@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Memory Matrix</title>
+<link rel="stylesheet" href="../_shared/arcade.css" />
+<style>
+  #grid { display: grid; grid-template-columns: repeat(4, 104px); grid-gap: 12px; }
+  .card {
+    width: 104px; height: 104px; border-radius: 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 46px;
+    background: linear-gradient(160deg, #103247, #0a2030);
+    border: 1px solid rgba(70,214,255,0.3); color: transparent;
+    transition: transform 0.15s, background 0.15s, color 0.05s; transform: rotateY(0deg);
+  }
+  .card.up { background: rgba(70,214,255,0.12); color: var(--cyan); text-shadow: 0 0 12px rgba(70,214,255,0.6); }
+  .card.done { background: rgba(124,255,176,0.12); border-color: rgba(124,255,176,0.5); color: var(--ok); cursor: default; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title" id="title">Memory Matrix</div>
+  <div class="hud">
+    <span id="lblMoves">Moves</span><b id="moves">0</b>
+    <span id="lblPairs">Pairs</span><b id="pairs">0/8</b>
+    <span id="lblBest">Best</span><b id="best">0</b>
+  </div>
+  <div class="stage">
+    <div id="grid"></div>
+    <div class="overlay" id="over">
+      <h2 id="overTitle">Cleared!</h2>
+      <p id="overScore"></p>
+      <button class="btn" id="again">Play again</button>
+    </div>
+  </div>
+  <div class="hint" id="hint">Click two cards to find a matching pair</div>
+</div>
+<script src="../_shared/bridge.js"></script>
+<script>
+(function () {
+  var T = {
+    title: { en: "Memory Matrix", de: "Gedächtnis-Matrix" },
+    moves: { en: "Moves", de: "Züge" }, pairs: { en: "Pairs", de: "Paare" }, best: { en: "Best", de: "Beste" },
+    cleared: { en: "Cleared!", de: "Geschafft!" }, again: { en: "Play again", de: "Nochmal" },
+    hint: { en: "Click two cards to find a matching pair", de: "Klicke zwei Karten, um ein Paar zu finden" },
+    final: { en: "Score ", de: "Punkte " }, inMoves: { en: " in ", de: " in " }, mv: { en: " moves", de: " Zügen" }
+  };
+  document.documentElement.lang = BBS.lang;
+  document.getElementById('title').textContent = BBS.t(T.title);
+  document.getElementById('lblMoves').textContent = BBS.t(T.moves);
+  document.getElementById('lblPairs').textContent = BBS.t(T.pairs);
+  document.getElementById('lblBest').textContent = BBS.t(T.best);
+  document.getElementById('hint').textContent = BBS.t(T.hint);
+  document.getElementById('again').textContent = BBS.t(T.again);
+  document.getElementById('overTitle').textContent = BBS.t(T.cleared);
+
+  var GLYPHS = ['✦','✧','✪','✷','❖','◈','⬢','⚛'];
+  var gridEl = document.getElementById('grid'), movesEl = document.getElementById('moves'),
+      pairsEl = document.getElementById('pairs'), bestEl = document.getElementById('best');
+  var deck, first, lock, moves, matched, best = BBS.best;
+  bestEl.textContent = best;
+
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = (Math.random() * (i + 1)) | 0; var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  function reset() {
+    gridEl.innerHTML = ''; first = null; lock = false; moves = 0; matched = 0;
+    movesEl.textContent = '0'; pairsEl.textContent = '0/8';
+    document.getElementById('over').classList.remove('show');
+    deck = shuffle(GLYPHS.concat(GLYPHS).map(function (g, i) { return { g: g, id: i }; }));
+    deck.forEach(function (card) {
+      var el = document.createElement('div'); el.className = 'card'; el.dataset.g = card.g;
+      el.addEventListener('click', function () { flip(el); });
+      gridEl.appendChild(el);
+    });
+  }
+  function flip(el) {
+    if (lock || el.classList.contains('up') || el.classList.contains('done')) return;
+    el.classList.add('up'); el.textContent = el.dataset.g;
+    if (!first) { first = el; return; }
+    moves++; movesEl.textContent = moves;
+    if (first.dataset.g === el.dataset.g) {
+      first.classList.add('done'); el.classList.add('done');
+      first = null; matched++; pairsEl.textContent = matched + '/8';
+      if (matched === 8) win();
+    } else {
+      lock = true;
+      var a = first, b = el; first = null;
+      setTimeout(function () {
+        a.classList.remove('up'); b.classList.remove('up'); a.textContent = ''; b.textContent = ''; lock = false;
+      }, 650);
+    }
+  }
+  function win() {
+    var score = Math.max(50, 2000 - (moves - 8) * 50);
+    if (score > best) { best = score; bestEl.textContent = best; }
+    BBS.reportScore(score);
+    document.getElementById('overScore').textContent = BBS.t(T.final) + score + BBS.t(T.inMoves) + moves + BBS.t(T.mv) + '.';
+    document.getElementById('over').classList.add('show');
+  }
+  document.getElementById('again').addEventListener('click', reset);
+  window.addEventListener('keydown', function (e) {
+    if ((e.key === ' ' || e.key === 'Enter') && document.getElementById('over').classList.contains('show')) { reset(); e.preventDefault(); }
+  });
+  reset();
+})();
+</script>
+</body>
+</html>

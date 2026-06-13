@@ -1,0 +1,42 @@
+[
+  {
+    "id": "welcome",
+    "title": { "en": "Welcome, Explorer", "de": "Willkommen, Entdecker" },
+    "body": {
+      "en": "<p>Welcome to <b>Blocks Beyond the Stars</b>. You begin stranded with a starter ship and a single goal: survive, build, and explore the galaxy one world at a time.</p><p>This Codex is your field reference. The <i>Tech</i>, <i>Ships</i>, <i>Blocks</i>, <i>Items</i> and <i>Recipes</i> chapters are always available. <i>Systems</i> and <i>Worlds</i> only list places you have already discovered — fly out and scan to fill in the map.</p>",
+      "de": "<p>Willkommen bei <b>Blocks Beyond the Stars</b>. Du startest gestrandet mit einem einfachen Schiff und einem Ziel: überleben, bauen und die Galaxie Welt für Welt erkunden.</p><p>Dieser Codex ist dein Nachschlagewerk. Die Kapitel <i>Technik</i>, <i>Schiffe</i>, <i>Blöcke</i>, <i>Gegenstände</i> und <i>Rezepte</i> sind immer verfügbar. <i>Systeme</i> und <i>Welten</i> zeigen nur Orte, die du bereits entdeckt hast — flieg hinaus und scanne, um die Karte zu füllen.</p>"
+    }
+  },
+  {
+    "id": "survival",
+    "title": { "en": "Staying Alive", "de": "Am Leben bleiben" },
+    "body": {
+      "en": "<p>Three meters keep you breathing:</p><ul><li><b>Oxygen</b> drains in vacuum and above the atmosphere. Refill aboard your ship or anywhere breathable.</li><li><b>Hunger</b> falls over time — eat food or load rations into your suit dispenser so it feeds you automatically when low.</li><li><b>Health</b> regenerates slowly when fed and oxygenated; the Medbay heal-tank is your respawn point.</li></ul><p>Your <b>suit energy</b> powers tools, the jetpack and stealth. Keep an energy cell handy.</p>",
+      "de": "<p>Drei Anzeigen halten dich am Leben:</p><ul><li><b>Sauerstoff</b> sinkt im Vakuum und oberhalb der Atmosphäre. Fülle ihn an Bord deines Schiffs oder überall dort auf, wo Luft atembar ist.</li><li><b>Hunger</b> steigt mit der Zeit — iss Nahrung oder lade Rationen in deinen Anzugspender, der dich bei Bedarf automatisch versorgt.</li><li><b>Gesundheit</b> regeneriert langsam, wenn du satt und mit Sauerstoff versorgt bist; der Heiltank im Medbay ist dein Wiedereinstiegspunkt.</li></ul><p>Deine <b>Anzugsenergie</b> betreibt Werkzeuge, Jetpack und Tarnung. Halte eine Energiezelle bereit.</p>"
+    }
+  },
+  {
+    "id": "mining-crafting",
+    "title": { "en": "Mining & Crafting", "de": "Abbau & Herstellung" },
+    "body": {
+      "en": "<p>Aim at a block and hold the mine button. Harder blocks and ores need a better <i>drill tier</i> — see the <span class=\"link\" data-link=\"cat:blocks\">Blocks</span> chapter for what each needs and drops.</p><p>Refine raw ore into ingots and plates at the <b>workshop</b>, then craft tools, suit upgrades and ship parts. Unlock new recipes in the <span class=\"link\" data-link=\"cat:tech\">Tech</span> tree by spending data fragments and materials.</p>",
+      "de": "<p>Ziele auf einen Block und halte die Abbau-Taste. Härtere Blöcke und Erze brauchen eine bessere <i>Bohrer-Stufe</i> — im Kapitel <span class=\"link\" data-link=\"cat:blocks\">Blöcke</span> steht, was jeder benötigt und fallen lässt.</p><p>Veredle Roherz an der <b>Werkbank</b> zu Barren und Platten, dann fertige Werkzeuge, Anzug-Upgrades und Schiffsteile. Schalte neue Rezepte im <span class=\"link\" data-link=\"cat:tech\">Technik</span>-Baum frei, indem du Datenfragmente und Materialien einsetzt.</p>"
+    }
+  },
+  {
+    "id": "travel",
+    "title": { "en": "Space Travel", "de": "Raumreise" },
+    "body": {
+      "en": "<p>Launch from a landing pad to enter flight, then open the <b>Map</b> to pick a destination. You can fly and land manually, or quick-travel to a body you have already visited. A hyperjump carries you to another star system entirely.</p><p>Each world you land on and each system you enter is remembered — they appear in this Codex under <span class=\"link\" data-link=\"cat:systems\">Systems</span> and <span class=\"link\" data-link=\"cat:worlds\">Worlds</span>.</p>",
+      "de": "<p>Starte von einem Landeplatz in den Flugmodus und öffne dann die <b>Karte</b>, um ein Ziel zu wählen. Du kannst manuell fliegen und landen oder per Schnellreise zu einem bereits besuchten Körper springen. Ein Hypersprung bringt dich in ein ganz anderes Sternsystem.</p><p>Jede Welt, auf der du landest, und jedes System, das du betrittst, wird gespeichert — sie erscheinen in diesem Codex unter <span class=\"link\" data-link=\"cat:systems\">Systeme</span> und <span class=\"link\" data-link=\"cat:worlds\">Welten</span>.</p>"
+    }
+  },
+  {
+    "id": "arcade",
+    "title": { "en": "Data Cubes & Fragments", "de": "Datenwürfel & Fragmente" },
+    "body": {
+      "en": "<p>Scattered across some worlds are glowing <b>data cubes</b> — derelict storage terminals. Walk up to one and press <b>E</b> to extract its <b>data fragment</b> into your collection.</p><p>Not every world holds one, and a cube's fragment stays a surprise until you reach it. A recovered fragment is yours for good — open the <b>DataQubes</b> tab any time to run it. Your records are kept locally, just for you.</p>",
+      "de": "<p>Über manche Welten verstreut leuchten <b>Datenwürfel</b> — verlassene Speicherterminals. Geh zu einem und drücke <b>E</b>, um sein <b>Datenfragment</b> in deine Sammlung zu bergen.</p><p>Nicht jede Welt birgt einen, und welches Fragment ein Würfel enthält, bleibt eine Überraschung, bis du ihn erreichst. Ein geborgenes Fragment gehört dir für immer — öffne jederzeit den <b>DataQubes</b>-Tab, um es auszuführen. Deine Bestwerte werden lokal nur für dich gespeichert.</p>"
+    }
+  }
+]

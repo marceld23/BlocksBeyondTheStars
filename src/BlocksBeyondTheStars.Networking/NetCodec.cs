@@ -174,6 +174,11 @@ public static class NetCodec
 
         // Travel screen: hyperjump into a (possibly unvisited) star system, arriving in flight mode there.
         Register(117, typeof(HyperjumpSystemIntent)); // Client -> Server
+
+        // Data-cube minigames: cubes scattered on bodies grant bundled minigames into a per-player collection.
+        Register(118, typeof(DataCubeList));    // Server -> Client (cubes to render on the current world)
+        Register(119, typeof(UnlockGameIntent)); // Client -> Server (download the cube I'm standing at)
+        Register(120, typeof(GameUnlocks));      // Server -> Client (my full downloaded-games collection)
     }
 
     private static void Register(byte tag, Type type)

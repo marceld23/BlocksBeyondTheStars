@@ -158,6 +158,10 @@ namespace BlocksBeyondTheStars.Client
             var doors = root.AddComponent<DoorView>();
             doors.Game = boot;
 
+            // Render glowing minigame "data cubes" scattered on the surface; press E to download (item: arcade).
+            var dataCubes = root.AddComponent<DataCubeView>();
+            dataCubes.Game = boot;
+
             // Death feedback: red flash + sound on planet death, explosion glare on ship destruction.
             var deathFx = root.AddComponent<DeathFx>();
             deathFx.Game = boot;

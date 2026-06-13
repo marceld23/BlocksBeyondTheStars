@@ -1,0 +1,45 @@
+{
+  "_comment": "Bundled minigame catalogue. The ORDER is stable and authoritative: a data cube's seed is mapped to a game by index (seed mod games.length), so reordering changes which cube grants which game. The server never reads this file — it only places cubes with seeds; the client resolves seed -> game here. Games are NOT user-moddable; add a game by dropping a folder under minigames/<key>/ and appending an entry here.",
+  "games": [
+    {
+      "key": "snake",
+      "entry": "snake/index.html",
+      "icon": "🐍",
+      "title": { "en": "Cosmic Snake", "de": "Kosmische Schlange" },
+      "desc": {
+        "en": "Steer the data-serpent, swallow energy nodes and grow. Don't bite your own tail or hit the wall.",
+        "de": "Steuere die Datenschlange, friss Energieknoten und wachse. Beiße nicht in deinen Schwanz und meide die Wand."
+      }
+    },
+    {
+      "key": "2048",
+      "entry": "2048/index.html",
+      "icon": "🔢",
+      "title": { "en": "2048", "de": "2048" },
+      "desc": {
+        "en": "Slide and merge matching tiles to reach 2048. A quiet number puzzle for the long haul between stars.",
+        "de": "Schiebe und verschmelze gleiche Kacheln bis 2048. Ein ruhiges Zahlenrätsel für die lange Reise zwischen den Sternen."
+      }
+    },
+    {
+      "key": "memory",
+      "entry": "memory/index.html",
+      "icon": "🃏",
+      "title": { "en": "Memory Matrix", "de": "Gedächtnis-Matrix" },
+      "desc": {
+        "en": "Flip the glyph cards two at a time and find every matching pair in as few moves as you can.",
+        "de": "Drehe die Glyphen-Karten paarweise um und finde alle Paare mit möglichst wenigen Zügen."
+      }
+    },
+    {
+      "key": "breakout",
+      "entry": "breakout/index.html",
+      "icon": "🧱",
+      "title": { "en": "Astro Breakout", "de": "Astro-Breakout" },
+      "desc": {
+        "en": "Bounce the core off your paddle to shatter every block. Clear the field before you run out of cores.",
+        "de": "Lenke den Kern mit dem Schläger und zertrümmere jeden Block. Räume das Feld, bevor die Kerne ausgehen."
+      }
+    }
+  ]
+}

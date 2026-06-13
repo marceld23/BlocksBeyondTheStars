@@ -325,6 +325,11 @@ public sealed partial class GameServer
             {
                 StampVaults(); // buried vault ruins ("Welten reicher" W-R3) — 0-2 per world, loot via containers
             }
+
+            if (_config.PlaceDataCubes)
+            {
+                StampDataCubes(); // minigame download cubes — 0-N per world (many bodies get none)
+            }
         }
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
@@ -350,6 +355,7 @@ public sealed partial class GameServer
         _planetEnemies.Clear();
         _npcs.Clear();
         _doors.Clear();
+        _dataCubes.Clear();
         _settlementMarkers.Clear();
         _settlementMissionIds.Clear();
         _wreckMarkers.Clear();
@@ -492,6 +498,7 @@ public sealed partial class GameServer
         PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
         SendCreatures(session);
         SendDoors(session);
+        SendDataCubes(session); // minigame download cubes on this body
         SendBeacons(session);
         SendLandingPads(session);
         SendContainers(session);
@@ -1211,6 +1218,7 @@ public sealed partial class GameServer
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case TractorPullIntent: HandleTractorPull(session); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
+            case UnlockGameIntent unlockGame: HandleUnlockGame(session, unlockGame); break;
             case FallDamageIntent fall: HandleFallDamage(session, fall); break;
             case AdminCommandIntent admin: HandleAdminCommand(session, admin); break;
             case RequestMissions: SendMissionList(session); break;
@@ -1386,6 +1394,8 @@ public sealed partial class GameServer
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
         SendCreatures(session);
         SendDoors(session);
+        SendDataCubes(session);   // minigame download cubes on the join world
+        SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendBeacons(session);
         SendLandingPads(session);
         SendContainers(session);

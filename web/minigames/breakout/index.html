@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Astro Breakout</title>
+<link rel="stylesheet" href="../_shared/arcade.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="title" id="title">Astro Breakout</div>
+  <div class="hud">
+    <span id="lblScore">Score</span><b id="score">0</b>
+    <span id="lblLives">Cores</span><b id="lives">3</b>
+    <span id="lblBest">Best</span><b id="best">0</b>
+  </div>
+  <div class="stage">
+    <canvas id="c" width="560" height="460"></canvas>
+    <div class="overlay" id="over">
+      <h2 id="overTitle">Game Over</h2>
+      <p id="overScore"></p>
+      <button class="btn" id="again">Restart</button>
+    </div>
+  </div>
+  <div class="hint" id="hint">Move the mouse or ← → to steer &middot; click / Space to launch</div>
+</div>
+<script src="../_shared/bridge.js"></script>
+<script>
+(function () {
+  var T = {
+    title: { en: "Astro Breakout", de: "Astro-Breakout" },
+    score: { en: "Score", de: "Punkte" }, lives: { en: "Cores", de: "Kerne" }, best: { en: "Best", de: "Beste" },
+    over: { en: "Game Over", de: "Verloren" }, win: { en: "Field Cleared!", de: "Feld geräumt!" },
+    again: { en: "Restart", de: "Neustart" },
+    hint: { en: "Move the mouse or ← → to steer · click / Space to launch", de: "Maus oder ← → zum Steuern · Klick / Leertaste zum Abschuss" },
+    final: { en: "You scored ", de: "Du erreichtest " }
+  };
+  document.documentElement.lang = BBS.lang;
+  document.getElementById('title').textContent = BBS.t(T.title);
+  document.getElementById('lblScore').textContent = BBS.t(T.score);
+  document.getElementById('lblLives').textContent = BBS.t(T.lives);
+  document.getElementById('lblBest').textContent = BBS.t(T.best);
+  document.getElementById('hint').innerHTML = BBS.t(T.hint);
+  document.getElementById('again').textContent = BBS.t(T.again);
+
+  var cv = document.getElementById('c'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  var scoreEl = document.getElementById('score'), livesEl = document.getElementById('lives'), bestEl = document.getElementById('best');
+  var COLS = 10, ROWS = 6, PAD = 6, BW = (W - PAD * (COLS + 1)) / COLS, BH = 18, TOP = 48;
+  var paddle, ball, bricks, score, lives, best = BBS.best, stuck, over;
+  bestEl.textContent = best;
+
+  function reset() {
+    paddle = { x: W / 2 - 50, w: 100, h: 14, y: H - 30 };
+    score = 0; lives = 3; over = false;
+    scoreEl.textContent = '0'; livesEl.textContent = '3';
+    buildBricks(); resetBall();
+    document.getElementById('over').classList.remove('show');
+  }
+  function buildBricks() {
+    bricks = [];
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++)
+      bricks.push({ x: PAD + c * (BW + PAD), y: TOP + r * (BH + PAD), alive: true, row: r });
+  }
+  function resetBall() {
+    stuck = true;
+    ball = { x: paddle.x + paddle.w / 2, y: paddle.y - 9, r: 7, vx: 0, vy: 0, speed: 5.2 };
+  }
+  function launch() {
+    if (!stuck || over) return;
+    stuck = false; var ang = (-0.35 - Math.random() * 0.3) * Math.PI;
+    ball.vx = Math.cos(ang) * ball.speed; ball.vy = Math.sin(ang) * ball.speed;
+    if (ball.vy > 0) ball.vy = -ball.vy;
+  }
+  cv.addEventListener('mousemove', function (e) {
+    var rect = cv.getBoundingClientRect();
+    paddle.x = Math.max(0, Math.min(W - paddle.w, e.clientX - rect.left - paddle.w / 2));
+  });
+  cv.addEventListener('click', launch);
+  var left = false, right = false;
+  window.addEventListener('keydown', function (e) {
+    var k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') left = true;
+    else if (k === 'arrowright' || k === 'd') right = true;
+    else if (k === ' ' || k === 'enter') { if (over) reset(); else launch(); }
+    else return;
+    e.preventDefault();
+  });
+  window.addEventListener('keyup', function (e) {
+    var k = e.key.toLowerCase();
+    if (k === 'arrowleft' || k === 'a') left = false;
+    else if (k === 'arrowright' || k === 'd') right = false;
+  });
+  document.getElementById('again').addEventListener('click', reset);
+
+  function step() {
+    if (over) return;
+    if (left) paddle.x = Math.max(0, paddle.x - 8);
+    if (right) paddle.x = Math.min(W - paddle.w, paddle.x + 8);
+    if (stuck) { ball.x = paddle.x + paddle.w / 2; ball.y = paddle.y - 9; return; }
+
+    ball.x += ball.vx; ball.y += ball.vy;
+    if (ball.x < ball.r) { ball.x = ball.r; ball.vx = -ball.vx; }
+    if (ball.x > W - ball.r) { ball.x = W - ball.r; ball.vx = -ball.vx; }
+    if (ball.y < ball.r) { ball.y = ball.r; ball.vy = -ball.vy; }
+    if (ball.y > H + 20) { loseLife(); return; }
+
+    // paddle bounce
+    if (ball.vy > 0 && ball.y + ball.r >= paddle.y && ball.y < paddle.y + paddle.h &&
+        ball.x >= paddle.x && ball.x <= paddle.x + paddle.w) {
+      var hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+      var ang = hit * 1.05; // -1..1 -> angle spread
+      ball.vx = Math.sin(ang) * ball.speed; ball.vy = -Math.abs(Math.cos(ang) * ball.speed);
+    }
+    // bricks
+    for (var i = 0; i < bricks.length; i++) {
+      var b = bricks[i]; if (!b.alive) continue;
+      if (ball.x > b.x && ball.x < b.x + BW && ball.y > b.y && ball.y < b.y + BH) {
+        b.alive = false; ball.vy = -ball.vy;
+        score += (ROWS - b.row) * 5; scoreEl.textContent = score;
+        if (score > best) { best = score; bestEl.textContent = best; }
+        if (!bricks.some(function (x) { return x.alive; })) winRound();
+        break;
+      }
+    }
+  }
+  function loseLife() {
+    lives--; livesEl.textContent = lives;
+    if (lives <= 0) end(BBS.t(T.over)); else resetBall();
+  }
+  function winRound() {
+    ball.speed += 0.6; buildBricks(); resetBall(); // next field, a touch faster
+  }
+  function end(titleText) {
+    over = true; BBS.reportScore(score);
+    document.getElementById('overTitle').textContent = titleText;
+    document.getElementById('overScore').textContent = BBS.t(T.final) + score + '.';
+    document.getElementById('over').classList.add('show');
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < bricks.length; i++) {
+      var b = bricks[i]; if (!b.alive) continue;
+      var hue = 190 + b.row * 8;
+      ctx.fillStyle = 'hsl(' + hue + ',80%,' + (60 - b.row * 4) + '%)';
+      ctx.fillRect(b.x, b.y, BW, BH);
+    }
+    ctx.fillStyle = '#46d6ff'; ctx.shadowColor = '#46d6ff'; ctx.shadowBlur = 10;
+    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fillStyle = '#7CFFB0'; ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  function loop() { step(); draw(); requestAnimationFrame(loop); }
+  reset(); loop();
+})();
+</script>
+</body>
+</html>

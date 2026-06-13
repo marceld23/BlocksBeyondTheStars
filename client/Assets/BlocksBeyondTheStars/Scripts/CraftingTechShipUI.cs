@@ -404,6 +404,10 @@ namespace BlocksBeyondTheStars.Client
                 x += 158f;
             }
 
+            // Always-available browser screens (separate full-screen overlays): the Codex (wiki) + the Arcade.
+            UiKit.AddButton(p, x, 64, 140, 46, L("ui.tab.wiki"), () => Menu?.OpenWiki());
+            UiKit.AddButton(p, x + 148f, 64, 140, 46, L("ui.tab.arcade"), () => Menu?.OpenArcade());
+
             UiKit.AddButton(p, W - 150, 64, 110, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
 
             // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
