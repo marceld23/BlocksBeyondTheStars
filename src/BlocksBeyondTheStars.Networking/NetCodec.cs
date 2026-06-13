@@ -171,6 +171,9 @@ public static class NetCodec
 
         // Ship-as-object: a parked ship on a world as a placed voxel structure (place/replace/remove).
         Register(116, typeof(LandedShipState));     // Server -> Client
+
+        // Travel screen: hyperjump into a (possibly unvisited) star system, arriving in flight mode there.
+        Register(117, typeof(HyperjumpSystemIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

@@ -100,6 +100,33 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void QuickTravel_IsGatedByInstantTravel_AndLandedHistory()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var session = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
+            string home = session.CurrentLocationId;
+            var dest = OtherPlanet(server);
+
+            // Instant Travel off (default) + never landed there → the travel-screen quick-travel is refused.
+            Assert.False(server.QuickTravelForTest("Pilot", dest.Id));
+            Assert.Equal(home, session.CurrentLocationId);
+
+            // Turning Instant Travel on lets you quick-travel to a never-visited world.
+            server.SetInstantTravelForTest(true);
+            Assert.True(server.QuickTravelForTest("Pilot", dest.Id));
+            Assert.Equal(dest.Id, session.CurrentLocationId);
+
+            // Back off again: the home world is now in the landed history, so quick-travelling back still works.
+            server.SetInstantTravelForTest(false);
+            Assert.True(server.QuickTravelForTest("Pilot", home));
+            Assert.Equal(home, session.CurrentLocationId);
+        }
+    }
+
+    [Fact]
     public void Travel_LandsOnAMoon_NotJustPlanets()
     {
         var server = Started(out var repo);

@@ -22,6 +22,31 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Travel rework: current-vs-hyperspace systems, visit-gated quick-travel, Instant Travel option — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** the Map/travel screen distinguishes the current system from distant ones, quick-travel is limited
+to worlds you've actually visited (unless an "Instant Travel" option is on), and a never-visited system is a
+single hyperjump entry until you've been there.
+- **Per-player progression (server):** `PlayerState.LandedBodies` + `KnownSystems` (persisted), marked on
+  every arrival (`MarkArrivedOnBody`/`MarkSystemKnown`) at all landing sites (travel, manual flight landing,
+  join, respawn, station return). Sent to the client in `StarMapData.LandedBodyIds`/`KnownSystemIds` (the
+  current body/system always counts, covering legacy saves).
+- **Instant Travel world rule** (`GameRules.InstantTravel`, default off) — plumbed through `ServerRules` +
+  `SetWorldRulesIntent` (a world-admin toggle in Settings), persisted in the save's rules override.
+- **Quick-travel gate (`HandleTravel`, `quickTravel` flag):** the travel-screen path is refused for a body
+  you've never landed on unless Instant Travel is on; manual flight landings (`HandleLeaveSpace`) and the
+  test/util `Travel()` bypass the gate (you physically flew there) and mark the body visited.
+- **Hyperjump to an unvisited system (`HyperjumpToSystem` + `HyperjumpSystemIntent`, NetCodec 117):** arrive
+  in FLIGHT in the target system (anchored on its first landable body, `SpaceState.Hyperjump` plays the warp),
+  not landed — you then fly to its worlds and land manually. Needs a jump generator.
+- **Client Map tab:** sidebar grouped under fitted "Current system" / "Hyperspace" headings (current system
+  first); current-system view carries the launch/leave button + reachable targets; a known distant system
+  shows its targets; an unknown one is a single "Hyperjump to this system" action with its bodies hidden.
+  Per-world travel buttons are gated (locked worlds show a "fly there to unlock" hint). The right pane shows
+  an animated 2-D mini star map (`SystemMapWidget`) of the selected known system. Instant Travel toggle added
+  to the world-options settings. New locale keys in en/de.
+- **Verification:** 491/491 tests green (incl. a new quick-travel gating test + locale parity); client batch
+  build green.
+
 ### ★ Landed ship as a real object instead of a world stamp — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** the landed ship should be its own placed voxel OBJECT (own mesh, own colliders, hull-paint
 applies) instead of being STAMPED into the world block grid.

@@ -139,6 +139,13 @@ public sealed class GameRules
     public bool PersonalLandingZones { get; set; } = true;
     public LandingZoneProtection PersonalLandingZoneProtection { get; set; } = LandingZoneProtection.StartZoneOnly;
 
+    /// <summary>Instant Travel (world option, default OFF): when ON, the travel screen can quick-travel to
+    /// any world/station, even ones never visited. When OFF, quick-travel is limited to bodies the player
+    /// has already physically landed on — a new world must be reached by flying there and landing (and a
+    /// never-visited star system must be reached by a hyperjump into its flight space). Live-editable by the
+    /// world admin.</summary>
+    public bool InstantTravel { get; set; }
+
     /// <summary>Whether crafting consumes materials / needs stations (false in Creative).</summary>
     public bool CraftingCostsMaterials => GameMode != GameMode.Creative;
 

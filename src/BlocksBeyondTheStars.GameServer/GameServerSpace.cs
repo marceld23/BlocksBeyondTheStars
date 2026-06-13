@@ -371,6 +371,7 @@ public sealed partial class GameServer
     {
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
+        MarkArrivedOnBody(session, session.CurrentLocationId); // touched down here → a quick-travel target
         if (_config.PlaceStarterShip)
         {
             PlaceLandedShip();

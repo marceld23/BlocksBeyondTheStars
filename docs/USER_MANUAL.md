@@ -199,9 +199,18 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
   as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
 
-### Hyperspace travel
-- Open Tab → Map and pick a destination. Travel within the same system is free; jumping to **another star
-  system** requires a fitted **`jump_generator`** module. On arrival the world rebuilds at the destination.
+### Travel & the star map
+- Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus
+  the **Launch into space / Leave space** button), then **Hyperspace** for the other systems. Selecting a
+  system you've visited shows its worlds and an animated mini star map on the right.
+- **Quick-travel** ("Travel" / "Hyperjump" on a world) is gated by the **Instant Travel** world option
+  (Settings, world admin):
+  - **Off (default):** you can only quick-travel to worlds you've already **landed on manually**. To reach a
+    new world, **launch into space and fly there**, then land (pick a pad). A never-visited star system shows
+    only as a single **"Hyperjump to this system"** entry — jumping there drops you into its flight space, and
+    you fly to its worlds and land. Once you've been somewhere, quick-travel to it works from then on.
+  - **On:** quick-travel works for any world/system immediately, visited or not.
+- Jumping to **another star system** always requires a fitted **`jump_generator`** module.
 
 ### Day/night & weather
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings

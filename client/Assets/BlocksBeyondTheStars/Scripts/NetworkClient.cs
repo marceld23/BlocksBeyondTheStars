@@ -107,14 +107,18 @@ namespace BlocksBeyondTheStars.Client
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
-        public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "")
+        public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "", string instantTravel = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
                 PlanetEnemies = planetEnemies,
                 SpaceNpcEnemies = spaceNpcs,
                 AlienUfos = ufos,
+                InstantTravel = instantTravel,
             });
+
+        /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
+        public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
 
         public void SendMove(Vector3 pos, float yaw, float pitch)
             => Send(new MoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);

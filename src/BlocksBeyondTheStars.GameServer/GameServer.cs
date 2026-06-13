@@ -364,17 +364,40 @@ public sealed partial class GameServer
     /// world to the destination, then relocates every player to its landing zone/ship and tells the
     /// client to reload the world. Each body keeps its own edits (persistence is keyed by body id).
     /// </summary>
-    /// <summary>Travels the given player to a celestial body by id (also the test/util entrypoint).</summary>
+    /// <summary>Travels the given player to a celestial body by id (also the test/util entrypoint). This is
+    /// the unconditional "go there" path — it bypasses the Instant Travel quick-travel gate (it stands in for
+    /// flying there + landing), so it always lands the player and marks the body visited.</summary>
     public void Travel(string playerId, string destinationBodyId)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is not null)
         {
-            HandleTravel(session, new TravelIntent { DestinationBodyId = destinationBodyId });
+            HandleTravel(session, new TravelIntent { DestinationBodyId = destinationBodyId }, quickTravel: false);
         }
     }
 
-    private void HandleTravel(PlayerSession session, TravelIntent intent)
+    /// <summary>Test hook: toggle the Instant Travel world rule.</summary>
+    public void SetInstantTravelForTest(bool on) => Rules.InstantTravel = on;
+
+    /// <summary>Test hook for the travel-screen quick-travel path (gated by the Instant Travel rule). Returns
+    /// whether the player ended up at the destination (i.e. the travel was allowed).</summary>
+    public bool QuickTravelForTest(string playerId, string destinationBodyId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return false;
+        }
+
+        HandleTravel(session, new TravelIntent { DestinationBodyId = destinationBodyId }, quickTravel: true);
+        return session.CurrentLocationId == destinationBodyId;
+    }
+
+    /// <summary>Travels (instantly) to a body. <paramref name="quickTravel"/> = true is the travel-screen
+    /// shortcut: it is gated by the Instant Travel world rule — when that rule is off you may only quick-travel
+    /// to bodies you've already landed on. <paramref name="quickTravel"/> = false is a manual flight landing
+    /// (you flew there and chose to set down), which is always allowed.</summary>
+    private void HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel = true)
     {
         Serve(session); // act on the traveller's own world + ship (the jump-drive check below needs it)
 
@@ -401,6 +424,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // Instant Travel gate (world option, default off): the travel-screen shortcut may only reach bodies
+        // you've already landed on. To reach a new world, fly there and land manually (which marks it). A
+        // manual flight landing (quickTravel=false) bypasses this — you physically flew there.
+        if (quickTravel && !Rules.InstantTravel && !session.State.LandedBodies.Contains(body.Id))
+        {
+            Reject(session, "travel", "You haven't been there yet — fly there and land manually first (or enable Instant Travel).");
+            return;
+        }
+
         // A jump to a different star system is a hyperspace jump — it needs a jump generator fitted.
         var origin = _galaxy?.FindBody(session.CurrentLocationId);
         bool hyperjump = origin is null || origin.SystemId != body.SystemId;
@@ -423,6 +455,7 @@ public sealed partial class GameServer
 
         LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
         session.CurrentLocationId = body.Id;
+        MarkArrivedOnBody(session, body.Id); // landed here → a quick-travel target + its system now known
 
         // Park this player's own ship object on the destination world before placing them.
         SetCurrent(session);
@@ -484,6 +517,7 @@ public sealed partial class GameServer
     {
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
+        MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
         var ship = _repo.LoadShip(ShipSaveKey(session.State.PlayerId)) ?? CreateStarterShip();
         RegisterActiveShip(session, ship);
         RecomputeShipCombatStats();
@@ -1001,6 +1035,7 @@ public sealed partial class GameServer
         }
 
         session.CurrentLocationId = homeLoc;
+        MarkArrivedOnBody(session, homeLoc); // respawned onto this body → keep it a quick-travel target
         p.Position = _shipPlaced ? _healTank : p.RespawnPoint;
         p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
         p.AboardShip = true;
@@ -1187,6 +1222,7 @@ public sealed partial class GameServer
             case UndockIntent: HandleUndock(session); break;
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
+            case HyperjumpSystemIntent hyperjump: HandleHyperjumpSystem(session, hyperjump); break;
             case EnterShipIntent: EnterShipInterior(session.State.PlayerId); break;
             case ExitShipIntent: ExitShipToFlight(session.State.PlayerId); break;
             case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;
@@ -2470,7 +2506,54 @@ public sealed partial class GameServer
             .Select(s => new NetPlayerLocation { Name = s.State.Name, LocationId = s.CurrentLocationId })
             .ToArray();
 
-        Send(session, new StarMapData { Systems = systems, ActiveLocationId = session.CurrentLocationId, Players = players }); // own + party
+        // This player's own progression: bodies landed on + systems entered. The body/system the player is
+        // currently on always counts (covers legacy saves + the very first spawn before anything was marked).
+        var landed = new HashSet<string>(session.State.LandedBodies);
+        var known = new HashSet<string>(session.State.KnownSystems);
+        if (_galaxy?.FindBody(session.CurrentLocationId) is { } hereBody)
+        {
+            landed.Add(hereBody.Id);
+            if (!string.IsNullOrEmpty(hereBody.SystemId))
+            {
+                known.Add(hereBody.SystemId);
+            }
+        }
+
+        Send(session, new StarMapData
+        {
+            Systems = systems,
+            ActiveLocationId = session.CurrentLocationId,
+            Players = players,
+            LandedBodyIds = landed.ToArray(),
+            KnownSystemIds = known.ToArray(),
+        });
+    }
+
+    /// <summary>Records that a player has physically arrived ON a body — marks it landed (a quick-travel
+    /// target) and its system known (its bodies + mini map revealed on the travel screen). Persisted.</summary>
+    private void MarkArrivedOnBody(PlayerSession session, string bodyId)
+    {
+        var body = _galaxy?.FindBody(bodyId);
+        if (body == null)
+        {
+            return;
+        }
+
+        session.State.LandedBodies.Add(body.Id);
+        if (!string.IsNullOrEmpty(body.SystemId))
+        {
+            session.State.KnownSystems.Add(body.SystemId);
+        }
+    }
+
+    /// <summary>Records that a player has entered a star system in flight (a hyperjump arrival) — reveals
+    /// the system's bodies + mini map on the travel screen, without marking any body landed. Persisted.</summary>
+    private void MarkSystemKnown(PlayerSession session, string systemId)
+    {
+        if (!string.IsNullOrEmpty(systemId))
+        {
+            session.State.KnownSystems.Add(systemId);
+        }
     }
 
     /// <summary>Projects a galaxy body to its network form, including its fixed-landing-pad capacity + how many
@@ -2511,6 +2594,7 @@ public sealed partial class GameServer
             PlanetEnemies = r.PlanetEnemies.ToString(),
             SpaceNpcEnemies = r.SpaceNpcEnemies.ToString(),
             AlienUfos = r.AlienUfos.ToString(),
+            InstantTravel = r.InstantTravel,
         });
     }
 
@@ -2537,6 +2621,10 @@ public sealed partial class GameServer
         Apply(intent.PlanetEnemies, v => Rules.PlanetEnemies = v);
         Apply(intent.SpaceNpcEnemies, v => Rules.SpaceNpcEnemies = v);
         Apply(intent.AlienUfos, v => Rules.AlienUfos = v);
+        if (!string.IsNullOrEmpty(intent.InstantTravel))
+        {
+            Rules.InstantTravel = intent.InstantTravel.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
 
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
@@ -2550,7 +2638,7 @@ public sealed partial class GameServer
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
-                  $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}.");
+                  $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, instantTravel={Rules.InstantTravel}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

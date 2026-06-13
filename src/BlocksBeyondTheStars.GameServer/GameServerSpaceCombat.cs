@@ -253,7 +253,7 @@ public sealed partial class GameServer
     // ---------------- Enter / leave space ----------------
 
     /// <summary>Launches the player into a space instance around the ship's location.</summary>
-    public void EnterSpace(string playerId, bool skipLaunch = false)
+    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -302,7 +302,7 @@ public sealed partial class GameServer
         if (session is not null)
         {
             ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
-            SendSpaceState(session, instance, skipLaunch);
+            SendSpaceState(session, instance, skipLaunch, hyperjump);
             SendShipCombatStatus(session);
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
 
@@ -1090,13 +1090,14 @@ public sealed partial class GameServer
         Scale = e.Scale,
     };
 
-    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false)
+    private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false)
         => Send(session, new SpaceState
         {
             InstanceId = instance.Id,
             Kind = instance.Kind,
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
+            Hyperjump = hyperjump,
             Players = OtherPlayersInSpace(session.State.PlayerId, instance),
         });
 
@@ -1192,6 +1193,77 @@ public sealed partial class GameServer
         }
     }
 
+    private void HandleHyperjumpSystem(PlayerSession session, HyperjumpSystemIntent intent)
+        => HyperjumpToSystem(session.State.PlayerId, intent.SystemId);
+
+    /// <summary>Hyperjumps into a (possibly never-visited) star system, arriving in FLIGHT mode in that
+    /// system's space rather than landing — the way to reach a system whose bodies you can't yet see on the
+    /// travel screen. Needs a jump generator; from there you fly to its worlds and land manually. Also the
+    /// test/util entrypoint.</summary>
+    public void HyperjumpToSystem(string playerId, string systemId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        if (!Rules.FreeSpaceFlight)
+        {
+            RejectSpace(session, "Free space flight is disabled on this server.");
+            return;
+        }
+
+        Serve(session); // _ship = this player's ship
+
+        var system = _galaxy?.Systems.FirstOrDefault(s => s.Id == systemId);
+        if (system is null || system.Bodies.Count == 0)
+        {
+            RejectSpace(session, "Unknown star system.");
+            return;
+        }
+
+        var origin = _galaxy?.FindBody(session.CurrentLocationId);
+        if (origin is not null && origin.SystemId == system.Id)
+        {
+            RejectSpace(session, "You are already in that system.");
+            return;
+        }
+
+        if (_ship is null || !_ship.HasModule("jump_generator"))
+        {
+            RejectSpace(session, "Your ship has no jump generator — fit one to jump between star systems.");
+            return;
+        }
+
+        // Arrive in flight anchored on the system's first landable body (the flight instance is keyed there);
+        // you fly to its worlds and land manually from there.
+        var anchor = system.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType)) ?? system.Bodies[0];
+
+        // Launching off a surface? Remove the parked ship from the OLD world before we switch systems.
+        if (!InSpace(playerId) && SetActiveWorld(session.CurrentLocationId))
+        {
+            RemoveLandedShip(session);
+        }
+
+        LeaveSpace(playerId); // tear down any current flight instance (no-op on a surface)
+
+        session.CurrentLocationId = anchor.Id;
+        SetCurrent(session);
+        if (_ship is not null)
+        {
+            _ship.CurrentLocationId = anchor.Id; // a later landing/launch uses this system's anchor
+        }
+
+        session.State.AboardShip = true; // you arrive piloting the ship
+        session.State.InEva = false;
+        MarkSystemKnown(session, system.Id); // its bodies + mini map are now revealed on the travel screen
+
+        EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; no surface take-off
+        SendStarMap(session); // refresh the travel screen with the now-known system
+        _log.Info($"Player '{session.State.Name}' hyperjumped into system '{system.Name}' (flight).");
+    }
+
     /// <summary>Test/util entry: leave space and land on a specific body (system-scale flight landing).</summary>
     public void LandOnBody(string playerId, string destinationBodyId)
     {
@@ -1245,7 +1317,9 @@ public sealed partial class GameServer
 
         // Landed on a different body picked while flying — travel there (reuses the per-player travel, which
         // leaves space, loads the destination world and relocates only this player; it claims the pad too).
-        HandleTravel(session, new TravelIntent { DestinationBodyId = dest, PadIndex = intent.PadIndex });
+        // quickTravel:false — this is a MANUAL flight landing (you flew here), so it bypasses the Instant
+        // Travel gate and marks the body as visited.
+        HandleTravel(session, new TravelIntent { DestinationBodyId = dest, PadIndex = intent.PadIndex }, quickTravel: false);
     }
 
     private void HandleFireWeapon(PlayerSession session, FireWeaponIntent intent)

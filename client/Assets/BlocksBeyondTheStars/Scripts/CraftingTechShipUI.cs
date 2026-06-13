@@ -431,6 +431,23 @@ namespace BlocksBeyondTheStars.Client
             float y = 0f;
             foreach (var (key, label, icon) in cats)
             {
+                // A "head:" entry is a non-selectable section heading (e.g. the travel screen's
+                // "Current system" / "Hyperspace"). Auto-fit so a long localized heading stays inside the column.
+                if (key.StartsWith("head:", System.StringComparison.Ordinal))
+                {
+                    if (y > 0f)
+                    {
+                        y += 10f; // a little air above a new section
+                    }
+
+                    var h = UiKit.AddText(_sidebar, 10, y, 270, 30, label, 17, UiKit.Cyan, TextAnchor.LowerLeft, FontStyle.Bold);
+                    h.resizeTextForBestFit = true;
+                    h.resizeTextMaxSize = 17;
+                    h.resizeTextMinSize = 11;
+                    y += 36f;
+                    continue;
+                }
+
                 string k = key;
                 var b = UiKit.AddButton(_sidebar, 0, y, 290, 52, label, () => { _category = k; _selected = string.Empty; RebuildList(); RebuildDetail(); }, icon);
                 if (_category == key)
@@ -442,6 +459,46 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SetContentHeight(_sidebar, y);
+        }
+
+        /// <summary>The id of the star system the player is currently in (contains the active location).</summary>
+        private string CurrentSystemId()
+        {
+            var map = Game.StarMap;
+            if (map?.Systems == null)
+            {
+                return string.Empty;
+            }
+
+            foreach (var sys in map.Systems)
+            {
+                if (sys.Bodies.Any(b => b.Id == map.ActiveLocationId))
+                {
+                    return sys.Id;
+                }
+            }
+
+            return map.Systems.Length > 0 ? map.Systems[0].Id : string.Empty;
+        }
+
+        /// <summary>The system selected in the travel sidebar — the one keyed by <see cref="_category"/>,
+        /// defaulting to the player's current system.</summary>
+        private NetStarSystem SelectedSystem()
+        {
+            var map = Game.StarMap;
+            if (map?.Systems == null || map.Systems.Length == 0)
+            {
+                return null;
+            }
+
+            var byCat = map.Systems.FirstOrDefault(s => "sys:" + s.Name == _category);
+            if (byCat != null)
+            {
+                return byCat;
+            }
+
+            string curId = CurrentSystemId();
+            return map.Systems.FirstOrDefault(s => s.Id == curId) ?? map.Systems[0];
         }
 
         private List<(string key, string label, string icon)> Categories()
@@ -484,11 +541,38 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 case Mode.Map:
                     list.Clear();
-                    if (Game.StarMap != null)
+                    if (Game.StarMap != null && Game.StarMap.Systems.Length > 0)
                     {
-                        foreach (var sys in Game.StarMap.Systems)
+                        // Default the selection to the current system if nothing valid is chosen yet, so the
+                        // travel screen opens on the reachable in-system targets (and the sidebar highlights it).
+                        if (!Game.StarMap.Systems.Any(s => "sys:" + s.Name == _category))
                         {
-                            list.Add(("sys:" + sys.Name, "★ " + sys.Name, "cat_planet"));
+                            _category = "sys:" + (SelectedSystem()?.Name ?? Game.StarMap.Systems[0].Name);
+                        }
+
+                        string curId = CurrentSystemId();
+                        var current = Game.StarMap.Systems.FirstOrDefault(s => s.Id == curId);
+                        var distant = Game.StarMap.Systems.Where(s => s.Id != curId).ToList();
+
+                        // Current system first, under its own heading — only the in-system targets, no jump.
+                        list.Add(("head:current", L("ui.map.current_system"), string.Empty));
+                        if (current != null)
+                        {
+                            list.Add(("sys:" + current.Name, "★ " + current.Name, "cat_planet"));
+                        }
+
+                        // Distant systems under a Hyperspace heading. Unknown ones read as a single
+                        // "unexplored" entry (their bodies stay hidden until you hyperjump there).
+                        if (distant.Count > 0)
+                        {
+                            list.Add(("head:hyper", L("ui.map.hyperspace"), string.Empty));
+                            foreach (var sys in distant)
+                            {
+                                string label = Game.KnowsSystem(sys.Id)
+                                    ? "★ " + sys.Name
+                                    : sys.Name + "  ·  " + L("ui.map.unexplored");
+                                list.Add(("sys:" + sys.Name, label, "cat_planet"));
+                            }
                         }
                     }
 
@@ -720,21 +804,41 @@ namespace BlocksBeyondTheStars.Client
 
         private float BuildMapList()
         {
-            // The flight context action lives at the top of the Map tab (the travel hub) — there is no
-            // separate Space tab. Shown first so it's always at the top + visible, whatever the map's load state.
-            float y = BuildFlightAction();
-
             var map = Game.StarMap;
             if (map == null || map.Systems.Length == 0)
             {
-                UiKit.AddText(_listContent, 8, y, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
-                return y + 40f;
+                UiKit.AddText(_listContent, 8, 0, 700, 30, L("ui.map.loading"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return 40f;
             }
 
-            var sys = map.Systems.FirstOrDefault(s => "sys:" + s.Name == _category)
-                      ?? map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId))
-                      ?? map.Systems[0];
+            var sys = SelectedSystem();
+            if (sys == null)
+            {
+                return 0f;
+            }
 
+            bool isCurrent = sys.Id == CurrentSystemId();
+            float y = 0f;
+
+            // The flight context action (launch into space / take helm / leave space) lives in the CURRENT
+            // system view — that's where you enter/leave flight from.
+            if (isCurrent)
+            {
+                y = BuildFlightAction();
+            }
+
+            // A distant system you've NEVER entered hides its bodies — it's a single "hyperjump here" target.
+            if (!isCurrent && !Game.KnowsSystem(sys.Id))
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 56, L("ui.map.system_unexplored"), 19, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 64f;
+                var jump = UiKit.AddButton(_listContent, 0, y, 760, 60, L("ui.map.hyperjump_here"), () => Game.Network?.SendHyperjumpSystem(sys.Id));
+                jump.GetComponent<Image>().color = new Color(0.30f, 0.18f, 0.46f); // hyperspace-violet accent
+                y += 76f;
+                return y;
+            }
+
+            // The selected system's bodies (reachable targets).
             foreach (var b in sys.Bodies)
             {
                 bool here = b.Id == map.ActiveLocationId;
@@ -758,6 +862,13 @@ namespace BlocksBeyondTheStars.Client
                         : $"   ⊕ {b.PadsFree}/{b.PadsTotal}";
                 }
 
+                // Locked: a landable world you haven't reached yet (Instant Travel off + never landed there) —
+                // quick-travel is unavailable until you fly there and land manually.
+                if (!here && !string.IsNullOrEmpty(b.PlanetType) && !TravelUnlocked(b))
+                {
+                    status += "   · " + L("ui.map.fly_to_unlock");
+                }
+
                 AddCard(y, b.Name, "cat_planet", status, here ? UiKit.Cyan : UiKit.CyanDim,
                     "body:" + b.Id, () => { _selected = "body:" + b.Id; RebuildDetail(); });
                 y += 88f;
@@ -765,6 +876,11 @@ namespace BlocksBeyondTheStars.Client
 
             return y;
         }
+
+        /// <summary>True when the travel screen may quick-travel to this body: Instant Travel is on, or the
+        /// player has already landed there (the current body is always reachable).</summary>
+        private bool TravelUnlocked(NetBody b)
+            => Game.InstantTravel || b.Id == Game.StarMap?.ActiveLocationId || Game.HasLandedOn(b.Id);
 
         private float BuildMissionsList()
         {
@@ -941,6 +1057,19 @@ namespace BlocksBeyondTheStars.Client
             RuleRow(L("ui.worldopt.planet_enemies"), rules?.PlanetEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(planetEnemies: v));
             RuleRow(L("ui.worldopt.space_npcs"), rules?.SpaceNpcEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(spaceNpcs: v));
             RuleRow(L("ui.worldopt.ufos"), rules?.AlienUfos ?? "Off", v => Game?.Network?.SendSetWorldRules(ufos: v));
+
+            // Instant Travel (world option): when on, the travel screen may quick-travel anywhere; when off
+            // (default) it is limited to worlds you've already landed on. The server enforces the admin gate.
+            bool instant = rules?.InstantTravel ?? false;
+            var instantBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+            {
+                Game?.Network?.SendSetWorldRules(instantTravel: instant ? "Off" : "On");
+                Invoke(nameof(RebuildList), 0.35f);
+            });
+            UiKit.AddText(instantBtn.transform, 16, 0, 520, 78, L("ui.worldopt.instant_travel"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(instantBtn.transform, 560, 0, 200, 78, instant ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                instant ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 96f;
             y += 16f;
 
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).
@@ -1188,6 +1317,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The travel screen shows the selected system's animated mini star map even with no body picked.
+            if (_mode == Mode.Map)
+            {
+                SetContentHeight(_detail, DetailMap());
+                return;
+            }
+
             if (string.IsNullOrEmpty(_selected))
             {
                 UiKit.AddText(_detail, 8, 20, 620, 30, L("ui.craft.pick"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
@@ -1202,7 +1338,6 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Tech: y = DetailTech(); break;
                 case Mode.Ship: y = DetailShip(); break;
                 case Mode.Inventory: y = DetailInventory(); break;
-                case Mode.Map: y = DetailMap(); break;
                 case Mode.Missions: y = DetailMissions(); break;
             }
 
@@ -1561,17 +1696,42 @@ namespace BlocksBeyondTheStars.Client
             return (null, 1);
         }
 
+        private SystemMapWidget _systemMap; // the rotating mini-orrery; rebuilt each time the detail pane is
+
         private float DetailMap()
         {
             var map = Game.StarMap;
+            var sys = SelectedSystem();
+            float y = 0f;
+
+            // The selected system's animated mini star map (only once you've been to the system — an unexplored
+            // one shows nothing but its single "hyperjump here" entry in the list).
+            bool known = sys != null && (sys.Id == CurrentSystemId() || Game.KnowsSystem(sys.Id));
+            if (known)
+            {
+                UiKit.AddText(_detail, 8, y, 600, 30, "★ " + sys.Name, 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                y += 36f;
+                _systemMap = SystemMapWidget.Create(_detail, 40, y, 500, 380);
+                string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
+                    ? _selected.Substring(5) : string.Empty;
+                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel);
+                y += 396f;
+            }
+
+            // Below the map: the selected body's detail + a (gated) travel button. With no body picked, a hint.
+            if (string.IsNullOrEmpty(_selected) || !_selected.StartsWith("body:", System.StringComparison.Ordinal))
+            {
+                UiKit.AddText(_detail, 8, y, 600, 30, L("ui.map.pick_destination"), 19, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return y + 40f;
+            }
+
             string id = _selected.Substring(5);
             var body = map?.Systems.SelectMany(s => s.Bodies).FirstOrDefault(b => b.Id == id);
             if (body == null)
             {
-                return 0f;
+                return y;
             }
 
-            float y = 0f;
             UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {body.Kind}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
@@ -1586,21 +1746,29 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : body.Status, 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 40f;
 
-            if (!here && !string.IsNullOrEmpty(body.PlanetType))
+            if (here || string.IsNullOrEmpty(body.PlanetType))
             {
-                // A destination in another star system is a hyperspace jump (needs a jump generator).
-                var destSystem = map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == body.Id));
-                var activeSystem = map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == map.ActiveLocationId));
-                bool crossSystem = destSystem != null && activeSystem != null && destSystem.Id != activeSystem.Id;
+                return y; // you're already here, or it isn't a landable world (stations/belts dock differently)
+            }
 
+            if (TravelUnlocked(body))
+            {
+                // A reachable destination — quick-travel (a cross-system one is a hyperspace jump).
+                var destSystem = map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == body.Id));
+                bool crossSystem = destSystem != null && destSystem.Id != CurrentSystemId();
                 UiKit.AddButton(_detail, 8, y, 280, 56, crossSystem ? L("ui.map.hyperjump") : L("ui.map.travel"), () => Game.Network?.SendTravel(body.Id));
                 y += 64f;
-
                 if (crossSystem)
                 {
                     UiKit.AddText(_detail, 8, y, 620, 24, L("ui.map.hyperjump_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
                     y += 30f;
                 }
+            }
+            else
+            {
+                // Locked: never landed here + Instant Travel off — you must fly there and land manually.
+                UiKit.AddText(_detail, 8, y, 600, 56, L("ui.map.locked_hint"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                y += 64f;
             }
 
             return y;

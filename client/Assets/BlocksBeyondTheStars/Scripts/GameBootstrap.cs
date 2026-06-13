@@ -152,6 +152,18 @@ namespace BlocksBeyondTheStars.Client
         public MissionList Missions { get; private set; }
         public ServerRules Rules { get; private set; }
 
+        /// <summary>The Instant Travel world option: when on, the travel screen may quick-travel anywhere.</summary>
+        public bool InstantTravel => Rules?.InstantTravel ?? false;
+
+        /// <summary>True if THIS player has landed on the body (a quick-travel target when Instant Travel is off).</summary>
+        public bool HasLandedOn(string bodyId)
+            => StarMap?.LandedBodyIds != null && System.Array.IndexOf(StarMap.LandedBodyIds, bodyId) >= 0;
+
+        /// <summary>True if THIS player has entered the system (its bodies + mini map are revealed; else it is
+        /// a single "hyperjump here" entry).</summary>
+        public bool KnowsSystem(string systemId)
+            => StarMap?.KnownSystemIds != null && System.Array.IndexOf(StarMap.KnownSystemIds, systemId) >= 0;
+
         // Space flight & combat (M25).
         public ShipCombatStatus ShipCombat { get; private set; }
         public SpaceState Space { get; private set; }       // current space instance (null when not flying)
@@ -525,6 +537,10 @@ namespace BlocksBeyondTheStars.Client
                 if (!InSpace)
                 {
                     SpaceSkipLaunch = m.SkipLaunch; // latched on entry only (later updates don't re-trigger Enter)
+                    if (m.Hyperjump)
+                    {
+                        HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system
+                    }
                 }
 
                 Space = m;

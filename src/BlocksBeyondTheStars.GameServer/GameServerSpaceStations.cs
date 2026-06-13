@@ -276,6 +276,7 @@ public sealed partial class GameServer
         }
 
         session.CurrentLocationId = returnLoc;
+        MarkArrivedOnBody(session, returnLoc); // back on this body → a quick-travel target
         session.State.Position = _shipPlaced ? _healTank : session.State.RespawnPoint;
         session.State.AboardShip = true;
         session.SentChunks.Clear();

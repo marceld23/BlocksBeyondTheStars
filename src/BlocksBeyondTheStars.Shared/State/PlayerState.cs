@@ -112,4 +112,15 @@ public sealed class PlayerState
     /// stages ("vega:stage:N"), advisor once-hints ("vega:hint:&lt;key&gt;") and restored memory fragments
     /// ("vega:mem:N"). Server-authoritative, persisted; never removed once set.</summary>
     public HashSet<string> Milestones { get; set; } = new();
+
+    /// <summary>Celestial bodies this player has physically arrived ON (landed via manual flight, hyperjump
+    /// or quick-travel). With the Instant Travel world rule OFF, the menu's quick-travel is limited to these
+    /// bodies — a never-visited world must be reached by flying there and landing. Server-authoritative,
+    /// persisted. The body the player is currently on always counts even if absent here (legacy saves).</summary>
+    public HashSet<string> LandedBodies { get; set; } = new();
+
+    /// <summary>Star systems this player has entered — landed on a body there, or warped in on a hyperjump.
+    /// A known system reveals its bodies + mini star map on the travel screen; an unknown one is a single
+    /// "jump here" entry until visited. Server-authoritative, persisted. The current system always counts.</summary>
+    public HashSet<string> KnownSystems { get; set; } = new();
 }

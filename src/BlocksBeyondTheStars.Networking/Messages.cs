@@ -544,6 +544,10 @@ public sealed class ServerRules
     public string PlanetEnemies { get; set; } = string.Empty;
     public string SpaceNpcEnemies { get; set; } = string.Empty;
     public string AlienUfos { get; set; } = string.Empty;
+
+    /// <summary>Instant Travel world option: when true the travel screen may quick-travel anywhere; when
+    /// false it is limited to bodies the player has already landed on (default).</summary>
+    public bool InstantTravel { get; set; }
 }
 
 /// <summary>Client → server (world admin only): live-edits the gameplay world options — creature
@@ -555,6 +559,9 @@ public sealed class SetWorldRulesIntent
     public string PlanetEnemies { get; set; } = string.Empty;
     public string SpaceNpcEnemies { get; set; } = string.Empty;
     public string AlienUfos { get; set; } = string.Empty;
+
+    /// <summary>Instant Travel toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string InstantTravel { get; set; } = string.Empty;
 }
 
 // --- Missions ---
@@ -662,6 +669,21 @@ public sealed class StarMapData
 
     /// <summary>Where every other online player currently is, so the star map shows the whole party.</summary>
     public NetPlayerLocation[] Players { get; set; } = System.Array.Empty<NetPlayerLocation>();
+
+    /// <summary>Bodies THIS player has landed on (quick-travel targets when Instant Travel is off).</summary>
+    public string[] LandedBodyIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Star systems THIS player has entered — known systems reveal their bodies + mini map; an
+    /// unknown system is a single "hyperjump here" entry on the travel screen.</summary>
+    public string[] KnownSystemIds { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>Client → server: hyperjump into a (possibly never-visited) star system, arriving in FLIGHT mode
+/// in that system's space (not landed). Needs a jump generator. The way to reach a system whose bodies you
+/// can't yet see on the travel screen.</summary>
+public sealed class HyperjumpSystemIntent
+{
+    public string SystemId { get; set; } = string.Empty;
 }
 
 /// <summary>A player's current body (for the shared star map).</summary>
@@ -766,6 +788,10 @@ public sealed class SpaceState
     /// <summary>True when the flight view should appear without the take-off sequence — you were already in
     /// space (e.g. taking the helm again from inside the ship), so there is no launch from a surface.</summary>
     public bool SkipLaunch { get; set; }
+
+    /// <summary>True when the player arrived in this flight via a hyperjump into a new star system — the
+    /// client plays the warp VFX as the view opens (there is no surface take-off).</summary>
+    public bool Hyperjump { get; set; }
 
     /// <summary>The OTHER players sharing this space instance (excludes the recipient) — their ship or floating
     /// EVA suit, so everyone can see each other out here.</summary>
