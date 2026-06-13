@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Networking.Messages;
 
 namespace BlocksBeyondTheStars.Client
@@ -517,6 +518,7 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("consumable", L("ui.craft.cat_consumable"), "cat_medicine"));
                     list.Add(("component", L("ui.craft.cat_components"), "cat_components"));
                     list.Add(("block", L("ui.craft.cat_blocks"), "cat_blocks"));
+                    list.Add(("color", L("ui.craft.cat_color"), "cat_blocks"));
                     list.Add(("market", L("ui.craft.cat_market"), "cat_cargo"));
                     break;
                 case Mode.Tech:
@@ -630,8 +632,25 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // Colour palette for the always-available Dye/Glow action (swatch grid; 0xRRGGBB): a spread of
+        // vivid hues plus a greyscale row, matching the user's "palette + fine picker" choice.
+        private static readonly int[] ColorPalette =
+        {
+            0xE03A3A, 0xE07A2A, 0xE0C020, 0x8FD030, 0x35C04A, 0x2FB0A0,
+            0x2F8FE0, 0x2F4FE0, 0x6A3FE0, 0xB23FE0, 0xE03FA0, 0xE83060,
+            0xFFFFFF, 0xC8D0D8, 0x8A94A0, 0x4A5260, 0x2A3038, 0x12161A,
+        };
+
+        private static Color RgbToColor(int rgb)
+            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+
         private float BuildCraftingList()
         {
+            if (_category == "color")
+            {
+                return BuildColorList();
+            }
+
             float y = 0f;
             foreach (var r in Game.Content.Recipes.Values)
             {
@@ -667,6 +686,104 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
+        }
+
+        /// <summary>Lists the player's tintable building materials for the always-available Dye/Glow action.</summary>
+        private float BuildColorList()
+        {
+            float y = 0f;
+            var seen = new HashSet<string>();
+            if (Game.Personal != null)
+            {
+                foreach (var s in Game.Personal)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.Item) || !seen.Add(s.Item))
+                    {
+                        continue;
+                    }
+
+                    var item = Game.Content.GetItem(s.Item);
+                    if (item == null || string.IsNullOrEmpty(item.PlacesBlock))
+                    {
+                        continue;
+                    }
+
+                    var blk = Game.Content.GetBlock(item.PlacesBlock);
+                    if (blk == null || !blk.Tintable || !MatchesSearch(ItemName(s.Item)))
+                    {
+                        continue;
+                    }
+
+                    string key = "color:" + s.Item;
+                    AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + Owned(s.Item), UiKit.CyanDim, key,
+                        () => { _selected = key; RebuildDetail(); }, contentKey: s.Item);
+                    y += 88f;
+                }
+            }
+
+            if (y == 0f)
+            {
+                UiKit.AddText(_listContent, 8, 8, 700, 30, L("ui.color.none"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y = 40f;
+            }
+
+            return y;
+        }
+
+        /// <summary>Detail pane for the Dye/Glow action: a colour palette that recolours the selected material
+        /// (top) or turns it into a coloured light source consuming a crystal (bottom).</summary>
+        private float DetailColor()
+        {
+            string src = _selected.Substring("color:".Length);
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, ItemName(src), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 46f;
+            UiKit.AddText(_detail, 8, y, 620, 48, "×" + Owned(src) + "   ·   " + L("ui.color.help"), 18, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 54f;
+
+            // Dye (surface tint) — a free 1:1 recolour.
+            UiKit.AddText(_detail, 8, y, 620, 28, L("ui.color.dye"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 34f;
+            y = AddSwatchGrid(y, src, glow: false);
+            y += 14f;
+
+            // Glow (coloured light source) — consumes a crystal per unit.
+            UiKit.AddText(_detail, 8, y, 620, 28, L("ui.color.glow"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 32f;
+            int crystals = Owned("crystal");
+            UiKit.AddText(_detail, 8, y, 620, 24, L("ui.color.glow_cost") + "  " + crystals + "/1", 18,
+                crystals > 0 ? UiKit.CyanDim : new Color(1f, 0.6f, 0.4f), TextAnchor.UpperLeft);
+            y += 30f;
+            y = AddSwatchGrid(y, src, glow: true);
+            return y + 8f;
+        }
+
+        /// <summary>A grid of colour swatch buttons; clicking one sends the Dye (or Glow) craft for the source.</summary>
+        private float AddSwatchGrid(float y, string src, bool glow)
+        {
+            const int cols = 6;
+            const float sw = 64f, gap = 10f;
+            bool blocked = glow && Owned("crystal") < 1;
+            for (int i = 0; i < ColorPalette.Length; i++)
+            {
+                int rgb = ColorPalette[i];
+                float bx = 8 + (i % cols) * (sw + gap);
+                float by = y + (i / cols) * (sw + gap);
+                var b = UiKit.AddButton(_detail, bx, by, sw, sw, string.Empty,
+                    () => { Game.Network.SendTintCraft(src, glow ? 0 : rgb, glow ? rgb : 0); });
+                if (b.GetComponent<Image>() is { } img)
+                {
+                    img.color = RgbToColor(rgb);
+                }
+
+                if (blocked)
+                {
+                    SetInteractable(b, false);
+                }
+            }
+
+            int rows = (ColorPalette.Length + cols - 1) / cols;
+            return y + rows * (sw + gap);
         }
 
         private float BuildTechList()
@@ -1378,6 +1495,11 @@ namespace BlocksBeyondTheStars.Client
 
         private float DetailCrafting()
         {
+            if (_selected.StartsWith("color:", System.StringComparison.Ordinal))
+            {
+                return DetailColor();
+            }
+
             var r = Game.Content.GetRecipe(_selected);
             if (r == null)
             {
@@ -2209,7 +2331,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A mission's display title: FreeText (player missions, L3 LLM board texts) verbatim,
         /// otherwise the locale key resolved.</summary>
         private string MissionText(NetMission m) => m.FreeText ? m.Title : L(m.Title);
-        private string ItemName(string item) => L($"item.{item}.name");
+        private string ItemName(string item)
+        {
+            var (baseKey, tint, glow) = ItemKey.Parse(item);
+            string name = L($"item.{baseKey}.name");
+            if (glow != 0)
+            {
+                name += " · " + L("ui.color.glowing");
+            }
+            else if (tint != 0)
+            {
+                name += " · " + L("ui.color.dyed");
+            }
+
+            return name;
+        }
         private string Desc(string key)
         {
             string s = L(key);

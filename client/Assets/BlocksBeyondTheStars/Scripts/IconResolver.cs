@@ -59,10 +59,19 @@ namespace BlocksBeyondTheStars.Client
             return tex;
         }
 
-        /// <summary>Tints toxic consumables (negative consume-health) green so poison reads at a glance;
-        /// everything else stays neutral white. Applied as the icon image colour.</summary>
+        /// <summary>Tints the icon: a dyed/glowing item shows its colour (so coloured stacks read at a
+        /// glance), toxic consumables (negative consume-health) read green, everything else neutral white.
+        /// Applied as the icon image colour (multiplied over the sprite).</summary>
         public static Color Tint(string key, GameBootstrap game)
         {
+            int tintRgb = BlocksBeyondTheStars.Shared.State.ItemKey.Tint(key);
+            int glowRgb = BlocksBeyondTheStars.Shared.State.ItemKey.Glow(key);
+            if (tintRgb != 0 || glowRgb != 0)
+            {
+                int rgb = tintRgb != 0 ? tintRgb : glowRgb;
+                return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+            }
+
             var def = game?.Content?.GetItem(key);
             return def != null && def.ConsumeHealth < 0f ? new Color(0.45f, 1f, 0.4f) : Color.white;
         }

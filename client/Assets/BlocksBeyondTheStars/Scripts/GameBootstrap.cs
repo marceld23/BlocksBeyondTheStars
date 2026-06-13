@@ -558,6 +558,8 @@ namespace BlocksBeyondTheStars.Client
             Content = ContentLoader.LoadFromDirectory(dataDir);
             Localizer = Content.CreateLocalizer(German ? GameLocale.German : GameLocale.English);
             World = new ClientWorld();
+            // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.
+            World.SetBlockLightResolver(id => ChunkMesher.BlockLightColor(Content, new BlockId(id), 0));
 
             // Procedurally generate the block texture atlas and a material that samples it
             // (M27). Falls back to whatever WorldRig assigned if the shader is missing.
@@ -857,7 +859,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnChunk(BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage m)
         {
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
-            World.StoreChunk(coord, m.Blocks);
+            World.StoreChunk(coord, m.Blocks, m.ModIndex, m.ModTint, m.ModGlow);
             MarkChunkAndNeighborsDirty(coord);
         }
 
@@ -987,7 +989,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
-            if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, out var coord))
+            if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, out var coord))
             {
                 return;
             }
@@ -1056,7 +1058,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor);
+            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor,
+                lights: World.LightSourcesNear(coord, ChunkMesher.LightRadius));
 
             if (!_chunkObjects.TryGetValue(coord, out var go))
             {

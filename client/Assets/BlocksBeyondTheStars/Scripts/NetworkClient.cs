@@ -146,6 +146,11 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendCraft(string recipeKey, int count = 1)
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
+
+        /// <summary>Always-available "Dye"/"Glow" action: recolour a held building material (surface tint
+        /// and/or a coloured light source). Output is the same item carrying the colour in its key.</summary>
+        public void SendTintCraft(string sourceItemKey, int tint, int glow, int count = 1)
+            => Send(new TintCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Tint = tint, Glow = glow, Count = count });
         public void SendFallDamage(float impactSpeed) => Send(new FallDamageIntent { ImpactSpeed = impactSpeed });
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });

@@ -49,6 +49,13 @@ public sealed class BlockDefinition
     /// <summary>Base RGB tint (0xRRGGBB) used for the procedural texture + color fallback, or null for the built-in palette.</summary>
     public int? Color { get; set; }
 
+    /// <summary>
+    /// Whether this block may be re-coloured by the player (the always-available "Dye"/"Glow" crafting
+    /// actions). Only plain building/terrain materials are tintable; machines, doors, glass, flora and
+    /// light blocks are excluded because they carry their own optics/tint logic. Set in <c>data/blocks.json</c>.
+    /// </summary>
+    public bool Tintable { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

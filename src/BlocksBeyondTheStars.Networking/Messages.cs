@@ -57,6 +57,26 @@ public sealed class CraftIntent
     public int Count { get; set; } = 1;
 }
 
+/// <summary>
+/// The always-available "Dye"/"Glow" crafting action: re-colour a building material the player holds.
+/// <see cref="Tint"/> recolours the block's surface; <see cref="Glow"/> turns it into a coloured light
+/// source (which the server gates behind a luminescent ingredient). At least one colour is non-zero;
+/// both may be set for a glowing dyed block. The output is the same item carrying the colour in its key.
+/// </summary>
+public sealed class TintCraftIntent
+{
+    /// <summary>Source item to recolour (base key, or an already-coloured key — the server re-bases it).</summary>
+    public string SourceItemKey { get; set; } = string.Empty;
+
+    /// <summary>Surface tint as 0xRRGGBB, or 0 for none.</summary>
+    public int Tint { get; set; }
+
+    /// <summary>Light colour as 0xRRGGBB, or 0 for no glow.</summary>
+    public int Glow { get; set; }
+
+    public int Count { get; set; } = 1;
+}
+
 /// <summary>The client (which owns on-foot movement) reports a hard landing; the server applies fall damage
 /// scaled by how far over a safe impact speed it was.</summary>
 public sealed class FallDamageIntent
@@ -433,6 +453,12 @@ public sealed class ChunkDataMessage
     public int Cy { get; set; }
     public int Cz { get; set; }
     public ushort[] Blocks { get; set; } = System.Array.Empty<ushort>();
+
+    // Sparse per-voxel colour modifiers (dyed surface tint / glow light colour), parallel arrays
+    // keyed by local cell index. Empty for the overwhelming majority of chunks (no colour edits).
+    public int[] ModIndex { get; set; } = System.Array.Empty<int>();
+    public int[] ModTint { get; set; } = System.Array.Empty<int>();
+    public int[] ModGlow { get; set; } = System.Array.Empty<int>();
 }
 
 public sealed class BlockChanged
@@ -441,6 +467,12 @@ public sealed class BlockChanged
     public int Y { get; set; }
     public int Z { get; set; }
     public ushort Block { get; set; }
+
+    /// <summary>Surface tint of the placed block as 0xRRGGBB (0 = none).</summary>
+    public int Tint { get; set; }
+
+    /// <summary>Light colour of the placed block as 0xRRGGBB (0 = no glow).</summary>
+    public int Glow { get; set; }
 }
 
 /// <summary>Mining progress on a block (a harder block needs several drill hits): Fraction 0..1 of the

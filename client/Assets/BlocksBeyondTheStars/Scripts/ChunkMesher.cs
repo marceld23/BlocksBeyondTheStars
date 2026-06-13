@@ -21,11 +21,16 @@ namespace BlocksBeyondTheStars.Client
             new Vector3i(0, 0, 1), new Vector3i(0, 0, -1),
         };
 
+        /// <summary>How far (in blocks) a placed light propagates its colour through open/transparent cells.
+        /// Used both by the mesher's flood-fill and by callers when gathering nearby light sources.</summary>
+        public const int LightRadius = 9;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
-            System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null)
+            System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
+            IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();   // submesh 0: opaque blocks
@@ -33,15 +38,24 @@ namespace BlocksBeyondTheStars.Client
             var colliderTris = new List<int>(); // solid faces only (no fluids) → the collision mesh
             var colors = new List<Color>();
             var uvs = new List<Vector2>();
-            var skyUv = new List<Vector2>(); // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint)
+            var skyUv = new List<Vector2>(); // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint, 3 player dye)
             // x = foliage flag (1 = clip the tile's alpha → cutout leaves); yzw = the face's tint RGB —
-            // per-species flora colour (mode 1; black = the shader falls back to the global planet hue)
-            // or the ship's hull paint (mode 2).
+            // per-species flora colour (mode 1; black = the shader falls back to the global planet hue),
+            // the ship's hull paint (mode 2) or the player's dye colour (mode 3).
             var leafUv = new List<Vector4>();
+            var blockLight = new List<Vector3>(); // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
+
+            // Coloured block-light field: a per-channel flood-fill from nearby light sources (placed glow
+            // blocks + dedicated light blocks), baked per-vertex so placed lights actually illuminate their
+            // surroundings (in caves/at night), independent of the sun + flora tint. Cost is proportional to
+            // the lit volume — chunks with no light nearby pay nothing.
+            var blockLightField = BuildBlockLight(chunk, content, worldBlock, origin, n, lights);
+            Vector3 BlockLightAt(int wx, int wy, int wz)
+                => blockLightField != null && blockLightField.TryGetValue((wx, wy, wz), out var v) ? v : Vector3.zero;
 
             // Per-column "highest solid block" cache → a face is sky-lit only if the air cell it faces is
             // above its column's top (so caves, building/ship interiors and overhang undersides go dark,
@@ -174,7 +188,13 @@ namespace BlocksBeyondTheStars.Client
                 // (the atlas shader multiplies it into the albedo; black = unpainted).
                 Color paint = !isFlora && paintTint != null ? paintTint(id) : Color.black;
                 bool painted = paint.r + paint.g + paint.b > 0.001f;
-                float floraFlag = isFlora ? 1f : painted ? 2f : 0f;
+                // Player dye (always-available recolour): the placed cell carries a surface tint in its chunk
+                // modifier. Mode 3 = a luminance-based recolour in the shader applied everywhere (independent
+                // of the flora-tint global), so dyed building blocks read vividly on any world / in caves.
+                var (modTint, _) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
+                bool dyed = modTint != 0;
+                Color dye = dyed ? RgbToColor(modTint) : Color.black;
+                float floraFlag = dyed ? 3f : isFlora ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
@@ -216,14 +236,15 @@ namespace BlocksBeyondTheStars.Client
                 if (atlas != null && foliage && collKey != null && collKey.StartsWith("flora_", System.StringComparison.Ordinal))
                 {
                     float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
+                    Vector3 plantBl = BlockLightAt(wx, wy, wz);  // coloured block-light reaching the plant
                     var plantCol = new Color(matR, matG, 0.9f, emission);
                     // Per-plant size variance (a grass field is tall + short tufts, not a uniform lawn): a
                     // deterministic bell scale from the world cell, so all clients agree. Height varies more
                     // than width; they're keyed off different salts so a plant can be tall + slender or low + bushy.
                     float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f);
                     float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
-                    AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantH, plantW);
+                    AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight,
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantH, plantW);
                     continue;
                 }
 
@@ -273,6 +294,10 @@ namespace BlocksBeyondTheStars.Client
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
                     skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
+                    // Coloured block-light reaching the air cell this face looks into (same cell the skylight
+                    // samples) — placed lights illuminate the wall regardless of sun/skylight.
+                    Vector3 faceBl = BlockLightAt(nx, ny, nz);
+                    blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
                     // Water top faces carry the water-body data instead of the (always-zero-for-water)
                     // flora tint; only the transparent shader ever reads these vertices. Foam + wave
                     // amplitude are CORNER-smoothed (x=mode, y=foam, z=amp factor, w=flow axis 0=X/1=Z)
@@ -291,7 +316,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        var tint = painted ? paint : speciesTint;
+                        var tint = dyed ? dye : painted ? paint : speciesTint;
                         var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
@@ -308,8 +333,9 @@ namespace BlocksBeyondTheStars.Client
             mesh.SetTriangles(trisT, 1);
             mesh.SetColors(colors);
             mesh.SetUVs(0, uvs);
-            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, tint mode in .y (1 flora, 2 hull paint)
-            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, flora/hull tint in .yzw
+            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, tint mode in .y (1 flora, 2 hull paint, 3 player dye)
+            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, flora/hull/dye tint in .yzw
+            mesh.SetUVs(3, blockLight); // TEXCOORD3.xyz: propagated coloured block-light (placed lights illuminate)
             mesh.SetTangents(tangents);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
@@ -345,8 +371,8 @@ namespace BlocksBeyondTheStars.Client
         /// no collider triangles, so small plants are walk-through. <paramref name="heightScale"/> /
         /// <paramref name="widthScale"/> give each plant its own size (so a field reads as tall + short tufts).</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
-            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint, float heightScale = 1f, float widthScale = 1f)
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, Vector3 cell, Color col, Rect uv, float sky,
+            Color tint, Vector3 bl, float heightScale = 1f, float widthScale = 1f)
         {
             // The two crossed planes' floor diagonals, inset symmetrically from the cell centre (so the width
             // scales about the middle), clamped inside the cell to avoid bleeding into neighbours.
@@ -384,6 +410,7 @@ namespace BlocksBeyondTheStars.Client
                         tangents.Add(tangent);
                         skyUv.Add(new Vector2(sky, 1f)); // flora flag on — takes the species/world tint
                         leafUv.Add(new Vector4(1f, tint.r, tint.g, tint.b)); // cutout on + per-species tint
+                        blockLight.Add(bl); // coloured block-light reaching the plant
                     }
 
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);
@@ -516,6 +543,176 @@ namespace BlocksBeyondTheStars.Client
                 case "iron_ore": return 0.18f;
                 default: return 0f;
             }
+        }
+
+        /// <summary>Converts a 0xRRGGBB integer to a linear-ish UnityEngine.Color (0..1 per channel).</summary>
+        private static Color RgbToColor(int rgb)
+            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+
+        /// <summary>
+        /// The light colour a cell emits as 0xRRGGBB, or 0 if it is not a light source. A placed glow block
+        /// carries its colour in <paramref name="glowMod"/>; otherwise the dedicated light blocks
+        /// (light_*, the bright strip lights) emit their fixed colour. Natural emissives (lava, crystals,
+        /// glowing ores/flora) deliberately return 0 — they keep their existing self-glow look and do NOT
+        /// flood the world with propagated light. Shared by the mesher and the client light-source registry.
+        /// </summary>
+        public static int BlockLightColor(GameContent content, BlockId id, int glowMod)
+        {
+            if (glowMod != 0)
+            {
+                return glowMod & 0xFFFFFF;
+            }
+
+            var def = content?.BlockById(id);
+            if (def == null)
+            {
+                return 0;
+            }
+
+            switch (def.Key)
+            {
+                case "light_white": return 0xFFFFFF;
+                case "light_red": return 0xFF3838;
+                case "light_green": return 0x53FF61;
+            }
+
+            // Bright authored light fixtures (strip lights) carry their own colour + a high emission.
+            if (def.Color is int c && (def.Emission ?? 0f) >= 0.85f)
+            {
+                return c & 0xFFFFFF;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Per-channel coloured light flood-fill from nearby sources, returning the normalised (0..1) light
+        /// colour reached at each cell (null when nothing is lit). Sources are the caller-supplied
+        /// <paramref name="lights"/> (placed glow blocks + light blocks gathered across chunk seams) or, when
+        /// none are passed (ship/asteroid meshes), the light blocks found inside the chunk itself. Light stops
+        /// at solid blocks and passes through air/glass/water/plants. Cost scales with the lit volume.
+        /// </summary>
+        private static Dictionary<(int, int, int), Vector3> BuildBlockLight(
+            ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock,
+            Vector3i origin, int n, IReadOnlyList<(Vector3i Pos, int Rgb)> lights)
+        {
+            var sources = new List<(int X, int Y, int Z, Vector3 Col)>();
+            if (lights != null)
+            {
+                int loX = origin.X - LightRadius, hiX = origin.X + n + LightRadius;
+                int loY = origin.Y - LightRadius, hiY = origin.Y + n + LightRadius;
+                int loZ = origin.Z - LightRadius, hiZ = origin.Z + n + LightRadius;
+                foreach (var (pos, rgb) in lights)
+                {
+                    if (rgb == 0 || pos.X < loX || pos.X > hiX || pos.Y < loY || pos.Y > hiY || pos.Z < loZ || pos.Z > hiZ)
+                    {
+                        continue; // out of light range of this chunk
+                    }
+
+                    var c = RgbToColor(rgb);
+                    sources.Add((pos.X, pos.Y, pos.Z, new Vector3(c.r, c.g, c.b)));
+                }
+            }
+            else
+            {
+                for (int x = 0; x < n; x++)
+                for (int y = 0; y < n; y++)
+                for (int z = 0; z < n; z++)
+                {
+                    var id = chunk.Get(x, y, z);
+                    if (id.IsAir)
+                    {
+                        continue;
+                    }
+
+                    var (_, g) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
+                    int rgb = BlockLightColor(content, id, g);
+                    if (rgb == 0)
+                    {
+                        continue;
+                    }
+
+                    var c = RgbToColor(rgb);
+                    sources.Add((origin.X + x, origin.Y + y, origin.Z + z, new Vector3(c.r, c.g, c.b)));
+                }
+            }
+
+            if (sources.Count == 0)
+            {
+                return null;
+            }
+
+            var field = new Dictionary<(int, int, int), Vector3>();
+            var opaqueCache = new Dictionary<(int, int, int), bool>();
+            bool Opaque(int wx, int wy, int wz)
+            {
+                var key = (wx, wy, wz);
+                if (opaqueCache.TryGetValue(key, out var o))
+                {
+                    return o;
+                }
+
+                var b = worldBlock(wx, wy, wz);
+                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b);
+                opaqueCache[key] = res;
+                return res;
+            }
+
+            var queue = new Queue<(int, int, int)>();
+            foreach (var s in sources)
+            {
+                var key = (s.X, s.Y, s.Z);
+                var lvl = s.Col * LightRadius; // per-channel start level (0..LightRadius)
+                field[key] = field.TryGetValue(key, out var ex) ? Vector3.Max(ex, lvl) : lvl;
+                queue.Enqueue(key);
+            }
+
+            while (queue.Count > 0)
+            {
+                var p = queue.Dequeue();
+                var cur = field[p];
+                for (int f = 0; f < Faces.Length; f++)
+                {
+                    int nx = p.Item1 + Faces[f].X, ny = p.Item2 + Faces[f].Y, nz = p.Item3 + Faces[f].Z;
+                    if (Opaque(nx, ny, nz))
+                    {
+                        continue; // solid blocks stop light (sources are already seeded)
+                    }
+
+                    var nl = new Vector3(Mathf.Max(0f, cur.x - 1f), Mathf.Max(0f, cur.y - 1f), Mathf.Max(0f, cur.z - 1f));
+                    if (nl.x <= 0f && nl.y <= 0f && nl.z <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var key = (nx, ny, nz);
+                    if (field.TryGetValue(key, out var exist))
+                    {
+                        var merged = Vector3.Max(exist, nl);
+                        if (merged == exist)
+                        {
+                            continue; // no channel improved
+                        }
+
+                        field[key] = merged;
+                    }
+                    else
+                    {
+                        field[key] = nl;
+                    }
+
+                    queue.Enqueue(key);
+                }
+            }
+
+            float inv = 1f / LightRadius;
+            var result = new Dictionary<(int, int, int), Vector3>(field.Count);
+            foreach (var kv in field)
+            {
+                result[kv.Key] = kv.Value * inv; // normalise 0..1
+            }
+
+            return result;
         }
 
         /// <summary>See-through blocks: rendered in the alpha-blended submesh and treated like air when

@@ -2,6 +2,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.Shared.Content;
 
@@ -73,6 +74,7 @@ public sealed class GameContent
         _locales = new Dictionary<GameLocale, Dictionary<string, string>>(locales);
 
         AssignBlockIds();
+        MarkTintableDefaults();
 
         // Palette lookup: index by numeric id (air at 0).
         ushort max = 0;
@@ -101,12 +103,40 @@ public sealed class GameContent
         }
     }
 
+    /// <summary>
+    /// Curated building/terrain materials that the always-available Dye/Glow action may recolour. Machines,
+    /// doors, glass/ice/fluids, flora, light fixtures, ores and special blocks are deliberately excluded
+    /// (they carry their own optics/logic). A block may also opt in explicitly via <c>tintable</c> in JSON;
+    /// this only ADDS the curated defaults. Applied here so client and server derive the identical set.
+    /// </summary>
+    private static readonly HashSet<string> TintableDefaults = new(StringComparer.Ordinal)
+    {
+        "stone", "dirt", "basalt", "sand", "mud", "grass", "snow", "salt", "mycelium", "alien_grass",
+        "deepslate", "granite", "ash", "wood_log",
+        "iron_wall", "steel_wall", "bronze_block", "brass_block", "steel_floor", "metal_panel", "concrete",
+        "cargo_floor", "medbay_panel", "lab_panel", "engine_panel",
+    };
+
+    private void MarkTintableDefaults()
+    {
+        foreach (var key in TintableDefaults)
+        {
+            if (_blocks.TryGetValue(key, out var block))
+            {
+                block.Tintable = true;
+            }
+        }
+    }
+
     public BlockDefinition? GetBlock(string key) => _blocks.TryGetValue(key, out var b) ? b : null;
 
     public BlockDefinition? BlockById(BlockId id)
         => id.Value < _blocksById.Length ? _blocksById[id.Value] : null;
 
-    public ItemDefinition? GetItem(string key) => _items.TryGetValue(key, out var i) ? i : null;
+    // Item keys may carry a colour modifier (e.g. "mud#t3f6fb0" for dyed mud). Definition lookups
+    // strip it back to the base key — a dyed item shares its base item's definition (max stack,
+    // placed block, name, …); the colour lives only in the key + the per-voxel modifier store.
+    public ItemDefinition? GetItem(string key) => _items.TryGetValue(ItemKey.Base(key), out var i) ? i : null;
     public RecipeDefinition? GetRecipe(string key) => _recipes.TryGetValue(key, out var r) ? r : null;
     public BlueprintDefinition? GetBlueprint(string key) => _blueprints.TryGetValue(key, out var b) ? b : null;
     public ShipModuleDefinition? GetShipModule(string key) => _shipModules.TryGetValue(key, out var m) ? m : null;
@@ -115,7 +145,7 @@ public sealed class GameContent
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
     public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;
 
-    public int MaxStackOf(string itemKey) => _items.TryGetValue(itemKey, out var i) ? i.MaxStack : 1;
+    public int MaxStackOf(string itemKey) => _items.TryGetValue(ItemKey.Base(itemKey), out var i) ? i.MaxStack : 1;
 
     /// <summary>Builds a localizer for the given locale, with English as the fallback table.</summary>
     public Localizer CreateLocalizer(GameLocale locale)

@@ -17,6 +17,30 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Dyeable materials + craftable coloured light blocks — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** recolour any building material (e.g. blue mud) via one always-available recipe that works for all
+materials and needs no separate dye, and craft glowing blocks whose light colour is chosen before crafting and which
+actually illuminate when placed. Decisions: palette + fine picker (palette shipped; fine HSV picker is a follow-up) ·
+only building/terrain materials are tintable · **full coloured voxel light propagation** · glow = material + 1 crystal ·
+existing sun lighting + procedural flora/fauna tint must stay intact.
+**How it works (one per-voxel colour modifier powers both):**
+- **Item identity:** a dyed/glowing item is a composite key `base#t<rrggbb>g<rrggbb>` (`Shared/State/ItemKey.cs`),
+  so inventory/crafting/networking/persistence stay string-keyed and a coloured stack never merges with the plain
+  material. `GameContent.GetItem`/`MaxStackOf` strip the modifier to the base definition.
+- **Storage:** `ChunkData` carries a sparse per-voxel `(tint, glow)` modifier; persisted in `block_edit` (+`tint`,
+  `glow` columns, migrated) and synced via `ChunkDataMessage` sparse arrays + `BlockChanged.Tint/Glow`.
+- **Crafting:** always-available `TintCraftIntent` → `HandleTintCraft` (no station): dye is a free 1:1 recolour, glow
+  consumes a crystal; only `Tintable` building blocks qualify (curated set in `GameContent.MarkTintableDefaults`).
+  UI: a "Färben/Dye" category in the Crafting menu with a colour-swatch palette (dye + glow sections).
+- **Place/mine:** `HandlePlace` stamps the modifier from the item key; `BreakBlockAt` recovers the coloured item.
+- **Rendering:** mesher emits dye as tint-mode 3 (luminance recolour, ungated → vivid everywhere); a per-channel
+  coloured **light flood-fill** (placed glow blocks + dedicated `light_*`/strip lights as sources; lava/crystals
+  unchanged) is baked per-vertex into TEXCOORD3 and added in `BlockAtlas.shader`. `ClientWorld` keeps a light-source
+  registry so a lamp's colour propagates across chunk seams. Sun + flora tint paths untouched. Icons (menu + hotbar)
+  tint via `IconResolver.Tint`.
+**Open/follow-ups:** fine HSV colour picker (palette only for now); coloured light is client-derived (not persisted) and
+re-floods on chunk rebuild — diagonal-neighbour seams possible for lights right on a chunk corner; light radius = 9.
+
 ### ★ Planet bases (Grundstein) + station/base naming + space stations on the travel screen — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** the surface analogue of a space station — a player founds a named **base** on a planet/moon/asteroid by
 placing a foundation stone, the stone marks the base on the planet map, and bases + stations can be named/renamed.

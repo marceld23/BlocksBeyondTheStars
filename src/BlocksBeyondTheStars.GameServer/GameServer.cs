@@ -1131,17 +1131,47 @@ public sealed partial class GameServer
                 }
 
                 var chunk = _world.GetOrLoadChunk(coord);
-                Send(session, new ChunkDataMessage
+                var msg = new ChunkDataMessage
                 {
                     Cx = coord.X,
                     Cy = coord.Y,
                     Cz = coord.Z,
                     Blocks = chunk.ToArray(),
-                });
+                };
+                PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
+                Send(session, msg);
                 session.SentChunks.Add(coord);
                 sent++;
             }
         }
+    }
+
+    /// <summary>Fills a chunk message's sparse colour-modifier arrays from the chunk's dyed/glowing cells
+    /// (no-op for the overwhelming majority of chunks, which carry none).</summary>
+    private static void PackChunkModifiers(BlocksBeyondTheStars.Shared.World.ChunkData chunk, ChunkDataMessage msg)
+    {
+        var mods = chunk.Modifiers;
+        if (mods is null || mods.Count == 0)
+        {
+            return;
+        }
+
+        int n = mods.Count;
+        var idx = new int[n];
+        var tint = new int[n];
+        var glow = new int[n];
+        int i = 0;
+        foreach (var kv in mods)
+        {
+            idx[i] = kv.Key;
+            tint[i] = kv.Value.Tint;
+            glow[i] = kv.Value.Glow;
+            i++;
+        }
+
+        msg.ModIndex = idx;
+        msg.ModTint = tint;
+        msg.ModGlow = glow;
     }
 
     /// <summary>Heals a stale client chunk view (a "ghost" block the server no longer has): confirms the cell's
@@ -1149,7 +1179,8 @@ public sealed partial class GameServer
     /// the current authoritative chunk next tick — clearing every ghost in it at once.</summary>
     private void ResyncStaleChunk(PlayerSession session, Vector3i pos)
     {
-        Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value });
+        var (rsTint, rsGlow) = _world.GetModifier(pos);
+        Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value, Tint = rsTint, Glow = rsGlow });
         var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(pos), _world.Circumference);
         session.SentChunks.Remove(coord); // not-sent again → StreamChunks re-streams it on the next tick
     }
@@ -1227,6 +1258,7 @@ public sealed partial class GameServer
             case MineBlockIntent mine: HandleMine(session, mine); break;
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
+            case TintCraftIntent tint: HandleTintCraft(session, tint); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case ChatIntent chat: HandleChat(session, chat); break;
             case RequestStarMap: SendStarMap(session); break;
@@ -1789,6 +1821,7 @@ public sealed partial class GameServer
     private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
     {
         var current = _world.GetBlock(pos);
+        var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         _world.SetBlock(pos, BlockId.Air);
         _miningProgress.Remove(pos);
 
@@ -1811,6 +1844,12 @@ public sealed partial class GameServer
         foreach (var drop in def.Drops)
         {
             string item = toxicFlora && drop.Item == "berries" ? "toxic_berries" : drop.Item;
+            // If this cell was dyed/glowing and the drop is the block itself, return it still coloured.
+            if ((dropTint != 0 || dropGlow != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
+            {
+                item = ItemKey.Compose(item, dropTint, dropGlow);
+            }
+
             pool.Add(item, drop.Count);
         }
 
@@ -1967,7 +2006,16 @@ public sealed partial class GameServer
             return;
         }
 
-        _world.SetBlock(pos, blockDef.NumericId);
+        // A dyed/glowing block carries its colour in the item key; stamp it on the placed cell. Only honour
+        // it for tintable building materials (the colour came from the always-available dye/glow action).
+        int placeTint = 0, placeGlow = 0;
+        if (blockDef.Tintable && ItemKey.HasModifier(place.ItemKey))
+        {
+            placeTint = ItemKey.Tint(place.ItemKey);
+            placeGlow = ItemKey.Glow(place.ItemKey);
+        }
+
+        _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow);
 
         if (blockDef.Key == "crate")
         {
@@ -1982,7 +2030,7 @@ public sealed partial class GameServer
             PlaceBase(session, pos); // a placed base core founds a named planet base (Grundstein)
         }
 
-        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow });
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
@@ -2066,6 +2114,72 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
         ShipAiOnCraft(session); // VEGA onboarding: first successful craft
+    }
+
+    /// <summary>
+    /// The always-available "Dye"/"Glow" action: turn a held building material into a coloured (and/or
+    /// glowing) variant of itself. The output is the same item with the colour encoded in its key
+    /// (<see cref="ItemKey"/>), so it stacks separately and, when placed/mined, carries the colour through.
+    /// Dyeing is a free 1:1 recolour (no station, no dye item); a glow variant additionally consumes a
+    /// luminescent <c>crystal</c> per unit. Only tintable materials qualify.
+    /// </summary>
+    private void HandleTintCraft(PlayerSession session, TintCraftIntent intent)
+    {
+        string baseKey = ItemKey.Base(intent.SourceItemKey);
+        var item = _content.GetItem(baseKey);
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        {
+            CraftFail(session, "tint", "That item can't be coloured.");
+            return;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null || !blockDef.Tintable)
+        {
+            CraftFail(session, "tint", "That material can't be coloured.");
+            return;
+        }
+
+        int tint = intent.Tint & 0xFFFFFF;
+        int glow = intent.Glow & 0xFFFFFF;
+        if (tint == 0 && glow == 0)
+        {
+            CraftFail(session, "tint", "No colour chosen.");
+            return;
+        }
+
+        int count = System.Math.Clamp(intent.Count, 1, 999);
+        string output = ItemKey.Compose(baseKey, tint, glow);
+
+        // Creative mode: no material cost — just produce the coloured material.
+        if (!Rules.CraftingCostsMaterials)
+        {
+            new MaterialPool(_content, session.State, _ship).Add(output, count);
+            Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
+            SendInventory(session);
+            return;
+        }
+
+        // Consume the chosen source stack (its exact key — recolouring an already-dyed item works too) plus,
+        // for a glowing variant, one crystal per unit as the luminescent core.
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var inputs = new List<ItemAmount> { new ItemAmount(intent.SourceItemKey, count) };
+        if (glow != 0)
+        {
+            inputs.Add(new ItemAmount("crystal", count));
+        }
+
+        if (!pool.Has(inputs))
+        {
+            CraftFail(session, "tint", glow != 0 ? "Need the material and a crystal." : "Missing material.");
+            return;
+        }
+
+        pool.Remove(inputs);
+        pool.Add(output, count);
+        Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
+        SendInventory(session);
+        ShipAiOnCraft(session);
     }
 
     /// <summary>Fraction of a crafted item's recipe inputs recovered when it is disassembled.</summary>

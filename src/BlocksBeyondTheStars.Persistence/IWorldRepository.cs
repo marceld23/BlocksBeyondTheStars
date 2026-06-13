@@ -68,16 +68,21 @@ public sealed class StoredSpaceStructure
     public string Blocks { get; set; } = string.Empty;
 }
 
-/// <summary>A single persisted player block edit (placement or removal) in world space.</summary>
+/// <summary>A single persisted player block edit (placement or removal) in world space, with its
+/// optional per-voxel colour modifier (dyed surface tint / glow light colour; 0 = none).</summary>
 public readonly struct BlockEdit
 {
     public readonly Vector3i WorldPosition;
     public readonly ushort Block;
+    public readonly int Tint;
+    public readonly int Glow;
 
-    public BlockEdit(Vector3i worldPosition, ushort block)
+    public BlockEdit(Vector3i worldPosition, ushort block, int tint = 0, int glow = 0)
     {
         WorldPosition = worldPosition;
         Block = block;
+        Tint = tint;
+        Glow = glow;
     }
 }
 
@@ -97,8 +102,9 @@ public interface IWorldRepository : IDisposable
     WorldMetadata? LoadMetadata();
     void SaveMetadata(WorldMetadata metadata);
 
-    /// <summary>Records a single block change (only deltas against the procedural baseline are stored).</summary>
-    void SetBlock(string planet, Vector3i worldPosition, ushort block);
+    /// <summary>Records a single block change (only deltas against the procedural baseline are stored).
+    /// <paramref name="tint"/>/<paramref name="glow"/> carry the optional per-voxel colour modifier (0 = none).</summary>
+    void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0);
 
     /// <summary>Loads all stored block edits that fall inside the given chunk.</summary>
     IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk);

@@ -408,6 +408,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void SetKnowledgeMax() => Game.Network.SendTradeKnowledge(Game.Trade.MyKnowledgeMax);
 
-        private string ItemName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string itemKey) => loc.Get($"item.{itemKey}.name");
+        private string ItemName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string itemKey)
+            => loc.Get($"item.{BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)}.name");
     }
 }

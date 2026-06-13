@@ -59,8 +59,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
-                float2 sky : TEXCOORD1;  // x = skylight, y = tint mode (1 flora, 2 hull paint)
-                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = flora/hull tint (black = use global flora hue)
+                float2 sky : TEXCOORD1;  // x = skylight, y = tint mode (1 flora, 2 hull paint, 3 player dye)
+                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = flora/hull/dye tint (black = use global flora hue)
+                float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
             };
 
@@ -75,6 +76,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float4 leaf : TEXCOORD5;
                 float4 mat : TEXCOORD6;
                 float  fog : TEXCOORD7;
+                float3 bl : TEXCOORD8;
             };
 
             Varyings vert(Attributes v)
@@ -89,6 +91,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 o.skyl = v.sky;
                 o.leaf = v.leaf;
                 o.mat = v.color;
+                o.bl = v.bl;
                 o.fog = ComputeFogFactor(o.positionCS.z);
                 return o;
             }
@@ -102,7 +105,14 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 }
 
                 float3 albedo = texel.rgb;
-                if (i.skyl.y > 1.5)
+                if (i.skyl.y > 2.5)
+                {
+                    // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
+                    // flora-tint global), so dyed building blocks read vividly on any world and in caves.
+                    float lum = dot(albedo, float3(0.299, 0.587, 0.114));
+                    albedo = lerp(albedo, lum * i.leaf.yzw * 1.6, 0.85);
+                }
+                else if (i.skyl.y > 1.5)
                 {
                     // Hull paint (item 32): multiply the per-ship tint (TEXCOORD2.yzw) into the albedo —
                     // the same look as the old tinted-silhouette hull (_Color * tex), independent of the
@@ -155,6 +165,11 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 col = lerp(col, reflTint, reflK);
 
                 col += albedo * i.mat.a * 2.0;
+
+                // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
+                // their colour, regardless of sun/skylight, so lamps light caves + night builds. Bright
+                // enough near the source to feed the bloom pass.
+                col += albedo * i.bl * 2.0;
 
                 if (_Sc_LampColor.a > 0.5)
                 {
@@ -253,8 +268,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 normal : NORMAL;
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
-                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = tint mode (1 flora, 2 hull paint)
-                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = flora/hull tint
+                float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = tint mode (1 flora, 2 hull paint, 3 player dye)
+                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = flora/hull/dye tint
+                float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO
             };
 
@@ -265,8 +281,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 wn : TEXCOORD1;
                 float3 wp : TEXCOORD2;
                 float4 wt : TEXCOORD4; // world tangent xyz + bitangent handedness w
-                float2 skyl : TEXCOORD5; // x = skylight, y = flora flag
-                float4 leaf : TEXCOORD6; // x = foliage flag, yzw = per-species flora tint
+                float2 skyl : TEXCOORD5; // x = skylight, y = tint mode
+                float4 leaf : TEXCOORD6; // x = foliage flag, yzw = per-species/hull/dye tint
+                float3 bl : TEXCOORD7; // propagated coloured block-light
                 fixed4 mat : COLOR;
                 UNITY_FOG_COORDS(3)
             };
@@ -281,6 +298,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.skyl = v.sky;
                 o.leaf = v.leaf;
+                o.bl = v.bl;
                 o.mat = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
                 return o;
@@ -299,9 +317,16 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 fixed3 albedo = texel.rgb;
 
+                // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
+                // flora-tint global), so dyed building blocks read vividly on any world and in caves.
+                if (i.skyl.y > 2.5)
+                {
+                    float lum = dot(albedo, float3(0.299, 0.587, 0.114));
+                    albedo = lerp(albedo, lum * i.leaf.yzw * 1.6, 0.85);
+                }
                 // Hull paint (item 32): multiply the per-ship tint (TEXCOORD2.yzw) into the albedo — the
                 // same look as the old tinted-silhouette hull (_Color * tex), independent of flora globals.
-                if (i.skyl.y > 1.5)
+                else if (i.skyl.y > 1.5)
                 {
                     albedo *= i.leaf.yzw;
                 }
@@ -370,6 +395,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they
                 // shine at night and the bloom pass picks them up. Alpha carries the emission strength.
                 col += albedo * i.mat.a * 2.0;
+
+                // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
+                // their colour, regardless of sun/skylight, so lamps light caves + night builds.
+                col += albedo * i.bl * 2.0;
 
                 // Headlamp / flashlight — a custom spotlight (this shader bypasses Unity's light passes,
                 // so the lamp is fed in as globals by the player instead of a real Light).

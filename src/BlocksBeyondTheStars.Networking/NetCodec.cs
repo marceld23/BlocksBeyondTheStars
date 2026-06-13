@@ -187,6 +187,10 @@ public static class NetCodec
 
         // Rename a commissioned space station you built (travel screen / station core).
         Register(124, typeof(SetStationNameIntent)); // Client -> Server
+
+        // Always-available "Dye"/"Glow" crafting: recolour a held building material (surface tint and/or
+        // a coloured light source). Output is the same item with the colour encoded in its key.
+        Register(125, typeof(TintCraftIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

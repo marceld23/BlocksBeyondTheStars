@@ -71,6 +71,10 @@ public sealed class ServerWorld
         {
             var local = WorldConstants.WorldToLocal(edit.WorldPosition);
             chunk.Set(local.X, local.Y, local.Z, new BlockId(edit.Block));
+            if (edit.Tint != 0 || edit.Glow != 0)
+            {
+                chunk.SetModifier(local.X, local.Y, local.Z, edit.Tint, edit.Glow); // dyed block / coloured light
+            }
         }
 
         _loaded[coord] = chunk;
@@ -85,16 +89,27 @@ public sealed class ServerWorld
         return chunk.Get(local.X, local.Y, local.Z);
     }
 
-    /// <summary>Sets a block, persists the edit, and returns the previous block id.</summary>
-    public BlockId SetBlock(Vector3i world, BlockId block)
+    /// <summary>Sets a block (with an optional per-voxel colour modifier), persists the edit, and returns
+    /// the previous block id. <paramref name="tint"/>/<paramref name="glow"/> are 0xRRGGBB (0 = none).</summary>
+    public BlockId SetBlock(Vector3i world, BlockId block, int tint = 0, int glow = 0)
     {
         world = WorldConstants.CanonicalBlock(world, Circumference); // longitude wraps: store/cache the canonical column
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);
-        chunk.Set(local.X, local.Y, local.Z, block);
-        _repo.SetBlock(LocationId, world, block.Value);
+        chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier when set to air
+        chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
+        _repo.SetBlock(LocationId, world, block.Value, tint, glow);
         return previous;
+    }
+
+    /// <summary>The colour modifier (Tint/Glow as 0xRRGGBB, 0 = none) stamped on a placed cell.</summary>
+    public (int Tint, int Glow) GetModifier(Vector3i world)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference);
+        var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
+        var local = WorldConstants.WorldToLocal(world);
+        return chunk.GetModifier(local.X, local.Y, local.Z);
     }
 
     public BlockDefinition? Definition(BlockId id) => _content.BlockById(id);
