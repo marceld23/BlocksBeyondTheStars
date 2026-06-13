@@ -191,6 +191,14 @@ public static class NetCodec
         // Always-available "Dye"/"Glow" crafting: recolour a held building material (surface tint and/or
         // a coloured light source). Output is the same item with the colour encoded in its key.
         Register(125, typeof(TintCraftIntent)); // Client -> Server
+
+        // Player alliances: two players co-own each other's stations + bases and can't harm one another.
+        Register(126, typeof(RequestAllianceListIntent)); // Client -> Server (open the Alliances tab)
+        Register(127, typeof(RequestAllianceIntent));     // Client -> Server (propose an alliance)
+        Register(128, typeof(AllianceResponseIntent));    // Client -> Server (accept/decline a request)
+        Register(129, typeof(DissolveAllianceIntent));    // Client -> Server (end an alliance)
+        Register(130, typeof(AllianceList));              // Server -> Client (my full roster + pending)
+        Register(131, typeof(AllianceRequestNotice));     // Server -> Client (someone proposed an alliance)
     }
 
     private static void Register(byte tag, Type type)

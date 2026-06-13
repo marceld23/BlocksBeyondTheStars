@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
         public ClientSettings Settings;   // for in-game character customization
         public PlayerAvatar Avatar;       // local avatar, recoloured live
 
-        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character }
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances }
 
         /// <summary>Which full-screen browser sub-screen (if any) replaces the tab view while the menu is open.
         /// The Wiki ("Codex") and Arcade are reached from buttons in the menu header.</summary>
@@ -166,6 +166,11 @@ namespace BlocksBeyondTheStars.Client
             else if (tab == Tab.Missions)
             {
                 Game.Network?.SendRequestMissions();
+            }
+            else if (tab == Tab.Alliances)
+            {
+                Game.Network?.SendRequestAllianceList(); // refresh the roster (allies + pending) on open
+                Game.Network?.SendRequestStarMap();      // the "find players" picker needs the online-player list
             }
         }
 

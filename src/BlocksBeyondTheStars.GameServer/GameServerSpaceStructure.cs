@@ -347,7 +347,10 @@ public sealed partial class GameServer
         // ships + game stations stay protected (S5).
         bool isAsteroid = s.Kind == "asteroid";
         bool isOwn = s.OwnerId == p.PlayerId; // your own ship or your own station
-        if (!isAsteroid && !isOwn)
+        // Allies co-own each other's STATIONS (build/mine the floating structure), but never each other's ship —
+        // the ship stays owner-only by design, so the alliance grant is scoped to station structures.
+        bool isAlliedStation = !isOwn && s.Kind == "station" && AreAllied(s.OwnerId, p.PlayerId);
+        if (!isAsteroid && !isOwn && !isAlliedStation)
         {
             Reject(session, "structure", "You can only modify your own ship or station.");
             return;

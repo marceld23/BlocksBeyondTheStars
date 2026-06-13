@@ -227,6 +227,9 @@ public sealed partial class GameServer
             return;
         }
 
+        // Player-vs-player combat is not implemented yet: only creatures/NPCs are valid targets. When players do
+        // become targetable (on foot here, or ship-vs-ship in FireWeapon), gate the damage on the alliance —
+        // allies must never harm one another, even on a PVP server: `if (AreAllied(playerId, targetId)) reject`.
         Reject(session, "attack", "No such target.");
     }
 

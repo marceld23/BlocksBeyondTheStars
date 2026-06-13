@@ -159,6 +159,17 @@ public sealed partial class GameServer
         };
     }
 
+    /// <summary>True if a player may board a station. NPC/procedural stations (no owner) are open to everyone; a
+    /// player-built station is private (Q4) — only its owner, their allies, or an admin may board it.</summary>
+    private bool CanBoardStation(PlayerSession session, string stationId)
+    {
+        string owner = StationOwnerName(stationId); // empty for NPC/procedural stations
+        return string.IsNullOrEmpty(owner)
+               || session.State.IsAdmin
+               || owner == session.State.PlayerId
+               || AreAllied(owner, session.State.PlayerId);
+    }
+
     /// <summary>Boards a station from the player's current space instance, after range validation.</summary>
     public void BoardStation(string playerId, string stationId)
     {
@@ -185,6 +196,12 @@ public sealed partial class GameServer
         if (contact.Position.DistanceSquared(instance.ShipPosition) > StationBoardRange * StationBoardRange)
         {
             Reject(session, "station", "Move closer to dock with the station.");
+            return;
+        }
+
+        if (!CanBoardStation(session, stationId))
+        {
+            Reject(session, "station", "This station is private — ally with its owner to board.");
             return;
         }
 
@@ -283,6 +300,12 @@ public sealed partial class GameServer
         if (session.CurrentLocationId == stationId)
         {
             Reject(session, "travel", "You are already there.");
+            return;
+        }
+
+        if (!CanBoardStation(session, stationId))
+        {
+            Reject(session, "travel", "This station is private — ally with its owner to board.");
             return;
         }
 

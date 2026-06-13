@@ -172,7 +172,8 @@ public sealed partial class GameServer
 
             var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
             var b = _world.GetBlock(p);
-            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p))
+            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
             {
                 continue;
             }

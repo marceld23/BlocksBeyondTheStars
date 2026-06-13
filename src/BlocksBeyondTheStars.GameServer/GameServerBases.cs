@@ -43,6 +43,53 @@ public sealed partial class GameServer
     private bool PlayerHasBaseOn(string ownerId, string body)
         => _bases.Any(b => b.OwnerId == ownerId && b.Planet == body);
 
+    /// <summary>Half-extent (in blocks) of a base's protected build zone: a cube centred on the base_core. Owner +
+    /// allies build/mine freely inside it; everyone else is blocked (place + mine + area tools). Tunable.</summary>
+    private const int BaseProtectionRadius = 8;
+
+    /// <summary>True if the cell falls inside some player base's protected zone on the current world AND the actor
+    /// may not edit it there. Owner + allies + admins build freely; for anyone else the whole zone is read-only.
+    /// The base_core cell itself is owner-only even for allies, so an ally can't dissolve the base out from under
+    /// the owner (removing the core deletes the base). Bases on other bodies don't protect this world.</summary>
+    private bool IsBaseProtected(Vector3i pos, string actorId, bool actorIsAdmin)
+    {
+        string body = _world.LocationId;
+        foreach (var b in _bases)
+        {
+            if (b.Planet != body)
+            {
+                continue;
+            }
+
+            bool isCore = b.Cell.X == pos.X && b.Cell.Y == pos.Y && b.Cell.Z == pos.Z;
+            if (!isCore && !WithinBaseZone(b.Cell, pos))
+            {
+                continue;
+            }
+
+            if (actorIsAdmin || b.OwnerId == actorId)
+            {
+                return false; // owner + admin: full control over their base, including the core
+            }
+
+            // Allies share the build zone but may not pull the core (that would delete the owner's base).
+            if (!isCore && AreAllied(b.OwnerId, actorId))
+            {
+                return false;
+            }
+
+            return true; // inside someone else's base — and not an ally (or it's their core)
+        }
+
+        return false;
+    }
+
+    /// <summary>Chebyshev (cube) test: is <paramref name="pos"/> within the base-core's protected half-extent?</summary>
+    private static bool WithinBaseZone(Vector3i core, Vector3i pos)
+        => System.Math.Abs(pos.X - core.X) <= BaseProtectionRadius
+           && System.Math.Abs(pos.Y - core.Y) <= BaseProtectionRadius
+           && System.Math.Abs(pos.Z - core.Z) <= BaseProtectionRadius;
+
     /// <summary>Loads every founded base from persistence at server start (the base_core blocks themselves return via
     /// the block-edit store). Idempotent — clears first.</summary>
     private void LoadAllBases()

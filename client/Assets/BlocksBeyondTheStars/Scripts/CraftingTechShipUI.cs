@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
         // space lives on the Map tab now — there is no separate Space tab.)
-        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6 }
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7 }
 
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
@@ -62,6 +62,11 @@ namespace BlocksBeyondTheStars.Client
         private string _pmTitle = string.Empty, _pmDesc = string.Empty;
         private int _pmType, _pmTarget, _pmCount = 5, _pmRewardItem = 3, _pmRewardCount = 1;
         private readonly System.Collections.Generic.List<NetMissionObjective> _pmObjectives = new();
+
+        // Alliances tab: the radio (Funk) input draft + the live scrollback Text (refreshed each frame so new
+        // messages appear without rebuilding the pane, which would drop the input's focus while typing).
+        private string _funkDraft = string.Empty;
+        private Text _funkLog;
 
         private const float W = 1920f, H = 1080f;
 
@@ -158,7 +163,12 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
                     + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0)
-                    + (Game.LastMessage?.GetHashCode() ?? 0);
+                    + (Game.LastMessage?.GetHashCode() ?? 0)
+                    // Alliances tab: roster + pending changes refresh the lists; the online-player count drives the
+                    // "find players" picker. The radio (Funk) feed is deliberately NOT hashed — its log refreshes in
+                    // place each frame so an incoming message never rebuilds the pane and steals the input's focus.
+                    + (Game.Alliances?.Allies.Length ?? 0) * 601 + (Game.Alliances?.Incoming.Length ?? 0) * 701
+                    + (Game.Alliances?.Outgoing.Length ?? 0) * 809 + (Game.StarMap?.Players.Length ?? 0) * 53;
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -166,6 +176,12 @@ namespace BlocksBeyondTheStars.Client
                 RebuildSidebar(); // map systems / sections can arrive async
                 RebuildList();
                 RebuildDetail();
+            }
+
+            // Live radio scrollback: keep the Funk view current without a rebuild (preserves typing focus).
+            if (_mode == Mode.Alliances && _category == "funk" && _funkLog != null)
+            {
+                _funkLog.text = ComposeFunkLog();
             }
         }
 
@@ -380,7 +396,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
             // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings" };
+            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances" };
             float x = 40f;
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -587,6 +603,17 @@ namespace BlocksBeyondTheStars.Client
                     list.Clear();
                     list.Add(("appearance", L("ui.settings.character"), "cat_suit"));
                     break;
+                case Mode.Alliances:
+                    list.Clear();
+                    if (_category != "allies" && _category != "find" && _category != "funk")
+                    {
+                        _category = "allies"; // the tab opens with "all" by default — land on the roster
+                    }
+
+                    list.Add(("allies", L("ui.alliance.cat_allies"), "cat_mission"));
+                    list.Add(("find", L("ui.alliance.cat_find"), "cat_tech"));
+                    list.Add(("funk", L("ui.alliance.cat_funk"), "cat_cargo"));
+                    break;
             }
 
             return list;
@@ -615,6 +642,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Map: y = BuildMapList(); break;
                 case Mode.Missions: y = BuildMissionsList(); break;
                 case Mode.Character: y = BuildCharacterList(); break;
+                case Mode.Alliances: y = BuildAlliancesList(); break;
             }
 
             SetContentHeight(_listContent, y);
@@ -1397,6 +1425,195 @@ namespace BlocksBeyondTheStars.Client
             return 76f;
         }
 
+        // --- Alliances tab (player alliances + radio/Funk chat) ---
+
+        private float BuildAlliancesList()
+        {
+            _funkLog = null; // only the Funk view owns the live scrollback Text
+            switch (_category)
+            {
+                case "find": return BuildAllianceFindList();
+                case "funk": return BuildFunkLog();
+                default: return BuildAllyList();
+            }
+        }
+
+        /// <summary>The roster view: incoming requests (accept/decline), current allies (end), and outgoing requests.</summary>
+        private float BuildAllyList()
+        {
+            var a = Game.Alliances ?? new AllianceList();
+            float y = 0f;
+
+            if (a.Incoming != null && a.Incoming.Length > 0)
+            {
+                y = AllianceSection(L("ui.alliance.incoming"), y);
+                foreach (var r in a.Incoming)
+                {
+                    string id = r.PlayerId;
+                    UiKit.AddText(_listContent, 8, y + 8, 420, 40, AllianceName(r.PlayerName, r.PlayerId), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    var acc = UiKit.AddButton(_listContent, 440, y + 6, 150, 44, L("ui.alliance.accept"), () => Game.Network?.SendAllianceResponse(id, true));
+                    acc.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+                    UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.alliance.decline"), () => Game.Network?.SendAllianceResponse(id, false));
+                    y += 58f;
+                }
+
+                y += 10f;
+            }
+
+            y = AllianceSection(L("ui.alliance.cat_allies"), y);
+            if (a.Allies == null || a.Allies.Length == 0)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 30, L("ui.alliance.none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 40f;
+            }
+            else
+            {
+                foreach (var al in a.Allies)
+                {
+                    string id = al.PartnerId;
+                    string dot = al.Online ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
+                    UiKit.AddText(_listContent, 8, y + 8, 560, 40, dot + AllianceName(al.PartnerName, al.PartnerId), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.alliance.end"), () => Game.Network?.SendDissolveAlliance(id));
+                    y += 58f;
+                }
+            }
+
+            if (a.Outgoing != null && a.Outgoing.Length > 0)
+            {
+                y += 10f;
+                y = AllianceSection(L("ui.alliance.outgoing"), y);
+                foreach (var r in a.Outgoing)
+                {
+                    UiKit.AddText(_listContent, 8, y, 760, 36, AllianceName(r.PlayerName, r.PlayerId) + "  —  " + L("ui.alliance.waiting"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    y += 40f;
+                }
+            }
+
+            return y;
+        }
+
+        /// <summary>The "find players" picker: online players you can still propose an alliance to (self, current
+        /// allies and pending requests are filtered out). Player id == display name in this game, so the name is
+        /// the target id. <see cref="StarMapData.Players"/> carries every online player, not just nearby ones.</summary>
+        private float BuildAllianceFindList()
+        {
+            float y = AllianceSection(L("ui.alliance.cat_find"), 0f);
+            var a = Game.Alliances ?? new AllianceList();
+
+            var taken = new HashSet<string>();
+            if (a.Allies != null) foreach (var al in a.Allies) taken.Add(al.PartnerId);
+            if (a.Incoming != null) foreach (var r in a.Incoming) taken.Add(r.PlayerId);
+            if (a.Outgoing != null) foreach (var r in a.Outgoing) taken.Add(r.PlayerId);
+
+            string me = Game.LocalPlayerId ?? string.Empty;
+            var players = Game.StarMap?.Players ?? System.Array.Empty<NetPlayerLocation>();
+            var seen = new HashSet<string>();
+            int shown = 0;
+            foreach (var p in players)
+            {
+                string id = p.Name; // player id == name
+                if (string.IsNullOrEmpty(id) || id == me || taken.Contains(id) || !seen.Add(id))
+                {
+                    continue;
+                }
+
+                UiKit.AddText(_listContent, 8, y + 8, 480, 40, AllianceName(p.Name, id), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                var btn = UiKit.AddButton(_listContent, 500, y + 6, 250, 44, L("ui.alliance.propose"), () => Game.Network?.SendRequestAlliance(id));
+                btn.GetComponent<Image>().color = new Color(0.2f, 0.45f, 0.7f);
+                y += 58f;
+                shown++;
+            }
+
+            if (shown == 0)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 30, L("ui.alliance.no_players"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 40f;
+            }
+
+            return y;
+        }
+
+        /// <summary>The radio (Funk) scrollback in the list pane — a live Text refreshed each frame (see Update),
+        /// reusing the existing global chat feed. The input + send button live in the detail pane.</summary>
+        private float BuildFunkLog()
+        {
+            _funkLog = UiKit.AddText(_listContent, 0, 0, 780, 700, ComposeFunkLog(), 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            _funkLog.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _funkLog.verticalOverflow = VerticalWrapMode.Overflow;
+            _funkLog.supportRichText = true;
+            return 700f;
+        }
+
+        private string ComposeFunkLog()
+        {
+            var chat = Game?.RecentChat;
+            if (chat == null || chat.Count == 0)
+            {
+                return L("ui.funk.empty");
+            }
+
+            var sb = new System.Text.StringBuilder();
+            int from = Mathf.Max(0, chat.Count - 30);
+            for (int i = from; i < chat.Count; i++)
+            {
+                sb.AppendLine($"<b>{chat[i].Sender}:</b> {chat[i].Text}");
+            }
+
+            return sb.ToString();
+        }
+
+        private float DetailAlliances()
+        {
+            if (_category == "funk")
+            {
+                return DetailFunk();
+            }
+
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 32, L("ui.alliance.title"), 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 44f;
+            UiKit.AddText(_detail, 8, y, 620, 260, L("ui.alliance.about"), 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            y += 270f;
+            return y;
+        }
+
+        private float DetailFunk()
+        {
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 32, L("ui.funk.title"), 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 44f;
+            UiKit.AddText(_detail, 8, y, 620, 60, L("ui.funk.hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            y += 70f;
+            UiKit.AddInput(_detail, 8, y, 620, 46, _funkDraft, v => _funkDraft = v, L("ui.funk.placeholder"));
+            y += 56f;
+            var send = UiKit.AddButton(_detail, 8, y, 220, 48, L("ui.funk.send"), SendFunk);
+            send.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+            y += 60f;
+            return y;
+        }
+
+        private void SendFunk()
+        {
+            string t = (_funkDraft ?? string.Empty).Trim();
+            if (t.Length == 0)
+            {
+                return;
+            }
+
+            Game.Network?.SendChat(t);
+            _funkDraft = string.Empty;
+            RebuildDetail(); // clear the input box
+        }
+
+        /// <summary>A non-selectable section heading inside the Alliances list; returns the y below it.</summary>
+        private float AllianceSection(string text, float y)
+        {
+            UiKit.AddText(_listContent, 4, y, 760, 30, text, 18, UiKit.Cyan, TextAnchor.LowerLeft, FontStyle.Bold);
+            return y + 36f;
+        }
+
+        private static string AllianceName(string name, string id) => string.IsNullOrEmpty(name) ? id : name;
+
         private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null)
         {
             var card = UiKit.AddButton(_listContent, indent, y, 780 - indent, 78, string.Empty, onClick);
@@ -1470,6 +1687,14 @@ namespace BlocksBeyondTheStars.Client
             if (_mode == Mode.Map)
             {
                 SetContentHeight(_detail, DetailMap());
+                return;
+            }
+
+            // The Alliances detail pane is informational (allies/find) or the radio input (funk) — shown even with
+            // nothing selected, so branch before the generic "pick an entry" placeholder.
+            if (_mode == Mode.Alliances)
+            {
+                SetContentHeight(_detail, DetailAlliances());
                 return;
             }
 

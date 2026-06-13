@@ -168,6 +168,7 @@ public sealed partial class GameServer
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
+        LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
 
         // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
         BuildMissions();
@@ -1210,6 +1211,7 @@ public sealed partial class GameServer
 
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
+            ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
             SetActiveWorld(loc);
             RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
@@ -1321,6 +1323,10 @@ public sealed partial class GameServer
             case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
             case SkipOnboardingIntent skipOnboarding: HandleSkipOnboarding(session, skipOnboarding); break;
             case SetWorldRulesIntent worldRules: HandleSetWorldRules(session, worldRules); break;
+            case RequestAllianceListIntent: HandleRequestAllianceList(session); break;
+            case RequestAllianceIntent allianceReq: HandleRequestAlliance(session, allianceReq); break;
+            case AllianceResponseIntent allianceResp: HandleAllianceResponse(session, allianceResp); break;
+            case DissolveAllianceIntent allianceDis: HandleDissolveAlliance(session, allianceDis); break;
         }
     }
 
@@ -1448,6 +1454,7 @@ public sealed partial class GameServer
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendBeacons(session);
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
+        SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendLandingPads(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
@@ -1769,6 +1776,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
+        {
+            Reject(session, "mine", "This base is protected — ally with its owner to build here.");
+            return;
+        }
+
         var def = _world.Definition(current);
         if (def is null || !def.Mineable)
         {
@@ -1884,7 +1897,8 @@ public sealed partial class GameServer
 
             var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
             var b = _world.GetBlock(p);
-            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p))
+            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
             {
                 continue;
             }
@@ -1948,6 +1962,12 @@ public sealed partial class GameServer
         if (IsStationBlock(pos))
         {
             Reject(session, "place", "This station is protected.");
+            return;
+        }
+
+        if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
+        {
+            Reject(session, "place", "This base is protected — ally with its owner to build here.");
             return;
         }
 

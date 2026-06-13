@@ -49,6 +49,17 @@ public sealed class StoredBase
     public string OwnerId { get; set; } = string.Empty;
 }
 
+/// <summary>A persisted alliance between two players (server-wide, not per-world). Pairwise + mutual: the two
+/// ids are stored normalised (<see cref="PlayerA"/> sorts before <see cref="PlayerB"/>) so each pair is one row.
+/// Allied players co-own each other's stations + bases and cannot harm one another. <see cref="FormedUtc"/> is an
+/// ISO-8601 timestamp shown as "allied since" in the menu.</summary>
+public sealed class StoredAlliance
+{
+    public string PlayerA { get; set; } = string.Empty;
+    public string PlayerB { get; set; } = string.Empty;
+    public string FormedUtc { get; set; } = string.Empty;
+}
+
 /// <summary>A persisted player-built space station (item 20 S4): its voxel cells + registry row (owner, name,
 /// the body it orbits, flight-scene position). Reappears on the star map + boardable across sessions.</summary>
 public sealed class StoredSpaceStructure
@@ -147,6 +158,15 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredBase> ListAllBases();
 
     void DeleteBase(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a player alliance, keyed by the normalised player-id pair.</summary>
+    void SaveAlliance(StoredAlliance alliance);
+
+    /// <summary>Lists every alliance across the server (restored once at server start).</summary>
+    IReadOnlyList<StoredAlliance> ListAlliances();
+
+    /// <summary>Removes the alliance between the two players (order-independent).</summary>
+    void DeleteAlliance(string playerA, string playerB);
 
     /// <summary>Stores (inserts or replaces) a player-built space station (item 20 S4).</summary>
     void SaveSpaceStructure(StoredSpaceStructure structure);

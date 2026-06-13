@@ -68,6 +68,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS base_claim (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS alliance (
+                a TEXT NOT NULL, b TEXT NOT NULL, formed TEXT NOT NULL, PRIMARY KEY (a, b));
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS space_structure (
@@ -613,6 +615,62 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.ExecuteNonQuery();
         }
     }
+
+    // --- Alliances (player-to-player, server-wide) ---
+
+    public void SaveAlliance(StoredAlliance alliance)
+    {
+        var (a, b) = NormalizePair(alliance.PlayerA, alliance.PlayerB);
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO alliance (a, b, formed) VALUES ($a, $b, $f) " +
+                              "ON CONFLICT(a, b) DO UPDATE SET formed = excluded.formed;";
+            cmd.Parameters.AddWithValue("$a", a);
+            cmd.Parameters.AddWithValue("$b", b);
+            cmd.Parameters.AddWithValue("$f", alliance.FormedUtc);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredAlliance> ListAlliances()
+    {
+        var result = new List<StoredAlliance>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT a, b, formed FROM alliance;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredAlliance
+                {
+                    PlayerA = reader.GetString(0),
+                    PlayerB = reader.GetString(1),
+                    FormedUtc = reader.GetString(2),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteAlliance(string playerA, string playerB)
+    {
+        var (a, b) = NormalizePair(playerA, playerB);
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM alliance WHERE a = $a AND b = $b;";
+            cmd.Parameters.AddWithValue("$a", a);
+            cmd.Parameters.AddWithValue("$b", b);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Orders a player-id pair so each alliance is stored under exactly one (a, b) key.</summary>
+    private static (string A, string B) NormalizePair(string x, string y)
+        => string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
 
     // --- Location status ---
 

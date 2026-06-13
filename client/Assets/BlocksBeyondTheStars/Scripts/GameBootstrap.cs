@@ -156,6 +156,15 @@ namespace BlocksBeyondTheStars.Client
         public MissionList Missions { get; private set; }
         public ServerRules Rules { get; private set; }
 
+        /// <summary>This player's alliance roster (mutual allies + pending requests), for the Alliances menu tab.</summary>
+        public AllianceList Alliances { get; private set; } = new AllianceList();
+
+        /// <summary>Recent radio (Funk) chat lines mirrored for the Alliances-tab chat panel (oldest first, capped).
+        /// The standalone <see cref="ChatUi"/> overlay keeps its own buffer; this is the shared feed for the tab.</summary>
+        public System.Collections.Generic.IReadOnlyList<ChatMessage> RecentChat => _recentChat;
+        private readonly System.Collections.Generic.List<ChatMessage> _recentChat = new();
+        private const int RecentChatMax = 60;
+
         /// <summary>The Instant Travel world option: when on, the travel screen may quick-travel anywhere.</summary>
         public bool InstantTravel => Rules?.InstantTravel ?? false;
 
@@ -635,6 +644,17 @@ namespace BlocksBeyondTheStars.Client
                 if (grew) LastMessage = Localizer?.Get("ui.arcade.downloaded") ?? "Game downloaded to your Arcade.";
             };
             Network.MissionsReceived += m => Missions = m;
+            Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
+            Network.AllianceRequestReceived += m =>
+            {
+                string who = string.IsNullOrEmpty(m.RequesterName) ? m.RequesterId : m.RequesterName;
+                ShowMessage((Localizer?.Get("ui.alliance.request_from") ?? "Alliance request from {name}").Replace("{name}", who));
+            };
+            Network.ChatReceived += m =>
+            {
+                _recentChat.Add(m);
+                if (_recentChat.Count > RecentChatMax) _recentChat.RemoveAt(0);
+            };
             Network.ShipCombatStatusChanged += m => ShipCombat = m;
             Network.SpaceStateReceived += m =>
             {

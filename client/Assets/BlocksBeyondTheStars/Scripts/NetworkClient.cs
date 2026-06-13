@@ -87,6 +87,10 @@ namespace BlocksBeyondTheStars.Client
         // Ship AI companion "VEGA": onboarding/advisor/story lines + the active objective chip.
         public event Action<ShipAiLine> ShipAiLineReceived;
 
+        // Player alliances: the full roster (allies + pending requests) and a "someone proposed" toast notice.
+        public event Action<AllianceList> AllianceListReceived;
+        public event Action<AllianceRequestNotice> AllianceRequestReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -300,6 +304,20 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSwitchShip(string shipId) => Send(new SwitchShipIntent { ShipId = shipId });
 
+        // --- Player alliances ---
+        /// <summary>Asks the server for the current alliance roster (sent when the Alliances tab opens).</summary>
+        public void SendRequestAllianceList() => Send(new RequestAllianceListIntent());
+
+        /// <summary>Proposes an alliance to another player (they must accept before it forms).</summary>
+        public void SendRequestAlliance(string targetPlayerId) => Send(new RequestAllianceIntent { TargetPlayerId = targetPlayerId ?? string.Empty });
+
+        /// <summary>Accepts or declines a pending alliance request from another player.</summary>
+        public void SendAllianceResponse(string requesterId, bool accept)
+            => Send(new AllianceResponseIntent { RequesterId = requesterId ?? string.Empty, Accept = accept });
+
+        /// <summary>Ends an existing alliance with a partner (one-sided — either side may dissolve it).</summary>
+        public void SendDissolveAlliance(string partnerId) => Send(new DissolveAllianceIntent { PartnerId = partnerId ?? string.Empty });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -363,6 +381,8 @@ namespace BlocksBeyondTheStars.Client
                 case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
+                case AllianceList m: AllianceListReceived?.Invoke(m); break;
+                case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
             }
         }
 
