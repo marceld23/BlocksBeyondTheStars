@@ -1,38 +1,93 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Context-aware background music: four moods — in-game menu, planet surface, space flight and
-    /// space combat — cross-faded over ~2.5 s on the music bus. Each context prefers a bundled
-    /// loop (<c>Resources/audio/music_*</c>, AI-generated) and falls back to a code-synthesized
-    /// ambient pad in the same mood, so the game stays musical with no assets. Combat is inferred
-    /// client-side: the ship's hull+shield dropped within the last few seconds while in space.
+    /// The game's background-music director. A single persistent component owned by <see cref="AppShell"/>
+    /// (so it spans splash → menu → loading → in-game and gives the shell screens music too), it picks a
+    /// context from the shell phase and — once in-game — the world state, then cross-fades between two
+    /// music sources (~2.5 s, so music never starts abruptly and transitions are smooth).
+    ///
+    /// Two selectable sources (<see cref="ClientSettings.MusicMode"/>, toggled in the settings menu):
+    ///   • <b>Synth</b> — the original four code-synth ambient moods (menu / planet / space / combat),
+    ///     each a short bundled <c>Resources/audio/music_*</c> loop with a synthesized fallback.
+    ///   • <b>Tracks</b> — the granular AI-composed library under <c>Resources/music</c>, mapped to many
+    ///     contexts (biomes, ship interior, orbit, station, …). When several tracks fit one context the
+    ///     choice is random, and a long stay re-rolls to another fitting track at the loop seam for variety.
+    ///
+    /// Combat always uses the tense synth mood (the Tracks library is intentionally all-calm). SFX and
+    /// ambience are untouched and stay on their own <see cref="ClientSettings.SfxVolume"/> bus; this bus is
+    /// <see cref="ClientSettings.MusicVolume"/> (master is the <see cref="AudioListener"/>). The studio/title
+    /// splash stings are one-shots played by AppShell and are left alone (music stays silent over them).
     /// </summary>
     public sealed class ClientMusic : MonoBehaviour
     {
-        public ClientSettings Settings;
-        public GameBootstrap Game;
+        /// <summary>The owning shell; supplies settings, the current phase and the in-game world (or null).</summary>
+        public AppShell Shell;
 
-        private enum Context { Menu, Planet, Space, Combat }
+        private enum Context
+        {
+            Silent, Menu, Loading,
+            ShipInterior, Station,
+            PlanetGeneric, PlanetIce, PlanetDesert, PlanetLava, PlanetToxic, PlanetOcean,
+            PlanetVerdant, PlanetCrystal, PlanetCave,
+            Space, Combat,
+        }
 
+        private enum SynthMood { Menu, Planet, Space, Combat }
+
+        private const float CrossfadeRate = 0.4f;   // volume units / s → ~2.5 s for a full fade
+        private const float RerollLead = 3.0f;       // re-roll this many seconds before a track ends
+        private const float UnderwaterCutoff = 680f;  // Hz — music muffles while the head is submerged
+        private const float OpenCutoff = 22000f;
+
+        private GameObject _bus;          // child GO carrying the two music sources + the music-only low-pass
         private AudioSource _active, _fading;
-        private Context _context = (Context)(-1);
-        private readonly System.Collections.Generic.Dictionary<Context, AudioClip> _clips = new();
+        private AudioListener _listener;
+        private AudioLowPassFilter _lowpass;
 
-        // Combat detection: hull+shield drops while in space arm a combat window.
+        private Context _context = (Context)(-1);
+        private MusicMode _mode = (MusicMode)(-1);
+        private List<string> _pool;       // current Tracks-mode candidate pool (null on the synth path)
+        private string _activeName;        // current clip key (so a re-roll can avoid an immediate repeat)
+        private bool _activeLoops = true;  // single-track pools / synth loops loop in place (no re-roll)
+
+        private bool _lastInGame = true;   // forces a menu-listener reconcile on the first (shell) frame
+        private readonly System.Random _rng = new System.Random();
+        private readonly Dictionary<string, AudioClip> _musicCache = new();
+        private readonly Dictionary<SynthMood, AudioClip> _synthCache = new();
+
+        // Combat detection: hull+shield drops while in space arm a tense window.
         private float _lastIntegrity = -1f;
         private float _combatUntil;
 
         private void Awake()
         {
+            // The two music sources + the underwater low-pass live on a child object — NOT on this object,
+            // which carries the AudioListener (a low-pass beside the active listener would muffle the whole
+            // mix, SFX included; here it only ever filters the music sources).
+            _bus = new GameObject("MusicBus");
+            _bus.transform.SetParent(transform, false);
             _active = NewSource();
             _fading = NewSource();
+            _lowpass = _bus.AddComponent<AudioLowPassFilter>();
+            _lowpass.cutoffFrequency = OpenCutoff;
+            _lowpass.lowpassResonanceQ = 1f;
+
+            // Our own listener hears the shell screens (menu/loading). Silence any pre-existing scene
+            // listener so there is exactly one active — WorldRig swaps to the world camera's in-game.
+            foreach (var al in Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+            {
+                al.enabled = false;
+            }
+
+            _listener = gameObject.AddComponent<AudioListener>();
         }
 
         private AudioSource NewSource()
         {
-            var src = gameObject.AddComponent<AudioSource>();
+            var src = _bus.AddComponent<AudioSource>();
             src.playOnAwake = false;
             src.loop = true;
             src.spatialBlend = 0f; // non-positional background track
@@ -42,33 +97,80 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            var want = CurrentContext();
-            if (want != _context)
+            var settings = Shell != null ? Shell.Settings : null;
+            var game = Shell != null ? Shell.CurrentBoot : null;
+
+            ManageListener(game != null);
+
+            var mode = settings?.MusicMode ?? MusicMode.Tracks;
+            var want = CurrentContext(game);
+
+            if (want != _context || mode != _mode)
             {
-                SwitchTo(want);
+                _mode = mode;
+                SwitchTo(want, mode, game, reroll: false);
+            }
+            else if (mode == MusicMode.Tracks && !_activeLoops && _active.clip != null && _active.isPlaying
+                     && _active.time >= _active.clip.length - RerollLead)
+            {
+                SwitchTo(want, mode, game, reroll: true);
             }
 
-            // Music bus = the music volume (the master bus is applied globally by the AudioListener).
-            float target = Mathf.Clamp01(Settings?.MusicVolume ?? 0.6f);
-            _active.volume = Mathf.MoveTowards(_active.volume, target, Time.deltaTime * 0.4f);
-            _fading.volume = Mathf.MoveTowards(_fading.volume, 0f, Time.deltaTime * 0.4f);
+            // Bus volume = music volume (master is applied globally by the AudioListener). Silence over splash.
+            float target = want == Context.Silent ? 0f : Mathf.Clamp01(settings?.MusicVolume ?? 0.6f);
+            _active.volume = Mathf.MoveTowards(_active.volume, target, Time.deltaTime * CrossfadeRate);
+            _fading.volume = Mathf.MoveTowards(_fading.volume, 0f, Time.deltaTime * CrossfadeRate);
             if (_fading.volume <= 0f && _fading.isPlaying)
             {
                 _fading.Stop();
             }
+
+            // Underwater muffle: while in-game and the player's head is submerged, sweep the music low-pass
+            // down (ClientAudio already does the same for SFX on its own object). Open again above water.
+            bool submerged = game != null && ClientAudio.Instance != null && ClientAudio.Instance.Submerged;
+            float cutoff = submerged ? UnderwaterCutoff : OpenCutoff;
+            _lowpass.cutoffFrequency = Mathf.MoveTowards(_lowpass.cutoffFrequency, cutoff, Time.deltaTime * 45000f);
         }
 
-        private Context CurrentContext()
+        /// <summary>Keeps exactly one <see cref="AudioListener"/> active: ours in the shell screens, the
+        /// in-game camera's while playing. WorldRig disables every other listener when it builds the world
+        /// and our listener is re-armed (and the others silenced) the moment we return to a menu.</summary>
+        private void ManageListener(bool inGame)
         {
-            if (Game == null || Game.MenuOpen)
+            if (inGame != _lastInGame)
             {
-                return Context.Menu;
+                if (!inGame)
+                {
+                    foreach (var al in Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+                    {
+                        al.enabled = false;
+                    }
+                }
+
+                _lastInGame = inGame;
             }
 
-            bool inSpace = Game.SpaceViewActive || Game.InSpace;
+            if (_listener != null)
+            {
+                _listener.enabled = !inGame; // in-game the world camera's listener is the active one
+            }
+        }
 
-            // Combat: integrity (hull+shield) fell while in space → tense track for a while.
-            var combat = Game.ShipCombat;
+        private Context CurrentContext(GameBootstrap game)
+        {
+            if (game == null)
+            {
+                return Shell == null ? Context.Silent : Shell.Phase switch
+                {
+                    ShellPhase.Loading => Context.Loading,
+                    ShellPhase.Splash or ShellPhase.Studio => Context.Silent, // leave the splash stings alone
+                    _ => Context.Menu,                                          // main menu / settings / credits / editors
+                };
+            }
+
+            bool inSpace = game.SpaceViewActive || game.InSpace;
+
+            var combat = game.ShipCombat;
             if (combat != null)
             {
                 float integrity = combat.Hull + combat.Shield;
@@ -80,58 +182,214 @@ namespace BlocksBeyondTheStars.Client
                 _lastIntegrity = integrity;
             }
 
-            if (inSpace && Time.time < _combatUntil)
+            if (inSpace)
             {
-                return Context.Combat;
+                return Time.time < _combatUntil ? Context.Combat : Context.Space;
             }
 
-            return inSpace ? Context.Space : Context.Planet;
+            if (game.NearVendor)
+            {
+                return Context.Station;        // a trade vendor / station hub nearby — the cooperative bed
+            }
+
+            if (game.Aboard)
+            {
+                return Context.ShipInterior;   // inside the ship (not flying) — the calm cabin bed
+            }
+
+            if (!game.ExposedToSky)
+            {
+                return Context.PlanetCave;     // underground / enclosed on a planet
+            }
+
+            return BiomeContext(game.Environment?.Biome);
         }
 
-        private void SwitchTo(Context context)
+        // Maps the server's planet/biome key (data/planets.json) to a music context.
+        private static Context BiomeContext(string biome)
         {
-            _context = context;
+            switch ((biome ?? string.Empty).ToLowerInvariant())
+            {
+                case "ice":
+                case "tundra":
+                case "glacier": return Context.PlanetIce;
+                case "desert":
+                case "salt_flats": return Context.PlanetDesert;
+                case "lava":
+                case "ashen":
+                case "volcanic": return Context.PlanetLava;
+                case "fungal":
+                case "corrupted": return Context.PlanetToxic;
+                case "ocean": return Context.PlanetOcean;
+                case "swamp":
+                case "jungle":
+                case "forest":
+                case "savanna": return Context.PlanetVerdant;
+                case "orbital_station": return Context.Station;     // standing on a station hub
+                case "ship_interior": return Context.ShipInterior;  // safety net; Aboard usually catches this
+                default:
+                    // crystal / crystal_living → the sparkling moon track; rocky / varied / highland /
+                    // skylands / asteroid → the generic idle pool.
+                    return (biome ?? string.Empty).Contains("crystal") ? Context.PlanetCrystal : Context.PlanetGeneric;
+            }
+        }
+
+        /// <summary>Cross-fades to a clip for <paramref name="want"/>: a fresh random pick from the context's
+        /// track pool (Tracks mode) or the matching synth mood. <paramref name="reroll"/> keeps the same
+        /// context but avoids repeating the current track.</summary>
+        private void SwitchTo(Context want, MusicMode mode, GameBootstrap game, bool reroll)
+        {
+            string exclude = reroll ? _activeName : null;
+            _context = want;
             (_active, _fading) = (_fading, _active);
-            _active.clip = ClipFor(context);
+
+            if (want == Context.Silent)
+            {
+                _active.clip = null;
+                _activeName = null;
+                _pool = null;
+                _activeLoops = true;
+                return; // nothing plays; the old source fades out
+            }
+
+            var (clip, name, pool, loop) = Resolve(want, mode, game, exclude);
+            _pool = pool;
+            _activeName = name;
+            _activeLoops = loop;
+            _active.clip = clip;
+            _active.loop = loop;
             _active.volume = 0f; // fades up in Update while the old track fades down
-            _active.Play();
+            if (clip != null)
+            {
+                _active.Play();
+            }
         }
 
-        private AudioClip ClipFor(Context context)
+        private (AudioClip clip, string name, List<string> pool, bool loop) Resolve(
+            Context want, MusicMode mode, GameBootstrap game, string exclude)
         {
-            if (_clips.TryGetValue(context, out var cached) && cached != null)
+            if (mode == MusicMode.Tracks && want != Context.Combat)
+            {
+                var pool = PoolFor(want, game);
+                if (pool.Count > 0)
+                {
+                    string name = PickFrom(pool, exclude);
+                    return (LoadMusic(name), name, pool, pool.Count <= 1);
+                }
+            }
+
+            // Synth path: Synth mode, combat (always synth), or a Tracks pool whose files are missing.
+            var mood = MoodFor(want);
+            return (SynthClip(mood), "synth:" + mood, null, true);
+        }
+
+        /// <summary>The Tracks-mode candidate pool for a context, filtered to files that actually ship.</summary>
+        private List<string> PoolFor(Context want, GameBootstrap game)
+        {
+            List<string> names = want switch
+            {
+                Context.Menu => new() { "music_main_menu" },
+                Context.Loading => new() { "music_loading" },
+                Context.ShipInterior => new() { "music_ship_interior", "music_crafting_workshop", "music_research_blueprints" },
+                Context.Station => new() { "music_multiplayer_hub" },
+                Context.Space => new() { "music_space_orbit", "music_deep_space_lonely", "music_mystery_signal", "music_asteroid_mining", "music_cockpit_starmap" },
+                Context.PlanetIce => new() { "music_planet_ice" },
+                Context.PlanetDesert => new() { "music_planet_desert" },
+                Context.PlanetLava => new() { "music_planet_lava" },
+                Context.PlanetToxic => new() { "music_planet_toxic" },
+                Context.PlanetOcean => new() { "music_planet_ocean" },
+                Context.PlanetVerdant => new() { "music_planet_verdant", "music_explore_planet" },
+                Context.PlanetCrystal => new() { "music_moon_crystal", "music_explore_planet" },
+                Context.PlanetCave => new() { "music_planet_cave" },
+                Context.PlanetGeneric => GenericPlanetPool(game),
+                _ => new List<string>(),
+            };
+
+            names.RemoveAll(n => LoadMusic(n) == null); // drop any not bundled (e.g. an ungenerated track)
+            return names;
+        }
+
+        /// <summary>Generic-planet idle pool, tinted by the local time of day so dawn brings the sunrise
+        /// track and night the nocturnal one.</summary>
+        private static List<string> GenericPlanetPool(GameBootstrap game)
+        {
+            float t = game != null ? game.LocalTimeOfDay : 0.5f;
+            bool night = t < 0.23f || t >= 0.78f;
+            var list = new List<string> { "music_explore_planet", "music_idle_default" };
+            list.Add(night ? "music_planet_night" : "music_planet_sunrise");
+            return list;
+        }
+
+        private string PickFrom(List<string> pool, string exclude)
+        {
+            if (pool.Count == 1)
+            {
+                return pool[0];
+            }
+
+            var choices = exclude == null ? pool : pool.FindAll(n => n != exclude);
+            if (choices.Count == 0)
+            {
+                choices = pool;
+            }
+
+            return choices[_rng.Next(choices.Count)];
+        }
+
+        private static SynthMood MoodFor(Context want) => want switch
+        {
+            Context.Menu or Context.Loading => SynthMood.Menu,
+            Context.Space => SynthMood.Space,
+            Context.Combat => SynthMood.Combat,
+            _ => SynthMood.Planet,
+        };
+
+        private AudioClip LoadMusic(string name)
+        {
+            if (!_musicCache.TryGetValue(name, out var clip))
+            {
+                clip = Resources.Load<AudioClip>("music/" + name);
+                _musicCache[name] = clip;
+            }
+
+            return clip;
+        }
+
+        /// <summary>The synth-mood clip: the short bundled <c>music_*</c> loop, or a synthesized fallback.</summary>
+        private AudioClip SynthClip(SynthMood mood)
+        {
+            if (_synthCache.TryGetValue(mood, out var cached) && cached != null)
             {
                 return cached;
             }
 
-            string key = context switch
+            string key = mood switch
             {
-                Context.Menu => "music_menu",
-                Context.Planet => "music_planet",
-                Context.Space => "music_space",
+                SynthMood.Menu => "music_menu",
+                SynthMood.Planet => "music_planet",
+                SynthMood.Space => "music_space",
                 _ => "music_combat",
             };
 
-            var clip = Resources.Load<AudioClip>("audio/" + key) ?? BuildLoop(context);
-            _clips[context] = clip;
+            var clip = Resources.Load<AudioClip>("audio/" + key) ?? BuildLoop(mood);
+            _synthCache[mood] = clip;
             return clip;
         }
 
         /// <summary>
-        /// Synthesizes a seamless ambient loop in the context's mood: consonant chords of sine pads
-        /// plus a low drone, each chord swelling in and out (a half-sine envelope that reaches zero at
-        /// every boundary, so chord changes and the loop seam are click-free). Combat adds a slow
-        /// amplitude pulse for tension.
+        /// Synthesizes a seamless ambient loop in the mood: consonant chords of sine pads plus a low drone,
+        /// each chord swelling in and out (a half-sine envelope that reaches zero at every boundary, so chord
+        /// changes and the loop seam are click-free). Combat adds a slow amplitude pulse for tension.
         /// </summary>
-        private static AudioClip BuildLoop(Context context)
+        private static AudioClip BuildLoop(SynthMood mood)
         {
             const int rate = 44100;
             float chordDur;
             bool pulse = false;
             float[][] chords;
-            switch (context)
+            switch (mood)
             {
-                case Context.Planet: // brighter, major — wonder and discovery
+                case SynthMood.Planet: // brighter, major — wonder and discovery
                     chordDur = 4f;
                     chords = new[]
                     {
@@ -141,7 +399,7 @@ namespace BlocksBeyondTheStars.Client
                         new[] { 220.00f, 261.63f, 329.63f }, // Am
                     };
                     break;
-                case Context.Space: // vast, low, sparse — slow two-note dyads
+                case SynthMood.Space: // vast, low, sparse — slow two-note dyads
                     chordDur = 6f;
                     chords = new[]
                     {
@@ -151,7 +409,7 @@ namespace BlocksBeyondTheStars.Client
                         new[] { 110.00f, 164.81f },
                     };
                     break;
-                case Context.Combat: // minor, pulsing — tension
+                case SynthMood.Combat: // minor, pulsing — tension
                     chordDur = 2.5f;
                     pulse = true;
                     chords = new[]
@@ -200,7 +458,7 @@ namespace BlocksBeyondTheStars.Client
                 data[i] = s * env;
             }
 
-            var clip = AudioClip.Create("music_" + context, total, 1, rate, false);
+            var clip = AudioClip.Create("music_" + mood, total, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }

@@ -8,6 +8,13 @@ namespace BlocksBeyondTheStars.Client
     public enum QualityPreset { Potato, Low, Medium, High }
 
     /// <summary>
+    /// Which background-music source the player prefers. <see cref="Synth"/> = the original code-synth
+    /// ambient pads (the short bundled <c>music_*</c> loops with synthesized fallbacks); <see cref="Tracks"/>
+    /// = the granular AI-composed track library under <c>Resources/music</c>. SFX/ambience are unaffected.
+    /// </summary>
+    public enum MusicMode { Synth, Tracks }
+
+    /// <summary>
     /// Local, client-only settings (display, audio, input, comfort). These never affect the
     /// authoritative server rules (PvP, aliens, weapons stay server-decided). Persisted as JSON
     /// in <c>Application.persistentDataPath/client_settings.json</c>. See
@@ -27,6 +34,10 @@ namespace BlocksBeyondTheStars.Client
         public float MusicVolume = 0.6f;
         public float SfxVolume = 0.8f;
         public bool MenuAudio = true;
+
+        /// <summary>Background-music source: the AI-composed track library (default) or the original
+        /// code-synth ambient pads. SFX/ambience volumes are independent (<see cref="SfxVolume"/>).</summary>
+        public MusicMode MusicMode = MusicMode.Tracks;
 
         // Controls
         public float MouseSensitivity = 2f;

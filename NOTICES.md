@@ -18,10 +18,14 @@ are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**
-for the generating account's plan. Background **music** is four AI-generated ambient loops
+for the generating account's plan. Background **music** comes in two player-selectable sets: (1) four AI-generated ambient loops
 (`music_menu`/`music_planet`/`music_space`/`music_combat`, same ElevenLabs API + terms) with
-code-synthesized fallbacks; the remaining UI/feedback cues stay **generated procedurally in code**
-(`ClientMusic`, `ClientAudio`).
+code-synthesized fallbacks; and (2) a **Suno**-generated track library of 23 instrumental ambient
+tracks (`client/Assets/Resources/music/*.mp3`) composed with the **Suno** text-to-music service by
+the project owner — see `docs/MUSIC_TRACKS.md` for every track's prompt and in-game context. These
+are AI-synthesised instrumental audio (not third-party recordings); use is governed by the **Suno
+Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay
+**generated procedurally in code** (`ClientMusic`, `ClientAudio`).
 
 **UI icons:** `client/Assets/Resources/icons/*.png` (40 files, incl. menu category icons, the world-map
 marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with the

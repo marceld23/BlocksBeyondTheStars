@@ -26,6 +26,10 @@ namespace BlocksBeyondTheStars.Client
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
 
+        /// <summary>The live in-game world (its <see cref="GameBootstrap"/>), or null in the shell screens.
+        /// Read by the persistent <see cref="ClientMusic"/> director to pick context music.</summary>
+        public GameBootstrap CurrentBoot { get; private set; }
+
         // Join target edited on the main menu. PlayerName is loaded from / persisted to
         // ClientSettings (Awake / the connect dialog); Password is session-only.
         public string Host = "127.0.0.1";
@@ -66,6 +70,10 @@ namespace BlocksBeyondTheStars.Client
             _loading = new LoadingScreen(this);
 
             EnsureMenuBackground();
+
+            // Persistent background-music director: spans splash → menu → loading → in-game so the shell
+            // screens get music too, and cross-fades context tracks (synth or the AI track library).
+            gameObject.AddComponent<ClientMusic>().Shell = this;
         }
 
         /// <summary>
@@ -368,6 +376,7 @@ namespace BlocksBeyondTheStars.Client
         {
             DestroyMenuBackground();
             _gameRoot = WorldRig.Build(this);
+            CurrentBoot = Boot(); // hand the live world to the music director
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             Phase = ShellPhase.InGame;
@@ -376,6 +385,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Tears down the in-game world, stops the local server, and returns to the menu.</summary>
         public void ReturnToMenu()
         {
+            CurrentBoot = null; // the music director falls back to shell-phase music
             if (_gameRoot != null)
             {
                 UnityEngine.Object.Destroy(_gameRoot); // GameBootstrap.OnDestroy disconnects

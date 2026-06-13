@@ -35,6 +35,10 @@ namespace BlocksBeyondTheStars.Client
         private AudioLowPassFilter _lowpass;
         private bool _submerged;                        // true while the head is in water/lava (for 3D one-shots)
 
+        /// <summary>True while the player's head is inside water/lava — the music director reads this to
+        /// muffle background music underwater the same way SFX are muffled here.</summary>
+        public bool Submerged => _submerged;
+
         private AudioClip _ok, _err, _blip; // procedural fallbacks (no recorded equivalent)
 
         private bool _subscribed;

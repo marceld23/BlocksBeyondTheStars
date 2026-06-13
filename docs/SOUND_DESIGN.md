@@ -127,13 +127,26 @@ station NPC markers + trade/mission interactions.
 | lava bubbling loop, water/shore loop | near fluid | 2 | EL |
 | day vs night ambience shift | world clock | 2 | proc/EL |
 
-## 11. Music — ✅ SHIPPED (context cross-fade, 2026-06-12)
+## 11. Music — ✅ SHIPPED (context cross-fade + Suno track library, 2026-06-13)
 
-Context tracks, cross-faded over ~2.5 s: **in-game menu ✓, planet ✓, space ✓, combat ✓** — four
-AI-generated ElevenLabs ambient loops (`Resources/audio/music_menu|planet|space|combat.mp3`, 24 s
-seamless) with mood-matched code-synth fallbacks in `ClientMusic` (so the game stays musical
-without assets). Combat is inferred client-side (hull+shield drop while in space → 14 s tension
-window). Still open: a main-menu (AppShell-level) music hook — `ClientMusic` lives in the world rig.
+Two **player-selectable** music sources (*Settings → Audio → Music style*,
+`ClientSettings.MusicMode`), both cross-faded over ~2.5 s on the music bus by the **persistent**
+`ClientMusic` director (now owned by `AppShell`, so it spans **splash → menu → loading → in-game** —
+the old "main-menu hook still open" gap is closed):
+
+- **Synth** — the four code-synth ambient moods (menu / planet / space / combat), each the short
+  bundled `Resources/audio/music_menu|planet|space|combat.mp3` loop with a synthesized fallback.
+- **Tracks** (default) — a 23-track AI-composed Suno library under `Resources/music/*.mp3` (Streaming
+  import), mapped to many contexts: main menu, loading, ship interior, station/hub, space flight,
+  and per-biome planet beds (ice / desert / lava / toxic / ocean / verdant / crystal / cave) plus a
+  day/night-tinted generic idle pool. Several tracks per context → **random pick**, and a long stay
+  **re-rolls** at the loop seam for variety. See `docs/MUSIC_TRACKS.md` for the full mapping + the
+  Suno prompt of every track.
+
+Combat is inferred client-side (hull+shield drop while in space → 14 s window) and always uses the
+tense **synth** combat mood in both modes — the Suno library is intentionally all-calm. Music
+muffles underwater (low-pass), and rides `MusicVolume` while SFX/ambience stay independent on
+`SfxVolume`. The studio/title splash stings are left untouched (music is silent over the splash).
 
 ---
 

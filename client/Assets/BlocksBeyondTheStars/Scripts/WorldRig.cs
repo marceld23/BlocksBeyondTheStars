@@ -172,10 +172,8 @@ namespace BlocksBeyondTheStars.Client
             audio.Game = boot;
             audio.Settings = shell.Settings;
 
-            // Context-aware background music (menu/planet/space/combat cross-fade).
-            var music = root.AddComponent<ClientMusic>();
-            music.Settings = shell.Settings;
-            music.Game = boot;
+            // Background music is driven by the persistent AppShell-level ClientMusic director (it spans the
+            // shell screens too); it reads this world via AppShell.CurrentBoot, so nothing is wired here.
 
             // Real space view + launch/landing sequences (M25b).
             var space = root.AddComponent<SpaceView>();

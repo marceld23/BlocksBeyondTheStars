@@ -47,6 +47,24 @@ single hyperjump entry until you've been there.
 - **Verification:** 491/491 tests green (incl. a new quick-travel gating test + locale parity); client batch
   build green.
 
+### ★ Selectable music: Suno track library + synth, with menu toggle — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** add 23 Suno-generated ambient tracks as an alternative to the existing synth music, selectable in the
+menu, with fade in/out, fitting per-context placement (random when several fit), and music/SFX kept on separate
+volume buses. Splash stings left untouched.
+- **Assets:** the 20 supplied tracks + 3 newly-generated gap tracks (cave / verdant / planet-night) copied to
+  `client/Assets/Resources/music/*.mp3` with descriptive `music_*` names and **Streaming** import (so the
+  multi-minute songs don't sit decompressed in RAM). Kept out of `Resources/audio/` so `ClientAudio` doesn't
+  preload them. Prompts + context mapping documented in [docs/MUSIC_TRACKS.md](docs/MUSIC_TRACKS.md).
+- **Director:** `ClientMusic` is now a **persistent AppShell-owned** component (spans splash→menu→loading→
+  in-game, closing the old main-menu-hook gap; removed from WorldRig, reads `AppShell.CurrentBoot`). Two modes
+  (`ClientSettings.MusicMode` Synth | **Tracks** default), toggle row in `UiSettings` (en/de keys). Context from
+  shell phase + world state (biome, ship interior, station/`NearVendor`, space, underground, time-of-day);
+  random pick within a pool; re-roll at the loop seam for variety; ~2.5 s cross-fade. Combat stays the tense
+  **synth** mood (library is all-calm). Music muffles underwater (own low-pass via `ClientAudio.Submerged`);
+  single-AudioListener handover managed across menu↔game. Master=`AudioListener`, music=`MusicVolume`,
+  SFX/ambience=`SfxVolume` (already separate sliders).
+- **Open:** needs a Unity client rebuild to import the new audio + compile; not yet play-verified in-engine.
+
 ### ★ Landed ship as a real object instead of a world stamp — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** the landed ship should be its own placed voxel OBJECT (own mesh, own colliders, hull-paint
 applies) instead of being STAMPED into the world block grid.
@@ -232,7 +250,8 @@ block variants, ship rooms/cockpit/decor/thrusters/damage/ghost+materialize).
   panels; hotbar selection tick; instant under ReducedEffects (`UiKit.ReducedMotion`).
 - **WP-8 Music contexts** ✅ — menu/planet/space/combat cross-fade; four ElevenLabs ambient loops
   (`music_*.mp3`) + mood-matched procedural fallbacks; combat inferred from hull+shield drops.
-  SOUND_DESIGN §11 shipped (still open: an AppShell-level main-menu hook).
+  SOUND_DESIGN §11 shipped. **Extended 2026-06-13:** persistent AppShell-level director (main-menu +
+  loading music now hooked) + a selectable 23-track Suno library (see the music entry up top).
 - **WP-9 Block variants** ✅ — 2 procedural variant tiles per natural block + 90° top/bottom UV
   rotation from a deterministic world-position hash; ship/tech panels excluded.
 - **WP-10 Ship room identity** ✅ — 7 new blocks (light strips, panels, hazard floor, engine
