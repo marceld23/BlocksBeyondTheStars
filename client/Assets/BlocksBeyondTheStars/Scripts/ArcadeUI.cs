@@ -44,11 +44,10 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(_root, W - 360, 26, 180, 46, L("ui.action.back_menu"), () => Menu?.CloseBrowser());
             UiKit.AddButton(_root, W - 170, 26, 130, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
 
-            // Collection rail (left).
+            // Collection rail (left) — scrollable, since the unlocked-game list can exceed the panel height.
             UiKit.AddPanel(_root, 40, RegionY, 300, RegionH, new Color(0.05f, 0.09f, 0.15f, 0.95f));
             UiKit.AddText(_root, 56, RegionY + 8, 270, 30, L("ui.arcade.collection"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _rail = UiKit.Place(new GameObject("Rail", typeof(RectTransform)), 50, RegionY + 44, 280, RegionH - 50);
-            _rail.SetParent(_root, false);
+            _rail = MakeScroll(_root, 50, RegionY + 44, 290, RegionH - 52);
 
             // Play region (right).
             UiKit.AddPanel(_root, RegionX, RegionY, RegionW, RegionH, new Color(0.03f, 0.06f, 0.11f, 0.96f));
@@ -117,9 +116,47 @@ namespace BlocksBeyondTheStars.Client
                 int best = Settings != null ? Settings.GetMinigameBest(key) : 0;
                 string label = (string.IsNullOrEmpty(e.icon) ? "" : e.icon + "  ") + e.Title(Game.German) +
                                (best > 0 ? "   ★" + best : "");
-                UiKit.AddButton(_rail, 0, y, 280, 56, label, () => PlayGame(key));
+                UiKit.AddButton(_rail, 0, y, 270, 56, label, () => PlayGame(key));
                 y += 64f;
             }
+            // Size the scroll content so it scrolls when taller than the viewport, and reset to the top.
+            float viewportH = _rail.parent is RectTransform vp ? vp.rect.height : 0f;
+            _rail.sizeDelta = new Vector2(_rail.sizeDelta.x, Mathf.Max(y + 8f, viewportH));
+            _rail.anchoredPosition = new Vector2(_rail.anchoredPosition.x, 0f);
+            if (_rail.parent != null && _rail.parent.GetComponent<ScrollRect>() is { } sr) sr.velocity = Vector2.zero;
+        }
+
+        /// <summary>Builds a vertical scroll view (viewport mask + a thin cyan scrollbar) and returns its content
+        /// RectTransform (top-left anchored, so UiKit.Place lays children out from the top).</summary>
+        private static RectTransform MakeScroll(Transform parent, float x, float y, float w, float h)
+        {
+            var viewGo = new GameObject("Scroll", typeof(RectTransform));
+            viewGo.transform.SetParent(parent, false);
+            UiKit.Place(viewGo, x, y, w, h);
+            var sr = viewGo.AddComponent<ScrollRect>();
+            sr.horizontal = false; sr.vertical = true; sr.scrollSensitivity = 32f; sr.movementType = ScrollRect.MovementType.Clamped;
+            viewGo.AddComponent<RectMask2D>();
+
+            var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
+            content.SetParent(viewGo.transform, false);
+            content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(0f, 1f); content.pivot = new Vector2(0f, 1f);
+            content.sizeDelta = new Vector2(w, h); content.anchoredPosition = Vector2.zero;
+            sr.content = content; sr.viewport = (RectTransform)viewGo.transform;
+
+            // Thin vertical scrollbar on the right edge.
+            var sbGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
+            var sbRT = (RectTransform)sbGo.transform; sbRT.SetParent(viewGo.transform, false);
+            sbRT.anchorMin = new Vector2(1f, 0f); sbRT.anchorMax = new Vector2(1f, 1f); sbRT.pivot = new Vector2(1f, 0.5f);
+            sbRT.sizeDelta = new Vector2(7f, 0f); sbRT.anchoredPosition = Vector2.zero;
+            sbGo.GetComponent<Image>().color = new Color(0.27f, 0.55f, 0.72f, 0.12f);
+            var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            var hRT = (RectTransform)handleGo.transform; hRT.SetParent(sbGo.transform, false);
+            hRT.anchorMin = Vector2.zero; hRT.anchorMax = Vector2.one; hRT.sizeDelta = Vector2.zero; hRT.anchoredPosition = Vector2.zero;
+            handleGo.GetComponent<Image>().color = new Color(0.27f, 0.84f, 1f, 0.55f);
+            sb.handleRect = hRT; sb.targetGraphic = handleGo.GetComponent<Image>();
+            sr.verticalScrollbar = sb; sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            return content;
         }
 
         private void OnOpen()

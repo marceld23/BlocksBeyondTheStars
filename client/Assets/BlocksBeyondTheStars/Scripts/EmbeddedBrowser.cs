@@ -157,6 +157,7 @@ namespace BlocksBeyondTheStars.Client
                 _client.communicationLayer = Resources.Load<VoltstroStudios.UnityWebBrowser.Communication.CommunicationLayer>("TCP Communication Layer");
                 ui.inputHandler = Resources.Load<VoltstroStudios.UnityWebBrowser.Input.WebBrowserInputHandler>("Old Input Handler");
                 _client.initialUrl = "about:blank";
+                _client.windowlessFrameRate = 60; // smoother real-time minigames (default 30 looks choppy)
                 _client.jsMethodManager.jsMethodsEnable = true;
                 _client.RegisterJsMethod<string, int, int, bool>("reportResult",
                     (gameKey, score, rating, completed) => OnReportResult(gameKey, score, rating, completed));

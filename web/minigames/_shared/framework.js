@@ -133,13 +133,15 @@
     };
 
     function perf() { return (window.performance && performance.now) ? performance.now() : new Date().getTime(); }
+    var _lastHud = '';
     function renderHud() {
       var parts = [];
       if ('score' in hudData) parts.push('<span>' + t(STR.score) + '<b>' + hudData.score + '</b></span>');
       for (var key in hudData) { if (key === 'score' || key === 'time') continue; parts.push('<span>' + key + '<b>' + hudData[key] + '</b></span>'); }
       parts.push('<span>' + t(STR.time) + '<b>' + fmtTime(api.now()) + '</b></span>');
       if (best) parts.push('<span>' + t(STR.best) + '<b>' + best + '</b></span>');
-      hud.innerHTML = parts.join('');
+      var html = parts.join('');
+      if (html !== _lastHud) { _lastHud = html; hud.innerHTML = html; } // only reflow when something changed (time ticks once/sec)
     }
     function fmtTime(s) { s = Math.max(0, Math.floor(s)); var m = Math.floor(s / 60); var ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
 
