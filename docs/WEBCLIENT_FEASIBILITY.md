@@ -44,6 +44,11 @@ is solid.
 - `CompositeServerTransport` (UDP + WS).
 - Server config `EnableWebSocket` / `WebSocketBindAddress`.
 - Server web portal (`/portal`, `/play`) in the API.
+- **Native client distribution from the server** (the §7 "download the client from the host" goal):
+  a Velopack installer + auto-update feed (`scripts/publish-client-installer.ps1`), served by the API at
+  `/download` (Setup.exe) and `/updates` (feed), with an in-app updater (`ClientUpdater`) and a polished
+  `/portal` carrying both logos. See [SELF_HOSTING.md](SELF_HOSTING.md) §9. *(The browser/WebGL `/play`
+  path below is still the remaining piece.)*
 
 ## Remaining (Unity-side, needs the Editor)
 

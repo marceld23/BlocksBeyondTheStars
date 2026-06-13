@@ -22,6 +22,37 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual
+zip hand-off. Built on the existing two-process model (`GameServer` UDP + `Api` HTTP); the `Api` already
+shipped a `/portal` page with a placeholder download button.
+**What was built:**
+- **Installer (Velopack, MIT).** `scripts/publish-client-installer.ps1` runs `vpk pack` over
+  `client/Build/Windows` → `BlocksBeyondTheStars-win-Setup.exe` + an update feed (`releases.win.json` +
+  `*-full.nupkg`) in `artifacts/installer` (verified end-to-end: a 153 MB Setup.exe builds in ~1 min).
+  Per-user install (no admin), Start-menu/Desktop shortcuts, uninstaller. `-ServeDir` stages it into a
+  server install's `clients/`.
+- **In-app auto-update.** `client/.../ClientUpdater.cs` runs `VelopackApp.Build().Run()` at
+  `BeforeSplashScreen` and adds a manual "Check for updates" flow; new setting `ClientSettings.UpdateFeedUrl`;
+  bilingual `ui.settings.update_*` keys; a **Software update** section in `UiSettings`. Velopack runtime
+  vendored into `client/Assets/Plugins` by `scripts/sync-velopack-libs.ps1` (copy-if-absent).
+- **Server serves it.** `Api` now hosts the feed at **`/updates`** (static files over `<install>/clients`),
+  a **`/download`** route handing out the newest `Setup.exe`, and a redesigned **`/portal`**
+  (`PortalPage.cs`) — a polished page carrying **both logos** (JuMaVe Games studio emblem + the game logo,
+  recreated as self-contained inline SVG/CSS so no art ships) and the paste-in update URL. Built + rendered.
+**Build + packaging done & verified (2026-06-13):** Editor imported the new Plugin DLLs;
+`scripts/build-client.ps1` produced a fresh player with Velopack + all its runtime deps bundled
+(`Client.dll` 15:59); `scripts/publish-client-installer.ps1` built a 154 MB `Setup.exe` + feed; the Api
+serves `/portal` (both logos), `/download` (GET+HEAD, ranged, 200) and `/updates` (feed JSON, 200) — all
+hit live. **Build fix:** the client asmdef has `overrideReferences:true`, so `Velopack.dll` +
+`Newtonsoft.Json.dll` had to be added to its `precompiledReferences` — without it the Editor compiled but
+the player build failed `CS0246` (the `using Velopack` is `#if !UNITY_EDITOR`).
+**Remaining (real-world, needs two machines / a cert):**
+- Install the Setup.exe on a second PC, join the LAN server, then publish a higher version and confirm the
+  in-app **Settings → Software update** pulls + restarts.
+- Optional: code-signing cert to remove the one-time SmartScreen prompt; a slimmer "join-only" client
+  profile (drops the 68 MB bundled singleplayer server).
+
 ### ★ Bug — raw scene flashes before the loading screen on world entry — ✅ IMPLEMENTED (2026-06-13)
 **Symptom:** starting a new game (and, in a weaker form, landing on a new/existing world) briefly showed the
 star system, then the bare planet surface, and only *then* the loading screen.

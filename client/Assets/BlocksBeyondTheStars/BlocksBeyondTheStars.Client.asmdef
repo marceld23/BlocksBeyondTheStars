@@ -14,7 +14,9 @@
     "BlocksBeyondTheStars.WorldGeneration.dll",
     "BlocksBeyondTheStars.Networking.dll",
     "MessagePack.dll",
-    "LiteNetLib.dll"
+    "LiteNetLib.dll",
+    "Velopack.dll",
+    "Newtonsoft.Json.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

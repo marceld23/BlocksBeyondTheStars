@@ -122,6 +122,11 @@ returns. See [ai-backend/README.md](ai-backend/README.md) and
 Produces self-contained, single-file packages (no .NET install needed on the host) under
 `artifacts/`. On Linux/macOS use `scripts/publish-server.sh`.
 
+Players can also download and install the Windows client **from the running server's own web page**:
+`scripts/publish-client-installer.ps1` builds a [Velopack](https://velopack.io) installer + auto-update
+feed, the admin host serves it at `/download` + `/updates`, and the `/portal` page links it. See
+[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) §9.
+
 ## Adding content (data-driven)
 
 Blocks, items, recipes, blueprints, ship modules and planets are JSON in `data/`; no code

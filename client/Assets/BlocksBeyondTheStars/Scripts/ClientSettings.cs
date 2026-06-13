@@ -49,6 +49,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Last singleplayer world the player launched (pre-selected in the world picker).</summary>
         public string LastWorld = "singleplayer";
 
+        /// <summary>Optional Velopack auto-update feed URL — the self-hosting server's update endpoint
+        /// (e.g. <c>http://192.168.1.50:31416/updates</c>, shown on that server's <c>/portal</c> page).
+        /// Empty = no in-app updates. Only effective in an installed build (see <see cref="ClientUpdater"/>).</summary>
+        public string UpdateFeedUrl = "";
+
         /// <summary>The player's name — shown to other players and keying the server-side player state.</summary>
         public string PlayerName = "Pilot";
 

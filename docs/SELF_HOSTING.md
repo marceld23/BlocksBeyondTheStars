@@ -128,9 +128,9 @@ Invoke-RestMethod http://127.0.0.1:31416/api/status -Headers @{ 'X-Admin-Passwor
 # or: curl -H "X-Admin-Password: <password>" http://127.0.0.1:31416/api/status
 ```
 
-The host also serves a public-facing **`/portal`** landing page (server name, client
-download / browser-play links for players) and the `/play` placeholder for the future
-browser client.
+The host also serves a public-facing **`/portal`** landing page — a polished page with the
+JuMaVe Games + game logos, a one-click client download and the in-app update URL — plus the
+`/play` placeholder for the future browser client. See §9 for distributing the client this way.
 
 ## 6. Backups & saves
 
@@ -192,3 +192,37 @@ content and reward counts are clamped; greetings are flavour only. Backend error
 logged and the game continues with the static text — it never crashes the server. Endpoint
 details: [ai-backend/README.md](../ai-backend/README.md); design:
 [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md).
+
+## 9. Distributing the client from the server (installer + auto-update)
+
+Players can install the Windows client straight from the server's own web page — no manual
+zip hand-off. This uses [Velopack](https://velopack.io) (MIT) for the installer and updates.
+
+**Build the installer** (needs a built client and the `vpk` CLI — auto-installed on first run):
+
+```powershell
+./scripts/sync-velopack-libs.ps1     # ONCE: vendor the Velopack runtime into the client, then refresh Unity
+./scripts/build-client.ps1           # build the Windows player (includes the update runtime)
+./scripts/publish-client-installer.ps1 -ServeDir <your server install dir>
+```
+
+That produces `BlocksBeyondTheStars-win-Setup.exe` plus an update feed
+(`releases.win.json` + `*-full.nupkg`) and, with `-ServeDir`, copies them into the install's
+`clients/` folder so the API serves them.
+
+**On the host:** start `BlocksBeyondTheStars.Api`, and (for LAN/internet reach) bind it beyond loopback —
+set `adminBindAddress` to the LAN IP or `0.0.0.0` **and** set an `adminPassword` first (§4). Only `/api/*`
+is password-gated; `/portal`, `/download` and `/updates` stay public so players can reach them.
+
+**Players:**
+
+1. Open `http://<server-ip>:<adminPort>/portal` (default port 31416) in a browser.
+2. Click **Download the Windows client** (served from `/download`) and run the installer
+   (per-user, no admin rights; an unsigned build shows a one-time SmartScreen "More info → Run anyway").
+3. Launch the game and **Join** the server's IP on the gameplay port (default 31415).
+4. **Auto-update:** in **Settings → Software update**, paste the update URL shown on the portal
+   (`http://<server-ip>:<adminPort>/updates`) and use **Check for updates**. Publishing a higher
+   version with the script above lets installed clients self-update from the server.
+
+Updates only apply to an *installed* client (not a dev/Editor or portable-zip run). Each published
+version must be higher than the last.

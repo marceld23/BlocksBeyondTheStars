@@ -81,5 +81,11 @@ Server / shared (.NET, via NuGet — see each project's `.csproj` for exact vers
 - **System.Text.Json** — MIT — config/definition/locale serialization.
 - **xUnit** — Apache-2.0 — test framework (test project only, not shipped).
 
+Client (Unity, bundled in `client/Assets/Plugins` — vendored by `scripts/sync-velopack-libs.ps1`):
+
+- **Velopack** — MIT — in-app installer/auto-update runtime (`ClientUpdater`); the `vpk` CLI
+  (also MIT) builds the Setup.exe + update feed in `scripts/publish-client-installer.ps1`.
+- **Newtonsoft.Json** — MIT — pulled in as a Velopack runtime dependency (client only).
+
 The Unity client additionally uses the Unity engine and its packages under the Unity
 Companion / Unity software licence; those are not redistributed by this repository.

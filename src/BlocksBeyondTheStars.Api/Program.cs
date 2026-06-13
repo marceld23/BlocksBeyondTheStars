@@ -1,5 +1,6 @@
 using BlocksBeyondTheStars.Api;
 using BlocksBeyondTheStars.Shared.Configuration;
+using Microsoft.Extensions.FileProviders;
 
 // BlocksBeyondTheStars admin web UI / meta backend (technical requirements §13). Lightweight
 // ASP.NET Core app over a server installation directory. Bound to localhost/LAN by
@@ -39,25 +40,42 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Client distribution (anf_webclient.md §7): the Velopack installer + auto-update feed live in
+// <install>/clients, produced by scripts/publish-client-installer.ps1. Serve that folder at /updates
+// (the feed the in-game updater reads) — public, no admin password. .nupkg/RELEASES have no standard
+// MIME type, so serve unknown types too.
+string clientsDir = Path.Combine(installDir, "clients");
+Directory.CreateDirectory(clientsDir);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(clientsDir),
+    RequestPath = "/updates",
+    ServeUnknownFileTypes = true,
+});
+
 app.MapGet("/", () => Results.Content(AdminDashboard.Html, "text/html"));
 
-// Public server portal (anf_webclient.md §7): landing page + browser-play placeholder.
-app.MapGet("/portal", (AdminService a) =>
+// Public server portal (anf_webclient.md §7): the studio + game logo landing page with the client
+// download and the in-app update URL. baseUrl is derived from the request so the page shows the exact
+// address players reached it on.
+app.MapGet("/portal", (HttpRequest req, AdminService a) =>
 {
     var s = a.GetStatus();
-    var html = $@"<!DOCTYPE html><html lang=""en""><head><meta charset=""utf-8"">
-<meta name=""viewport"" content=""width=device-width, initial-scale=1""><title>{s.ServerName}</title>
-<style>body{{font-family:system-ui,sans-serif;background:#0b0f1a;color:#dfe6f3;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}}
-.card{{background:#131a2b;border:1px solid #243049;border-radius:12px;padding:32px;max-width:480px}}
-a.btn{{display:block;background:#2b6cff;color:#fff;text-decoration:none;text-align:center;padding:12px;border-radius:8px;margin:10px 0}}
-.muted{{color:#8a96ad;font-size:13px}}</style></head>
-<body><div class=""card""><h1>🚀 {s.ServerName}</h1>
-<p class=""muted"">World: {s.WorldName} · Gameplay port: {s.GameplayPort}</p>
-<a class=""btn"" href=""https://example.invalid/blocks-beyond-the-stars/windows"">Download Windows client</a>
-<a class=""btn"" href=""/play"">Play in the browser</a>
-<p class=""muted"">Native clients connect to this server's IP on UDP {s.GameplayPort}.</p>
-</div></body></html>";
-    return Results.Content(html, "text/html");
+    var baseUrl = $"{req.Scheme}://{req.Host}";
+    return Results.Content(PortalPage.Render(s.ServerName, s.WorldName, s.GameplayPort, baseUrl), "text/html; charset=utf-8");
+});
+
+// One-click download: hand out the newest published Windows installer (Setup.exe) from <install>/clients.
+// GET + HEAD (some download managers probe with HEAD) and range processing so the big self-contained
+// installer download is resumable.
+app.MapMethods("/download", new[] { "GET", "HEAD" }, () =>
+{
+    var setup = Directory.Exists(clientsDir)
+        ? Directory.GetFiles(clientsDir, "*Setup.exe").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()
+        : null;
+    return setup is null
+        ? Results.NotFound("No client installer has been published yet. Run scripts/publish-client-installer.ps1 -ServeDir <this install>.")
+        : Results.File(setup, "application/octet-stream", Path.GetFileName(setup), enableRangeProcessing: true);
 });
 
 app.MapGet("/play", () => Results.Content(

@@ -82,10 +82,37 @@ namespace BlocksBeyondTheStars.Client
             ColorRow(ref y, L("ui.settings.arms"), S.ArmColor, () => { S.ArmColor = Next(S.ArmColor); Rebuild(); });
             ColorRow(ref y, L("ui.settings.legs"), S.LegColor, () => { S.LegColor = Next(S.LegColor); Rebuild(); });
 
+            Head(ref y, L("ui.settings.updates"));
+            UiKit.AddText(_root, _x, y, 240, 38, L("ui.settings.update_url"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(_root, _x + 250, y, _rowW - 250, 38, S.UpdateFeedUrl, v => S.UpdateFeedUrl = (v ?? string.Empty).Trim());
+            y += 46f;
+            UiKit.AddButton(_root, _x, y, 250, 44,
+                ClientUpdater.Busy ? L("ui.settings.update_checking") : L("ui.settings.update_check"),
+                () => { if (!ClientUpdater.Busy) ClientUpdater.CheckForUpdates(S.UpdateFeedUrl, () => { if (this != null) Rebuild(); }); });
+            UiKit.AddText(_root, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 52f;
+
             y += 14f;
             UiKit.AddButton(_root, _x, y, 250, 50, $"{L("ui.settings.language")}: {(S.Language == "de" ? "DE" : "EN")}",
                 () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
             UiKit.AddButton(_root, _x + 270, y, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings());
+        }
+
+        /// <summary>The Velopack update status as a localized line (+ version/error detail when present).</summary>
+        private string UpdateStatusText()
+        {
+            string s = ClientUpdater.State switch
+            {
+                UpdateState.Checking => L("ui.settings.update_checking"),
+                UpdateState.Downloading => L("ui.settings.update_downloading"),
+                UpdateState.Restarting => L("ui.settings.update_restarting"),
+                UpdateState.UpToDate => L("ui.settings.update_uptodate"),
+                UpdateState.NotInstalled => L("ui.settings.update_notinstalled"),
+                UpdateState.NoUrl => L("ui.settings.update_nourl"),
+                UpdateState.Failed => L("ui.settings.update_failed"),
+                _ => string.Empty,
+            };
+            return string.IsNullOrEmpty(ClientUpdater.Detail) ? s : $"{s} ({ClientUpdater.Detail})";
         }
 
         private void Head(ref float y, string text)
