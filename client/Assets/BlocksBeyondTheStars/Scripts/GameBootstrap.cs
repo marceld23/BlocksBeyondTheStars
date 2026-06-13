@@ -65,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Friendly current location ("System · Planet") for the HUD.</summary>
         public string LocationName { get; private set; } = string.Empty;
         public string StationName { get; private set; } = string.Empty; // non-empty while boarded on a station
+        public string CurrentStationId { get; private set; } = string.Empty; // id of the boarded station (for in-station rename)
 
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
@@ -141,6 +142,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Placed radio beacons (labelled waypoints) for the world map + compass (item 37).</summary>
         public NetBeacon[] Beacons { get; private set; } = System.Array.Empty<NetBeacon>();
 
+        /// <summary>Player-founded planet bases (Grundstein) on the current world, for the planet map markers.</summary>
+        public NetBase[] Bases { get; private set; } = System.Array.Empty<NetBase>();
+
         /// <summary>Fixed landing pads + occupancy for the most-recently-known body (item 38): the active body
         /// (world map markers) or the body the pad chooser asked about. Keyed by <see cref="LandingPadsBody"/>.</summary>
         public NetLandingPad[] LandingPads { get; private set; } = System.Array.Empty<NetLandingPad>();
@@ -163,6 +167,32 @@ namespace BlocksBeyondTheStars.Client
         /// a single "hyperjump here" entry).</summary>
         public bool KnowsSystem(string systemId)
             => StarMap?.KnownSystemIds != null && System.Array.IndexOf(StarMap.KnownSystemIds, systemId) >= 0;
+
+        /// <summary>True if THIS player has a commissioned space station orbiting the given host body.</summary>
+        public bool HasMyStation(string bodyId)
+            => StarMap?.MyStationBodyIds != null && System.Array.IndexOf(StarMap.MyStationBodyIds, bodyId) >= 0;
+
+        /// <summary>The name of THIS player's base on the given body, or null if they have no base there.</summary>
+        public string MyBaseName(string bodyId)
+        {
+            if (StarMap?.MyBases == null)
+            {
+                return null;
+            }
+
+            foreach (var b in StarMap.MyBases)
+            {
+                if (b.BodyId == bodyId)
+                {
+                    return b.Name;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>True if THIS player has founded a base on the given body.</summary>
+        public bool HasMyBase(string bodyId) => MyBaseName(bodyId) != null;
 
         // Space flight & combat (M25).
         public ShipCombatStatus ShipCombat { get; private set; }
@@ -590,6 +620,7 @@ namespace BlocksBeyondTheStars.Client
             Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
+            Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; };
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
             Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
@@ -667,7 +698,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = m.Reason; };
-            Network.StationBoardedReceived += m => LastMessage = $"Boarded {m.Name}.";
+            Network.StationBoardedReceived += m => { LastMessage = $"Boarded {m.Name}."; CurrentStationId = m.StationId ?? string.Empty; };
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
             Network.NpcsReceived += m => Npcs = m.Npcs;
@@ -1010,6 +1041,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             StationName = m.StationName;
+            if (string.IsNullOrEmpty(StationName))
+            {
+                CurrentStationId = string.Empty; // left the station — no in-station rename target
+            }
             AiCoreTier = m.AiCoreTier;
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }

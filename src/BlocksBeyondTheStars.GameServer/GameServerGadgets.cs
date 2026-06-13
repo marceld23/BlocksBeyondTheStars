@@ -190,6 +190,10 @@ public sealed partial class GameServer
             {
                 RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
             }
+            if (d.Key == "base_core")
+            {
+                RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
+            }
             if (IsFluid(b.Value) || HasFluidNeighbor(p))
             {
                 OnFluidRemoved(p); // a hole opened in/under water or lava refills

@@ -46,6 +46,13 @@ public sealed class PlayerSnapshot
     public List<MissionProgress> Missions { get; set; } = new();
     public List<string> Milestones { get; set; } = new();
     public List<string> UnlockedGames { get; set; } = new();
+
+    /// <summary>Celestial bodies this player has physically landed on (gates travel-screen quick-travel). Persisted
+    /// so the "only travel where you've been" rule survives a reload.</summary>
+    public List<string> LandedBodies { get; set; } = new();
+
+    /// <summary>Star systems this player has entered (reveals their bodies + mini map on the travel screen).</summary>
+    public List<string> KnownSystems { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -122,6 +129,8 @@ public static class StateMapper
         Missions = p.Missions.Select(CloneProgress).ToList(),
         Milestones = p.Milestones.ToList(),
         UnlockedGames = p.UnlockedGames.ToList(),
+        LandedBodies = p.LandedBodies.ToList(),
+        KnownSystems = p.KnownSystems.ToList(),
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()
@@ -181,6 +190,8 @@ public static class StateMapper
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
+        LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
+        KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

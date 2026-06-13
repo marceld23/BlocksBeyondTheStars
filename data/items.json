@@ -131,6 +131,7 @@
   { "key": "door_hinge",  "nameKey": "item.door_hinge.name",  "category": "block", "maxStack": 99, "placesBlock": "door_hinge", "descriptionKey": "item.door_hinge.desc" },
   { "key": "door_slide",  "nameKey": "item.door_slide.name",  "category": "block", "maxStack": 99, "placesBlock": "door_slide", "descriptionKey": "item.door_slide.desc" },
   { "key": "radio_beacon","nameKey": "item.radio_beacon.name", "category": "block", "maxStack": 99, "placesBlock": "radio_beacon", "descriptionKey": "item.radio_beacon.desc" },
+  { "key": "base_core",   "nameKey": "item.base_core.name",    "category": "block", "maxStack": 16, "placesBlock": "base_core", "descriptionKey": "item.base_core.desc" },
   { "key": "station_core", "nameKey": "item.station_core.name", "category": "block", "maxStack": 16, "placesBlock": "station_core", "descriptionKey": "item.station_core.desc" },
   { "key": "station_vendor",    "nameKey": "item.station_vendor.name",    "category": "block", "maxStack": 16, "placesBlock": "station_vendor",    "descriptionKey": "item.station_vendor.desc" },
   { "key": "mission_board",     "nameKey": "item.mission_board.name",     "category": "block", "maxStack": 16, "placesBlock": "mission_board",     "descriptionKey": "item.mission_board.desc" },

@@ -762,6 +762,29 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A planet base you own (Grundstein) that you're aiming at → rename it.
+            if (TryAimOwnedBase(out string baseBodyId, out string baseName))
+            {
+                BeaconLabelUi.Instance?.Open(
+                    Game.Localizer?.Get("ui.base.rename_prompt") ?? "Rename base",
+                    baseName,
+                    name => Game.Network?.SendSetBaseName(baseBodyId, name));
+                return;
+            }
+
+            // Inside your own boarded station, aiming at the station core → rename the station (server checks owner).
+            if (!string.IsNullOrEmpty(Game.CurrentStationId)
+                && AimBlock(out var coreHit, out _)
+                && Game.Content?.BlockById(Game.World.GetBlock(coreHit.x, coreHit.y, coreHit.z))?.Key == "station_core")
+            {
+                string stationId = Game.CurrentStationId;
+                BeaconLabelUi.Instance?.Open(
+                    Game.Localizer?.Get("ui.map.rename") ?? "Rename",
+                    Game.StationName,
+                    name => Game.Network?.SendSetStationName(stationId, name));
+                return;
+            }
+
             // A settlement hinge door you're standing at opens/closes with E — checked BEFORE stations so a door
             // next to a market stall still opens (sci-fi slide doors open themselves; this is for village doors) (B47).
             int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
@@ -835,6 +858,38 @@ namespace BlocksBeyondTheStars.Client
                 {
                     beaconId = b.Id;
                     label = b.Label ?? string.Empty;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>True if the player is looking at a base core (Grundstein) they own — returns its body id + the
+        /// current base name so E can open the rename overlay. Only the owner gets the prompt; everyone sees the marker.</summary>
+        private bool TryAimOwnedBase(out string bodyId, out string name)
+        {
+            bodyId = string.Empty;
+            name = string.Empty;
+            if (Game?.Bases == null || Game.Bases.Length == 0 || string.IsNullOrEmpty(Game.LocalPlayerId))
+            {
+                return false;
+            }
+
+            if (!AimBlock(out var hit, out _))
+            {
+                return false;
+            }
+
+            foreach (var b in Game.Bases)
+            {
+                if (b.OwnerId == Game.LocalPlayerId
+                    && Mathf.FloorToInt(b.X) == hit.x
+                    && Mathf.FloorToInt(b.Y) == hit.y
+                    && Mathf.FloorToInt(b.Z) == hit.z)
+                {
+                    bodyId = b.BodyId;
+                    name = b.Name ?? string.Empty;
                     return true;
                 }
             }

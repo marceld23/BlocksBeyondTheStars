@@ -180,6 +180,13 @@ public static class NetCodec
         Register(119, typeof(UnlockGameIntent)); // Client -> Server (download the cube I'm standing at)
         Register(120, typeof(GameUnlocks));      // Server -> Client (my full downloaded-games collection)
         Register(121, typeof(MinigameResultIntent)); // Client -> Server (a minigame run finished → knowledge reward)
+
+        // Planet bases (Grundstein): a player founds a named base by placing a base_core block on a body.
+        Register(122, typeof(BaseList));            // Server -> Client (bases on the current world for the planet map)
+        Register(123, typeof(SetBaseNameIntent));   // Client -> Server (name/rename my base on a body)
+
+        // Rename a commissioned space station you built (travel screen / station core).
+        Register(124, typeof(SetStationNameIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

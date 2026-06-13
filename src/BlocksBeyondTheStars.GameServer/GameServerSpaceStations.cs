@@ -36,7 +36,7 @@ public sealed partial class GameServer
     private sealed class BoardableStation
     {
         public string Id { get; init; } = string.Empty;
-        public string Name { get; init; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public string SizeTier { get; init; } = "medium";
         public Vector3f SpacePosition { get; init; }
         public Vector3i Origin { get; init; }
@@ -201,6 +201,17 @@ public sealed partial class GameServer
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
 
+        EnterBoardedStation(session, station);
+    }
+
+    /// <summary>The world-transition half of boarding (shared by in-space docking and the travel-screen "board a
+    /// visited station" path): switches the player into the station's own free-floating void world, stamps its
+    /// interior, spawns the crew, marks it visited and tells the client to reload. The caller has already arranged
+    /// the return location (<see cref="_boardedReturn"/>) and torn down any prior presence (space instance / station).</summary>
+    private void EnterBoardedStation(PlayerSession session, BoardableStation station)
+    {
+        string playerId = session.State.PlayerId;
+
         // Boarding is a world transition into the station's own free-floating void world (space all around,
         // life support, no weather) — the same robust WorldReset path planet travel uses, so the player no
         // longer falls through to the planet.
@@ -227,6 +238,7 @@ public sealed partial class GameServer
         session.State.AboardShip = false;
         session.State.InEva = false; // docking ends any spacewalk — the station has life support
         session.SentChunks.Clear();
+        MarkArrivedOnBody(session, station.Id); // boarding marks the station visited → a travel-screen target
 
         Send(session, new SpaceClosed { Reason = "Docked with station.", ShipDisabled = false });
         Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = string.Empty, Hyperjump = false });
@@ -243,9 +255,72 @@ public sealed partial class GameServer
             Y = station.Spawn.Y,
             Z = station.Spawn.Z,
         });
+        SendStarMap(session); // refresh markers/owner/visited now that this station counts as visited
         ShipAiOnStationBoarded(session); // VEGA onboarding: first station visit
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
         CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
+    }
+
+    /// <summary>Travel-screen path: board a station picked from the Map menu (Q1 decision: "board directly"). Gated
+    /// like planet quick-travel — only stations you've already visited are reachable unless Instant Travel is on.
+    /// Loads the station interior straight away; leaving it later undocks into that system's space flight.</summary>
+    private void TravelToStation(PlayerSession session, string stationId, bool quickTravel)
+    {
+        string playerId = session.State.PlayerId;
+        var body = _galaxy?.FindBody(stationId);
+        if (body is null || body.Kind != CelestialKind.SpaceStation)
+        {
+            Reject(session, "travel", "No such station.");
+            return;
+        }
+
+        if (quickTravel && !Rules.InstantTravel && !session.State.LandedBodies.Contains(stationId) && session.CurrentLocationId != stationId)
+        {
+            Reject(session, "travel", "You haven't been to that station yet — dock with it once first (or enable Instant Travel).");
+            return;
+        }
+
+        if (session.CurrentLocationId == stationId)
+        {
+            Reject(session, "travel", "You are already there.");
+            return;
+        }
+
+        // Ensure the station is registered (player stations load at start; an NPC station registers on demand).
+        if (!_stationsById.TryGetValue(stationId, out var station))
+        {
+            station = GetOrCreateStation(body.Id, body.Name, 0);
+        }
+
+        // Tear down any current presence: a space instance, or another boarded station.
+        if (_playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            inst.Players.Remove(playerId);
+            _playerInstance.Remove(playerId);
+        }
+
+        _boardedStation.Remove(playerId);
+        _dockedFromEva.Remove(playerId);
+
+        // Leaving the station later undocks into space flight around a real body in its system, so set that up.
+        _boardedReturn[playerId] = StationReturnLocation(stationId, body);
+
+        EnterBoardedStation(session, station);
+    }
+
+    /// <summary>Where leaving a menu-boarded station drops the player: their station's host body if known, else the
+    /// first landable body in the station's system (so the undock re-launch enters that system's space flight).</summary>
+    private (string Loc, string Type) StationReturnLocation(string stationId, CelestialBody stationBody)
+    {
+        if (_stationHostBody.TryGetValue(stationId, out var hostId)
+            && _galaxy?.FindBody(hostId) is { } hb && !string.IsNullOrEmpty(hb.PlanetType))
+        {
+            return (hb.Id, hb.PlanetType!);
+        }
+
+        var sys = _galaxy?.Systems.FirstOrDefault(s => s.Id == stationBody.SystemId);
+        var land = sys?.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType));
+        return land is not null ? (land.Id, land.PlanetType!) : (_meta.ActiveLocationId, _meta.DefaultPlanetType);
     }
 
     /// <summary>Leaves a boarded station and undocks straight back into <b>space flight</b> around the

@@ -99,6 +99,7 @@
   { "key": "fire",         "nameKey": "block.fire.name",         "hardness": 0, "requiredTool": "none", "minToolTier": 0, "mineable": false, "solid": false, "emission": 0.95, "color": 16734488, "drops": [] },
   { "key": "ash",          "nameKey": "block.ash.name",          "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 2829355, "drops": [] },
   { "key": "radio_beacon", "nameKey": "block.radio_beacon.name", "hardness": 1.8, "requiredTool": "none", "minToolTier": 0, "emission": 0.45, "drops": [ { "item": "radio_beacon", "count": 1 } ] },
+  { "key": "base_core",    "nameKey": "block.base_core.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5, "color": 4156101, "drops": [ { "item": "base_core", "count": 1 } ] },
   { "key": "bedrock",      "nameKey": "block.bedrock.name",      "hardness": 0,   "requiredTool": "none", "minToolTier": 0, "mineable": false, "color": 2434341, "drops": [] },
   { "key": "station_core", "nameKey": "block.station_core.name", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.55, "color": 4180470, "drops": [ { "item": "station_core", "count": 1 } ] },
   { "key": "station_vendor",    "nameKey": "block.station_vendor.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4,  "color": 16763000, "drops": [ { "item": "station_vendor", "count": 1 } ] },

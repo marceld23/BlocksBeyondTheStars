@@ -37,6 +37,18 @@ public sealed class StoredBeacon
     public string OwnerId { get; set; } = string.Empty;
 }
 
+/// <summary>A player-founded planet base (Grundstein), persisted by its world cell with its player-typed name +
+/// owner. The base_core block itself comes back via the normal block-edit store; this row carries the metadata.</summary>
+public sealed class StoredBase
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+}
+
 /// <summary>A persisted player-built space station (item 20 S4): its voxel cells + registry row (owner, name,
 /// the body it orbits, flight-scene position). Reappears on the star map + boardable across sessions.</summary>
 public sealed class StoredSpaceStructure
@@ -121,6 +133,14 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredBeacon> ListBeacons(string planet);
 
     void DeleteBeacon(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a player-founded planet base, keyed by its world cell.</summary>
+    void SaveBase(StoredBase basePoint);
+
+    /// <summary>Lists all player-founded bases across every body (restored at server start).</summary>
+    IReadOnlyList<StoredBase> ListAllBases();
+
+    void DeleteBase(string planet, int x, int y, int z);
 
     /// <summary>Stores (inserts or replaces) a player-built space station (item 20 S4).</summary>
     void SaveSpaceStructure(StoredSpaceStructure structure);

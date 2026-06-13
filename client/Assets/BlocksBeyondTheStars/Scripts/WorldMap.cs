@@ -113,8 +113,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Icon legend (matches the marker sprites; replaces the old unicode-glyph line in the info text).
             {
-                string[] legendIcons = { "map_player", "map_ship", "map_waypoint", "map_beacon", "map_pad" };
-                string[] legendKeys = { "ui.map.you", "ui.hud.ship", "ui.map.waypoint", "ui.beacon.default", "ui.map.pad" };
+                string[] legendIcons = { "map_player", "map_ship", "map_waypoint", "map_beacon", "map_base", "map_pad" };
+                string[] legendKeys = { "ui.map.you", "ui.hud.ship", "ui.map.waypoint", "ui.beacon.default", "ui.base.default", "ui.map.pad" };
                 float lx = ix;
                 for (int li = 0; li < legendIcons.Length; li++)
                 {
@@ -265,6 +265,20 @@ namespace BlocksBeyondTheStars.Client
                     MarkerLabel(b.X, b.Z, name, beaconCol);
                     float bd = GroundDistance(b.X, b.Z);
                     poiLines.Append($"\n✦ {name}  —  {Mathf.RoundToInt(bd)} m");
+                }
+            }
+
+            // Player-founded bases (Grundstein): a teal house glyph at the base core + the base name beside it.
+            if (Game.Bases != null)
+            {
+                var baseCol = new Color(0.36f, 0.82f, 0.86f);
+                foreach (var bp in Game.Bases)
+                {
+                    Marker(bp.X, bp.Z, 24f, baseCol, "⌂", "map_base");
+                    string name = string.IsNullOrEmpty(bp.Name) ? L("ui.base.default") : bp.Name;
+                    MarkerLabel(bp.X, bp.Z, name, baseCol);
+                    float bd = GroundDistance(bp.X, bp.Z);
+                    poiLines.Append($"\n⌂ {name}  —  {Mathf.RoundToInt(bd)} m");
                 }
             }
 

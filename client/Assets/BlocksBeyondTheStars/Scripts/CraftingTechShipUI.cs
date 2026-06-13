@@ -846,7 +846,17 @@ namespace BlocksBeyondTheStars.Client
             foreach (var b in sys.Bodies)
             {
                 bool here = b.Id == map.ActiveLocationId;
-                string status = here ? L("ui.map.here") : $"{b.Kind}  {b.Status}";
+                bool isStation = b.Kind == "SpaceStation";
+                string kindLabel = isStation ? L("ui.map.kind_station") : b.Kind;
+                string status = here ? L("ui.map.here") : $"{kindLabel}  {b.Status}";
+
+                // A space station shows whose it is: yours, another player's, or none (procedural/NPC).
+                if (isStation && !string.IsNullOrEmpty(b.OwnerName))
+                {
+                    status += b.OwnerName == Game.LocalPlayerId
+                        ? "   ◆ " + L("ui.map.your_station")
+                        : "   ◆ " + L("ui.map.station_of") + " " + b.OwnerName;
+                }
 
                 // Show the party: which players are currently on this body.
                 if (map.Players != null)
@@ -866,11 +876,29 @@ namespace BlocksBeyondTheStars.Client
                         : $"   ⊕ {b.PadsFree}/{b.PadsTotal}";
                 }
 
-                // Locked: a landable world you haven't reached yet (Instant Travel off + never landed there) —
-                // quick-travel is unavailable until you fly there and land manually.
-                if (!here && !string.IsNullOrEmpty(b.PlanetType) && !TravelUnlocked(b))
+                // Your own claims on this body: a station orbiting it, and/or a founded base on it.
+                if (Game.HasMyStation(b.Id))
                 {
-                    status += "   · " + L("ui.map.fly_to_unlock");
+                    status += "   ◆ " + L("ui.map.station_here");
+                }
+
+                string mapBase = Game.MyBaseName(b.Id);
+                if (mapBase != null)
+                {
+                    status += "   ⌂ " + L("ui.map.base_here") + (string.IsNullOrEmpty(mapBase) ? string.Empty : ": " + mapBase);
+                }
+
+                // Locked: a place you can't quick-travel to yet. Surfaces unlock by landing; stations by docking once.
+                if (!here && !TravelUnlocked(b))
+                {
+                    if (isStation)
+                    {
+                        status += "   · " + L("ui.map.visit_to_unlock");
+                    }
+                    else if (!string.IsNullOrEmpty(b.PlanetType))
+                    {
+                        status += "   · " + L("ui.map.fly_to_unlock");
+                    }
                 }
 
                 AddCard(y, b.Name, "cat_planet", status, here ? UiKit.Cyan : UiKit.CyanDim,
@@ -1736,9 +1764,10 @@ namespace BlocksBeyondTheStars.Client
                 return y;
             }
 
+            bool isStation = body.Kind == "SpaceStation";
             UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
-            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {body.Kind}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? L("ui.map.kind_station") : body.Kind)}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 32f;
             if (!string.IsNullOrEmpty(body.PlanetType))
             {
@@ -1750,9 +1779,59 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : body.Status, 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 40f;
 
+            // A space station: show its owner, board it (if visited), and rename it (if it's yours).
+            if (isStation)
+            {
+                bool mine = !string.IsNullOrEmpty(body.OwnerName) && body.OwnerName == Game.LocalPlayerId;
+                if (!string.IsNullOrEmpty(body.OwnerName))
+                {
+                    UiKit.AddText(_detail, 8, y, 620, 28,
+                        mine ? "◆ " + L("ui.map.your_station") : $"{L("ui.map.owner")}: {body.OwnerName}",
+                        20, mine ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
+                    y += 36f;
+                }
+
+                if (!here)
+                {
+                    if (TravelUnlocked(body))
+                    {
+                        UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.map.board"), () => Game.Network?.SendTravel(body.Id));
+                        y += 64f;
+                    }
+                    else
+                    {
+                        UiKit.AddText(_detail, 8, y, 600, 50, L("ui.map.visit_to_unlock"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                        y += 58f;
+                    }
+                }
+
+                if (mine)
+                {
+                    y = AddRenameRow(y, body.Name, L("ui.map.rename"), name => Game.Network?.SendSetStationName(body.Id, name));
+                }
+
+                return y;
+            }
+
+            // A landable world: show your own claims on it (a station orbiting and/or a base on the surface).
+            if (Game.HasMyStation(body.Id))
+            {
+                UiKit.AddText(_detail, 8, y, 620, 28, "◆ " + L("ui.map.station_here"), 20, UiKit.Cyan, TextAnchor.UpperLeft);
+                y += 32f;
+            }
+
+            string myBase = Game.MyBaseName(body.Id);
+            if (myBase != null)
+            {
+                string label = "⌂ " + L("ui.map.base_here") + (string.IsNullOrEmpty(myBase) ? string.Empty : ": " + myBase);
+                UiKit.AddText(_detail, 8, y, 620, 28, label, 20, UiKit.Cyan, TextAnchor.UpperLeft);
+                y += 36f;
+                y = AddRenameRow(y, myBase, L("ui.map.rename_base"), name => Game.Network?.SendSetBaseName(body.Id, name));
+            }
+
             if (here || string.IsNullOrEmpty(body.PlanetType))
             {
-                return y; // you're already here, or it isn't a landable world (stations/belts dock differently)
+                return y; // you're already here, or it isn't a landable world (belts dock differently)
             }
 
             if (TravelUnlocked(body))
@@ -1776,6 +1855,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
+        }
+
+        /// <summary>An inline name field + confirm button for renaming an owned station or base from the Map detail
+        /// pane (no modal, so it never desyncs the menu's own open/cursor state). Sends the typed name on click.</summary>
+        private float AddRenameRow(float y, string current, string buttonLabel, System.Action<string> onConfirm)
+        {
+            var field = UiKit.AddInput(_detail, 8, y, 400, 48, current ?? string.Empty, null, L("ui.base.placeholder"));
+            field.characterLimit = 24;
+            field.lineType = InputField.LineType.SingleLine;
+            UiKit.AddButton(_detail, 416, y, 180, 48, buttonLabel, () => onConfirm?.Invoke(field.text ?? string.Empty));
+            return y + 56f;
         }
 
         private float DetailMissions()

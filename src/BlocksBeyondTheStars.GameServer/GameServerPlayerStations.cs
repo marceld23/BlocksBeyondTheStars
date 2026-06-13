@@ -30,6 +30,10 @@ public sealed partial class GameServer
     /// re-created when that instance is next entered.</summary>
     private readonly Dictionary<string, List<StoredSpaceStructure>> _persistedStationsByLocation = new();
 
+    /// <summary>Host body each player station orbits (station id → body id). Drives the travel-screen "you have a
+    /// station here" badge and where a menu-boarded station undocks to.</summary>
+    private readonly Dictionary<string, string> _stationHostBody = new();
+
     /// <summary>Deploys a station core a few units ahead of the suit: a new owned station structure seeded with
     /// the core block. The player then builds a hull + airlock around it to commission it.</summary>
     public void DeployStationCore(string playerId)
@@ -198,6 +202,7 @@ public sealed partial class GameServer
     private void PersistStation(SpaceInstance instance, SpaceStructure s)
     {
         string loc = instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id;
+        _stationHostBody[s.Id] = loc; // remember the body it orbits (travel-screen badge + menu-board return)
         _repo.SaveSpaceStructure(new StoredSpaceStructure
         {
             Id = s.Id,
@@ -260,6 +265,7 @@ public sealed partial class GameServer
             }
 
             list.Add(row);
+            _stationHostBody[row.Id] = row.Location; // host body for the travel-screen badge + menu-board return
 
             var s = new SpaceStructure
             {
@@ -445,7 +451,100 @@ public sealed partial class GameServer
         BroadcastContainers();
     }
 
+    /// <summary>The owner (or an admin) renames a commissioned station they built — via the Map detail "Rename"
+    /// button or pressing E at the station core. Updates the runtime structure, the boardable registry, the star-map
+    /// body, any live space contact, and the persisted row, then refreshes every player's star map.</summary>
+    private void HandleSetStationName(PlayerSession session, SetStationNameIntent intent)
+    {
+        if (!_playerStationCells.TryGetValue(intent.StationId, out var s))
+        {
+            Reject(session, "station", "No such station — only stations you built can be renamed.");
+            return;
+        }
+
+        if (!session.State.IsAdmin && s.OwnerId != session.State.PlayerId)
+        {
+            Reject(session, "station", "Only the owner can rename this station.");
+            return;
+        }
+
+        string name = SanitizeStationName(intent.Name);
+        if (string.IsNullOrEmpty(name))
+        {
+            name = (string.IsNullOrWhiteSpace(s.OwnerId) ? "Player" : s.OwnerId) + "'s Station";
+        }
+
+        s.Name = name;
+        if (_stationsById.TryGetValue(s.Id, out var reg))
+        {
+            reg.Name = name;
+        }
+
+        if (_galaxy?.FindBody(s.Id) is { } body)
+        {
+            body.Name = name; // the star-map entry
+        }
+
+        foreach (var inst in _spaceInstances.Values)
+        {
+            var contact = inst.Entities.FirstOrDefault(e => e.Id == s.Id);
+            if (contact is not null)
+            {
+                contact.Name = name; // the live space-flight dock contact
+            }
+        }
+
+        if (_stationHostBody.TryGetValue(s.Id, out var loc))
+        {
+            _repo.SaveSpaceStructure(new StoredSpaceStructure
+            {
+                Id = s.Id,
+                OwnerId = s.OwnerId,
+                Name = name,
+                Location = loc,
+                PosX = s.Position.X,
+                PosY = s.Position.Y,
+                PosZ = s.Position.Z,
+                Boardable = s.Boardable,
+                Blocks = SerializeCells(s.Cells),
+            });
+        }
+
+        BroadcastStarMap(); // the renamed station updates for everyone (the star map is shared)
+        Send(session, new ServerMessage { Text = $"Station renamed to {name}." });
+    }
+
+    /// <summary>Host bodies (planet/moon/asteroid) where the given player has a commissioned station orbiting —
+    /// the travel screen badges these "you have a station here".</summary>
+    private string[] MyStationBodyIds(string ownerId)
+        => _playerStationCells.Values
+            .Where(s => s.OwnerId == ownerId && s.Boardable && _stationHostBody.ContainsKey(s.Id))
+            .Select(s => _stationHostBody[s.Id])
+            .Where(loc => !string.IsNullOrEmpty(loc))
+            .Distinct()
+            .ToArray();
+
+    /// <summary>The owning player's name for a station body (the player id is the display name), or empty for a
+    /// procedural/NPC station.</summary>
+    private string StationOwnerName(string stationId)
+        => _playerStationCells.TryGetValue(stationId, out var s) ? s.OwnerId : string.Empty;
+
+    /// <summary>Trims a player-typed station name to a single short line (drops newlines, clamps length).</summary>
+    private static string SanitizeStationName(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = raw.Replace('\n', ' ').Replace('\r', ' ').Trim();
+        return trimmed.Length > BaseNameMaxLength ? trimmed.Substring(0, BaseNameMaxLength) : trimmed;
+    }
+
     // ---------------- Test hooks ----------------
+
+    public void SetStationNameForTest(PlayerSession session, string stationId, string name)
+        => HandleSetStationName(session, new SetStationNameIntent { StationId = stationId, Name = name });
 
     public void DeployStationCoreForTest(string playerId)
     {

@@ -64,6 +64,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS beacon (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 label TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS base_claim (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS space_structure (
@@ -535,6 +538,65 @@ public sealed class SqliteWorldRepository : IWorldRepository
         {
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM beacon WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", x);
+            cmd.Parameters.AddWithValue("$y", y);
+            cmd.Parameters.AddWithValue("$z", z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Planet bases (player-founded "Grundstein" claims) ---
+
+    public void SaveBase(StoredBase basePoint)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO base_claim (planet, x, y, z, name, owner) " +
+                              "VALUES ($p, $x, $y, $z, $n, $o) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET name=excluded.name, owner=excluded.owner;";
+            cmd.Parameters.AddWithValue("$p", basePoint.Planet);
+            cmd.Parameters.AddWithValue("$x", basePoint.X);
+            cmd.Parameters.AddWithValue("$y", basePoint.Y);
+            cmd.Parameters.AddWithValue("$z", basePoint.Z);
+            cmd.Parameters.AddWithValue("$n", basePoint.Name);
+            cmd.Parameters.AddWithValue("$o", basePoint.OwnerId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredBase> ListAllBases()
+    {
+        var result = new List<StoredBase>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT planet, x, y, z, name, owner FROM base_claim;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredBase
+                {
+                    Planet = reader.GetString(0),
+                    X = reader.GetInt32(1),
+                    Y = reader.GetInt32(2),
+                    Z = reader.GetInt32(3),
+                    Name = reader.GetString(4),
+                    OwnerId = reader.GetString(5),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteBase(string planet, int x, int y, int z)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM base_claim WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$x", x);
             cmd.Parameters.AddWithValue("$y", y);

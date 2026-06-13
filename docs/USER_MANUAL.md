@@ -175,8 +175,21 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   you arrive inside it, floating in space (black sky, no planet/weather, life support), and can walk the
   interior (vendors, mission board, heal tank, quarters) and talk to its crew NPCs. Press **U** to leave and
   travel back down to your ship on the planet.
+- **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
+  around it, and it commissions into a boardable station on the star map.
+- **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
+  on the **station core** while standing inside your own station. Only the owner can rename it.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
+
+### Bases (Grundstein): your own home on a world
+- Craft a **Base Core** at a workshop (`stone` ×6 + `iron_plate` ×2 — available from the start) and **place**
+  it on a planet, moon or asteroid to **found a base**. It's the surface counterpart to a space station: the
+  stone is the base's **position marker on the planet map** (key **M**), shown as a teal **⌂** with its name.
+- **One base per world** per player. **Mining** the base core removes the base. Walk up and press **E** on the
+  stone to **name or rename** it (only the owner can).
+- On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
+  *"You have a base/station here"*; you can also rename the base from there.
 
 ### Wrecks: repair & claim
 - A crashed wreck shows a **wreck panel** (right HUD) with a hull-repair progress bar. Aim at a breach
@@ -211,6 +224,9 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
     you fly to its worlds and land. Once you've been somewhere, quick-travel to it works from then on.
   - **On:** quick-travel works for any world/system immediately, visited or not.
 - Jumping to **another star system** always requires a fitted **`jump_generator`** module.
+- **Space stations** appear in the world list too (yours show their owner; others show *"Station of …"*).
+  Selecting one offers **Board** — but only if you've **docked there at least once** before (just like landing
+  gates worlds); a never-visited station shows *"visit it once to unlock"*. Boarding takes you straight inside.
 
 ### Day/night & weather
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings

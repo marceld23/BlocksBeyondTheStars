@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **471 passing** (2026-06-12). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **500 passing** (2026-06-13). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,42 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Planet bases (Grundstein) + station/base naming + space stations on the travel screen — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** the surface analogue of a space station — a player founds a named **base** on a planet/moon/asteroid by
+placing a foundation stone, the stone marks the base on the planet map, and bases + stations can be named/renamed.
+While there, surface the player's space **stations in the Map-menu body list** (travel = board directly, but only a
+*visited* station), and **mark** bodies that carry the player's own station/base (with a description) + tag each own
+station with its owner. Decisions: Q1 board directly · Q2 base = marker only · Q3 rename via E *and* the Map button ·
+Q4 base core craftable from the start.
+**What was built:**
+- **Content:** new `base_core` block + item + workshop recipe (`stone`×6 + `iron_plate`×2, ungated); OpenAI-generated
+  64×64 tile (`Resources/textures/base_core.bytes`); bilingual `block/item.base_core.*` + `ui.base.*` + `ui.map.*`
+  (kind_station, owner, your_station, station_of, station_here, base_here, board, visit_to_unlock, rename[_base]).
+- **Server (in the bundled server):** `GameServerBases.cs` — server-wide `ServerBase{Id,OwnerId,Name,Planet,Cell}`,
+  founded on placing a `base_core` (one base per body per player; surface-only pre-check before any material is
+  spent), removed on mine/blast, owner-only rename (`SetBaseNameIntent`, by body id so the Map button works
+  cross-world), `BaseList` broadcast + a new `base_claim` SQLite table loaded server-wide at start. Station naming:
+  `HandleSetStationName` (`SetStationNameIntent`, owner/admin) updates the structure + boardable registry + star-map
+  body + live dock contact + the persisted row, then re-broadcasts the shared star map. Menu travel: `HandleTravel`
+  routes a `SpaceStation` destination to `TravelToStation` → **boards it directly** (shared `EnterBoardedStation`
+  refactored out of `BoardStation`), gated by `LandedBodies` (visited); boarding now marks the station visited
+  (`MarkArrivedOnBody(stationId)`) + records each station's host body (`_stationHostBody`). `SendStarMap` now carries
+  `NetBody.OwnerName` (station owner), `StarMapData.MyStationBodyIds` + `MyBases`. **Discovery persistence fix:**
+  `PlayerState.LandedBodies`/`KnownSystems` are now in `PlayerSnapshot` (the visited gate survives a reload).
+- **Client:** `NetworkClient` `BaseList` event + `SendSetBaseName`/`SendSetStationName`; `GameBootstrap.Bases` +
+  `HasMyStation`/`MyBaseName`/`HasMyBase` + tracked `CurrentStationId`; the Map list/detail (`CraftingTechShipUI`)
+  shows stations with a localized kind + owner, badges bodies with your station/base, offers **Board** for visited
+  stations and an inline **Rename** field for owned stations/bases; `WorldMap` (key M) draws bases as labelled teal
+  markers + a legend entry; `PlayerController` E-renames an owned base stone (and the station core inside your own
+  station), both reusing the beacon name overlay.
+- **Tests:** `PlanetBaseAndStationMapTests` (9) — base found/mine/one-per-body/rename/persist, station rename
+  owner-gate + persist, the menu visited→board gate, and landed-history survives a reload. Full suite **500 green**.
+- **Note:** adding `base_core` shifts the alphabetical numeric block ids (no id-stability layer in this project, as
+  with every prior block addition) — fine for fresh worlds; a pre-existing dev save's block edits would shift.
+- **Pending (real-world):** run `scripts/sync-client-libs.ps1` + a client build so the Editor picks up the new
+  Networking DLL types + the `base_core` texture/.meta, then verify in-game (found a base, rename via E + Map, board a
+  visited station from the menu).
 
 ### ★ In-game Wiki (Codex) + data-cube Arcade minigames (embedded browser) — ✅ IMPLEMENTED (2026-06-13, browser pending manual UWB install)
 **Goal:** play small bundled HTML5/JS minigames in-game, and read an in-game wiki — both rendered by an

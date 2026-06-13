@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<ShipStations> ShipStationsReceived;
         public event Action<PlanetPoiList> PlanetPoisReceived;
         public event Action<BeaconList> BeaconsReceived;
+        public event Action<BaseList> BasesReceived; // player-founded planet bases (Grundstein) on the current world
         public event Action<LandingPadList> LandingPadsReceived;
         public event Action<ShipTransitFx> ShipTransitReceived;
         public event Action<ChatMessage> ChatReceived;
@@ -134,6 +135,14 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSetBeaconLabel(int beaconId, string label)
             => Send(new SetBeaconLabelIntent { BeaconId = beaconId, Label = label ?? string.Empty });
+
+        /// <summary>Name/rename my base on a body (Grundstein) — by E at the stone, or the Map "Rename base" button.</summary>
+        public void SendSetBaseName(string bodyId, string name)
+            => Send(new SetBaseNameIntent { BodyId = bodyId ?? string.Empty, Name = name ?? string.Empty });
+
+        /// <summary>Rename a commissioned station I built — via the Map "Rename" button or E at the station core.</summary>
+        public void SendSetStationName(string stationId, string name)
+            => Send(new SetStationNameIntent { StationId = stationId ?? string.Empty, Name = name ?? string.Empty });
 
         public void SendCraft(string recipeKey, int count = 1)
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
@@ -323,6 +332,7 @@ namespace BlocksBeyondTheStars.Client
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
                 case BeaconList m: BeaconsReceived?.Invoke(m); break;
+                case BaseList m: BasesReceived?.Invoke(m); break;
                 case LandingPadList m: LandingPadsReceived?.Invoke(m); break;
                 case ShipTransitFx m: ShipTransitReceived?.Invoke(m); break;
                 case ChatMessage m: ChatReceived?.Invoke(m); break;

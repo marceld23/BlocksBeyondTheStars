@@ -642,6 +642,10 @@ public sealed class NetBody
     public string? PlanetType { get; set; }
     public string Status { get; set; } = string.Empty;
 
+    /// <summary>For a SpaceStation body: the owning player's name (empty for procedural/NPC stations and for
+    /// non-station bodies). Lets the travel screen mark a station "yours" and otherwise show "Station of {owner}".</summary>
+    public string OwnerName { get; set; } = string.Empty;
+
     /// <summary>System-space coordinates (star at origin) for the system-scale flight layer.</summary>
     public float SystemX { get; set; }
     public float SystemY { get; set; }
@@ -676,6 +680,21 @@ public sealed class StarMapData
     /// <summary>Star systems THIS player has entered — known systems reveal their bodies + mini map; an
     /// unknown system is a single "hyperjump here" entry on the travel screen.</summary>
     public string[] KnownSystemIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Host bodies (planet/moon/asteroid) where THIS player has a commissioned space station orbiting —
+    /// the travel screen badges them "you have a station here".</summary>
+    public string[] MyStationBodyIds { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Bodies where THIS player has founded a base, with the base's name — the travel screen badges them
+    /// "you have a base here: {name}" and offers a rename.</summary>
+    public NetMapBase[] MyBases { get; set; } = System.Array.Empty<NetMapBase>();
+}
+
+/// <summary>A player's own base for the travel screen: which body it's on + its current name.</summary>
+public sealed class NetMapBase
+{
+    public string BodyId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 }
 
 /// <summary>Client → server: hyperjump into a (possibly never-visited) star system, arriving in FLIGHT mode

@@ -167,6 +167,7 @@ public sealed partial class GameServer
         _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
+        LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
 
         // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
         BuildMissions();
@@ -414,12 +415,25 @@ public sealed partial class GameServer
         }
 
         var body = _galaxy?.FindBody(intent.DestinationBodyId);
-        if (body is null
-            || (body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon && body.Kind != CelestialKind.AsteroidField)
+        if (body is null)
+        {
+            Reject(session, "travel", "No such destination.");
+            return;
+        }
+
+        // A space station is BOARDED straight from the travel screen (Q1: "board directly"), gated by having
+        // visited it before — not landed on like a surface.
+        if (body.Kind == CelestialKind.SpaceStation)
+        {
+            TravelToStation(session, body.Id, quickTravel);
+            return;
+        }
+
+        if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon && body.Kind != CelestialKind.AsteroidField)
             || string.IsNullOrEmpty(body.PlanetType))
         {
-            // Planets, moons AND landable asteroids are surfaces you land on (B45); stations/belts/wrecks are
-            // not "travel" destinations (you dock/visit those differently).
+            // Planets, moons AND landable asteroids are surfaces you land on (B45); belts/wrecks are not
+            // "travel" destinations (you visit those differently).
             Reject(session, "travel", "You can only land on a planet, moon or asteroid.");
             return;
         }
@@ -500,6 +514,7 @@ public sealed partial class GameServer
         SendDoors(session);
         SendDataCubes(session); // minigame download cubes on this body
         SendBeacons(session);
+        SendBases(session); // player-founded bases on this body (Grundstein markers)
         SendLandingPads(session);
         SendContainers(session);
         SendStarMap(session);
@@ -1244,6 +1259,8 @@ public sealed partial class GameServer
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
+            case SetBaseNameIntent baseName: HandleSetBaseName(session, baseName); break;
+            case SetStationNameIntent stationName: HandleSetStationName(session, stationName); break;
             case RequestLandingPadsIntent reqPads: HandleRequestLandingPads(session, reqPads); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
@@ -1398,6 +1415,7 @@ public sealed partial class GameServer
         SendDataCubes(session);   // minigame download cubes on the join world
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendBeacons(session);
+        SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendLandingPads(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
@@ -1782,6 +1800,10 @@ public sealed partial class GameServer
         {
             RemoveBeaconAt(pos); // mining a beacon forgets its label/marker (item 37)
         }
+        else if (def.Key == "base_core")
+        {
+            RemoveBaseAt(pos); // mining a base core removes the founded base (Grundstein)
+        }
 
         // A toxic flora species yields poisonous berries instead of edible ones (the scan warns which is which).
         bool toxicFlora = IsFlora(current.Value)
@@ -1904,6 +1926,25 @@ public sealed partial class GameServer
             return;
         }
 
+        // A base core founds a player base (Grundstein) — only on a real surface, and only one per body per player.
+        // Checked before any material is consumed so a refused founding costs nothing.
+        if (blockDef.Key == "base_core")
+        {
+            var hereBody = _galaxy?.FindBody(_world.LocationId);
+            if (hereBody is null
+                || (hereBody.Kind != CelestialKind.Planet && hereBody.Kind != CelestialKind.Moon && hereBody.Kind != CelestialKind.AsteroidField))
+            {
+                Reject(session, "place", "You can only found a base on a planet, moon or asteroid.");
+                return;
+            }
+
+            if (PlayerHasBaseOn(session.State.PlayerId, _world.LocationId))
+            {
+                Reject(session, "place", "You already have a base on this body — mine its core to move it.");
+                return;
+            }
+        }
+
         // Creative mode and admin instant-build place without consuming materials.
         bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
@@ -1935,6 +1976,10 @@ public sealed partial class GameServer
         else if (blockDef.Key == "radio_beacon")
         {
             PlaceBeacon(session, pos, place.Label); // a placed beacon becomes a labelled map/compass waypoint (item 37)
+        }
+        else if (blockDef.Key == "base_core")
+        {
+            PlaceBase(session, pos); // a placed base core founds a named planet base (Grundstein)
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value });
@@ -2539,7 +2584,18 @@ public sealed partial class GameServer
             Players = players,
             LandedBodyIds = landed.ToArray(),
             KnownSystemIds = known.ToArray(),
+            MyStationBodyIds = MyStationBodyIds(session.State.PlayerId), // bodies the player has a station orbiting
+            MyBases = MyBaseList(session.State.PlayerId),                // bodies the player has founded a base on
         });
+    }
+
+    /// <summary>Refreshes the shared star map for every joined player (e.g. after a station is renamed).</summary>
+    private void BroadcastStarMap()
+    {
+        foreach (var s in _sessions.Values.Where(s => s.Joined))
+        {
+            SendStarMap(s);
+        }
     }
 
     /// <summary>Records that a player has physically arrived ON a body — marks it landed (a quick-travel
@@ -2581,6 +2637,7 @@ public sealed partial class GameServer
             Kind = b.Kind.ToString(),
             PlanetType = b.PlanetType,
             Status = b.Status.ToString(),
+            OwnerName = b.Kind == CelestialKind.SpaceStation ? StationOwnerName(b.Id) : string.Empty,
             SystemX = b.SystemX,
             SystemY = b.SystemY,
             SystemZ = b.SystemZ,
