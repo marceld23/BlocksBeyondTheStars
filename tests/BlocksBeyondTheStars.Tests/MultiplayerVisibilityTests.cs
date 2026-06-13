@@ -314,6 +314,12 @@ public sealed class MultiplayerVisibilityTests : IDisposable
             new StructureEditIntent { StructureId = id, X = 0, Y = 1, Z = 0, Mine = false, ItemKey = "door_slide" });
         Assert.True(server.StationIsBoardableForTest(id));
 
+        // Player-built stations are private (owner + allies may board), so ally Bob with the owner Alice first —
+        // this also covers that an ally can board another player's station.
+        server.RequestAlliance("Alice", "Bob");
+        server.RespondAlliance("Bob", "Alice", accept: true);
+        Assert.True(server.AreAllied("Alice", "Bob"));
+
         // Both pilots board the same player-built station (Bob is still in the instance, so he sees the contact).
         BoardSpecificStation(server, "Alice", id);
         BoardSpecificStation(server, "Bob", id);
