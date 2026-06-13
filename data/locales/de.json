@@ -998,6 +998,7 @@
   "vega.sys.mk3": "Mk3-Kern online. Ich habe jetzt Flugbefugnis für Ausweichmanöver. Tu überrascht, wenn ich uns rette.",
   "vega.sys.mk3bp": "Kernschaltpläne wiederhergestellt — der Bauplan KI-Kern Mk3 liegt in deinem Technikarchiv. Bau ihn, wenn du bereit bist.",
   "vega.sys.threat": "Feindkontakt. Schilde hoch, Pilot.",
+  "vega.sys.spotted": "Achtung — ein Feind hat uns geortet und nähert sich.",
   "vega.sys.evade": "Ausweichmanöver ausgeführt. Gern geschehen.",
   "ui.vega.name": "VEGA",
   "ui.vega.objective": "Ziel",

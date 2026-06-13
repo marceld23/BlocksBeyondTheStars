@@ -993,6 +993,7 @@
   "vega.sys.mk3": "Mk3 core online. I now have flight authority for evasive manoeuvres. Try to look surprised when I save us.",
   "vega.sys.mk3bp": "Core schematics restored — the AI Core Mk3 blueprint is in your tech archive. Build it when you're ready.",
   "vega.sys.threat": "Hostile contact. Shields up, pilot.",
+  "vega.sys.spotted": "Heads up — a hostile has us on its scope and is closing in.",
   "vega.sys.evade": "Evasive manoeuvre executed. You're welcome.",
   "ui.vega.name": "VEGA",
   "ui.vega.objective": "Objective",

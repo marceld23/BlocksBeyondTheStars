@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **506 passing** (2026-06-13). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **506 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,32 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Bug-fix wave — oxygen, ship hatch, UFO combat, space explosion, asteroid loot, settings scroll — ✅ FIXED (2026-06-14)
+Six reported issues, server stays authoritative; in-game text bilingual; all 506 tests green.
+- **Oxygen too punishing on planets:** `GameRules.OxygenDrainPerSecond` quartered (Slow/Normal/Fast 1/2/4 → 0.25/0.5/1
+  per s) — a full tank now lasts ~200 s on foot at Normal (was ~50 s). The tank upgrade still matters: `oxygen_tank_2`
+  `oxygenBonus` 50 → 100 (`data/items.json`). Aboard-ship regen unchanged.
+- **Open hatch at the ship's stern in space:** the rear hatch was an air gap you could see through. `SpaceView`
+  now detects the rear (-Z) wall's opening from the ship cells and caps it with a CLOSED two-leaf airlock door
+  (`AddRearHatchDoor`) that slides open (hides) on an EVA so boarding still works.
+- **UFO combat too harsh / ugly / invisible shots / no warning / ship dies fast:** UFO 70→40 hull, 8→4 dps
+  (`GameServerSpaceCombat`); every ship now launches with a baseline shield (+30, +2/s regen, restored on
+  recovery) so early fights aren't lethal; the UFO model is a darker, taller saucer with a hostile red dome +
+  big red threat lights; client now draws each in-range hostile's **red laser tracers** at the ship (server
+  damage is an invisible aura); a new bilingual `vega.sys.spotted` warning fires the moment a hostile first
+  enters aggro range (all AI-core tiers).
+- **No explosion when the ship is destroyed in flight:** `SpaceView` now subscribes to `SpaceClosed` and bursts
+  the hull into a debris + fireball explosion (`SpawnShipExplosion`) at the moment of destruction (was a bare
+  screen flash).
+- **First asteroid's loot not collectible by tractor:** passive tractor pickup radius 8 → 16 (loot spawns at the
+  rock's centre, hard to reach at 8), and `FireWeapon` pins the ship cursor to the firing player so the
+  tractor/loot path always uses the right ship.
+- **Main-menu Settings couldn't scroll / overflowed:** the settings list is now hosted in a clipped vertical
+  `ScrollRect` (`UiSettings.BuildScrollViewport`) sized to the rows, so the lower options (updates / language /
+  back) are reachable by wheel or drag.
+**Needs:** a Unity client build (done in this change) for the client-side fixes (hatch door, UFO visuals, tracers,
+explosion, settings scroll).
 
 ### ★ Custom pixel face — in-game face editor, shown on your avatar to everyone — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** draw a 16×16 pixel face in-game; it appears on your figure, in the live Character-tab preview, and on

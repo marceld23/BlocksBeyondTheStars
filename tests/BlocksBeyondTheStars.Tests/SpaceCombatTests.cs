@@ -585,7 +585,9 @@ public sealed class SpaceCombatTests : IDisposable
             var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
             server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
 
-            server.Tick(12.0); // 120 damage > 100 hull (no shield)
+            // The starter now launches with shields up: 100 hull + 25 design shield + 30 baseline shield = 155
+            // effective HP. At 10 dps that's ~16s; tick well past it so the ship is reliably disabled.
+            server.Tick(30.0);
 
             Assert.False(server.InSpace("Pilot"));        // forced out of space
             Assert.Equal(100f, server.Ship.Hull);          // hull restored (recovered to base)
@@ -666,13 +668,13 @@ public sealed class SpaceCombatTests : IDisposable
         {
             server.AddLocalPlayer("Pilot");
             server.EnterSpace("Pilot");
-            float before = server.Ship.Hull;
+            float before = server.Ship.Hull + server.Ship.Shield; // a ram is absorbed by the shield first
 
             var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
             server.ShipMove("Pilot", ast.Position.X, ast.Position.Y, ast.Position.Z); // fly straight into it
             server.Tick(0.1);
 
-            Assert.True(server.Ship.Hull < before, "Colliding with an asteroid should damage the ship.");
+            Assert.True(server.Ship.Hull + server.Ship.Shield < before, "Colliding with an asteroid should damage the ship.");
         }
     }
 
@@ -706,16 +708,17 @@ public sealed class SpaceCombatTests : IDisposable
             server.EnterSpace("Pilot");
             var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
 
-            // Parked far away, the drone can't touch the ship (no relentless off-screen plinking).
+            // Parked far away, the drone can't touch the ship (no relentless off-screen plinking). Incoming fire
+            // is absorbed by the shield first, so compare total effective HP (shield + hull).
             drone.Position = new Vector3f(500f, 0f, 0f);
-            float before = server.Ship.Hull;
+            float before = server.Ship.Hull + server.Ship.Shield;
             server.Tick(3.0);
-            Assert.Equal(before, server.Ship.Hull);
+            Assert.Equal(before, server.Ship.Hull + server.Ship.Shield);
 
             // Brought within engagement range, it deals damage as usual.
             drone.Position = new Vector3f(12f, 0f, 0f);
             server.Tick(2.0);
-            Assert.True(server.Ship.Hull < before, "A hostile within engagement range should damage the ship.");
+            Assert.True(server.Ship.Hull + server.Ship.Shield < before, "A hostile within engagement range should damage the ship.");
         }
     }
 

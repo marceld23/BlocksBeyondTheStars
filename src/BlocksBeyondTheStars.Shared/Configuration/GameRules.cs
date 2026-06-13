@@ -152,12 +152,14 @@ public sealed class GameRules
     /// <summary>Whether the suit consumes oxygen given the mode and setting.</summary>
     public bool OxygenEnabled => GameMode != GameMode.Creative && OxygenConsumption != OxygenConsumption.Off;
 
-    /// <summary>Oxygen drain per second derived from the configured rate.</summary>
+    /// <summary>Oxygen drain per second derived from the configured rate. Drastically softened (item: oxygen on
+    /// planets was far too punishing) — at Normal a full tank now lasts ~200s on foot instead of ~50s. The carried
+    /// oxygen-tank upgrade (item.oxygen_tank_2, oxygenBonus) still adds meaningful survival time on top.</summary>
     public float OxygenDrainPerSecond => OxygenConsumption switch
     {
-        OxygenConsumption.Slow => 1f,
-        OxygenConsumption.Normal => 2f,
-        OxygenConsumption.Fast => 4f,
+        OxygenConsumption.Slow => 0.25f,
+        OxygenConsumption.Normal => 0.5f,
+        OxygenConsumption.Fast => 1f,
         _ => 0f,
     };
 

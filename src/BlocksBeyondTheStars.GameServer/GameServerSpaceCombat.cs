@@ -68,6 +68,10 @@ public sealed class CombatEntity
     public bool PatrolInitialized { get; set; }
     public Vector3f PatrolCenter { get; set; }
     public double PatrolPhase { get; set; }
+
+    /// <summary>True once this hostile has noticed the ship (entered aggro range) and the "spotted" warning has
+    /// been raised. Cleared again when it loses the ship, so re-engaging warns afresh. Server-only.</summary>
+    public bool Spotted { get; set; }
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>
@@ -93,6 +97,10 @@ public sealed class SpaceInstance
     /// <summary>Throttle for streaming hostile-movement updates (drones/UFOs patrol + chase now).</summary>
     public double HostileSyncTimer { get; set; }
 
+    /// <summary>Uptime after which another "hostile spotted you" warning may be raised in this instance — so a
+    /// pack arriving together raises one warning, not one per ship.</summary>
+    public double SpottedReadyAt { get; set; }
+
     /// <summary>Counts up while the asteroid field is below its target so mined-out fields slowly replenish.</summary>
     public double AsteroidRespawnTimer { get; set; }
 
@@ -117,6 +125,12 @@ public readonly record struct SpacePlayerPose(Vector3f Pos, float Yaw, bool Eva)
 public sealed partial class GameServer
 {
     private const float BaseHull = 100f;
+
+    // Every ship carries a small baseline shield + slow regen even before fitting shield modules, so early-game
+    // space combat isn't lethal (the ship used to take damage far too fast with 0 baseline shield). Flying clear
+    // of the fight lets this baseline shield recharge. Shield modules add on top of this.
+    private const float BaselineShipShield = 30f;
+    private const float BaselineShipShieldRegen = 2f;
 
     private readonly Dictionary<string, SpaceInstance> _spaceInstances = new();
     private readonly Dictionary<string, string> _playerInstance = new(); // playerId -> instanceId
@@ -154,8 +168,8 @@ public sealed partial class GameServer
         // Base stats come from the active ship's design (data/ships.json); modules add on top.
         var design = _content.GetShip(_ship.ShipType);
         float hull = design?.BaseHull ?? BaseHull;
-        float shield = design?.BaseShield ?? 0f;
-        float regen = 0f;
+        float shield = (design?.BaseShield ?? 0f) + BaselineShipShield;
+        float regen = BaselineShipShieldRegen;
         float radar = BaseRadarRange;
         foreach (var key in _ship.Modules)
         {
@@ -305,6 +319,11 @@ public sealed partial class GameServer
         instance.Players.Add(playerId);
         _playerInstance[playerId] = instanceId;
 
+        // Launch with the shields up (baseline + modules). The clamp in RecomputeShipCombatStats only ever lowers
+        // the stored shield, so a fresh ship would otherwise start a flight at 0 shield and have to charge it.
+        RecomputeShipCombatStats();
+        _ship.Shield = _shipShieldMax;
+
         if (session is not null)
         {
             ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
@@ -450,10 +469,12 @@ public sealed partial class GameServer
                     Id = NextEntityId(),
                     Kind = CombatEntityKind.Ufo,
                     Hostile = true,
-                    Hull = 70f,
-                    HullMax = 70f,
+                    // Softened for a forgiving PvE feel: was 70 hull / 8 dps, which killed an unshielded ship in
+                    // ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
+                    Hull = 40f,
+                    HullMax = 40f,
                     Position = new Vector3f(-170f, 14f, 150f),
-                    DamagePerSecond = 8f,
+                    DamagePerSecond = 4f,
                     Loot = { new ItemAmount("data_fragment", 3) },
                 });
             }
@@ -474,6 +495,11 @@ public sealed partial class GameServer
         {
             RejectSpace(session, "You are not flying in space.");
             return;
+        }
+
+        if (session is not null)
+        {
+            SetCurrent(session); // pin the ship cursor to the firing player so _ship (tractor check / loot) is theirs
         }
 
         if (!TryGetWeapon(weaponKey, out var weapon))
@@ -686,7 +712,10 @@ public sealed partial class GameServer
     private const float ShipEngageRange = 70f;
 
     private const string TractorModule = "tractor_beam";
-    private const float TractorRange = 8f;
+    // Passive auto-collect radius. Was 8 — too tight: salvage spawns at the destroyed rock's centre, so after a
+    // mid-range kill you often couldn't get close enough to vacuum it (most noticeable on your very first kill,
+    // before you've learned to nose right into the wreck). Widened so flying near the wreck reliably collects it.
+    private const float TractorRange = 16f;
 
     /// <summary>Tractor beam: pulls salvage drops within <paramref name="range"/> into the ship's cargo hold
     /// (until full). The passive tick uses a short range; a manual pull (quick-bar) sweeps a wider one.</summary>
@@ -846,6 +875,7 @@ public sealed partial class GameServer
             // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
             // comes in range (they used to hang motionless at their spawn points forever).
             bool hostilesMoved = MoveSpaceHostiles(instance, dt);
+            AnnounceHostileSpotting(instance); // warn the pilot the moment a hostile starts hunting the ship
             instance.HostileSyncTimer += dt;
             if (hostilesMoved && instance.HostileSyncTimer >= 0.15)
             {
@@ -917,6 +947,58 @@ public sealed partial class GameServer
         float rrad = 22f + (r % 3) * 6f; // 22 / 28 / 34
         var pos = new Vector3f(rrad * (float)System.Math.Cos(rang), ((r % 5) - 2) * 8f, rrad * (float)System.Math.Sin(rang));
         SpawnAsteroid(instance, pos, broadcast: true); // item 20 S3: voxel ore body (sends its mesh + state)
+    }
+
+    private const double SpottedCalloutCooldown = 15.0; // s between "hostile spotted you" warnings per instance
+
+    /// <summary>Raises a one-shot "a hostile has spotted you" warning to every pilot in the instance the moment a
+    /// hostile NPC first enters its aggro range and begins hunting the ship — for ALL AI-core tiers (the older
+    /// <see cref="ShipAiThreatCallout"/> only fires once damage lands, and only on a Mk2+ core). A short
+    /// per-instance cooldown keeps a pack that arrives together from raising one warning per ship.</summary>
+    private void AnnounceHostileSpotting(SpaceInstance instance)
+    {
+        bool newlySpotted = false;
+        foreach (var e in instance.Entities)
+        {
+            if (!e.Hostile || e.Hull <= 0f)
+            {
+                continue;
+            }
+
+            var (aggro, _, speed) = HostileProfile(e.Kind);
+            if (speed <= 0f || aggro <= 0f)
+            {
+                continue; // not a mobile hunter (e.g. stations / asteroids / drops)
+            }
+
+            float distSq = e.Position.DistanceSquared(instance.ShipPosition);
+            if (distSq <= aggro * aggro)
+            {
+                if (!e.Spotted)
+                {
+                    e.Spotted = true;
+                    newlySpotted = true;
+                }
+            }
+            else if (distSq > aggro * aggro * 1.21f)
+            {
+                e.Spotted = false; // lost the ship (with ~10% hysteresis) — a fresh approach warns again
+            }
+        }
+
+        if (!newlySpotted || _uptime < instance.SpottedReadyAt)
+        {
+            return;
+        }
+
+        instance.SpottedReadyAt = _uptime + SpottedCalloutCooldown;
+        foreach (var playerId in instance.Players)
+        {
+            if (FindSessionByPlayerId(playerId) is { } s)
+            {
+                SendVegaLine(s, "vega.sys.spotted", 3);
+            }
+        }
     }
 
     /// <summary>Per-kind movement profile for hostile space NPCs: how far they notice the ship, how close
@@ -1043,7 +1125,7 @@ public sealed partial class GameServer
     private void DisableShip(SpaceInstance instance)
     {
         _ship.Hull = _shipHullMax;
-        _ship.Shield = 0f;
+        _ship.Shield = _shipShieldMax; // recovered to base with shields restored too (baseline + modules)
 
         foreach (var playerId in instance.Players.ToList())
         {

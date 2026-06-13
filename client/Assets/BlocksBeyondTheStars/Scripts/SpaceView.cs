@@ -65,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<string> _structRemove = new List<string>();
 
         private Transform _exhaust;
+        private GameObject _hatchDoor; // closed door panel capping the rear hatch opening (slides open on an EVA)
         private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
         private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
         private int _appliedHullRgb = -1; // last hull colour applied (cube material tint or voxel re-mesh), to detect live changes
@@ -238,6 +239,10 @@ namespace BlocksBeyondTheStars.Client
             SyncEntities();
             SyncRemotePlayers();
             UpdateBeams(Time.deltaTime);
+            if (_phase == Phase.Cruise)
+            {
+                UpdateHostileFire(Time.deltaTime); // draw the enemy's shots (server damage is an invisible aura)
+            }
 
             // EVA is server-driven now (you step out through the ship's airlock): mirror its InEva state so
             // the suit float begins/ends in sync with the server.
@@ -252,6 +257,13 @@ namespace BlocksBeyondTheStars.Client
             if (_ship != null && _shipCells != null && _shipCells.Count > 0)
             {
                 _ship.transform.localScale = Vector3.one * (_eva ? 1f : FlightShipScale);
+            }
+
+            // The rear hatch door is closed while piloting (so the stern isn't an open hole) and opens — hidden —
+            // while you're on an EVA so you can float out and board.
+            if (_hatchDoor != null)
+            {
+                _hatchDoor.SetActive(!_eva);
             }
 
             switch (_phase)
@@ -340,23 +352,54 @@ namespace BlocksBeyondTheStars.Client
             bit.Vel = back * (14f + throttle * 10f) + Random.insideUnitSphere * 1.6f;
         }
 
-        /// <summary>A short-lived exhaust cube: flies backwards, shrinks, self-destroys.</summary>
+        /// <summary>A short-lived debris/exhaust cube: flies along <see cref="Vel"/>, shrinks, self-destroys.
+        /// Defaults match the exhaust/hit-spark look; the ship-destruction burst overrides life + size.</summary>
         private sealed class ExhaustBit : MonoBehaviour
         {
             public Vector3 Vel;
+            public float LifeSpan = 0.35f;
+            public float Size = 0.18f;
 
-            private const float Life = 0.35f;
             private float _t;
 
             private void Update()
             {
                 _t += Time.deltaTime;
                 transform.position += Vel * Time.deltaTime;
-                transform.localScale = Vector3.one * 0.18f * Mathf.Max(0f, 1f - _t / Life);
-                if (_t >= Life)
+                transform.localScale = Vector3.one * Size * Mathf.Max(0f, 1f - _t / LifeSpan);
+                if (_t >= LifeSpan)
                 {
                     Destroy(gameObject);
                 }
+            }
+        }
+
+        /// <summary>A big debris + fireball burst at <paramref name="at"/> when the ship is destroyed in flight —
+        /// the explosion that used to be missing (only a screen flash played). Reuses the spark debris, scaled up
+        /// and longer-lived, plus a few bright fireball cores.</summary>
+        private void SpawnShipExplosion(Vector3 at)
+        {
+            _hitSparkMat ??= Unlit(new Color(1f, 0.62f, 0.18f));
+            var core = Unlit(new Color(1f, 0.85f, 0.45f)); // bright yellow-white fireball chunks
+            Transform parent = _root != null ? _root.transform : null;
+            for (int i = 0; i < 34; i++)
+            {
+                bool bright = i % 4 == 0;
+                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                StripCollider(p);
+                if (parent != null)
+                {
+                    p.transform.SetParent(parent, false);
+                }
+
+                p.transform.position = at + Random.insideUnitSphere * 1.6f;
+                float size = bright ? 0.42f : 0.28f;
+                p.transform.localScale = Vector3.one * size;
+                p.GetComponent<Renderer>().sharedMaterial = bright ? core : _hitSparkMat;
+                var bit = p.AddComponent<ExhaustBit>();
+                bit.Vel = Random.onUnitSphere * Random.Range(9f, 24f);
+                bit.LifeSpan = Random.Range(0.7f, 1.25f);
+                bit.Size = size;
             }
         }
 
@@ -1636,10 +1679,12 @@ namespace BlocksBeyondTheStars.Client
             ResolveShipFlight();
             BuildScene();
 
-            // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake.
+            // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake,
+            // and to ship destruction with an explosion burst at the hull.
             if (Game.Network != null && !_combatSubscribed)
             {
                 Game.Network.ShipCombatStatusChanged += OnShipCombat;
+                Game.Network.SpaceClosed += OnSpaceClosedFx;
                 _combatSubscribed = true;
             }
 
@@ -1707,6 +1752,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game.Network != null && _combatSubscribed)
             {
                 Game.Network.ShipCombatStatusChanged -= OnShipCombat;
+                Game.Network.SpaceClosed -= OnSpaceClosedFx;
                 _combatSubscribed = false;
             }
 
@@ -1720,6 +1766,7 @@ namespace BlocksBeyondTheStars.Client
             _aimHighlight = null; // marker lived under _root (destroyed)
             _ship = null;
             _exhaust = null;
+            _hatchDoor = null; // lived under the destroyed _ship
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
             _hatchMat = null; // hatch marker material lived under the destroyed ship
@@ -1755,6 +1802,33 @@ namespace BlocksBeyondTheStars.Client
 
             _lastHull = s.Hull;
             _lastShield = s.Shield;
+        }
+
+        /// <summary>Ship destroyed in flight (server recovered it to base): burst the hull into an explosion at
+        /// its position before the view tears down. Previously only DeathFx flashed the screen — no explosion
+        /// played in space. A normal return from space (ShipDisabled == false) does nothing here.</summary>
+        private void OnSpaceClosedFx(BlocksBeyondTheStars.Networking.Messages.SpaceClosed m)
+        {
+            if (!m.ShipDisabled || !_active)
+            {
+                return;
+            }
+
+            Vector3 at = _ship != null
+                ? _ship.transform.position
+                : (Camera != null ? Camera.transform.position + Camera.transform.forward * 6f : SceneOrigin);
+            SpawnShipExplosion(at); // the boom + screen flash are already played by ClientAudio / DeathFx
+            _hitFlash = Mathf.Max(_hitFlash, 0.9f);
+            _shake = Mathf.Max(_shake, 0.7f);
+
+            // Hide the doomed hull so the player sees the debris, not an intact ship flying the recovery descent.
+            if (_ship != null)
+            {
+                foreach (var r in _ship.GetComponentsInChildren<Renderer>())
+                {
+                    r.enabled = false;
+                }
+            }
         }
 
         /// <summary>Reads the active ship's design (data/ships.json) so heavier ships fly slower and
@@ -2147,7 +2221,106 @@ namespace BlocksBeyondTheStars.Client
             Cube("Hatch", ship.transform, new Vector3(0f, lowY, rearZ + 0.1f), new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, rearZ - 0.6f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
+
+            // Cap the rear hatch opening with a CLOSED door so the ship isn't a hole at the stern (you used to see
+            // straight into the hull). It slides open (hides) on an EVA so you can still board. Detected from the
+            // cells so it tracks any ship's actual rear opening, not a hard-coded box.
+            AddRearHatchDoor(ship, cells, _shipCentre, minX, maxX, minY, maxY, minZ, maxZ);
             return ship;
+        }
+
+        /// <summary>Finds the rear (-Z) wall's hatch opening in <paramref name="cells"/> and caps it with a closed
+        /// two-leaf door panel parented to the ship, stored in <see cref="_hatchDoor"/>. No-op when the rear is
+        /// already sealed (no opening). The rear wall is the lowest-z near-solid face; its enclosed air cells are
+        /// the opening.</summary>
+        private void AddRearHatchDoor(GameObject ship, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
+            int minX, int maxX, int minY, int maxY, int minZ, int maxZ)
+        {
+            _hatchDoor = null;
+
+            // Locate the rear wall: the lowest z whose plane is a mostly-solid face (an end cap), not sparse
+            // engine/wing cells poking out behind it.
+            int zWall = int.MinValue;
+            for (int z = minZ; z <= maxZ; z++)
+            {
+                int count = 0, sxMin = int.MaxValue, sxMax = int.MinValue, syMin = int.MaxValue, syMax = int.MinValue;
+                for (int x = minX; x <= maxX; x++)
+                for (int y = minY; y <= maxY; y++)
+                {
+                    if (cells.ContainsKey(new Vector3i(x, y, z)))
+                    {
+                        count++;
+                        if (x < sxMin) sxMin = x; if (x > sxMax) sxMax = x;
+                        if (y < syMin) syMin = y; if (y > syMax) syMax = y;
+                    }
+                }
+
+                if (count == 0)
+                {
+                    continue;
+                }
+
+                int area = (sxMax - sxMin + 1) * (syMax - syMin + 1);
+                if (area >= 9 && count >= area * 0.7f) // a real wall face (≥3×3, mostly filled)
+                {
+                    zWall = z;
+                    break; // lowest such z = the rear end cap
+                }
+            }
+
+            if (zWall == int.MinValue)
+            {
+                return;
+            }
+
+            // The opening = air cells enclosed by the solid bounds of that wall face.
+            int wxMin = int.MaxValue, wxMax = int.MinValue, wyMin = int.MaxValue, wyMax = int.MinValue;
+            for (int x = minX; x <= maxX; x++)
+            for (int y = minY; y <= maxY; y++)
+            {
+                if (cells.ContainsKey(new Vector3i(x, y, zWall)))
+                {
+                    if (x < wxMin) wxMin = x; if (x > wxMax) wxMax = x;
+                    if (y < wyMin) wyMin = y; if (y > wyMax) wyMax = y;
+                }
+            }
+
+            int oxMin = int.MaxValue, oxMax = int.MinValue, oyMin = int.MaxValue, oyMax = int.MinValue, holes = 0;
+            for (int x = wxMin; x <= wxMax; x++)
+            for (int y = wyMin; y <= wyMax; y++)
+            {
+                if (!cells.ContainsKey(new Vector3i(x, y, zWall)))
+                {
+                    holes++;
+                    if (x < oxMin) oxMin = x; if (x > oxMax) oxMax = x;
+                    if (y < oyMin) oyMin = y; if (y > oyMax) oyMax = y;
+                }
+            }
+
+            if (holes == 0)
+            {
+                return; // sealed rear — nothing to close
+            }
+
+            // One panel covering the opening's bounding box, sitting in the wall plane (centred like the mesh).
+            float cxLocal = (oxMin + oxMax + 1) * 0.5f - centre.x;
+            float cyLocal = (oyMin + oyMax + 1) * 0.5f - centre.y;
+            float czLocal = zWall + 0.5f - centre.z;
+            float w = oxMax - oxMin + 1;
+            float h = oyMax - oyMin + 1;
+
+            var door = new GameObject("HatchDoor");
+            door.transform.SetParent(ship.transform, false);
+            door.transform.localPosition = new Vector3(cxLocal, cyLocal, czLocal);
+            _hatchDoor = door;
+
+            // Steel-blue leaves with a dark centre seam + a cyan power strip (matches the hatch beacon theme), so
+            // it clearly reads as a powered, CLOSED airlock door.
+            var leaf = LitTex("iron_wall", new Color(0.5f, 0.58f, 0.7f));
+            Cube("LeafL", door.transform, new Vector3(-w * 0.25f, 0f, 0f), new Vector3(w * 0.5f - 0.04f, h - 0.04f, 0.2f), leaf);
+            Cube("LeafR", door.transform, new Vector3(w * 0.25f, 0f, 0f), new Vector3(w * 0.5f - 0.04f, h - 0.04f, 0.2f), leaf);
+            Cube("Seam", door.transform, Vector3.zero, new Vector3(0.06f, h - 0.04f, 0.22f), Unlit(new Color(0.05f, 0.08f, 0.1f)));
+            Cube("PowerStrip", door.transform, new Vector3(0f, h * 0.5f - 0.18f, 0f), new Vector3(w - 0.2f, 0.08f, 0.24f), Unlit(new Color(0.2f, 0.85f, 1f)));
         }
 
         /// <summary>(Re)builds the ship's voxel chunk meshes + colliders from <see cref="_shipCells"/> (item 20
@@ -2317,32 +2490,49 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
-        /// <summary>A real UFO model: a flattened metal saucer with a glass dome and glowing underside lights.</summary>
+        /// <summary>A real UFO model: a chunky dark-gunmetal saucer with a hostile glowing red-orange dome, a
+        /// deep underside hull and big red threat lights — reads as a menacing enemy, not the old flat, pale-green
+        /// "peaceful" disc that was hard to see.</summary>
         private GameObject BuildUfoModel(Transform parent)
         {
             var root = new GameObject("Ufo");
             root.transform.SetParent(parent, false);
 
+            var hull = LitTex("carbon", new Color(0.30f, 0.31f, 0.36f)); // dark gunmetal
+
+            // Upper + lower dishes form a taller, more readable saucer silhouette than the old single flat disc.
             var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             disc.name = "Saucer";
             StripCollider(disc);
             disc.transform.SetParent(root.transform, false);
-            disc.transform.localScale = new Vector3(2.6f, 0.22f, 2.6f); // wide + flat
-            disc.GetComponent<Renderer>().sharedMaterial = LitTex("titanium_ore", new Color(0.8f, 0.82f, 0.88f), 1.5f);
+            disc.transform.localScale = new Vector3(2.9f, 0.42f, 2.9f);
+            disc.GetComponent<Renderer>().sharedMaterial = hull;
+
+            var underside = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            underside.name = "Underside";
+            StripCollider(underside);
+            underside.transform.SetParent(root.transform, false);
+            underside.transform.localPosition = new Vector3(0f, -0.32f, 0f);
+            underside.transform.localScale = new Vector3(1.7f, 0.3f, 1.7f);
+            underside.GetComponent<Renderer>().sharedMaterial = LitTex("iron_wall", new Color(0.2f, 0.2f, 0.24f));
 
             var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             dome.name = "Dome";
             StripCollider(dome);
             dome.transform.SetParent(root.transform, false);
-            dome.transform.localPosition = new Vector3(0f, 0.35f, 0f);
-            dome.transform.localScale = new Vector3(1.3f, 0.9f, 1.3f);
-            dome.GetComponent<Renderer>().sharedMaterial = LitTex("glass", new Color(0.6f, 0.95f, 0.8f));
+            dome.transform.localPosition = new Vector3(0f, 0.45f, 0f);
+            dome.transform.localScale = new Vector3(1.5f, 1.05f, 1.5f);
+            dome.GetComponent<Renderer>().sharedMaterial = Unlit(new Color(1f, 0.35f, 0.12f)); // glowing hostile red-orange
 
-            Cube("LightF", root.transform, new Vector3(0f, -0.2f, 1f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
-            Cube("LightB", root.transform, new Vector3(0f, -0.2f, -1f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
-            Cube("LightL", root.transform, new Vector3(-1f, -0.2f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
-            Cube("LightR", root.transform, new Vector3(1f, -0.2f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Unlit(new Color(0.6f, 1f, 0.7f)));
-            root.AddComponent<Spin>().Configure(Vector3.up, 40f); // a fast saucer spin
+            // Bigger, brighter red threat lights around the rim + a glowing weapon emitter on the underside (where
+            // its shots originate).
+            var threat = Unlit(new Color(1f, 0.12f, 0.05f));
+            Cube("LightF", root.transform, new Vector3(0f, -0.15f, 1.2f), new Vector3(0.5f, 0.3f, 0.5f), threat);
+            Cube("LightB", root.transform, new Vector3(0f, -0.15f, -1.2f), new Vector3(0.5f, 0.3f, 0.5f), threat);
+            Cube("LightL", root.transform, new Vector3(-1.2f, -0.15f, 0f), new Vector3(0.5f, 0.3f, 0.5f), threat);
+            Cube("LightR", root.transform, new Vector3(1.2f, -0.15f, 0f), new Vector3(0.5f, 0.3f, 0.5f), threat);
+            Cube("Emitter", root.transform, new Vector3(0f, -0.55f, 0f), new Vector3(0.42f, 0.42f, 0.42f), Unlit(new Color(1f, 0.7f, 0.2f)));
+            root.AddComponent<Spin>().Configure(Vector3.up, 36f); // a fast saucer spin
             return root;
         }
 
@@ -2617,6 +2807,73 @@ namespace BlocksBeyondTheStars.Client
             go.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
             go.transform.localScale = new Vector3(0.18f, 0.18f, len);
             _beams.Add(new TractorBeam { Go = go, Life = 0.35f, Max = 0.35f });
+        }
+
+        // Incoming hostile fire is an invisible damage "aura" server-side (no projectile entity), so the player
+        // never saw enemy shots. Mirror it visually: each in-range hostile flashes a red laser bolt at the ship.
+        private const float HostileFireRange = 70f; // matches the server's ShipEngageRange
+        private readonly Dictionary<string, float> _hostileFireCd = new Dictionary<string, float>();
+        private readonly List<string> _hostileFireStale = new List<string>();
+        private Material _hostileShotMat;
+
+        /// <summary>Draws each in-range hostile firing red laser bolts at the ship (purely visual — damage stays
+        /// server-authoritative). Per-hostile cadence so a pack reads as several attackers, not a strobe.</summary>
+        private void UpdateHostileFire(float dt)
+        {
+            var space = Game.Space;
+            if (space == null || _ship == null)
+            {
+                return;
+            }
+
+            Vector3 shipLp = _ship.transform.localPosition;
+            _hostileFireStale.Clear();
+            foreach (var key in _hostileFireCd.Keys)
+            {
+                _hostileFireStale.Add(key);
+            }
+
+            foreach (var e in space.Entities)
+            {
+                if (!e.Hostile || (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser"))
+                {
+                    continue;
+                }
+
+                _hostileFireStale.Remove(e.Id);
+                var from = new Vector3(e.X, e.Y, e.Z);
+                if ((from - shipLp).sqrMagnitude > HostileFireRange * HostileFireRange)
+                {
+                    _hostileFireCd[e.Id] = Random.Range(0.15f, 0.5f); // re-arm; no shot until it closes in
+                    continue;
+                }
+
+                float cd = (_hostileFireCd.TryGetValue(e.Id, out var v) ? v : 0f) - dt;
+                if (cd <= 0f)
+                {
+                    SpawnHostileShot(from, shipLp);
+                    cd = Random.Range(0.4f, 0.8f);
+                }
+
+                _hostileFireCd[e.Id] = cd;
+            }
+
+            foreach (var id in _hostileFireStale)
+            {
+                _hostileFireCd.Remove(id); // hostile gone (destroyed / left the instance)
+            }
+        }
+
+        private void SpawnHostileShot(Vector3 from, Vector3 to)
+        {
+            _hostileShotMat ??= Unlit(new Color(1f, 0.2f, 0.12f)); // angry red bolt
+            var go = Cube("EnemyShot", _root.transform, Vector3.zero, Vector3.one, _hostileShotMat);
+            var mid = (from + to) * 0.5f;
+            float len = Vector3.Distance(from, to);
+            go.transform.localPosition = mid;
+            go.transform.localRotation = len > 0.001f ? Quaternion.LookRotation(to - from) : Quaternion.identity;
+            go.transform.localScale = new Vector3(0.16f, 0.16f, len);
+            _beams.Add(new TractorBeam { Go = go, Life = 0.16f, Max = 0.16f }); // a quick lance, not a sustained beam
         }
 
         private void UpdateBeams(float dt)
