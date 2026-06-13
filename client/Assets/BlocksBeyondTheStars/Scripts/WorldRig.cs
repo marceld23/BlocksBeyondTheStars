@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
             boot.ArmRgb = Rgb(shell.Settings.ArmColor);
             boot.LegRgb = Rgb(shell.Settings.LegColor);
             boot.HullRgb = Rgb(shell.Settings.HullColor); // ship hull tint (item 32)
+            boot.FacePixels = shell.Settings.FacePixels ?? ""; // custom pixel face, sent on join
 
             // Only our camera should render in-game; disable any pre-existing scene cameras.
             foreach (var existing in Camera.allCameras)
@@ -83,6 +84,7 @@ namespace BlocksBeyondTheStars.Client
             avatarGo.transform.SetParent(player.transform, false);
             var avatar = avatarGo.AddComponent<PlayerAvatar>();
             avatar.Build(shell.Settings);
+            avatar.SetFace(shell.Settings.FacePixels); // custom pixel face on our own figure (third person)
 
             var pc = player.AddComponent<PlayerController>();
             pc.Game = boot;

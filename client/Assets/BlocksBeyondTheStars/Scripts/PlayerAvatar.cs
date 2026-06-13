@@ -25,6 +25,18 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _held;
         private bool _visible = true;
 
+        // Custom pixel face (FaceEditor): a textured plate on the head front that replaces the procedural
+        // eyes/brow/mouth/visor when set. Placed in head-LOCAL space like those features (so the head's scale
+        // is inherited the same way). Nudge these two if a build shows it floating/clipping.
+        private const float FacePlateZ = 0.27f;       // just forward of the pupils (0.275 head-local) so it reads
+        private const float FacePlateScale = 0.9f;    // covers the face, leaving a thin skin border
+        private readonly List<GameObject> _faceFeatures = new List<GameObject>();
+        private GameObject _facePlate;
+        private Material _faceMat;
+        private Texture2D _faceTex;
+        private string _faceString = string.Empty;
+        private Color _skinColor = new Color(0.85f, 0.68f, 0.55f); // original (pre-sRGB) skin tone, for face compositing
+
         private float _phase;     // per-instance offset so avatars don't move in lockstep
         private Vector3 _lastPos;
         private float _prevY;
@@ -38,6 +50,7 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureTextures();
             _phase = (GetInstanceID() & 0x3ff) * 0.11f;
+            _skinColor = skin;
             _skin = Lit(skin, _skinTex);
             _torso = Lit(torso, _suitTex);
             _arms = Lit(arms, _suitTex);
@@ -55,19 +68,21 @@ namespace BlocksBeyondTheStars.Client
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
             // Visor as a lower-face breather strip (sits BELOW the eyes so it no longer covers them — that's
             // why the face read as blank before).
-            AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.235f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex));
+            _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.235f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
 
             // Eyes (whites + pupils + a brow + a mouth) so the face reads clearly — bigger/clearer (B20).
             var eyeWhite = Lit(new Color(0.96f, 0.97f, 1f), null);
             var pupil = Lit(new Color(0.04f, 0.04f, 0.07f), null);
             var brow = Lit(new Color(0.18f, 0.14f, 0.11f), null);
             var mouth = Lit(new Color(0.32f, 0.16f, 0.14f), null);
-            AddCube("EyeL", _head, new Vector3(-0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite);
-            AddCube("EyeR", _head, new Vector3(0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite);
-            AddCube("PupilL", _head, new Vector3(-0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil);
-            AddCube("PupilR", _head, new Vector3(0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil);
-            AddCube("Brow", _head, new Vector3(0f, 0.175f, 0.245f), new Vector3(0.38f, 0.05f, 0.045f), brow);
-            AddCube("Mouth", _head, new Vector3(0f, -0.175f, 0.235f), new Vector3(0.20f, 0.045f, 0.04f), mouth);
+            // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The
+            // visor (above) is included so a drawn face fully replaces the stock look.
+            _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, 0.175f, 0.245f), new Vector3(0.38f, 0.05f, 0.045f), brow));
+            _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, -0.175f, 0.235f), new Vector3(0.20f, 0.045f, 0.04f), mouth));
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);
@@ -318,10 +333,103 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            _skinColor = skin;
             _skin.color = skin;
             _torso.color = torso;
             _arms.color = arms;
             _legs.color = legs;
+
+            // A custom face composites its transparent pixels onto the skin, so re-bake it when skin changes.
+            if (!FacePalette.IsEmpty(_faceString))
+            {
+                SetFace(_faceString);
+            }
+        }
+
+        /// <summary>Applies a custom pixel face (drawn in the <see cref="FaceEditor"/>, encoded by
+        /// <see cref="FacePalette"/>). A non-empty face shows a textured plate on the head front and hides the
+        /// stock eyes/brow/mouth/visor; an empty face restores the default look. Safe to call before/after
+        /// <see cref="SetVisible"/>.</summary>
+        public void SetFace(string face)
+        {
+            _faceString = face ?? string.Empty;
+
+            if (FacePalette.IsEmpty(_faceString))
+            {
+                ApplyFaceVisibility();
+                return;
+            }
+
+            EnsureFacePlate();
+            if (_faceTex != null)
+            {
+                Destroy(_faceTex);
+            }
+
+            _faceTex = FacePalette.BuildAvatarTexture(_faceString, _skinColor);
+            if (_faceMat != null)
+            {
+                _faceMat.mainTexture = _faceTex;
+            }
+
+            ApplyFaceVisibility();
+        }
+
+        private void EnsureFacePlate()
+        {
+            if (_facePlate != null || _head == null)
+            {
+                return;
+            }
+
+            _facePlate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _facePlate.name = "FacePlate";
+            var col = _facePlate.GetComponent<Collider>();
+            if (col != null)
+            {
+                Destroy(col); // visual only
+            }
+
+            _facePlate.transform.SetParent(_head, false);
+            _facePlate.transform.localPosition = new Vector3(0f, 0f, FacePlateZ);
+            _facePlate.transform.localScale = new Vector3(FacePlateScale, FacePlateScale, 0.05f);
+            _faceMat = Lit(Color.white, null); // white tint so the face texture shows its true colours
+            _facePlate.GetComponent<Renderer>().sharedMaterial = _faceMat;
+        }
+
+        /// <summary>Reconciles the face plate + stock-feature renderers with the current visibility and whether
+        /// a custom face is set. Idempotent — called from both <see cref="SetFace"/> and <see cref="SetVisible"/>.</summary>
+        private void ApplyFaceVisibility()
+        {
+            bool custom = !FacePalette.IsEmpty(_faceString);
+            foreach (var f in _faceFeatures)
+            {
+                if (f != null)
+                {
+                    var r = f.GetComponent<Renderer>();
+                    if (r != null)
+                    {
+                        r.enabled = _visible && !custom;
+                    }
+                }
+            }
+
+            if (_facePlate != null)
+            {
+                var pr = _facePlate.GetComponent<Renderer>();
+                if (pr != null)
+                {
+                    pr.enabled = _visible && custom;
+                }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_faceTex != null)
+            {
+                Destroy(_faceTex);
+            }
         }
 
         public void SetVisible(bool visible)
@@ -336,6 +444,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ApplyHeldVisible();
+            ApplyFaceVisibility(); // re-suppress stock features / show the plate when a custom face is set
         }
 
         // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin.

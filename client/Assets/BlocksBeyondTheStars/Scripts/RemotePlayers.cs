@@ -30,6 +30,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
+
+        /// <summary>Custom pixel faces by player id. Kept separately so a face that arrives before the player's
+        /// first presence (or after their avatar is rebuilt) is still applied.</summary>
+        private readonly Dictionary<string, string> _faces = new Dictionary<string, string>();
         private bool _subscribed;
 
         /// <summary>Names of other players within <paramref name="range"/> of <paramref name="from"/> (for dock/trade targeting).</summary>
@@ -54,6 +58,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.PlayerPresenceReceived += OnPresence;
                 Game.Network.PlayerLeftReceived += OnLeft;
+                Game.Network.PlayerFaceReceived += OnFace;
                 _subscribed = true;
             }
 
@@ -95,6 +100,11 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.position = Game != null ? Game.ScenePos(m.X, m.Y, m.Z) : new Vector3(m.X, m.Y, m.Z);
                 var avatar = go.AddComponent<PlayerAvatar>();
                 avatar.Build(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs));
+                if (_faces.TryGetValue(m.PlayerId, out var face))
+                {
+                    avatar.SetFace(face); // a face we already received before this first presence
+                }
+
                 avatar.SetVisible(true);
                 r = new Remote { Go = go, Avatar = avatar, Name = m.Name, SettledWorld = new Vector3(m.X, m.Y, m.Z) };
                 _remotes[m.PlayerId] = r;
@@ -129,6 +139,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private void OnFace(PlayerFace m)
+        {
+            if (Game != null && m.PlayerId == Game.LocalPlayerId)
+            {
+                return; // our own face is applied locally
+            }
+
+            _faces[m.PlayerId] = m.Pixels ?? string.Empty;
+            if (_remotes.TryGetValue(m.PlayerId, out var r) && r.Avatar != null)
+            {
+                r.Avatar.SetFace(m.Pixels);
+            }
+        }
+
         private void OnLeft(PlayerLeft m)
         {
             if (_remotes.TryGetValue(m.PlayerId, out var r))
@@ -136,6 +160,8 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(r.Go);
                 _remotes.Remove(m.PlayerId);
             }
+
+            _faces.Remove(m.PlayerId);
         }
 
         private void LateUpdate()
@@ -163,6 +189,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.PlayerPresenceReceived -= OnPresence;
                 Game.Network.PlayerLeftReceived -= OnLeft;
+                Game.Network.PlayerFaceReceived -= OnFace;
             }
         }
 

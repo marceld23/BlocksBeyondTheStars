@@ -1288,6 +1288,7 @@ public sealed partial class GameServer
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
+            case SetFaceIntent face: HandleSetFace(session, face); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
@@ -1458,6 +1459,7 @@ public sealed partial class GameServer
         SendLandingPads(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
+        SendExistingFaces(session);     // custom pixel faces of already-online players
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
 
         _log.Info($"Player '{name}' joined (connection {connectionId}).");

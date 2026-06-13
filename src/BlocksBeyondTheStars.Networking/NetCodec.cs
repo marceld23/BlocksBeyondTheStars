@@ -199,6 +199,11 @@ public static class NetCodec
         Register(129, typeof(DissolveAllianceIntent));    // Client -> Server (end an alliance)
         Register(130, typeof(AllianceList));              // Server -> Client (my full roster + pending)
         Register(131, typeof(AllianceRequestNotice));     // Server -> Client (someone proposed an alliance)
+
+        // Custom pixel face: a per-player avatar face drawn in the in-game editor, relayed out of band from
+        // the 10 Hz presence stream (heavier payload, changes rarely).
+        Register(132, typeof(SetFaceIntent)); // Client -> Server (set/clear my face)
+        Register(133, typeof(PlayerFace));    // Server -> Client (another player's face)
     }
 
     private static void Register(byte tag, Type type)

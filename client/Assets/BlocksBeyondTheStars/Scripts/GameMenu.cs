@@ -318,6 +318,41 @@ namespace BlocksBeyondTheStars.Client
             ApplyAppearance();
         }
 
+        private FaceEditor _faceEditor;
+
+        /// <summary>Opens the in-game pixel-face editor (from the Character tab). No-op if already open.</summary>
+        public void OpenFaceEditor()
+        {
+            if (_faceEditor != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("FaceEditor");
+            go.transform.SetParent(transform, false);
+            _faceEditor = go.AddComponent<FaceEditor>();
+            _faceEditor.Menu = this;
+        }
+
+        /// <summary>Applies an edited pixel face: persists it locally, shows it on the local figure, and tells
+        /// the server (which persists + relays it to other players). Called by the <see cref="FaceEditor"/>.</summary>
+        public void ApplyFace(string pixels)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Settings.FacePixels = pixels ?? string.Empty;
+            Settings.Save();
+            Avatar?.SetFace(Settings.FacePixels);
+            if (Game != null)
+            {
+                Game.FacePixels = Settings.FacePixels;
+                Game.Network?.SendFace(Settings.FacePixels);
+            }
+        }
+
         private static int Rgb(Color c)
             => (Mathf.RoundToInt(c.r * 255f) << 16) | (Mathf.RoundToInt(c.g * 255f) << 8) | Mathf.RoundToInt(c.b * 255f);
 

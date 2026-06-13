@@ -47,6 +47,10 @@ public sealed class PlayerSnapshot
     public List<string> Milestones { get; set; } = new();
     public List<string> UnlockedGames { get; set; } = new();
 
+    /// <summary>The player's custom pixel face (16×16 palette indices as a hex string; empty = none). Opaque
+    /// to the server; the client owns the palette + rendering. Persisted so the face follows the player.</summary>
+    public string FacePixels { get; set; } = string.Empty;
+
     /// <summary>Celestial bodies this player has physically landed on (gates travel-screen quick-travel). Persisted
     /// so the "only travel where you've been" rule survives a reload.</summary>
     public List<string> LandedBodies { get; set; } = new();
@@ -131,6 +135,7 @@ public static class StateMapper
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
+        FacePixels = p.FacePixels,
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()
@@ -192,6 +197,7 @@ public static class StateMapper
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
+        FacePixels = s.FacePixels ?? string.Empty,
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

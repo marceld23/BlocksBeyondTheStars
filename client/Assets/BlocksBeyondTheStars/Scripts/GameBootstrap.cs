@@ -43,6 +43,10 @@ namespace BlocksBeyondTheStars.Client
         public int ArmRgb = 0x3372CC;
         public int LegRgb = 0x40404F;
 
+        /// <summary>Our custom pixel face (16×16 palette-index string; empty = default), set by WorldRig and
+        /// sent to the server on join so other players see it. Kept here so the edit path can re-send it.</summary>
+        public string FacePixels = "";
+
         // Our ship hull colour (packed 0xRRGGBB), set by WorldRig; sent on join and read by the flight view
         // to tint the ship (item 32). Default = the steel tint the hull used before hull colours existed.
         public int HullRgb = 0xD1D6E0;
@@ -816,6 +820,11 @@ namespace BlocksBeyondTheStars.Client
                     Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
                         string.IsNullOrEmpty(Token) ? null : Token);
                     Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
+                    if (!string.IsNullOrEmpty(FacePixels))
+                    {
+                        Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)
+                    }
+
                     _joinSent = true;
                 }
                 else

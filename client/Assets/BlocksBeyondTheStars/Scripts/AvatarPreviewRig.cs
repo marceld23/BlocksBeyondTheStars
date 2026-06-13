@@ -68,6 +68,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SetColors(Color skin, Color torso, Color arms, Color legs) => _avatar?.ApplyColors(skin, torso, arms, legs);
 
+        /// <summary>Shows the player's custom pixel face on the preview figure (empty restores the default).</summary>
+        public void SetFace(string face) => _avatar?.SetFace(face);
+
         /// <summary>Enables/disables rendering. Toggles the MODEL too (not just the camera) so an inactive rig's
         /// avatar isn't left in the scene where the other preview's camera would pick it up (B53).</summary>
         public void SetActive(bool on)

@@ -17,6 +17,22 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Custom pixel face — in-game face editor, shown on your avatar to everyone — ✅ IMPLEMENTED (2026-06-13)
+**Goal:** draw a 16×16 pixel face in-game; it appears on your figure, in the live Character-tab preview, and on
+your avatar for every other player. Server-persistent (the face follows the player).
+- **Format:** `FacePalette.cs` (client) — a 16-colour palette (index 0 = transparent) encoded as a 16×16
+  hex string; opaque to the server, owned by the client. Empty = default procedural eyes/mouth.
+- **Editor:** `FaceEditor.cs` — uGUI paint canvas (palette + eraser), opened from the **Character** menu tab
+  (`ui.face.edit`). Apply persists to `ClientSettings.FacePixels`, shows it locally, and sends it.
+- **Avatar:** `PlayerAvatar.SetFace` adds a textured face plate on the head front and hides the stock
+  eyes/brow/mouth/visor; transparent pixels composite onto the skin (no transparent shader needed).
+- **Networking:** `SetFaceIntent` (client→server) + `PlayerFace` (server→client), NetCodec tags 132–133 —
+  out of band from the 10 Hz presence stream (sent on join + on edit). `RemotePlayers` paints received faces.
+- **Persistence:** `PlayerState.FacePixels` + `PlayerSnapshot`/`StateMapper` (stored in the player JSON blob,
+  no schema migration). **Data:** bilingual `ui.face.*` (de+en).
+**Open/follow-ups:** verify face-plate Z/scale + horizontal U orientation in a Unity build (one-line constants
+in `PlayerAvatar`); transparency is composited to skin tone, not true alpha; needs a Unity client build.
+
 ### ★ Player alliances — shared station/base access, no friendly fire, alliance + Funk tab — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** two players form an alliance and gain access to each other's built space stations and planet bases, and
 cannot harm one another even with PVP enabled. A new in-game menu tab forms/ends alliances and hosts a radio (Funk)

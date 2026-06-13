@@ -130,4 +130,11 @@ public sealed class PlayerState
     /// gameplay effect, so this is pure cosmetic progression like a collectible. Mirrors <see
     /// cref="UnlockedBlueprints"/>.</summary>
     public HashSet<string> UnlockedGames { get; set; } = new();
+
+    /// <summary>The player's custom pixel face, drawn in the in-game face editor and shown on this player's
+    /// avatar to everyone (cosmetic). Encoded as a compact string of 16×16 palette indices (one hex char per
+    /// pixel, index 0 = transparent); empty = no custom face (the default procedural eyes/mouth are used). The
+    /// string is opaque to the server — the client owns the palette + rendering. Server-authoritative,
+    /// persisted; relayed to other players via the <c>PlayerFace</c> message (not the 10 Hz presence stream).</summary>
+    public string FacePixels { get; set; } = string.Empty;
 }

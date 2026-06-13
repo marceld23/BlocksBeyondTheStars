@@ -1171,6 +1171,7 @@ namespace BlocksBeyondTheStars.Client
             if (_avatarPreview != null && Menu?.Settings != null)
             {
                 _avatarPreview.SetColors(cols[0], cols[1], cols[2], cols[3]);
+                _avatarPreview.SetFace(Menu.Settings.FacePixels);
             }
 
             for (int i = 0; i < 4; i++)
@@ -1182,6 +1183,12 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(card.transform, 560, 0, 200, 78, L("ui.settings.next_color"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
                 y += 88f;
             }
+
+            // Custom pixel face: opens the in-game face editor (draw a face shown to everyone).
+            var faceCard = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenFaceEditor());
+            UiKit.AddText(faceCard.transform, 16, 0, 520, 78, L("ui.face.edit"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(faceCard.transform, 560, 0, 200, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+            y += 96f;
 
             // Master volume — − / + adjust the audio bus live (and persist).
             int pct = Mathf.RoundToInt((Menu?.Settings?.MasterVolume ?? 0.8f) * 100f);
@@ -1314,6 +1321,7 @@ namespace BlocksBeyondTheStars.Client
             if (s != null)
             {
                 _avatarPreview.SetColors(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor);
+                _avatarPreview.SetFace(s.FacePixels);
             }
 
             UiKit.AddPanel(_detail, 64, 16, 500, 716, new Color(0.03f, 0.06f, 0.11f, 0.92f));

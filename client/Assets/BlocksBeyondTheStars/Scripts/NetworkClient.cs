@@ -61,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         // Multiplayer presence (M24).
         public event Action<PlayerPresence> PlayerPresenceReceived;
         public event Action<PlayerLeft> PlayerLeftReceived;
+        public event Action<PlayerFace> PlayerFaceReceived; // another player's custom pixel face
         public event Action<OwnedShips> OwnedShipsReceived;
         public event Action<WorldEnvironment> WorldEnvironmentReceived;
         public event Action<WorldReset> WorldResetReceived;
@@ -300,6 +301,10 @@ namespace BlocksBeyondTheStars.Client
         public void SendAppearance(int skin, int torso, int arms, int legs, int hull = 0)
             => Send(new SetAppearanceIntent { Skin = skin, Torso = torso, Arms = arms, Legs = legs, Hull = hull });
 
+        /// <summary>Sends the player's custom pixel face (empty clears it). Sent on join and on each edit —
+        /// out of band from the presence stream.</summary>
+        public void SendFace(string pixels) => Send(new SetFaceIntent { Pixels = pixels ?? string.Empty });
+
         public void SendCraftShip(string shipType) => Send(new CraftShipIntent { ShipType = shipType });
 
         public void SendSwitchShip(string shipId) => Send(new SwitchShipIntent { ShipId = shipId });
@@ -366,6 +371,7 @@ namespace BlocksBeyondTheStars.Client
                 case ServerRules m: ServerRulesReceived?.Invoke(m); break;
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
+                case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m: WorldResetReceived?.Invoke(m); break;

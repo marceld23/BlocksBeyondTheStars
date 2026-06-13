@@ -37,6 +37,53 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Stores a player's custom pixel face (persisted, since it follows the player to any server they
+    /// set it on) and relays it to the other players on the same world. Out of band from the 10 Hz presence
+    /// stream — the bitmap is heavier and changes rarely.</summary>
+    private void HandleSetFace(PlayerSession session, SetFaceIntent intent)
+    {
+        var pixels = intent.Pixels ?? string.Empty;
+        if (pixels == session.State.FacePixels)
+        {
+            return; // unchanged (e.g. the redundant on-join send) — no save, no broadcast
+        }
+
+        session.State.FacePixels = pixels;
+        _repo.SavePlayer(session.State);
+        BroadcastFace(session);
+    }
+
+    /// <summary>Sends a player's face to every other joined player on the same world.</summary>
+    private void BroadcastFace(PlayerSession subject)
+    {
+        var msg = FaceOf(subject);
+        foreach (var viewer in _sessions.Values)
+        {
+            if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
+                && viewer.CurrentLocationId == subject.CurrentLocationId)
+            {
+                Send(viewer, msg);
+            }
+        }
+    }
+
+    private static PlayerFace FaceOf(PlayerSession s)
+        => new() { PlayerId = s.State.PlayerId, Pixels = s.State.FacePixels ?? string.Empty };
+
+    /// <summary>Sends the new player the custom faces of everyone already online on their world.</summary>
+    private void SendExistingFaces(PlayerSession newcomer)
+    {
+        foreach (var other in _sessions.Values)
+        {
+            if (other.Joined && other.ConnectionId != newcomer.ConnectionId
+                && other.CurrentLocationId == newcomer.CurrentLocationId
+                && !string.IsNullOrEmpty(other.State.FacePixels))
+            {
+                Send(newcomer, FaceOf(other));
+            }
+        }
+    }
+
     /// <summary>Public setter for local play / tests.</summary>
     public void SetAppearance(string playerId, int skin, int torso, int arms, int legs, int hull = 0)
     {

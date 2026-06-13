@@ -93,6 +93,12 @@ namespace BlocksBeyondTheStars.Client
         /// used before hull colours existed, so an unchanged ship looks the same.</summary>
         public Color HullColor = new Color(0.82f, 0.84f, 0.88f);
 
+        /// <summary>The player's custom pixel face drawn in the in-game face editor, as a 16×16 palette-index
+        /// string (see <see cref="FacePalette"/>); empty = the default procedural face. Shown on this player's
+        /// avatar and sent to the server so other players see it. The server also persists it (the face follows
+        /// the player), but this local copy is the source re-sent on each join/edit.</summary>
+        public string FacePixels = "";
+
         /// <summary>Start in third-person (showing your own figure) instead of first-person.</summary>
         public bool ThirdPerson = false;
 

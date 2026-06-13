@@ -428,6 +428,15 @@ public sealed class SetAppearanceIntent
     public int Hull { get; set; }
 }
 
+/// <summary>Client tells the server its custom pixel face (drawn in the in-game face editor) so other
+/// players can see it on this player's avatar. The payload is opaque to the server (a 16×16 palette-index
+/// string the client owns) — sent once on join and again on each edit, NOT in the 10 Hz presence stream.</summary>
+public sealed class SetFaceIntent
+{
+    /// <summary>The face as a 16×16 palette-index hex string; empty clears the custom face.</summary>
+    public string Pixels { get; set; } = string.Empty;
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -1168,6 +1177,17 @@ public sealed class PlayerPresence
 public sealed class PlayerLeft
 {
     public string PlayerId { get; set; } = string.Empty;
+}
+
+/// <summary>Another player's custom pixel face, relayed so the client can paint it on their avatar's head.
+/// Sent on join (for everyone already online) and whenever a player edits their face — out of band from the
+/// frequent <see cref="PlayerPresence"/> stream, since the bitmap is heavier and changes rarely.</summary>
+public sealed class PlayerFace
+{
+    public string PlayerId { get; set; } = string.Empty;
+
+    /// <summary>The face as a 16×16 palette-index hex string; empty = no custom face (default features).</summary>
+    public string Pixels { get; set; } = string.Empty;
 }
 
 /// <summary>One ship the player owns.</summary>
