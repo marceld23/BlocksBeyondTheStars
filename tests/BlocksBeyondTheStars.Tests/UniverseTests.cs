@@ -98,6 +98,25 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void Procedural_generation_never_collides_with_the_reserved_finale_area()
+    {
+        // The finale system + body ids are RESERVED for the hand-built Guardian core (added to the galaxy only
+        // when the story reveals it — never by the procedural generator). This proves that, across many seeds
+        // and large galaxies, the random world/station generator can never emit a system or body that collides
+        // with that reserved namespace — i.e. it can never "accidentally spawn the finale area".
+        const string reserved = SvGameServer.GuardianFinaleSystemId; // "guardian_finale"
+        foreach (long seed in new long[] { 1, 7, 42, 99, 1234, 2026, 555_555 })
+        {
+            var desc = new WorldDescription { StarSystemCount = 150, PlanetsPerSystemMin = 2, PlanetsPerSystemMax = 6 };
+            var galaxy = new UniverseGenerator(seed, desc, _content).Generate();
+
+            Assert.DoesNotContain(galaxy.Systems, s => s.Id == reserved || s.Id.StartsWith(reserved));
+            Assert.DoesNotContain(galaxy.AllBodies(),
+                b => b.Id == SvGameServer.GuardianCoreBodyId || b.Id.StartsWith(reserved) || b.SystemId == reserved);
+        }
+    }
+
+    [Fact]
     public void DifferentSeeds_ProduceDifferentUniverses()
     {
         var desc = new WorldDescription { StarSystemCount = 6 };

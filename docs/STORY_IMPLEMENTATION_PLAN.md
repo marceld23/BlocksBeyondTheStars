@@ -376,6 +376,12 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 >   wrecks/vaults/data-cubes/net-fragments on `guardian_finale-core`; the Guardian system itself is hand-built
 >   (only the core body — no random stars/stations). **569 green** (+2: chamber-stamped-no-random-structures,
 >   breach-gated-on-reaching-the-core).
+> - **The finale area is RESERVED from the random generator (guaranteed).** The procedural generator only emits
+>   `sys{i}` systems / `sys{i}-…` bodies; the `guardian_finale` / `guardian_finale-core` ids are reserved and
+>   added only on story reveal — so random world/station generation can never "accidentally spawn the finale
+>   area". Proven by `UniverseTests.Procedural_generation_never_collides_with_the_reserved_finale_area` (7 seeds
+>   × 150-system galaxies). Hyperjump + body lookup are by id and the client never renders systems by MapX/MapY,
+>   so the nominal map position can't clash either. **570 green** (+1).
 > - **Note (interpretation):** Route A ships as a *pre-carved descent shaft* on the surface body (unified with
 >   the dig world), not a separate station-boarded interior — both routes share one world + one chamber, which
 >   is simpler and keeps "two ways to the core, player's choice" intact. A true boardable interior remains a

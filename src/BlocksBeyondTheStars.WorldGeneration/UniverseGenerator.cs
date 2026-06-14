@@ -94,6 +94,10 @@ public sealed class UniverseGenerator
             var rng = new DeterministicRandom((long)Noise.Hash(_seed, i, 1, 1));
             var system = new StarSystem
             {
+                // Procedural systems live in the "sys{i}" id namespace; bodies are "sys{i}-…". The finale's
+                // "guardian_finale" / "guardian_finale-core" ids are RESERVED and added separately on story
+                // reveal — never here — so random world/station generation can never spawn the finale area
+                // (guaranteed by UniverseTests.Procedural_generation_never_collides_with_the_reserved_finale_area).
                 Id = $"sys{i}",
                 Name = MakeName(rng),
                 MapX = rng.NextFloat() * 1000f,

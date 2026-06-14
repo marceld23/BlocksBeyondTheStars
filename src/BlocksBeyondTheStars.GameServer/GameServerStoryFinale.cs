@@ -87,6 +87,10 @@ public sealed partial class GameServer
             return;
         }
 
+        // The finale id is RESERVED: the procedural generator only emits "sys{i}" systems / "sys{i}-…" bodies,
+        // so it can never produce this system (proven by UniverseTests) — the random galaxy never spawns the
+        // finale area. Hyperjump + body lookup are by id, and the client never renders systems by MapX/MapY, so
+        // the map position is purely nominal and cannot clash with a procedural system either.
         var system = new StarSystem { Id = GuardianFinaleSystemId, Name = "Guardian Core", MapX = 980f, MapY = 980f };
         system.Bodies.Add(new CelestialBody
         {
