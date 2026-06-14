@@ -7,20 +7,23 @@ BBTS.register({
   title: { en: "Asteroid Breaker", de: "Asteroid Breaker" }, difficulty: 2,
   desc: { en: "Bounce the core off your platform to shatter every asteroid. Clear the field before your cores run out.",
           de: "Lenke den Kern mit der Plattform und zertrümmere jeden Asteroiden. Räume das Feld, bevor die Kerne ausgehen." },
-  hint: { en: "Mouse / ← → move · Space launch", de: "Maus / ← → bewegen · Leertaste Abschuss" },
+  hint: { en: "Mouse / ← → move the platform · the core auto-launches (or Space / click to serve now)", de: "Maus / ← → bewegen · der Kern startet automatisch (oder Leertaste / Klick für sofort)" },
   help: [{ en: "Move the platform with the mouse or ← →", de: "Plattform mit Maus oder ← → bewegen" },
-         { en: "Space launches the core", de: "Leertaste schießt den Kern ab" }],
+         { en: "The core serves itself after a moment — or press Space / click to launch it immediately", de: "Der Kern startet nach kurzem von selbst — oder Leertaste / Klick für sofortigen Abschuss" }],
   create: function (api) {
     var W = 600, H = 460, c = api.canvas(W, H), ctx = api.ctx;
     var COLS = 10, ROWS = 6, PAD = 6, BW = (W - PAD * (COLS + 1)) / COLS, BH = 18, TOP = 46;
-    var pad, ball, bricks, score, lives, stuck, done;
+    var pad, ball, bricks, score, lives, stuck, done, autoId;
     function reset() {
       pad = { x: W / 2 - 50, w: 100, h: 14, y: H - 26 }; score = 0; lives = 3; done = false;
       bricks = []; for (var r = 0; r < ROWS; r++) for (var cc = 0; cc < COLS; cc++) bricks.push({ x: PAD + cc * (BW + PAD), y: TOP + r * (BH + PAD), row: r, alive: true });
       resetBall(); api.hud({ score: 0, cores: lives });
     }
-    function resetBall() { stuck = true; ball = { x: pad.x + pad.w / 2, y: pad.y - 9, r: 7, vx: 0, vy: 0, sp: 5.2 }; }
-    function launch() { if (!stuck) return; stuck = false; ball.vx = ball.sp * 0.4; ball.vy = -ball.sp; }
+    function resetBall() {
+      stuck = true; ball = { x: pad.x + pad.w / 2, y: pad.y - 9, r: 7, vx: 0, vy: 0, sp: 5.2 };
+      if (autoId) api.stopTimer(autoId); autoId = api.after(launch, 1000); // auto-serve so the core never just sits there
+    }
+    function launch() { if (!stuck) return; stuck = false; ball.vx = ball.sp * 0.4 * (api.rand(2) ? 1 : -1); ball.vy = -ball.sp; }
     api.bind('Primary', launch); api.bind('Confirm', launch);
     api.pointer(function (p) { if (p.type === 'move' || p.type === 'down') pad.x = Math.max(0, Math.min(W - pad.w, p.x - pad.w / 2)); if (p.type === 'down') launch(); });
     api.loop(function (dt) {
@@ -46,6 +49,11 @@ BBTS.register({
       for (var i = 0; i < bricks.length; i++) { var b = bricks[i]; if (!b.alive) continue; ctx.fillStyle = 'hsl(' + (190 + b.row * 7) + ',80%,' + (62 - b.row * 5) + '%)'; ctx.fillRect(b.x, b.y, BW, BH); }
       ctx.fillStyle = '#46d6ff'; ctx.shadowColor = '#46d6ff'; ctx.shadowBlur = 10; ctx.fillRect(pad.x, pad.y, pad.w, pad.h);
       ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, 7); ctx.fillStyle = '#7CFFB0'; ctx.fill(); ctx.shadowBlur = 0;
+      if (stuck) {
+        ctx.fillStyle = 'rgba(207,233,245,0.92)'; ctx.font = '16px "Segoe UI", system-ui, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(api.t({ en: 'Auto-launch…  or Space / click to serve', de: 'Auto-Abschuss…  oder Leertaste / Klick' }), W / 2, H - 60);
+        ctx.textAlign = 'left';
+      }
     }
     return { start: reset };
   }

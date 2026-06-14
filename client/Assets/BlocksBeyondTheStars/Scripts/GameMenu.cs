@@ -194,9 +194,11 @@ namespace BlocksBeyondTheStars.Client
                 _host = go.AddComponent<EmbeddedBrowser>();
                 _host.SetResultHandler((key, score, rating, completed) =>
                 {
-                    if (Settings != null && Settings.RecordMinigameScore(key, score)) Settings.Save();
-                    // A finished run grants a server-side knowledge reward (repeatable, rating-scaled).
-                    if (completed) Game?.Network?.SendMinigameResult(key, score, rating, completed);
+                    // Knowledge is granted ONLY when the run beats the player's own previous best for this game
+                    // (RecordMinigameScore returns true exactly then — and on the very first play, since best == 0).
+                    bool newBest = Settings != null && Settings.RecordMinigameScore(key, score);
+                    if (newBest) Settings.Save();
+                    if (completed && newBest) Game?.Network?.SendMinigameResult(key, score, rating, completed);
                 });
                 if (_host.Content != null)
                 {

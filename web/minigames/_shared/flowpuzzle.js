@@ -7,8 +7,10 @@ BBTS.flowPuzzle = function (opts) {
   function rot(m) { return ((m << 1) | (m >> 3)) & 15; }
   return {
     title: opts.title, desc: opts.desc, difficulty: opts.difficulty || 2,
-    hint: { en: "Click a tile to rotate it", de: "Kachel anklicken zum Drehen" },
-    help: [opts.desc, { en: "Click a tile to rotate its lines", de: "Kachel anklicken, um ihre Leitungen zu drehen" }],
+    hint: { en: "Click a tile to rotate its lines · light up the path to the receiver", de: "Kachel anklicken zum Drehen · Pfad zum Empfänger erleuchten" },
+    help: [opts.desc,
+           { en: "Click any tile to rotate its lines 90°", de: "Beliebige Kachel anklicken, dreht ihre Leitungen um 90°" },
+           { en: "When a connected path glows from source to receiver, it's solved — fewer rotations score higher", de: "Wenn ein verbundener Pfad von der Quelle zum Empfänger leuchtet, ist es gelöst — weniger Drehungen geben mehr Punkte" }],
     create: function (api) {
       var SZ = opts.size || 6, CELL = 64, W = SZ * CELL;
       var ctx = api.canvas(W, W).getContext('2d');
@@ -51,7 +53,7 @@ BBTS.flowPuzzle = function (opts) {
         var cx = (p.x / CELL) | 0, cy = (p.y / CELL) | 0; if (cx < 0 || cy < 0 || cx >= SZ || cy >= SZ) return;
         mask[cy * SZ + cx] = rot(mask[cy * SZ + cx]); rots++; api.hud({ rotations: rots });
         var seen = powered(); draw(seen);
-        if (seen[dst[1] * SZ + dst[0]]) { done = true; var rating = rots <= SZ * 1.5 ? 3 : rots <= SZ * 3 ? 2 : 1; setTimeout(function () { api.complete({ score: Math.max(50, 600 - rots * 15), rating: rating }); }, 250); }
+        if (seen[dst[1] * SZ + dst[0]]) { done = true; var rating = rots <= SZ * 1.5 ? 3 : rots <= SZ * 3 ? 2 : 1; api.after(function () { api.complete({ score: Math.max(50, 600 - rots * 15), rating: rating }); }, 250); }
       });
       function draw(seen) {
         seen = seen || powered();

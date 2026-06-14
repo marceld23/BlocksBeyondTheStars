@@ -45,7 +45,7 @@ BBTS.register({
       if (p.type !== 'down' || done) return; var c = (p.x / TILE) | 0, r = (p.y / TILE) | 0;
       if (c < 0 || r < 0 || c >= SZ || r >= SZ) return; var idx = r * SZ + c;
       rot[idx] = (rot[idx] + 1) % 4; moves++; api.hud({ moves: moves }); draw();
-      if (rot.every(function (v) { return v === 0; })) { done = true; var rating = moves <= SZ * SZ * 1.5 ? 3 : moves <= SZ * SZ * 3 ? 2 : 1; setTimeout(function () { api.complete({ score: Math.max(50, 800 - moves * 12), rating: rating }); }, 250); }
+      if (rot.every(function (v) { return v === 0; })) { done = true; var rating = moves <= SZ * SZ * 1.5 ? 3 : moves <= SZ * SZ * 3 ? 2 : 1; api.after(function () { api.complete({ score: Math.max(50, 800 - moves * 12), rating: rating }); }, 250); }
     });
     return { start: reset };
   }

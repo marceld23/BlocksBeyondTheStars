@@ -27,7 +27,7 @@ BBTS.register({
       grid.innerHTML = ''; first = null; lock = false; miss = 0;
       var pool = SYM.slice(0, 12); var deck = api.shuffle(pool.concat(pool)); left = deck.length;
       api.hud({ left: left, misses: 0 });
-      deck.forEach(function (sym) { var el = api.el('div', 'vscard', grid, sym); el.dataset.s = sym; el.onclick = function () { pick(el); }; });
+      deck.forEach(function (sym) { var el = api.el('div', 'vscard', grid, sym); el.dataset.s = sym; api.clickable(el, function () { pick(el); }); });
     }
     function pick(el) {
       if (lock || el.classList.contains('gone') || el === first) return;
@@ -38,7 +38,7 @@ BBTS.register({
         if (left === 0) { var rating = miss === 0 ? 3 : miss <= 4 ? 2 : 1; api.complete({ score: Math.max(50, 1000 - miss * 40), rating: rating }); }
       } else {
         miss++; api.hud({ misses: miss }); lock = true; var a = first, b = el; a.classList.add('bad'); b.classList.add('bad'); first = null;
-        setTimeout(function () { a.classList.remove('sel', 'bad'); b.classList.remove('sel', 'bad'); lock = false; }, 500);
+        api.after(function () { a.classList.remove('sel', 'bad'); b.classList.remove('sel', 'bad'); lock = false; }, 500);
       }
     }
     return { start: reset };

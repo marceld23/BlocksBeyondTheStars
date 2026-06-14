@@ -67,9 +67,16 @@ html, body { margin: 0; height: 100%; overflow: hidden; user-select: none;
 .bbts-btn.ghost { border-color: var(--line); color: var(--muted); }
 .bbts-btn.ghost:hover { border-color: var(--cyan); color: var(--cyan); background: transparent; box-shadow: none; }
 
-/* Footer control hint */
-#bbts-hint { padding: 6px 22px; border-top: 1px solid var(--line-soft); color: var(--cyan-dim);
-  font-size: 13px; letter-spacing: 0.05em; min-height: 26px; }
+/* Footer goal + control hint — always visible during play, so the player never loses what the game wants. */
+#bbts-hint { padding: 9px 22px; border-top: 1px solid var(--line); color: var(--ink);
+  font-size: 14.5px; letter-spacing: 0.03em; min-height: 30px; line-height: 1.4;
+  background: linear-gradient(0deg, rgba(70,214,255,0.05), transparent); }
+#bbts-hint b { color: var(--cyan); font-weight: 600; }
+
+/* Start-screen reward note — makes the knowledge payoff obvious before you play. */
+.bbts-rewardhint { color: var(--ok); font-size: 14px; letter-spacing: 0.04em; opacity: 0.92;
+  border: 1px solid rgba(124,255,176,0.4); border-radius: 6px; padding: 6px 14px;
+  background: rgba(124,255,176,0.06); }
 
 /* Reusable game widgets (DOM games) */
 .bbts-grid { display: grid; gap: 6px; }

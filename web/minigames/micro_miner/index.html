@@ -5,21 +5,21 @@
 <script>
 BBTS.register({
   title: { en: "Micro Miner", de: "Mikro-Miner" }, difficulty: 2,
-  desc: { en: "Dig through the rock, grab ore, and climb back to the surface before your energy runs dry — ore only counts once you surface.",
-          de: "Grab dich durch das Gestein, sammle Erz und kehr zur Oberfläche zurück, bevor die Energie leer ist — Erz zählt erst oben." },
-  hint: { en: "← ↑ ↓ → dig / move · return to the top to bank ore", de: "← ↑ ↓ → graben / bewegen · oben einzahlen" },
-  help: [{ en: "Move into rock to dig it (costs energy)", de: "In Gestein hineinbewegen, um zu graben (kostet Energie)" },
-         { en: "Bright cells are ore. Return to the top surface to bank your haul.", de: "Helle Zellen sind Erz. Kehre zur Oberfläche zurück, um die Beute einzuzahlen." }],
+  desc: { en: "Dig for ore and haul it back to the surface to bank it. Fill the quota before your energy runs dry — you'll need several trips and a tight route.",
+          de: "Grab nach Erz und bring es zur Oberfläche, um es einzuzahlen. Erfülle die Quote, bevor die Energie leer ist — du brauchst mehrere Fahrten und eine sparsame Route." },
+  hint: { en: "← ↑ ↓ → dig / move · surface (top row) to bank · fill the DEPOT quota", de: "← ↑ ↓ → graben / bewegen · Oberfläche (oben) zahlt ein · DEPOT-Quote füllen" },
+  help: [{ en: "Move into rock to dig it (costs energy); bright cells are ore.", de: "In Gestein hineinbewegen, um zu graben (kostet Energie); helle Zellen sind Erz." },
+         { en: "Return to the top surface to bank your carried ore. Reach the DEPOT quota to win — energy is limited, so plan short trips.", de: "Kehre zur Oberfläche zurück, um getragenes Erz einzuzahlen. Erreiche die DEPOT-Quote zum Sieg — Energie ist begrenzt, plane kurze Wege." }],
   create: function (api) {
-    var COLS = 16, ROWS = 12, CELL = 34, W = COLS * CELL, H = ROWS * CELL;
+    var COLS = 16, ROWS = 12, CELL = 34, W = COLS * CELL, H = ROWS * CELL, QUOTA = 8;
     var ctx = api.canvas(W, H).getContext('2d');
-    var cellv, drone, energy, carry, done, repAcc; // cellv: 0 empty, 1 stone, 2 ore
+    var cellv, drone, energy, carry, banked, done, repAcc; // cellv: 0 empty, 1 stone, 2 ore
     function k(x, y) { return y * COLS + x; }
     function reset() {
-      cellv = []; energy = 120; carry = 0; done = false; repAcc = 0;
-      for (var y = 0; y < ROWS; y++) for (var x = 0; x < COLS; x++) cellv[k(x, y)] = y === 0 ? 0 : (Math.random() < 0.22 ? 2 : 1);
+      cellv = []; energy = 90; carry = 0; banked = 0; done = false; repAcc = 0;
+      for (var y = 0; y < ROWS; y++) for (var x = 0; x < COLS; x++) cellv[k(x, y)] = y === 0 ? 0 : (Math.random() < 0.20 ? 2 : 1);
       drone = { x: (COLS / 2) | 0, y: 0 };
-      api.hud({ energy: energy, ore: 0 }); draw();
+      api.hud({ energy: energy, ore: 0, depot: '0/' + QUOTA }); draw();
     }
     function move(dx, dy) {
       if (done) return; var nx = drone.x + dx, ny = drone.y + dy; if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return;
@@ -28,8 +28,10 @@ BBTS.register({
       else if (v === 2) { energy -= 3; cellv[k(nx, ny)] = 0; carry += 1; api.hud({ ore: carry }); }
       else energy -= 1;
       drone.x = nx; drone.y = ny; api.hud({ energy: Math.max(0, energy) });
-      if (energy <= 0) { done = true; api.fail({ score: 0 }); return; }
-      if (ny === 0 && carry > 0) { done = true; var sc = carry * 25; var rating = carry >= 14 ? 3 : carry >= 7 ? 2 : 1; api.complete({ score: sc, rating: rating }); return; }
+      // Surfacing banks the carried ore (ore only counts once delivered up top).
+      if (ny === 0 && carry > 0) { banked += carry; carry = 0; api.hud({ ore: 0, depot: banked + '/' + QUOTA }); }
+      if (banked >= QUOTA) { done = true; var rating = banked >= 14 ? 3 : banked >= 10 ? 2 : 1; api.complete({ score: banked * 30, rating: rating }); return; }
+      if (energy <= 0) { done = true; api.fail({ score: banked * 10 }); return; }
       draw();
     }
     api.bind('Left', function () { move(-1, 0); }); api.bind('Right', function () { move(1, 0); });

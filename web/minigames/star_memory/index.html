@@ -24,7 +24,7 @@ BBTS.register({
     function reset() {
       grid.innerHTML = ''; first = null; lock = false; moves = 0; matched = 0; api.hud({ moves: 0, pairs: '0/8' });
       var deck = api.shuffle(GLYPHS.concat(GLYPHS).slice());
-      deck.forEach(function (g) { var el = api.el('div', 'smcard', grid); el.dataset.g = g; el.onclick = function () { flip(el); }; });
+      deck.forEach(function (g) { var el = api.el('div', 'smcard', grid); el.dataset.g = g; api.clickable(el, function () { flip(el); }); });
     }
     function flip(el) {
       if (lock || el.classList.contains('up') || el.classList.contains('done')) return;
@@ -33,7 +33,7 @@ BBTS.register({
       moves++; api.hud({ moves: moves });
       if (first.dataset.g === el.dataset.g) { first.classList.add('done'); el.classList.add('done'); first = null; matched++; api.hud({ pairs: matched + '/8' });
         if (matched === 8) { var rating = moves <= 10 ? 3 : moves <= 16 ? 2 : 1; api.complete({ score: Math.max(50, 2000 - (moves - 8) * 60), rating: rating }); } }
-      else { lock = true; var a = first, b = el; first = null; setTimeout(function () { a.classList.remove('up'); b.classList.remove('up'); a.textContent = ''; b.textContent = ''; lock = false; }, 650); }
+      else { lock = true; var a = first, b = el; first = null; api.after(function () { a.classList.remove('up'); b.classList.remove('up'); a.textContent = ''; b.textContent = ''; lock = false; }, 650); }
     }
     return { start: reset };
   }

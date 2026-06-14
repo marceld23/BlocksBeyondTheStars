@@ -31,8 +31,12 @@ BBTS.register({
       for (var x2 = cx; x2 < SZ; x2++) used[key(x2, ty)] = 1;
       // decoys off the solution path
       var d = 0; while (d < 3) { var rx = 1 + api.rand(SZ - 2), ry = api.rand(SZ), k = key(rx, ry); if (used[k] || mirror[k] || (rx === target.x && ry === target.y)) continue; mirror[k] = api.rand(2) ? '/' : '\\'; d++; }
-      // scramble the two path mirrors
-      mirror[key(cx, sy)] = api.rand(2) ? '/' : '\\'; mirror[key(cx, ty)] = api.rand(2) ? '/' : '\\';
+      // Scramble the two path mirrors — but never hand the player an already-solved board: re-roll until the
+      // beam does NOT reach the target (only 1 of the 4 orientation combos solves it, so this resolves fast).
+      var tries = 0;
+      do {
+        mirror[key(cx, sy)] = api.rand(2) ? '/' : '\\'; mirror[key(cx, ty)] = api.rand(2) ? '/' : '\\';
+      } while (trace().win && ++tries < 20);
       draw();
     }
     function trace() {
@@ -43,7 +47,7 @@ BBTS.register({
     api.pointer(function (p) {
       if (p.type !== 'down' || done) return; var cx = (p.x / CELL) | 0, cy = (p.y / CELL) | 0, k = key(cx, cy);
       if (!mirror[k]) return; mirror[k] = mirror[k] === '/' ? '\\' : '/'; moves++; api.hud({ moves: moves });
-      var t = trace(); draw(t); if (t.win) { done = true; var rating = moves <= 2 ? 3 : moves <= 5 ? 2 : 1; setTimeout(function () { api.complete({ score: Math.max(50, 500 - moves * 20), rating: rating }); }, 250); }
+      var t = trace(); draw(t); if (t.win) { done = true; var rating = moves <= 2 ? 3 : moves <= 5 ? 2 : 1; api.after(function () { api.complete({ score: Math.max(50, 500 - moves * 20), rating: rating }); }, 250); }
     });
     function draw(t) {
       t = t || trace(); ctx.clearRect(0, 0, W, W);

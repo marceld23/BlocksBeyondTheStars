@@ -114,10 +114,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 string key = e.key;
                 int best = Settings != null ? Settings.GetMinigameBest(key) : 0;
-                string label = (string.IsNullOrEmpty(e.icon) ? "" : e.icon + "  ") + e.Title(Game.German) +
-                               (best > 0 ? "   ★" + best : "");
-                UiKit.AddButton(_rail, 0, y, 270, 56, label, () => PlayGame(key));
-                y += 64f;
+                // Two-line entry: title on top, personal best on its own line below — so long (German) titles
+                // and the highscore both fit the 270px frame instead of being crammed onto one shrunk line.
+                string title = (string.IsNullOrEmpty(e.icon) ? "" : e.icon + "  ") + e.Title(Game.German);
+                string hs = best > 0 ? "★ " + best : (Game.German ? "noch kein Rekord" : "no record yet");
+                var btn = UiKit.AddButton(_rail, 0, y, 270, 64, string.Empty, () => PlayGame(key));
+                UiKit.AddText(btn.transform, 18, 7, 244, 30, title, 17, UiKit.TextCol, TextAnchor.LowerLeft, FontStyle.Bold);
+                UiKit.AddText(btn.transform, 18, 37, 244, 20, hs, 13,
+                    best > 0 ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 72f;
             }
             // Size the scroll content so it scrolls when taller than the viewport, and reset to the top.
             float viewportH = _rail.parent is RectTransform vp ? vp.rect.height : 0f;

@@ -34,7 +34,10 @@ BBTS.register({
     function draw() {
       ctx.clearRect(0, 0, W, H);
       for (var i = 0; i < pks.length; i++) { var pk = pks[i]; ctx.fillStyle = pk.type === 'bad' ? '#ff6b6b' : pk.type === 'rare' ? '#ffd86b' : '#46d6ff'; ctx.fillRect(pk.x - 7, pk.y - 7, 14, 14); }
-      ctx.fillStyle = '#7CFFB0'; ctx.shadowColor = '#7CFFB0'; ctx.shadowBlur = 8; ctx.fillRect(cat.x - cat.w / 2, H - 22, cat.w, 10); ctx.shadowBlur = 0;
+      // Collector — no per-frame shadowBlur (it's very costly in the software-rendered embedded browser and was
+      // the main cause of stutter); a brighter two-tone bar keeps it readable without the blur.
+      ctx.fillStyle = '#7CFFB0'; ctx.fillRect(cat.x - cat.w / 2, H - 22, cat.w, 10);
+      ctx.fillStyle = 'rgba(124,255,176,0.35)'; ctx.fillRect(cat.x - cat.w / 2, H - 12, cat.w, 4);
     }
     return { start: reset };
   }

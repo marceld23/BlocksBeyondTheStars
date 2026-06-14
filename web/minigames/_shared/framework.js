@@ -28,7 +28,10 @@
     paused: { en: 'Paused', de: 'Pausiert' }, done: { en: 'Complete', de: 'Abgeschlossen' }, failed: { en: 'Failed', de: 'Fehlgeschlagen' },
     score: { en: 'Score', de: 'Punkte' }, time: { en: 'Time', de: 'Zeit' }, best: { en: 'Best', de: 'Beste' },
     diff: { en: 'Difficulty', de: 'Schwierigkeit' }, goal: { en: 'Goal', de: 'Ziel' },
-    knowledge: { en: 'knowledge', de: 'Wissen' }, controls: { en: 'Controls', de: 'Steuerung' }
+    knowledge: { en: 'knowledge', de: 'Wissen' }, controls: { en: 'Controls', de: 'Steuerung' },
+    newbest: { en: 'New best!', de: 'Neuer Highscore!' },
+    noreward: { en: 'No new best — beat it for knowledge', de: 'Kein neuer Highscore — schlag ihn für Wissen' },
+    rewardhint: { en: 'Beat your best to earn knowledge (+5 / +10 / +15 by rating)', de: 'Schlage deinen Rekord für Wissen (+5 / +10 / +15 je Bewertung)' }
   };
 
   function reportResult(score, rating, completed) {
@@ -67,7 +70,9 @@
     el('div', null, bar, t(def.title)).id = 'bbts-title';
     var hud = el('div', null, bar); hud.id = 'bbts-hud';
     var stage = el('div', null, app); stage.id = 'bbts-stage';
-    var hint = el('div', null, app, t(STR.controls) + ': ' + (def.hint ? t(def.hint) : '')); hint.id = 'bbts-hint';
+    var hint = el('div', null, app); hint.id = 'bbts-hint';
+    hint.innerHTML = (def.desc ? '<b>' + t(STR.goal) + ':</b> ' + t(def.desc) + '&nbsp;&nbsp;·&nbsp;&nbsp;' : '') +
+      '<b>' + t(STR.controls) + ':</b> ' + (def.hint ? t(def.hint) : '');
 
     // --- overlays ---
     function overlay() { return el('div', 'bbts-overlay', stage); }
@@ -78,6 +83,7 @@
     var diff = el('div', 'bbts-diff', oStart);
     for (var i = 0; i < 5; i++) el('i', i < (def.difficulty || 1) ? 'on' : '', diff);
     if (def.desc) el('p', null, oStart, t(def.desc));
+    el('div', 'bbts-rewardhint', oStart, '◆ ' + t(STR.rewardhint));
     var sRow = el('div', 'bbts-row', oStart);
     btn(t(STR.start), sRow).onclick = function () { startGame(); };
     btn(t(STR.help), sRow, true).onclick = function () { show(oHelp); };
@@ -113,6 +119,9 @@
     var held = {}, pressHandlers = {}, loopFns = [], pointerCb = null;
     var running = false, paused = false, startT = 0, pausedAccum = 0, pauseStart = 0, lastFrame = 0, hudData = {};
     var controller = null;
+    var timers = [], clickTargets = []; // game-registered timers + DOM hit-targets, cleared on each (re)start
+    function removeTimer(id) { var i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); }
+    function clearTimers() { timers.forEach(function (id) { clearTimeout(id); clearInterval(id); }); timers = []; }
 
     var api = {
       lang: lang, t: t, best: best, stage: stage,
@@ -124,6 +133,13 @@
       bind: function (action, fn) { (pressHandlers[action] = pressHandlers[action] || []).push(fn); },
       held: function (action) { return !!held[action]; },
       pointer: function (cb) { pointerCb = cb; },
+      // Timer wrappers — tracked so a restart (Play again / R) cancels any pending callback from the old round.
+      after: function (fn, ms) { var id = setTimeout(function () { removeTimer(id); fn(); }, ms); timers.push(id); return id; },
+      every: function (fn, ms) { var id = setInterval(fn, ms); timers.push(id); return id; },
+      stopTimer: function (id) { clearTimeout(id); clearInterval(id); removeTimer(id); },
+      // Register a DOM element as clickable via the framework's stage mousedown (reliable under the embedded
+      // browser's injected input, where native element click events can be dropped). Fires on press.
+      clickable: function (elem, fn) { clickTargets.push({ el: elem, fn: fn }); },
       loop: function (fn) { loopFns.push(fn); },
       now: function () { return running ? (perf() - startT - pausedAccum) / 1000 : 0; },
       rand: function (n) { return Math.floor(Math.random() * n); },
@@ -146,8 +162,13 @@
     function fmtTime(s) { s = Math.max(0, Math.floor(s)); var m = Math.floor(s / 60); var ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
 
     function startGame() {
-      // reset stage children except overlays
-      Array.prototype.slice.call(stage.children).forEach(function (ch) { if (ch.className !== 'bbts-overlay') stage.removeChild(ch); });
+      // Remove the previous round's stage children, but KEEP the four overlays. A shown overlay's className is
+      // 'bbts-overlay show', so the old `className !== 'bbts-overlay'` test detached the active overlay and broke
+      // the result/start screen on replays — test class membership instead.
+      Array.prototype.slice.call(stage.children).forEach(function (ch) {
+        if (!(ch.classList && ch.classList.contains('bbts-overlay'))) stage.removeChild(ch);
+      });
+      clearTimers(); clickTargets = [];
       held = {}; pressHandlers = {}; loopFns = []; pointerCb = null; hudData = {}; api._canvas = null; api.ctx = null;
       show(null);
       controller = def.create(api);
@@ -161,12 +182,18 @@
       running = false; paused = false;
       var rating = completed ? Math.max(1, Math.min(3, res.rating != null ? res.rating : 1)) : 0;
       var score = Math.round(res.score || hudData.score || 0);
+      // Knowledge is granted only on a NEW personal best (the C# side gates the same way). Mirror that here so
+      // the reward line is honest about whether this run actually earned anything.
+      var isNewBest = completed && score > best;
       rTitle.textContent = completed ? t(STR.done) : t(STR.failed);
       Array.prototype.forEach.call(rStars.children, function (st, i) { st.className = i < rating ? 'on' : ''; });
-      rScore.innerHTML = t(STR.score) + ': <b style="color:var(--cyan)">' + score + '</b>';
+      rScore.innerHTML = t(STR.score) + ': <b style="color:var(--cyan)">' + score + '</b>' +
+        (best ? '&nbsp;&nbsp;·&nbsp;&nbsp;' + t(STR.best) + ' <b>' + Math.max(best, score) + '</b>' : '');
       rTime.textContent = t(STR.time) + ': ' + fmtTime(api.now());
-      var reward = completed ? rating * 5 : 0;
-      rReward.textContent = reward > 0 ? ('+' + reward + ' ' + t(STR.knowledge)) : '';
+      if (isNewBest) { rReward.textContent = '★ ' + t(STR.newbest) + '   +' + (rating * 5) + ' ' + t(STR.knowledge); rReward.style.color = 'var(--ok)'; }
+      else if (completed) { rReward.textContent = t(STR.noreward); rReward.style.color = 'var(--muted)'; }
+      else { rReward.textContent = ''; }
+      if (score > best) { best = score; api.best = best; BBTS.best = best; } // so replays this session compare correctly
       show(oResult);
       reportResult(score, rating, completed);
     }
@@ -193,7 +220,15 @@
       var x = (e.clientX - rect.left) * sx, y = (e.clientY - rect.top) * sy;
       pointerCb({ type: type, x: x, y: y, raw: e });
     }
-    stage.addEventListener('mousedown', function (e) { ptr(e, 'down'); });
+    function dispatchClick(e) {
+      if (!running || paused) return;
+      for (var i = 0; i < clickTargets.length; i++) {
+        var ct = clickTargets[i]; if (!ct.el || !ct.el.isConnected) continue;
+        var r = ct.el.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) { ct.fn(); return; }
+      }
+    }
+    stage.addEventListener('mousedown', function (e) { ptr(e, 'down'); dispatchClick(e); });
     stage.addEventListener('mousemove', function (e) { ptr(e, 'move'); });
     window.addEventListener('mouseup', function (e) { ptr(e, 'up'); });
 

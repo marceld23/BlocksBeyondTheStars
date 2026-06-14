@@ -37,7 +37,7 @@ BBTS.register({
       var grid = api.el('div', 'gdstudy', wrap);
       pairs.forEach(function (p) { var row = api.el('div', 'gdpair', grid); api.el('div', 'g', row, p.g); api.el('div', 'm', row, api.t(p.m)); });
       var t = 5; var info = wrap.firstChild;
-      var iv = setInterval(function () { t--; info.textContent = api.t({ en: "Decoding in ", de: "Entschlüsselung in " }) + t; if (t <= 0) { clearInterval(iv); ask(); } }, 1000);
+      var iv = api.every(function () { t--; info.textContent = api.t({ en: "Decoding in ", de: "Entschlüsselung in " }) + t; if (t <= 0) { api.stopTimer(iv); ask(); } }, 1000);
     }
     function ask() {
       asking = true; if (qi >= pairs.length) { var rating = correct === 4 ? 3 : correct >= 3 ? 2 : 1; api.complete({ score: correct * 250, rating: rating }); return; }
@@ -47,13 +47,13 @@ BBTS.register({
       if (opts.indexOf(pairs[qi].m) < 0) opts[0] = pairs[qi].m;
       opts = api.shuffle(opts);
       var row = api.el('div', 'gdopts', wrap);
-      opts.forEach(function (m) { var b = api.el('button', 'bbts-btn', row, api.t(m)); b.onclick = function () { answer(m, b); }; });
+      opts.forEach(function (m) { var b = api.el('button', 'bbts-btn', row, api.t(m)); api.clickable(b, function () { answer(m, b); }); });
     }
     function answer(m, b) {
       if (!asking) return; asking = false;
       if (m === pairs[qi].m) { correct++; b.style.background = 'var(--ok)'; b.style.color = '#04121c'; } else { b.style.borderColor = 'var(--bad)'; b.style.color = 'var(--bad)'; }
       api.hud({ decoded: (qi + 1) + '/4' });
-      qi++; setTimeout(ask, 500);
+      qi++; api.after(ask, 500);
     }
     return { start: reset };
   }

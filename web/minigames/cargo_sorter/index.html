@@ -26,7 +26,7 @@ BBTS.register({
     var wrap = api.el('div', 'cswrap', api.stage);
     var crateEl = api.el('div', 'cscrate', wrap);
     var binsEl = api.el('div', 'csbins', wrap), binEls = [];
-    CATS.forEach(function (cat, i) { var b = api.el('div', 'csbin', binsEl, cat.s + '<small>' + api.t(cat.c) + '</small>'); b.onclick = function () { assign(i); }; binEls.push(b); });
+    CATS.forEach(function (cat, i) { var b = api.el('div', 'csbin', binsEl, cat.s + '<small>' + api.t(cat.c) + '</small>'); api.clickable(b, function () { assign(i); }); binEls.push(b); });
     var cur, sel, score, mistakes, time, done, nextIn, rate;
     function reset() { score = 0; mistakes = 0; time = 0; done = false; sel = 0; rate = 2.0; spawn(); render(); api.hud({ score: 0, errors: '0/5' }); }
     function spawn() { cur = api.rand(CATS.length); crateEl.textContent = CATS[cur].s; }
