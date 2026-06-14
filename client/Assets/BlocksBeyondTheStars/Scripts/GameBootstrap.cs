@@ -489,6 +489,23 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Data cubes on the current world (synced from the server) — rendered by <c>DataCubeView</c>.</summary>
         public NetDataCube[] DataCubes { get; private set; } = System.Array.Empty<NetDataCube>();
 
+        // --- Story system ("The VEGA Protocol") ---
+
+        /// <summary>The active story's shared progress (story P0) — drives the Story Log meter; null/inactive when off.</summary>
+        public StoryStateMessage Story { get; private set; }
+
+        /// <summary>Net fragments on the current world (synced) — rendered by <c>NetFragmentView</c>.</summary>
+        public NetStoryFragment[] NetFragments { get; private set; } = System.Array.Empty<NetStoryFragment>();
+
+        /// <summary>Story Log: revealed net-fragment entries (category + locale key), re-readable in the Story tab.</summary>
+        public readonly System.Collections.Generic.List<(string Category, string TextKey)> StoryLogFragments = new();
+
+        /// <summary>Story Log: unlocked personal-memory locale keys.</summary>
+        public readonly System.Collections.Generic.List<string> StoryLogMemories = new();
+
+        /// <summary>Story Log: the VEGA story-beat lines heard so far (locale keys, ShipAiLine kind 2 = memory/story).</summary>
+        public readonly System.Collections.Generic.List<string> StoryLogBeats = new();
+
         /// <summary>Pre-built JSON of the player's discovered systems/worlds + language for the in-game wiki's
         /// discovery-gated chapters. Built on the main thread (so the loopback content server can read this
         /// immutable string race-free) whenever the star map, language or unlocks change.</summary>
@@ -771,7 +788,23 @@ namespace BlocksBeyondTheStars.Client
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
             };
             Network.WorldResetReceived += OnWorldReset;
-            Network.ShipAiLineReceived += m => OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
+            Network.ShipAiLineReceived += m =>
+            {
+                OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
+                if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) StoryLogBeats.Add(m.LineKey); // a story beat
+            };
+            Network.StoryStateReceived += m => Story = m;
+            Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
+            Network.NetFragmentRevealedReceived += m =>
+            {
+                StoryLogFragments.Add((m.Category, m.TextKey));
+                ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey); // the archive text (Story Log keeps it to re-read)
+            };
+            Network.PlayerMemoryReceived += m =>
+            {
+                StoryLogMemories.Add(m.TextKey);
+                ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey);
+            };
             Network.ScanResultReceived += m =>
             {
                 LastScan = m;

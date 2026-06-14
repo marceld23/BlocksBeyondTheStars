@@ -4,13 +4,13 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Renders planet enemies (M25) as procedural blocky alien fiends at the positions the server reports
-    /// (<c>GameBootstrap.PlanetEnemies</c>) — a hunched chitinous body with clawed arms, digitigrade legs, a
-    /// horned head and glowing eyes, skinned with the AI-generated <c>enemy_hide</c> tile. Self-animated like
-    /// <see cref="PlayerAvatar"/>/creatures: a speed-driven stalk cycle, an idle menace-sway, a claw-swipe
-    /// attack lunge when hostile and close to the player, a hurt flinch on hull drops, and growl/attack/hurt/
-    /// die vocals (ElevenLabs). The server stays authoritative over spawns/positions/deaths; the player
-    /// attacks with F (PlayerController).
+    /// Renders planet enemies as the story's **black three-eyed Guardian robots** (retheme) at the positions
+    /// the server reports (<c>GameBootstrap.PlanetEnemies</c>) — a hunched dark-metal body with grasping arms,
+    /// digitigrade legs, antenna-like sensor spikes and a row of three glowing RED sensor "eyes" (the red
+    /// lights the settlers fear). Self-animated like <see cref="PlayerAvatar"/>/creatures: a speed-driven
+    /// stalk cycle, an idle sweep, a swipe lunge when hostile and close, a hurt flinch on hull drops, and
+    /// growl/attack/hurt/die vocals (ElevenLabs — robotic SFX is a follow-up). The server stays authoritative
+    /// over spawns/positions/deaths; the player attacks with F (PlayerController).
     /// </summary>
     public sealed class WorldEntities : MonoBehaviour
     {
@@ -263,8 +263,10 @@ namespace BlocksBeyondTheStars.Client
             go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
-        /// <summary>Shared enemy materials: the AI-generated chitin hide tile (lit + tinted, casts shadows via
-        /// LitColor's URP pass), a darker joint variant, bony claws/horns, and unlit glowing eyes.</summary>
+        /// <summary>Shared materials for the black Guardian robot (story retheme): dark metal plating (lit +
+        /// tinted, casts shadows via LitColor's URP pass), darker joints, mid-grey metal trim (the limbs,
+        /// antennae + feet that used to be bone/horn), and unlit glowing RED sensor "eyes" — the three red
+        /// lights the settlers fear. An optional <c>enemy_robot</c> plating tile is used if present.</summary>
         private static void EnsureMaterials()
         {
             if (_hideMat != null)
@@ -274,17 +276,17 @@ namespace BlocksBeyondTheStars.Client
 
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
-            var hideTex = LoadTex("enemy_hide");
-            _hideMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.72f, 0.2f, 0.16f)) };
-            _hideDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.4f, 0.12f, 0.1f)) };
-            if (hideTex != null)
+            var plateTex = LoadTex("enemy_robot"); // optional metal-plating tile (flat dark if absent)
+            _hideMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.13f, 0.14f, 0.16f)) };      // dark plating
+            _hideDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.08f, 0.085f, 0.10f)) }; // darker joints
+            if (plateTex != null)
             {
-                _hideMat.mainTexture = hideTex;
-                _hideDarkMat.mainTexture = hideTex;
+                _hideMat.mainTexture = plateTex;
+                _hideDarkMat.mainTexture = plateTex;
             }
 
-            _clawMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.85f, 0.8f, 0.66f)) };  // bone
-            _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.85f, 0.2f)) };    // glowing amber (bloom picks it up)
+            _clawMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) }; // metal trim / antennae / feet
+            _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.18f, 0.14f)) };   // glowing red sensors (bloom picks it up)
         }
 
         private static Texture2D LoadTex(string key)

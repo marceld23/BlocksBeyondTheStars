@@ -172,6 +172,10 @@ namespace BlocksBeyondTheStars.Client
             var dataCubes = root.AddComponent<DataCubeView>();
             dataCubes.Game = boot;
 
+            // Render story "net fragments" scattered on the surface; press E to recover (text-only story finds).
+            var netFragments = root.AddComponent<NetFragmentView>();
+            netFragments.Game = boot;
+
             // Death feedback: red flash + sound on planet death, explosion glare on ship destruction.
             var deathFx = root.AddComponent<DeathFx>();
             deathFx.Game = boot;

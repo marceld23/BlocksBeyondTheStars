@@ -823,6 +823,18 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // A net fragment within reach → recover it (text-only story find; reveals its archive + advances the story).
+            if (NetFragmentView.Instance != null)
+            {
+                int frag = NetFragmentView.Instance.NearestNetFragment(transform.position, 3.2f, out _);
+                if (frag != 0)
+                {
+                    Game.Network?.SendNetFragmentFound(frag);
+                    ClientAudio.Instance?.At("data_cube_download", transform.position, 1f, 1f);
+                    return;
+                }
+            }
+
             if (string.IsNullOrEmpty(Game.NearbyStation))
             {
                 return;

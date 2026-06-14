@@ -169,10 +169,15 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > (`NetFragmentFoundIntent`, reach-checked) → `NetFragmentRevealed` (archive text) + `RecordStoryFragment`
 > (advances the arc) + removal/rebroadcast; `NetFragmentList` sent on world entry + join. Tags **140/141/148**
 > registered + dispatched. **4 new tests (determinism, valid+unique keys, pickup→story, no re-offer after
-> relaunch); 550 total green.** **⏳ Remaining (⚙️ Unity):** render the scattered fragment objects (+ category
-> tint) and the **Fragment Reader** panel, with E-to-pickup → `NetFragmentFoundIntent`. **Structure-placed
-> fragments** (wrecks/vaults/caches/archives) + **pity / per-system budget** are follow-ups (combat already
-> de-risks soft-lock).
+> relaunch); 550 total green.**
+> **✅ Client wired + build-verified (2026-06-14 — Unity headless build compiles clean):** `NetFragmentView.cs` renders the
+> scattered **category-tinted shards** (added in `WorldRig`); `PlayerController` E-pickup →
+> `SendNetFragmentFound`; `NetworkClient` + `GameBootstrap` wire all four story messages
+> (`StoryStateMessage`/`NetFragmentList`/`NetFragmentRevealed`/`PlayerMemoryRevealed`) — a revealed
+> fragment/memory shows as a toast and its text is kept in a client **Story Log** (`StoryLogFragments/
+> Memories/Beats`) for the P3 tab. `ui.netfragment.prompt` added DE+EN. **⏳ Remaining (⚙️ Unity):** a proper
+> re-readable reader (folds into the **P3 Story Log tab**). **Structure-placed fragments** + **pity / budget**
+> are follow-ups (combat already de-risks soft-lock).
 - **Server:** in [GameServerStructureLoot.cs](../src/BlocksBeyondTheStars.GameServer/GameServerStructureLoot.cs)
   + wreck/vault/data-cache/station-archive generation, place fragment pickups for the **active pack**:
   seed-deterministic category draw from the still-needed pool, per-system budget, dedupe vs found set,
@@ -192,9 +197,13 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > turn-in** (settlement helped — `GameServerMissions`) and **new system mapped** (`MarkArrivedOnBody` /
 > `MarkSystemKnown`, first discovery per player). Join-time beat catch-up + the meter payload
 > (`StoryStateMessage`) already ship from P0. Test confirms mapping the start system records a milestone.
-> **552 total green.** ⏳ **Remaining (⚙️ Unity):** the **new Story Log tab** (re-read fragments/beats/
-> memories) + the on-screen **"Star network: NN %" progress meter**. (Base/station-built milestones are a
-> small follow-up.)
+> **552 total green.**
+> **✅ Client wired + build-verified (2026-06-14 — Unity headless build compiles clean):** a **new Story tab** (`Mode.Story` /
+> `Tab.Story` / tab-bar entry, separate from the existing Codex/Wiki) renders `BuildStoryList` — the
+> **"Star network: NN %" meter** + counters and re-readable sections for **beats / recovered fragments /
+> personal memories** (reads `GameBootstrap.Story` + the `StoryLog*` buffers). `ui.tab.story` + `ui.story.*`
+> added DE+EN. ⏳ Remaining: polish (paragraph wrapping/scroll height is estimated; tab-bar width is tight
+> with 9 tabs) + the base/station-built milestones (small follow-up).
 - **Server:** milestone hooks (`RecordMilestone`): system mapped, settlement helped (mission complete),
   first base/station built; join-time catch-up reveals earned-but-unseen beats.
 - **Client — the new Story Log tab (the requested net-fragment tab):** a **brand-new in-game menu tab**
@@ -219,8 +228,13 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > **✅ Player memories also landed (server):** `StoryMemory` model + 4 authored memories (DE+EN) in the pack;
 > `TryDropPlayerMemory` fires on each machine kill (34% chance) → unlocks the killer's **next** unfound
 > memory in order (`PlayerState.Milestones` `story:mem:*`) + sends `PlayerMemoryRevealed` (142); per-player,
-> non-contradictory in MP. **557 total green.** ⏳ **Unity remainder for P4:** the **planet-enemy retheme**
-> to a three-eyed ground robot + the **new flying scan-drone** entity/models + the **memory reader** panel.
+> non-contradictory in MP. **557 total green.**
+> **✅ Client retheme done + build-verified (2026-06-14):** `WorldEntities.cs` now renders the planet enemy
+> as the **black three-eyed Guardian robot** — dark-metal plating + mid-grey trim + a row of **three glowing
+> RED sensor "eyes"** (the existing model already had 3 eyes; an optional `enemy_robot` plating tile is used
+> if present). Headless Unity build green, 0 compile errors. ⏳ **Unity remainder for P4:** the **new flying
+> scan-drone** (needs the server entity too — `CombatEntityKind.ScanDrone` + spawn) + robotic SFX + a proper
+> **memory reader** (today: toast + the Story Log tab lists them).
 - **Server (progress):** increment `machineKills` in the kill paths of `AttackCombatEntity`
   ([GameServerEnemies.cs](../src/BlocksBeyondTheStars.GameServer/GameServerEnemies.cs)) and space
   (`GameServerSpaceCombat`) with **diminishing returns / per-tier cap** (D9); covers all three machine types;

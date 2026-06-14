@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
         // space lives on the Map tab now — there is no separate Space tab.)
-        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7 }
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8 }
 
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
@@ -396,7 +396,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
             // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances" };
+            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances", "ui.tab.story" };
             float x = 40f;
             for (int i = 0; i < tabs.Length; i++)
             {
@@ -614,6 +614,10 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("find", L("ui.alliance.cat_find"), "cat_tech"));
                     list.Add(("funk", L("ui.alliance.cat_funk"), "cat_cargo"));
                     break;
+                case Mode.Story:
+                    list.Clear();
+                    list.Add(("log", L("ui.story.cat_log"), "cat_mission")); // the Story Log (read-only)
+                    break;
             }
 
             return list;
@@ -643,6 +647,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Missions: y = BuildMissionsList(); break;
                 case Mode.Character: y = BuildCharacterList(); break;
                 case Mode.Alliances: y = BuildAlliancesList(); break;
+                case Mode.Story: y = BuildStoryList(); break;
             }
 
             SetContentHeight(_listContent, y);
@@ -1621,6 +1626,80 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private static string AllianceName(string name, string id) => string.IsNullOrEmpty(name) ? id : name;
+
+        // --- Story Log tab (read-only: progress meter + VEGA beats + recovered net fragments + memories) ---
+
+        private float BuildStoryList()
+        {
+            float y = 8f;
+            var s = Game?.Story;
+
+            if (s == null || !s.Active)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 34, L("ui.story.off"), 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                return y + 44f;
+            }
+
+            int pct = s.ProgressTarget > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * s.Progress / s.ProgressTarget), 0, 100) : 0;
+            UiKit.AddText(_listContent, 8, y, 760, 36, L("ui.story.meter") + ": " + pct + "%", 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 44f;
+            UiKit.AddText(_listContent, 8, y, 760, 28,
+                L("ui.story.fragments") + ": " + s.FragmentsFound + "   ·   " + L("ui.story.kills") + ": " + s.MachineKills + "   ·   " + L("ui.story.beats") + ": " + s.BeatsRevealed,
+                16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 40f;
+
+            y = AllianceSection(L("ui.story.beats"), y);
+            y = StoryEntries(y, Game.StoryLogBeats);
+
+            y += 10f;
+            y = AllianceSection(L("ui.story.fragments"), y);
+            if (Game.StoryLogFragments == null || Game.StoryLogFragments.Count == 0)
+            {
+                y = StoryEmpty(y);
+            }
+            else
+            {
+                foreach (var (cat, key) in Game.StoryLogFragments)
+                {
+                    y = StoryEntry(y, "[" + cat + "] " + L(key));
+                }
+            }
+
+            y += 10f;
+            y = AllianceSection(L("ui.story.memories"), y);
+            y = StoryEntries(y, Game.StoryLogMemories);
+
+            return y + 12f;
+        }
+
+        private float StoryEntries(float y, System.Collections.Generic.List<string> keys)
+        {
+            if (keys == null || keys.Count == 0)
+            {
+                return StoryEmpty(y);
+            }
+
+            foreach (var k in keys)
+            {
+                y = StoryEntry(y, L(k));
+            }
+
+            return y;
+        }
+
+        private float StoryEntry(float y, string text)
+        {
+            int lines = Mathf.Max(1, Mathf.CeilToInt(text.Length / 64f));
+            float h = 8f + lines * 22f;
+            UiKit.AddText(_listContent, 12, y, 756, h, "• " + text, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            return y + h + 6f;
+        }
+
+        private float StoryEmpty(float y)
+        {
+            UiKit.AddText(_listContent, 12, y, 756, 28, L("ui.story.none"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            return y + 34f;
+        }
 
         private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null)
         {

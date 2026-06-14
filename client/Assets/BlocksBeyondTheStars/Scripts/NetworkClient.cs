@@ -76,6 +76,13 @@ namespace BlocksBeyondTheStars.Client
         public event Action<DataCubeList> DataCubesReceived;
         public event Action<GameUnlocks> GameUnlocksReceived;
 
+        // Story system ("The VEGA Protocol"): the active story's shared progress, the world's net fragments,
+        // a picked-up fragment's archive text, and a personal player memory unlocked by a machine kill.
+        public event Action<StoryStateMessage> StoryStateReceived;
+        public event Action<NetFragmentList> NetFragmentsReceived;
+        public event Action<NetFragmentRevealed> NetFragmentRevealedReceived;
+        public event Action<PlayerMemoryRevealed> PlayerMemoryReceived;
+
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult> ScanResultReceived;
         public event Action<WreckRepairStatus> WreckRepairStatusChanged;
@@ -290,6 +297,10 @@ namespace BlocksBeyondTheStars.Client
         /// resolves which game the cube holds (from its seed); the server validates proximity to the cube.</summary>
         public void SendUnlockGame(int cubeId, string gameKey) => Send(new UnlockGameIntent { CubeId = cubeId, GameKey = gameKey ?? string.Empty });
 
+        // Story: pick up a net fragment I'm standing at; and (admin) choose the active story pack.
+        public void SendNetFragmentFound(int fragmentId) => Send(new NetFragmentFoundIntent { FragmentId = fragmentId });
+        public void SendStorySelect(string storyId) => Send(new StorySelectIntent { StoryId = storyId ?? string.Empty });
+
         /// <summary>Reports a finished minigame run so the server can grant a knowledge reward.</summary>
         public void SendMinigameResult(string gameKey, int score, int rating, bool completed)
             => Send(new MinigameResultIntent { GameKey = gameKey ?? string.Empty, Score = score, Rating = rating, Completed = completed });
@@ -403,6 +414,10 @@ namespace BlocksBeyondTheStars.Client
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
                 case AllianceList m: AllianceListReceived?.Invoke(m); break;
                 case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
+                case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
+                case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
+                case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;
+                case PlayerMemoryRevealed m: PlayerMemoryReceived?.Invoke(m); break;
             }
         }
 
