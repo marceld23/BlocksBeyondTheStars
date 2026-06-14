@@ -227,7 +227,7 @@
       { "surfaceBlock": "stone",   "subSurfaceBlock": "stone" }
     ],
     "ores": [
-      { "block": "crystal",      "rarity": 0.10, "minDepth": 1,  "maxDepth": 256 },
+      { "block": "crystal",      "rarity": 0.03, "minDepth": 1,  "maxDepth": 256 },
       { "block": "titanium_ore", "rarity": 0.05, "minDepth": 8,  "maxDepth": 256 },
       { "block": "copper_ore",   "rarity": 0.04, "minDepth": 4,  "maxDepth": 256 },
       { "block": "silver_ore",   "rarity": 0.025, "minDepth": 16, "maxDepth": 256 },
@@ -373,7 +373,7 @@
       { "block": "platinum_ore", "rarity": 0.015, "minDepth": 30, "maxDepth": 256 },
       { "block": "tungsten_ore", "rarity": 0.018, "minDepth": 26, "maxDepth": 256 },
       { "block": "neodymium_ore", "rarity": 0.018, "minDepth": 26, "maxDepth": 256 },
-      { "block": "crystal", "rarity": 0.10, "minDepth": 1, "maxDepth": 256 },
+      { "block": "crystal", "rarity": 0.03, "minDepth": 1, "maxDepth": 256 },
       { "block": "titanium_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 256 },
       { "block": "silicate", "rarity": 0.06, "minDepth": 2, "maxDepth": 256 }
     ]

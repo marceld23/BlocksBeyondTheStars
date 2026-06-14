@@ -434,6 +434,11 @@ public sealed partial class GameServer
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
         MarkArrivedOnBody(session, session.CurrentLocationId); // touched down here → a quick-travel target
+        if (_ship is not null)
+        {
+            _ship.CurrentLocationId = session.CurrentLocationId; // keep the ship's body in sync so a later launch rises off THIS body (mirrors HandleTravel; B48) — fixes launching off an asteroid landing you adrift in the wrong orbit
+        }
+
         if (_config.PlaceStarterShip)
         {
             PlaceLandedShip();

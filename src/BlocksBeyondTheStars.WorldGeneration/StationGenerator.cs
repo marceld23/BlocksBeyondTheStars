@@ -377,9 +377,11 @@ public static class StationGenerator
         ushort tank = content.GetBlock("ice")?.NumericId.Value ?? glass;
         ushort dark = content.GetBlock("carbon")?.NumericId.Value ?? hull;
         ushort plant = content.GetBlock("flora_plant")?.NumericId.Value ?? 0;
+        ushort Get(int x, int y, int z) =>
+            (x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l) ? blocks[(x * h + y) * l + z] : (ushort)0;
         foreach (var m in placed)
         {
-            FurnishModule(Set, m.Origin, m.Type, rw, rh, rl, hull, light, tank, dark, plant);
+            FurnishModule(Set, Get, m.Origin, m.Type, rw, rh, rl, hull, light, tank, dark, plant);
         }
 
         // 9) Exterior detail on exposed module faces — solar-panel wings, antennae, docking arms, and a
@@ -487,13 +489,37 @@ public static class StationGenerator
         }
     }
 
+    /// <summary>Places a planter ONLY when it is fully backed by the station hull: a solid block directly below
+    /// AND no horizontal side opening onto floorless void. Mirrors the server's runtime flora rule so a generated
+    /// station never spawns a plant you can see through (into space) or walk through out into the void. A block id
+    /// of 0 is air/void; anything else is treated as solid hull/furniture backing.</summary>
+    private static void PlantIfBacked(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
+        int x, int y, int z, ushort plant)
+    {
+        if (plant == 0 || get(x, y - 1, z) == 0)
+        {
+            return; // no plant, or no floor under it
+        }
+
+        var dirs = new[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        foreach (var (dx, dz) in dirs)
+        {
+            if (get(x + dx, y, z + dz) == 0 && get(x + dx, y - 1, z + dz) == 0)
+            {
+                return; // a side opens onto floorless void → skip the planter
+            }
+        }
+
+        set(x, y, z, plant);
+    }
+
     /// <summary>
     /// Furnishes a module's interior by type with floor props + ceiling lights, all placed RELATIVE to
     /// the room size — corners/edges only, never the centre lines (door/shaft columns). Big rooms get
     /// denser furnishing (longer counters, more bunks, extra consoles, a centre ceiling light).
     /// </summary>
-    private static void FurnishModule(System.Action<int, int, int, ushort> set, Vector3i o, string type,
-        int rw, int rh, int rl, ushort hull, ushort light, ushort tank, ushort dark, ushort plant)
+    private static void FurnishModule(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
+        Vector3i o, string type, int rw, int rh, int rl, ushort hull, ushort light, ushort tank, ushort dark, ushort plant)
     {
         int x0 = 1, x1 = rw - 2, z0 = 1, z1 = rl - 2; // interior bounds
         int cx = rw / 2, cz = rl / 2;                  // centre lines to keep clear
@@ -523,7 +549,7 @@ public static class StationGenerator
                     set(o.X + x0, o.Y + 2, o.Z + z, light);
                 }
 
-                if (plant != 0) set(o.X + x1, o.Y + 1, o.Z + z1, plant);
+                PlantIfBacked(set, get, o.X + x1, o.Y + 1, o.Z + z1, plant);
                 break;
 
             case "market":
@@ -544,7 +570,7 @@ public static class StationGenerator
                     }
                 }
 
-                if (plant != 0) set(o.X + x1, o.Y + 1, o.Z + z0, plant);
+                PlantIfBacked(set, get, o.X + x1, o.Y + 1, o.Z + z0, plant);
                 break;
 
             case "medbay": // glowing heal tanks in the corners (two on big rooms)
@@ -569,7 +595,7 @@ public static class StationGenerator
                     set(o.X + x1, o.Y + 1, o.Z + z + 1, dark);
                 }
 
-                if (plant != 0) set(o.X + x0, o.Y + 1, o.Z + z1, plant);
+                PlantIfBacked(set, get, o.X + x0, o.Y + 1, o.Z + z1, plant);
                 break;
 
             case "hangar":

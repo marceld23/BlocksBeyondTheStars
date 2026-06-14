@@ -2030,10 +2030,21 @@ public sealed partial class GameServer
         }
 
         // Seeds / flora only take on a suitable host block (mud, grass, crystal, ...).
-        if (IsFlora(blockDef.NumericId.Value) && !IsValidFloraHost(blockDef.NumericId.Value, pos))
+        if (IsFlora(blockDef.NumericId.Value))
         {
-            Reject(session, "place", "This plant needs suitable ground beneath it.");
-            return;
+            if (!IsValidFloraHost(blockDef.NumericId.Value, pos))
+            {
+                Reject(session, "place", "This plant needs suitable ground beneath it.");
+                return;
+            }
+
+            // On a space station (void world) a plant must sit fully inside the hull — solid block below and no
+            // side open to space — so it can't be seen or walked through into the void.
+            if (!IsFloraEnclosedForVoidWorld(pos))
+            {
+                Reject(session, "place", "Plants can only be placed inside a station, never against open space.");
+                return;
+            }
         }
 
         // A base core founds a player base (Grundstein) — only on a real surface, and only one per body per player.
