@@ -394,8 +394,13 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > core), then you walk in to the heart. Existing blocks only (`iron_wall`/`steel_floor`/`metal_panel`/`glass`/
 > `light_red`); 570 green; build-verified.
 >
-> ⏳ **Remaining (⚙️ Unity):** a **gauntlet HUD** (wave/elite-contact readout); optional **client-rendered boss
-> model** for the core (the voxel structure reads well already); robotic SFX for the machines.
+> **🟦 P6 — gauntlet HUD built (2026-06-14, ⚙️ Unity build-verified).** `FinaleView` now shows a top-screen
+> **"Guardian gauntlet — N elite machines"** readout while engaging the elite wave (in the `guardian_finale*`
+> flight space with hostiles present — counts Drone/Ufo/Cruiser from `Game.Space.Entities`). Bilingual
+> `ui.finale.gauntlet` / `ui.finale.hostiles`.
+>
+> ⏳ **Remaining (⚙️ Unity, optional polish):** a **client-rendered boss model** for the core (the voxel
+> structure already reads well); **robotic SFX** for the machines (they still reuse the organic growl).
 The finale is **staged**, not just another drone fight: a hard gauntlet, a **hack** to open the core, then a
 **dialogue duel** won by exposing the Guardian's contradiction — **weapons cannot destroy the core**.
 - **Server (reveal):** score maxed **and** all `vega` beats seen → `RevealGuardianSystem` →

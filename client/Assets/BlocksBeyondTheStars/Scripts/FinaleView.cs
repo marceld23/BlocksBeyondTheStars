@@ -163,10 +163,57 @@ namespace BlocksBeyondTheStars.Client
             {
                 DrawHackBar();
             }
+            else if (InGauntlet(out int hostiles))
+            {
+                DrawGauntletBanner(hostiles);
+            }
             else if (FinaleActive && OnGuardianWorld && !_hacked)
             {
                 DrawHint(L("ui.finale.hack_hint", "Hold [F] to breach the Guardian core"));
             }
+        }
+
+        /// <summary>True while engaging the elite gauntlet: in the finale system's flight space with hostiles
+        /// present. Reports how many machines remain.</summary>
+        private bool InGauntlet(out int hostiles)
+        {
+            hostiles = 0;
+            if (!FinaleActive || Game == null || !(Game.SpaceViewActive || Game.InSpace))
+            {
+                return false;
+            }
+
+            string here = Game.StarMap?.ActiveLocationId;
+            if (string.IsNullOrEmpty(here) || !here.StartsWith("guardian_finale"))
+            {
+                return false;
+            }
+
+            var ents = Game.Space?.Entities;
+            if (ents == null)
+            {
+                return false;
+            }
+
+            foreach (var e in ents)
+            {
+                if (e.Kind == "Drone" || e.Kind == "Ufo" || e.Kind == "Cruiser")
+                {
+                    hostiles++;
+                }
+            }
+
+            return hostiles > 0;
+        }
+
+        private void DrawGauntletBanner(int hostiles)
+        {
+            string text = $"{L("ui.finale.gauntlet", "Guardian gauntlet")} — {hostiles} {L("ui.finale.hostiles", "elite machines")}";
+            var size = _hint.CalcSize(new GUIContent(text));
+            float w = size.x + 28f;
+            var r = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.06f, w, 32f);
+            GUI.Box(r, GUIContent.none, _box);
+            GUI.Label(r, text, _hint);
         }
 
         private void DrawHackBar()

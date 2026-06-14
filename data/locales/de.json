@@ -368,6 +368,8 @@
   "ui.story.none": "Noch nichts — erkunde, birg Fragmente und bekämpfe die Maschinen.",
   "ui.finale.hack_hint": "Erreiche den Wächterkern darunter — grabe dich hinab oder nimm den Schacht — dann [F] halten zum Aufbrechen",
   "ui.finale.hacking": "Wächterkern wird aufgebrochen",
+  "ui.finale.gauntlet": "Wächter-Spießrutenlauf",
+  "ui.finale.hostiles": "Elite-Maschinen",
   "ui.finale.duel_title": "Der Wächterkern",
   "ui.finale.resolved": "Der Wächterkern fährt herunter. Auf allen Welten stellen die Maschinen die Jagd ein.",
   "ui.alliance.cat_allies": "Verbündete",

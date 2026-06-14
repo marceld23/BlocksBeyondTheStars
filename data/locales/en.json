@@ -363,6 +363,8 @@
   "ui.story.none": "Nothing yet — explore, recover fragments, and fight the machines.",
   "ui.finale.hack_hint": "Reach the Guardian core below — dig down or take the shaft — then hold [F] to breach it",
   "ui.finale.hacking": "Breaching the Guardian core",
+  "ui.finale.gauntlet": "Guardian gauntlet",
+  "ui.finale.hostiles": "elite machines",
   "ui.finale.duel_title": "The Guardian Core",
   "ui.finale.resolved": "The Guardian core powers down. Across every world, the machines stand down.",
   "ui.alliance.cat_allies": "Allies",
