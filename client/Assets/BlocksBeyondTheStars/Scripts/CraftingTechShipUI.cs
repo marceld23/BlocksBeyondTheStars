@@ -168,7 +168,9 @@ namespace BlocksBeyondTheStars.Client
                     // "find players" picker. The radio (Funk) feed is deliberately NOT hashed — its log refreshes in
                     // place each frame so an incoming message never rebuilds the pane and steals the input's focus.
                     + (Game.Alliances?.Allies.Length ?? 0) * 601 + (Game.Alliances?.Incoming.Length ?? 0) * 701
-                    + (Game.Alliances?.Outgoing.Length ?? 0) * 809 + (Game.StarMap?.Players.Length ?? 0) * 53;
+                    + (Game.Alliances?.Outgoing.Length ?? 0) * 809 + (Game.StarMap?.Players.Length ?? 0) * 53
+                    // Knowledge total + the new-content flags drive the Tech/Story/Arcade menu badges.
+                    + Game.Knowledge * 131 + (Game.NewArcadeUnseen ? 1201 : 0) + (Game.NewStoryUnseen ? 1303 : 0);
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -418,12 +420,25 @@ namespace BlocksBeyondTheStars.Client
                     lbl.resizeTextMinSize = 12;
                 }
 
+                // Badge a tab that has new content waiting behind it: the Tech tab when research is affordable
+                // now, the Story tab when an unread beat/fragment/memory arrived. Cleared by opening the tab.
+                bool badge = (tab == (int)Mode.Tech && AnyBlueprintUnlockable())
+                             || (tab == (int)Mode.Story && (Game?.NewStoryUnseen ?? false));
+                if (badge && !active)
+                {
+                    UiKit.AddBadge(b, 150f);
+                }
+
                 x += 158f;
             }
 
             // Always-available browser screens (separate full-screen overlays): the Codex (wiki) + the Arcade.
             UiKit.AddButton(p, x, 64, 140, 46, L("ui.tab.wiki"), () => Menu?.OpenWiki());
-            UiKit.AddButton(p, x + 148f, 64, 140, 46, L("ui.tab.arcade"), () => Menu?.OpenArcade());
+            var arcadeBtn = UiKit.AddButton(p, x + 148f, 64, 140, 46, L("ui.tab.arcade"), () => Menu?.OpenArcade());
+            if (Game?.NewArcadeUnseen ?? false)
+            {
+                UiKit.AddBadge(arcadeBtn, 140f); // a freshly downloaded data-cube game is waiting in the Arcade
+            }
 
             UiKit.AddButton(p, W - 150, 64, 110, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
 
@@ -1936,11 +1951,21 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (bp.UnlockCost.Count > 0)
+            if (bp.UnlockCost.Count > 0 || bp.KnowledgeCost > 0)
             {
                 y += 6f;
                 UiKit.AddText(_detail, 8, y, 620, 26, L("ui.tech.cost"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                 y += 30f;
+                // Knowledge points (earned by scanning) are a separate cost from the material list — show it too,
+                // otherwise the player can't see why a researched-looking node still won't unlock.
+                if (bp.KnowledgeCost > 0)
+                {
+                    bool kok = Game.Knowledge >= bp.KnowledgeCost;
+                    UiKit.AddText(_detail, 20, y, 620, 26, $"{(kok ? "✓" : "✗")} {L("ui.tech.knowledge")}  {Game.Knowledge}/{bp.KnowledgeCost}", 18,
+                        kok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
+                    y += 28f;
+                }
+
                 foreach (var c in bp.UnlockCost)
                 {
                     int have = Owned(c.Item);
@@ -1953,7 +1978,8 @@ namespace BlocksBeyondTheStars.Client
 
             y += 10f;
             bool already = Game.UnlockedBlueprints.Contains(bp.Key);
-            bool can = !already && bp.Prerequisites.All(Game.UnlockedBlueprints.Contains) && HasAll(bp.UnlockCost);
+            bool can = !already && bp.Prerequisites.All(Game.UnlockedBlueprints.Contains) && HasAll(bp.UnlockCost)
+                       && Game.Knowledge >= bp.KnowledgeCost;
             var btn = UiKit.AddButton(_detail, 8, y, 280, 56, already ? L("ui.tech.unlocked") : L("ui.action.unlock"), () => { Game.Network.SendUnlock(bp.Key); });
             SetInteractable(btn, can);
             y += 70f;
@@ -2409,12 +2435,35 @@ namespace BlocksBeyondTheStars.Client
                 return (L("ui.tech.locked"), new Color(0.6f, 0.6f, 0.7f));
             }
 
-            if (!HasAll(bp.UnlockCost))
+            if (!HasAll(bp.UnlockCost) || Game.Knowledge < bp.KnowledgeCost)
             {
                 return (L("ui.tech.materials_missing"), new Color(1f, 0.7f, 0.3f));
             }
 
             return (L("ui.tech.unlockable"), UiKit.Cyan);
+        }
+
+        /// <summary>True when at least one blueprint is unlockable right now (prerequisites met, materials owned and
+        /// enough knowledge points) — drives the "new research available" badge on the Tech menu entry.</summary>
+        private bool AnyBlueprintUnlockable()
+        {
+            if (Game?.Content?.Blueprints == null)
+            {
+                return false;
+            }
+
+            foreach (var bp in Game.Content.Blueprints.Values)
+            {
+                if (!Game.UnlockedBlueprints.Contains(bp.Key)
+                    && bp.Prerequisites.All(Game.UnlockedBlueprints.Contains)
+                    && HasAll(bp.UnlockCost)
+                    && Game.Knowledge >= bp.KnowledgeCost)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool CanCraft(RecipeDefinition r, out string reason)

@@ -128,8 +128,11 @@ namespace BlocksBeyondTheStars.Client
         private string _fireTargetId;     // the entity currently in the firing solution (for the reticle)
         private int _selectedSystem;      // index into _systems
         private readonly List<ShipSystem> _systems = new List<ShipSystem>();
-        private Text _systemsBar;
-        private Image _systemIcon;        // content-styled icon of the selected ship system
+        // Ship-systems quick-bar drawn as icon cells (shares UiKit.QuickSlot with the on-foot hotbar so the two
+        // HUDs read alike): a bottom-centre row, one cell per fitted system, rebuilt when the system count changes.
+        private UiKit.QuickSlot[] _systemSlots = System.Array.Empty<UiKit.QuickSlot>();
+        private GameObject _systemsBarRoot;
+        private int _builtSystemCount = -1;
         private const string FlightWeapon = "ship_laser_basic";
         private const float WeaponRange = 45f;  // matches ship_laser_basic weapon_range
         private const float FireRate = 0.45f;   // seconds between shots
@@ -3049,34 +3052,16 @@ namespace BlocksBeyondTheStars.Client
             _crosshair.color = new Color(0.6f, 0.7f, 0.8f, 0.35f);
             _crosshair.raycastTarget = false;
 
-            // Ship-systems quick-bar, just above the controls hint (1–9 select, LMB use).
-            var barGo = new GameObject("SystemsBar", typeof(RectTransform));
-            barGo.transform.SetParent(_ui.transform, false);
-            var brt2 = barGo.GetComponent<RectTransform>();
+            // Ship-systems quick-bar: a bottom-centre container that holds the icon cells (1–9 select, LMB use).
+            // The cells themselves are (re)built lazily in RefreshSystemSlots when the fitted-system count changes.
+            _systemsBarRoot = new GameObject("SystemsBar", typeof(RectTransform));
+            _systemsBarRoot.transform.SetParent(_ui.transform, false);
+            var brt2 = _systemsBarRoot.GetComponent<RectTransform>();
             brt2.anchorMin = brt2.anchorMax = new Vector2(0.5f, 0f);
             brt2.pivot = new Vector2(0.5f, 0f);
-            brt2.sizeDelta = new Vector2(760f, 30f);
-            brt2.anchoredPosition = new Vector2(0f, 52f);
-            _systemsBar = barGo.AddComponent<Text>();
-            _systemsBar.font = UiKit.Font;
-            _systemsBar.fontSize = 19;
-            _systemsBar.alignment = TextAnchor.MiddleCenter;
-            _systemsBar.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _systemsBar.supportRichText = true;
-            _systemsBar.raycastTarget = false;
-
-            // A small content-styled icon of the selected system, centred just above the quick-bar.
-            var icoGo = new GameObject("SystemIcon", typeof(RectTransform));
-            icoGo.transform.SetParent(_ui.transform, false);
-            var irt = icoGo.GetComponent<RectTransform>();
-            irt.anchorMin = irt.anchorMax = new Vector2(0.5f, 0f);
-            irt.pivot = new Vector2(0.5f, 0f);
-            irt.sizeDelta = new Vector2(30f, 30f);
-            irt.anchoredPosition = new Vector2(0f, 84f);
-            _systemIcon = icoGo.AddComponent<Image>();
-            _systemIcon.raycastTarget = false;
-            _systemIcon.preserveAspect = true;
-            _systemIcon.enabled = false;
+            brt2.sizeDelta = new Vector2(66f, 66f);
+            brt2.anchoredPosition = new Vector2(0f, 56f);
+            _builtSystemCount = -1; // force a cell rebuild against the fresh container
         }
 
         /// <summary>Creates the chain of lens-flare sprites once (a big bloom at the sun + ghosts that march
@@ -3304,47 +3289,85 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Ship-systems quick-bar text: the selected system is highlighted; numbers are the hotkeys.
-            if (_systemsBar != null)
+            // Ship-systems quick-bar: icon cells, the selected one bright + scaled (same look as the hotbar).
+            RefreshSystemSlots();
+        }
+
+        /// <summary>Draws the ship-systems quick-bar as icon cells (laser / tractor / …) matching the on-foot
+        /// hotbar: the active system is bright + scaled with a selection ring, each cell shows its icon, hotkey
+        /// number and name. Cells are rebuilt only when the fitted-system count changes (cheap each frame).</summary>
+        private void RefreshSystemSlots()
+        {
+            if (_systemsBarRoot == null)
             {
-                bool show = _phase == Phase.Cruise && !_confirmLand && !_eva && _systems.Count > 0;
-                _systemsBar.enabled = show;
-                if (show)
-                {
-                    var sb = new System.Text.StringBuilder();
-                    for (int n = 0; n < _systems.Count; n++)
-                    {
-                        if (n > 0)
-                        {
-                            sb.Append("    ");
-                        }
-
-                        if (n == _selectedSystem)
-                        {
-                            sb.Append($"<color=#66ffff><b>[{n + 1} {_systems[n].Label}]</b></color>");
-                        }
-                        else
-                        {
-                            sb.Append($"<color=#8fa3b8>{n + 1} {_systems[n].Label}</color>");
-                        }
-                    }
-
-                    _systemsBar.text = sb.ToString();
-                }
-
-                // A content-styled icon of the selected system (laser turret / tractor emitter).
-                if (_systemIcon != null)
-                {
-                    var sys = show ? _systems[_selectedSystem] : default;
-                    string iconKey = !show ? null : sys.Kind == "tractor" ? "tractor_beam" : sys.WeaponKey ?? FlightWeapon;
-                    var sprite = iconKey != null ? IconResolver.Resolve(iconKey, Game) : null;
-                    _systemIcon.enabled = show && sprite != null;
-                    if (sprite != null)
-                    {
-                        _systemIcon.sprite = sprite;
-                    }
-                }
+                return;
             }
+
+            bool show = _phase == Phase.Cruise && !_confirmLand && !_eva && _systems.Count > 0;
+            if (_systemsBarRoot.activeSelf != show)
+            {
+                _systemsBarRoot.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            if (_systems.Count != _builtSystemCount)
+            {
+                BuildSystemSlots();
+            }
+
+            for (int i = 0; i < _systemSlots.Length; i++)
+            {
+                var s = _systemSlots[i];
+                bool sel = i == _selectedSystem;
+                UiKit.StyleQuickSlot(s, sel);
+                s.Num.text = (i + 1).ToString();
+
+                var sys = _systems[i];
+                string iconKey = sys.Kind == "tractor" ? "tractor_beam" : sys.WeaponKey ?? FlightWeapon;
+                var sprite = iconKey != null ? IconResolver.Resolve(iconKey, Game) : null;
+                if (sprite != null && sprite.texture != null)
+                {
+                    var r = sprite.textureRect;
+                    s.Icon.texture = sprite.texture;
+                    s.Icon.uvRect = new Rect(r.x / sprite.texture.width, r.y / sprite.texture.height,
+                        r.width / sprite.texture.width, r.height / sprite.texture.height);
+                    s.Icon.color = Color.white;
+                    s.Icon.enabled = true;
+                }
+                else
+                {
+                    s.Icon.enabled = false;
+                }
+
+                s.Name.text = sys.Label;
+                s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
+            }
+        }
+
+        /// <summary>(Re)builds the quick-bar cells to match the fitted-system count, centred on a backplate.</summary>
+        private void BuildSystemSlots()
+        {
+            for (int i = _systemsBarRoot.transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_systemsBarRoot.transform.GetChild(i).gameObject);
+            }
+
+            int n = Mathf.Max(_systems.Count, 1);
+            const float sw = 66f, pitch = 74f;
+            float stripW = (n - 1) * pitch + sw;
+            ((RectTransform)_systemsBarRoot.transform).sizeDelta = new Vector2(stripW, sw);
+            UiKit.QuickBackplate(_systemsBarRoot.transform, -12f, -10f, stripW + 24f, sw + 20f);
+            _systemSlots = new UiKit.QuickSlot[n];
+            for (int i = 0; i < n; i++)
+            {
+                _systemSlots[i] = UiKit.MakeQuickSlot(_systemsBarRoot.transform, i * pitch, 0f, sw);
+            }
+
+            _builtSystemCount = _systems.Count;
         }
 
         /// <summary>Flight instruments: smoothed speed (camera delta — the camera rides the ship),

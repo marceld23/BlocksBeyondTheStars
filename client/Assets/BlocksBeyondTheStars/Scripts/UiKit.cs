@@ -373,6 +373,100 @@ namespace BlocksBeyondTheStars.Client
             return btn;
         }
 
+        /// <summary>Pins a small amber "new content" badge dot to the top-right corner of a freshly built button,
+        /// so a menu entry can flag that something new is waiting behind it. Idempotent per rebuild.</summary>
+        public static void AddBadge(Component button, float buttonW)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            var dot = AddImage(button.transform, buttonW - 18f, 4f, 12f, 12f, SolidSprite, new Color(1f, 0.72f, 0.18f));
+            dot.rectTransform.SetAsLastSibling();
+            var glow = AddImage(button.transform, buttonW - 21f, 1f, 18f, 18f, SolidSprite, new Color(1f, 0.72f, 0.18f, 0.35f));
+            glow.rectTransform.SetSiblingIndex(dot.rectTransform.GetSiblingIndex()); // soft halo behind the dot
+        }
+
+        // --- Quick-bar slot (shared by the on-foot hotbar + the flight ship-systems bar so both read alike) ---
+
+        public static readonly Color SlotIdle = new Color(0.04f, 0.10f, 0.20f, 0.88f);
+        public static readonly Color SlotSelected = new Color(0.10f, 0.42f, 0.66f, 0.98f);
+
+        /// <summary>One quick-bar cell: a framed box, a big square icon that fills the cell, a hotkey number and a
+        /// name caption, plus a selection-ring overlay. Style with <see cref="StyleQuickSlot"/>.</summary>
+        public struct QuickSlot
+        {
+            public RectTransform Rt;     // the slot box (scaled up when selected)
+            public Image Border;         // the box fill / frame (tinted by selection)
+            public Image Ring;           // bright selection outline (toggled on the active slot)
+            public RawImage Icon;        // the block-atlas / item texture
+            public Text Num, Name;
+        }
+
+        /// <summary>Builds a quick-bar cell at a top-left anchored rect. The icon nearly fills the box (only a thin
+        /// inset) so the graphic reads large; the number sits top-left and the name caption along the bottom.</summary>
+        public static QuickSlot MakeQuickSlot(Transform parent, float x, float y, float size)
+        {
+            var ring = AddImage(parent, x - 3f, y - 3f, size + 6f, size + 6f, PanelSprite, Cyan); // outline, behind the box
+            ring.type = Image.Type.Sliced;
+            ring.enabled = false;
+
+            var box = AddPanel(parent, x, y, size, size, SlotIdle);
+
+            float inset = 6f;
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(box.transform, false);
+            Place(iconGo, inset, inset, size - inset * 2f, size - inset * 2f);
+            var icon = iconGo.AddComponent<RawImage>();
+            icon.raycastTarget = false;
+            icon.enabled = false;
+
+            var num = AddText(box.transform, 5f, 2f, size - 8f, 18f, string.Empty, 15, TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            AddOutline(num);
+            var name = AddText(box.transform, 2f, size - 17f, size - 4f, 16f, string.Empty, 12, TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            AddOutline(name);
+
+            return new QuickSlot { Rt = box.rectTransform, Border = box, Ring = ring, Icon = icon, Num = num, Name = name };
+        }
+
+        /// <summary>Applies the selected/idle look to a quick-bar cell: a bright fill + a cyan outline ring on the
+        /// active slot, so the held tool / active system is unmistakable. (The ring sits just behind the cell and
+        /// stays aligned at any size, so no scale-up is used — that would drift against the top-left pivot.)</summary>
+        public static void StyleQuickSlot(in QuickSlot s, bool selected)
+        {
+            if (s.Border != null)
+            {
+                s.Border.color = selected ? SlotSelected : SlotIdle;
+            }
+
+            if (s.Ring != null)
+            {
+                s.Ring.enabled = selected;
+            }
+        }
+
+        /// <summary>A dark rounded backplate strip behind a quick-bar row, so the cells read as one HUD element
+        /// separated from the busy world, with a faint cyan keyline along the bottom.</summary>
+        public static void QuickBackplate(Transform parent, float x, float y, float w, float h)
+        {
+            AddPanel(parent, x, y, w, h, new Color(0.02f, 0.05f, 0.11f, 0.62f));
+            AddImage(parent, x + 6f, y + h - 3f, w - 12f, 2f, SolidSprite, new Color(Cyan.r, Cyan.g, Cyan.b, 0.5f));
+        }
+
+        /// <summary>Adds a crisp dark outline to small HUD text so it stays legible over bright terrain/space.</summary>
+        public static void AddOutline(Graphic g)
+        {
+            if (g == null)
+            {
+                return;
+            }
+
+            var o = g.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            o.effectDistance = new Vector2(1.2f, -1.2f);
+        }
+
         /// <summary>Builds a themed single-line text field (background + editable text + placeholder).</summary>
         public static InputField AddInput(Transform parent, float x, float y, float w, float h, string value,
             System.Action<string> onChange, string placeholder = "", int maxLength = 0)

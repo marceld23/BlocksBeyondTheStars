@@ -96,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
         public void OpenWiki() { EnsureBrowserHost(); _browser = BrowserScreen.Wiki; SetOpen(true); }
 
         /// <summary>Opens the Arcade collection browser screen — an always-available menu point.</summary>
-        public void OpenArcade() { EnsureBrowserHost(); _browser = BrowserScreen.Arcade; SetOpen(true); }
+        public void OpenArcade() { Game?.MarkArcadeSeen(); EnsureBrowserHost(); _browser = BrowserScreen.Arcade; SetOpen(true); }
 
         /// <summary>Returns from a browser sub-screen (Wiki/Arcade) to the normal menu tabs.</summary>
         public void CloseBrowser() => _browser = BrowserScreen.None;
@@ -171,6 +171,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network?.SendRequestAllianceList(); // refresh the roster (allies + pending) on open
                 Game.Network?.SendRequestStarMap();      // the "find players" picker needs the online-player list
+            }
+            else if (tab == Tab.Story)
+            {
+                Game?.MarkStorySeen(); // opening the Story tab clears its "new content" badge
             }
         }
 

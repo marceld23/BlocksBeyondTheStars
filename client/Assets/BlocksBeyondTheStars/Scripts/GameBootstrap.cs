@@ -486,6 +486,16 @@ namespace BlocksBeyondTheStars.Client
         /// the Arcade collection menu. Mirrors <see cref="UnlockedBlueprints"/>.</summary>
         public System.Collections.Generic.HashSet<string> UnlockedGames { get; private set; } = new();
 
+        /// <summary>Set when a new data-cube minigame arrives but the Arcade hasn't been opened since — the menu
+        /// badges the Arcade entry while true. Cleared by <see cref="MarkArcadeSeen"/> when the Arcade is opened.</summary>
+        public bool NewArcadeUnseen { get; private set; }
+        public void MarkArcadeSeen() => NewArcadeUnseen = false;
+
+        /// <summary>Set when new story content (a beat / net fragment / memory) arrives but the Story tab hasn't
+        /// been opened since — the menu badges the Story entry while true. Cleared by <see cref="MarkStorySeen"/>.</summary>
+        public bool NewStoryUnseen { get; private set; }
+        public void MarkStorySeen() => NewStoryUnseen = false;
+
         /// <summary>Data cubes on the current world (synced from the server) — rendered by <c>DataCubeView</c>.</summary>
         public NetDataCube[] DataCubes { get; private set; } = System.Array.Empty<NetDataCube>();
 
@@ -696,7 +706,11 @@ namespace BlocksBeyondTheStars.Client
                 bool grew = incoming.Count > UnlockedGames.Count;
                 UnlockedGames = incoming;
                 RebuildWikiState();
-                if (grew) LastMessage = Localizer?.Get("ui.arcade.downloaded") ?? "Game downloaded to your Arcade.";
+                if (grew)
+                {
+                    NewArcadeUnseen = true; // badge the Arcade menu entry until the player opens it
+                    LastMessage = Localizer?.Get("ui.arcade.downloaded") ?? "Game downloaded to your Arcade.";
+                }
             };
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
@@ -791,18 +805,20 @@ namespace BlocksBeyondTheStars.Client
             Network.ShipAiLineReceived += m =>
             {
                 OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
-                if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) StoryLogBeats.Add(m.LineKey); // a story beat
+                if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) { StoryLogBeats.Add(m.LineKey); NewStoryUnseen = true; } // a story beat
             };
             Network.StoryStateReceived += m => Story = m;
             Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
             Network.NetFragmentRevealedReceived += m =>
             {
                 StoryLogFragments.Add((m.Category, m.TextKey));
+                NewStoryUnseen = true; // badge the Story menu entry until the player reads it
                 ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey); // the archive text (Story Log keeps it to re-read)
             };
             Network.PlayerMemoryReceived += m =>
             {
                 StoryLogMemories.Add(m.TextKey);
+                NewStoryUnseen = true;
                 ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey);
             };
             Network.ScanResultReceived += m =>

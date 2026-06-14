@@ -528,6 +528,7 @@
   "ui.tech.status": "Status",
   "ui.tech.prereqs": "Prerequisites",
   "ui.tech.cost": "Unlock cost",
+  "ui.tech.knowledge": "Knowledge points",
   "ui.tech.unlocked": "Unlocked",
   "ui.tech.locked": "Locked",
   "ui.tech.materials_missing": "Materials missing",

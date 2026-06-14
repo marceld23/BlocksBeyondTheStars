@@ -35,8 +35,8 @@ namespace BlocksBeyondTheStars.Client
         private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; }
         private VitalRow[] _vitals;
 
-        private struct Slot { public Image Border; public RawImage Icon; public Text Num, Name; }
-        private Slot[] _hotbar;
+        private UiKit.QuickSlot[] _hotbar;
+        private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
 
         // Scan / wreck panels.
         private GameObject _scanPanel, _wreckPanel;
@@ -311,12 +311,21 @@ namespace BlocksBeyondTheStars.Client
                 _vitals[i] = MakeVital(_vitalsPanel.transform, 10, 8 + i * 24, order[i]);
             }
 
-            // Hotbar.
-            _hotbar = new Slot[Slots];
-            float sw = 60f, total = Slots * 64f, x0 = (W - total) / 2f, hy = H - 64f - 28f;
+            // Hotbar: a centred row of large icon cells on a backplate, raised a touch off the bottom edge so the
+            // held tool reads clearly. Shares its cell style with the flight ship-systems bar (UiKit.QuickSlot).
+            // All cells + backplate + selection rings live under one stretched container so flying hides them in one.
+            _hotbarRoot = new GameObject("Hotbar", typeof(RectTransform));
+            _hotbarRoot.transform.SetParent(root, false);
+            var hbRt = _hotbarRoot.GetComponent<RectTransform>();
+            hbRt.anchorMin = Vector2.zero; hbRt.anchorMax = Vector2.one; hbRt.offsetMin = hbRt.offsetMax = Vector2.zero;
+            var hbParent = _hotbarRoot.transform;
+            _hotbar = new UiKit.QuickSlot[Slots];
+            const float sw = 72f, pitch = 80f;
+            float total = (Slots - 1) * pitch + sw, x0 = (W - total) / 2f, hy = H - sw - 40f;
+            UiKit.QuickBackplate(hbParent, x0 - 12f, hy - 10f, total + 24f, sw + 20f);
             for (int i = 0; i < Slots; i++)
             {
-                _hotbar[i] = MakeSlot(root, x0 + i * 64f, hy, sw);
+                _hotbar[i] = UiKit.MakeQuickSlot(hbParent, x0 + i * pitch, hy, sw);
             }
 
             // Compass (round).
@@ -478,33 +487,15 @@ namespace BlocksBeyondTheStars.Client
 
         // --- hotbar ---
 
-        private Slot MakeSlot(Transform parent, float x, float y, float size)
-        {
-            var panel = Panel(parent, x, y, size, size);
-            var border = panel;
-            border.color = new Color(0.05f, 0.12f, 0.24f, 0.82f);
-            var num = UiKit.AddText(panel.transform, 4, 2, size - 10, 18, string.Empty, 11, UiKit.TextCol, TextAnchor.UpperLeft);
-            var iconGo = new GameObject("Icon", typeof(RectTransform));
-            iconGo.transform.SetParent(panel.transform, false);
-            UiKit.Place(iconGo, 14, 12, size - 30, size - 30);
-            var icon = iconGo.AddComponent<RawImage>();
-            icon.enabled = false;
-            var name = UiKit.AddText(panel.transform, 2, size - 16, size - 4, 14, string.Empty, 10, UiKit.TextCol, TextAnchor.MiddleCenter);
-            return new Slot { Border = border, Icon = icon, Num = num, Name = name };
-        }
-
         private void RefreshHotbar(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             // No on-foot hotbar while flying the ship — you're piloting, not holding hand tools. BUT on an EVA
             // the hotbar IS shown: you float in space and build/mine on structures from your inventory, so you
             // need to see + pick the held block/tool (B?).
             bool hide = (Game.SpaceViewActive || Game.InSpace) && !Game.InEva;
-            for (int i = 0; i < Slots; i++)
+            if (_hotbarRoot != null && _hotbarRoot.activeSelf == hide)
             {
-                if (_hotbar[i].Border != null)
-                {
-                    _hotbar[i].Border.gameObject.SetActive(!hide);
-                }
+                _hotbarRoot.SetActive(!hide);
             }
 
             if (hide)
@@ -512,12 +503,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A quick scale tick on the newly selected slot (skipped for the initial selection).
+            // A quick pop on the newly selected slot's icon (skipped for the initial selection); the persistent
+            // scale-up + bright ring (UiKit.StyleQuickSlot) is the steady "this is selected" cue.
             int selNow = Game.SelectedHotbarSlot;
-            if (selNow != _lastSelSlot && _lastSelSlot >= 0 && selNow >= 0 && selNow < Slots)
+            if (selNow != _lastSelSlot && _lastSelSlot >= 0 && selNow >= 0 && selNow < Slots && _hotbar[selNow].Icon != null)
             {
-                var border = _hotbar[selNow].Border.gameObject;
-                (border.GetComponent<SlotTick>() ?? border.AddComponent<SlotTick>()).Restart();
+                var ico = _hotbar[selNow].Icon.gameObject;
+                (ico.GetComponent<SlotTick>() ?? ico.AddComponent<SlotTick>()).Restart();
             }
 
             _lastSelSlot = selNow;
@@ -526,7 +518,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var s = _hotbar[i];
                 bool sel = i == Game.SelectedHotbarSlot;
-                s.Border.color = sel ? new Color(0.12f, 0.4f, 0.6f, 0.95f) : new Color(0.05f, 0.12f, 0.24f, 0.82f);
+                UiKit.StyleQuickSlot(s, sel);
                 s.Num.text = (i + 1).ToString();
 
                 string item = Game.ItemInSlot(i);
@@ -563,8 +555,10 @@ namespace BlocksBeyondTheStars.Client
 
                 s.Icon.color = IconResolver.Tint(item, Game); // toxic consumables read green
                 s.Icon.enabled = true;
+                // The held slot shows its full name (brighter); the rest stay short so the row reads at a glance.
                 string name = loc.Get($"item.{item}.name");
-                s.Name.text = name.Length > 9 ? name.Substring(0, 8) + "…" : name;
+                s.Name.text = sel ? name : (name.Length > 10 ? name.Substring(0, 9) + "…" : name);
+                s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
             }
         }
 

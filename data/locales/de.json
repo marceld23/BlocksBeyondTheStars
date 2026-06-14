@@ -533,6 +533,7 @@
   "ui.tech.status": "Status",
   "ui.tech.prereqs": "Voraussetzungen",
   "ui.tech.cost": "Freischaltkosten",
+  "ui.tech.knowledge": "Wissenspunkte",
   "ui.tech.unlocked": "Freigeschaltet",
   "ui.tech.locked": "Gesperrt",
   "ui.tech.materials_missing": "Material fehlt",

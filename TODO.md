@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **579 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **579 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,18 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ HUD quick-bar readability + flight/menu consistency — ✅ COMPLETE, Unity build-verified (2026-06-15)
+- **Hotbar (HudUi):** larger cells (72px) with the icon nearly filling each cell, a dark backplate + cyan
+  keyline, a bright fill + outline ring on the selected slot, outlined hotkey numbers, and the full item name
+  on the held slot only — was small/low-contrast with a ~25%-filled icon.
+- **Shared cell (`UiKit.QuickSlot`):** the hotbar + the flight **ship-systems bar** now render the same icon
+  cells (SpaceView's centred text strip → icon slots on a backplate), so the on-foot and flight HUDs read alike.
+- **"New content" menu badges (`UiKit.AddBadge`):** the **Arcade** entry badges on a freshly downloaded
+  data-cube minigame (cleared on open), the **Story** tab badges on a new beat/fragment/memory (cleared on
+  open), and the **Tech** tab badges when a blueprint is unlockable right now.
+- **Tech knowledge cost:** the client now shows + enforces `BlueprintDefinition.KnowledgeCost` in the Tech
+  detail and the "unlockable" status (`ui.tech.knowledge`, DE+EN) — it was ignored client-side (server-validated only).
 
 ### ★ Story system ("The VEGA Protocol") — ✅ P0–P8 COMPLETE, server + Unity build-verified (2026-06-14)
 **Plans:** [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) (engineering, phased P0–P8 +
