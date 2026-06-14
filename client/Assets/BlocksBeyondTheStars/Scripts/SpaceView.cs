@@ -241,6 +241,7 @@ namespace BlocksBeyondTheStars.Client
 
             SyncEntities();
             SyncRemotePlayers();
+            DrainWarpFx();
             UpdateBeams(Time.deltaTime);
             if (_phase == Phase.Cruise)
             {
@@ -402,6 +403,55 @@ namespace BlocksBeyondTheStars.Client
                 var bit = p.AddComponent<ExhaustBit>();
                 bit.Vel = Random.onUnitSphere * Random.Range(9f, 24f);
                 bit.LifeSpan = Random.Range(0.7f, 1.25f);
+                bit.Size = size;
+            }
+        }
+
+        /// <summary>Plays the queued NPC-trader warp flashes (a localized hyperspace burst at a world position),
+        /// so every player in the instance sees traders arrive and depart. Drained once per frame.</summary>
+        private void DrainWarpFx()
+        {
+            var pending = Game != null ? Game.PendingWarpFx : null;
+            if (pending == null || pending.Count == 0 || _root == null)
+            {
+                return;
+            }
+
+            foreach (var fx in pending)
+            {
+                // Trader positions are instance-local (the same space remote poses use), so map through _root.
+                var at = _root.transform.TransformPoint(new Vector3(fx.X, fx.Y, fx.Z));
+                SpawnWarpFlash(at, fx.Arriving);
+            }
+
+            pending.Clear();
+        }
+
+        /// <summary>A short cyan-white hyperspace burst — streaks rush inward on arrival, burst outward on
+        /// departure. Pure cosmetic FX (mirrors the ship-explosion particle pattern).</summary>
+        private void SpawnWarpFlash(Vector3 at, bool arriving)
+        {
+            var streak = Unlit(new Color(0.55f, 0.8f, 1f));  // cyan-white hyperspace streaks
+            var core = Unlit(new Color(0.95f, 0.98f, 1f));   // bright flash core
+            Transform parent = _root != null ? _root.transform : null;
+            int count = arriving ? 26 : 20;
+            for (int i = 0; i < count; i++)
+            {
+                bool bright = i % 5 == 0;
+                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                StripCollider(p);
+                if (parent != null)
+                {
+                    p.transform.SetParent(parent, false);
+                }
+
+                p.transform.position = at + Random.insideUnitSphere * 1.3f;
+                float size = bright ? 0.5f : 0.24f;
+                p.transform.localScale = Vector3.one * size;
+                p.GetComponent<Renderer>().sharedMaterial = bright ? core : streak;
+                var bit = p.AddComponent<ExhaustBit>();
+                bit.Vel = Random.onUnitSphere * Random.Range(6f, 16f) * (arriving ? -1f : 1f);
+                bit.LifeSpan = Random.Range(0.45f, 0.8f);
                 bit.Size = size;
             }
         }

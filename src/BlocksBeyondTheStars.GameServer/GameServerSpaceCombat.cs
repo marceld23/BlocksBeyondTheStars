@@ -111,6 +111,22 @@ public sealed class SpaceInstance
     /// <summary>Voxel structures floating in this instance (item 20). S1: each present player's own ship,
     /// keyed by player id, seeded from its ship-editor design. Later stages add stations + voxel asteroids.</summary>
     public Dictionary<string, SpaceStructure> Structures { get; } = new();
+
+    // ---- Peaceful NPC trader traffic (ambient liveliness) — transient, in-memory only ----
+
+    /// <summary>NPC trader ships currently flying in this instance (warp in → cruise → dock/depart).</summary>
+    internal List<NpcTrader> Traders { get; } = new();
+
+    /// <summary>Uptime at which this instance may spawn its next NPC trader (paces ambient traffic by the
+    /// system's traffic level).</summary>
+    public double NextTraderSpawnAt { get; set; }
+
+    /// <summary>True once this instance has rolled its first trader-spawn time (so a fresh instance isn't
+    /// instantly busy).</summary>
+    public bool TraderScheduleInit { get; set; }
+
+    /// <summary>Throttle for streaming trader-movement updates to clients (mirrors the hostile sync cadence).</summary>
+    public double TraderSyncTimer { get; set; }
 }
 
 /// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
@@ -960,6 +976,10 @@ public sealed partial class GameServer
                 BroadcastSpaceState(instance);
             }
 
+            // Peaceful NPC trader traffic: spawn (warp in), fly toward a station/inner system, dock or pass
+            // through, depart (warp out). Purely ambient — invulnerable, never damages anyone.
+            TickSpaceTraders(instance, dt);
+
             float incoming = instance.Entities
                 .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
                 .Sum(e => e.DamagePerSecond);
@@ -1263,7 +1283,9 @@ public sealed partial class GameServer
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
-            Players = OtherPlayersInSpace(session.State.PlayerId, instance),
+            // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
+            // remote-ship render path (their voxel hull arrives via a "ship_remote" SpaceShipDesign).
+            Players = AppendTraderPoses(OtherPlayersInSpace(session.State.PlayerId, instance), instance),
         });
 
     /// <summary>The other players this one currently sees in its space instance (ships + EVA suits).</summary>

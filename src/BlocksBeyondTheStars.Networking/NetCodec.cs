@@ -230,6 +230,9 @@ public static class NetCodec
         Register(145, typeof(CoreDialogueChoiceIntent)); // Client -> Server (the player's rebuttal pick)
         Register(146, typeof(CoreHackIntent));           // Client -> Server (channel the core hack one tick)
         Register(149, typeof(CoreHackProgress));         // Server -> Client (core-hack channel progress)
+
+        // Peaceful NPC trader traffic: a localized warp-in/out flash so other players see traders arrive/leave.
+        Register(150, typeof(SpaceWarpFx));              // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

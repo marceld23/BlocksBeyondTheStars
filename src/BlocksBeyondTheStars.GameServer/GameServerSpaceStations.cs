@@ -560,6 +560,9 @@ public sealed partial class GameServer
             added++;
         }
 
+        // Peaceful NPC traffic: if a trader ship has recently docked here, its pilot trades at the post too.
+        MaybeSpawnVisitingTrader(station);
+
         if (added > 0)
         {
             _log.Info($"Spawned {added} crew NPCs at station '{station.Name}'.");

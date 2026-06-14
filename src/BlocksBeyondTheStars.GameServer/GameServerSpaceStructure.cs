@@ -82,9 +82,20 @@ public sealed partial class GameServer
     /// into a standalone sparse grid instead of the planet world. Hatch/door cells render as holes. Ships with
     /// no designed layout fall back to a hollow hull box derived from the design's interior dimensions.</summary>
     private SpaceStructure BuildShipStructure(string ownerId)
+        => BuildShipStructureFrom("ship:" + ownerId, ownerId,
+            _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: true);
+
+    /// <summary>Builds a peaceful NPC trader's ship as a voxel structure straight from a ship-type key — no
+    /// player owner, no persisted edits. Reuses the exact player-ship voxel pipeline so a trader renders 1:1
+    /// as the real in-game ship of that type; new ship types in <c>data/ships.json</c> are picked up
+    /// automatically (the NPC selection enumerates <see cref="GameContent.Ships"/>).</summary>
+    private SpaceStructure BuildNpcShipStructure(string structureId, string shipTypeKey)
+        => BuildShipStructureFrom(structureId, string.Empty,
+            _content.GetShip(shipTypeKey) ?? _content.GetShip("starter"), persistEdits: false);
+
+    private SpaceStructure BuildShipStructureFrom(string structureId, string ownerId, ShipDefinition? design, bool persistEdits)
     {
-        var design = _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter");
-        var s = new SpaceStructure { Id = "ship:" + ownerId, Kind = "ship", OwnerId = ownerId };
+        var s = new SpaceStructure { Id = structureId, Kind = "ship", OwnerId = ownerId };
 
         var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
         var glass = _content.GetBlock("glass")?.NumericId ?? wall;
@@ -153,7 +164,7 @@ public sealed partial class GameServer
                 }
             }
 
-            FinishShipStructure(s);
+            FinishShipStructure(s, persistEdits);
             return s;
         }
 
@@ -254,19 +265,23 @@ public sealed partial class GameServer
         s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 1), glass);
         s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 2), glass);
 
-        FinishShipStructure(s);
+        FinishShipStructure(s, persistEdits);
         return s;
     }
 
     /// <summary>Common ship-structure finish: paints the per-room floor accents, snapshots the protected
-    /// design baseline (hull + modules — never minable on foot), then applies the player's persisted edits
-    /// on top (added blocks; in-space EVA hull repairs/removals).</summary>
-    private void FinishShipStructure(SpaceStructure s)
+    /// design baseline (hull + modules — never minable on foot), then (for a player's own ship) applies the
+    /// player's persisted edits on top (added blocks; in-space EVA hull repairs/removals). NPC trader ships
+    /// pass <paramref name="persistEdits"/> = false: they have no owner and no per-cell deltas to load.</summary>
+    private void FinishShipStructure(SpaceStructure s, bool persistEdits = true)
     {
         PaintStructureAccents(s);
         s.Baseline.Clear();
         s.Baseline.UnionWith(s.Cells.Keys);
-        ApplyPersistedShipEdits(s);
+        if (persistEdits)
+        {
+            ApplyPersistedShipEdits(s);
+        }
     }
 
     /// <summary>Room-identity pass (ship-as-object port of the stamped PaintStationAccents): a 3×3 accent

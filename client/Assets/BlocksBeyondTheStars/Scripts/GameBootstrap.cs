@@ -252,6 +252,10 @@ namespace BlocksBeyondTheStars.Client
         public SpaceShipDesign RemoteShipDesignFor(string playerId)
             => !string.IsNullOrEmpty(playerId) && _remoteShipDesigns.TryGetValue(playerId, out var d) ? d : null;
 
+        /// <summary>Pending NPC-trader warp flashes (a localized hyperspace burst). The flight view drains this
+        /// each frame and plays each one — so everyone in the instance sees traders arrive/depart.</summary>
+        public readonly System.Collections.Generic.List<SpaceWarpFx> PendingWarpFx = new();
+
         /// <summary>Ships parked on the current world as placed structure objects (ship-as-object), keyed by
         /// structure id ("ship:&lt;playerId&gt;"). <see cref="LandedShipView"/> renders them; aiming and the
         /// weather column scans query them — the hull is NOT part of the world block grid.</summary>
@@ -749,7 +753,21 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else if (m.Kind == "ship_remote" && m.Id.StartsWith("ship:", System.StringComparison.Ordinal))
                 {
-                    _remoteShipDesigns[m.Id.Substring(5)] = m; // keyed by the owning player's id
+                    _remoteShipDesigns[m.Id.Substring(5)] = m; // keyed by the owning player's id (incl. "npc:<id>" traders)
+                }
+            };
+            // Peaceful NPC traders warping in/out — queue the flash for the flight view to play.
+            Network.SpaceWarpReceived += m =>
+            {
+                if (!InSpace)
+                {
+                    return;
+                }
+
+                PendingWarpFx.Add(m);
+                if (PendingWarpFx.Count > 24)
+                {
+                    PendingWarpFx.RemoveAt(0); // safety cap — never let a backlog grow
                 }
             };
             // Ship-as-object: ships parked on this world arrive/leave as placed structure objects.

@@ -37,6 +37,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<LandedShipState> LandedShipReceived; // ship-as-object: a parked ship placed/replaced/removed
         public event Action<SpaceEntityDestroyed> SpaceEntityDestroyed;
         public event Action<SpaceClosed> SpaceClosed;
+        public event Action<SpaceWarpFx> SpaceWarpReceived; // peaceful NPC trader warp-in/out flash for bystanders
         public event Action<StationBoarded> StationBoardedReceived;
         public event Action<PlanetEnemyList> PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
@@ -378,6 +379,7 @@ namespace BlocksBeyondTheStars.Client
                 case LandedShipState m: LandedShipReceived?.Invoke(m); break;
                 case SpaceEntityDestroyed m: SpaceEntityDestroyed?.Invoke(m); break;
                 case SpaceClosed m: SpaceClosed?.Invoke(m); break;
+                case SpaceWarpFx m: SpaceWarpReceived?.Invoke(m); break;
                 case StationBoarded m: StationBoardedReceived?.Invoke(m); break;
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;

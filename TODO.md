@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **579 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **583 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,29 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Peaceful NPC trader ships (living space) — ✅ server + tests complete, needs Unity client build (2026-06-15)
+**Plan:** [docs/NPC_TRADER_SHIPS_PLAN.md](docs/NPC_TRADER_SHIPS_PLAN.md). Ambient civilian traffic so space feels alive.
+- **Traffic per system:** deterministic **None / Rare / Often** from seed + system id (`TrafficFor`); systems with a
+  station lean busier. Drives a per-instance spawn scheduler — traders spawn **only in occupied flight instances**
+  (instances are per-launch-body), capped (Rare ≤1, Often ≤3), paced ~25–70 s (Often) / ~90–240 s (Rare).
+- **Future-proof ship choice:** picks any non-starter type from `GameContent.Ships`, weighted by cargo — new
+  ship types in `data/ships.json` are included automatically, no code change.
+- **Lifecycle (`GameServerSpaceTraders.cs`):** warp **in** at the system edge → cruise to a **station** (dock) or
+  through the inner system → **dock** (slip into the bay) or warp **out**. Multiple concurrent; transient (no DB).
+- **Rendered with zero new flight-view code:** a trader rides the existing **remote-ship** path — a synthetic
+  `NetSpacePlayer` pose (`npc:<id>`) + a `"ship_remote"` `SpaceShipDesign` (`BuildNpcShipStructure` reuses the real
+  player-ship voxel pipeline), so it shows the actual in-game ship hull of its type.
+- **Invulnerable scenery:** a trader is **never** a `CombatEntity` — it can't be locked, shot or damaged, and
+  never harms anyone.
+- **Pilot becomes a merchant:** on docking, the pilot is registered as a **visiting trader** at that station;
+  boarding the station spawns it as a `"traders"`-theme **vendor** beside the trade post, so the existing
+  station-vendor barter works against it (lingers ~150–300 s).
+- **Warp FX for bystanders:** new `SpaceWarpFx` message (tag 150) → a localized cyan-white hyperspace burst in the
+  flight view, so other players **see** arrivals/departures (the first-person `HyperspaceWarp` overlay didn't cover this).
+- **Open follow-up:** the **planet-surface** landed pilot ("stands in front of his parked ship on a planet") is the
+  remaining increment — it needs the per-player landed-ship/pad machinery; deferred to keep `main` green. Today a
+  planet-only system's traders fly through; station systems get the full dock + merchant.
 
 ### ★ HUD quick-bar readability + flight/menu consistency — ✅ COMPLETE, Unity build-verified (2026-06-15)
 - **Hotbar (HudUi):** larger cells (72px) with the icon nearly filling each cell, a dark backplate + cyan
@@ -380,6 +403,15 @@ volume buses. Splash stings left untouched.
   **synth** mood (library is all-calm). Music muffles underwater (own low-pass via `ClientAudio.Submerged`);
   single-AudioListener handover managed across menu↔game. Master=`AudioListener`, music=`MusicVolume`,
   SFX/ambience=`SfxVolume` (already separate sliders).
+- **Variance pack (B-sides) — 🎵 WIRED, awaiting assets (2026-06-15):** the single-track contexts (each
+  biome planet, station, menu, loading, cave) only had one song, so a long stay looped it. `ClientMusic`
+  pools now also reference `_2` B-sides — `music_planet_{ice,desert,lava,toxic,ocean,cave}_2`,
+  `music_planet_verdant_2`, `music_multiplayer_hub_2`, `music_main_menu_2`, `music_loading_2`,
+  `music_idle_default_2`, `music_explore_planet_2`. Each is guarded by the existing
+  `RemoveAll(LoadMusic == null)`, so it activates the moment its `.mp3` lands in `Resources/music/` (no
+  further code change). **Edit-ready Suno prompts** for all of them are in
+  [docs/MUSIC_TRACKS.md](docs/MUSIC_TRACKS.md) → *Variance pack*. **Open:** owner generates the tracks →
+  drop in → Unity client rebuild to import + compile.
 - **Open:** needs a Unity client rebuild to import the new audio + compile; not yet play-verified in-engine.
 
 ### ★ Landed ship as a real object instead of a world stamp — ✅ IMPLEMENTED (2026-06-13)
