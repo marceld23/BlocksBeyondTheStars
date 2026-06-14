@@ -46,6 +46,9 @@ namespace BlocksBeyondTheStars.Client
         public event Action<ShipStations> ShipStationsReceived;
         public event Action<PlanetPoiList> PlanetPoisReceived;
         public event Action<BeaconList> BeaconsReceived;
+        public event Action<BeamList> BeamsReceived; // placed beam blocks (teleporter pads) on the current world
+        public event Action<BeamTeleported> BeamTeleportedReceived; // my arrival after a beam (snap + arrival fx)
+        public event Action<BeamFx> BeamFxReceived; // beam column VFX at both pads, shown to everyone on the world
         public event Action<BaseList> BasesReceived; // player-founded planet bases (Grundstein) on the current world
         public event Action<LandingPadList> LandingPadsReceived;
         public event Action<ShipTransitFx> ShipTransitReceived;
@@ -140,6 +143,14 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSetBeaconLabel(int beaconId, string label)
             => Send(new SetBeaconLabelIntent { BeaconId = beaconId, Label = label ?? string.Empty });
+
+        /// <summary>Name/rename a beam block I own — by E on the pad (opens the transporter, which has a rename button).</summary>
+        public void SendSetBeamName(int beamId, string name)
+            => Send(new SetBeamNameIntent { BeamId = beamId, Name = name ?? string.Empty });
+
+        /// <summary>Beam from the pad I'm standing at to a chosen destination pad on this world.</summary>
+        public void SendBeamTeleport(int sourceId, int targetId)
+            => Send(new BeamTeleportIntent { SourceId = sourceId, TargetId = targetId });
 
         /// <summary>Name/rename my base on a body (Grundstein) — by E at the stone, or the Map "Rename base" button.</summary>
         public void SendSetBaseName(string bodyId, string name)
@@ -360,6 +371,9 @@ namespace BlocksBeyondTheStars.Client
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
                 case BeaconList m: BeaconsReceived?.Invoke(m); break;
+                case BeamList m: BeamsReceived?.Invoke(m); break;
+                case BeamTeleported m: BeamTeleportedReceived?.Invoke(m); break;
+                case BeamFx m: BeamFxReceived?.Invoke(m); break;
                 case BaseList m: BasesReceived?.Invoke(m); break;
                 case LandingPadList m: LandingPadsReceived?.Invoke(m); break;
                 case ShipTransitFx m: ShipTransitReceived?.Invoke(m); break;

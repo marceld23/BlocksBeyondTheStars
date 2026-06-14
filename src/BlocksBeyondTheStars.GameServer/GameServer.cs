@@ -336,6 +336,7 @@ public sealed partial class GameServer
 
         LoadPlayerDoors(); // persisted player-built doors load on every world (void or not, settlement or not)
         LoadBeacons();     // placed radio beacons restore their label/owner entities (the blocks come back via edits)
+        LoadBeams();       // placed beam blocks restore their name/owner entities (the blocks come back via edits)
 
         var body = _galaxy?.FindBody(locationId);
         if (body is not null && body.Status != GenerationStatus.Visited)
@@ -515,6 +516,7 @@ public sealed partial class GameServer
         SendDoors(session);
         SendDataCubes(session); // minigame download cubes on this body
         SendBeacons(session);
+        SendBeams(session); // placed beam blocks (teleporter pads) on this body
         SendBases(session); // player-founded bases on this body (Grundstein markers)
         SendLandingPads(session);
         SendContainers(session);
@@ -714,6 +716,7 @@ public sealed partial class GameServer
             UpdateAboveAtmosphere(session);
 
             DecayTeleportCooldown(p.PlayerId, dt);
+            DecayBeamCooldown(p.PlayerId, dt);
             TickStealth(session, dt);
             TickJetpack(session, dt);
             float maxOxygen = MaxOxygen(p);
@@ -1294,6 +1297,8 @@ public sealed partial class GameServer
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
+            case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
+            case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
             case SetBaseNameIntent baseName: HandleSetBaseName(session, baseName); break;
             case SetStationNameIntent stationName: HandleSetStationName(session, stationName); break;
             case RequestLandingPadsIntent reqPads: HandleRequestLandingPads(session, reqPads); break;
@@ -1454,6 +1459,7 @@ public sealed partial class GameServer
         SendDataCubes(session);   // minigame download cubes on the join world
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendBeacons(session);
+        SendBeams(session); // placed beam blocks (teleporter pads) on the join world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendLandingPads(session);
@@ -1852,6 +1858,10 @@ public sealed partial class GameServer
         {
             RemoveBaseAt(pos); // mining a base core removes the founded base (Grundstein)
         }
+        else if (def.Key == "beam_block")
+        {
+            RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
+        }
 
         // A toxic flora species yields poisonous berries instead of edible ones (the scan warns which is which).
         bool toxicFlora = IsFlora(current.Value)
@@ -2050,6 +2060,10 @@ public sealed partial class GameServer
         else if (blockDef.Key == "base_core")
         {
             PlaceBase(session, pos); // a placed base core founds a named planet base (Grundstein)
+        }
+        else if (blockDef.Key == "beam_block")
+        {
+            PlaceBeam(session, pos, place.Label); // a placed beam block becomes a named teleporter pad
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow });

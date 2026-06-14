@@ -12,8 +12,9 @@ asset here **with its licence** before bundling it.
 the death cues `space_death`/`player_death`, the per-species creature calls `creature_call_*`, the
 item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`amb_wind_high` + the
 `geyser_erupt` eruption, the planet-enemy vocals `enemy_growl`/`enemy_attack`/`enemy_hurt`/`enemy_die`,
-the ship-AI radio chirp `ai_blip` (VEGA companion), and the water-body ambient loops
-`water_surf`/`water_brook` (coastal surf + flowing brook))
+the ship-AI radio chirp `ai_blip` (VEGA companion), the water-body ambient loops
+`water_surf`/`water_brook` (coastal surf + flowing brook), and the beam-block teleporter cues
+`beam_teleport` (jump whoosh) + `beam_idle` (pad idle hum loop))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
@@ -40,7 +41,7 @@ VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, and the planet-enemy
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, the `beam_block` teleporter pad, and the planet-enemy
 `enemy_hide` chitin tile) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the

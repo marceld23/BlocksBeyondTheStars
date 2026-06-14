@@ -268,6 +268,20 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Player-placed beam blocks (teleporter pads): a cyan ring + the typed name beside it.
+            if (Game.Beams != null)
+            {
+                var beamCol = new Color(0.28f, 0.85f, 1f);
+                foreach (var b in Game.Beams)
+                {
+                    Marker(b.X, b.Z, 22f, beamCol, "⊕", "map_beacon");
+                    string name = string.IsNullOrEmpty(b.Name) ? L("ui.beam.default") : b.Name;
+                    MarkerLabel(b.X, b.Z, name, beamCol);
+                    float bd = GroundDistance(b.X, b.Z);
+                    poiLines.Append($"\n⊕ {name}  —  {Mathf.RoundToInt(bd)} m");
+                }
+            }
+
             // Player-founded bases (Grundstein): a teal house glyph at the base core + the base name beside it.
             if (Game.Bases != null)
             {

@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **506 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **513 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,25 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Beam blocks — craftable named teleporter pads (same-planet teleport) — ✅ IMPLEMENTED (2026-06-14)
+**Goal:** craft a **beam block**, place + name it, then step onto it and press **E** to beam to any of your own or an
+allied player's beam blocks on the **same world**. Each pad shows its name + coordinates on the planet map and as a
+floating in-world label. Modeled on the radio beacon (a real voxel block + a tracked entity carrying owner/name)
+plus a teleport action. Beaming costs **6 suit energy** with a **6 s cooldown**; scope is **own + allied** pads.
+- **Server:** `GameServerBeam.cs` — `ServerBeam` entity (per-world list on `LoadedWorld.Beams`), place/remove/rename,
+  `HandleBeamTeleport` (reach + own/ally scope + energy + cooldown → set position on the destination pad +
+  `SendPlayerState` + `BeamTeleported` snap + `BeamFx` broadcast); `LoadBeams` on world activation, `DecayBeamCooldown`
+  on the env tick. Hooks in `HandlePlace`/`BreakBlockAt`/gadget-blast (mirrors `radio_beacon`/`base_core`).
+- **Networking:** `Messages/BeamMessages.cs` (`NetBeam`/`BeamList`/`SetBeamNameIntent`/`BeamTeleportIntent`/
+  `BeamTeleported`/`BeamFx`); NetCodec tags 134–138. **Persistence:** `StoredBeam` + `beam` SQLite table (Save/List/Delete).
+- **Client:** `BeamView` (glow column + idle hum + floating names + jump VFX), `BeamPadUi` transporter panel (destination
+  list with name/coords/distance + Beam + owner Rename), `PlayerController` E-dispatch + place-naming, `WorldMap`
+  markers, `NetworkClient`/`GameBootstrap` wiring (`CanUseBeam` own+ally filter, `RespawnTarget` snap), `WorldRig`.
+- **Data:** `beam_block` block/item/recipe (workshop, blueprint-gated, titanium + cable + energy cell + crystal) +
+  `beam_block` blueprint; bilingual `block/item/blueprint.beam_block.*` + `ui.beam.*` (de+en).
+- **Assets:** `beam_block` texture (OpenAI) + `beam_teleport`/`beam_idle` sounds (ElevenLabs).
+- **Tests:** `BeamTests` (7) — place/mine/rename/persist/teleport/energy-gate/ally-scope. **Needs:** Unity client build.
 
 ### ★ Bug-fix wave — oxygen, ship hatch, UFO combat, space explosion, asteroid loot, settings scroll — ✅ FIXED (2026-06-14)
 Six reported issues, server stays authoritative; in-game text bilingual; all 506 tests green.

@@ -146,6 +146,38 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Placed radio beacons (labelled waypoints) for the world map + compass (item 37).</summary>
         public NetBeacon[] Beacons { get; private set; } = System.Array.Empty<NetBeacon>();
 
+        /// <summary>Placed beam blocks (teleporter pads) on the current world, for the map + the transporter panel.</summary>
+        public NetBeam[] Beams { get; private set; } = System.Array.Empty<NetBeam>();
+
+        /// <summary>True if the local player may use this beam block as a source/destination: they own it or are
+        /// allied with the owner (admins are handled server-side). Drives the transporter's destination list.</summary>
+        public bool CanUseBeam(NetBeam b)
+        {
+            if (b == null)
+            {
+                return false;
+            }
+
+            if (b.OwnerId == LocalPlayerId)
+            {
+                return true;
+            }
+
+            var allies = Alliances?.Allies;
+            if (allies != null)
+            {
+                foreach (var a in allies)
+                {
+                    if (a.PartnerId == b.OwnerId)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Player-founded planet bases (Grundstein) on the current world, for the planet map markers.</summary>
         public NetBase[] Bases { get; private set; } = System.Array.Empty<NetBase>();
 
@@ -635,6 +667,8 @@ namespace BlocksBeyondTheStars.Client
             Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
+            Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
+            Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; };
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };

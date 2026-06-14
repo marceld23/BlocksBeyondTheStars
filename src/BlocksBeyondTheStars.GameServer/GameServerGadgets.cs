@@ -195,6 +195,10 @@ public sealed partial class GameServer
             {
                 RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
             }
+            if (d.Key == "beam_block")
+            {
+                RemoveBeamAt(p); // don't orphan a blasted beam block's name/marker (teleporter pad)
+            }
             if (IsFluid(b.Value) || HasFluidNeighbor(p))
             {
                 OnFluidRemoved(p); // a hole opened in/under water or lava refills

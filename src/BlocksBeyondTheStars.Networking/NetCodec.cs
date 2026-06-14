@@ -204,6 +204,14 @@ public static class NetCodec
         // the 10 Hz presence stream (heavier payload, changes rarely).
         Register(132, typeof(SetFaceIntent)); // Client -> Server (set/clear my face)
         Register(133, typeof(PlayerFace));    // Server -> Client (another player's face)
+
+        // Beam blocks (teleporter pads): craftable, named pads that beam the player to their own/allied pads
+        // on the same world. Like beacons, the block is a real voxel; these messages carry the metadata + jump.
+        Register(134, typeof(BeamList));          // Server -> Client (beam blocks on the current world)
+        Register(135, typeof(SetBeamNameIntent)); // Client -> Server (name/rename a beam block I own)
+        Register(136, typeof(BeamTeleportIntent)); // Client -> Server (beam from the pad I'm at to a chosen pad)
+        Register(137, typeof(BeamTeleported));    // Server -> Client (my arrival position — snap + arrival fx)
+        Register(138, typeof(BeamFx));            // Server -> Client (beam column VFX at both pads, for everyone)
     }
 
     private static void Register(byte tag, Type type)

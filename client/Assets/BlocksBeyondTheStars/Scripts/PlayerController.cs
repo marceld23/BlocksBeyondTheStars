@@ -785,6 +785,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A beam block (teleporter pad) you're standing on / next to opens the transporter — pick a destination
+            // among your own + allied pads on this world, then beam to it.
+            int beam = BeamView.Instance != null ? BeamView.Instance.NearestUsableBeam(transform.position, 2.2f) : 0;
+            if (beam != 0)
+            {
+                BeamPadUi.Instance?.Open(beam);
+                return;
+            }
+
             // A settlement hinge door you're standing at opens/closes with E — checked BEFORE stations so a door
             // next to a market stall still opens (sci-fi slide doors open themselves; this is for village doors) (B47).
             int door = DoorView.Instance != null ? DoorView.Instance.NearestHinge(transform.position, 3f) : 0;
@@ -1284,6 +1293,15 @@ namespace BlocksBeyondTheStars.Client
                         var cell = placeCell;
                         BeaconLabelUi.Instance.Open(
                             Game.Localizer?.Get("ui.beacon.name_prompt") ?? "Name this beacon",
+                            string.Empty,
+                            label => Game.Network.SendPlace(cell.x, cell.y, cell.z, item, label));
+                    }
+                    else if (def.PlacesBlock == "beam_block" && BeaconLabelUi.Instance != null)
+                    {
+                        // Name the beam block before placing it — the typed name travels with the place (teleporter pad).
+                        var cell = placeCell;
+                        BeaconLabelUi.Instance.Open(
+                            Game.Localizer?.Get("ui.beam.name_prompt") ?? "Name this beam block",
                             string.Empty,
                             label => Game.Network.SendPlace(cell.x, cell.y, cell.z, item, label));
                     }

@@ -115,6 +115,14 @@ namespace BlocksBeyondTheStars.Client
             var beaconView = root.AddComponent<BeaconView>();
             beaconView.Game = boot;
 
+            // Beam blocks (teleporter pads): glow column + idle hum + floating names + jump VFX.
+            var beamView = root.AddComponent<BeamView>();
+            beamView.Game = boot;
+
+            // Transporter panel: opens on E at a beam pad (destinations: own + allied pads on this world).
+            var beamPad = root.AddComponent<BeamPadUi>();
+            beamPad.Game = boot;
+
             // Ship AI companion "VEGA": onboarding lines, objective chip, advisor hints, story beats.
             var vega = root.AddComponent<VegaPanel>();
             vega.Game = boot;

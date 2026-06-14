@@ -37,6 +37,19 @@ public sealed class StoredBeacon
     public string OwnerId { get; set; } = string.Empty;
 }
 
+/// <summary>A placed beam block (teleporter pad), persisted by its world cell with its player-typed name + owner.
+/// The beam_block voxel itself comes back via the normal block-edit store; this row carries the metadata + lets
+/// the player beam between their own and allied pads on the same world.</summary>
+public sealed class StoredBeam
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+}
+
 /// <summary>A player-founded planet base (Grundstein), persisted by its world cell with its player-typed name +
 /// owner. The base_core block itself comes back via the normal block-edit store; this row carries the metadata.</summary>
 public sealed class StoredBase
@@ -150,6 +163,14 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredBeacon> ListBeacons(string planet);
 
     void DeleteBeacon(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a placed beam block, keyed by its world cell.</summary>
+    void SaveBeam(StoredBeam beam);
+
+    /// <summary>Lists all placed beam blocks on a planet (restored on world load).</summary>
+    IReadOnlyList<StoredBeam> ListBeams(string planet);
+
+    void DeleteBeam(string planet, int x, int y, int z);
 
     /// <summary>Stores (inserts or replaces) a player-founded planet base, keyed by its world cell.</summary>
     void SaveBase(StoredBase basePoint);
