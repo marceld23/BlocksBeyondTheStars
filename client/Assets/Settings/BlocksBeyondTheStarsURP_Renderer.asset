@@ -16,12 +16,12 @@ MonoBehaviour:
   m_Settings:
     AOMethod: 0
     Downsample: 0
-    AfterOpaque: 0
-    Source: 1
+    AfterOpaque: 1
+    Source: 0
     NormalSamples: 1
-    Intensity: 3
+    Intensity: 1.2
     DirectLightingStrength: 0.25
-    Radius: 0.035
+    Radius: 0.25
     Samples: 1
     BlurQuality: 0
     Falloff: 100
@@ -36,7 +36,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: de640fe3d0db1804a85f9fc8f5cadab6, type: 3}
-  m_Name: New Universal Render Pipeline Asset_Renderer
+  m_Name: BlocksBeyondTheStarsURP_Renderer
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalRendererData
   debugShaders:
     debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7, type: 3}
