@@ -266,7 +266,10 @@ namespace BlocksBeyondTheStars.Client
                     // Per-plant size variance (a grass field is tall + short tufts, not a uniform lawn): a
                     // deterministic bell scale from the world cell, so all clients agree. Height varies more
                     // than width; they're keyed off different salts so a plant can be tall + slender or low + bushy.
-                    float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f);
+                    // Tall species (ferns, reeds, grass tufts…) get a taller billboard, so vegetation reads in
+                    // layers — low ground cover beneath a taller upper storey — rather than one flat carpet.
+                    float tallBoost = TallFlora.Contains(collKey) ? 1.85f : 1f;
+                    float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f) * tallBoost;
                     float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantH, plantW);
@@ -472,8 +475,17 @@ namespace BlocksBeyondTheStars.Client
         {
             var key = content.BlockById(id)?.Key;
             return key != null
-                && (key.StartsWith("flora_", System.StringComparison.Ordinal) || key == "tree_leaves");
+                && (key.StartsWith("flora_", System.StringComparison.Ordinal)
+                    || key == "tree_leaves" || key == "pine_needles" || key == "palm_frond");
         }
+
+        // Tall cross-billboard flora (an upper vegetation layer above the low ground cover). MUST mirror the
+        // FloraHeight.Tall, non-solid entries in FloraCatalog. Solid/cube flora ignore height, so they're absent.
+        private static readonly HashSet<string> TallFlora = new HashSet<string>
+        {
+            "flora_fern", "flora_vine", "flora_reed", "flora_thornbush", "flora_kelp", "flora_seagrass",
+            "flora_tendril", "flora_alienfern", "flora_palm", "flora_grasstuft", "flora_icereed", "flora_saltgrass",
+        };
 
         // The structural / solid / glowing-cap flora that read better as solid cubes — everything else
         // leafy (plus tree crowns) gets the alpha-cutout leaf look. MUST match bake_leaf_alpha.py's FOLIAGE.
@@ -501,7 +513,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            return key == "tree_leaves"
+            return key == "tree_leaves" || key == "pine_needles" || key == "palm_frond"
                 || (key.StartsWith("flora_", System.StringComparison.Ordinal) && !SolidFlora.Contains(key));
         }
 
@@ -558,6 +570,7 @@ namespace BlocksBeyondTheStars.Client
                 case "light_green": return 1.00f;
                 case "lava": return 1.00f;
                 case "flora_emberbloom": return 0.95f;
+                case "flora_cinderbush": return 0.70f; // smouldering volcanic embers
                 case "data_cache": return 0.90f;
                 case "flora_glowcap": return 0.85f;
                 case "flora_glowvine": return 0.80f;

@@ -93,6 +93,16 @@ TEXTURES = [
     ("flora_bellflower", "drooping clusters of blue and violet bell-shaped flowers, top-down"),
     ("flora_ashweed", "scorched grey-black volcanic weed with brittle ashen stalks, top-down"),
     ("flora_glowvine", "bioluminescent glowing green-cyan vine with luminous leaves in the dark, top-down"),
+    # Flora variety V2 — fill the thin biomes (rock / ice / snow / salt / ash) + signature tall grass.
+    ("flora_grasstuft", "tall waving lush green grass blades in a tuft, top-down"),
+    ("flora_rockflower", "hardy small flower with pink and white blossoms growing from grey rock, top-down"),
+    ("flora_snowbush", "low hardy shrub with dark green leaves dusted in white snow and frost, top-down"),
+    ("flora_icereed", "tall brittle pale blue frozen ice reeds and crystalline stalks, top-down"),
+    ("flora_saltgrass", "wiry sparse pale grey-green salt grass tufts on a white salt crust, top-down"),
+    ("flora_cinderbush", "charred dark volcanic bush with smouldering glowing orange embers, top-down"),
+    # Distinct tree crowns for the new conifer + palm archetypes.
+    ("pine_needles", "dense dark green pine conifer needle foliage canopy, small overlapping needles, top-down"),
+    ("palm_frond", "broad green tropical palm tree fronds, long radiating feathered leaves, top-down"),
     # Task 5 — new metal / rare-earth / raw-resource ores (grey host rock with the metal's veins).
     ("gold_ore", "grey stone with bright shiny yellow gold ore veins"),
     ("silver_ore", "grey stone with bright metallic silver-white ore veins"),

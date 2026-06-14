@@ -80,7 +80,7 @@ public sealed class WorldGenerator
     /// the column's natural surface block, and caves directly below are plugged so the pad never collapses
     /// into a cavern. Runs as a post-pass so every feature stamp is covered uniformly.</summary>
     private void FlattenLandingPads(ChunkData chunk, ChunkCoord coord,
-        List<(BlockId Surface, BlockId Sub)> biomes, long seed)
+        List<BiomeResolved> biomes, long seed)
     {
         if (_landingPads.Count == 0)
         {
@@ -662,8 +662,9 @@ public sealed class WorldGenerator
 
             // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
             int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
-            var surfaceId = biomes[biomeIndex].Surface;
-            var subSurfaceId = biomes[biomeIndex].Sub;
+            var biome = biomes[biomeIndex];
+            var surfaceId = biome.Surface;
+            var subSurfaceId = biome.Sub;
 
             // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
             // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air.
@@ -770,11 +771,15 @@ public sealed class WorldGenerator
             // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
             if (flora && seabedY + 1 > waterTop)
             {
-                var floraId = FloraForSurface(planet, surfaceId, seed, worldX, worldZ);
+                var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ);
                 int fy = seabedY + 1;
                 int fly = fy - origin.Y;
+                // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
+                // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
+                // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
+                double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
                 if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < floraDensity)
+                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < localFloraDensity)
                 {
                     chunk.Set(lx, fly, lz, floraId);
                 }
@@ -789,10 +794,11 @@ public sealed class WorldGenerator
             // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
             if (flora && islandTop != int.MinValue)
             {
-                var isleFlora = FloraForSurface(planet, surfaceId, seed, worldX, worldZ);
+                var isleFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
                 int ify = islandTop + 1 - origin.Y;
+                double isleDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
                 if (!isleFlora.IsAir && ify >= 0 && ify < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < floraDensity)
+                    && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < isleDensity)
                 {
                     chunk.Set(lx, ify, lz, isleFlora);
                 }
@@ -995,7 +1001,7 @@ public sealed class WorldGenerator
     /// ground (item 21 V3). Mirrors <see cref="StampTrees"/>: scans a margin so a mushroom straddling a chunk
     /// edge generates identically from either chunk, and the per-column roll wraps in X. Deterministic.</summary>
     private void StampGiantMushrooms(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
-        List<(BlockId Surface, BlockId Sub)> biomes, BlockId stemId, BlockId capId, BlockId myceliumId, int fluidLevel)
+        List<BiomeResolved> biomes, BlockId stemId, BlockId capId, BlockId myceliumId, int fluidLevel)
     {
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
@@ -1079,20 +1085,25 @@ public sealed class WorldGenerator
         return 1.0 + (u - 0.5) * 2.0 * amp;
     }
 
-    /// <summary>Stamps multi-block trees (a wood trunk + a rounded leaf crown) on grass/earth columns. Each
-    /// tree gets a size of its own — trunk height and crown radius vary per instance (loosely coupled: a
-    /// bigger tree tends to have both, plus independent jitter), so a wood reads as a mix of saplings and
-    /// giants. Scans a margin (the MAX crown) around the chunk so a tree straddling an edge generates the
-    /// same from either chunk; the per-column roll wraps in X. Deterministic from the seed.</summary>
+    /// <summary>Stamps multi-block trees on grass/earth columns. Each biome's flora theme dictates the tree
+    /// ARCHETYPES its woods are made of (broadleaf / conifer / palm / jungle / dead); a low-frequency grove
+    /// mask picks one kind per patch so a wood is all conifers OR all palms, not a jumble of shapes. Each tree
+    /// also gets its own size (loosely-coupled trunk + crown). Scans a margin (the MAX crown) so a tree
+    /// straddling a chunk edge generates identically from either chunk; the per-column roll wraps in X.
+    /// Deterministic from the seed.</summary>
     private void StampTrees(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
-        List<(BlockId Surface, BlockId Sub)> biomes, BlockId logId, BlockId leafId, double density, int fluidLevel)
+        List<BiomeResolved> biomes, BlockId logId, BlockId leafId, double density, int fluidLevel)
     {
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
-        const int maxCrown = 3; // the widest a crown can grow — the chunk-edge scan margin must cover it
+        const int maxCrown = 4; // the widest a crown can grow (jungle canopy) — the chunk-edge scan margin must cover it
         var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
         var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
+        var sandId = _content.GetBlock("sand")?.NumericId ?? BlockId.Air;
+        // Distinct foliage for needled / fronded crowns; fall back to the generic leaf if not in this content.
+        var pineId = _content.GetBlock("pine_needles")?.NumericId ?? leafId;
+        var palmId = _content.GetBlock("palm_frond")?.NumericId ?? leafId;
 
         void SetCell(int wx, int wy, int wz, BlockId block, bool overwrite)
         {
@@ -1113,20 +1124,33 @@ public sealed class WorldGenerator
         for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
         for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
         {
-            // FORESTS: a low-frequency mask gathers trees into real groves/woods — the old uniform
-            // sprinkle never read as a forest. Inside a forest patch the density is ~9x, on the
-            // fringe ~2x, and the open land between patches stays almost bare.
+            var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)];
+
+            // FORESTS: a low-frequency mask gathers trees into real groves/woods. Inside a forest patch the
+            // density is ~9x, on the fringe ~2x, the open land between almost bare — scaled by the biome's
+            // (and its theme's) tree density so savanna stays sparse, jungle dense, fungal/crystal treeless.
             double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
-            double localDensity = density * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
-            if (Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
+            double localDensity = density * biome.TreeMul * biome.Theme.TreeMul
+                * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
+            if (localDensity <= 0.0
+                || Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
             {
                 continue;
             }
 
-            var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)].Surface;
-            if (surf != grassId && surf != dirtId && surf != mudId)
+            // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
+            var kind = PickTreeKind(biome.Theme.Trees, seed, wx, wz, planet.TerrainScale);
+            if (kind == TreeKind.None)
             {
-                continue; // trees only on grassy / earthy ground
+                continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
+            }
+
+            var surf = biome.Surface;
+            bool earthy = surf == grassId || surf == dirtId || surf == mudId;
+            bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
+            if (!earthy && !sandyOk)
+            {
+                continue;
             }
 
             int sy = SurfaceHeight(planet, wx, wz);
@@ -1145,28 +1169,188 @@ public sealed class WorldGenerator
             double sizeF = SizeFactor(seed + 0x71EE5, wx, wz, 0.30);              // overall tree size, ±30% (bell)
             double hJit = SizeFactor(seed + 0x71EE6, wx, wz, 0.12);              // independent height jitter
             double cJit = SizeFactor(seed + 0x71EE7, wx, wz, 0.12);              // independent crown jitter
-            int height = System.Math.Clamp((int)System.Math.Round(5.5 * sizeF * hJit), 3, 10);   // ~4..7 before, now ~3..10
-            int crownR = System.Math.Clamp((int)System.Math.Round(2.0 * sizeF * cJit), 1, maxCrown); // 1..3
-            int topY = sy + height;
 
-            for (int ty = sy + 1; ty <= topY; ty++)
+            switch (kind)
             {
-                SetCell(wx, ty, wz, logId, overwrite: true);
-            }
-
-            // A roughly spherical canopy whose radius (and height) scale with the crown size.
-            for (int dy = -1; dy <= crownR; dy++)
-            for (int dx = -crownR; dx <= crownR; dx++)
-            for (int dz = -crownR; dz <= crownR; dz++)
-            {
-                if (dx * dx + dz * dz + dy * dy > crownR * crownR + 1)
-                {
-                    continue;
-                }
-
-                SetCell(wx + dx, topY + dy, wz + dz, leafId, overwrite: false);
+                case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, SetCell); break;
+                case TreeKind.Palm:    BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, SetCell); break;
+                case TreeKind.Jungle:  BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                case TreeKind.Dead:    BuildDead(wx, sy, wz, sizeF, hJit, logId, SetCell); break;
+                default:               BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
             }
         }
+    }
+
+    /// <summary>Picks one tree archetype for this column from the theme's palette. A low-frequency grove mask
+    /// keeps a whole patch to a single kind (a pine wood, a palm grove), not a per-tree jumble.</summary>
+    private TreeKind PickTreeKind(TreeKind[] palette, long seed, int wx, int wz, double terrainScale)
+    {
+        int valid = 0;
+        foreach (var k in palette)
+        {
+            if (k != TreeKind.None)
+            {
+                valid++;
+            }
+        }
+
+        if (valid == 0)
+        {
+            return TreeKind.None;
+        }
+
+        if (valid == 1)
+        {
+            foreach (var k in palette)
+            {
+                if (k != TreeKind.None)
+                {
+                    return k;
+                }
+            }
+        }
+
+        double grove = FbmT(seed + 0x70EE17, wx, wz, terrainScale * 3.0, octaves: 2);
+        int pick = (int)(grove * valid);
+        if (pick >= valid)
+        {
+            pick = valid - 1;
+        }
+
+        int n = 0;
+        foreach (var k in palette)
+        {
+            if (k == TreeKind.None)
+            {
+                continue;
+            }
+
+            if (n++ == pick)
+            {
+                return k;
+            }
+        }
+
+        return TreeKind.Broadleaf;
+    }
+
+    /// <summary>The classic deciduous tree: a straight trunk under a roughly spherical leaf crown.</summary>
+    private static void BuildBroadleaf(int wx, int sy, int wz, double sizeF, double hJit, double cJit,
+        BlockId logId, BlockId leafId, System.Action<int, int, int, BlockId, bool> set)
+    {
+        int height = System.Math.Clamp((int)System.Math.Round(5.5 * sizeF * hJit), 3, 10);
+        int crownR = System.Math.Clamp((int)System.Math.Round(2.0 * sizeF * cJit), 1, 3);
+        int topY = sy + height;
+        for (int ty = sy + 1; ty <= topY; ty++)
+        {
+            set(wx, ty, wz, logId, true);
+        }
+
+        for (int dy = -1; dy <= crownR; dy++)
+        for (int dx = -crownR; dx <= crownR; dx++)
+        for (int dz = -crownR; dz <= crownR; dz++)
+        {
+            if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 1)
+            {
+                set(wx + dx, topY + dy, wz + dz, leafId, false);
+            }
+        }
+    }
+
+    /// <summary>A rainforest giant: very tall trunk under a broad, deep canopy.</summary>
+    private static void BuildJungle(int wx, int sy, int wz, double sizeF, double hJit, double cJit,
+        BlockId logId, BlockId leafId, System.Action<int, int, int, BlockId, bool> set)
+    {
+        int height = System.Math.Clamp((int)System.Math.Round(8.0 * sizeF * hJit), 7, 14);
+        int crownR = System.Math.Clamp((int)System.Math.Round(3.0 * sizeF * cJit), 2, 4);
+        int topY = sy + height;
+        for (int ty = sy + 1; ty <= topY; ty++)
+        {
+            set(wx, ty, wz, logId, true);
+        }
+
+        for (int dy = -2; dy <= crownR; dy++)
+        for (int dx = -crownR; dx <= crownR; dx++)
+        for (int dz = -crownR; dz <= crownR; dz++)
+        {
+            if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 2)
+            {
+                set(wx + dx, topY + dy, wz + dz, leafId, false);
+            }
+        }
+    }
+
+    /// <summary>A boreal conifer: tall narrow trunk under a layered conical needle crown tapering to a tip.</summary>
+    private static void BuildConifer(int wx, int sy, int wz, double sizeF, double hJit, double cJit,
+        BlockId logId, BlockId leafId, System.Action<int, int, int, BlockId, bool> set)
+    {
+        int height = System.Math.Clamp((int)System.Math.Round(7.0 * sizeF * hJit), 5, 13);
+        int baseR = System.Math.Clamp((int)System.Math.Round(2.0 * sizeF * cJit), 1, 3);
+        int topY = sy + height;
+        for (int ty = sy + 1; ty <= topY; ty++)
+        {
+            set(wx, ty, wz, logId, true);
+        }
+
+        int crownStart = sy + System.Math.Max(2, height / 3);
+        int tip = topY + 1;
+        for (int y = crownStart; y <= topY; y++)
+        {
+            double f = (double)(tip - y) / (tip - crownStart); // wide at the base, ~0 near the tip
+            int r = System.Math.Clamp((int)System.Math.Round(baseR * f), 0, baseR);
+            for (int dx = -r; dx <= r; dx++)
+            for (int dz = -r; dz <= r; dz++)
+            {
+                if (dx * dx + dz * dz <= r * r + 1)
+                {
+                    set(wx + dx, y, wz + dz, leafId, false);
+                }
+            }
+        }
+
+        set(wx, tip, wz, leafId, false); // pointed tip
+    }
+
+    /// <summary>A palm: a bare slender trunk topped by a burst of drooping fronds.</summary>
+    private static void BuildPalm(int wx, int sy, int wz, double sizeF, double hJit, double cJit,
+        BlockId logId, BlockId leafId, System.Action<int, int, int, BlockId, bool> set)
+    {
+        int height = System.Math.Clamp((int)System.Math.Round(6.0 * sizeF * hJit), 5, 11);
+        int fr = System.Math.Clamp((int)System.Math.Round(2.0 * cJit), 2, 3);
+        int topY = sy + height;
+        for (int ty = sy + 1; ty <= topY; ty++)
+        {
+            set(wx, ty, wz, logId, true);
+        }
+
+        set(wx, topY + 1, wz, leafId, false); // crown core
+        set(wx, topY, wz, leafId, false);
+        int[,] dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+        for (int i = 0; i < dirs.GetLength(0); i++)
+        {
+            for (int d = 1; d <= fr; d++)
+            {
+                int y = topY - (d == fr ? 1 : 0); // the frond tips droop one cell
+                set(wx + dirs[i, 0] * d, y, wz + dirs[i, 1] * d, leafId, false);
+            }
+        }
+    }
+
+    /// <summary>A bare dead snag: a trunk with a couple of stub branches and no leaves.</summary>
+    private static void BuildDead(int wx, int sy, int wz, double sizeF, double hJit,
+        BlockId logId, System.Action<int, int, int, BlockId, bool> set)
+    {
+        int height = System.Math.Clamp((int)System.Math.Round(4.5 * sizeF * hJit), 3, 8);
+        int topY = sy + height;
+        for (int ty = sy + 1; ty <= topY; ty++)
+        {
+            set(wx, ty, wz, logId, true);
+        }
+
+        set(wx + 1, topY - 1, wz, logId, false);
+        set(wx - 1, topY - 2, wz, logId, false);
+        set(wx, topY - 1, wz + 1, logId, false);
+        set(wx, topY - 2, wz - 1, logId, false);
     }
 
     // --- Per-world interior variety (item 21): two worlds of the same TYPE still differ underground — one is
@@ -1239,17 +1423,40 @@ public sealed class WorldGenerator
         return fallback;
     }
 
-    /// <summary>
-    /// Resolves the (surface, sub-surface) block ids the planet actually uses. A multi-biome
-    /// planet lists a *pool* of biomes; how many of them this world uses is randomised per world
-    /// from the seed (2..pool), so each multi-biome world differs. Single-biome → one entry.
-    /// </summary>
-    private List<(BlockId Surface, BlockId Sub)> ResolveBiomes(PlanetType planet)
+    /// <summary>A biome resolved for this world: its surface/sub-surface blocks plus the per-biome flora
+    /// theme + density multipliers used when seeding plants and trees (so one region reads lush + tropical
+    /// and another sparse + arid within the same world).</summary>
+    private readonly struct BiomeResolved
     {
-        var list = new List<(BlockId, BlockId)>();
+        public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme)
+        {
+            Surface = surface;
+            Sub = sub;
+            FloraMul = floraMul;
+            TreeMul = treeMul;
+            Theme = theme;
+        }
+
+        public BlockId Surface { get; }
+        public BlockId Sub { get; }
+        public double FloraMul { get; }
+        public double TreeMul { get; }
+        public FloraThemes.Theme Theme { get; }
+    }
+
+    /// <summary>
+    /// Resolves the surface/sub-surface blocks (+ per-biome flora theme &amp; density) the planet actually
+    /// uses. A multi-biome planet lists a *pool* of biomes; how many of them this world uses is randomised
+    /// per world from the seed (2..pool), so each multi-biome world differs. Single-biome → one entry.
+    /// </summary>
+    private List<BiomeResolved> ResolveBiomes(PlanetType planet)
+    {
+        var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
+        var list = new List<BiomeResolved>();
         if (planet.Biomes.Count <= 0)
         {
-            list.Add((ResolveBlock(planet.SurfaceBlock), ResolveBlock(planet.SubSurfaceBlock)));
+            list.Add(new BiomeResolved(ResolveBlock(planet.SurfaceBlock), ResolveBlock(planet.SubSurfaceBlock),
+                1.0, 1.0, planetTheme));
             return list;
         }
 
@@ -1264,7 +1471,9 @@ public sealed class WorldGenerator
         for (int i = 0; i < count; i++)
         {
             var b = planet.Biomes[i];
-            list.Add((ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock)));
+            var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
+            list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
+                b.FloraDensityMul, b.TreeDensityMul, theme));
         }
 
         return list;
@@ -1332,6 +1541,8 @@ public sealed class WorldGenerator
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     // surface block id -> the pool of (this world's active) flora that may grow on it.
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
+    // flora block id -> its climate tags (for theme-weighted, patchy species selection).
+    private readonly System.Collections.Generic.Dictionary<ushort, FloraTag> _floraTagByBlock = new();
 
     /// <summary>Resolves this world's active flora subset (once): builds the per-surface land-flora pools from
     /// only the archetypes <see cref="FloraGenerator"/> activated for this world, and records whether the two
@@ -1366,6 +1577,7 @@ public sealed class WorldGenerator
                 continue; // aquatic flora are placed in submerged columns; inactive forms don't grow here
             }
 
+            _floraTagByBlock[flora.NumericId.Value] = sp.Tags;
             foreach (var hostKey in sp.Hosts)
             {
                 if (_content.GetBlock(hostKey) is { } host)
@@ -1387,25 +1599,74 @@ public sealed class WorldGenerator
     }
 
     /// <summary>
-    /// Picks the flora block for a given surface (Air = none). Each surface has a pool of this world's active,
-    /// biome-appropriate species; a per-column noise roll selects one so a planet shows a mix rather than a
-    /// single plant everywhere.
+    /// Picks the flora block for a biome's surface (Air = none). Selection is PATCHY (a low-frequency noise,
+    /// not per-cell white noise) so one species dominates a contiguous patch — a fern glade here, a flower
+    /// meadow there — instead of a salt-and-pepper mix; and it is THEME-WEIGHTED so the biome's preferred
+    /// climate species fill most of the patches while off-theme ones still turn up for variety.
     /// </summary>
-    private BlockId FloraForSurface(PlanetType planet, BlockId surface, long seed, int worldX, int worldZ)
+    private BlockId FloraForSurface(PlanetType planet, BiomeResolved biome, long seed, int worldX, int worldZ)
     {
         ResolveFlora(planet);
-        if (_floraBySurface.TryGetValue(surface.Value, out var pool) && pool.Length > 0)
+        if (!_floraBySurface.TryGetValue(biome.Surface.Value, out var pool) || pool.Length == 0)
         {
-            int idx = (int)(Noise.Value01(seed + 9101, WorldConstants.WrapX(worldX, _circumference), 3, Wz(worldZ)) * pool.Length);
-            if (idx >= pool.Length)
-            {
-                idx = pool.Length - 1;
-            }
-
-            return pool[idx < 0 ? 0 : idx];
+            return BlockId.Air;
         }
 
-        return BlockId.Air;
+        if (pool.Length == 1)
+        {
+            return pool[0];
+        }
+
+        // Theme weights: preferred species count more, so a patch is most likely one of the biome's signature
+        // plants. Total is small (pools are a handful of species) so recomputing per column is cheap.
+        int total = 0;
+        for (int i = 0; i < pool.Length; i++)
+        {
+            total += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
+                ? FloraThemes.PickWeight(biome.Theme, tag) : 1;
+        }
+
+        // A low-frequency patch field selects WITHIN the weighted distribution; nearby columns share a value,
+        // so the chosen species changes only at patch boundaries (coherent fields, not per-cell noise).
+        double t = FbmT(seed + 9101, worldX, worldZ, 18.0, octaves: 2);
+        int target = (int)(t * total);
+        if (target >= total)
+        {
+            target = total - 1;
+        }
+
+        int acc = 0;
+        for (int i = 0; i < pool.Length; i++)
+        {
+            acc += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
+                ? FloraThemes.PickWeight(biome.Theme, tag) : 1;
+            if (target < acc)
+            {
+                return pool[i];
+            }
+        }
+
+        return pool[pool.Length - 1];
+    }
+
+    /// <summary>The per-column surface-flora density: the world/biome base scaled by a vegetation-richness
+    /// mask (lush thickets vs sparse open ground) and the per-biome density, capped so even the lushest
+    /// patch leaves some bare ground.</summary>
+    private double LocalFloraDensity(PlanetType planet, BiomeResolved biome, double baseDensity, long seed, int wx, int wz)
+    {
+        double d = baseDensity * biome.FloraMul * biome.Theme.DensityMul * VegetationRichness(planet, seed, wx, wz);
+        return d > 0.95 ? 0.95 : d;
+    }
+
+    /// <summary>0.45..2.2 vegetation-richness multiplier per column. Couples undergrowth to the SAME forest
+    /// mask the trees cluster in (so woods get a carpeted floor, not bare ground under the trunks) plus an
+    /// independent meadow mask, so treeless biomes also break into lush thickets and sparse clearings.</summary>
+    private double VegetationRichness(PlanetType planet, long seed, int wx, int wz)
+    {
+        double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3); // matches StampTrees' grove mask
+        double meadow = FbmT(seed + 0x9E2D07, wx, wz, planet.TerrainScale * 1.6, octaves: 2); // independent lush/sparse patches
+        double m = forest > meadow ? forest : meadow; // a wood OR a meadow makes a column lush
+        return m > 0.62 ? 2.2 : m > 0.52 ? 1.5 : m > 0.40 ? 1.0 : 0.45;
     }
 
     private BlockId ResolveBlock(string key)

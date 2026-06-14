@@ -30,11 +30,11 @@ OUT = Path("out/textures")
 # Foliage = tree crowns + leafy plants. MUST match ChunkMesher.IsFoliageBlock: tree_leaves + every
 # flora_* EXCEPT the structural/solid + glowing-cap ones (those read better as solid cubes).
 FOLIAGE = [
-    "tree_leaves",
-    "flora_ashweed", "flora_bellflower", "flora_bush", "flora_coral", "flora_dryshrub",
-    "flora_fern", "flora_flower", "flora_frostflower", "flora_kelp", "flora_lichen", "flora_lily",
-    "flora_moss", "flora_orchid", "flora_palm", "flora_plant", "flora_reed", "flora_seagrass",
-    "flora_thornbush", "flora_vine",
+    "tree_leaves", "pine_needles", "palm_frond",
+    "flora_ashweed", "flora_bellflower", "flora_bush", "flora_cinderbush", "flora_coral", "flora_dryshrub",
+    "flora_fern", "flora_flower", "flora_frostflower", "flora_grasstuft", "flora_icereed", "flora_kelp",
+    "flora_lichen", "flora_lily", "flora_moss", "flora_orchid", "flora_palm", "flora_plant", "flora_reed",
+    "flora_rockflower", "flora_saltgrass", "flora_seagrass", "flora_snowbush", "flora_thornbush", "flora_vine",
 ]
 
 

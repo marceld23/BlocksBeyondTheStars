@@ -25,6 +25,11 @@ public static class FloraGenerator
         long planetSeed = worldSeed ^ WorldGenerator.StableHash(planet.Key) ^ 0x5EEDF10A;
         const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
 
+        // The world's flora theme biases WHICH forms grow: species whose climate tags match the theme are
+        // common, off-theme species an occasional find — so a tropical world and a savanna world (both grass)
+        // grow visibly different plant life. Coverage is enforced afterwards so no surface ever goes bare.
+        var theme = FloraThemes.Resolve(planet.FloraTheme);
+
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
         {
@@ -37,7 +42,7 @@ public static class FloraGenerator
                 BlockKey = archetype.Key,
                 Toxic = rng.NextDouble() < 0.3,  // most flora is benign; a notable minority is toxic
                 Aquatic = archetype.Aquatic,
-                Active = rng.NextDouble() < 0.6, // only a subset of forms grows on any given world
+                Active = rng.NextDouble() < FloraThemes.ActivationChance(theme, archetype.Tags),
             });
             i++;
         }

@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **513 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **521 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,30 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Flora variety — per-biome themes, lush patchy undergrowth, multi-layer plants, tree archetypes — ✅ IMPLEMENTED (2026-06-14)
+**Goal:** every biome reads as its own ecosystem — a forest is not "trees on bare ground" but a carpeted, layered,
+varied thicket, and the same idea for all biomes (desert/tundra/swamp/jungle…). Flora is still surface-driven +
+deterministic; the gains are richness, clustering, theming and tree shape variety.
+- **Themes (data-driven):** `FloraCatalog` species now carry climate `FloraTag`s + a `FloraHeight`; `FloraThemes`
+  maps a theme → preferred tags + density/tree multipliers + tree archetypes. Each planet sets `floraTheme`
+  (`data/planets.json`); biomes may override it + scale density via `floraTheme`/`floraDensityMul`/`treeDensityMul`
+  (`Biome` schema). So jungle-grass ≠ savanna-grass ≠ alpine-grass, and one `varied` world spans temperate meadow +
+  arid dunes + rocky highland + swampy bog.
+- **Richer placement (`WorldGenerator`):** a low-frequency **vegetation-richness mask** couples undergrowth density
+  to the SAME forest mask the trees cluster in (lush forest floors) plus an independent meadow mask (lush/sparse
+  patches everywhere); species selection is now **patchy + theme-weighted** (coherent fern glades / flower meadows,
+  not salt-and-pepper). `FloraGenerator` activation is theme-biased (coverage still enforced).
+- **Multi-layer:** tall species (ferns, reeds, grass tufts, vines…) render as taller cross-billboards
+  (`ChunkMesher.TallFlora`) over the low ground cover — still one voxel per cell, so harvest/regrow is unchanged.
+- **Tree archetypes (`StampTrees`):** broadleaf / conifer / palm / jungle-giant / dead, chosen per grove by the
+  biome theme — conifers on alpine/tundra, palms+jungle on tropical, dead snags on ashen/desert. New foliage blocks
+  `pine_needles` + `palm_frond` (flora-hued cutout crowns).
+- **New flora (fill thin biomes):** `flora_grasstuft, flora_rockflower, flora_snowbush, flora_icereed,
+  flora_saltgrass, flora_cinderbush` (+ the two leaf blocks) — bilingual `block.*` loc (de+en), drops, OpenAI
+  textures bundled + leaf-alpha baked.
+- **Tests:** `FloraVarietyTests` (8) — catalog/theme consistency, themed resolution, lush-world species variety,
+  tree stamping, conifer-only alpine woods. Full suite **521 green**. **Needs:** Unity client build (in progress).
 
 ### ★ Beam blocks — craftable named teleporter pads (same-planet teleport) — ✅ IMPLEMENTED (2026-06-14)
 **Goal:** craft a **beam block**, place + name it, then step onto it and press **E** to beam to any of your own or an

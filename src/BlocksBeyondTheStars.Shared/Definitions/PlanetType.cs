@@ -5,6 +5,18 @@ public sealed class Biome
 {
     public string SurfaceBlock { get; set; } = "dirt";
     public string SubSurfaceBlock { get; set; } = "dirt";
+
+    /// <summary>Optional flora theme override for this biome (see <see cref="FloraThemes"/>). Empty = inherit
+    /// the planet's <see cref="PlanetType.FloraTheme"/>. Lets one region of a world read tropical and another
+    /// arid, beyond just a different surface block.</summary>
+    public string FloraTheme { get; set; } = string.Empty;
+
+    /// <summary>Per-biome multiplier on surface-flora density (1.0 = the planet's density). Makes one biome a
+    /// lush meadow and another sparse scrub within the same world.</summary>
+    public double FloraDensityMul { get; set; } = 1.0;
+
+    /// <summary>Per-biome multiplier on tree density (1.0 = the planet's tree density; 0 = a treeless biome).</summary>
+    public double TreeDensityMul { get; set; } = 1.0;
 }
 
 /// <summary>An ore vein generation rule for a planet type.</summary>
@@ -100,6 +112,11 @@ public sealed class PlanetType
 
     /// <summary>0..1 chance of surface flora per eligible column (0 = no plants). Bounded: one plant per cell.</summary>
     public double FloraDensity { get; set; }
+
+    /// <summary>Default flora theme for this world type (see <see cref="FloraThemes"/>): biases which species
+    /// grow + the tree archetypes its woods are made of, so each world type has its own plant signature.
+    /// Empty = the temperate default. Biomes may override it per region via <see cref="Biome.FloraTheme"/>.</summary>
+    public string FloraTheme { get; set; } = string.Empty;
 
     /// <summary>0..1 — how much surface water this world has (raises the sea level so more basins flood); only
     /// worlds with an atmosphere get water. <c>null</c> = auto (atmosphere worlds get a moderate amount).</summary>
