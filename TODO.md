@@ -57,9 +57,11 @@ finale** vs. the dormant Guardian core. Story is data: `data/stories/<id>/`.
   P4 three-eyed-robot retheme **and the flying scan-drone** (`WorldEntities.BuildDrone` — hovering dark pod +
   red scanner eye, branch on `NetCombatEntity.Kind == "ScanDrone"`; server mix is count-neutral inside
   `PlanetEnemies`, toggled by `GameRules.PlanetDrones`) · **P6 finale encounter UI** (`FinaleView` — hold-`F`
-  hack bar + the number-key **argument-duel panel**, driven by 143/144/149 + sends 145/146; bilingual). ⏭ **Still
+  hack bar + the number-key **argument-duel panel**, driven by 143/144/149 + sends 145/146; bilingual) · **P6
+  boss music** (`ClientMusic` 5 finale contexts approach/gauntlet/hack/dialogue/resolution → the `music_boss_*`
+  tracks, override every context, cross-fade per phase). ⏭ **Still
   open (Unity + world-gen + playtests):** P6 **two physical routes** (fly-in interior vs. land+dig) + the in-world
-  core console, gauntlet HUD, **boss visuals** + `ClientMusic` finale music, robotic SFX · P4 robotic SFX +
+  core console, gauntlet HUD, **boss/core visuals**, robotic SFX · P4 robotic SFX +
   a proper Fragment/Memory **reader panel** · P8 story-selection world-option UI + story-density slider · P7
   flavour-line pool + mission threading.
   See [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) §P0–P8.

@@ -19,6 +19,15 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>Singleton so the music director can read the current finale phase.</summary>
+        public static FinaleView Instance { get; private set; }
+
+        /// <summary>The argument duel is open (drives the dialogue boss track).</summary>
+        public bool DuelActive => _duelActive;
+
+        /// <summary>The player is actively channeling the breach — hack bar live, not yet complete.</summary>
+        public bool Hacking => !_hacked && !_duelActive && Time.time < _hackBarVisibleUntil;
+
         /// <summary>Fixed name of the finale system (server <c>StarSystem.Name</c>), used to show the breach hint
         /// only while the player is actually on the Guardian Core.</summary>
         private const string GuardianSystemName = "Guardian Core";
@@ -50,6 +59,8 @@ namespace BlocksBeyondTheStars.Client
 
         private bool OnGuardianWorld => string.Equals(_systemName, GuardianSystemName, System.StringComparison.Ordinal);
         private bool FinaleActive => Game?.Story != null && Game.Story.GuardianSystemRevealed && !Game.Story.GuardianDefeated;
+
+        private void Awake() => Instance = this;
 
         private void Update()
         {
@@ -282,6 +293,11 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.CoreDialogueReceived -= OnDialogue;
                 Game.Network.GuardianSystemRevealedReceived -= OnSystemRevealed;
                 Game.Network.WorldResetReceived -= OnWorldReset;
+            }
+
+            if (Instance == this)
+            {
+                Instance = null;
             }
         }
     }

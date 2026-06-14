@@ -347,10 +347,17 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 >   (`IsGuardianSystemLocation(session.CurrentLocationId)`), so the breach only channels at the core. **567 green**
 >   (+1: hack-only-at-core).
 >
+> **🟦 P6 — boss music wired (2026-06-14, ⚙️ Unity build-verified).** `ClientMusic` gained 5 **finale contexts**
+> that override every other context and always play their dedicated boss track (even in Synth mode / combat —
+> a scripted set-piece): **approach** (in the `guardian_finale*` system), **gauntlet** (in-system + in combat),
+> **hack** (`FinaleView.Hacking`), **dialogue** (`FinaleView.DuelActive`), **resolution** (a ~32 s sting once
+> `GuardianDefeated` flips, then normal music resumes). Phase is read from the story flags + the current
+> location id + the `FinaleView` singleton; tracks cross-fade between phases and loop in place. Falls back to
+> the matching synth mood if a track file is ever missing. (`music_boss_{approach,gauntlet,hack,dialogue,resolution}.mp3`.)
+>
 > ⏳ **Remaining (⚙️ Unity + world-gen):** the **two physical routes** (fly-in interior vs. land + dig) + the
 > actual in-world core console/encounter on the landable body (today the breach hint shows anywhere on the
-> Guardian Core, server-gated); a **gauntlet HUD**; **boss visuals** + `ClientMusic` finale contexts (5 staged
-> tracks); robotic SFX.
+> Guardian Core, server-gated); a **gauntlet HUD**; **boss/core visuals**; robotic SFX.
 The finale is **staged**, not just another drone fight: a hard gauntlet, a **hack** to open the core, then a
 **dialogue duel** won by exposing the Guardian's contradiction — **weapons cannot destroy the core**.
 - **Server (reveal):** score maxed **and** all `vega` beats seen → `RevealGuardianSystem` →

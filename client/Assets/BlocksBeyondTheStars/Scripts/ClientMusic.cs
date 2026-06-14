@@ -33,6 +33,9 @@ namespace BlocksBeyondTheStars.Client
             PlanetGeneric, PlanetIce, PlanetDesert, PlanetLava, PlanetToxic, PlanetOcean,
             PlanetVerdant, PlanetCrystal, PlanetCave,
             Space, Combat,
+            // Finale (P6): the staged Guardian-core confrontation. These override every other context and
+            // always play their dedicated boss track (even in Synth mode / combat) — a scripted set-piece.
+            FinaleApproach, FinaleGauntlet, FinaleHack, FinaleDialogue, FinaleResolution,
         }
 
         private enum SynthMood { Menu, Planet, Space, Combat }
@@ -61,6 +64,10 @@ namespace BlocksBeyondTheStars.Client
         // Combat detection: hull+shield drops while in space arm a tense window.
         private float _lastIntegrity = -1f;
         private float _combatUntil;
+
+        // Finale: a one-shot resolution window after the Guardian core falls (then normal music resumes).
+        private bool _finaleResolved;
+        private float _resolutionUntil;
 
         private void Awake()
         {
@@ -182,6 +189,13 @@ namespace BlocksBeyondTheStars.Client
                 _lastIntegrity = integrity;
             }
 
+            // Finale set-piece overrides everything once the player is engaging the Guardian core.
+            var finale = FinaleContext(game, inSpace);
+            if (finale != null)
+            {
+                return finale.Value;
+            }
+
             if (inSpace)
             {
                 return Time.time < _combatUntil ? Context.Combat : Context.Space;
@@ -204,6 +218,78 @@ namespace BlocksBeyondTheStars.Client
 
             return BiomeContext(game.Environment?.Biome);
         }
+
+        /// <summary>The finale music phase, or null when the player is not engaging the Guardian core. Priority:
+        /// resolution sting (just won) → dialogue duel → core hack → space gauntlet → approach. Resolved from the
+        /// shared story flags (<see cref="GameBootstrap.Story"/>), the current location id (the finale system is
+        /// <c>guardian_finale*</c>) and the live <see cref="FinaleView"/> phase.</summary>
+        private Context? FinaleContext(GameBootstrap game, bool inSpace)
+        {
+            var story = game.Story;
+            if (story == null || !story.Active)
+            {
+                _finaleResolved = false;
+                return null;
+            }
+
+            // Resolution sting right after the core falls — then normal music resumes for good.
+            if (story.GuardianDefeated)
+            {
+                if (!_finaleResolved)
+                {
+                    _finaleResolved = true;
+                    _resolutionUntil = Time.time + 32f;
+                }
+
+                return Time.time < _resolutionUntil ? Context.FinaleResolution : (Context?)null;
+            }
+
+            _finaleResolved = false;
+            if (!story.GuardianSystemRevealed)
+            {
+                return null;
+            }
+
+            var fv = FinaleView.Instance;
+            if (fv != null && fv.DuelActive)
+            {
+                return Context.FinaleDialogue;
+            }
+
+            if (fv != null && fv.Hacking)
+            {
+                return Context.FinaleHack;
+            }
+
+            // Approach + gauntlet only while actually inside the finale system (else: revealed but elsewhere).
+            string here = game.StarMap?.ActiveLocationId;
+            bool inGuardianSystem = !string.IsNullOrEmpty(here) && here.StartsWith("guardian_finale");
+            if (!inGuardianSystem)
+            {
+                return null;
+            }
+
+            if (inSpace && Time.time < _combatUntil)
+            {
+                return Context.FinaleGauntlet; // the elite wave is engaged
+            }
+
+            return Context.FinaleApproach;
+        }
+
+        private static bool IsFinale(Context c)
+            => c is Context.FinaleApproach or Context.FinaleGauntlet or Context.FinaleHack
+                 or Context.FinaleDialogue or Context.FinaleResolution;
+
+        private static string FinaleTrack(Context c) => c switch
+        {
+            Context.FinaleApproach => "music_boss_approach",
+            Context.FinaleGauntlet => "music_boss_gauntlet",
+            Context.FinaleHack => "music_boss_hack",
+            Context.FinaleDialogue => "music_boss_dialogue",
+            Context.FinaleResolution => "music_boss_resolution",
+            _ => null,
+        };
 
         // Maps the server's planet/biome key (data/planets.json) to a music context.
         private static Context BiomeContext(string biome)
@@ -268,6 +354,18 @@ namespace BlocksBeyondTheStars.Client
         private (AudioClip clip, string name, List<string> pool, bool loop) Resolve(
             Context want, MusicMode mode, GameBootstrap game, string exclude)
         {
+            // The finale set-piece always plays its dedicated boss track, regardless of music mode (it is a
+            // scripted moment). Falls through to the synth mood only if the track file is missing.
+            if (IsFinale(want))
+            {
+                string trackName = FinaleTrack(want);
+                var trackClip = LoadMusic(trackName);
+                if (trackClip != null)
+                {
+                    return (trackClip, trackName, null, true); // single looping track for the phase
+                }
+            }
+
             if (mode == MusicMode.Tracks && want != Context.Combat)
             {
                 var pool = PoolFor(want, game);
@@ -340,7 +438,9 @@ namespace BlocksBeyondTheStars.Client
         {
             Context.Menu or Context.Loading => SynthMood.Menu,
             Context.Space => SynthMood.Space,
-            Context.Combat => SynthMood.Combat,
+            Context.Combat or Context.FinaleGauntlet or Context.FinaleHack => SynthMood.Combat,
+            Context.FinaleApproach or Context.FinaleDialogue => SynthMood.Space,
+            Context.FinaleResolution => SynthMood.Menu,
             _ => SynthMood.Planet,
         };
 
