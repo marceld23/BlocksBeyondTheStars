@@ -135,6 +135,12 @@ public sealed class GameRules
     public AlienActivity AlienUfos { get; set; } = AlienActivity.Off;
     public AlienActivity PlanetEnemies { get; set; } = AlienActivity.Normal;
 
+    /// <summary>Story P4: when on, a fraction of the planet-enemy population spawns as the black flying
+    /// <b>scan-drone</b> variant (hovering) instead of the walking three-eyed ground robot — so planets carry
+    /// both machine types. Toggles the mix only; the total planet-enemy count stays governed by
+    /// <see cref="PlanetEnemies"/>. Live-editable.</summary>
+    public bool PlanetDrones { get; set; } = true;
+
     /// <summary>Count-neutral machine/wreck coupling (story P5): when on, planet machines bias their spawn
     /// position toward a nearby wreck (clustering there) and hit harder there — without changing HOW MANY
     /// spawn (the frequency sliders + cap are untouched). Off restores uniform spawning. Live-editable.</summary>

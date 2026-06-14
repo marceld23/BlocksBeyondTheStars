@@ -57,7 +57,10 @@ public sealed partial class GameServer
         if (_enemySpawnTimer >= EnemySpawnInterval && _planetEnemies.Count < cap)
         {
             _enemySpawnTimer = 0;
-            SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State);
+            // A fraction (~2 in 5) of the population spawns as the flying scan-drone variant (P4), the rest as
+            // walking three-eyed ground robots — both within the same PlanetEnemies cap (count unchanged).
+            bool asDrone = Rules.PlanetDrones && (_planetEnemies.Count % 5) < 2;
+            SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
             BroadcastPlanetEnemies();
         }
 
@@ -170,20 +173,21 @@ public sealed partial class GameServer
         float nx = (float)WorldConstants.WrapX(enemy.Position.X + dx * speed * dt, _world.Circumference);
         float nz = (float)WorldConstants.WrapZ(enemy.Position.Z + dz * speed * dt, _world.Circumference);
         int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
+        int hover = enemy.Kind == CombatEntityKind.ScanDrone ? ScanDroneHover : 0; // scan-drones float above ground
 
-        if (System.Math.Abs(groundY - enemy.Position.Y) > 3f)
+        if (System.Math.Abs(groundY - (enemy.Position.Y - hover)) > 3f)
         {
             _enemyWander.Remove(enemy.Id); // cliff/spike in the way — stop and pick a new direction next tick
             return false;
         }
 
-        enemy.Position = new Vector3f(nx, groundY, nz);
+        enemy.Position = new Vector3f(nx, groundY + hover, nz);
         return true;
     }
 
-    private void SpawnPlanetEnemyNear(Shared.State.PlayerState player)
+    private void SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
     {
-        bool tougher = Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme;
+        bool tougher = !asDrone && Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme;
 
         // Spawn well OUTSIDE the 28-block detection range (9–13 felt like an ambush): fiends appear
         // 35–50 blocks out, roam the area on wander headings, and only start hunting when the player
@@ -219,21 +223,27 @@ public sealed partial class GameServer
         }
 
         int ey = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1; // stand on the ground, not in it
+        if (asDrone)
+        {
+            ey += ScanDroneHover; // the flying scan-drone hovers above the surface
+        }
 
+        float hull = asDrone ? 25f : (tougher ? 60f : 30f);
         _planetEnemies.Add(new CombatEntity
         {
             Id = NextEntityId(),
-            Kind = tougher ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature,
+            Kind = asDrone ? CombatEntityKind.ScanDrone : (tougher ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature),
             Hostile = true,
-            Hull = tougher ? 60f : 30f,
-            HullMax = tougher ? 60f : 30f,
+            Hull = hull,
+            HullMax = hull,
             Position = new Vector3f(ex, ey, ez),
-            DamagePerSecond = (tougher ? 6f : 4f) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
-            Loot = { new ItemAmount("carbon", 2) },
+            DamagePerSecond = (asDrone ? 3f : (tougher ? 6f : 4f)) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
+            Loot = { new ItemAmount("carbon", 2) }, // all Guardian machines drop salvage carbon
         });
     }
 
     private const float WreckCouplingRange = 64f; // bias spawns to a wreck within this of the player (P5)
+    private const int ScanDroneHover = 4;          // blocks the flying scan-drone floats above the surface (P4)
 
     /// <summary>Player attacks a planet enemy or creature with the held tool/weapon. Server resolves the hit.</summary>
     public void AttackEntity(string playerId, string entityId)

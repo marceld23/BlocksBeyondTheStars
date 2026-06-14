@@ -232,9 +232,17 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > **✅ Client retheme done + build-verified (2026-06-14):** `WorldEntities.cs` now renders the planet enemy
 > as the **black three-eyed Guardian robot** — dark-metal plating + mid-grey trim + a row of **three glowing
 > RED sensor "eyes"** (the existing model already had 3 eyes; an optional `enemy_robot` plating tile is used
-> if present). Headless Unity build green, 0 compile errors. ⏳ **Unity remainder for P4:** the **new flying
-> scan-drone** (needs the server entity too — `CombatEntityKind.ScanDrone` + spawn) + robotic SFX + a proper
-> **memory reader** (today: toast + the Story Log tab lists them).
+> if present). Headless Unity build green, 0 compile errors.
+> **✅ Flying scan-drone COMPLETE — server + client, build-verified (2026-06-14):** new
+> `CombatEntityKind.ScanDrone` + `GameRules.PlanetDrones` toggle (default on). Spawn is a **count-neutral mix**
+> inside the existing planet-enemy population (`asDrone = PlanetDrones && (_planetEnemies.Count % 5) < 2`, ~2-in-5),
+> so the total count stays governed by `PlanetEnemies`. Drones **hover** (`ScanDroneHover = 4` above `groundY`;
+> `MovePlanetEnemy` keeps the offset), are lighter (hull 25, 3 dmg/s) and excluded from the `tougher` branch.
+> Kills feed the story + memory drops like any machine. Client renders them via `WorldEntities.BuildDrone` — a
+> small dark hovering pod + single **red scanner eye** + three sensor fins, with a bob + slow scanning-yaw
+> animation (limbs skipped). Branch keys on the networked `NetCombatEntity.Kind == "ScanDrone"` string (no
+> networking change). **557 total green;** headless Unity build green. ⏳ **Unity remainder for P4:** robotic SFX
+> (today still reuses the organic growl) + a proper **memory reader** (today: toast + the Story Log tab lists them).
 - **Server (progress):** increment `machineKills` in the kill paths of `AttackCombatEntity`
   ([GameServerEnemies.cs](../src/BlocksBeyondTheStars.GameServer/GameServerEnemies.cs)) and space
   (`GameServerSpaceCombat`) with **diminishing returns / per-tier cap** (D9); covers all three machine types;
@@ -258,8 +266,10 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
   chance + per-player unlock; `EnemyMovementTests` green.
 - **DoD:** two machine threats on planets, both feeding progress; fighting them also unlocks personal
   memories. **Needs Unity build** + assets.
-- **Decision:** scan-drones get their **own frequency slider** (`PlanetDrones`, recommended) vs. sharing the
-  existing `PlanetEnemies` cap.
+- **Decision (resolved):** `PlanetDrones` shipped as a **bool toggle**, not a separate frequency slider, and
+  the drone count is a **count-neutral mix inside** the existing `PlanetEnemies` cap (~2-in-5 of the population)
+  — per the user's directive that adding drones must not change planet-enemy or space-enemy frequency. Toggling
+  it off restores an all-ground-robot population at the same total count.
 
 ### P5 — Count-neutral machine/wreck coupling — **S–M** (server-only)
 > **✅ P5 COMPLETE (2026-06-14).** `GameRules.MachineWreckCoupling` (default on, live-editable). In

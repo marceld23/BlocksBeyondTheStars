@@ -16,6 +16,7 @@ public enum CombatEntityKind
     SpaceStation,
     Creature,
     AlienMonster,
+    ScanDrone,   // story P4: the black flying Guardian scan-drone (hovering planet enemy)
     ResourceDrop,
 }
 

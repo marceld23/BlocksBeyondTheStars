@@ -30,6 +30,7 @@ namespace BlocksBeyondTheStars.Client
             public float AttackUntil;     // claw-swipe window
             public float FlinchUntil;     // hurt recoil window
             public float Pitch;
+            public bool IsDrone;          // flying scan-drone variant (hovers; no limb animation)
         }
 
         private readonly Dictionary<string, Entry> _enemies = new();
@@ -55,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
                 seen.Add(e.Id);
                 if (!_enemies.TryGetValue(e.Id, out var en))
                 {
-                    en = Build(e.Id);
+                    en = e.Kind == "ScanDrone" ? BuildDrone(e.Id) : Build(e.Id);
                     en.Target = en.Settled = new Vector3(e.X, e.Y, e.Z);
                     _enemies[e.Id] = en;
                 }
@@ -141,6 +142,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Drives the stalk/attack/flinch pose from movement + state (no Animator — procedural).</summary>
         private void Animate(Entry en, float speed, bool hostile)
         {
+            if (en.IsDrone)
+            {
+                // Hovering scan-drone: a gentle bob + a slow scanning yaw; no limbs to pose.
+                en.Body.localRotation = Quaternion.Euler(Mathf.Sin((Time.time + en.Seed) * 2f) * 4f, (Time.time * 50f) % 360f, 0f);
+                return;
+            }
+
             float moving = Mathf.Clamp01(speed / 2.5f);
             en.WalkPhase += Time.deltaTime * (3f + speed * 1.6f);
             float t = Time.time + en.Seed;
@@ -236,6 +244,43 @@ namespace BlocksBeyondTheStars.Client
             Cube(en.LegR, "ShinR", new Vector3(0f, -0.68f, -0.06f), new Vector3(0.16f, 0.4f, 0.16f), _hideDarkMat);
             Cube(en.LegR, "FootR", new Vector3(0f, -0.9f, 0.08f), new Vector3(0.2f, 0.1f, 0.3f), _clawMat);
 
+            return en;
+        }
+
+        /// <summary>Builds the flying scan-drone (P4): a small dark hovering pod with a single glowing RED
+        /// scanner eye and three sensor fins — the ground counterpart of the space UFO. Dummy limb pivots keep
+        /// the shared <see cref="Animate"/> null-safe (drones skip limb posing).</summary>
+        private Entry BuildDrone(string id)
+        {
+            EnsureMaterials();
+            int h = Hash(id);
+            float size = 0.7f + ((h & 0xFF) / 255f) * 0.2f; // 0.7..0.9 — smaller than the ground robot
+            var en = new Entry
+            {
+                Seed = (h & 0x3ff) * 0.137f,
+                Pitch = 1.1f + ((h >> 5) % 17) / 17f * 0.3f,
+                IsDrone = true,
+            };
+
+            var root = new GameObject("ScanDrone");
+            root.transform.SetParent(transform, true);
+            root.transform.localScale = Vector3.one * size;
+            en.Root = root;
+
+            en.Body = Pivot(root.transform, new Vector3(0f, 0.5f, 0f));
+            Cube(en.Body, "Pod", new Vector3(0f, 0f, 0f), new Vector3(0.5f, 0.34f, 0.5f), _hideMat);
+            Cube(en.Body, "Underside", new Vector3(0f, -0.18f, 0f), new Vector3(0.3f, 0.12f, 0.3f), _hideDarkMat);
+            Cube(en.Body, "Eye", new Vector3(0f, -0.02f, 0.26f), new Vector3(0.16f, 0.1f, 0.06f), _eyeMat); // red scanner
+            Cube(en.Body, "FinL", new Vector3(-0.34f, 0.04f, 0f), new Vector3(0.2f, 0.05f, 0.16f), _clawMat);
+            Cube(en.Body, "FinR", new Vector3(0.34f, 0.04f, 0f), new Vector3(0.2f, 0.05f, 0.16f), _clawMat);
+            Cube(en.Body, "FinB", new Vector3(0f, 0.04f, -0.34f), new Vector3(0.16f, 0.05f, 0.2f), _clawMat);
+
+            en.Head = en.Body; // the eye sits on the body
+            // Dummy limb pivots so the shared Animate() never null-refs (drones skip limb posing).
+            en.ArmL = Pivot(root.transform, Vector3.zero);
+            en.ArmR = Pivot(root.transform, Vector3.zero);
+            en.LegL = Pivot(root.transform, Vector3.zero);
+            en.LegR = Pivot(root.transform, Vector3.zero);
             return en;
         }
 

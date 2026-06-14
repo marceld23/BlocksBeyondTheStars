@@ -44,10 +44,12 @@ finale** vs. the dormant Guardian core. Story is data: `data/stories/<id>/`.
   machine kills → per-player unlock → `PlayerMemoryRevealed` 142); P6 added the **pacification gating**
   (`MarkGuardianDefeated` → no machine spawns once the core is down). **All server-side story logic is done
   and tested — 557 total green, 0 failed.**
-  ⏭ **Only the Unity client remains** (needs a build + playtests): P2 fragment objects + Fragment Reader ·
-  P3 Story Log tab + progress meter · P4 three-eyed-robot retheme + flying scan-drone + memory reader ·
-  P6 finale (Guardian system, gauntlet → two routes → hack → argument duel, boss visuals; trigger
-  `MarkGuardianDefeated` on the duel win) · P8 story-selection world-option UI.
+  ⏭ **Client build-verified so far:** P2 fragment objects + pickup · P3 Story Log tab + progress meter ·
+  P4 three-eyed-robot retheme **and the flying scan-drone** (`WorldEntities.BuildDrone` — hovering dark pod +
+  red scanner eye, branch on `NetCombatEntity.Kind == "ScanDrone"`; server mix is count-neutral inside
+  `PlanetEnemies`, toggled by `GameRules.PlanetDrones`). ⏭ **Still open (Unity + playtests):** P4 robotic SFX +
+  a proper Fragment/Memory **reader panel** · P6 finale (Guardian system, gauntlet → two routes → hack →
+  argument duel, boss visuals; trigger `MarkGuardianDefeated` on the duel win) · P8 story-selection world-option UI.
   See [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) §P0–P8.
 
 ### ★ Flora variety — per-biome themes, lush patchy undergrowth, multi-layer plants, tree archetypes — ✅ IMPLEMENTED (2026-06-14)
