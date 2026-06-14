@@ -9,8 +9,9 @@ namespace BlocksBeyondTheStars.Client
     /// digitigrade legs, antenna-like sensor spikes and a row of three glowing RED sensor "eyes" (the red
     /// lights the settlers fear). Self-animated like <see cref="PlayerAvatar"/>/creatures: a speed-driven
     /// stalk cycle, an idle sweep, a swipe lunge when hostile and close, a hurt flinch on hull drops, and
-    /// growl/attack/hurt/die vocals (ElevenLabs — robotic SFX is a follow-up). The server stays authoritative
-    /// over spawns/positions/deaths; the player attacks with F (PlayerController).
+    /// **robotic** growl/attack/hurt/die SFX (`enemy_growl`/`enemy_hurt`/`enemy_attack`/`enemy_die` — ElevenLabs
+    /// servo-whir / metallic-clang / electric-zap / power-down, since every planet enemy is now a Guardian
+    /// machine). The server stays authoritative over spawns/positions/deaths; the player attacks with F.
     /// </summary>
     public sealed class WorldEntities : MonoBehaviour
     {

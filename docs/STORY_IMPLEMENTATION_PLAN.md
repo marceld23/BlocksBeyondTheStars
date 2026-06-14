@@ -296,7 +296,7 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
   aggression only in-radius.
 - **DoD:** wrecks feel dangerous; counts provably unchanged. **No Unity build.**
 
-### P6 — Finale: Guardian system + multi-stage two-route core confrontation + pacification — **L** · ⚙️ Unity
+### P6 — Finale: Guardian system + multi-stage two-route core confrontation + pacification — **L** · ✅ functionally complete (server + Unity build-verified; bespoke boss model optional)
 > **🟦 P6 — server backbone of the finale flow COMPLETE (2026-06-14).** The whole reveal → hack → duel →
 > pacification chain now runs + persists server-side, fully tested; only the Unity encounter + world-gen remain.
 > Landed:
@@ -399,8 +399,16 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > flight space with hostiles present — counts Drone/Ufo/Cruiser from `Game.Space.Entities`). Bilingual
 > `ui.finale.gauntlet` / `ui.finale.hostiles`.
 >
-> ⏳ **Remaining (⚙️ Unity, optional polish):** a **client-rendered boss model** for the core (the voxel
-> structure already reads well); **robotic SFX** for the machines (they still reuse the organic growl).
+> **🟦 P6 — robotic SFX (2026-06-14, ⚙️ Unity build-verified).** Every planet enemy is now a Guardian machine,
+> so the four `enemy_*` cues were regenerated robotic (ElevenLabs `tools/ai-assets/gen_sound.py`): **growl** →
+> a deep servo hum + electronic growl, **hurt** → a metallic clang + glitch, **attack** → a servo whir + electric
+> zap, **die** → a descending power-down + metallic collapse. They replace the organic samples in
+> `client/Assets/Resources/audio/enemy_*.mp3` (same cue keys, so all machines — planet + the space/finale
+> drones' on-foot kin — now read as machines).
+>
+> ✅ **P6 is functionally COMPLETE** (gauntlet → two routes → hack → argument duel → pacification; system-gen +
+> reveal + respawn rule; boss music; core visuals; gauntlet HUD; robotic SFX — all build-verified). ⏳ **Optional
+> only:** a bespoke client-rendered boss model for the core (the voxel structure already reads well).
 The finale is **staged**, not just another drone fight: a hard gauntlet, a **hack** to open the core, then a
 **dialogue duel** won by exposing the Guardian's contradiction — **weapons cannot destroy the core**.
 - **Server (reveal):** score maxed **and** all `vega` beats seen → `RevealGuardianSystem` →
