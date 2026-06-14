@@ -216,11 +216,44 @@ public sealed partial class GameServer
 
         _repo.SavePlayer(session.State);
         Send(session, new MissionResult { Success = true, MissionId = missionId });
-        RecordStoryMilestone(); // settlement helped (mission completed) → story milestone (P3)
+        RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
+        TryThreadMission(def);    // P7: a matching mission thread also yields a story fragment
         SendInventory(session);
         SendMissionList(session);
         _log.Info($"Player '{session.State.Name}' turned in mission '{missionId}'.");
     }
+
+    /// <summary>P7 mission threading: if the completed mission matches one of the active story's threads, award
+    /// its story fragment (deduped by key like any net-fragment find, so it lands at most once + advances the
+    /// arc). Silently does nothing with no story / no matching thread.</summary>
+    private void TryThreadMission(BlocksBeyondTheStars.Shared.Missions.MissionDefinition def)
+    {
+        if (_story is null || def is null)
+        {
+            return;
+        }
+
+        foreach (var thread in _story.MissionThreads)
+        {
+            if (string.IsNullOrEmpty(thread.FragmentKey))
+            {
+                continue;
+            }
+
+            string needle = thread.MissionIdContains ?? string.Empty;
+            bool match = needle.Length == 0
+                || (def.NameKey?.IndexOf(needle, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                || (def.Id?.IndexOf(needle, System.StringComparison.OrdinalIgnoreCase) >= 0);
+            if (match)
+            {
+                RecordStoryFragment(thread.FragmentKey); // deduped + advances the arc + broadcasts the meter
+            }
+        }
+    }
+
+    /// <summary>Test hook: thread a completed mission by its type key (mirrors a turn-in).</summary>
+    public void TryThreadMissionForTest(string nameKey)
+        => TryThreadMission(new BlocksBeyondTheStars.Shared.Missions.MissionDefinition { Id = nameKey, NameKey = nameKey });
 
     private void HandleCreateMission(PlayerSession session, CreateMissionIntent intent)
     {

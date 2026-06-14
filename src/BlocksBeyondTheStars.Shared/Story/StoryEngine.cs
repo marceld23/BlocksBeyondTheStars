@@ -19,15 +19,20 @@ public static class StoryEngine
     /// kills are capped (diminishing returns) so combat can advance the story but never be farmed past the
     /// fragments that drive it.
     /// </summary>
-    public static int Progress(StoryDefinition def, StoryState state)
+    public static int Progress(StoryDefinition def, StoryState state, float progressScale = 1f)
     {
         if (def is null) throw new ArgumentNullException(nameof(def));
         if (state is null) throw new ArgumentNullException(nameof(state));
 
         int cappedKills = Math.Min(Math.Max(0, state.MachineKills), Math.Max(0, def.KillContributionCap));
-        return Math.Max(0, state.FragmentsFound) * def.FragmentWeight
-             + cappedKills * def.KillWeight
-             + Math.Max(0, state.Milestones) * def.MilestoneWeight;
+        int raw = Math.Max(0, state.FragmentsFound) * def.FragmentWeight
+                + cappedKills * def.KillWeight
+                + Math.Max(0, state.Milestones) * def.MilestoneWeight;
+
+        // World option (P8 StoryDensity): scale the score so a denser setting reveals the arc sooner. Clamped
+        // to a sane range so a misconfigured scale can't invert progress.
+        float scale = progressScale <= 0f ? 1f : Math.Min(4f, progressScale);
+        return (int)Math.Round(raw * scale);
     }
 
     /// <summary>
@@ -37,12 +42,12 @@ public static class StoryEngine
     /// same or lower progress reveals nothing. A beat only reveals once its predecessor has, so an
     /// out-of-order (lower) threshold can never skip ahead.
     /// </summary>
-    public static IReadOnlyList<StoryBeat> AdvanceBeats(StoryDefinition def, StoryState state)
+    public static IReadOnlyList<StoryBeat> AdvanceBeats(StoryDefinition def, StoryState state, float progressScale = 1f)
     {
         if (def is null) throw new ArgumentNullException(nameof(def));
         if (state is null) throw new ArgumentNullException(nameof(state));
 
-        int progress = Progress(def, state);
+        int progress = Progress(def, state, progressScale);
         var beats = def.Beats;
         List<StoryBeat>? revealed = null;
 

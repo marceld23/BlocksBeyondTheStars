@@ -71,5 +71,15 @@
         { "textKey": "core.duel.n3.c2", "correct": false, "responseKey": "core.duel.n3.r2" }
       ]
     }
+  ],
+  "flavourLines": [
+    { "key": "fl_settler_quiet",  "textKey": "flavour.fl_settler_quiet",  "minKnowledge": 0, "weight": 2 },
+    { "key": "fl_redlights",      "textKey": "flavour.fl_redlights",      "minKnowledge": 1, "weight": 2 },
+    { "key": "fl_machines_stir",  "textKey": "flavour.fl_machines_stir",  "minKnowledge": 2, "weight": 2 },
+    { "key": "fl_guardian_rumor", "textKey": "flavour.fl_guardian_rumor", "minKnowledge": 3, "weight": 1 },
+    { "key": "fl_peace",          "textKey": "flavour.fl_peace",          "minKnowledge": 4, "weight": 1 }
+  ],
+  "missionThreads": [
+    { "missionIdContains": "settlement", "fragmentKey": "frag_settler_legend" }
   ]
 }

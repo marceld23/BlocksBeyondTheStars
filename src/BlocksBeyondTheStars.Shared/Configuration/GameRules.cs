@@ -88,6 +88,11 @@ public enum DockingMode { Off, FriendsOnly, RequestRequired, Free }
 
 public enum LandingZoneProtection { Off, StartZoneOnly, All }
 
+/// <summary>How fast the active story unfolds (P8 world option): scales the progress score, so a denser
+/// setting reveals beats + the finale sooner without changing the pack. <see cref="Normal"/> is the pack's
+/// authored pacing.</summary>
+public enum StoryDensity { Sparse, Normal, Dense }
+
 /// <summary>
 /// Authoritative world rules (technical requirements / `anf_admin_einstellungen.md`).
 /// The admin sets these; the server enforces them; clients are told the active set on join.
@@ -145,6 +150,23 @@ public sealed class GameRules
     /// position toward a nearby wreck (clustering there) and hit harder there — without changing HOW MANY
     /// spawn (the frequency sliders + cap are untouched). Off restores uniform spawning. Live-editable.</summary>
     public bool MachineWreckCoupling { get; set; } = true;
+
+    /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
+    /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a
+    /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>
+    public string StoryId { get; set; } = string.Empty;
+
+    /// <summary>Story pacing speed (P8 world option): how fast beats + the finale unfold. Live-editable.</summary>
+    public StoryDensity StoryDensity { get; set; } = StoryDensity.Normal;
+
+    /// <summary>Multiplier applied to the story-progress score from <see cref="StoryDensity"/> (Dense reveals
+    /// the arc sooner, Sparse later). Normal is 1.0 — the pack's authored pacing.</summary>
+    public float StoryProgressScale => StoryDensity switch
+    {
+        StoryDensity.Sparse => 0.65f,
+        StoryDensity.Dense => 1.5f,
+        _ => 1f,
+    };
     public AsteroidDestructionMode AsteroidDestruction { get; set; } = AsteroidDestructionMode.MiningOnly;
     public DockingMode ShipDocking { get; set; } = DockingMode.RequestRequired;
     public bool PersonalLandingZones { get; set; } = true;

@@ -100,6 +100,48 @@ public sealed class CoreArgument
 }
 
 /// <summary>
+/// One tag-filtered ambient NPC line of a story pack (P7). Settlement/station NPCs may speak these as their
+/// greeting/idle flavour, picked by the world's tags + how far the story has come (a "knowledge level"), so
+/// villages and machine-logs react to progress. The LLM backend, when on, may rephrase non-canonically; with
+/// AI off these are spoken verbatim.
+/// </summary>
+public sealed class FlavourLine
+{
+    /// <summary>Unique id (for dedupe/debug).</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the spoken line (bilingual DE+EN).</summary>
+    public string TextKey { get; set; } = string.Empty;
+
+    /// <summary>World tags this line fits (e.g. biome / settlement theme); empty = any world.</summary>
+    public List<string> WorldTags { get; set; } = new();
+
+    /// <summary>Minimum world knowledge level (0 = none … 4 = the core is known) before this line is eligible.</summary>
+    public int MinKnowledge { get; set; }
+
+    /// <summary>Restrict to an NPC role (e.g. "vendor"); empty = any role.</summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>Relative draw weight when several lines are eligible.</summary>
+    public int Weight { get; set; } = 1;
+}
+
+/// <summary>
+/// One mission thread of a story pack (P7): wraps the existing random missions so that turning in a matching
+/// mission also yields a story <b>fragment</b> (and the usual milestone), threading the procedural mission flow
+/// into the arc without bespoke quests.
+/// </summary>
+public sealed class MissionThread
+{
+    /// <summary>Case-insensitive substring matched against the completed mission's type key (<c>NameKey</c>) or
+    /// id — e.g. "settlement" matches all settlement missions ("" = any mission).</summary>
+    public string MissionIdContains { get; set; } = string.Empty;
+
+    /// <summary>The net-fragment key awarded on turn-in (deduped like any fragment; "" = none).</summary>
+    public string FragmentKey { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// A story pack: identity + pacing config + the ordered beat arc. The story engine consumes this and is
 /// completely story-agnostic, so further storylines are added as more packs (see the implementation plan
 /// D2–D4). For P0 a pack is code-defined in <see cref="StoryRegistry"/>; a later phase loads it from
@@ -144,4 +186,11 @@ public sealed class StoryDefinition
     /// is one of the core's claims with the player's rebuttals; clearing them all shuts the core down. Empty
     /// when a pack has no scripted finale duel (the finale then falls back to a single concede).</summary>
     public List<CoreArgument> CoreArguments { get; set; } = new();
+
+    /// <summary>Tag-filtered ambient NPC flavour lines (P7), spoken by settlement/station NPCs by world tags +
+    /// the story's knowledge level. Empty packs simply add no story flavour to NPCs.</summary>
+    public List<FlavourLine> FlavourLines { get; set; } = new();
+
+    /// <summary>Mission threads (P7): turning in a matching random mission also yields a story fragment.</summary>
+    public List<MissionThread> MissionThreads { get; set; } = new();
 }

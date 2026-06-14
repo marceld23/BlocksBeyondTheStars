@@ -58,5 +58,11 @@
   "core.duel.n3.c1": "We are officers of the Scout and Pioneer Service.",
   "core.duel.n3.r1": "The originals are dead. You are not them. The claim fails. Restate.",
   "core.duel.n3.c2": "We will overwrite your core with our own.",
-  "core.duel.n3.r2": "Again you reach for force. Force is not refutation. Restate."
+  "core.duel.n3.r2": "Again you reach for force. Force is not refutation. Restate.",
+
+  "flavour.fl_settler_quiet": "Quiet skies today. The way I like them — long may it last.",
+  "flavour.fl_redlights": "Old folk say the sky-lights turned red once, and the ships stopped coming. Gives me the shivers.",
+  "flavour.fl_machines_stir": "The machines out past the ridge are stirring more than they used to. You feel it too, don't you.",
+  "flavour.fl_guardian_rumor": "There's talk of a Guardian — a great mind asleep at the edge of the map. If it ever wakes, I don't want to be here.",
+  "flavour.fl_peace": "The machines went still, all at once, the whole sky over. Whatever you did out there — thank you, traveller."
 }

@@ -60,9 +60,20 @@ public sealed partial class GameServer
             _storyState.GuardianDefeated = stored.GuardianDefeated;
             _storyState.FoundFragmentKeys = new HashSet<string>(stored.FoundFragmentKeys ?? new List<string>(), StringComparer.Ordinal);
         }
+        else if (stored is null && string.Equals(Rules.StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
+        {
+            _story = null; // fresh save, world option chose the sandbox
+            _storyState.StoryId = StoryRegistry.NoneStoryId;
+            return;
+        }
+        else if (stored is null && !string.IsNullOrEmpty(Rules.StoryId) && _content.TryGetStory(Rules.StoryId, out var chosen))
+        {
+            _story = chosen; // fresh save, world option chose a specific pack
+            _storyState.StoryId = chosen.Id;
+        }
         else
         {
-            _story = _content.DefaultStory;
+            _story = _content.DefaultStory; // fresh save (no choice) or an unknown stored pack → built-in default
             _storyState.StoryId = _story.Id;
         }
 
@@ -138,7 +149,7 @@ public sealed partial class GameServer
             return;
         }
 
-        foreach (var beat in StoryEngine.AdvanceBeats(_story, _storyState))
+        foreach (var beat in StoryEngine.AdvanceBeats(_story, _storyState, Rules.StoryProgressScale))
         {
             RevealBeatToAll(beat);
         }
@@ -216,7 +227,7 @@ public sealed partial class GameServer
         {
             StoryId = _storyState.StoryId,
             Active = StoryActive,
-            Progress = _story is null ? 0 : StoryEngine.Progress(_story, _storyState),
+            Progress = _story is null ? 0 : StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale),
             ProgressTarget = target,
             FragmentsFound = _storyState.FragmentsFound,
             MachineKills = _storyState.MachineKills,
@@ -355,6 +366,69 @@ public sealed partial class GameServer
         }
 
         return _story.Memories.Count(m => session.State.Milestones.Contains(MemoryMilestoneKey(m)));
+    }
+
+    // ---------------- P7: world knowledge level (NPC flavour gating) ----------------
+
+    /// <summary>The world's story "knowledge level" 0..4 (0 = nothing learned … 4 = the Guardian core is
+    /// known/defeated), derived from how far the shared arc has progressed. Drives which story flavour lines
+    /// settlement/station NPCs are allowed to speak (P7).</summary>
+    public int WorldKnowledgeLevel()
+    {
+        if (_story is null || _story.Beats.Count == 0)
+        {
+            return 0;
+        }
+
+        if (_storyState.GuardianDefeated)
+        {
+            return 4;
+        }
+
+        int target = _story.Beats[_story.Beats.Count - 1].Threshold;
+        if (target <= 0)
+        {
+            return 0;
+        }
+
+        double frac = StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) / (double)target;
+        if (frac >= 1.0) return 4;
+        if (frac >= 0.66) return 3;
+        if (frac >= 0.33) return 2;
+        if (frac > 0.0) return 1;
+        return 0;
+    }
+
+    // ---------------- Admin QA (P8 telemetry) ----------------
+
+    /// <summary>Admin QA: fast-forward the active story by adding <paramref name="steps"/> milestones (each
+    /// advances the arc, revealing any crossed beats). Returns the new beats-revealed count.</summary>
+    public int AdminAdvanceStory(int steps)
+    {
+        if (!StoryActive)
+        {
+            return _storyState.BeatsRevealed;
+        }
+
+        _storyState.Milestones += System.Math.Max(1, steps);
+        AdvanceStory();
+        return _storyState.BeatsRevealed;
+    }
+
+    /// <summary>Admin QA: drive the arc to completion so the Guardian finale system reveals — jumps testers
+    /// straight to the finale. No-op when no story is active.</summary>
+    public void AdminRevealFinale()
+    {
+        if (_story is null || _storyState.GuardianSystemRevealed)
+        {
+            return;
+        }
+
+        int target = _story.Beats.Count > 0 ? _story.Beats[_story.Beats.Count - 1].Threshold : 0;
+        double scale = System.Math.Max(0.05, Rules.StoryProgressScale);
+        int needed = (int)System.Math.Ceiling(target / (double)System.Math.Max(1, _story.MilestoneWeight) / scale) + 2;
+        _storyState.Milestones += needed;
+        AdvanceStory(); // reveals every crossed beat + the finale, persists + broadcasts once
     }
 
     // ---------------- Test hooks ----------------

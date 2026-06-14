@@ -93,6 +93,17 @@ namespace BlocksBeyondTheStars.Client
             Row(false, shell.L("ui.worldopt.exotic"), freqSteps, () => opt.Exotic, v => opt.Exotic = v);
             Row(false, shell.L("ui.worldopt.universe"), L4("ui.worldopt.size"), () => opt.UniverseSize, v => opt.UniverseSize = v);
 
+            // Story (P8): which story pack runs + how fast it unfolds.
+            ry += 10f;
+            UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_story"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            ry += 34f;
+            Row(false, shell.L("ui.worldopt.story"),
+                new[] { shell.L("ui.worldopt.story_default"), shell.L("ui.worldopt.story_none") },
+                () => opt.Story, v => opt.Story = v);
+            Row(false, shell.L("ui.worldopt.story_density"),
+                new[] { shell.L("ui.worldopt.density_sparse"), shell.L("ui.worldopt.density_normal"), shell.L("ui.worldopt.density_dense") },
+                () => opt.StoryDensity, v => opt.StoryDensity = v);
+
             UiKit.AddButton(main.transform, rx, ry + 8f, 740f, 44f, shell.L("ui.worldopt.advanced"), () =>
             {
                 main.SetActive(false);

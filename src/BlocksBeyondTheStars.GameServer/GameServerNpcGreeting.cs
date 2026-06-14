@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Localization;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -162,6 +165,14 @@ public sealed partial class GameServer
         // 1) Instant response: a cached LLM line if we have one, else empty → the client shows its localized
         //    fallback. Either way the player always gets a greeting, with or without an AI backend.
         string immediate = _greetingCache.TryGetValue(cacheKey, out var cached) ? cached : string.Empty;
+
+        // P7: with no LLM backend, let settlement/station NPCs occasionally speak a story flavour line — gated
+        // by the world's knowledge level + tags + the NPC's role — so villages react to the unfolding story.
+        if (immediate.Length == 0 && _config.AiLevel == AiLevel.Off)
+        {
+            immediate = PickStoryFlavourText(session, npc);
+        }
+
         Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = immediate });
 
         // 2) If AI is enabled and nothing is cached, generate a line off the game thread and push it when ready.
@@ -200,6 +211,94 @@ public sealed partial class GameServer
                 _greetingInFlight.TryRemove(cacheKey, out _);
             }
         });
+    }
+
+    // ---------------- P7: story flavour lines ----------------
+
+    private readonly System.Random _flavourRng = new(0x5F3C7A);
+    private readonly Dictionary<GameLocale, Localizer> _localizers = new();
+
+    /// <summary>P7: picks an eligible story flavour line for this NPC — filtered by the world's knowledge level,
+    /// the world's tags and the NPC's role — and localizes it for the player. Empty when no story is active or
+    /// nothing is eligible (the client then shows its static fallback).</summary>
+    private string PickStoryFlavourText(PlayerSession session, ServerNpc npc)
+    {
+        if (_story is null || _story.FlavourLines.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        int knowledge = WorldKnowledgeLevel();
+        var tags = WorldStoryTags();
+
+        var eligible = new List<FlavourLine>();
+        int totalWeight = 0;
+        foreach (var fl in _story.FlavourLines)
+        {
+            if (fl.MinKnowledge > knowledge)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(fl.Role) && !string.Equals(fl.Role, npc.Role, System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (fl.WorldTags.Count > 0 && !fl.WorldTags.Any(t => tags.Contains(t)))
+            {
+                continue;
+            }
+
+            eligible.Add(fl);
+            totalWeight += System.Math.Max(1, fl.Weight);
+        }
+
+        if (eligible.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        int roll = _flavourRng.Next(totalWeight);
+        var pick = eligible[eligible.Count - 1];
+        foreach (var fl in eligible)
+        {
+            roll -= System.Math.Max(1, fl.Weight);
+            if (roll < 0)
+            {
+                pick = fl;
+                break;
+            }
+        }
+
+        return Localize(session.Locale, pick.TextKey);
+    }
+
+    /// <summary>The active world's story tags (today: its planet-type key) for flavour-line filtering.</summary>
+    private HashSet<string> WorldStoryTags()
+    {
+        var tags = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        var key = _world?.Planet?.Key;
+        if (!string.IsNullOrEmpty(key))
+        {
+            tags.Add(key);
+        }
+
+        return tags;
+    }
+
+    /// <summary>Server-side localize (cached per locale) — flavour lines are sent as resolved text, like the LLM
+    /// greeting lines, not as keys. <paramref name="localeCode"/> is the player's locale string ("en"/"de").</summary>
+    private string Localize(string localeCode, string key)
+    {
+        GameLocaleExtensions.TryParse(localeCode, out var locale); // defaults to English on an unknown code
+        if (!_localizers.TryGetValue(locale, out var loc))
+        {
+            loc = _content.CreateLocalizer(locale);
+            _localizers[locale] = loc;
+        }
+
+        return loc.Get(key);
     }
 
     /// <summary>Drains LLM greetings produced off-thread and sends each to its (still-connected) player. Called

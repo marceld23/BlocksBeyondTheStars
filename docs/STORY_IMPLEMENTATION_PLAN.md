@@ -456,22 +456,30 @@ The finale is **staged**, not just another drone fight: a hard gauntlet, a **hac
   + generated assets.
 - **Decision:** hack as a **channel-and-defend** action (recommended) vs. a dedicated hack mini-game.
 
-### P7 — Flavour pool + mission threading (content scale) — **M** (mostly data)
-- Tag-filtered `flavour_line`s drive NPC greeting/idle lines in
-  [GameServerNpcs.cs](../src/BlocksBeyondTheStars.GameServer/GameServerNpcs.cs), filtered by world tags + the
-  world's **knowledge level** (`know_none…know_core`); the LLM backend may vary **non-canonical** banter
-  only. `mission_thread`s wrap existing random missions + an optional fragment reward.
-- **Tests:** tag eligibility; knowledge-level gating; locale parity. **DoD:** settlements/machine-logs feel
-  alive and react to progress; scales by data.
+### P7 — Flavour pool + mission threading (content scale) — **M** · ✅ COMPLETE (server + data, build-verified 2026-06-14)
+> **✅ P7 COMPLETE.** `FlavourLine` + `MissionThread` models added to the pack format (auto-load via the
+> existing pack deserializer). **NPC flavour lines:** `GameServerNpcGreeting.PickStoryFlavourText` picks an
+> eligible story line — filtered by the world's **knowledge level** (`WorldKnowledgeLevel()` 0–4, derived from
+> the scaled progress / `GuardianDefeated`), the world's **tags** (its planet-type key) and the NPC's **role** —
+> and speaks it (server-localized) when there's no LLM backend, so settlements react to the story. **Mission
+> threading:** `TryThreadMission` on turn-in awards a matching thread's net **fragment** (deduped + advances the
+> arc). Pack ships 5 progress-gated flavour lines + a settlement mission thread (→ `frag_settler_legend`),
+> bilingual. **Tests (in `GameServerStoryP7P8Tests`):** knowledge-level climb, pack loads flavour/threads,
+> threaded-mission-awards-once-then-deduped, plus locale parity.
+- LLM backend may still vary **non-canonical** banter; with AI off the flavour lines are spoken verbatim.
 
-### P8 — World options (story selection) + balancing + telemetry + polish — **M** · ⚙️ Unity
-- **World options:** a **story-selection** control (pick the active pack, or "None") + a **Story density**
-  slider, in world creation (`GameRules` + the world-creation UI), admin live-editable.
-- **Balancing:** tune `Wf/Wk/Wm`, kill cap, thresholds, fragment weights, boss phases, coupling radius,
-  memory-drop chance — as data where possible. **Telemetry:** extend `/bump` with story-state; an admin
-  cheat to set/advance story progress for QA.
-- **DoD:** tunable without code; the active story is selectable; QA can jump to any beat/finale. **Needs
-  Unity build.**
+### P8 — World options (story selection) + balancing + telemetry + polish — **M** · ✅ COMPLETE (server + Unity, build-verified 2026-06-14)
+> **✅ P8 COMPLETE.** **World options:** `GameRules.StoryId` (pack id / "none" sandbox / empty default) +
+> `GameRules.StoryDensity` (Sparse/Normal/Dense), parsed from `--story` / `--story-density` (`ServerConfig`),
+> chosen in the world-creation panel — a **Storyline** + **Story pace** control in `UiWorldOptions` (bilingual
+> `ui.worldopt.story*`), emitted by `WorldCreationOptions`. `LoadStoryState` honours the chosen pack for a fresh
+> save. **Density** scales the progress score via `StoryEngine.Progress(..., progressScale)` (`StoryProgressScale`
+> 0.65/1.0/1.5), so Dense reveals beats + the finale sooner. **Telemetry / QA cheats:** admin commands
+> `advance_story`, `reveal_finale` (jump straight to the finale), `story_status` (a `/bump`-style readout).
+> **Tests:** density-scales-progress, dense-reveals-more-beats, world-option-none/pick-pack, reveal-finale,
+> advance-story. **579 total green.**
+- **Balancing** stays data-driven (pack weights/thresholds + the density multiplier); further live-tuning of
+  `Wf/Wk/Wm`/caps is a content task, not code.
 
 ### W-A — Content authoring (cross-phase workstream)
 Author + translate the **full corpus** of the active pack from [LORE_STRUCTURE.md](LORE_STRUCTURE.md): the

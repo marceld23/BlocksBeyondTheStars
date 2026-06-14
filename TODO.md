@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **570 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **579 passing** (2026-06-14). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -17,7 +17,7 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ Story system ("The VEGA Protocol") — 🚧 server-side COMPLETE; only the Unity client remains (2026-06-14)
+### ★ Story system ("The VEGA Protocol") — ✅ P0–P8 COMPLETE, server + Unity build-verified (2026-06-14)
 **Plans:** [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) (engineering, phased P0–P8 +
 Suno appendix), [docs/STORY_VEGA_PROTOCOL_CONCEPT.md](docs/STORY_VEGA_PROTOCOL_CONCEPT.md) (design rationale),
 [docs/LORE_STRUCTURE.md](docs/LORE_STRUCTURE.md) (authoritative canon + content-generation agenda).

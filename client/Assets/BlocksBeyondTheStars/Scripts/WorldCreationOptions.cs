@@ -17,6 +17,8 @@ namespace BlocksBeyondTheStars.Client
         public static readonly string[] OxygenSteps = { "Off", "Slow", "Normal", "Fast" };
         public static readonly string[] HazardSteps = { "Off", "Light", "Normal", "Hard" };
         public static readonly string[] DeathSteps = { "None", "Light", "Normal", "Hard" };
+        public static readonly string[] StoryModes = { "Default", "None" };           // 0 = built-in pack, 1 = sandbox
+        public static readonly string[] StoryDensitySteps = { "Sparse", "Normal", "Dense" };
 
         // Gameplay (AlienActivity indices; live-editable later in-game)
         public int Creatures = 2;      // Normal
@@ -42,6 +44,10 @@ namespace BlocksBeyondTheStars.Client
         public int Hazards = 2;        // Normal
         public int DeathPenalty = 1;   // Light (server default)
 
+        // Story (P8 world option): which story pack runs + how fast it unfolds.
+        public int Story = 0;          // 0 = Default pack, 1 = None (sandbox)
+        public int StoryDensity = 1;   // 0 Sparse · 1 Normal · 2 Dense
+
         /// <summary>Advanced page: per-planet-type frequency overrides (type key → Freq index).
         /// Empty = the simple "exotic worlds" slider + data weights decide.</summary>
         public readonly Dictionary<string, int> PlanetTypes = new Dictionary<string, int>();
@@ -65,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
+            Story = other.Story; StoryDensity = other.StoryDensity;
             PlanetTypes.Clear();
             foreach (var kv in other.PlanetTypes)
             {
@@ -111,6 +118,9 @@ namespace BlocksBeyondTheStars.Client
             if (!Hunger) Arg("hunger", "false");
             if (Hazards != 2) Arg("hazards", HazardSteps[Hazards]);
             if (DeathPenalty != 1) Arg("death-penalty", DeathSteps[DeathPenalty]);
+
+            if (Story == 1) Arg("story", "none");                              // sandbox (no story)
+            if (StoryDensity != 1) Arg("story-density", StoryDensitySteps[StoryDensity]);
 
             if (PlanetTypes.Count > 0)
             {

@@ -2465,6 +2465,38 @@ public sealed partial class GameServer
                 CheatLog(p, $"toggled instant build to {p.InstantBuild}");
                 break;
 
+            // ---- Story QA (P8 telemetry): jump around the arc for testing ----
+            case "advance_story":
+            {
+                int beats = AdminAdvanceStory(cmd.IntArg);
+                Send(session, new ServerMessage { Text = $"Story advanced — beats revealed: {beats}." });
+                CheatLog(p, $"advanced story by {System.Math.Max(1, cmd.IntArg)} (beats {beats})");
+                break;
+            }
+
+            case "reveal_finale":
+                AdminRevealFinale();
+                Send(session, new ServerMessage
+                {
+                    Text = _storyState.GuardianSystemRevealed
+                        ? "Guardian finale system revealed on the star map."
+                        : "No active story to reveal a finale for.",
+                });
+                CheatLog(p, "revealed the Guardian finale system");
+                break;
+
+            case "story_status":
+            {
+                var snap = StorySnapshot;
+                Send(session, new ServerMessage
+                {
+                    Text = $"Story '{snap.StoryId}': fragments={snap.Fragments}, kills={snap.Kills}, " +
+                           $"milestones={snap.Milestones}, beats={snap.BeatsRevealed}/{(_story?.Beats.Count ?? 0)}, " +
+                           $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}",
+                });
+                break;
+            }
+
             default:
                 Reject(session, "admin", "Unknown admin command.");
                 break;

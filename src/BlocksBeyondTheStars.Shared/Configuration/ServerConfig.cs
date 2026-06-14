@@ -269,6 +269,12 @@ public sealed class ServerConfig
                 case "death-penalty":
                     if (Enum.TryParse<DeathPenalty>(value, ignoreCase: true, out var dp)) { Rules.DeathPenalty = dp; applied.Add("death-penalty"); }
                     break;
+                case "story":
+                    Rules.StoryId = value; applied.Add("story"); // pack id, "none" for sandbox, or "default"/empty
+                    break;
+                case "story-density":
+                    if (Enum.TryParse<StoryDensity>(value, ignoreCase: true, out var storyDens)) { Rules.StoryDensity = storyDens; applied.Add("story-density"); }
+                    break;
                 case "flora":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var fl)) { World.FloraDensity = fl; applied.Add("flora"); }
                     break;
