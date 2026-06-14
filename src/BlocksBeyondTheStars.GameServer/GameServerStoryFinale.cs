@@ -305,4 +305,14 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: resolve the respawn home a player would get, applying the finale return rule.</summary>
     public string ResolveRespawnHomeForTest(string playerId, string shipHome) => ResolveRespawnHome(playerId, shipHome);
+
+    /// <summary>Test/inspection: the Stage-1 gauntlet roster (hostile count + the toughest hull) built without a
+    /// full flight setup — verifies the finale system fields an elite wave, not the ambient hostile spawn.</summary>
+    public (int Count, float MaxHull) GuardianGauntletPreviewForTest()
+    {
+        var inst = new SpaceInstance { Id = GuardianCoreBodyId, Kind = "orbit" };
+        SpawnGuardianGauntlet(inst);
+        var hostiles = inst.Entities.Where(e => e.Hostile).ToList();
+        return (hostiles.Count, hostiles.Count == 0 ? 0f : hostiles.Max(e => e.HullMax));
+    }
 }

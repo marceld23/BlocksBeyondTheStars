@@ -327,9 +327,17 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 >   world via `ResolveRespawnHome()` (re-homing the ship there, consuming the record) — no boss-arena
 >   death-loop; the finale must be re-approached. **565 total green** (+2: reveal-adds-system, death-respawns-home).
 >
-> ⏳ **Remaining (⚙️ Unity + world-gen):** the staged **space gauntlet** waves; the **two physical routes**
-> (fly-in interior vs. land + dig) + the actual core encounter on the landable body; the client encounter UI
-> (gauntlet HUD, hack bar, **duel panel**), boss visuals + `ClientMusic` finale contexts; robotic SFX.
+> **🟦 P6 — Stage 1 space gauntlet COMPLETE (2026-06-14, server).** The finale system fields its own scripted
+> **elite gauntlet** instead of the ambient hostiles: `CreateSpaceInstance` detects the `guardian_finale` anchor
+> (strips the `space:` prefix → `IsGuardianSystemLocation`) and calls `SpawnGuardianGauntlet` — a heavy
+> **Cruiser** (260 hull) flanked by 3 elite UFOs (95) + an 8-strong reinforced drone swarm (70), ringed beyond
+> engage range so the approach is opt-in. Gated on combat-enabled && !defeated; each kill still feeds the story.
+> **566 total green** (+1: gauntlet is an elite wave with a cruiser anchor).
+>
+> ⏳ **Remaining (⚙️ Unity + world-gen):** the **two physical routes** (fly-in interior vs. land + dig) + the
+> actual core encounter on the landable body; the **core console** that begins the hack at the inner core; the
+> client encounter UI (gauntlet HUD, hack bar, **duel panel**, map marker), boss visuals + `ClientMusic` finale
+> contexts; robotic SFX.
 The finale is **staged**, not just another drone fight: a hard gauntlet, a **hack** to open the core, then a
 **dialogue duel** won by exposing the Guardian's contradiction — **weapons cannot destroy the core**.
 - **Server (reveal):** score maxed **and** all `vega` beats seen → `RevealGuardianSystem` →

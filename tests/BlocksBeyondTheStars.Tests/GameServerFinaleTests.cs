@@ -168,6 +168,18 @@ public sealed class GameServerFinaleTests : IDisposable
     }
 
     [Fact]
+    public void The_guardian_system_fields_an_elite_gauntlet_wave()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (count, maxHull) = server.GuardianGauntletPreviewForTest();
+            Assert.True(count >= 10, "the finale gauntlet should be a dense elite wave");
+            Assert.True(maxHull >= 200f, "the gauntlet should include a heavy cruiser anchor");
+        }
+    }
+
+    [Fact]
     public void A_death_in_the_guardian_system_respawns_at_the_pre_finale_world()
     {
         var server = Started(out var repo);

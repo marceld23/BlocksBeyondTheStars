@@ -445,44 +445,110 @@ public sealed partial class GameServer
         bool combatEnabled = Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both;
         if (combatEnabled && !_storyState.GuardianDefeated)
         {
-            // Spawn hostiles FAR from the launch point (well beyond ShipEngageRange) so launching/docking is
-            // safe and combat is opt-in — you choose to fly out to them. They used to spawn ~25u away and
-            // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
-            int drones = ActivityCount(Rules.SpaceNpcEnemies);
-            for (int i = 0; i < drones; i++)
+            // The finale system runs its own scripted ELITE gauntlet (P6 Stage 1) instead of the ambient
+            // hostiles — strip the "space:" prefix to recover the anchor body id for the system check.
+            string bodyId = instanceId.StartsWith("space:") ? instanceId.Substring("space:".Length) : instanceId;
+            if (IsGuardianSystemLocation(bodyId))
             {
-                instance.Entities.Add(new CombatEntity
-                {
-                    Id = NextEntityId(),
-                    Kind = CombatEntityKind.Drone,
-                    Hostile = true,
-                    Hull = 40f,
-                    HullMax = 40f,
-                    Position = new Vector3f(150f + i * 16f, 10f, -130f - i * 20f),
-                    DamagePerSecond = 5f,
-                    Loot = { new ItemAmount("data_fragment", 1) },
-                });
+                SpawnGuardianGauntlet(instance);
             }
-
-            if (Rules.AlienUfos != AlienActivity.Off)
+            else
             {
-                instance.Entities.Add(new CombatEntity
+                // Spawn hostiles FAR from the launch point (well beyond ShipEngageRange) so launching/docking is
+                // safe and combat is opt-in — you choose to fly out to them. They used to spawn ~25u away and
+                // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
+                int drones = ActivityCount(Rules.SpaceNpcEnemies);
+                for (int i = 0; i < drones; i++)
                 {
-                    Id = NextEntityId(),
-                    Kind = CombatEntityKind.Ufo,
-                    Hostile = true,
-                    // Softened for a forgiving PvE feel: was 70 hull / 8 dps, which killed an unshielded ship in
-                    // ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
-                    Hull = 40f,
-                    HullMax = 40f,
-                    Position = new Vector3f(-170f, 14f, 150f),
-                    DamagePerSecond = 4f,
-                    Loot = { new ItemAmount("data_fragment", 3) },
-                });
+                    instance.Entities.Add(new CombatEntity
+                    {
+                        Id = NextEntityId(),
+                        Kind = CombatEntityKind.Drone,
+                        Hostile = true,
+                        Hull = 40f,
+                        HullMax = 40f,
+                        Position = new Vector3f(150f + i * 16f, 10f, -130f - i * 20f),
+                        DamagePerSecond = 5f,
+                        Loot = { new ItemAmount("data_fragment", 1) },
+                    });
+                }
+
+                if (Rules.AlienUfos != AlienActivity.Off)
+                {
+                    instance.Entities.Add(new CombatEntity
+                    {
+                        Id = NextEntityId(),
+                        Kind = CombatEntityKind.Ufo,
+                        Hostile = true,
+                        // Softened for a forgiving PvE feel: was 70 hull / 8 dps, which killed an unshielded ship in
+                        // ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
+                        Hull = 40f,
+                        HullMax = 40f,
+                        Position = new Vector3f(-170f, 14f, 150f),
+                        DamagePerSecond = 4f,
+                        Loot = { new ItemAmount("data_fragment", 3) },
+                    });
+                }
             }
         }
 
         return instance;
+    }
+
+    /// <summary>P6 Stage 1 — the Guardian system's elite gauntlet: the hardest space wave in the game, ringed
+    /// around the dormant core. A heavy cruiser flanked by elite UFOs and a swarm of reinforced drones, all
+    /// well beyond engage range so the approach stays opt-in. Reuses the normal ship-combat resolution +
+    /// hostile AI; each kill still feeds the story like any Guardian machine.</summary>
+    private void SpawnGuardianGauntlet(SpaceInstance instance)
+    {
+        // A reinforced drone swarm on a golden-angle ring.
+        const int drones = 8;
+        for (int i = 0; i < drones; i++)
+        {
+            float ang = i * 2.39996f;
+            float rad = 150f + (i % 3) * 22f;
+            instance.Entities.Add(new CombatEntity
+            {
+                Id = NextEntityId(),
+                Kind = CombatEntityKind.Drone,
+                Hostile = true,
+                Hull = 70f,
+                HullMax = 70f,
+                Position = new Vector3f(rad * (float)System.Math.Cos(ang), (i % 5 - 2) * 12f, rad * (float)System.Math.Sin(ang)),
+                DamagePerSecond = 7f,
+                Loot = { new ItemAmount("data_fragment", 2) },
+            });
+        }
+
+        // Elite UFO escorts.
+        for (int i = 0; i < 3; i++)
+        {
+            float ang = i * 2.094f + 0.7f;
+            instance.Entities.Add(new CombatEntity
+            {
+                Id = NextEntityId(),
+                Kind = CombatEntityKind.Ufo,
+                Hostile = true,
+                Hull = 95f,
+                HullMax = 95f,
+                Position = new Vector3f(210f * (float)System.Math.Cos(ang), 18f, 210f * (float)System.Math.Sin(ang)),
+                DamagePerSecond = 8f,
+                Loot = { new ItemAmount("data_fragment", 4) },
+            });
+        }
+
+        // The gauntlet's heavy cruiser — the toughest single ship the player will face before the core.
+        instance.Entities.Add(new CombatEntity
+        {
+            Id = NextEntityId(),
+            Kind = CombatEntityKind.Cruiser,
+            Hostile = true,
+            Hull = 260f,
+            HullMax = 260f,
+            Position = new Vector3f(0f, 26f, -240f),
+            DamagePerSecond = 10f,
+            Loot = { new ItemAmount("data_fragment", 8) },
+        });
     }
 
     // ---------------- Weapons ----------------
