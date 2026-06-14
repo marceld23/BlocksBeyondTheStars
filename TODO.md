@@ -4517,6 +4517,18 @@ Everything builds + **302 tests pass** as of `0d988a9`.
   (`HasAirNeighbor`) lets calm full cells go dormant, so a big sea doesn't keep every cell active. Tests:
   `WaterAndLava_AreMineable_OnlyByTheMiningBeam`, `Water_BasicDrillCannot_MiningBeamCan`,
   `WaterBody_RefillsAMinedHole`.
+- ✅ **Source/flowing fluids — no floating shelf + retraction** (done 2026-06-14) — fixed a reported bug where
+  water poured from a mountain pond over a cliff **hung in the air over the plain** instead of falling. Root
+  cause: a lip cell, once it had dropped one block, took the sideways-spread branch and crawled along at its
+  own (high) elevation over the void, and flowing water never receded. Fix in `GameServerFluids`: (1) a
+  **`FallingFluid` set** marks cells filled from above — a cell feeding a waterfall no longer spreads sideways,
+  so water crests the rim by one overhang cell and pours straight down; (2) a **source vs flowing** split — a
+  source is an *untracked* cell (bottomless, e.g. worldgen seas + placed water/lava), a flowing cell lives in
+  `_fluidLevel` and each tick recomputes its `SupportedLevel` (full if fluid above, else best horizontal
+  neighbour − 1); with no feed it **retracts** (dries up) and wakes its neighbours so the whole orphaned tail
+  recedes. `Wake` no longer promotes untracked cells (they stay sources). Tests:
+  `Water_PouringOverACliff_DoesNotHangInTheAir`, `FlowingWater_Recedes_WhenItsSourceIsRemoved`. *(Note: worldgen
+  ponds are still infinite sources — finite springs are a separate future item.)*
 - **Multiplayer player-name reservation** — a player name must be **reserved on the server** so two clients
   can't collide on the same name/identity. (Today join takes any name.) Requested 2026-06-06.
 - ✅ **Creature swim undulation + dive** (done 2026-06-06) — `CreatureBuilder` now hangs every part off a

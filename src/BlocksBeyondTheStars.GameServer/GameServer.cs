@@ -365,6 +365,7 @@ public sealed partial class GameServer
         _floraRegrow.Clear();
         _fluidLevel.Clear();
         _activeFluid.Clear();
+        _fallingFluid.Clear();
         _worlds.Active.LandedShips.Clear(); // parked-ship objects are per-world; a fresh world starts empty
     }
 

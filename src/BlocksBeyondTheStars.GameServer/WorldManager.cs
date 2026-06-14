@@ -34,6 +34,7 @@ internal sealed class LoadedWorld
     public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
+    public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)
     public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)
     public HashSet<Vector3i> ActiveFire { get; } = new();
     public List<GameServer.LandingPad> LandingPads { get; } = new(); // fixed, map-planned landing pads (item 38)

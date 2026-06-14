@@ -61,4 +61,5 @@ Thumbs.db
 tests/BlocksBeyondTheStars.Tests/bin/
 tests/BlocksBeyondTheStars.Tests/obj/
 client/build-console.log
+client/schtask-build.log
 .roo/mcp.json

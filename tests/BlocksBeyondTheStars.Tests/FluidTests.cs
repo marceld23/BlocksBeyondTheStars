@@ -199,6 +199,62 @@ public sealed class FluidTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Water_PouringOverACliff_DoesNotHangInTheAir()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            int yTop = 140;
+
+            // A short plateau ledge (x 0..3) high in the air, and a catch floor 20 blocks below (x 3..12).
+            for (int x = 0; x <= 3; x++) server.World.SetBlock(new Vector3i(x, yTop - 1, 0), stone);
+            for (int x = 3; x <= 12; x++) server.World.SetBlock(new Vector3i(x, yTop - 20, 0), stone);
+
+            server.PlaceFluidSource("water", 0, yTop, 0); // source on the plateau
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+
+            // The old bug: water spread sideways at plateau height across the void, leaving a sheet floating in
+            // the air. It must instead pour straight down at the lip — so cells well past the edge stay empty.
+            Assert.True(server.World.GetBlock(new Vector3i(6, yTop, 0)).IsAir, "no water should hang at plateau height past the edge");
+            Assert.True(server.World.GetBlock(new Vector3i(8, yTop, 0)).IsAir, "no floating shelf far out over the drop");
+
+            // ...and the waterfall must actually reach the catch floor and pool on it.
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(4, yTop - 19, 0)).Value);
+        }
+    }
+
+    [Fact]
+    public void FlowingWater_Recedes_WhenItsSourceIsRemoved()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var stone = _content.GetBlock("stone")!.NumericId;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            int y = 138;
+
+            // A flat floor in the air; a source on it spreads out into a thin sheet of flowing water.
+            for (int x = -1; x <= 6; x++) server.World.SetBlock(new Vector3i(x, y - 1, 0), stone);
+
+            server.PlaceFluidSource("water", 0, y, 0);
+            for (int i = 0; i < 10; i++) server.Tick(0.3);
+            Assert.Equal(water, server.World.GetBlock(new Vector3i(3, y, 0)).Value); // it flowed out first
+
+            // Cut the source. The orphaned flowing cells have nothing feeding them any more, so they dry up.
+            server.RemoveBlockForTest(0, y, 0);
+            for (int i = 0; i < 40; i++) server.Tick(0.3);
+
+            for (int x = 1; x <= 6; x++)
+            {
+                Assert.True(server.World.GetBlock(new Vector3i(x, y, 0)).IsAir,
+                    $"flowing water at x={x} should have receded after the source was cut");
+            }
+        }
+    }
+
     public void Dispose()
     {
         try
