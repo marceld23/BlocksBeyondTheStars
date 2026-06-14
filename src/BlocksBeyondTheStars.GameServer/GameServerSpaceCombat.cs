@@ -1358,6 +1358,12 @@ public sealed partial class GameServer
         session.State.InEva = false;
         MarkSystemKnown(session, system.Id); // its bodies + mini map are now revealed on the travel screen
 
+        // Finale (P6): remember the world we jumped FROM so a death in the boss arena returns us there (no loop).
+        if (system.Id == GuardianFinaleSystemId && origin is not null)
+        {
+            _finaleReturn[playerId] = origin.Id;
+        }
+
         EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; no surface take-off
         SendStarMap(session); // refresh the travel screen with the now-known system
         _log.Info($"Player '{session.State.Name}' hyperjumped into system '{system.Name}' (flight).");

@@ -1,6 +1,7 @@
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Story;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -29,6 +30,17 @@ public sealed partial class GameServer
     /// <summary>Runtime: the current duel node index into the pack's <see cref="StoryDefinition.CoreArguments"/>.</summary>
     private int _duelNode;
 
+    /// <summary>Stable id of the finale star system + its single landable core body. The system is lazily added
+    /// to the galaxy when revealed (see <see cref="EnsureGuardianSystemInGalaxy"/>) — before that it exists
+    /// nowhere, so it never shows on the map nor affects ordinary generation.</summary>
+    public const string GuardianFinaleSystemId = "guardian_finale";
+    public const string GuardianCoreBodyId = "guardian_finale-core";
+
+    /// <summary>Per-player return location recorded on hyperjump INTO the finale system, so a death there sends
+    /// the clone back to the world it launched from (no boss-arena death-loop). Runtime-only — a restart means
+    /// re-approaching the finale, which is the intended rule. Keyed by player id.</summary>
+    private readonly System.Collections.Generic.Dictionary<string, string> _finaleReturn = new();
+
     /// <summary>Clears the transient finale flow (hack channel + duel position). Called when the active story
     /// resets; the persisted reveal/defeat flags live on <see cref="StoryState"/> and are reset there.</summary>
     private void ResetFinaleRuntime()
@@ -56,8 +68,71 @@ public sealed partial class GameServer
         }
 
         _storyState.GuardianSystemRevealed = true;
+        EnsureGuardianSystemInGalaxy();
         SpeakVegaLineToAll("story.vega.guardian_revealed");
         BroadcastToJoined(new GuardianSystemRevealed { LabelKey = "story.vega.guardian_system" });
+        BroadcastStarMap(); // the finale system now appears as a jump target on everyone's travel screen
+    }
+
+    /// <summary>Idempotently adds the finale star system (a lone landable core body) to the galaxy. Called when
+    /// the system is revealed, and again on restart for an already-revealed save (the galaxy is regenerated
+    /// from seed each start, so the special system must be re-appended). Placed at the far edge of the star
+    /// map so it reads as "out past the frontier"; reached by hyperjump (needs a jump generator).</summary>
+    private void EnsureGuardianSystemInGalaxy()
+    {
+        if (_galaxy is null || _galaxy.Systems.Any(s => s.Id == GuardianFinaleSystemId))
+        {
+            return;
+        }
+
+        var system = new StarSystem { Id = GuardianFinaleSystemId, Name = "Guardian Core", MapX = 980f, MapY = 980f };
+        system.Bodies.Add(new CelestialBody
+        {
+            Id = GuardianCoreBodyId,
+            Name = "Guardian Core",
+            Kind = CelestialKind.Planet,         // landable, so the ship can set down + the finale can play out
+            PlanetType = GuardianCorePlanetType(),
+            SystemId = GuardianFinaleSystemId,
+            SystemX = 0f,
+            SystemZ = 0f,                        // the core sits at the heart of its otherwise empty system
+        });
+        _galaxy.Systems.Add(system);
+    }
+
+    /// <summary>Picks a fitting stark planet type for the core body, falling back to a type that always exists.</summary>
+    private string GuardianCorePlanetType()
+    {
+        foreach (var pref in new[] { "barren", "volcanic", "ashen", "metallic", "rocky" })
+        {
+            if (_content.GetPlanet(pref) is not null)
+            {
+                return pref;
+            }
+        }
+
+        return "rocky";
+    }
+
+    /// <summary>True when the given body id belongs to the finale system (used to gate the respawn rule).</summary>
+    private bool IsGuardianSystemLocation(string locationId)
+        => !string.IsNullOrEmpty(locationId) && _galaxy?.FindBody(locationId)?.SystemId == GuardianFinaleSystemId;
+
+    /// <summary>Applies the finale respawn rule (P6): if the ship would respawn the clone inside the Guardian
+    /// system and a pre-finale return location was recorded for this player, returns that body instead (and
+    /// consumes the record) so the clone re-grows on the world it launched from. Otherwise returns
+    /// <paramref name="shipHome"/> unchanged.</summary>
+    private string ResolveRespawnHome(string playerId, string shipHome)
+    {
+        if (IsGuardianSystemLocation(shipHome)
+            && _finaleReturn.TryGetValue(playerId, out var back)
+            && !string.IsNullOrEmpty(back)
+            && _galaxy?.FindBody(back) is not null)
+        {
+            _finaleReturn.Remove(playerId);
+            return back;
+        }
+
+        return shipHome;
     }
 
     // ---------------- Stage 3: hack the core open ----------------
@@ -217,4 +292,17 @@ public sealed partial class GameServer
             HandleCoreDialogueChoice(session, new CoreDialogueChoiceIntent { ChoiceIndex = choiceIndex });
         }
     }
+
+    /// <summary>Test/inspection: the finale system has been added to the galaxy (appears on the star map).</summary>
+    public bool GalaxyHasGuardianSystemForTest => _galaxy?.Systems.Any(s => s.Id == GuardianFinaleSystemId) ?? false;
+
+    /// <summary>Test/inspection: the finale core body exists and is landable (has a planet type).</summary>
+    public bool GuardianCoreIsLandableForTest
+        => _galaxy?.FindBody(GuardianCoreBodyId) is { } b && !string.IsNullOrEmpty(b.PlanetType);
+
+    /// <summary>Test hook: record a pre-finale return location for a player (mirrors a hyperjump into the system).</summary>
+    public void RecordFinaleReturnForTest(string playerId, string bodyId) => _finaleReturn[playerId] = bodyId;
+
+    /// <summary>Test hook: resolve the respawn home a player would get, applying the finale return rule.</summary>
+    public string ResolveRespawnHomeForTest(string playerId, string shipHome) => ResolveRespawnHome(playerId, shipHome);
 }

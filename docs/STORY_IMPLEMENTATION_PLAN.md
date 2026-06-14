@@ -311,12 +311,25 @@ Each phase lists **server / data / net / persistence / client / tests / build / 
 > [GameServerFinaleTests.cs](../tests/BlocksBeyondTheStars.Tests/GameServerFinaleTests.cs) (6 tests: reveal-once,
 > no-hack-before-reveal, hack-opens-duel, wrong-stalls, correct-path-wins, no-choice-before-hack). `CoreArgument`/
 > `CoreArgumentChoice` added to [StoryDefinition.cs](../src/BlocksBeyondTheStars.Shared/Story/StoryDefinition.cs).
-> **563 total green.** ⏳ **Remaining (⚙️ Unity + world-gen):** the Guardian-system **generation** (sun + core
-> only, `Selectable=false`, reached via jump generator) + the map marker; the staged **space gauntlet** waves;
-> the **two physical routes** (fly-in interior vs. land + dig) converging on the inner core; the client
-> encounter UI (gauntlet HUD, hack bar, **duel panel**), boss visuals + `ClientMusic` finale contexts; and the
-> **death-in-Guardian-system → respawn-at-prior-world** rule (still server-side, deferred — entangled with
-> respawn + system entry).
+> **563 total green.**
+>
+> **🟦 P6 — Guardian-system generation + reveal-to-map + respawn rule COMPLETE (2026-06-14).** Reaching the
+> finale + the death-loop guard now work server-side, tested:
+> - **Guardian system on the map** — `EnsureGuardianSystemInGalaxy()` lazily appends a lone, landable
+>   **Guardian Core** body (system id `guardian_finale`, far map corner) to `_galaxy.Systems` **only when
+>   revealed** (and re-appends it after a restart for an already-revealed save, since the galaxy is
+>   seed-regenerated each start — added *after* start-body selection so it never affects the spawn world).
+>   `RevealGuardianSystemIfReady` now also `BroadcastStarMap()`s, so the system appears as a jump target the
+>   moment the arc completes; reaching it needs the existing `jump_generator` (the hyperjump path already
+>   requires it). Before reveal the system exists nowhere — zero impact on generation/map/tests.
+> - **Respawn-at-prior-world** — on hyperjump INTO `guardian_finale` the world jumped from is recorded
+>   (`_finaleReturn[playerId]`, runtime); `RecoverToShip` routes a death in the Guardian system back to that
+>   world via `ResolveRespawnHome()` (re-homing the ship there, consuming the record) — no boss-arena
+>   death-loop; the finale must be re-approached. **565 total green** (+2: reveal-adds-system, death-respawns-home).
+>
+> ⏳ **Remaining (⚙️ Unity + world-gen):** the staged **space gauntlet** waves; the **two physical routes**
+> (fly-in interior vs. land + dig) + the actual core encounter on the landable body; the client encounter UI
+> (gauntlet HUD, hack bar, **duel panel**), boss visuals + `ClientMusic` finale contexts; robotic SFX.
 The finale is **staged**, not just another drone fight: a hard gauntlet, a **hack** to open the core, then a
 **dialogue duel** won by exposing the Guardian's contradiction — **weapons cannot destroy the core**.
 - **Server (reveal):** score maxed **and** all `vega` beats seen → `RevealGuardianSystem` →

@@ -152,6 +152,48 @@ public sealed class GameServerFinaleTests : IDisposable
     }
 
     [Fact]
+    public void Revealing_the_finale_adds_a_landable_guardian_system_to_the_galaxy()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            Assert.False(server.GalaxyHasGuardianSystemForTest); // hidden until the arc completes
+
+            CompleteTheArc(server);
+
+            Assert.True(server.GalaxyHasGuardianSystemForTest);   // now a jump target on the star map
+            Assert.True(server.GuardianCoreIsLandableForTest);    // with a landable core body to set down on
+        }
+    }
+
+    [Fact]
+    public void A_death_in_the_guardian_system_respawns_at_the_pre_finale_world()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            string priorWorld = pilot.CurrentLocationId; // the world they launched into the finale from
+            CompleteTheArc(server);
+
+            // Simulate having jumped INTO the finale from priorWorld.
+            server.RecordFinaleReturnForTest("Pilot", priorWorld);
+
+            // Dying with the ship parked at the core would normally respawn there — the rule redirects home.
+            Assert.Equal(priorWorld, server.ResolveRespawnHomeForTest("Pilot", SvGameServer.GuardianCoreBodyId));
+
+            // The record is consumed (one-shot): a second death there falls back to the ship's location.
+            Assert.Equal(SvGameServer.GuardianCoreBodyId,
+                server.ResolveRespawnHomeForTest("Pilot", SvGameServer.GuardianCoreBodyId));
+
+            // Outside the finale the rule never fires — a normal death respawns at the ship as usual.
+            server.RecordFinaleReturnForTest("Pilot", priorWorld);
+            Assert.Equal(priorWorld, server.ResolveRespawnHomeForTest("Pilot", priorWorld));
+        }
+    }
+
+    [Fact]
     public void A_choice_before_the_hack_does_nothing()
     {
         var server = Started(out var repo);

@@ -249,6 +249,14 @@ public sealed partial class GameServer
                 _repo.SetLocationStatus(start.Id, start.Status.ToString());
             }
         }
+
+        // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an
+        // already-revealed save (after start-body selection, so it never affects the spawn world). A fresh
+        // reveal adds it live via RevealGuardianSystemIfReady.
+        if (_storyState.GuardianSystemRevealed)
+        {
+            EnsureGuardianSystemInGalaxy();
+        }
     }
 
     /// <summary>
@@ -1052,7 +1060,17 @@ public sealed partial class GameServer
         var p = session.State;
         // The cursor is already on this session (set by the per-player tick / Serve), so _ship is this
         // player's ship — recover to the world it's parked on.
-        string homeLoc = !string.IsNullOrEmpty(_ship?.CurrentLocationId) ? _ship.CurrentLocationId : _meta.ActiveLocationId;
+        string shipHome = !string.IsNullOrEmpty(_ship?.CurrentLocationId) ? _ship.CurrentLocationId : _meta.ActiveLocationId;
+
+        // Finale rule (P6): a death inside the Guardian system must not respawn the clone in the boss arena —
+        // send it back to the world it launched into the finale from (re-homing the ship there), so there is no
+        // death-loop and the finale has to be re-approached.
+        string homeLoc = ResolveRespawnHome(p.PlayerId, shipHome);
+        if (homeLoc != shipHome && _ship is not null)
+        {
+            _ship.CurrentLocationId = homeLoc; // the ship follows the clone back to the prior world
+        }
+
         var homeBody = _galaxy?.FindBody(homeLoc);
         string homeType = !string.IsNullOrEmpty(homeBody?.PlanetType) ? homeBody.PlanetType : _meta.DefaultPlanetType;
 
