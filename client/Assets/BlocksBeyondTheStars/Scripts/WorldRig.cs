@@ -137,6 +137,11 @@ namespace BlocksBeyondTheStars.Client
             var landedShips = root.AddComponent<LandedShipView>();
             landedShips.Game = boot;
 
+            // Hover speeders (craftable surface vehicles): voxel objects parked/driven on this world, with
+            // hover dust + engine glow and deploy/destruction bursts.
+            var speeders = root.AddComponent<SpeederView>();
+            speeders.Game = boot;
+
             // Hyperspace warp animation (plays on a system-to-system jump).
             var warp = root.AddComponent<HyperspaceWarp>();
             warp.Game = boot;

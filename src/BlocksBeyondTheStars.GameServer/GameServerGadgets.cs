@@ -94,6 +94,10 @@ public sealed partial class GameServer
                 UseCreatureTranslator(session, target);
                 cooldown = TranslatorCooldown;
                 break;
+            case "speeder":
+                DeploySpeeder(session); // unfolds a hover vehicle in front of the player (consumes the item)
+                cooldown = SpeederDeployCooldown;
+                break;
             default:
                 Reject(session, "gadget", "Unknown gadget.");
                 return;

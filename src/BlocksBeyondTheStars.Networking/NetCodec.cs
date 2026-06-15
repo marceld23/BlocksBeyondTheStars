@@ -251,6 +251,16 @@ public static class NetCodec
         // Always-available "Shape" crafting: re-form a held building material into another geometric shape
         // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.
         Register(160, typeof(ShapeCraftIntent));         // Client -> Server
+
+        // Hover speeders (craftable single-seat surface vehicles): deployed from the speeder item, driven over
+        // the surface, refuellable + destructible. Deploy reuses UseGadgetIntent; these carry state + actions.
+        Register(161, typeof(SpeederList));              // Server -> Client (speeders on the current world)
+        Register(162, typeof(EnterSpeederIntent));       // Client -> Server (board a parked speeder)
+        Register(163, typeof(ExitSpeederIntent));        // Client -> Server (dismount)
+        Register(164, typeof(StowSpeederIntent));        // Client -> Server (pack a speeder back into the item)
+        Register(165, typeof(RefuelSpeederIntent));      // Client -> Server (refuel from an energy cell)
+        Register(166, typeof(SpeederImpactIntent));      // Client -> Server (hard collision → server-side damage)
+        Register(167, typeof(SpeederFx));                // Server -> Client (deploy shimmer / destruction burst)
     }
 
     private static void Register(byte tag, Type type)

@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
         private AudioSource _fluid;     // looping lava/water bed when near a fluid
         private AudioSource _drill;     // looping drill while mining
         private AudioSource _jet;       // looping jetpack thrust while firing
+        private AudioSource _speeder;   // looping hover-speeder engine while driving
 
         // Underwater muffle: a low-pass on this GameObject filters every source on it — and ClientMusic lives
         // on the same object, so the music ducks too. Engages when the player's head is inside a fluid block.
@@ -51,6 +52,9 @@ namespace BlocksBeyondTheStars.Client
         private float _caveScanTimer;
         private float _drillRefresh = -10f;
         private float _jetRefresh = -10f;
+        private float _speederRefresh = -10f;
+        private float _speederIntensity;
+        private bool _speederBoost;
         private float _thunderTimer;
         private readonly System.Random _rng = new System.Random();
 
@@ -119,6 +123,15 @@ namespace BlocksBeyondTheStars.Client
             _jet.volume = 0f;
             _jet.clip = _clips.TryGetValue("jetpack_loop", out var jetClip) ? jetClip : JetClip();
             _jet.Play();
+
+            _speeder = gameObject.AddComponent<AudioSource>();
+            _speeder.playOnAwake = false;
+            _speeder.loop = true;
+            _speeder.spatialBlend = 0f;
+            _speeder.volume = 0f;
+            _speeder.clip = _clips.TryGetValue("vehicle_engine_loop", out var spClip) ? spClip
+                : (_clips.TryGetValue("jetpack_loop", out var jc2) ? jc2 : JetClip()); // recorded engine, else a rumble
+            _speeder.Play();
 
             _ok = Tone(660f, 0.12f, 0.4f);
             _err = Tone(110f, 0.20f, 0.5f);
@@ -198,6 +211,16 @@ namespace BlocksBeyondTheStars.Client
                 _jet.volume = Mathf.MoveTowards(_jet.volume, on ? sfx * 0.5f : 0f, Time.deltaTime * 5f);
             }
 
+            // Hover-speeder engine loop while driving (PlayerController calls SpeederTick each frame). Volume +
+            // pitch track the throttle; boost lifts the pitch.
+            if (_speeder != null && _speeder.clip != null)
+            {
+                bool on = Time.time - _speederRefresh < 0.15f;
+                _speeder.volume = Mathf.MoveTowards(_speeder.volume, on ? sfx * (0.34f + 0.30f * _speederIntensity) : 0f, Time.deltaTime * 6f);
+                float targetPitch = on ? (0.78f + 0.5f * _speederIntensity) * (_speederBoost ? 1.18f : 1f) : 0.78f;
+                _speeder.pitch = Mathf.MoveTowards(_speeder.pitch, targetPitch, Time.deltaTime * 2.5f);
+            }
+
             // Underwater muffle: sweep the low-pass toward a heavy cut while the head is submerged, back to
             // open above water. Sampled per frame (one block lookup) so a quick dunk responds promptly.
             if (_lowpass != null)
@@ -235,6 +258,27 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Called each frame the jetpack is firing; keeps the thrust loop alive (fades out otherwise).</summary>
         public void JetTick() => _jetRefresh = Time.time;
+
+        /// <summary>One-shot startup chirp when boarding/igniting a speeder.</summary>
+        public void SpeederStart() => Cue("vehicle_startup", 0.7f);
+
+        /// <summary>Shuts the engine loop down + plays the power-down one-shot when dismounting.</summary>
+        public void SpeederStop()
+        {
+            _speederRefresh = -10f;
+            _speederIntensity = 0f;
+            _speederBoost = false;
+            Cue("vehicle_shutdown", 0.6f);
+        }
+
+        /// <summary>Called each frame while driving: keeps the engine loop alive and feeds it the throttle
+        /// (0..1) + boost so its volume/pitch track the speed.</summary>
+        public void SpeederTick(float intensity, bool boost)
+        {
+            _speederRefresh = Time.time;
+            _speederIntensity = Mathf.Clamp01(intensity);
+            _speederBoost = boost;
+        }
 
         /// <summary>Synthesized jetpack thrust: a low rumble under filtered hiss (used when no recording exists).</summary>
         private static AudioClip JetClip()

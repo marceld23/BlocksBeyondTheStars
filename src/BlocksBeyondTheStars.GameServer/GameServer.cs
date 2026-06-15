@@ -728,6 +728,11 @@ public sealed partial class GameServer
 
     private void TickEnvironment(double dt)
     {
+        if (ReconcileSpeeders()) // materialise present owners' speeders / despawn departed owners' (hover vehicles)
+        {
+            BroadcastSpeeders();
+        }
+
         foreach (var session in JoinedInActiveWorld())
         {
             SetCurrent(session); // per-player ship cursor: own heal-tank/aboard/stamp resolve correctly
@@ -1358,6 +1363,11 @@ public sealed partial class GameServer
             case RequestCompanionsIntent: HandleRequestCompanions(session); break;
             case SetCompanionNameIntent compName: HandleSetCompanionName(session, compName); break;
             case ReleaseCompanionIntent release: HandleReleaseCompanion(session, release); break;
+            case EnterSpeederIntent enterSpeeder: HandleEnterSpeeder(session, enterSpeeder); break;
+            case ExitSpeederIntent: HandleExitSpeeder(session); break;
+            case StowSpeederIntent stowSpeeder: HandleStowSpeeder(session, stowSpeeder); break;
+            case RefuelSpeederIntent refuelSpeeder: HandleRefuelSpeeder(session, refuelSpeeder); break;
+            case SpeederImpactIntent speederImpact: HandleSpeederImpact(session, speederImpact); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
@@ -1522,6 +1532,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
         SpawnCompanionsForSession(session); // re-materialise the player's pets if they joined onto their companions' home world
+        SpawnSpeedersForSession(session); // re-materialise the player's deployed hover speeders on the join world
         SendCreatures(session);
         SendCompanions(session); // the player's full companion roster (for the Companions menu tab)
         SendDoors(session);
@@ -1774,6 +1785,7 @@ public sealed partial class GameServer
             session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X, circ), move.Y, z);
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
+            UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell
         }
     }
 
@@ -2886,6 +2898,7 @@ public sealed partial class GameServer
             AboveAtmosphere = p.AboveAtmosphere,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
+            InSpeeder = p.InSpeeder,
         });
     }
 

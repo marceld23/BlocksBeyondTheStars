@@ -112,6 +112,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<TameResult> TameResultReceived;
         public event Action<CompanionList> CompanionsReceived;
 
+        // Hover speeders: the world's live speeders + one-shot deploy/destruction effects.
+        public event Action<SpeederList> SpeedersReceived;
+        public event Action<SpeederFx> SpeederFxReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -385,6 +389,26 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Release a companion (untame it).</summary>
         public void SendReleaseCompanion(string companionId) => Send(new ReleaseCompanionIntent { CompanionId = companionId ?? string.Empty });
 
+        // --- Hover speeders ---
+        /// <summary>Deploy a speeder in front of the player (reuses the gadget path on the speeder item).</summary>
+        public void SendDeploySpeeder(Vector3 at) => SendUseGadget("speeder", at);
+
+        /// <summary>Board a parked speeder I own.</summary>
+        public void SendEnterSpeeder(string speederId) => Send(new EnterSpeederIntent { SpeederId = speederId ?? string.Empty });
+
+        /// <summary>Dismount the speeder I'm driving.</summary>
+        public void SendExitSpeeder() => Send(new ExitSpeederIntent());
+
+        /// <summary>Pack a deployed speeder back into the item.</summary>
+        public void SendStowSpeeder(string speederId) => Send(new StowSpeederIntent { SpeederId = speederId ?? string.Empty });
+
+        /// <summary>Refuel a speeder from an energy cell in my inventory.</summary>
+        public void SendRefuelSpeeder(string speederId) => Send(new RefuelSpeederIntent { SpeederId = speederId ?? string.Empty });
+
+        /// <summary>Report a hard collision while driving (the server computes the hull damage).</summary>
+        public void SendSpeederImpact(string speederId, float speed)
+            => Send(new SpeederImpactIntent { SpeederId = speederId ?? string.Empty, Speed = speed });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -459,6 +483,8 @@ namespace BlocksBeyondTheStars.Client
                 case TameProgress m: TameProgressReceived?.Invoke(m); break;
                 case TameResult m: TameResultReceived?.Invoke(m); break;
                 case CompanionList m: CompanionsReceived?.Invoke(m); break;
+                case SpeederList m: SpeedersReceived?.Invoke(m); break;
+                case SpeederFx m: SpeederFxReceived?.Invoke(m); break;
                 case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
                 case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
                 case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;

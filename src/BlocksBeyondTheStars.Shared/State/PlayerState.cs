@@ -140,6 +140,15 @@ public sealed class PlayerState
     /// first-tame knowledge bonus is paid once per species (mirrors <see cref="Scanned"/>). Persisted.</summary>
     public HashSet<string> TamedSpecies { get; set; } = new();
 
+    /// <summary>Hover speeders this player has deployed into the world — packable single-seat vehicles bound to
+    /// the body they were deployed on (like <see cref="TamedCreatures"/>). They materialise as live entities only
+    /// while the owner is on that body; otherwise stored here. Server-authoritative, persisted in the player blob.</summary>
+    public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
+
+    /// <summary>Runtime only: the id of the speeder this player is currently piloting (empty = on foot). Cleared
+    /// on (re)join so a reload never starts the player "inside" a speeder; never meaningfully persisted.</summary>
+    public string InSpeeder { get; set; } = string.Empty;
+
     /// <summary>The player's custom pixel face, drawn in the in-game face editor and shown on this player's
     /// avatar to everyone (cosmetic). Encoded as a compact string of 16×16 palette indices (one hex char per
     /// pixel, index 0 = transparent); empty = no custom face (the default procedural eyes/mouth are used). The

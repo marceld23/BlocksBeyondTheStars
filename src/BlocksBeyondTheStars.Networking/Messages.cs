@@ -604,6 +604,10 @@ public sealed class PlayerStateUpdate
     /// <summary>AI-core tier of the player's active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the
     /// client-side autopilot assist and the companion panel's ability hints.</summary>
     public int AiCoreTier { get; set; } = 1;
+
+    /// <summary>Id of the hover speeder the player is currently piloting (empty = on foot). Drives the client's
+    /// switch into vehicle-drive mode + the speeder HUD.</summary>
+    public string InSpeeder { get; set; } = string.Empty;
 }
 
 public sealed class CraftResult

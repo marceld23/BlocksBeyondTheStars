@@ -71,6 +71,7 @@
   { "key": "terrain_blaster", "nameKey": "item.terrain_blaster.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.terrain_blaster.desc", "tool": { "kind": "gadget", "tier": 3, "energyPerUse": 8.0 } },
   { "key": "terrain_scanner", "nameKey": "item.terrain_scanner.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.terrain_scanner.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 10.0 } },
   { "key": "creature_translator", "nameKey": "item.creature_translator.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.creature_translator.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 3.0 } },
+  { "key": "speeder",         "nameKey": "item.speeder.name",         "category": "tool", "maxStack": 1, "descriptionKey": "item.speeder.desc", "tool": { "kind": "gadget", "tier": 3, "energyPerUse": 0.0 } },
 
   { "key": "forage_bait", "nameKey": "item.forage_bait.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.forage_bait.desc" },
   { "key": "meat_bait",   "nameKey": "item.meat_bait.name",   "category": "consumable", "maxStack": 20, "descriptionKey": "item.meat_bait.desc" },

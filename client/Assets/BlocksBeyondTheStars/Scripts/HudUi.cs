@@ -47,6 +47,11 @@ namespace BlocksBeyondTheStars.Client
         private Button _tameFeed, _tameCalm, _tameApproach, _tameSpace, _tameStop;
         private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
         private Text _shipRepairTitle, _shipRepairProg, _shipRepairHint;
+
+        // Hover-speeder vehicle HUD: integrity + energy gauges, speed and the drive prompt (shown while driving).
+        private GameObject _speederPanel;
+        private Image _speederHull, _speederFuel;
+        private Text _speederTitle, _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint;
         private Image _wreckBar, _shipRepairBar;
         private Button _wreckClaim, _shipRepairBtn;
 
@@ -360,6 +365,18 @@ namespace BlocksBeyondTheStars.Client
             _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _hint = UiKit.AddText(root, 12, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
+            // Vehicle HUD (hover speeder): integrity + energy gauges, speed + drive prompt, where the hotbar sits
+            // (the hotbar is hidden while driving). Hidden until the player boards a speeder.
+            _speederPanel = Panel(root, W / 2f - 170, H - 136, 340, 108).gameObject;
+            _speederTitle = UiKit.AddText(_speederPanel.transform, 12, 6, 220, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederSpeed = UiKit.AddText(_speederPanel.transform, 108, 6, 220, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
+            _speederHull = MakeBar(_speederPanel.transform, 12, 30, 316, 16);
+            _speederHullLabel = UiKit.AddText(_speederPanel.transform, 18, 30, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederFuel = MakeBar(_speederPanel.transform, 12, 52, 316, 16);
+            _speederFuelLabel = UiKit.AddText(_speederPanel.transform, 18, 52, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederHint = UiKit.AddText(_speederPanel.transform, 12, 80, 316, 18, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _speederPanel.SetActive(false);
+
             // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
             // threat, knowledge, and a highlighted "new discovery" line on a first-time scan.
             _scanPanel = Panel(root, 10, H - 150 - 48, 360, 150).gameObject;
@@ -504,6 +521,57 @@ namespace BlocksBeyondTheStars.Client
             RefreshWreck(loc);
             RefreshShipRepair(loc);
             RefreshTaming(loc);
+            RefreshSpeeder(loc);
+        }
+
+        /// <summary>Vehicle HUD while driving a hover speeder: integrity + energy gauges (colour-graded), the
+        /// current speed and the F/R drive prompt. Hidden on foot.</summary>
+        private void RefreshSpeeder(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var s = Game.DrivenSpeeder;
+            bool active = !string.IsNullOrEmpty(Game.InSpeeder) && s != null;
+            if (_speederPanel.activeSelf != active)
+            {
+                _speederPanel.SetActive(active);
+            }
+
+            if (!active)
+            {
+                return;
+            }
+
+            _speederTitle.text = loc.Get("item.speeder.name");
+            _speederSpeed.text = $"{Mathf.RoundToInt(Mathf.Abs(Game.SpeederSpeed))} m/s";
+
+            float hullFrac = s.HullMax > 0 ? s.Hull / s.HullMax : 0f;
+            _speederHull.fillAmount = Mathf.Clamp01(hullFrac);
+            _speederHull.color = hullFrac > 0.5f ? new Color(0.4f, 0.85f, 0.5f)
+                : (hullFrac > 0.25f ? new Color(0.95f, 0.8f, 0.3f) : new Color(0.95f, 0.35f, 0.3f));
+            _speederHullLabel.text = $"{loc.Get("hud.speeder.integrity")}  {Mathf.RoundToInt(s.Hull)}";
+
+            float fuelFrac = s.FuelMax > 0 ? s.Fuel / s.FuelMax : 0f;
+            _speederFuel.fillAmount = Mathf.Clamp01(fuelFrac);
+            _speederFuel.color = fuelFrac > 0.2f ? new Color(0.4f, 0.8f, 1f) : new Color(0.95f, 0.5f, 0.2f);
+            _speederFuelLabel.text = $"{loc.Get("hud.speeder.fuel")}  {Mathf.RoundToInt(s.Fuel)}";
+
+            string hint = $"F: {loc.Get("hud.speeder.exit")}  ·  R: {loc.Get("hud.speeder.refuel")}";
+            if (s.Fuel <= 0.01f)
+            {
+                hint = loc.Get("hud.speeder.nofuel");
+            }
+
+            _speederHint.text = hint;
+        }
+
+        /// <summary>A horizontal fill bar (dark track + a coloured fill) for the vehicle gauges.</summary>
+        private Image MakeBar(Transform parent, float x, float y, float w, float h)
+        {
+            UiKit.AddImage(parent, x, y, w, h, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
+            var fill = UiKit.AddImage(parent, x, y, w, h, UiKit.SolidSprite, Color.white);
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            return fill;
         }
 
         // --- vitals ---
@@ -539,7 +607,7 @@ namespace BlocksBeyondTheStars.Client
             // No on-foot hotbar while flying the ship — you're piloting, not holding hand tools. BUT on an EVA
             // the hotbar IS shown: you float in space and build/mine on structures from your inventory, so you
             // need to see + pick the held block/tool (B?).
-            bool hide = (Game.SpaceViewActive || Game.InSpace) && !Game.InEva;
+            bool hide = ((Game.SpaceViewActive || Game.InSpace) && !Game.InEva) || !string.IsNullOrEmpty(Game.InSpeeder);
             if (_hotbarRoot != null && _hotbarRoot.activeSelf == hide)
             {
                 _hotbarRoot.SetActive(!hide);

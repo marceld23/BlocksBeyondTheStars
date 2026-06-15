@@ -149,6 +149,44 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Placed beam blocks (teleporter pads) on the current world, for the map + the transporter panel.</summary>
         public NetBeam[] Beams { get; private set; } = System.Array.Empty<NetBeam>();
 
+        /// <summary>Live hover speeders on the current world (parked + driven). <see cref="SpeederView"/> renders
+        /// them; <see cref="PlayerController"/> reads them to board/drive. Server-authoritative.</summary>
+        public NetSpeeder[] Speeders { get; private set; } = System.Array.Empty<NetSpeeder>();
+
+        /// <summary>Id of the speeder the local player is currently driving ("" = on foot) — from the authoritative
+        /// player state. Drives the vehicle HUD + the drive controls.</summary>
+        public string InSpeeder { get; private set; } = string.Empty;
+
+        /// <summary>Current local speeder ground speed (m/s, signed), published by <see cref="PlayerController"/>
+        /// while driving so the vehicle HUD can show it.</summary>
+        public float SpeederSpeed;
+
+        /// <summary>The local player's driven speeder (null if not driving), for the HUD gauges + drive physics.</summary>
+        public NetSpeeder DrivenSpeeder
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(InSpeeder))
+                {
+                    return null;
+                }
+
+                foreach (var s in Speeders)
+                {
+                    if (s != null && s.Id == InSpeeder)
+                    {
+                        return s;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>Pending one-shot speeder effects (deploy shimmer / destruction burst). <see cref="SpeederView"/>
+        /// drains this each frame and plays each at its position.</summary>
+        public readonly System.Collections.Generic.List<SpeederFx> PendingSpeederFx = new();
+
         /// <summary>True if the local player may use this beam block as a source/destination: they own it or are
         /// allied with the owner (admins are handled server-side). Drives the transporter's destination list.</summary>
         public bool CanUseBeam(NetBeam b)
@@ -734,6 +772,15 @@ namespace BlocksBeyondTheStars.Client
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
             Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
+            Network.SpeedersReceived += m => Speeders = m.Speeders ?? System.Array.Empty<NetSpeeder>();
+            Network.SpeederFxReceived += m =>
+            {
+                PendingSpeederFx.Add(m);
+                if (PendingSpeederFx.Count > 24)
+                {
+                    PendingSpeederFx.RemoveAt(0); // safety cap — never let a backlog grow
+                }
+            };
             Network.TameProgressReceived += m => TameState = (m != null && m.Active) ? m : null;
             Network.TameResultReceived += m =>
             {
@@ -1181,6 +1228,7 @@ namespace BlocksBeyondTheStars.Client
             Hunger = m.Hunger;
             Aboard = m.AboardShip;
             InEva = m.InEva;
+            InSpeeder = m.InSpeeder ?? string.Empty;
 
             // Built/climbed above the atmosphere → zero-g float on foot + space sky (item 10).
             if (m.AboveAtmosphere != OnFootInSpace)

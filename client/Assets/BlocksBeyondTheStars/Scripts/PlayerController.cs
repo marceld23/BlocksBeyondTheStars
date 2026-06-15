@@ -39,6 +39,17 @@ namespace BlocksBeyondTheStars.Client
         public bool ThirdPerson = false;
         public float Reach = 8f; // match the server's MaxReach (8) — a shorter client reach left a silent dead-band (B32)
 
+        // Hover speeder (arcade, car-style): W gas / S brake-reverse / A,D steer / Space hop / Shift boost.
+        public float SpeederMaxSpeed = 13f;
+        public float SpeederBoostSpeed = 20f;
+        public float SpeederAccel = 16f;
+        public float SpeederTurnSpeed = 95f;     // degrees/sec, scaled by current speed
+        public float SpeederHoverHeight = 1.3f;  // metres held above the ground below
+        public float SpeederHopSpeed = 6f;       // Space gives a quick lift over a low obstacle
+        public float SpeederImpactThreshold = 9f; // a hard stop above this speed reports a collision
+        public float SpeederBoardRange = 3.2f;
+        public float SpeederStowRange = 3.5f;
+
         private const int HotbarSlots = 9;
 
         private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
@@ -57,6 +68,11 @@ namespace BlocksBeyondTheStars.Client
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
         private int _lastWorldEpoch;
+
+        // Speeder drive state.
+        private float _speederSpeed;
+        private bool _wasDriving;
+        private float _speederCamPitch = 10f;
 
         // Camera feel (first-person head-bob, FOV kick, landing shake).
         private float _bobPhase;
@@ -202,6 +218,37 @@ namespace BlocksBeyondTheStars.Client
             {
                 UpdateJetpack(false);
                 ApplyGravityOnly();
+                return;
+            }
+
+            // Driving a hover speeder takes over movement + camera entirely (arcade hover, car-style).
+            if (Game != null && !string.IsNullOrEmpty(Game.InSpeeder))
+            {
+                UpdateJetpack(false);
+                DriveSpeeder();
+                SendMovement();
+                Game.PlayerPosition = transform.position;
+                Game.PlayerYaw = transform.eulerAngles.y;
+                return;
+            }
+
+            // Just stepped out of a speeder → restore the on-foot camera + viewmodel.
+            if (_wasDriving)
+            {
+                _wasDriving = false;
+                ApplyCameraMode();
+                ClientAudio.Instance?.SpeederStop();
+            }
+
+            // On foot: board a speeder you own that you're standing next to (E), or pack one up (X). Checked
+            // before the generic E interact so boarding the speeder beside you wins.
+            if (Input.GetKeyDown(KeyCode.E) && TryBoardNearbySpeeder())
+            {
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.X) && TryStowNearbySpeeder())
+            {
                 return;
             }
 
@@ -1014,6 +1061,160 @@ namespace BlocksBeyondTheStars.Client
                 _jetpackActive = active;
                 Game?.Network?.SendSetJetpack(active);
             }
+        }
+
+        /// <summary>Arcade hover driving (car-style): W/S throttle, A/D steer, Space hop, Shift boost. Holds a
+        /// fixed height over the ground, can't climb steep walls (a hard stop reports a collision), and runs on
+        /// the speeder's own energy cell (empty = no propulsion). F dismounts, R refuels.</summary>
+        private void DriveSpeeder()
+        {
+            if (!_wasDriving)
+            {
+                _wasDriving = true;
+                _speederSpeed = 0f;
+                Avatar?.SetVisible(true);   // sit visibly in the speeder
+                _viewmodel?.SetVisible(false);
+                ClientAudio.Instance?.SpeederStart();
+            }
+
+            // Chase camera behind + above the speeder; mouse Y tilts it.
+            float my = Input.GetAxis("Mouse Y") * MouseSensitivity * (InvertY ? -1f : 1f);
+            _speederCamPitch = Mathf.Clamp(_speederCamPitch - my, -8f, 35f);
+            if (Camera != null)
+            {
+                Camera.transform.localPosition = new Vector3(0f, 2.4f, -5.5f);
+                Camera.transform.localEulerAngles = new Vector3(_speederCamPitch, 0f, 0f);
+            }
+
+            var driven = Game.DrivenSpeeder;
+            bool outOfFuel = driven != null && driven.Fuel <= 0.01f;
+
+            float throttle = Input.GetAxis("Vertical");   // W = +1, S = -1 (brake / reverse)
+            float steer = Input.GetAxis("Horizontal");    // A = -1, D = +1
+            bool boosting = Input.GetKey(KeyCode.LeftShift) && !outOfFuel && throttle > 0.1f;
+
+            // Steering scales with speed (no pirouetting while parked).
+            float speedFrac = Mathf.Clamp01(Mathf.Abs(_speederSpeed) / SpeederMaxSpeed);
+            transform.Rotate(0f, steer * SpeederTurnSpeed * (0.35f + 0.65f * speedFrac) * Time.deltaTime, 0f);
+
+            float maxSpeed = boosting ? SpeederBoostSpeed : SpeederMaxSpeed;
+            float targetSpeed = outOfFuel ? 0f : (throttle >= 0f ? throttle * maxSpeed : throttle * SpeederMaxSpeed * 0.45f);
+            _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, SpeederAccel * Time.deltaTime);
+
+            // Hover: hold a fixed height above whatever ground is below; sink gently over a void/edge.
+            float vSpeed;
+            if (Physics.Raycast(transform.position + Vector3.up * 2.5f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
+                && hit.collider != _controller)
+            {
+                float targetY = hit.point.y + SpeederHoverHeight;
+                vSpeed = Mathf.Clamp((targetY - transform.position.y) * 6f, -10f, 8f);
+            }
+            else
+            {
+                vSpeed = -Gravity * 0.2f;
+            }
+
+            if (Input.GetButtonDown("Jump") && !outOfFuel)
+            {
+                vSpeed = SpeederHopSpeed; // a quick hover-hop over a low obstacle
+            }
+
+            Vector3 before = transform.position;
+            _controller.Move((transform.forward * _speederSpeed + Vector3.up * vSpeed) * Time.deltaTime);
+
+            // A hard horizontal stop at speed = ran into a wall/cliff → report the impact (server scales the hull
+            // damage from the speed and jolts the driver).
+            float wanted = Mathf.Abs(_speederSpeed);
+            Vector3 moved = transform.position - before;
+            moved.y = 0f;
+            float actual = moved.magnitude / Mathf.Max(1e-4f, Time.deltaTime);
+            if (wanted > SpeederImpactThreshold && actual < wanted * 0.45f)
+            {
+                Game.Network?.SendSpeederImpact(Game.InSpeeder, wanted);
+                _speederSpeed *= 0.15f;
+                ClientAudio.Instance?.Cue("vehicle_impact", 0.85f);
+            }
+
+            ClientAudio.Instance?.SpeederTick(speedFrac, boosting);
+            Game.SpeederSpeed = _speederSpeed; // publish for the vehicle HUD speed readout
+
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                Game.Network?.SendExitSpeeder();
+            }
+            else if (Input.GetKeyDown(KeyCode.R))
+            {
+                Game.Network?.SendRefuelSpeeder(Game.InSpeeder);
+            }
+        }
+
+        /// <summary>Boards the nearest parked speeder the player owns within reach (on-foot E). Returns true if one
+        /// was found and a board intent sent.</summary>
+        private bool TryBoardNearbySpeeder()
+        {
+            if (Game?.Network == null || Game.Speeders == null)
+            {
+                return false;
+            }
+
+            string best = null;
+            float bestSq = SpeederBoardRange * SpeederBoardRange;
+            foreach (var s in Game.Speeders)
+            {
+                if (s == null || s.OwnerId != Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
+                {
+                    continue;
+                }
+
+                float d = (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = s.Id;
+                }
+            }
+
+            if (best == null)
+            {
+                return false;
+            }
+
+            Game.Network.SendEnterSpeeder(best);
+            return true;
+        }
+
+        /// <summary>Packs the nearest parked speeder the player owns back into the item (on-foot X).</summary>
+        private bool TryStowNearbySpeeder()
+        {
+            if (Game?.Network == null || Game.Speeders == null)
+            {
+                return false;
+            }
+
+            string best = null;
+            float bestSq = SpeederStowRange * SpeederStowRange;
+            foreach (var s in Game.Speeders)
+            {
+                if (s == null || s.OwnerId != Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
+                {
+                    continue;
+                }
+
+                float d = (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = s.Id;
+                }
+            }
+
+            if (best == null)
+            {
+                return false;
+            }
+
+            Game.Network.SendStowSpeeder(best);
+            return true;
         }
 
         private void Move()

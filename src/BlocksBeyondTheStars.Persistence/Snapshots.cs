@@ -64,6 +64,9 @@ public sealed class PlayerSnapshot
 
     /// <summary>Species already tamed once (first-tame knowledge bookkeeping; signature "&lt;body&gt;:&lt;sp&gt;").</summary>
     public List<string> TamedSpecies { get; set; } = new();
+
+    /// <summary>Deployed hover speeders (packable surface vehicles) — bound to their home body, restored on reload.</summary>
+    public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -144,7 +147,24 @@ public static class StateMapper
         KnownSystems = p.KnownSystems.ToList(),
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
+        DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
         FacePixels = p.FacePixels,
+    };
+
+    /// <summary>Copies a deployed speeder record so a snapshot doesn't alias the live list.</summary>
+    private static DeployedSpeeder CloneSpeeder(DeployedSpeeder s) => new()
+    {
+        Id = s.Id,
+        HomeBodyId = s.HomeBodyId,
+        X = s.X,
+        Y = s.Y,
+        Z = s.Z,
+        Yaw = s.Yaw,
+        Hull = s.Hull,
+        HullMax = s.HullMax,
+        Fuel = s.Fuel,
+        FuelMax = s.FuelMax,
+        HullColor = s.HullColor,
     };
 
     /// <summary>Copies a tamed creature so a snapshot doesn't alias the live list. The species descriptor is
@@ -222,6 +242,7 @@ public static class StateMapper
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
+        DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
         FacePixels = s.FacePixels ?? string.Empty,
     };
 

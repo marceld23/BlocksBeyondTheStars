@@ -45,6 +45,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 } ]
   },
   {
+    "key": "speeder", "nameKey": "blueprint.speeder.name", "descriptionKey": "blueprint.speeder.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 12,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ]
+  },
+  {
     "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]

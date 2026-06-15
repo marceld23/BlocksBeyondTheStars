@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **605 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **612 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,30 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Hover speeder — craftable single-seat surface vehicle — ✅ server + tests + client wiring + icon + sounds, needs Unity client build (2026-06-15)
+A craftable **hover speeder**: deploy it from a hotbar item, board it and drive across a planet surface; it
+hovers over the terrain, runs on its own energy cell, and can take damage and be destroyed. Locked design:
+arcade-hover (car-style) controls · deploy/retrieve lifecycle · own energy tank · voxel hull.
+- **Item/craft:** `speeder` (gadget-kind tool, maxStack 1), blueprint-gated workshop recipe (titanium_plate ×8,
+  cable ×10, energy_cell_1 ×4, circuit_board ×2, crystal ×2); blueprint `speeder` (knowledgeCost 12). DE+EN locale.
+- **Server (`GameServerSpeeders.cs`):** a `ServerSpeeder` entity materialised per present owner from a
+  per-player `DeployedSpeeder` record (persisted in the player blob like companions — no DB table; survives reload
+  via `Snapshots`). Deploy (via the gadget-use path, consumes the item) / pack-up (returns it) / board / dismount /
+  refuel (energy_cell_1) / reconcile. Driving reuses `MoveIntent`: the server slaves the speeder to the driver's
+  pose, drains the energy cell by distance, and broadcasts the pose at ~2.5 Hz.
+- **Damage:** `Hull`/`HullMax`; collisions are client-reported (`SpeederImpactIntent`, mirrors fall damage) and
+  scaled server-side + jolt the driver; hostile wildlife dents the hull while you drive; destruction ejects +
+  jolts the driver, drops the record (item lost) and broadcasts an explosion.
+- **Net:** `SpeederList` / `SpeederFx` (S→C) + `Enter/Exit/Stow/Refuel/SpeederImpact` intents + `UseGadgetIntent`
+  deploy (NetCodec 161–167); `PlayerStateUpdate.InSpeeder` flips the client into drive mode.
+- **Client:** `PlayerController` drive branch (W/S throttle · A/D steer · Space hop · Shift boost · hover raycast ·
+  chase cam · F dismount · R refuel; E boards / X packs up a nearby own speeder), `SpeederView` (voxel hull via the
+  ship mesher, hover dust + engine glow + deploy/destruction bursts), vehicle HUD in `HudUi` (integrity + energy
+  gauges, speed, prompt; hotbar hidden while driving), `ClientAudio` engine loop (pitch tracks throttle).
+- **Assets:** OpenAI `item_speeder.png` icon; ElevenLabs `vehicle_engine_loop`/`_startup`/`_shutdown`/`_impact`.
+- **Tests (`SpeederTests.cs`, 7):** deploy consumes+records, board+drive drains energy, exit parks, stow returns
+  item, collision dents + destroys, refuel consumes a cell, deployed speeder survives a reload.
 
 ### ★ Craftable block shapes — re-form materials into spheres/ramps/pyramids/… at the workbench — ✅ server + tests + client wiring, needs Unity client build (2026-06-15)
 Players can re-form a held building material into a non-cube **shape** (slab, pyramid, dome/half-sphere, sphere,

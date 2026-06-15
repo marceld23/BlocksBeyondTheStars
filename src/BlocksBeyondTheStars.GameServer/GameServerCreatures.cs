@@ -236,7 +236,16 @@ public sealed partial class GameServer
 
                 if (WrapDistSq(p.Position, creature.Position) <= CreatureProximityRange * CreatureProximityRange)
                 {
-                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(creature.DamagePerSecond * dt)));
+                    float bite = (float)(creature.DamagePerSecond * dt);
+
+                    // While driving a speeder its hull soaks most of the bite (the player is shielded by the chassis).
+                    if (TryGetDrivenSpeeder(p, out var speeder))
+                    {
+                        DamageSpeeder(speeder, bite * SpeederCreatureDamageShare, "wildlife");
+                        bite *= 1f - SpeederCreatureDamageShare;
+                    }
+
+                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, bite));
                     SendPlayerState(session);
                     if (p.Health <= 0f)
                     {
