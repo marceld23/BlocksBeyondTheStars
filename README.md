@@ -9,6 +9,41 @@ self-hosting come naturally.
 > display title, solution, namespaces, binaries and asset paths all use **Blocks Beyond the Stars** /
 > `BlocksBeyondTheStars` now. Old client installs migrate their settings/saves automatically on first start.
 
+## What is it? (the short pitch)
+
+You wake aboard **your own spaceship** at the edge of an unknown universe. Out there are
+**many star systems** — each with its own sun, its own planets, moons and asteroid fields.
+**Every world is unique**: from cold, airless rocks adrift in space — barren but rich with
+ore — to lush, **heavily forested** worlds teeming with life, with frozen tundra, lava
+fields, fungal groves, floating skylands and dive-able oceans in between. And every alien
+world grows **its own flora and fauna**. Land on any of them and start digging — every
+block can be mined, reshaped and rebuilt.
+
+Gather resources and **knowledge** to unlock blueprints, smelt and craft, and grow your
+ship — then fly real, system-scale routes between worlds and **jump from one star system to
+the next**. Dock at **space stations**, walk into **villages and cities** full of NPCs to
+trade and take missions, and build your own — **your own planet bases and even your own
+space stations**. Along the way you collect **DataQubes** (each one a little arcade
+minigame), and, if you want, you can follow **The VEGA Protocol** — an optional, genuinely
+exciting story narrated by your ship's AI *VEGA* that builds to a real finale.
+
+Play **solo**, **host a world for friends**, or **join a dedicated server**. In multiplayer
+you can **form alliances** and then share bases and structures with your allies — the world
+is shared, persistent, and self-hostable (even on a Raspberry Pi).
+
+**In one session you might:**
+
+- 🪐 Explore **unique** planets, moons and asteroids across many star systems — each with its own sun, terrain and **alien flora & fauna**
+- ⛏️ Mine, smelt and craft, and gather **knowledge** to unlock new blueprints
+- 🚀 Grow and redesign your ship, then fly between worlds and **jump between star systems**
+- 🛰️ Dock at **space stations** and walk into **villages & cities** full of NPCs — trade, take missions
+- 🏗️ Build your **own bases and your own space stations**; link teleporter pads, build with colored light
+- 🤝 In multiplayer, **form alliances** and share bases and structures with your allies
+- 🎨 Make it yours: design your avatar's face, **dye any material**, paint with light
+- 🕹️ Collect **DataQubes** — arcade minigames — and read the in-game **Codex** wiki
+- 📖 Follow the exciting **VEGA Protocol** story (optional, narrated by your ship AI) to its finale
+- 🎵 Set the mood with a built-in music library
+
 ## About this project
 
 **Blocks Beyond the Stars — JuMaVe Games**
@@ -135,13 +170,20 @@ changes are needed to add content. Player-facing names use localization keys res
 
 ## Status
 
-A fully playable client + server game: procedurally generated worlds that wrap east–west (walk
-around the planet, seam-free), 17 planet types including exotic ones (skylands, fungal, corrupted,
-ocean, …), swimming/diving, mining → crafting → blueprints → ship building, real system-scale space
-flight with stations, settlements and NPCs, multiplayer with per-player ships and trading, the
-VEGA ship-AI onboarding/advisor companion, world-creation options, in-game content editors, and an
-optional LLM backend for dynamic dialogue/mission text. Self-hostable dedicated server (Raspberry
-Pi friendly). Currently 471 xUnit tests pass.
+A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
+moons and asteroid fields), procedurally generated worlds that wrap east–west (walk around the
+planet, seam-free), 18 planet types including exotic ones (skylands, fungal, corrupted, ocean,
+salt flats, …) with their own flora and fauna, swimming/diving, mining → crafting → blueprints →
+ship building, real system-scale space flight (with jumps between systems) with stations,
+settlements and NPCs, peaceful NPC trader traffic, the
+**"VEGA Protocol" story campaign** (a swappable, story-agnostic engine with lore fragments, three
+Guardian machine types and a two-route finale), multiplayer with per-player ships, **player
+alliances**, shared bases and trading, planet **bases + teleporter pads**, material dyeing and
+colored-light building, in-game customization (avatar pixel-face editor, content/ship/station
+editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**,
+the VEGA ship-AI onboarding/advisor companion, world-creation options, and an optional LLM backend
+for dynamic dialogue/mission text. Self-hostable dedicated server (Raspberry Pi friendly).
+Currently 584 xUnit tests pass.
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
