@@ -35,6 +35,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly Text[] _gearLabel = new Text[5];
         private string _name = "My Skin";
         private Text _status;
+        private string _face = string.Empty; // encoded pixel face (same format as the in-game editor)
+        private FaceEditor _faceEditor;
 
         private void Start()
         {
@@ -43,6 +45,7 @@ namespace BlocksBeyondTheStars.Client
             _col[1] = s?.TorsoColor ?? Palette[4];
             _col[2] = s?.ArmColor ?? Palette[4];
             _col[3] = s?.LegColor ?? Palette[8];
+            _face = s?.FacePixels ?? string.Empty;
 
             BuildScene();
             BuildUi();
@@ -71,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
             _avatar = _avatarRoot.gameObject.AddComponent<PlayerAvatar>();
             _avatar.Build(_col[0], _col[1], _col[2], _col[3]);
             _avatar.SetVisible(true);
+            _avatar.SetFace(_face); // show the player's current custom face on the preview figure
         }
 
         private void Update()
@@ -108,6 +112,12 @@ namespace BlocksBeyondTheStars.Client
             GearRow(panel, ref y, L("ui.avatar.legs"), 2);
             GearRow(panel, ref y, L("ui.avatar.pack"), 3);
             GearRow(panel, ref y, L("ui.avatar.lamp"), 4);
+
+            y += 10f;
+            UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.face"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 30f;
+            UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.face.edit"), OpenFaceEditor);
+            y += 42f;
 
             y += 10f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
@@ -172,6 +182,27 @@ namespace BlocksBeyondTheStars.Client
 
         private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
 
+        /// <summary>Opens the shared pixel-face editor over the designer; applying it updates the live preview
+        /// and the in-memory face, which the panel's Apply then persists into <see cref="ClientSettings"/>.</summary>
+        private void OpenFaceEditor()
+        {
+            if (_faceEditor != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("FaceEditor");
+            go.transform.SetParent(transform, false);
+            _faceEditor = go.AddComponent<FaceEditor>();
+            _faceEditor.InitialFace = _face;
+            _faceEditor.Localizer = L;
+            _faceEditor.OnApply = face =>
+            {
+                _face = face ?? string.Empty;
+                _avatar?.SetFace(_face); // live preview; persisted to settings by the panel's Apply
+            };
+        }
+
         private void Apply()
         {
             if (Shell?.Settings is { } s)
@@ -180,6 +211,7 @@ namespace BlocksBeyondTheStars.Client
                 s.TorsoColor = _col[1];
                 s.ArmColor = _col[2];
                 s.LegColor = _col[3];
+                s.FacePixels = _face;
                 s.Save();
                 SetStatus(L("ui.avatar.applied"));
             }

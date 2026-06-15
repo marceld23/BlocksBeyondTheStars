@@ -191,7 +191,10 @@ namespace BlocksBeyondTheStars.Client
                     + Game.Knowledge * 131 + (Game.NewArcadeUnseen ? 1201 : 0) + (Game.NewStoryUnseen ? 1303 : 0)
                     // Companions tab: roster length + present-count + the "new companion" badge flag.
                     + (Game.Companions?.Companions.Length ?? 0) * 907 + (Game.NewCompanionUnseen ? 1409 : 0)
-                    + (Game.Companions?.Companions.Count(c => c.Present) ?? 0) * 67;
+                    + (Game.Companions?.Companions.Count(c => c.Present) ?? 0) * 67
+                    // The local custom pixel face: applying it in the editor must rebuild the Character tab so the
+                    // live preview re-applies the new face (its SetFace runs on rebuild, not via a direct callback).
+                    + (Game.FacePixels?.GetHashCode() ?? 0);
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;

@@ -14,7 +14,11 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class FaceEditor : MonoBehaviour
     {
-        public GameMenu Menu;
+        // Host-supplied hooks so one editor serves both the in-game Character tab and the main-menu Avatar
+        // Designer. Set these right after AddComponent (before Start runs, which is the next frame).
+        public string InitialFace;              // encoded face to preload onto the canvas
+        public Func<string, string> Localizer;  // localization lookup (key → text)
+        public Action<string> OnApply;          // receives the encoded face when the player hits Apply
 
         private const int Size = FacePalette.Size;
 
@@ -37,7 +41,7 @@ namespace BlocksBeyondTheStars.Client
                 filterMode = FilterMode.Point,
             };
 
-            LoadFrom(Menu?.Settings?.FacePixels);
+            LoadFrom(InitialFace);
             BuildUi();
         }
 
@@ -173,12 +177,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Apply()
         {
-            Menu?.ApplyFace(FacePalette.Encode(_grid));
+            OnApply?.Invoke(FacePalette.Encode(_grid));
             Close();
         }
 
         private void Close() => Destroy(gameObject);
 
-        private string L(string key) => Menu?.Game?.Localizer?.Get(key) ?? key;
+        private string L(string key) => Localizer?.Invoke(key) ?? key;
     }
 }

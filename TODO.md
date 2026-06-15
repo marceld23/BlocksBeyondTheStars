@@ -17,8 +17,8 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ Bug-fix wave — face editor, in-game tab bar, editor scroll — ✅ FIXED, needs Unity client build (2026-06-15)
-Four reported in-game UI bugs, all client-only (no server/test changes):
+### ★ Bug-fix wave — face editor (+ Avatar Designer), in-game tab bar, editor scroll — ✅ FIXED, needs Unity client build (2026-06-15)
+Reported in-game UI bugs + a follow-up, all client-only (no server/test changes):
 - **Pixel-face editor unusable + lingering** (`FaceEditor.cs`, `GameMenu.cs`): its canvas was `sortingOrder 30`
   but the in-game menu is `50`, so the editor rendered *behind* the menu; and `GameMenu` never tore it down, so
   the overlay stayed painted on screen after closing the menu. Fix: raise the editor canvas to `sortingOrder 60`
@@ -30,6 +30,14 @@ Four reported in-game UI bugs, all client-only (no server/test changes):
   build/travel loop comes first, then Story → Creatures → Alliances, with **Settings pinned far right**.
 - **Ship/Station editor palette scrolled at a crawl** (`UiKit.ScrollList`): the shared scroll helper never set
   `scrollSensitivity`, so it used Unity's default `1.0`. Set it to `30` (matching the rest of the UI) + clamp.
+- **Face Apply didn't update the Character-tab preview** (`CraftingTechShipUI`): the preview re-applies the face
+  only on a rebuild, but the change-detection hash didn't include the face. Added `Game.FacePixels` to the hash
+  so applying a face refreshes the live preview on the next frame.
+- **Pixel-face editor now also in the main-menu Avatar Designer** (`AvatarEditor.cs`): generalised `FaceEditor`
+  to take host hooks (`InitialFace` / `Localizer` / `OnApply`) instead of a hard `GameMenu` reference, so the same
+  editor serves both the in-game Character tab and the Avatar Designer. The designer loads your current face onto
+  the preview figure, adds a **Pixel face** button that opens the editor, and its Apply now persists `FacePixels`
+  alongside the colours. New locale key `ui.avatar.face`.
 
 ### ★ Hover speeder — craftable single-seat surface vehicle — ✅ server + tests + client wiring + icon + sounds, needs Unity client build (2026-06-15)
 A craftable **hover speeder**: deploy it from a hotbar item, board it and drive across a planet surface; it

@@ -344,7 +344,9 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("FaceEditor");
             go.transform.SetParent(transform, false);
             _faceEditor = go.AddComponent<FaceEditor>();
-            _faceEditor.Menu = this;
+            _faceEditor.InitialFace = Settings?.FacePixels;
+            _faceEditor.Localizer = key => Game?.Localizer?.Get(key) ?? key;
+            _faceEditor.OnApply = ApplyFace; // persists locally, updates the in-world avatar + tells the server
         }
 
         /// <summary>Tears down the pixel-face editor overlay if it is open. The editor builds its own canvas, so
