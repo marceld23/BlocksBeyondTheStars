@@ -42,8 +42,12 @@ internal sealed class NpcTrader
     public float Yaw;
     public NpcTraderPhase Phase = NpcTraderPhase.Cruising;
 
-    /// <summary>The station body id this trader is flying in to dock at — empty = a fly-through visit.</summary>
+    /// <summary>The station body id this trader is flying in to dock at — empty = no station leg.</summary>
     public string DestStationId = string.Empty;
+
+    /// <summary>The planet/moon body id this trader will try to LAND on when it reaches the inner system
+    /// (if a landing pad is free) — empty = a pure fly-through visit.</summary>
+    public string DestBodyId = string.Empty;
 
     /// <summary>Structure id of the trader's voxel hull (the flight view keys remote designs off this).</summary>
     public string StructureId => "ship:npc:" + Id;
@@ -92,6 +96,32 @@ public sealed partial class GameServer
         public uint OutfitRgb;
         public double ExpiresAt;
     }
+
+    /// <summary>Planets/moons a trader has LANDED on — its parked ship + pilot are (re)materialized on that
+    /// body's surface world while the dwell lasts, and its landing pad is reserved. One per body at a time.
+    /// Keyed by body location id; the authoritative record (survives the body world being unloaded).</summary>
+    private readonly Dictionary<string, NpcLandedTrader> _landedTraders = new();
+
+    private sealed class NpcLandedTrader
+    {
+        public string Id = string.Empty;
+        public string ShipType = "starter";
+        public string Name = string.Empty;
+        public int HullRgb;
+        public uint SkinRgb;
+        public uint OutfitRgb;
+        public int PadIndex;
+        public double ExpiresAt;
+        public bool ArrivalFxPending;   // play the descent FX once, the moment it touches down with watchers present
+        public int PilotNpcId;          // the pilot NPC's id in the body world (for removal on departure)
+        public Vector3f PilotPos;       // where the pilot stands (for the "near a trader" barter check)
+
+        public string OwnerId => "npc:" + Id;
+        public string StructureId => "ship:npc:" + Id;
+    }
+
+    private const double TraderLandDwellMin = 180.0; // a landed trader lingers on the surface this long…
+    private const double TraderLandDwellMax = 360.0; // …up to this long, then launches and leaves
 
     // ------------------------------------------------------------------ traffic level
 
@@ -222,9 +252,10 @@ public sealed partial class GameServer
         trader.Pos = new Vector3f(
             (float)System.Math.Cos(ang) * TraderArriveRadius, y, (float)System.Math.Sin(ang) * TraderArriveRadius);
 
-        // Destination: dock at a station contact if the instance has one, else fly through the inner system.
+        // Destination: dock at a station contact (about half the time, if one exists), else head into the inner
+        // system to LAND on a planet/moon (if a pad is free on arrival) or simply pass through and warp out.
         var stations = instance.Entities.Where(e => e.Kind == CombatEntityKind.SpaceStation).ToList();
-        if (stations.Count > 0)
+        if (stations.Count > 0 && _traderRng.NextDouble() < 0.5)
         {
             var target = stations[_traderRng.Next(stations.Count)];
             trader.DestStationId = target.Id;
@@ -232,6 +263,7 @@ public sealed partial class GameServer
         }
         else
         {
+            trader.DestBodyId = PickLandableBody(instance); // empty → pure fly-through
             double a2 = _traderRng.NextDouble() * System.Math.PI * 2;
             float r2 = 40f + (float)_traderRng.NextDouble() * 60f;
             trader.Target = new Vector3f(
@@ -321,8 +353,16 @@ public sealed partial class GameServer
                     }
                     else if (dist <= TraderWaypointRange)
                     {
-                        SetExitTarget(t); // reached the inner waypoint → turn around and leave
-                        t.Phase = NpcTraderPhase.Departing;
+                        if (!string.IsNullOrEmpty(t.DestBodyId) && TryLandTraderOnBody(instance, t))
+                        {
+                            t.Phase = NpcTraderPhase.Done; // descended to the surface — it leaves the flight view
+                            (finished ??= new List<NpcTrader>()).Add(t);
+                        }
+                        else
+                        {
+                            SetExitTarget(t); // no pad free / no landable body → pass through and warp out
+                            t.Phase = NpcTraderPhase.Departing;
+                        }
                     }
 
                     break;
@@ -473,5 +513,321 @@ public sealed partial class GameServer
         npc.OutfitRgb = vt.OutfitRgb;
         _npcs.Add(npc);
         _log.Info($"Visiting trader '{vt.Name}' is trading at station '{station.Name}'.");
+    }
+
+    // ------------------------------------------------------------------ planet landing (P3)
+
+    /// <summary>Picks a planet/moon in this instance's system that could host a landing — not void, and not
+    /// already hosting a landed trader. Prefers the body the instance is anchored on (a player is likely to
+    /// return there). Returns empty when none is suitable (the trader then just passes through).</summary>
+    private string PickLandableBody(SpaceInstance instance)
+    {
+        string locationId = instance.Id.StartsWith("space:", System.StringComparison.Ordinal)
+            ? instance.Id.Substring(6)
+            : instance.Id;
+        var here = _galaxy.FindBody(locationId);
+        string systemId = here?.SystemId ?? _galaxy.Systems.FirstOrDefault()?.Id ?? string.Empty;
+        var system = _galaxy.Systems.FirstOrDefault(s => s.Id == systemId);
+        if (system is null)
+        {
+            return string.Empty;
+        }
+
+        var candidates = system.Bodies
+            .Where(b => (b.Kind == CelestialKind.Planet || b.Kind == CelestialKind.Moon)
+                        && !_landedTraders.ContainsKey(b.Id)
+                        && !(_content.GetPlanet(b.PlanetType ?? string.Empty)?.Void ?? false))
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var prefer = candidates.FirstOrDefault(b => b.Id == locationId);
+        return (prefer ?? candidates[_traderRng.Next(candidates.Count)]).Id;
+    }
+
+    /// <summary>The trader reached the inner system: try to land on its chosen body — but ONLY if a landing pad
+    /// is free there (player- or NPC-occupied pads don't count). On success it reserves the pad and registers a
+    /// landed trader (its parked ship + pilot materialize on that surface); on failure the caller departs.</summary>
+    private bool TryLandTraderOnBody(SpaceInstance instance, NpcTrader t)
+    {
+        var body = _galaxy.FindBody(t.DestBodyId);
+        if (body is null || _landedTraders.ContainsKey(t.DestBodyId))
+        {
+            return false; // gone, or a trader is already parked there (one at a time)
+        }
+
+        string planetKey = body.PlanetType ?? _meta.DefaultPlanetType;
+        if (_content.GetPlanet(planetKey)?.Void ?? false)
+        {
+            return false;
+        }
+
+        int total = PadCountFor(t.DestBodyId, planetKey, body.Kind);
+        int pad = FirstFreePadIndex(t.DestBodyId, total, string.Empty); // respects player + NPC pad use
+        if (pad < 0)
+        {
+            return false; // the body is FULL — no pad available, so the trader can't set down
+        }
+
+        var look = new System.Random(unchecked((int)WorldGenerator.StableHash("trader-look:" + t.Name)));
+        uint[] skins = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
+        uint[] outfits = { 0x2E5E8C, 0x6A4C93, 0xC9A227, 0x3A7D5A };
+        _landedTraders[t.DestBodyId] = new NpcLandedTrader
+        {
+            Id = t.Id,
+            ShipType = t.ShipType,
+            Name = t.Name,
+            HullRgb = t.HullRgb,
+            SkinRgb = skins[look.Next(skins.Length)],
+            OutfitRgb = outfits[look.Next(outfits.Length)],
+            PadIndex = pad,
+            ExpiresAt = _uptime + TraderLandDwellMin + _traderRng.NextDouble() * (TraderLandDwellMax - TraderLandDwellMin),
+            ArrivalFxPending = OccupiedLocations().Contains(t.DestBodyId), // descend with watchers present
+        };
+
+        BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
+        _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
+        return true;
+    }
+
+    /// <summary>A pad is reserved while a trader is landed on that body (so players never get assigned it).</summary>
+    private bool PadReservedByTrader(string locationId, int padIndex)
+        => _landedTraders.TryGetValue(locationId, out var lt) && lt.PadIndex == padIndex;
+
+    /// <summary>The name shown for a trader-reserved pad in the landing chooser (or null if not reserved).</summary>
+    private string? TraderPadOccupant(string locationId, int padIndex)
+        => _landedTraders.TryGetValue(locationId, out var lt) && lt.PadIndex == padIndex ? lt.Name : null;
+
+    /// <summary>Per-world tick (active = a body world): materializes a freshly-landed trader's parked ship +
+    /// pilot, and lifts it off again when its dwell expires.</summary>
+    private void TickLandedTraders(double dt)
+    {
+        _ = dt;
+        if (_landedTraders.Count == 0 || _world is null)
+        {
+            return;
+        }
+
+        if (!_landedTraders.TryGetValue(_world.LocationId, out var lt))
+        {
+            return;
+        }
+
+        if (lt.ExpiresAt <= _uptime)
+        {
+            DepartLandedTrader(lt);
+            return;
+        }
+
+        MaterializeLandedTraderHere(lt);
+    }
+
+    /// <summary>Re-creates a landed trader's parked ship + pilot on the active world if they aren't there yet —
+    /// called both when a trader lands on an occupied world and when a body world (re)loads with one registered.</summary>
+    private void MaterializeLandedTraderHere()
+    {
+        if (_world is not null && _landedTraders.TryGetValue(_world.LocationId, out var lt) && lt.ExpiresAt > _uptime)
+        {
+            MaterializeLandedTraderHere(lt);
+        }
+    }
+
+    private void MaterializeLandedTraderHere(NpcLandedTrader lt)
+    {
+        var world = _worlds.Active;
+        if (world.LandedShips.TryGetValue(lt.OwnerId, out var existing) && existing.Placed)
+        {
+            return; // already standing on this resident world
+        }
+
+        LandingPad? pad = null;
+        foreach (var p in _landingPads)
+        {
+            if (p.Index == lt.PadIndex)
+            {
+                pad = p;
+                break;
+            }
+        }
+
+        if (pad is null)
+        {
+            return; // the pad set isn't built here (e.g. a void world) — shouldn't happen on a landable body
+        }
+
+        var s = BuildNpcShipStructure(lt.StructureId, lt.ShipType);
+        if (s.Cells.Count == 0)
+        {
+            return;
+        }
+
+        // Use the pad's stored ground height (computed + worldgen-levelled at pad build time) rather than a
+        // fresh PadGroundY query — the generator may not be configured for this world during the per-world tick.
+        int y0 = pad.CenterY;
+        var rec = world.LandedFor(lt.OwnerId);
+        rec.Structure = s;
+        rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, y0 + 1, pad.CenterZ - s.Length / 2);
+        rec.Stations.Clear();
+        rec.Doors.Clear();
+        rec.HealTank = new Vector3f(rec.Origin.X + s.Width / 2 + 0.5f, rec.Origin.Y + 1f, rec.Origin.Z + s.Length / 2 + 0.5f);
+        rec.Placed = true;
+        BroadcastToWorld(LandedShipMessage(lt.OwnerId, rec, removed: false));
+
+        // The pilot stands a couple of blocks in front of the ship (its window end), feet on the pad surface.
+        lt.PilotPos = new Vector3f(pad.CenterX + 0.5f, y0 + 1f, pad.CenterZ + s.Length / 2f + 2.5f);
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("landed-pilot:" + lt.Id)));
+        var npc = MakeNpc("vendor", "traders", robotic: false, lt.PilotPos, rng);
+        npc.Name = lt.Name;
+        npc.SkinRgb = lt.SkinRgb;
+        npc.OutfitRgb = lt.OutfitRgb;
+        _npcs.Add(npc);
+        lt.PilotNpcId = npc.Id;
+        BroadcastNpcs();
+
+        if (lt.ArrivalFxPending)
+        {
+            lt.ArrivalFxPending = false; // play the descent once, the moment it touches down with watchers present
+            BroadcastNpcShipTransit(_world!.LocationId, lt, new Vector3f(pad.CenterX + 0.5f, y0, pad.CenterZ + 0.5f), landing: true);
+        }
+
+        _log.Info($"Trader '{lt.Name}' ({lt.ShipType}) is parked on {_world!.LocationId} (pad {lt.PadIndex}).");
+    }
+
+    private void DepartLandedTrader(NpcLandedTrader lt)
+    {
+        var world = _worlds.Active;
+        if (world.LandedShips.TryGetValue(lt.OwnerId, out var rec) && rec.Placed)
+        {
+            var at = new Vector3f(
+                rec.Origin.X + rec.Structure.Width / 2f + 0.5f, rec.Origin.Y - 1f, rec.Origin.Z + rec.Structure.Length / 2f + 0.5f);
+            BroadcastNpcShipTransit(_world!.LocationId, lt, at, landing: false); // others see it lift off
+            rec.Placed = false;
+            world.LandedShips.Remove(lt.OwnerId);
+            BroadcastToWorld(new LandedShipState { PlayerId = lt.OwnerId, StructureId = lt.StructureId, Removed = true });
+        }
+
+        if (_npcs.RemoveAll(n => n.Id == lt.PilotNpcId) > 0)
+        {
+            BroadcastNpcs();
+        }
+
+        _landedTraders.Remove(_world!.LocationId);
+        _log.Info($"Trader '{lt.Name}' lifted off {_world!.LocationId} — pad {lt.PadIndex} free again.");
+    }
+
+    /// <summary>Plays a landing/launch animation of a trader's REAL ship for everyone already on the body
+    /// (the same third-person FX a player's ship plays — item 38).</summary>
+    private void BroadcastNpcShipTransit(string bodyId, NpcLandedTrader lt, Vector3f at, bool landing)
+    {
+        ShipTransitFx? msg = null;
+        SpaceStructure? design = null;
+        foreach (var session in _sessions.Values)
+        {
+            if (!session.Joined || session.CurrentLocationId != bodyId || InSpace(session.State.PlayerId))
+            {
+                continue;
+            }
+
+            msg ??= new ShipTransitFx
+            {
+                PlayerId = lt.OwnerId, Name = lt.Name, X = at.X, Y = at.Y, Z = at.Z, Landing = landing, Hull = lt.HullRgb,
+            };
+            design ??= BuildNpcShipStructure(lt.StructureId, lt.ShipType);
+            SendShipDesign(session, design, "ship_remote");
+            Send(session, msg);
+        }
+    }
+
+    /// <summary>Hull tint of a landed trader's parked ship (so its <see cref="LandedShipState"/> snapshot shows
+    /// the right colour for joiners too), or 0 if not a landed trader.</summary>
+    private int NpcLandedHull(string ownerId)
+    {
+        foreach (var lt in _landedTraders.Values)
+        {
+            if (lt.OwnerId == ownerId)
+            {
+                return lt.HullRgb;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>True if the served player is standing at a landed trader's pilot — enables the merchant barter
+    /// on a planet surface (the pilot isn't at a settlement/station vendor marker).</summary>
+    private bool NearLandedTraderPilot(Shared.State.PlayerState player)
+        => _world is not null
+           && _landedTraders.TryGetValue(_world.LocationId, out var lt)
+           && WrapDistSq(player.Position, lt.PilotPos) <= 16f; // 4-block reach (squared)
+
+    /// <summary>Drops expired landed-trader records for bodies nobody is on (frees the pad) — the per-world
+    /// tick handles occupied bodies with a proper lift-off; this catches the unwatched ones.</summary>
+    private void SweepExpiredLandedTraders()
+    {
+        if (_landedTraders.Count == 0)
+        {
+            return;
+        }
+
+        var occupied = OccupiedLocations();
+        List<string>? drop = null;
+        foreach (var kv in _landedTraders)
+        {
+            if (kv.Value.ExpiresAt <= _uptime && !occupied.Contains(kv.Key))
+            {
+                (drop ??= new List<string>()).Add(kv.Key);
+            }
+        }
+
+        if (drop is not null)
+        {
+            foreach (var b in drop)
+            {
+                _landedTraders.Remove(b);
+            }
+        }
+    }
+
+    /// <summary>Test/inspection: number of traders currently landed on planet/moon surfaces.</summary>
+    public int LandedTraderCountForTest() => _landedTraders.Count;
+
+    /// <summary>Test hook: land a trader on a body iff a pad is free (mirrors the in-flight landing decision),
+    /// reserving the pad. Returns false if the body is unknown, full, or already hosts a trader.</summary>
+    public bool LandTraderForTest(string bodyId)
+    {
+        var body = _galaxy.FindBody(bodyId);
+        if (body is null || _landedTraders.ContainsKey(bodyId))
+        {
+            return false;
+        }
+
+        string planetKey = body.PlanetType ?? _meta.DefaultPlanetType;
+        int total = PadCountFor(bodyId, planetKey, body.Kind);
+        int pad = FirstFreePadIndex(bodyId, total, string.Empty);
+        if (pad < 0)
+        {
+            return false;
+        }
+
+        _landedTraders[bodyId] = new NpcLandedTrader
+        {
+            Id = "test" + _nextTraderId++,
+            ShipType = _content.Ships.Keys.FirstOrDefault(k => k != "starter") ?? "starter",
+            Name = "Test Trader",
+            PadIndex = pad,
+            ExpiresAt = _uptime + 9999.0,
+        };
+        return true;
+    }
+
+    /// <summary>Test/inspection: free landing pads on a body (counts player + reserved-trader occupancy).</summary>
+    public int FreePadsForTest(string bodyId)
+    {
+        var body = _galaxy.FindBody(bodyId);
+        string planetKey = body?.PlanetType ?? _meta.DefaultPlanetType;
+        int total = PadCountFor(bodyId, planetKey, body?.Kind ?? CelestialKind.Planet);
+        return FreePadCount(bodyId, total);
     }
 }

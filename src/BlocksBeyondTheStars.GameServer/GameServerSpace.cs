@@ -265,6 +265,11 @@ public sealed partial class GameServer
     /// (not flown off to space) with this pad assigned. The exception is the player being served.</summary>
     private bool PadOccupiedByOther(string locationId, int padIndex, string exceptPlayerId)
     {
+        if (PadReservedByTrader(locationId, padIndex))
+        {
+            return true; // a landed NPC trader holds this pad (P3) — never assign it to a player
+        }
+
         foreach (var s in _sessions.Values)
         {
             if (!s.Joined || s.State.PlayerId == exceptPlayerId)
@@ -313,6 +318,11 @@ public sealed partial class GameServer
     /// <summary>The name of the player currently holding a pad on a body, or null if it's free.</summary>
     private string? PadOccupantName(string locationId, int padIndex)
     {
+        if (TraderPadOccupant(locationId, padIndex) is { } traderName)
+        {
+            return traderName; // a landed NPC trader is parked on this pad (P3)
+        }
+
         foreach (var s in _sessions.Values)
         {
             if (s.Joined && s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId && !InSpace(s.State.PlayerId))

@@ -366,6 +366,10 @@ public sealed partial class GameServer
             _repo.SetLocationStatus(body.Id, body.Status.ToString());
         }
 
+        // P3: if a peaceful trader landed on this body while its world was unloaded, re-create its parked ship
+        // + pilot now that the world is resident again (the registry is the source of truth, not world state).
+        MaterializeLandedTraderHere();
+
         return world;
     }
 
@@ -695,6 +699,7 @@ public sealed partial class GameServer
             TickFlora(deltaSeconds);
             TickCreatures(deltaSeconds);
             TickNpcs(deltaSeconds);
+            TickLandedTraders(deltaSeconds); // P3: materialize/lift-off a peaceful trader parked on this surface
             TickDoors(deltaSeconds);
             TickVoidRescue(deltaSeconds);
             TickShipAi(deltaSeconds); // VEGA advisor hints + memory-fragment redemption
@@ -702,6 +707,7 @@ public sealed partial class GameServer
         }
 
         SampleHistories(deltaSeconds);
+        SweepExpiredLandedTraders(); // P3: free pads of traders whose dwell ended on bodies nobody is on
         TickGreetings(); // push any LLM NPC greetings finished off-thread (item 15)
         TickMissionTexts(); // push mission-list refreshes when L3 board texts arrive
         TickVegaBanter(); // push VEGA's LLM banter lines finished off-thread
@@ -2665,7 +2671,8 @@ public sealed partial class GameServer
     /// (aboard) or standing next to a settlement vendor.
     /// </summary>
     private bool MarketAvailable(PlayerState player)
-        => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player);
+        => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player)
+           || NearLandedTraderPilot(player); // P3: barter with a peaceful trader landed on a planet surface
 
     private void SaveAll()
     {

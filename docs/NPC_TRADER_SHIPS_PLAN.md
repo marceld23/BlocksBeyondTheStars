@@ -6,13 +6,16 @@
 > types are added. Ship traffic **varies per system** (none / rare / often). Multiple
 > traders can be active at once.
 
-> **Implementation status (2026-06-15):** P0–P2 + P4-lite **shipped** (server + client + tests,
-> 583 tests green) — ambient warp-in/cruise/depart traffic rendered via the remote-ship path,
-> station docking with a visiting merchant, `SpaceWarpFx` arrival/departure flash. Code:
-> `GameServerSpaceTraders.cs`, `BuildNpcShipStructure` (`GameServerSpaceStructure.cs`),
-> `SpaceWarpFx` (tag 150), client `SpaceView.SpawnWarpFlash`. Needs a Unity client build + lib sync.
-> **Deferred (P3):** the planet-surface landed pilot + parked ship — see §10/§12. Sections below are
-> the original analysis, kept for reference.
+> **Implementation status (2026-06-15):** P0–P4-lite **shipped** (server + client + tests) — ambient
+> warp-in/cruise/depart traffic rendered via the remote-ship path, station docking with a visiting merchant,
+> and **P3 planet landing**: a trader lands on a planet/moon when a pad is free, reserves the pad, parks its
+> real ship and stands its pilot in front as a merchant for ~180–360 s, then lifts off. A `_landedTraders`
+> registry (keyed by body) is the source of truth and re-materializes the parked ship + pilot on world load /
+> per-world tick, so it survives the body world unloading. P3 reuses the `LandedShipState` / `ShipTransitFx` /
+> `NpcList` paths → **no new client code**. Code: `GameServerSpaceTraders.cs`, `BuildNpcShipStructure`,
+> `SpaceWarpFx` (tag 150), client `SpaceView.SpawnWarpFlash`; pad reservation + planet barter wired into
+> `GameServerSpace.cs` / `GameServerSettlements.cs` / `MarketAvailable`. Needs a Unity client build + lib sync.
+> Sections below are the original analysis, kept for reference.
 
 ---
 

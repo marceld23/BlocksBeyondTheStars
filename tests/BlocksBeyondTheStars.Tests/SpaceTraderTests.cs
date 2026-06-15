@@ -3,6 +3,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -88,6 +89,30 @@ public sealed class SpaceTraderTests : IDisposable
             var entities = server.SpaceEntitiesFor("Pilot");
             Assert.Equal(entitiesBefore, entities.Count());
             Assert.DoesNotContain(entities, e => e.Hostile);
+        }
+    }
+
+    [Fact]
+    public void LandingTrader_ReservesAFreePad_AndOnlyOnePerBody()
+    {
+        var server = NewServer("land", out var repo);
+        using (repo)
+        {
+            var body = server.Galaxy.Systems
+                .SelectMany(s => s.Bodies)
+                .First(b => b.Kind == CelestialKind.Planet || b.Kind == CelestialKind.Moon);
+
+            int freeBefore = server.FreePadsForTest(body.Id);
+            Assert.True(freeBefore > 0); // the body has pads to land on
+
+            // It lands only when a pad is free, and then that pad is reserved (one fewer free) so a player
+            // can never be assigned it — exactly the requirement.
+            Assert.True(server.LandTraderForTest(body.Id));
+            Assert.Equal(1, server.LandedTraderCountForTest());
+            Assert.Equal(freeBefore - 1, server.FreePadsForTest(body.Id));
+
+            // Only one visiting trader may be parked on a body at a time.
+            Assert.False(server.LandTraderForTest(body.Id));
         }
     }
 

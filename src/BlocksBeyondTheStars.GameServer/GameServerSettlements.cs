@@ -262,7 +262,8 @@ public sealed partial class GameServer
     /// when none is in reach (B55). Drives which themed market goods the server accepts — per actual vendor, not
     /// one theme per location — so different vendors at one place trade different goods.</summary>
     private string VendorThemeAt(Shared.State.PlayerState player)
-        => (NearSettlementVendor(player) || NearSpaceStationVendor(player)) && NearestNpc(player, "vendor") is { } v
+        => (NearSettlementVendor(player) || NearSpaceStationVendor(player) || NearLandedTraderPilot(player))
+           && NearestNpc(player, "vendor") is { } v
             ? v.Theme
             : string.Empty;
 

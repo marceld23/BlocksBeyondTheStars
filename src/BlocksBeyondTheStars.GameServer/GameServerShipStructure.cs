@@ -130,7 +130,10 @@ public sealed partial class GameServer
             StructureId = s.Id,
             Removed = removed,
             OriginX = rec.Origin.X, OriginY = rec.Origin.Y, OriginZ = rec.Origin.Z,
-            Hull = FindSessionByPlayerId(ownerId)?.HullColor ?? 0,
+            // A landed NPC trader has no session; resolve its hull tint from the trader registry instead.
+            Hull = ownerId.StartsWith("npc:", System.StringComparison.Ordinal)
+                ? NpcLandedHull(ownerId)
+                : FindSessionByPlayerId(ownerId)?.HullColor ?? 0,
             Width = s.Width, Height = s.Height, Length = s.Length,
         };
 

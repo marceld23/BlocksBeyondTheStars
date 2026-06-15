@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **583 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **584 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -17,7 +17,7 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ Peaceful NPC trader ships (living space) — ✅ server + tests complete, needs Unity client build (2026-06-15)
+### ★ Peaceful NPC trader ships (living space) — ✅ P1–P3 server + tests complete, needs Unity client build (2026-06-15)
 **Plan:** [docs/NPC_TRADER_SHIPS_PLAN.md](docs/NPC_TRADER_SHIPS_PLAN.md). Ambient civilian traffic so space feels alive.
 - **Traffic per system:** deterministic **None / Rare / Often** from seed + system id (`TrafficFor`); systems with a
   station lean busier. Drives a per-instance spawn scheduler — traders spawn **only in occupied flight instances**
@@ -31,14 +31,18 @@ world-gen; SQLite persistence.
   player-ship voxel pipeline), so it shows the actual in-game ship hull of its type.
 - **Invulnerable scenery:** a trader is **never** a `CombatEntity` — it can't be locked, shot or damaged, and
   never harms anyone.
-- **Pilot becomes a merchant:** on docking, the pilot is registered as a **visiting trader** at that station;
-  boarding the station spawns it as a `"traders"`-theme **vendor** beside the trade post, so the existing
+- **Pilot becomes a merchant (station):** on docking, the pilot is registered as a **visiting trader** at that
+  station; boarding the station spawns it as a `"traders"`-theme **vendor** beside the trade post, so the existing
   station-vendor barter works against it (lingers ~150–300 s).
+- **Planet landing (P3):** a trader heading into the inner system **lands on a planet/moon if a pad is free** —
+  it **reserves the pad** (players never get assigned it), parks its **real voxel ship** on the pad, and its
+  **pilot stands in front** as a `"traders"` merchant you can barter with (`MarketAvailable`/`VendorThemeAt`
+  extended to the landed pilot). It lingers ~180–360 s, then lifts off and frees the pad. Survives the body
+  world being unloaded (a `_landedTraders` registry is the source of truth; the parked ship + pilot
+  re-materialize on world load / per-world tick). One landed trader per body at a time. Reuses the existing
+  `LandedShipState`/`ShipTransitFx`/`NpcList` paths → **no new client code** for P3.
 - **Warp FX for bystanders:** new `SpaceWarpFx` message (tag 150) → a localized cyan-white hyperspace burst in the
   flight view, so other players **see** arrivals/departures (the first-person `HyperspaceWarp` overlay didn't cover this).
-- **Open follow-up:** the **planet-surface** landed pilot ("stands in front of his parked ship on a planet") is the
-  remaining increment — it needs the per-player landed-ship/pad machinery; deferred to keep `main` green. Today a
-  planet-only system's traders fly through; station systems get the full dock + merchant.
 
 ### ★ HUD quick-bar readability + flight/menu consistency — ✅ COMPLETE, Unity build-verified (2026-06-15)
 - **Hotbar (HudUi):** larger cells (72px) with the icon nearly filling each cell, a dark backplate + cyan
