@@ -90,6 +90,7 @@ namespace BlocksBeyondTheStars.Client
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult> ScanResultReceived;
         public event Action<WreckRepairStatus> WreckRepairStatusChanged;
+        public event Action<ShipRepairStatus> ShipRepairStatusChanged;
         public event Action<TradeUpdate> TradeUpdated;
         public event Action<TradeClosed> TradeClosedReceived;
 
@@ -267,6 +268,12 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendClaimWreck() => Send(new ClaimWreckIntent());
 
+        // --- Own-ship repair (hull stat + missing design hull cells) ---
+        public void SendRepairShip(string mode) => Send(new RepairShipIntent { Mode = mode });
+
+        public void SendRepairShipCell(int x, int y, int z)
+            => Send(new RepairShipIntent { Mode = "cell", X = x, Y = y, Z = z });
+
         // --- Player-to-player trade ---
         public void SendTradeRequest(string targetPlayer) => Send(new TradeRequestIntent { TargetPlayer = targetPlayer });
 
@@ -414,6 +421,7 @@ namespace BlocksBeyondTheStars.Client
                 case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
                 case ScanResult m: ScanResultReceived?.Invoke(m); break;
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
+                case ShipRepairStatus m: ShipRepairStatusChanged?.Invoke(m); break;
                 case TradeUpdate m: TradeUpdated?.Invoke(m); break;
                 case TradeClosed m: TradeClosedReceived?.Invoke(m); break;
                 case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;

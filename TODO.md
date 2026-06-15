@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **584 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **589 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,25 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Own-ship repair (hull + EVA-carved hull cells) — ✅ server + client wiring, needs Unity client build (2026-06-15)
+**Plan:** [docs/SHIP_REPAIR_PLAN.md](docs/SHIP_REPAIR_PLAN.md). The player's own ship had no repair path — combat
+dented only the numeric hull (never regenerates; only free-restored on destruction) and EVA-carved hull cells were
+only refillable by hand. Now one cockpit action restores both.
+- **One engine, one material model (`GameServerShipRepair.cs`):** repairs against the ship's **design reference**
+  (a pristine `BuildShipStructureFrom(persistEdits:false)` build; its cells == the live structure's `Baseline`).
+  Missing cells = baseline cells now air → refilled with the design block. Hull is bought with **`iron_plate`** at
+  **10 hull/plate**; each missing cell costs its placing item if one exists, else `iron_plate` (so lights/engine
+  blocks never block a repair). Mirrors the wreck repair idea (design reference + matching item) for your own ship.
+- **`RepairShipAll` is greedy/partial:** hull first (the common combat case), then cells as far as the materials
+  stretch — never a hard block when short. `RepairShipCell` does one guided cell (field/EVA). Material-only:
+  **no passive hull regen**; destruction keeps today's free full restore (§8.5) as the soft-lock floor.
+- **Surface:** the **cockpit** pushes a `ShipRepairStatus`; HudUi shows a "Repair ship" panel (hull bar + material
+  needs + a button → `RepairShipIntent{all}`). Cell fills persist (`SetStructureBlock`) + broadcast
+  (`StructureBlockChanged`) so the landed ship re-meshes. New msgs 151/152 registered in NetCodec.
+- **Tests (`ShipRepairTests.cs`, 5):** hull restore + plate cost, partial when short, per-cell refill + item cost,
+  combined hull+cells, free-build. Full suite **589/589**.
+- **Follow-up (not built):** a client field/EVA per-cell highlight UI (the server already accepts `Mode="cell"`).
 
 ### ★ Peaceful NPC trader ships (living space) — ✅ P1–P3 server + tests complete, needs Unity client build (2026-06-15)
 **Plan:** [docs/NPC_TRADER_SHIPS_PLAN.md](docs/NPC_TRADER_SHIPS_PLAN.md). Ambient civilian traffic so space feels alive.

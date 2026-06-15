@@ -1364,6 +1364,7 @@ public sealed partial class GameServer
             case LeaveStationIntent: HandleLeaveStation(session); break;
             case RepairWreckIntent repairWreck: HandleRepairWreck(session, repairWreck); break;
             case ClaimWreckIntent: HandleClaimWreck(session); break;
+            case RepairShipIntent repairShip: HandleRepairShip(session, repairShip); break;
             case TravelIntent travel: HandleTravel(session, travel); break;
             case NpcGreetIntent greet: HandleNpcGreet(session, greet); break;
             case SkipOnboardingIntent skipOnboarding: HandleSkipOnboarding(session, skipOnboarding); break;

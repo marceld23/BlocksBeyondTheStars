@@ -296,6 +296,10 @@ public sealed partial class GameServer
                 break;
 
             case "cockpit":
+                // The cockpit is also the ship-repair console: push the current repair readout so the client
+                // can offer "Repair ship" (hull + any EVA-carved hull cells). Material-only, own ship.
+                SendShipRepairStatus(session);
+
                 // Inside the ship while it floats in space, the cockpit is the helm: take it to fly again
                 // (no take-off — you never landed). On a surface it's the star map / travel console.
                 if (InShipInterior(session.State.PlayerId))

@@ -39,10 +39,11 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
 
         // Scan / wreck panels.
-        private GameObject _scanPanel, _wreckPanel;
+        private GameObject _scanPanel, _wreckPanel, _shipRepairPanel;
         private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
-        private Image _wreckBar;
-        private Button _wreckClaim;
+        private Text _shipRepairTitle, _shipRepairProg, _shipRepairHint;
+        private Image _wreckBar, _shipRepairBar;
+        private Button _wreckClaim, _shipRepairBtn;
 
         // Damage feedback (B21): a red screen flash + a cause label when health drops.
         private Image _dmgFlash;
@@ -383,6 +384,19 @@ namespace BlocksBeyondTheStars.Client
             _wreckHint = UiKit.AddText(_wreckPanel.transform, 10, 68, 230, 50, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
             _wreckHint.horizontalOverflow = HorizontalWrapMode.Wrap;
             _wreckClaim = UiKit.AddButton(_wreckPanel.transform, 10, 120, 230, 24, string.Empty, () => Game.Network?.SendClaimWreck());
+
+            // Ship-repair panel (right, below the wreck panel) — the cockpit "Repair ship" action: buy hull
+            // back + refill EVA-carved hull cells with one click, paid in metal (docs/SHIP_REPAIR_PLAN.md).
+            _shipRepairPanel = Panel(root, W - 260f, 300, 250, 120).gameObject;
+            _shipRepairTitle = UiKit.AddText(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
+            _shipRepairBar = UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, UiKit.Cyan);
+            _shipRepairBar.type = Image.Type.Filled;
+            _shipRepairBar.fillMethod = Image.FillMethod.Horizontal;
+            _shipRepairProg = UiKit.AddText(_shipRepairPanel.transform, 12, 29, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _shipRepairHint = UiKit.AddText(_shipRepairPanel.transform, 10, 50, 230, 36, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _shipRepairHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _shipRepairBtn = UiKit.AddButton(_shipRepairPanel.transform, 10, 90, 230, 24, string.Empty, () => Game.Network?.SendRepairShip("all"));
         }
 
         private void Refresh()
@@ -457,6 +471,7 @@ namespace BlocksBeyondTheStars.Client
 
             RefreshScan(loc);
             RefreshWreck(loc);
+            RefreshShipRepair(loc);
         }
 
         // --- vitals ---
@@ -728,6 +743,45 @@ namespace BlocksBeyondTheStars.Client
 
                 _wreckHint.text = loc.Get("ui.wreck.repair_hint") + needs;
             }
+        }
+
+        private void RefreshShipRepair(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var sr = Game.ShipRepair;
+            bool show = sr != null && sr.NeedsRepair;
+            if (_shipRepairPanel.activeSelf != show)
+            {
+                _shipRepairPanel.SetActive(show);
+                if (show) { UiKit.TransitionIn(_shipRepairPanel); }
+            }
+
+            if (!show) return;
+
+            _shipRepairTitle.text = loc.Get("ui.shiprepair.title");
+            _shipRepairBar.fillAmount = sr.HullMax > 0f ? Mathf.Clamp01(sr.Hull / sr.HullMax) : 1f;
+            _shipRepairProg.text = $"{loc.Get("ui.shiprepair.hull")}  {(int)sr.Hull}/{(int)sr.HullMax}";
+
+            // List the materials the full repair needs (item:count pairs from the server), localized.
+            string needs = string.Empty;
+            if (!string.IsNullOrEmpty(sr.Needs))
+            {
+                var parts = sr.Needs.Split(',');
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    var kv = parts[i].Split(':');
+                    string name = loc.Get($"item.{kv[0]}.name");
+                    if (name.StartsWith("item.")) { name = loc.Get($"block.{kv[0]}.name"); } // fall back for raw block keys
+                    parts[i] = kv.Length > 1 ? $"{name} ×{kv[1]}" : name;
+                }
+
+                needs = "  " + string.Join(", ", parts);
+            }
+
+            string cells = sr.MissingCells > 0 ? $"  ({sr.MissingCells} {loc.Get("ui.shiprepair.cells")})" : string.Empty;
+            _shipRepairHint.text = loc.Get("ui.shiprepair.hint") + needs + cells;
+
+            var t = _shipRepairBtn.GetComponentInChildren<Text>();
+            if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
         }
 
         private string LootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

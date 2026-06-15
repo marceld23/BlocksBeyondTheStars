@@ -233,6 +233,10 @@ public static class NetCodec
 
         // Peaceful NPC trader traffic: a localized warp-in/out flash so other players see traders arrive/leave.
         Register(150, typeof(SpaceWarpFx));              // Server -> Client
+
+        // Own-ship repair (hull stat + missing design voxel cells): cockpit "Repair ship" + guided field/EVA fill.
+        Register(151, typeof(RepairShipIntent));         // Client -> Server
+        Register(152, typeof(ShipRepairStatus));         // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

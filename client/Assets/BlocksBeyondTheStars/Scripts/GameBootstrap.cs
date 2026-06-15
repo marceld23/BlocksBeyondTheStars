@@ -414,6 +414,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Repair progress of the wreck the player is standing in (null until a wreck reports it).</summary>
         public WreckRepairStatus Wreck { get; private set; }
 
+        /// <summary>Own-ship repair readout (hull + missing hull cells), set when the cockpit reports it; null
+        /// when the ship is fully intact.</summary>
+        public ShipRepairStatus ShipRepair { get; private set; }
+
         /// <summary>The open player-to-player trade (both offers + ready states), or null when no trade is active.</summary>
         public TradeUpdate Trade { get; private set; }
         public bool TradeActive { get; private set; }
@@ -849,6 +853,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             };
             Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
+            Network.ShipRepairStatusChanged += m => ShipRepair = m.NeedsRepair ? m : null;
             Network.TradeUpdated += m => { Trade = m; TradeActive = true; };
             Network.TradeClosedReceived += m =>
             {

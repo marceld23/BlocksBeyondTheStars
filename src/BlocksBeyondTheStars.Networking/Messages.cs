@@ -310,6 +310,39 @@ public sealed class RepairWreckIntent
 /// <summary>Client claims a fully repaired wreck into the owned ship fleet.</summary>
 public sealed class ClaimWreckIntent { }
 
+/// <summary>Client repairs its OWN active ship. <c>Mode</c> = "all" restores everything affordable at
+/// once (hull stat + every missing design hull cell) — the cockpit "Repair ship" action. <c>Mode</c> =
+/// "cell" refills one specific missing design cell (X/Y/Z, structure-local) — guided field/EVA repair.
+/// Both pay an existing metal item (no new resource); the server derives the required block/material.</summary>
+public sealed class RepairShipIntent
+{
+    public string Mode { get; set; } = "all"; // "all" | "cell"
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+}
+
+/// <summary>Own-ship repair readout: current hull, count of missing design hull cells, whether anything
+/// needs repair and whether the player can currently afford the full job, plus a compact material summary.
+/// Sent when the player opens the cockpit and after each repair so the client can offer "Repair ship".</summary>
+public sealed class ShipRepairStatus
+{
+    public float Hull { get; set; }
+    public float HullMax { get; set; }
+
+    /// <summary>Missing design (hull/structure) voxel cells — holes carved by EVA mining that should be filled.</summary>
+    public int MissingCells { get; set; }
+
+    /// <summary>True when hull &lt; max OR there is at least one missing design cell.</summary>
+    public bool NeedsRepair { get; set; }
+
+    /// <summary>True when the player can afford the FULL repair right now (a partial repair still runs otherwise).</summary>
+    public bool CanAfford { get; set; }
+
+    /// <summary>Compact "item:count,item:count" summary of the full repair cost (for the HUD hint).</summary>
+    public string Needs { get; set; } = string.Empty;
+}
+
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
 public sealed class ScanIntent
 {
