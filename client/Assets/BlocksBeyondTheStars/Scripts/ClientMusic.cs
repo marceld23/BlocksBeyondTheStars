@@ -386,19 +386,19 @@ namespace BlocksBeyondTheStars.Client
         {
             List<string> names = want switch
             {
-                Context.Menu => new() { "music_main_menu" },
-                Context.Loading => new() { "music_loading" },
+                Context.Menu => new() { "music_main_menu", "music_main_menu_2" },
+                Context.Loading => new() { "music_loading", "music_loading_2" },
                 Context.ShipInterior => new() { "music_ship_interior", "music_crafting_workshop", "music_research_blueprints" },
-                Context.Station => new() { "music_multiplayer_hub" },
+                Context.Station => new() { "music_multiplayer_hub", "music_multiplayer_hub_2" },
                 Context.Space => new() { "music_space_orbit", "music_deep_space_lonely", "music_mystery_signal", "music_asteroid_mining", "music_cockpit_starmap" },
-                Context.PlanetIce => new() { "music_planet_ice" },
-                Context.PlanetDesert => new() { "music_planet_desert" },
-                Context.PlanetLava => new() { "music_planet_lava" },
-                Context.PlanetToxic => new() { "music_planet_toxic" },
-                Context.PlanetOcean => new() { "music_planet_ocean" },
-                Context.PlanetVerdant => new() { "music_planet_verdant", "music_explore_planet" },
-                Context.PlanetCrystal => new() { "music_moon_crystal", "music_explore_planet" },
-                Context.PlanetCave => new() { "music_planet_cave" },
+                Context.PlanetIce => new() { "music_planet_ice", "music_planet_ice_2" },
+                Context.PlanetDesert => new() { "music_planet_desert", "music_planet_desert_2" },
+                Context.PlanetLava => new() { "music_planet_lava", "music_planet_lava_2" },
+                Context.PlanetToxic => new() { "music_planet_toxic", "music_planet_toxic_2" },
+                Context.PlanetOcean => new() { "music_planet_ocean", "music_planet_ocean_2" },
+                Context.PlanetVerdant => new() { "music_planet_verdant", "music_planet_verdant_2", "music_explore_planet", "music_explore_planet_2" },
+                Context.PlanetCrystal => new() { "music_moon_crystal", "music_explore_planet", "music_explore_planet_2" },
+                Context.PlanetCave => new() { "music_planet_cave", "music_planet_cave_2" },
                 Context.PlanetGeneric => GenericPlanetPool(game),
                 _ => new List<string>(),
             };
@@ -413,7 +413,11 @@ namespace BlocksBeyondTheStars.Client
         {
             float t = game != null ? game.LocalTimeOfDay : 0.5f;
             bool night = t < 0.23f || t >= 0.78f;
-            var list = new List<string> { "music_explore_planet", "music_idle_default" };
+            var list = new List<string>
+            {
+                "music_explore_planet", "music_explore_planet_2",
+                "music_idle_default", "music_idle_default_2",
+            };
             list.Add(night ? "music_planet_night" : "music_planet_sunrise");
             return list;
         }
