@@ -17,13 +17,16 @@ You wake aboard **your own spaceship** at the edge of an unknown universe. Out t
 ore — to lush, **heavily forested** worlds teeming with life, with frozen tundra, lava
 fields, fungal groves, floating skylands and dive-able oceans in between. And every alien
 world grows **its own flora and fauna**. Land on any of them and start digging — every
-block can be mined, reshaped and rebuilt.
+block can be mined, reshaped and rebuilt. **Tame** the wild creatures you meet into loyal,
+named companions, and craft a **hover speeder** to range far across the surface.
 
 Gather resources and **knowledge** to unlock blueprints, smelt and craft, and grow your
 ship — then fly real, system-scale routes between worlds and **jump from one star system to
 the next**. Dock at **space stations**, walk into **villages and cities** full of NPCs to
 trade and take missions, and build your own — **your own planet bases and even your own
-space stations**. Along the way you collect **DataQubes** (each one a little arcade
+space stations**, designed block by block in the in-game **ship editor** and a **structure
+editor** for crafting your own space stations, villages and cities. Along the way you collect
+**DataQubes** (each one a little arcade
 minigame), and, if you want, you can follow **The VEGA Protocol** — an optional, genuinely
 exciting story narrated by your ship's AI *VEGA* that builds to a real finale.
 
@@ -38,6 +41,9 @@ is shared, persistent, and self-hostable (even on a Raspberry Pi).
 - 🚀 Grow and redesign your ship, then fly between worlds and **jump between star systems**
 - 🛰️ Dock at **space stations** and walk into **villages & cities** full of NPCs — trade, take missions
 - 🏗️ Build your **own bases and your own space stations**; link teleporter pads, build with colored light
+- 🛠️ Design your own **ships, space stations, villages & cities** in the in-game **ship & structure editors**
+- 🐾 **Tame wild creatures** into named, loyal companions that travel with you
+- 🛻 Craft a **hover speeder** to race across planet surfaces
 - 🤝 In multiplayer, **form alliances** and share bases and structures with your allies
 - 🎨 Make it yours: design your avatar's face, **dye any material**, paint with light
 - 🕹️ Collect **DataQubes** — arcade minigames — and read the in-game **Codex** wiki
@@ -173,7 +179,8 @@ changes are needed to add content. Player-facing names use localization keys res
 A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
 moons and asteroid fields), procedurally generated worlds that wrap east–west (walk around the
 planet, seam-free), 18 planet types including exotic ones (skylands, fungal, corrupted, ocean,
-salt flats, …) with their own flora and fauna, swimming/diving, mining → crafting → blueprints →
+salt flats, …) with their own flora and fauna, swimming/diving, creature taming, a craftable hover
+speeder, mining → crafting → blueprints →
 ship building, real system-scale space flight (with jumps between systems) with stations,
 settlements and NPCs, peaceful NPC trader traffic, the
 **"VEGA Protocol" story campaign** (a swappable, story-agnostic engine with lore fragments, three
