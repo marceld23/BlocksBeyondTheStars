@@ -26,6 +26,24 @@ namespace BlocksBeyondTheStars.Client
         // space lives on the Map tab now — there is no separate Space tab.)
         public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8, Companions = 9 }
 
+        // Tab bar display order (left→right), decoupled from the Mode enum value so tabs can be reordered without
+        // renumbering the modes: each entry carries its Mode (used for activation, routing and badges) and label
+        // key. Core build/travel loop first, then the world/social cluster (Story/Creatures/Alliances), with
+        // Settings pinned far right (config convention). Note Mode.Character is labelled "Settings".
+        private static readonly (Mode Mode, string Loc)[] Tabs =
+        {
+            (Mode.Inventory, "ui.inventory.title"),
+            (Mode.Crafting,  "ui.crafting.title"),
+            (Mode.Tech,      "ui.tab.tech"),
+            (Mode.Ship,      "ui.tab.ship"),
+            (Mode.Map,       "ui.tab.map"),
+            (Mode.Missions,  "ui.tab.missions"),
+            (Mode.Story,     "ui.tab.story"),
+            (Mode.Companions, "ui.tab.companions"),
+            (Mode.Alliances, "ui.tab.alliances"),
+            (Mode.Character, "ui.tab.settings"),
+        };
+
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
 
@@ -401,17 +419,16 @@ namespace BlocksBeyondTheStars.Client
 
             // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
             // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances", "ui.tab.story", "ui.tab.companions" };
             // Tighten the tab metrics once there are many tabs so the whole bar + the Codex/Arcade buttons still
             // fit the 1920-wide reference canvas.
-            float tw = tabs.Length > 9 ? 132f : 150f;
-            float step = tabs.Length > 9 ? 140f : 158f;
+            float tw = Tabs.Length > 9 ? 132f : 150f;
+            float step = Tabs.Length > 9 ? 140f : 158f;
             float x = 40f;
-            for (int i = 0; i < tabs.Length; i++)
+            for (int i = 0; i < Tabs.Length; i++)
             {
-                int tab = i; // Tab enum index
+                int tab = (int)Tabs[i].Mode; // routing/activation/badges key on the Mode, not the display position
                 bool active = (int)_mode == tab;
-                var b = UiKit.AddButton(p, x, 64, tw, 46, L(tabs[i]), () => OnTab(tab));
+                var b = UiKit.AddButton(p, x, 64, tw, 46, L(Tabs[i].Loc), () => OnTab(tab));
                 if (active)
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;

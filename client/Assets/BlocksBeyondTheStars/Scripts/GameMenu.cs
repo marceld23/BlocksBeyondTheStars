@@ -149,6 +149,7 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 _browser = BrowserScreen.None;
+                CloseFaceEditor(); // the modal face editor is owned by the menu — don't let it linger after close
                 _ui?.Hide();
                 _wikiUi?.Hide();
                 _arcadeUi?.Hide();
@@ -158,6 +159,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Switches tab and (re)requests server data for data-driven tabs.</summary>
         private void SwitchTo(Tab tab)
         {
+            CloseFaceEditor(); // navigating to any tab dismisses the (Character-tab) face editor overlay
             _tab = tab;
             if (tab == Tab.Map)
             {
@@ -343,6 +345,18 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(transform, false);
             _faceEditor = go.AddComponent<FaceEditor>();
             _faceEditor.Menu = this;
+        }
+
+        /// <summary>Tears down the pixel-face editor overlay if it is open. The editor builds its own canvas, so
+        /// it must be destroyed when the menu closes or the player navigates away — otherwise it stays painted
+        /// over the screen and can't be dismissed.</summary>
+        private void CloseFaceEditor()
+        {
+            if (_faceEditor != null)
+            {
+                Destroy(_faceEditor.gameObject);
+                _faceEditor = null;
+            }
         }
 
         /// <summary>Applies an edited pixel face: persists it locally, shows it on the local figure, and tells

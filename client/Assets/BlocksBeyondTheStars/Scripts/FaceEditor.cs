@@ -106,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
         private void BuildUi()
         {
             _ui = UiKit.CreateCanvas("Face Editor UI");
-            _ui.sortingOrder = 30; // above the in-game menu
+            _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
             var root = _ui.transform;
 
             // Dim backdrop (also blocks clicks reaching the menu behind).

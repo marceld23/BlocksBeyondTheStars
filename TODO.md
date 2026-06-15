@@ -17,6 +17,20 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Bug-fix wave — face editor, in-game tab bar, editor scroll — ✅ FIXED, needs Unity client build (2026-06-15)
+Four reported in-game UI bugs, all client-only (no server/test changes):
+- **Pixel-face editor unusable + lingering** (`FaceEditor.cs`, `GameMenu.cs`): its canvas was `sortingOrder 30`
+  but the in-game menu is `50`, so the editor rendered *behind* the menu; and `GameMenu` never tore it down, so
+  the overlay stayed painted on screen after closing the menu. Fix: raise the editor canvas to `sortingOrder 60`
+  and add `CloseFaceEditor()` (destroys the modal) on menu close and on any tab switch.
+- **"Companions" tab label overflowed the button** → relabelled the tab to **Creatures / Kreaturen**
+  (`ui.tab.companions` locale only; the feature, panels and category headings keep "Companions/Begleiter").
+- **Menu tab order** (`CraftingTechShipUI.BuildHeader`): the tab labels were positionally bound to the `Mode`
+  enum. Decoupled display order from enum value via a `Tabs` descriptor array; reordered so the core
+  build/travel loop comes first, then Story → Creatures → Alliances, with **Settings pinned far right**.
+- **Ship/Station editor palette scrolled at a crawl** (`UiKit.ScrollList`): the shared scroll helper never set
+  `scrollSensitivity`, so it used Unity's default `1.0`. Set it to `30` (matching the rest of the UI) + clamp.
+
 ### ★ Hover speeder — craftable single-seat surface vehicle — ✅ server + tests + client wiring + icon + sounds, needs Unity client build (2026-06-15)
 A craftable **hover speeder**: deploy it from a hotbar item, board it and drive across a planet surface; it
 hovers over the terrain, runs on its own energy cell, and can take damage and be destroyed. Locked design:

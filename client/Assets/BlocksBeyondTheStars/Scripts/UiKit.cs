@@ -513,6 +513,10 @@ namespace BlocksBeyondTheStars.Client
             Place(viewGo, x, y, w, h);
             var scroll = viewGo.AddComponent<ScrollRect>();
             scroll.horizontal = false;
+            // Unity's default scrollSensitivity is 1.0 → a mouse wheel barely nudges the list (the editors'
+            // palette felt "stuck"). Match the rest of the UI's wheel speed and clamp so it can't over-scroll.
+            scroll.scrollSensitivity = 30f;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
             viewGo.AddComponent<RectMask2D>();
             var viewImg = viewGo.AddComponent<Image>();
             viewImg.color = new Color(0f, 0f, 0f, 0.18f);
