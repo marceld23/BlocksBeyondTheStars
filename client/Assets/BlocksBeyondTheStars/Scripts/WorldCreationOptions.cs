@@ -35,6 +35,19 @@ namespace BlocksBeyondTheStars.Client
         public int Stations = 2;       // Rare (server default)
         public int Exotic = 3;         // Normal
 
+        // Hand-designed structure templates: how readily an authored station/settlement is used in place
+        // of a procedural one (Freq index; server default = Rare). 0 (Off) ⇒ always procedural.
+        public int StationTemplates = 2;     // Rare
+        public int SettlementTemplates = 2;  // Rare
+
+        /// <summary>Structure-template packs DISABLED for this world (advanced page). Empty ⇒ all packs
+        /// allowed. We track the disabled set so the common "leave everything on" case emits no override.</summary>
+        public readonly HashSet<string> DisabledPacks = new HashSet<string>();
+
+        /// <summary>All structure-template packs the content offers (filled by the UI from the loaded
+        /// content). Used to translate <see cref="DisabledPacks"/> into the enabled list the server wants.</summary>
+        public readonly List<string> KnownPacks = new List<string>();
+
         /// <summary>0 Klein · 1 Normal · 2 Groß · 3 Riesig (systems / planets / moons ranges).</summary>
         public int UniverseSize = 1;
 
@@ -70,12 +83,21 @@ namespace BlocksBeyondTheStars.Client
             Creatures = other.Creatures; PlanetEnemies = other.PlanetEnemies; SpaceNpcs = other.SpaceNpcs; Ufos = other.Ufos;
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
+            StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
             Story = other.Story; StoryDensity = other.StoryDensity;
             PlanetTypes.Clear();
             foreach (var kv in other.PlanetTypes)
             {
                 PlanetTypes[kv.Key] = kv.Value;
+            }
+
+            // Pack enable/disable is a per-world choice, not part of a difficulty preset, so a preset never
+            // disables packs — but keep the set consistent (presets reset it to "all on").
+            DisabledPacks.Clear();
+            foreach (var p in other.DisabledPacks)
+            {
+                DisabledPacks.Add(p);
             }
         }
 
@@ -97,6 +119,25 @@ namespace BlocksBeyondTheStars.Client
             if (Vaults != 3) Arg("vaults", Freq[Vaults]);
             if (Stations != 2) Arg("stations", Freq[Stations]);
             if (Exotic != 3) Arg("exotic", Freq[Exotic]);
+
+            if (StationTemplates != 2) Arg("station-templates", Freq[StationTemplates]);
+            if (SettlementTemplates != 2) Arg("settlement-templates", Freq[SettlementTemplates]);
+
+            // Pack picker: emit the ENABLED packs only when the player turned some off (else all = default).
+            if (DisabledPacks.Count > 0 && KnownPacks.Count > 0)
+            {
+                var enabled = new List<string>();
+                foreach (var p in KnownPacks)
+                {
+                    if (!DisabledPacks.Contains(p))
+                    {
+                        enabled.Add(p);
+                    }
+                }
+
+                // "none enabled" would otherwise read as "all" on the server; send a sentinel so it means none.
+                Arg("structure-packs", "\"" + (enabled.Count > 0 ? string.Join(",", enabled) : "__none__") + "\"");
+            }
 
             if (UniverseSize != 1)
             {

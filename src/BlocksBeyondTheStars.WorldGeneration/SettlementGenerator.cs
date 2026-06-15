@@ -41,11 +41,15 @@ public sealed class SettlementStructure
     public string Inhabitant { get; } // "human" | "alien" (empty when ruined)
 
     private readonly ushort[] _blocks; // [x*H*L + y*L + z]
+    // Sparse per-cell modifiers (only authored templates populate these; procedural settlements leave them null).
+    private readonly Dictionary<int, (int Tint, int Glow)>? _mods;
+    private readonly Dictionary<int, int>? _shapes;
     public IReadOnlyList<SettlementMarker> Markers { get; }
     public int BuildingCount { get; }
 
     internal SettlementStructure(int w, int h, int l, string tier, bool ruined, string inhabitant,
-        ushort[] blocks, IReadOnlyList<SettlementMarker> markers, int buildingCount)
+        ushort[] blocks, IReadOnlyList<SettlementMarker> markers, int buildingCount,
+        Dictionary<int, (int Tint, int Glow)>? mods = null, Dictionary<int, int>? shapes = null)
     {
         Width = w;
         Height = h;
@@ -54,11 +58,21 @@ public sealed class SettlementStructure
         Ruined = ruined;
         Inhabitant = inhabitant;
         _blocks = blocks;
+        _mods = mods;
+        _shapes = shapes;
         Markers = markers;
         BuildingCount = buildingCount;
     }
 
     public ushort Get(int x, int y, int z) => _blocks[(x * Height + y) * Length + z];
+
+    /// <summary>Per-cell dye/glow (0xRRGGBB each; 0 = none). Authored templates may set these.</summary>
+    public (int Tint, int Glow) GetModifier(int x, int y, int z)
+        => _mods != null && _mods.TryGetValue((x * Height + y) * Length + z, out var m) ? m : (0, 0);
+
+    /// <summary>Per-cell packed shape+orientation (0 = plain cube). Authored templates may set this.</summary>
+    public int GetShape(int x, int y, int z)
+        => _shapes != null && _shapes.TryGetValue((x * Height + y) * Length + z, out var s) ? s : 0;
 
     public bool InBounds(int x, int y, int z)
         => x >= 0 && y >= 0 && z >= 0 && x < Width && y < Height && z < Length;
@@ -99,6 +113,8 @@ public static class SettlementGenerator
     {
         int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
         var blocks = new ushort[w * h * l];
+        var mods = new Dictionary<int, (int, int)>();
+        var shapes = new Dictionary<int, int>();
         var markers = new List<SettlementMarker>();
         int buildings = 0;
 
@@ -119,14 +135,17 @@ public static class SettlementGenerator
                 ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
-                    blocks[(cell.X * h + cell.Y) * l + cell.Z] = id;
+                    int idx = (cell.X * h + cell.Y) * l + cell.Z;
+                    blocks[idx] = id;
+                    if (cell.Tint != 0 || cell.Glow != 0) mods[idx] = (cell.Tint, cell.Glow);
+                    if (cell.Shape != 0) shapes[idx] = cell.Shape;
                 }
             }
         }
 
         if (!markers.Exists(m => m.Type == "vendor")) markers.Add(new SettlementMarker("vendor", new Vector3i(w / 2, 1, l / 2)));
 
-        return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings));
+        return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
     }
 
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content)

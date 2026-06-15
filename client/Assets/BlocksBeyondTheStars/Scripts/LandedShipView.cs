@@ -20,6 +20,11 @@ namespace BlocksBeyondTheStars.Client
         public int Width, Height, Length;
         public readonly Dictionary<Vector3i, BlockId> Cells = new();
 
+        /// <summary>Authored per-voxel dye/glow (0xRRGGBB each) + packed shape+orientation, parallel to
+        /// <see cref="Cells"/> (empty for plain hulls). Lets a designed ship show its colour + form.</summary>
+        public readonly Dictionary<Vector3i, (int Tint, int Glow)> Mods = new();
+        public readonly Dictionary<Vector3i, int> Shapes = new();
+
         public BlockId Get(Vector3i local) => Cells.TryGetValue(local, out var b) ? b : BlockId.Air;
 
         public void Set(Vector3i local, BlockId block)
@@ -27,6 +32,8 @@ namespace BlocksBeyondTheStars.Client
             if (block.IsAir)
             {
                 Cells.Remove(local);
+                Mods.Remove(local);
+                Shapes.Remove(local);
             }
             else
             {
@@ -165,10 +172,12 @@ namespace BlocksBeyondTheStars.Client
                 for (int ly = 0; ly < cs; ly++)
                 for (int lz = 0; lz < cs; lz++)
                 {
-                    var b = CellAt(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var wc = new Vector3i(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var b = CellAt(wc.X, wc.Y, wc.Z);
                     if (!b.IsAir)
                     {
                         chunk.Set(lx, ly, lz, b);
+                        ShipMeshBuilder.ApplyMods(chunk, lx, ly, lz, wc, m.Mods, m.Shapes);
                     }
                 }
 

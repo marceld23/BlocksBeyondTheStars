@@ -25,8 +25,12 @@ public static class ContentLoader
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true) },
     };
 
-    /// <summary>Loads and validates all content from the given data directory.</summary>
-    public static GameContent LoadFromDirectory(string dataDir)
+    /// <summary>Loads and validates all content from the given data directory. When
+    /// <paramref name="userContentDir"/> is given and exists, hand-designed structure templates dropped
+    /// there by the in-game editor (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>,
+    /// one <see cref="StructureTemplate"/> per file) are merged into the pools — so a structure built
+    /// in-game appears in the next new world without a Python merge or rebuild.</summary>
+    public static GameContent LoadFromDirectory(string dataDir, string? userContentDir = null)
     {
         if (!Directory.Exists(dataDir))
         {
@@ -66,6 +70,15 @@ public static class ContentLoader
         // Optional hand-designed structure template pools (empty when the files are absent).
         var stationTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "station_templates.json"));
         var settlementTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "settlement_templates.json"));
+
+        // Writable user-content folder (editor output): one StructureTemplate per file. Merged on top of
+        // the shipped pools so in-game builds are picked up at world creation without a rebuild.
+        if (!string.IsNullOrEmpty(userContentDir) && Directory.Exists(userContentDir))
+        {
+            stationTemplates.AddRange(LoadUserTemplates(Path.Combine(userContentDir!, "station_templates"), "station"));
+            settlementTemplates.AddRange(LoadUserTemplates(Path.Combine(userContentDir!, "settlement_templates"), "settlement"));
+        }
+
         content.SetStructureTemplates(stationTemplates, settlementTemplates);
         content.SetStories(stories);
 
@@ -89,6 +102,47 @@ public static class ContentLoader
             {
                 layout.Key = Path.GetFileNameWithoutExtension(file);
                 result.Add(layout);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Loads every <see cref="StructureTemplate"/> from a user-content sub-folder (one per file,
+    /// key defaulting to the file name). Malformed files are skipped so one bad export can't break load.</summary>
+    private static List<StructureTemplate> LoadUserTemplates(string dir, string kind)
+    {
+        var result = new List<StructureTemplate>();
+        if (!Directory.Exists(dir))
+        {
+            return result;
+        }
+
+        foreach (var file in Directory.GetFiles(dir, "*.json"))
+        {
+            try
+            {
+                var t = JsonSerializer.Deserialize<StructureTemplate>(File.ReadAllText(file), JsonOptions);
+                if (t == null || t.Cells.Count == 0)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(t.Key))
+                {
+                    t.Key = Path.GetFileNameWithoutExtension(file);
+                }
+
+                if (string.IsNullOrWhiteSpace(t.Kind))
+                {
+                    t.Kind = kind;
+                }
+
+                result.Add(t);
+            }
+            catch (JsonException)
+            {
+                // Ignore an unreadable export; the rest of the folder still loads.
             }
         }
 

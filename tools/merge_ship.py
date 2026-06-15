@@ -35,6 +35,16 @@ def _dump(p, obj):
     Path(p).write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def _norm_cell(c):
+    """Normalise one layout cell, carrying the optional per-voxel modifiers (dye/glow colour + packed
+    shape+orientation) when present so authored tinted/shaped/oriented cells survive the merge."""
+    cell = {"x": c["x"], "y": c["y"], "z": c["z"], "kind": c.get("kind", "block"), "id": c.get("id", "")}
+    for fld in ("tint", "glow", "shape"):
+        if c.get(fld):
+            cell[fld] = c[fld]
+    return cell
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit("usage: python tools/merge_ship.py <export-bundle-dir>")
@@ -91,7 +101,7 @@ def main():
         "height": layout.get("height", 0),
         "length": layout.get("length", 0),
         "cells": [
-            {"x": c["x"], "y": c["y"], "z": c["z"], "kind": c.get("kind", "block"), "id": c.get("id", "")}
+            _norm_cell(c)
             for c in layout["cells"]
         ],
     }

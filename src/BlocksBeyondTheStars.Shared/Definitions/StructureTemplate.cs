@@ -15,10 +15,22 @@ public sealed class StructureTemplate
     public string Name { get; set; } = string.Empty;
     public string Tier { get; set; } = "medium";
     public string Kind { get; set; } = string.Empty; // "station" | "settlement" (informational)
+
+    /// <summary>Named group this template belongs to (e.g. "default", "mybuilds"); a world enables a
+    /// set of packs and world-gen only rolls templates from the enabled packs. Empty ⇒ "default".</summary>
+    public string Pack { get; set; } = "default";
+
+    /// <summary>Relative selection weight within its tier sub-pool (higher = more likely). Clamped to ≥1
+    /// at selection time so a 0/negative value never makes a template unpickable by accident.</summary>
+    public int Weight { get; set; } = 1;
+
     public int Width { get; set; }
     public int Height { get; set; }
     public int Length { get; set; }
     public List<TemplateCell> Cells { get; set; } = new();
+
+    /// <summary>The pack this template belongs to, normalized ("default" when unset).</summary>
+    public string PackOrDefault => string.IsNullOrWhiteSpace(Pack) ? "default" : Pack;
 }
 
 /// <summary>One cell of a <see cref="StructureTemplate"/>: a block or an interaction marker.</summary>
@@ -29,4 +41,13 @@ public sealed class TemplateCell
     public int Z { get; set; }
     public string Kind { get; set; } = "block"; // "block" | "marker"
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>Per-cell dye colour (0xRRGGBB; 0 = none). Applied to tintable blocks like in-game dye.</summary>
+    public int Tint { get; set; }
+
+    /// <summary>Per-cell glow colour (0xRRGGBB; 0 = none) — the coloured-light blocks.</summary>
+    public int Glow { get; set; }
+
+    /// <summary>Packed shape + orientation (<c>ShapeCode.Pack(shape, facing)</c>; 0 = plain cube).</summary>
+    public int Shape { get; set; }
 }

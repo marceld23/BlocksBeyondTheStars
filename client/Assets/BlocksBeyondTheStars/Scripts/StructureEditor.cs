@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -29,7 +30,11 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _floor;
         private float _yaw, _pitch;
 
-        private readonly Dictionary<Vector3i, string> _design = new();
+        /// <summary>One authored cell: the palette id + kind, plus the in-game per-voxel modifiers
+        /// (dye/glow colour 0xRRGGBB, packed shape+orientation). Markers carry no modifiers.</summary>
+        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; }
+
+        private readonly Dictionary<Vector3i, CellData> _design = new();
         private readonly Dictionary<Vector3i, GameObject> _cells = new();
         private readonly Dictionary<string, Material> _mats = new();
 
@@ -39,14 +44,24 @@ namespace BlocksBeyondTheStars.Client
         private string[] _tiers;
         private int _tier;
 
+        // Brush: the dye/glow colour + shape + orientation applied to newly placed BLOCK cells (markers
+        // ignore them), mirroring the in-game dye + shape + place-orientation. 0 = none / plain cube.
+        private int _brushTint, _brushGlow, _brushShape, _brushOrient;
+        private string _search = string.Empty;
+
+        /// <summary>The 9 in-game block shapes (index = BlockShape enum). Orientation is 0..3 quarter-turns.</summary>
+        private static readonly string[] ShapeNames = { "Cube", "Slab", "Pyramid", "Dome", "Sphere", "Ramp", "Stairs", "Cone", "Cylinder" };
+
         private string _key = "my_structure";
         private string _name = "My Structure";
+        private string _pack = "default";   // template pack; a world enables a set of packs
+        private int _weight = 1;            // relative selection weight within its tier
         private string _status = string.Empty;
         private bool _mouseOverUi;
 
         private void Start()
         {
-            _palette = EditorMode == Mode.Station ? StationPalette() : SettlementPalette();
+            _palette = BuildPalette();
             _tiers = EditorMode == Mode.Station
                 ? new[] { "small", "medium", "large", "huge" }
                 : new[] { "hamlet", "village", "town", "city" };
@@ -70,12 +85,37 @@ namespace BlocksBeyondTheStars.Client
 
         private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
 
-        private Pal[] StationPalette() => new[]
+        /// <summary>The full palette: every placeable block from the loaded content (so all materials —
+        /// including the dyeable, shapeable, light and glowing blocks — are available), preceded by the
+        /// interaction markers this structure kind needs. Built once from <see cref="AppShell.Content"/>.</summary>
+        private Pal[] BuildPalette()
         {
-            P("iron_wall", "Hull", "block", new Color(0.55f, 0.57f, 0.62f)),
-            P("glass", "Viewport", "block", new Color(0.45f, 0.8f, 0.95f)),
-            P("force_field", "Energy field", "block", new Color(0.35f, 0.8f, 1f)),
-            P("light", "Light", "block", new Color(1f, 0.95f, 0.55f)),
+            var list = new List<Pal>();
+            list.AddRange(EditorMode == Mode.Station ? StationMarkers() : SettlementMarkers());
+
+            var content = Shell != null ? Shell.Content : null;
+            if (content != null)
+            {
+                var keys = new List<string>(content.Blocks.Keys);
+                keys.Sort(System.StringComparer.Ordinal);
+                foreach (var key in keys)
+                {
+                    if (key == "air")
+                    {
+                        continue;
+                    }
+
+                    var def = content.GetBlock(key);
+                    string label = def != null ? L(def.NameKey) : key;
+                    list.Add(P(key, label, "block", BlockSwatch(key)));
+                }
+            }
+
+            return list.ToArray();
+        }
+
+        private static Pal[] StationMarkers() => new[]
+        {
             P("hangar", "Hangar marker", "marker", new Color(0.35f, 0.4f, 0.46f)),
             P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),
             P("mission_board", "Mission board", "marker", new Color(0.4f, 0.7f, 0.95f)),
@@ -84,20 +124,25 @@ namespace BlocksBeyondTheStars.Client
             P("console", "Console", "marker", new Color(0.3f, 0.6f, 0.95f)),
         };
 
-        private Pal[] SettlementPalette() => new[]
+        private static Pal[] SettlementMarkers() => new[]
         {
-            P("stone", "Stone wall", "block", new Color(0.50f, 0.50f, 0.52f)),
-            P("iron_wall", "Metal wall", "block", new Color(0.55f, 0.57f, 0.62f)),
-            P("glass", "Window", "block", new Color(0.45f, 0.8f, 0.95f)),
-            P("ladder", "Ladder", "block", new Color(0.6f, 0.45f, 0.3f)),
-            P("stairs", "Stairs", "block", new Color(0.65f, 0.55f, 0.4f)),
-            P("light", "Lamp", "block", new Color(1f, 0.95f, 0.55f)),
             P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),
             P("mission_board", "Mission board", "marker", new Color(0.4f, 0.7f, 0.95f)),
             P("npc", "Inhabitant", "marker", new Color(0.85f, 0.6f, 0.5f)),
             P("door_slide", "Slide door", "marker", new Color(0.40f, 0.85f, 0.95f)),
             P("door_hinge", "Hinge door", "marker", new Color(0.60f, 0.40f, 0.20f)),
+            P("loot", "Loot cache", "marker", new Color(0.8f, 0.7f, 0.3f)),
         };
+
+        /// <summary>A stable, legible swatch colour for a block id (used only in the palette list — the
+        /// real cell tints with the brush dye / glow at place time).</summary>
+        private static Color BlockSwatch(string key)
+        {
+            int h = 0;
+            foreach (char c in key) h = h * 31 + c;
+            float hue = ((h & 0x7FFFFFFF) % 360) / 360f;
+            return Color.HSVToRGB(hue, 0.32f, 0.78f);
+        }
 
         private void BuildRoom()
         {
@@ -177,6 +222,13 @@ namespace BlocksBeyondTheStars.Client
                 if (Input.GetMouseButtonDown(0)) TryPlace();
                 else if (Input.GetMouseButtonDown(2)) TryRemove();
             }
+
+            // Rotate the shape brush (matches the in-game place-orientation control).
+            if (!_mouseOverUi && Input.GetKeyDown(KeyCode.R))
+            {
+                _brushOrient = (_brushOrient + 1) & 3;
+                if (_orientLabel != null) _orientLabel.text = (_brushOrient * 90) + "°";
+            }
         }
 
         private void TryPlace()
@@ -223,24 +275,69 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCell(Vector3i cell, Pal pal)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = $"Cell {pal.Id}";
-            go.transform.SetParent(transform, false);
-            go.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
-            go.transform.localScale = Vector3.one * (pal.Kind == "marker" ? 0.6f : 0.98f);
-            go.GetComponent<Renderer>().sharedMaterial = MatFor(pal);
+            var data = new CellData { Id = pal.Id, Kind = pal.Kind };
+            if (pal.Kind == "block")
+            {
+                // Only real blocks carry dye/glow/shape (markers are interaction points, not voxels).
+                data.Tint = _brushTint;
+                data.Glow = _brushGlow;
+                data.Shape = _brushShape != 0 ? ShapeCode.Pack(_brushShape, _brushOrient) : 0;
+            }
+
+            PlaceCellData(cell, pal, data);
+        }
+
+        private void PlaceCellData(Vector3i cell, Pal pal, CellData data)
+        {
+            GameObject go;
+            Mesh shapeMesh = data.Shape != 0
+                ? EditorVoxelPreview.ShapeMesh(ShapeCode.ShapeOf(data.Shape), ShapeCode.OrientationOf(data.Shape))
+                : null;
+            if (shapeMesh != null)
+            {
+                // Shaped cells render the real in-game geometry (unit cell 0..1), with a unit box collider
+                // so place/remove raycasts still hit them.
+                go = new GameObject($"Cell {pal.Id}", typeof(MeshFilter), typeof(MeshRenderer));
+                go.GetComponent<MeshFilter>().sharedMesh = shapeMesh;
+                var bc = go.AddComponent<BoxCollider>();
+                bc.center = Vector3.one * 0.5f;
+                bc.size = Vector3.one;
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3(cell.X, cell.Y, cell.Z);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = $"Cell {pal.Id}";
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
+                go.transform.localScale = Vector3.one * (pal.Kind == "marker" ? 0.6f : 0.98f);
+            }
+
+            go.GetComponent<Renderer>().sharedMaterial = MatFor(pal, data);
             _cells[cell] = go;
-            _design[cell] = pal.Id;
+            _design[cell] = data;
         }
 
         private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
 
-        private Material MatFor(Pal pal)
+        private Material MatFor(Pal pal, CellData data)
         {
-            if (!_mats.TryGetValue(pal.Id, out var m))
+            // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch.
+            Color baseCol = data.Tint != 0
+                ? EditorVoxelPreview.RgbToColor(data.Tint)
+                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : pal.Color);
+            string key = $"{pal.Id}|{data.Tint}|{data.Glow}";
+            if (!_mats.TryGetValue(key, out var m))
             {
-                m = Lit(pal.Color, null);
-                _mats[pal.Id] = m;
+                m = Lit(baseCol, null);
+                if (data.Glow != 0)
+                {
+                    m.EnableKeyword("_EMISSION");
+                    m.SetColor("_EmissionColor", ShaderColor.Srgb(EditorVoxelPreview.RgbToColor(data.Glow)));
+                }
+
+                _mats[key] = m;
             }
 
             return m;
@@ -248,9 +345,19 @@ namespace BlocksBeyondTheStars.Client
 
         // ----------------------------- export -----------------------------
 
-        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; }
+        [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; }
         [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
-        [Serializable] private sealed class MetaJson { public string key, name, kind, tier, layout; }
+        [Serializable] private sealed class MetaJson { public string key, name, kind, tier, pack, layout; public int weight = 1; }
+
+        // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
+        // the user-content folder so a structure built in-game appears in the next new world WITHOUT a merge.
+        [Serializable] private sealed class TemplateJson
+        {
+            public string key, name, tier, kind, pack;
+            public int weight = 1;
+            public int width, height, length;
+            public List<CellJson> cells = new();
+        }
 
         private void Export()
         {
@@ -265,8 +372,13 @@ namespace BlocksBeyondTheStars.Client
             var layout = new LayoutJson();
             foreach (var kv in _design)
             {
-                var pal = Array.Find(_palette, p => p.Id == kv.Value);
-                layout.cells.Add(new CellJson { x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z, kind = pal.Kind ?? "block", id = kv.Value });
+                var d = kv.Value;
+                layout.cells.Add(new CellJson
+                {
+                    x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
+                    kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
+                    tint = d.Tint, glow = d.Glow, shape = d.Shape,
+                });
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
                 maxZ = Mathf.Max(maxZ, kv.Key.Z);
@@ -277,15 +389,30 @@ namespace BlocksBeyondTheStars.Client
             layout.length = maxZ + 1;
 
             string modeName = EditorMode == Mode.Station ? "station" : "settlement";
-            var meta = new MetaJson { key = key, name = _name, kind = modeName, tier = _tiers[_tier], layout = $"{key}.json" };
+            string pack = string.IsNullOrWhiteSpace(_pack) ? "default" : Slug(_pack);
+            int weight = Mathf.Max(1, _weight);
+            var meta = new MetaJson { key = key, name = _name, kind = modeName, tier = _tiers[_tier], pack = pack, weight = weight, layout = $"{key}.json" };
 
             try
             {
+                // 1) Export bundle (the "ship into the game" path via tools/merge_structure.py).
                 string dir = Path.Combine(Application.persistentDataPath, modeName + "_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "structure.json"), JsonUtility.ToJson(meta, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
-                SetStatus($"Saved '{key}' ({_design.Count} cells) to:\n{dir}\nRun tools/merge_structure.py to add it to the pool.");
+
+                // 2) Data-shaped template written straight to the user-content folder the local server
+                //    reads — so this structure can appear in your NEXT new world without any merge/rebuild.
+                var tpl = new TemplateJson
+                {
+                    key = key, name = _name, tier = _tiers[_tier], kind = modeName, pack = pack, weight = weight,
+                    width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
+                };
+                string userDir = Path.Combine(Application.persistentDataPath, "usercontent", modeName + "_templates");
+                Directory.CreateDirectory(userDir);
+                File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
+
+                SetStatus($"Saved '{key}' ({_design.Count} cells).\nLive in your new worlds now (pack '{pack}').\nRun tools/merge_structure.py to ship it into the game.");
             }
             catch (Exception e)
             {
@@ -371,7 +498,13 @@ namespace BlocksBeyondTheStars.Client
                             continue;
                         }
 
-                        PlaceCell(cell, pal);
+                        var data = new CellData
+                        {
+                            Id = c.id,
+                            Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
+                            Tint = c.tint, Glow = c.glow, Shape = c.shape,
+                        };
+                        PlaceCellData(cell, pal, data);
                     }
                 }
 
@@ -380,6 +513,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _key = string.IsNullOrEmpty(meta.key) ? key : meta.key;
                     _name = string.IsNullOrEmpty(meta.name) ? _name : meta.name;
+                    _pack = string.IsNullOrEmpty(meta.pack) ? "default" : meta.pack;
+                    _weight = Mathf.Max(1, meta.weight);
                     int ti = System.Array.IndexOf(_tiers, meta.tier);
                     if (ti >= 0) _tier = ti;
                 }
@@ -449,6 +584,10 @@ namespace BlocksBeyondTheStars.Client
         private Text _statusLabel;
         private Text _blocksLabel;
         private Text _tierLabel;
+        private Text _weightLabel;
+        private Text _shapeLabel;
+        private Text _orientLabel;
+        private Transform _palListParent;
         private readonly List<Image> _palButtons = new();
 
         private void OnDestroy()
@@ -467,16 +606,12 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
-            // Left: palette.
+            // Left: palette (markers + every placeable block) with a search filter.
             var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
             UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, L("ui.struct.palette"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var palList = UiKit.ScrollList(pal.transform, 10f, 48f, 280f, PanelH - 60f);
-            for (int i = 0; i < _palette.Length; i++)
-            {
-                AddPaletteRow(palList, i);
-            }
-
-            Select(_selected);
+            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; RebuildPaletteRows(); });
+            _palListParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, PanelH - 90f);
+            RebuildPaletteRows();
 
             // Right: metadata.
             var meta = RightPanel(root, 380f, PanelH);
@@ -498,6 +633,38 @@ namespace BlocksBeyondTheStars.Client
             _tierLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, _tiers[_tier], 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () => { _tier = (_tier + 1) % _tiers.Length; _tierLabel.text = _tiers[_tier]; });
             y += 44f;
+
+            // Template pack (a world enables a set of packs) + selection weight within the tier.
+            UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.pack"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 26f;
+            UiKit.AddInput(meta, 16f, y, 348f, 30f, _pack, v => _pack = v);
+            y += 44f;
+            UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.weight"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _weightLabel = UiKit.AddText(meta, 176f, y, 80f, 30f, _weight.ToString(), 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 260f, y, 30f, 30f, "−", () => { _weight = Mathf.Max(1, _weight - 1); _weightLabel.text = _weight.ToString(); });
+            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _weight = Mathf.Min(99, _weight + 1); _weightLabel.text = _weight.ToString(); });
+            y += 50f;
+
+            // ── Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells ──
+            UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.brush"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 30f;
+            UiKit.AddText(meta, 16f, y, 70f, 30f, L("ui.struct.dye"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddInput(meta, 92f, y, 150f, 30f, HexOf(_brushTint), v => _brushTint = ParseHex(v));
+            UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushTint = 0; RebuildUi(); });
+            y += 38f;
+            UiKit.AddText(meta, 16f, y, 70f, 30f, L("ui.struct.glow"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddInput(meta, 92f, y, 150f, 30f, HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
+            UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushGlow = 0; RebuildUi(); });
+            y += 42f;
+            UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _shapeLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, ShapeNames[_brushShape], 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 262f, y, 30f, 30f, "−", () => { _brushShape = (_brushShape + ShapeNames.Length - 1) % ShapeNames.Length; _shapeLabel.text = ShapeNames[_brushShape]; });
+            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _brushShape = (_brushShape + 1) % ShapeNames.Length; _shapeLabel.text = ShapeNames[_brushShape]; });
+            y += 38f;
+            UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.orient"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _orientLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, (_brushOrient * 90) + "°", 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 262f, y, 68f, 30f, "↻ R", () => { _brushOrient = (_brushOrient + 1) & 3; _orientLabel.text = (_brushOrient * 90) + "°"; });
+            y += 46f;
 
             _blocksLabel = UiKit.AddText(meta, 16f, y, 348f, 24f, "Placed: 0", 15, UiKit.TextCol, TextAnchor.MiddleLeft);
 
@@ -555,6 +722,42 @@ namespace BlocksBeyondTheStars.Client
             string tag = _palette[index].Kind == "marker" ? "◆ " : string.Empty;
             UiKit.AddText(rt, 38f, 0f, 232f, 36f, tag + _palette[index].Label, 15, UiKit.TextCol);
             _palButtons.Add(img);
+            _rowToPaletteIndex.Add(index);
+        }
+
+        private readonly List<int> _rowToPaletteIndex = new();
+
+        /// <summary>Rebuilds the palette list from the search filter (markers always shown; blocks matched by
+        /// label or id). Rows carry their real <see cref="_palette"/> index so selection stays stable.</summary>
+        private void RebuildPaletteRows()
+        {
+            if (_palListParent == null)
+            {
+                return;
+            }
+
+            for (int i = _palListParent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_palListParent.GetChild(i).gameObject);
+            }
+
+            _palButtons.Clear();
+            _rowToPaletteIndex.Clear();
+
+            string q = _search.Trim().ToLowerInvariant();
+            for (int i = 0; i < _palette.Length; i++)
+            {
+                var p = _palette[i];
+                bool match = q.Length == 0
+                    || (p.Label != null && p.Label.ToLowerInvariant().Contains(q))
+                    || (p.Id != null && p.Id.ToLowerInvariant().Contains(q));
+                if (match)
+                {
+                    AddPaletteRow(_palListParent, i);
+                }
+            }
+
+            Select(_selected);
         }
 
         private void Select(int index)
@@ -562,9 +765,24 @@ namespace BlocksBeyondTheStars.Client
             _selected = index;
             for (int i = 0; i < _palButtons.Count; i++)
             {
-                _palButtons[i].color = i == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
+                _palButtons[i].color = _rowToPaletteIndex[i] == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
             }
         }
+
+        /// <summary>Parses a 6-hex-digit colour string to 0xRRGGBB (0 = empty/invalid = "none").</summary>
+        private static int ParseHex(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return 0;
+            }
+
+            s = s.Trim().TrimStart('#');
+            return int.TryParse(s, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? (v & 0xFFFFFF) : 0;
+        }
+
+        private static string HexOf(int rgb) => rgb == 0 ? string.Empty : rgb.ToString("x6");
 
         private static RectTransform RightPanel(Transform root, float w, float h)
         {

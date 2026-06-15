@@ -24,10 +24,21 @@ namespace BlocksBeyondTheStars.Client
             var panel = UiKit.AddPanel(overlay.transform, 160f, 90f, 1600f, 900f, UiKit.Panel).transform;
             UiKit.AddText(panel, 30f, 20f, 800f, 34f, shell.L("ui.worldopt.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            // Two stacked views inside the panel: the main sliders and the advanced per-type list.
+            // Stacked views inside the panel: the main sliders, the advanced per-type list, and the
+            // authored-structure (template) controls.
             var main = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
             var advanced = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
+            var structures = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
             advanced.SetActive(false);
+            structures.SetActive(false);
+
+            // The content's structure-template packs feed the pack picker; the option model translates the
+            // disabled set into the enabled list the server wants at launch.
+            opt.KnownPacks.Clear();
+            if (shell.Content?.StructurePacks != null)
+            {
+                opt.KnownPacks.AddRange(shell.Content.StructurePacks);
+            }
 
             var rebuilders = new List<System.Action>(); // slider refreshers, run after a preset is applied
 
@@ -81,6 +92,14 @@ namespace BlocksBeyondTheStars.Client
             Row(true, shell.L("ui.worldopt.hazards"), L4("ui.worldopt.hz"), () => opt.Hazards, v => opt.Hazards = v);
             Row(true, shell.L("ui.worldopt.death"), L4("ui.worldopt.dp"), () => opt.DeathPenalty, v => opt.DeathPenalty = v);
 
+            // Authored hand-designed stations/towns (template pools) get their own page (left column has room).
+            ly += 16f;
+            UiKit.AddButton(main.transform, lx, ly, 740f, 44f, shell.L("ui.worldopt.structures_btn"), () =>
+            {
+                main.SetActive(false);
+                structures.SetActive(true);
+            });
+
             // Right column: the generated world.
             UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_world"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ry += 34f;
@@ -114,6 +133,13 @@ namespace BlocksBeyondTheStars.Client
             BuildAdvanced(shell, advanced.transform, opt, freqSteps, () =>
             {
                 advanced.SetActive(false);
+                main.SetActive(true);
+            });
+
+            // ── Authored structures: template-use sliders + pack picker ─────────────────────
+            BuildStructures(shell, structures.transform, opt, freqSteps, () =>
+            {
+                structures.SetActive(false);
                 main.SetActive(true);
             });
 
@@ -175,6 +201,51 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(parent, 30f, 706f, 280f, 44f, shell.L("ui.worldopt.advanced_reset"), () => opt.PlanetTypes.Clear());
             UiKit.AddButton(parent, 330f, 706f, 280f, 44f, shell.L("ui.menu.back"), onBack);
+        }
+
+        /// <summary>The authored-structures page: how readily hand-designed station/settlement templates are
+        /// used in place of the procedural generator, plus a per-pack on/off picker. Empty pools ⇒ a note.</summary>
+        private static void BuildStructures(AppShell shell, Transform parent, WorldCreationOptions opt,
+            string[] freqSteps, System.Action onBack)
+        {
+            UiKit.AddText(parent, 30f, 4f, 1000f, 28f, shell.L("ui.worldopt.structures_title"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var note = UiKit.AddText(parent, 30f, 34f, 1520f, 44f, shell.L("ui.worldopt.structures_note"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            note.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            float y = 96f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.station_templates"), freqSteps,
+                () => opt.StationTemplates, v => opt.StationTemplates = v, rebuilders: null);
+            y += 62f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.settlement_templates"), freqSteps,
+                () => opt.SettlementTemplates, v => opt.SettlementTemplates = v, rebuilders: null);
+
+            // Pack picker (right column): one toggle per pack; "on" = enabled = not in DisabledPacks.
+            float px = 820f, py = 96f;
+            UiKit.AddText(parent, px, py, 740f, 24f, shell.L("ui.worldopt.packs_title"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            py += 34f;
+            if (opt.KnownPacks.Count == 0)
+            {
+                UiKit.AddText(parent, px, py, 740f, 40f, shell.L("ui.worldopt.packs_none"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            }
+            else
+            {
+                foreach (var pack in opt.KnownPacks)
+                {
+                    string p = pack;
+                    Text label = null;
+                    void Refresh() => label.text = (opt.DisabledPacks.Contains(p) ? "☐  " : "☑  ") + p;
+                    UiKit.AddButton(parent, px, py, 56f, 36f, shell.L("ui.worldopt.packs_toggle"), () =>
+                    {
+                        if (!opt.DisabledPacks.Remove(p)) { opt.DisabledPacks.Add(p); }
+                        Refresh();
+                    });
+                    label = UiKit.AddText(parent, px + 66f, py, 660f, 36f, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    Refresh();
+                    py += 44f;
+                }
+            }
+
+            UiKit.AddButton(parent, 30f, 706f, 280f, 44f, shell.L("ui.menu.back"), onBack);
         }
 
         /// <summary>A labelled discrete slider (whole steps) with the current step's name beside it.</summary>

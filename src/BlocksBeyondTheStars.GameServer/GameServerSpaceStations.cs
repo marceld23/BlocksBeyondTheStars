@@ -1,4 +1,5 @@
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -15,10 +16,6 @@ public sealed partial class GameServer
 {
     private const float StationBoardRange = 70f;
     private const float StationMarkerReach = 4f;
-
-    /// <summary>Chance to place a hand-designed template (when the pool is non-empty) instead of a
-    /// procedurally generated station/settlement; the rest stay procedural.</summary>
-    private const double StructureTemplateChance = 0.35;
 
     /// <summary>Planet type of the void world that backs every orbital station (space sky, life support,
     /// no terrain/weather/clouds). See data/planets.json.</summary>
@@ -422,19 +419,20 @@ public sealed partial class GameServer
 
         long sSeed = _meta.Seed ^ WorldGenerator.StableHash("station:" + station.Id);
 
-        // Chance to stamp a hand-designed template from the pool (when one exists) instead of generating.
-        // The roll uses its own RNG so it never disturbs the procedural generator's determinism.
+        // Chance to stamp a hand-designed template from the pool (when one fits this tier + the world's
+        // enabled packs) instead of generating. The roll uses its own RNG so it never disturbs the
+        // procedural generator's determinism. Off use / empty sub-pool ⇒ always procedural.
         StationStructure structure;
-        var pool = _content.StationTemplates;
         var roll = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
-        if (pool.Count > 0 && roll.NextDouble() < StructureTemplateChance)
+        StructureTemplate? template = null;
+        if (roll.NextDouble() < _meta.Description.StationTemplateUse.Probability())
         {
-            structure = StationGenerator.FromTemplate(pool[roll.Next(pool.Count)], _content);
+            template = _content.PickStationTemplate(station.SizeTier, _meta.Description.EnabledStructurePacks, roll);
         }
-        else
-        {
-            structure = StationGenerator.Generate(station.SizeTier, sSeed, _content);
-        }
+
+        structure = template != null
+            ? StationGenerator.FromTemplate(template, _content)
+            : StationGenerator.Generate(station.SizeTier, sSeed, _content);
 
         station.Structure = structure;
 
@@ -445,7 +443,9 @@ public sealed partial class GameServer
             ushort b = structure.Get(x, y, z);
             if (b != 0)
             {
-                _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z), new BlockId(b));
+                var (tint, glow) = structure.GetModifier(x, y, z);
+                _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
+                    new BlockId(b), tint, glow, structure.GetShape(x, y, z));
             }
         }
 

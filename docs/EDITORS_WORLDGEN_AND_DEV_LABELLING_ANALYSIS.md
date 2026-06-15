@@ -210,16 +210,191 @@ all editors uniformly as developer tools).
 
 ---
 
-## 5. Key open decisions (for the user, before any implementation)
+## 5. Decisions — LOCKED (2026-06-15)
 
-1. **Runtime ingestion (§3.1):** A1 (keep dev-merge only), **A2 (auto-load a user-content folder —
-   recommended)**, or A3 (bake into save)? This determines whether in-game-built structures truly appear
-   in new worlds without a rebuild, and whether §4's two-group framing is accurate.
-2. **Selection granularity (§3.3):** ratio slider (Level 1), **pack picker (Level 2 — recommended)**, or
-   per-template allow-list (Level 3)?
-3. **Tier handling (§3.2):** add `Weight` + tier-matched sub-pools now (recommended), or keep the flat
-   random pick?
-4. **Dev-editor signposting (§4.3):** S1+S2 (label + banner), or also S4 (hide behind a Developer-mode
-   toggle, off by default)?
-5. **Scope of "structures":** does "city" mean a new settlement tier beyond the existing
-   hamlet/village/town/city, or just authoring large templates at the existing `city` tier?
+1. **Runtime ingestion:** **A2** — auto-load a writable user-content folder (in-game builds appear in
+   new worlds without a Python merge or rebuild). `merge_*.py` stays the *release* path only.
+2. **Selection granularity:** **Level 2** — pack picker (templates grouped into named packs, enabled per
+   world).
+3. **Tier handling:** **add `Weight` + tier-matched sub-pools now** (fixes the size-mismatch bug, makes
+   per-tier landmarks meaningful).
+4. **Dev-editor signposting:** **S1 + S2** — split the Editors menu into "creator" vs "developer
+   content tools (rebuild required)" + a persistent in-editor banner on Material / Item&Recipe. No
+   Developer-mode gate (S4) for now.
+5. **Scope of "city":** **no new tier** — "city" = authoring large templates at the **existing `city`
+   tier** (hamlet/village/town/city already exist).
+
+---
+
+## 6. Implementation plan (locked) — file-touch list
+
+Conventions: docs/comments **English**; any player-visible string **DE + EN**
+([spacecraft-game-bilingual]). New net messages — none expected (all server-load / creation-time). Add
+tests per phase.
+
+### P1 — Tier-aware, weighted, pack-filtered template selection (server-only, no UI)
+- **`src/.../Shared/Definitions/StructureTemplate.cs`** — add `string Pack = "default"` and `int Weight =
+  1`. (`Tier`, `Kind`, `Cells` stay.)
+- **`src/.../Shared/Content/GameContent.cs`** — in `SetStructureTemplates`, also build
+  `StationTemplatesByTier` / `SettlementTemplatesByTier` (`Dictionary<string,List<StructureTemplate>>`)
+  and expose `StructurePacks` (distinct pack names). Add weighted selectors
+  `PickStationTemplate(string tier, IReadOnlySet<string>? packs, Random rng)` and the settlement twin —
+  filter by tier + enabled packs, weight by `Weight`, return `null` when the sub-pool is empty.
+- **`src/.../Shared/World/WorldDescription.cs`** — add `Frequency StationTemplateUse = Frequency.Rare`,
+  `Frequency SettlementTemplateUse = Frequency.Rare`, `List<string> EnabledStructurePacks = new()`
+  (empty = all). Reuse `Frequency.Probability()` for the template-vs-procedural chance.
+- **`src/.../GameServer/GameServerSpaceStations.cs`** (`StampStation`, ~L416–437) — replace the flat
+  `pool[roll.Next]` + constant `StructureTemplateChance` with `PickStationTemplate(station.SizeTier,
+  meta.Description.EnabledStructurePacks, rng)` gated by `meta.Description.StationTemplateUse
+  .Probability()`; procedural fallback unchanged. (Drop/retire the `StructureTemplateChance` constant.)
+- **`src/.../GameServer/GameServerSettlements.cs`** (`StampSettlement`) — same change with
+  `SettlementTemplateUse` + settlement tier.
+- **`tools/merge_structure.py`** — add `pack` + `weight` to each pool entry.
+- **`data/station_templates.json` + `data/settlement_templates.json`** — ship one hand-authored sample
+  each (per tier) so pools are non-empty + tests have fixtures.
+- **Tests** (`tests/.../`): weighted tier+pack selection picks correctly + falls back on empty sub-pool;
+  deterministic pick for a fixed seed; `Off` use → always procedural.
+
+### P2 — Runtime user-content ingestion (closes Gap A)
+- **`src/.../Shared/Content/ContentLoader.cs`** — add optional `string? userContentDir` to
+  `LoadFromDirectory`; when present, scan `userContentDir/station_templates/*.json` +
+  `settlement_templates/*.json` (one data-shaped `StructureTemplate` per file, key = filename, like
+  `ship_layouts`) and merge into the pools before `SetStructureTemplates`. Same pattern can later cover
+  `ship_layouts`.
+- **`src/.../GameServer/Program.cs`** — accept `--usercontent <dir>` and pass it through.
+- **`client/.../LocalServerLauncher.cs`** (~L118–151) — pass
+  `--usercontent "<persistentDataPath>/usercontent"`.
+- **`client/.../StructureEditor.cs`** (`Export`, L255–294; `MetaJson`) — add `pack` + `weight` to the
+  metadata UI + `MetaJson`; on Save, **also** write a data-shaped `StructureTemplate` JSON straight to
+  `persistentDataPath/usercontent/{station|settlement}_templates/<key>.json` (in addition to the export
+  bundle). Update the status/hint: "Appears in your new worlds now — run merge_structure.py only to ship
+  it into the game."
+- **Tests:** ContentLoader merges a usercontent template into the right tier/pack pool.
+
+### P3 — Per-world "which structures" creation UI (closes Gap C)
+- **`client/.../WorldCreationOptions.cs`** — add `int StationTemplates`, `int SettlementTemplates`
+  (Freq indices, default = Rare) + `HashSet<string> DisabledPacks` (or enabled set); `ToArgs()` emits
+  `--station-templates`, `--settlement-templates`, `--structure-packs "a,b"` when non-default.
+- **`src/.../Shared/Configuration/ServerConfig.cs`** (`ApplyCommandLine`) — parse the three args into
+  `World.StationTemplateUse` / `.SettlementTemplateUse` / `.EnabledStructurePacks`.
+- **`client/.../UiWorldOptions.cs`** — add two slider rows (Structures column) + a **pack picker**
+  (checkbox list) on the Advanced page. Pack names: client gathers distinct packs from
+  `StreamingAssets/data/{station,settlement}_templates.json` + the usercontent folder.
+- **Tests:** `ApplyCommandLine` parses the new args; `WorldDescription` round-trips the new fields
+  through the snapshot/persistence layer.
+
+### P4 — Dev-editor signposting (S1 + S2)
+- **`client/.../UiEditors.cs`** — split buttons into two labelled groups: **"In-game creator"** (Ship,
+  Station, Town, Avatar) and **"Developer content tools (rebuild required)"** (Item & Recipe, Material),
+  with a short note under the dev group. Update the right-hand info panel accordingly.
+- **`client/.../MaterialEditor.cs` + `ContentEditor.cs`** — persistent top banner:
+  *"DEVELOPER TOOL — exports to disk; not applied to your game until merged + rebuilt."*
+- **`data/locales/{en,de}.json`** — new keys: `ui.editors.group.creator`, `ui.editors.group.dev`,
+  `ui.editors.dev.note`, `ui.editors.devbanner`, struct-editor `pack`/`weight` labels, world-option
+  `station_templates`/`settlement_templates` slider labels + pack-picker title.
+
+### Build order & risk
+P1 (pure server, lowest risk, immediately testable) → P2 (runtime ingestion, the headline feature) →
+P3 (creation UI) → P4 (signposting, additive UI). Each phase ships independently; client phases (P2
+editor, P3, P4) need a Unity client build to verify. No new net messages; no save-format break (new
+`WorldDescription` fields default to today's behaviour).
+
+**P1–P4 status: IMPLEMENTED 2026-06-15 (server/shared tests green, 620/620). Needs a Unity client
+build to verify the P2/P3/P4 client UI.**
+
+---
+
+## 7. Editor palette + dye + shape + orientation + glow upgrade (NEW ASK — plan)
+
+### 7.1 What the editors expose today (gap)
+- **StructureEditor** (station + settlement modes): a **hard-coded ~6-block palette**
+  ([StructureEditor.cs:75-102](../client/Assets/BlocksBeyondTheStars/Scripts/StructureEditor.cs#L75-L102))
+  + a few markers. **BUG:** the `light`/`Lamp` entries use block id `"light"`, which **does not exist**
+  (real light blocks are `light_white/red/green`, `strip_light_cyan/warm`) → those cells stamp as **air**.
+- **ShipEditor**: a richer **~20-entry** hard-coded palette (hull, glass, light *elements*, engine,
+  hatch, doors, stations, weapons) — but also uses the non-existent `light` (as a ship "element").
+- **Neither editor** offers: the **full block catalogue** (119 blocks), **dye/tint**, **glow colour**,
+  **shape** (slab/ramp/stairs/pyramid/dome/sphere/cone/cylinder), or **shape orientation** — even though
+  in-game **every block is tintable + shapeable and shaped blocks are oriented at placement**.
+- **Format gap:** `TemplateCell` and `ShipLayoutCell` carry only `X,Y,Z,Kind,Id`. The stamp paths
+  (`GameServerSpaceStructure.BuildShipStructureFrom`, `StationGenerator.FromTemplate`,
+  `SettlementGenerator.FromTemplate`) set only a block id — no `SetModifier`/`SetShape`.
+
+### 7.2 Target (per the user)
+In **both** the ship editor and the station/settlement editor:
+1. The **full material catalogue** (every placeable block), browsable + searchable, not a fixed handful.
+2. **Dye any block** (per-cell tint) and set **glow colour** (the glowing blocks), like in-game.
+3. **Shape any block** (the 9 `BlockShape`s) and **orient** the shape (the 4 cardinal facings), like the
+   in-game place flow.
+4. Keep the **special elements** stations/ships already have — exterior lamps, engines/thrusters,
+   hatch/airlock, doors, station markers, ship weapons.
+
+### 7.3 The enabling insight (it's already a solved problem in-game)
+The runtime already stores per-voxel **tint+glow** (`ChunkData` modifier dict, `0xRRGGBB`) and
+**shape+orientation** (`ChunkData` shape dict, packed `ShapeCode.Pack(shape, facing)`), persists them
+(`BlockEdit.Tint/Glow/Shape`), streams them (`ChunkDataMessage`, `BlockChanged`), and meshes them
+(`ChunkMesher` + `BlockShapeGeometry`). The item key already encodes `#t<rgb>g<rgb>s<xx>`
+([ItemKey](../src/BlocksBeyondTheStars.Shared/Definitions/ItemKey.cs)). The **only** missing links are
+(a) the **template/layout cell** can't carry tint/glow/shape, (b) the **stamp paths** don't apply them,
+and (c) the **editor UI + editor preview** don't let you pick or show them.
+
+### 7.4 Plan
+
+**A. Shared format (the spine).** Add to **`ShipLayoutCell`** and **`TemplateCell`**:
+`int Tint`, `int Glow`, `int Shape` (all default 0 = none/cube). Backward-compatible — old files omit
+them and read as 0. Mirror the fields into the editors' `CellJson`/`TemplateJson`/`LayoutJson` and into
+`tools/merge_structure.py` + `tools/merge_ship.py` pool entries.
+
+**B. Stamp paths apply them.** Where each stamp loop sets a block id, also call
+`SetModifier(p, cell.Tint, cell.Glow)` when non-zero and `SetShape(p, cell.Shape)` when non-zero — in
+`GameServerSpaceStructure.BuildShipStructureFrom`, `StationGenerator.FromTemplate`,
+`SettlementGenerator.FromTemplate`. (`StationStructure`/`SettlementStructure`/`SpaceStructure` need a
+per-cell tint/glow/shape store + getters so the *placement* code that copies them into the world carries
+them — mirrors how block ids already flow.) Then `BlockChanged`/chunk streaming already do the rest.
+Also **fix the `light` bug**: drop the non-existent `light` palette id (use `light_white` etc.).
+
+**C. Editor UI — full palette.** Replace the hard-coded `Pal[]` with a palette **built from
+`GameContent.Blocks`** (all placeable blocks), grouped by a block category/tag with a **search box** and
+scrollable grid (icons reuse the block atlas). Keep the **special elements + markers** as their own
+groups (engine, exterior lamp, hatch, doors, station/ship-station markers, weapons). One shared palette
+core for both editors (the ship adds element/station/weapon groups; structures add their markers).
+
+**D. Editor UI — dye / glow / shape / orient (a per-cell "brush" state).** Add an inspector strip:
+- **Tint** + **Glow** colour pickers (reuse the in-game dye colour UI if extractable; else a compact
+  HSV/preset swatch). 0 = none.
+- **Shape** picker (the 9 `BlockShape`s as icons) + an **orientation** control (rotate key, e.g. `R`,
+  cycling the 4 facings) exactly like the in-game place flow (`ShapeCode.Pack(shape, facing)`).
+- The brush writes `{Id, Tint, Glow, Shape}` into the placed cell; place/remove unchanged.
+
+**E. Editor preview renders them.** Today the editor previews cells as plain Unity primitive cubes. To
+*show* dye/glow/shape/orientation it must either (i) reuse `BlockShapeGeometry.Build(shape, facing)` +
+tint material for the preview mesh, or (ii) drive the real `ChunkMesher` on the editor grid. (i) is the
+smaller lift and matches the in-game look closely enough for authoring.
+
+**F. Export/round-trip.** Save writes the new fields (bundle + usercontent template + ship export);
+Load restores them; `merge_*.py` preserves them. With §3.1-A2 already shipped, an authored tinted/shaped
+station appears in your next world with no rebuild.
+
+### 7.5 Phasing
+- **U1 — format + stamp + bugfix (server/shared, testable now):** add `Tint/Glow/Shape` to both cell
+  types + the structure stores + stamp calls; fix the `light` id; tests that a tinted/shaped/oriented
+  template stamps the right modifiers. No UI yet — authored-by-hand JSON already benefits.
+- **U2 — full block palette** in both editors (search + groups, from `GameContent`), keeping elements +
+  markers. Drop the hard-coded lists.
+- **U3 — dye + glow + shape + orient brush** + editor preview rendering (the visible payload).
+- **U4 — export/load/merge round-trip** for the new fields + polish (copy brush from an existing cell,
+  recently-used swatches/shapes).
+
+U1 is pure server/shared (unit-testable); U2–U4 are client + need a Unity build. U1 unblocks everything
+and is independently shippable.
+
+**U1–U4 status: IMPLEMENTED 2026-06-15.** Server/shared (U1) tested green. Both editors now build their
+palette from `GameContent.Blocks` (all placeable blocks) + keep the markers/elements groups, with a
+search box; a per-cell brush sets dye + glow colour + shape + orientation (key `R`), and the preview
+renders the real shape (via `BlockShapeGeometry`) + tint. The `light` palette bug is gone (real light
+blocks come from the catalogue). `ShipLayoutCell`/`TemplateCell` carry `Tint/Glow/Shape`; station +
+settlement stamps apply them through `_world.SetBlock(...,tint,glow,shape)`; the ship `SpaceStructure`
++ `SpaceShipDesign`/`LandedShipState`/`StructureBlockChanged` carry per-cell arrays and the client ship
+mesh paths (`SpaceView`, `LandedShipView`, `ShipMeshBuilder`) feed them into the shared mesher.
+`merge_ship.py`/`merge_structure.py` preserve the fields. **Client (U2–U4) needs a Unity build to
+verify/compile.**

@@ -60,6 +60,9 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
+            // Developer-tool banner: its output needs a merge + rebuild and does not affect the current game.
+            UiKit.AddText(root, 16f, 4f, 1400f, 22f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
+
             // ── Left panel: item + stats ──────────────────────────────────────────────────────
             var left = UiKit.AddPanel(root, 16f, 16f, 470f, 1048f, UiKit.PanelFill).transform;
             UiKit.AddText(left, 16f, 12f, 440f, 26f, L("ui.content.item"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

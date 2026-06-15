@@ -54,11 +54,15 @@ public sealed class StationStructure
     public int RoomL { get; }
 
     private readonly ushort[] _blocks; // [x*H*L + y*L + z]
+    // Sparse per-cell modifiers (only authored templates populate these; procedural stations leave them null).
+    private readonly Dictionary<int, (int Tint, int Glow)>? _mods;
+    private readonly Dictionary<int, int>? _shapes;
     public IReadOnlyList<StationMarker> Markers { get; }
     public IReadOnlyList<StationModule> Modules { get; }
 
     internal StationStructure(int w, int h, int l, string tier, int roomW, int roomH, int roomL,
-        ushort[] blocks, IReadOnlyList<StationMarker> markers, IReadOnlyList<StationModule> modules)
+        ushort[] blocks, IReadOnlyList<StationMarker> markers, IReadOnlyList<StationModule> modules,
+        Dictionary<int, (int Tint, int Glow)>? mods = null, Dictionary<int, int>? shapes = null)
     {
         Width = w;
         Height = h;
@@ -68,11 +72,21 @@ public sealed class StationStructure
         RoomH = roomH;
         RoomL = roomL;
         _blocks = blocks;
+        _mods = mods;
+        _shapes = shapes;
         Markers = markers;
         Modules = modules;
     }
 
     public ushort Get(int x, int y, int z) => _blocks[(x * Height + y) * Length + z];
+
+    /// <summary>Per-cell dye/glow (0xRRGGBB each; 0 = none). Authored templates may set these.</summary>
+    public (int Tint, int Glow) GetModifier(int x, int y, int z)
+        => _mods != null && _mods.TryGetValue((x * Height + y) * Length + z, out var m) ? m : (0, 0);
+
+    /// <summary>Per-cell packed shape+orientation (0 = plain cube). Authored templates may set this.</summary>
+    public int GetShape(int x, int y, int z)
+        => _shapes != null && _shapes.TryGetValue((x * Height + y) * Length + z, out var s) ? s : 0;
 
     public bool InBounds(int x, int y, int z)
         => x >= 0 && y >= 0 && z >= 0 && x < Width && y < Height && z < Length;
@@ -110,6 +124,8 @@ public static class StationGenerator
     {
         int w = System.Math.Max(1, t.Width), h = System.Math.Max(1, t.Height), l = System.Math.Max(1, t.Length);
         var blocks = new ushort[w * h * l];
+        var mods = new Dictionary<int, (int, int)>();
+        var shapes = new Dictionary<int, int>();
         var markers = new List<StationMarker>();
 
         foreach (var cell in t.Cells)
@@ -128,7 +144,10 @@ public static class StationGenerator
                 ushort id = content.GetBlock(cell.Id)?.NumericId.Value ?? 0;
                 if (id != 0)
                 {
-                    blocks[(cell.X * h + cell.Y) * l + cell.Z] = id;
+                    int idx = (cell.X * h + cell.Y) * l + cell.Z;
+                    blocks[idx] = id;
+                    if (cell.Tint != 0 || cell.Glow != 0) mods[idx] = (cell.Tint, cell.Glow);
+                    if (cell.Shape != 0) shapes[idx] = cell.Shape;
                 }
             }
         }
@@ -138,7 +157,7 @@ public static class StationGenerator
         if (!markers.Exists(m => m.Type == "mission_board")) markers.Add(new StationMarker("mission_board", centre));
         if (!markers.Exists(m => m.Type == "hangar")) markers.Add(new StationMarker("hangar", centre));
 
-        return new StationStructure(w, h, l, t.Tier, 7, 6, 7, blocks, markers, new List<StationModule>());
+        return new StationStructure(w, h, l, t.Tier, 7, 6, 7, blocks, markers, new List<StationModule>(), mods, shapes);
     }
 
     public static StationStructure Generate(string sizeTier, long seed, GameContent content)

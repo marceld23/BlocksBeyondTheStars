@@ -141,10 +141,19 @@ public sealed partial class GameServer
         {
             int n = s.Cells.Count;
             msg.X = new int[n]; msg.Y = new int[n]; msg.Z = new int[n]; msg.Block = new ushort[n];
+            // Modifier arrays only when the design carries dye/glow/shape (authored ships) — plain hulls stay compact.
+            bool anyMods = s.Mods.Count > 0 || s.Shapes.Count > 0;
+            if (anyMods) { msg.Tint = new int[n]; msg.Glow = new int[n]; msg.Shape = new int[n]; }
             int i = 0;
             foreach (var (cell, block) in s.Cells)
             {
                 msg.X[i] = cell.X; msg.Y[i] = cell.Y; msg.Z[i] = cell.Z; msg.Block[i] = block.Value;
+                if (anyMods)
+                {
+                    if (s.Mods.TryGetValue(cell, out var m)) { msg.Tint[i] = m.Tint; msg.Glow[i] = m.Glow; }
+                    if (s.Shapes.TryGetValue(cell, out var sh)) { msg.Shape[i] = sh; }
+                }
+
                 i++;
             }
         }

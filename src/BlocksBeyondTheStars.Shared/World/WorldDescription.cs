@@ -114,4 +114,18 @@ public sealed class WorldDescription
     /// relative to the common ones — one slider instead of 17 (an advanced per-type page can still
     /// fill <see cref="PlanetTypeFrequencies"/>, which always wins when non-empty).</summary>
     public Frequency ExoticWorlds { get; set; } = Frequency.Normal;
+
+    // --- Hand-designed structure templates (editor output; rolled in place of the procedural generator) ---
+
+    /// <summary>How readily a space station slot stamps a hand-designed template instead of a procedural
+    /// one (uses <see cref="FrequencyExtensions.Probability"/> as the chance; Off ⇒ always procedural).
+    /// Only ever fires when the matching tier sub-pool has at least one enabled template.</summary>
+    public Frequency StationTemplateUse { get; set; } = Frequency.Rare;
+
+    /// <summary>Settlement twin of <see cref="StationTemplateUse"/>.</summary>
+    public Frequency SettlementTemplateUse { get; set; } = Frequency.Rare;
+
+    /// <summary>Structure-template packs enabled for this world (matches <c>StructureTemplate.Pack</c>).
+    /// Empty ⇒ all packs allowed. Lets a world opt into a subset of authored stations/settlements.</summary>
+    public List<string> EnabledStructurePacks { get; set; } = new();
 }

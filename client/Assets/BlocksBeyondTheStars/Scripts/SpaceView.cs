@@ -38,6 +38,9 @@ namespace BlocksBeyondTheStars.Client
 
         // item 20 S2: the player's own ship voxel grid, kept client-side for EVA collision + build/mine aim.
         private Dictionary<Vector3i, BlockId> _shipCells; // null when the cube fallback ship is shown
+        // Authored per-voxel dye/glow + shape for the own ship (empty for plain hulls).
+        private Dictionary<Vector3i, (int Tint, int Glow)> _shipMods = new();
+        private Dictionary<Vector3i, int> _shipShapes = new();
         private Vector3 _shipCentre;        // design → ship-local offset used when meshing
         private string _shipStructureId;    // structure id these cells belong to (matches server edits)
         private Transform _shipVox;         // container holding the voxel chunk meshes (child of _ship)
@@ -2246,12 +2249,21 @@ namespace BlocksBeyondTheStars.Client
 
             // Index the cells (kept client-side for EVA collision + build/mine aim, S2) and find the bounds.
             var cells = new Dictionary<Vector3i, BlockId>(d.Block.Length);
+            _shipMods = new Dictionary<Vector3i, (int, int)>();
+            _shipShapes = new Dictionary<Vector3i, int>();
+            bool hasTint = d.Tint != null && d.Tint.Length == d.Block.Length;
+            bool hasGlow = d.Glow != null && d.Glow.Length == d.Block.Length;
+            bool hasShape = d.Shape != null && d.Shape.Length == d.Block.Length;
             int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
             int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
             for (int i = 0; i < d.Block.Length; i++)
             {
                 int bx = d.X[i], by = d.Y[i], bz = d.Z[i];
-                cells[new Vector3i(bx, by, bz)] = new BlockId(d.Block[i]);
+                var key = new Vector3i(bx, by, bz);
+                cells[key] = new BlockId(d.Block[i]);
+                int tint = hasTint ? d.Tint[i] : 0, glow = hasGlow ? d.Glow[i] : 0;
+                if (tint != 0 || glow != 0) _shipMods[key] = (tint, glow);
+                if (hasShape && d.Shape[i] != 0) _shipShapes[key] = d.Shape[i];
                 if (bx < minX) minX = bx; if (by < minY) minY = by; if (bz < minZ) minZ = bz;
                 if (bx > maxX) maxX = bx; if (by > maxY) maxY = by; if (bz > maxZ) maxZ = bz;
             }
@@ -2384,7 +2396,7 @@ namespace BlocksBeyondTheStars.Client
             if (_shipVox != null)
             {
                 BuildVoxChunks(_shipVox, _shipCells, _shipCentre,
-                    ShipMeshBuilder.HullPaint(Game.Content, Rgb(Game.HullRgb))); // hull paint (item 32)
+                    ShipMeshBuilder.HullPaint(Game.Content, Rgb(Game.HullRgb)), _shipMods, _shipShapes); // hull paint (item 32) + authored dye/shape
                 _appliedHullRgb = Game.HullRgb;
             }
         }
@@ -2393,7 +2405,8 @@ namespace BlocksBeyondTheStars.Client
         /// block grid, centred on <paramref name="centre"/> — shared by the ship (S1/S2, with the hull paint
         /// resolver) and asteroids (S3, unpainted).</summary>
         private void BuildVoxChunks(Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
-            System.Func<BlockId, Color> paint = null)
+            System.Func<BlockId, Color> paint = null,
+            Dictionary<Vector3i, (int Tint, int Glow)> mods = null, Dictionary<Vector3i, int> shapes = null)
         {
             for (int i = parent.childCount - 1; i >= 0; i--)
             {
@@ -2432,10 +2445,12 @@ namespace BlocksBeyondTheStars.Client
                 for (int ly = 0; ly < cs; ly++)
                 for (int lz = 0; lz < cs; lz++)
                 {
-                    var b = WorldBlock(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var wc = new Vector3i(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var b = WorldBlock(wc.X, wc.Y, wc.Z);
                     if (!b.IsAir)
                     {
                         chunk.Set(lx, ly, lz, b);
+                        ShipMeshBuilder.ApplyMods(chunk, lx, ly, lz, wc, mods, shapes);
                     }
                 }
 

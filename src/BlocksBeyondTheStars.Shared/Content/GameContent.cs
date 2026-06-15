@@ -44,11 +44,96 @@ public sealed class GameContent
     public IReadOnlyList<StructureTemplate> StationTemplates { get; private set; } = System.Array.Empty<StructureTemplate>();
     public IReadOnlyList<StructureTemplate> SettlementTemplates { get; private set; } = System.Array.Empty<StructureTemplate>();
 
-    /// <summary>Populates the optional structure-template pools (called by the content loader).</summary>
+    // Tier-matched sub-pools (key = tier, lower-cased) so a slot only ever rolls a same-tier template.
+    private Dictionary<string, List<StructureTemplate>> _stationsByTier = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, List<StructureTemplate>> _settlementsByTier = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>All distinct pack names present across both pools (for the world-creation pack picker).</summary>
+    public IReadOnlyList<string> StructurePacks { get; private set; } = System.Array.Empty<string>();
+
+    /// <summary>Populates the optional structure-template pools (called by the content loader). Builds the
+    /// tier-matched sub-pools + the distinct pack list used by selection and the creation UI.</summary>
     public void SetStructureTemplates(IReadOnlyList<StructureTemplate> stations, IReadOnlyList<StructureTemplate> settlements)
     {
         StationTemplates = stations ?? System.Array.Empty<StructureTemplate>();
         SettlementTemplates = settlements ?? System.Array.Empty<StructureTemplate>();
+
+        _stationsByTier = GroupByTier(StationTemplates);
+        _settlementsByTier = GroupByTier(SettlementTemplates);
+
+        var packs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in StationTemplates) packs.Add(t.PackOrDefault);
+        foreach (var t in SettlementTemplates) packs.Add(t.PackOrDefault);
+        StructurePacks = packs.ToList();
+    }
+
+    private static Dictionary<string, List<StructureTemplate>> GroupByTier(IReadOnlyList<StructureTemplate> pool)
+    {
+        var byTier = new Dictionary<string, List<StructureTemplate>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in pool)
+        {
+            var tier = string.IsNullOrWhiteSpace(t.Tier) ? "medium" : t.Tier;
+            if (!byTier.TryGetValue(tier, out var list))
+            {
+                byTier[tier] = list = new List<StructureTemplate>();
+            }
+
+            list.Add(t);
+        }
+
+        return byTier;
+    }
+
+    /// <summary>Weighted, tier-matched, pack-filtered pick of a hand-designed station template — or null
+    /// when no template fits (the caller then falls back to the procedural generator). <paramref name="enabledPacks"/>
+    /// = null/empty means "all packs allowed".</summary>
+    public StructureTemplate? PickStationTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
+        => PickFromTier(_stationsByTier, tier, enabledPacks, rng);
+
+    /// <summary>Settlement twin of <see cref="PickStationTemplate"/>.</summary>
+    public StructureTemplate? PickSettlementTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
+        => PickFromTier(_settlementsByTier, tier, enabledPacks, rng);
+
+    private static StructureTemplate? PickFromTier(
+        Dictionary<string, List<StructureTemplate>> byTier, string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
+    {
+        if (!byTier.TryGetValue(string.IsNullOrWhiteSpace(tier) ? "medium" : tier, out var candidates) || candidates.Count == 0)
+        {
+            return null;
+        }
+
+        bool PackAllowed(StructureTemplate t) => enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
+
+        int total = 0;
+        foreach (var t in candidates)
+        {
+            if (PackAllowed(t))
+            {
+                total += System.Math.Max(1, t.Weight);
+            }
+        }
+
+        if (total == 0)
+        {
+            return null; // tier has templates, but none in the enabled packs
+        }
+
+        int roll = rng.Next(total);
+        foreach (var t in candidates)
+        {
+            if (!PackAllowed(t))
+            {
+                continue;
+            }
+
+            roll -= System.Math.Max(1, t.Weight);
+            if (roll < 0)
+            {
+                return t;
+            }
+        }
+
+        return null; // unreachable, but keeps the compiler + analysers happy
     }
 
     // --- Pluggable story packs (loaded from data/stories/<id>/story.json by the content loader) ---

@@ -43,12 +43,22 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var cells = new Dictionary<Vector3i, BlockId>(d.Block.Length);
+            // Authored per-voxel dye/glow + shape ride parallel arrays (empty for plain hulls).
+            var mods = new Dictionary<Vector3i, (int Tint, int Glow)>();
+            var shapes = new Dictionary<Vector3i, int>();
+            bool hasTint = d.Tint != null && d.Tint.Length == d.Block.Length;
+            bool hasGlow = d.Glow != null && d.Glow.Length == d.Block.Length;
+            bool hasShape = d.Shape != null && d.Shape.Length == d.Block.Length;
             int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
             int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
             for (int i = 0; i < d.Block.Length; i++)
             {
                 int bx = d.X[i], by = d.Y[i], bz = d.Z[i];
-                cells[new Vector3i(bx, by, bz)] = new BlockId(d.Block[i]);
+                var key = new Vector3i(bx, by, bz);
+                cells[key] = new BlockId(d.Block[i]);
+                int tint = hasTint ? d.Tint[i] : 0, glow = hasGlow ? d.Glow[i] : 0;
+                if (tint != 0 || glow != 0) mods[key] = (tint, glow);
+                if (hasShape && d.Shape[i] != 0) shapes[key] = d.Shape[i];
                 if (bx < minX) minX = bx; if (by < minY) minY = by; if (bz < minZ) minZ = bz;
                 if (bx > maxX) maxX = bx; if (by > maxY) maxY = by; if (bz > maxZ) maxZ = bz;
             }
@@ -58,14 +68,31 @@ namespace BlocksBeyondTheStars.Client
 
             var ship = new GameObject("VoxelShip");
             ship.transform.SetParent(parent, false);
-            BuildVoxChunks(game, ship.transform, cells, centre, hull.a > 0f ? HullPaint(game.Content, hull) : null);
+            BuildVoxChunks(game, ship.transform, cells, centre, hull.a > 0f ? HullPaint(game.Content, hull) : null, mods, shapes);
             return ship;
+        }
+
+        /// <summary>Writes a cell's authored dye/glow + shape into a chunk so the shared mesher renders them
+        /// (no-op for cells without modifiers). Shared by every ship/structure voxel-build path.</summary>
+        public static void ApplyMods(ChunkData chunk, int lx, int ly, int lz, Vector3i worldCell,
+            Dictionary<Vector3i, (int Tint, int Glow)> mods, Dictionary<Vector3i, int> shapes)
+        {
+            if (mods != null && mods.TryGetValue(worldCell, out var m))
+            {
+                chunk.SetModifier(lx, ly, lz, m.Tint, m.Glow);
+            }
+
+            if (shapes != null && shapes.TryGetValue(worldCell, out var sh) && sh != 0)
+            {
+                chunk.SetShape(lx, ly, lz, sh);
+            }
         }
 
         /// <summary>Meshes a sparse block grid into chunk meshes under <paramref name="parent"/>, centred on
         /// <paramref name="centre"/> (mirrors SpaceView.BuildVoxChunks; no colliders — display only).</summary>
         private static void BuildVoxChunks(GameBootstrap game, Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
-            System.Func<BlockId, Color> paint)
+            System.Func<BlockId, Color> paint,
+            Dictionary<Vector3i, (int Tint, int Glow)> mods = null, Dictionary<Vector3i, int> shapes = null)
         {
             int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
             int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
@@ -94,10 +121,12 @@ namespace BlocksBeyondTheStars.Client
                 for (int ly = 0; ly < cs; ly++)
                 for (int lz = 0; lz < cs; lz++)
                 {
-                    var b = WorldBlock(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var wc = new Vector3i(origin.X + lx, origin.Y + ly, origin.Z + lz);
+                    var b = WorldBlock(wc.X, wc.Y, wc.Z);
                     if (!b.IsAir)
                     {
                         chunk.Set(lx, ly, lz, b);
+                        ApplyMods(chunk, lx, ly, lz, wc, mods, shapes);
                     }
                 }
 

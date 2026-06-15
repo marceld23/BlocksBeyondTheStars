@@ -858,9 +858,16 @@ namespace BlocksBeyondTheStars.Client
                         Hull = m.Hull,
                         Width = m.Width, Height = m.Height, Length = m.Length,
                     };
+                    bool hasTint = m.Tint != null && m.Tint.Length == m.Block.Length;
+                    bool hasGlow = m.Glow != null && m.Glow.Length == m.Block.Length;
+                    bool hasShape = m.Shape != null && m.Shape.Length == m.Block.Length;
                     for (int i = 0; i < m.Block.Length; i++)
                     {
-                        ship.Cells[new Vector3i(m.X[i], m.Y[i], m.Z[i])] = new BlockId(m.Block[i]);
+                        var cell = new Vector3i(m.X[i], m.Y[i], m.Z[i]);
+                        ship.Cells[cell] = new BlockId(m.Block[i]);
+                        int tint = hasTint ? m.Tint[i] : 0, glow = hasGlow ? m.Glow[i] : 0;
+                        if (tint != 0 || glow != 0) ship.Mods[cell] = (tint, glow);
+                        if (hasShape && m.Shape[i] != 0) ship.Shapes[cell] = m.Shape[i];
                     }
 
                     LandedShips[m.StructureId] = ship;
@@ -873,7 +880,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (LandedShips.TryGetValue(m.StructureId, out var ship))
                 {
-                    ship.Set(new Vector3i(m.X, m.Y, m.Z), new BlockId(m.Block));
+                    var cell = new Vector3i(m.X, m.Y, m.Z);
+                    ship.Set(cell, new BlockId(m.Block));
+                    if (m.Block != 0)
+                    {
+                        if (m.Tint != 0 || m.Glow != 0) ship.Mods[cell] = (m.Tint, m.Glow); else ship.Mods.Remove(cell);
+                        if (m.Shape != 0) ship.Shapes[cell] = m.Shape; else ship.Shapes.Remove(cell);
+                    }
+
                     LandedShipsChanged?.Invoke();
                 }
             };

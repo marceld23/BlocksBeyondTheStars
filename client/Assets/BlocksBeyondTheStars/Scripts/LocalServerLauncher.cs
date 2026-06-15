@@ -117,7 +117,12 @@ namespace BlocksBeyondTheStars.Client
 
             string saves = Path.Combine(Application.persistentDataPath, "singleplayer-saves");
             string data = Path.Combine(Application.streamingAssetsPath, "data");
+            // Writable folder where the in-game structure editor drops its templates; the server merges
+            // them into the world-gen pools so player-built stations/towns appear in new worlds with no
+            // Python merge or rebuild (StructureEditor writes <kind>_templates/<key>.json here).
+            string userContent = Path.Combine(Application.persistentDataPath, "usercontent");
             Directory.CreateDirectory(saves);
+            Directory.CreateDirectory(userContent);
 
             string viewArg = viewDistanceChunks > 0 ? $" --view-distance {viewDistanceChunks}" : string.Empty;
             string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
@@ -148,7 +153,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\"" + viewArg + seedArg + spaceArgs + startCubeArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + startCubeArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

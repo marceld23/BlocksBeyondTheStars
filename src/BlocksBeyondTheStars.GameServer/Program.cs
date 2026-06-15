@@ -17,6 +17,9 @@ var appliedOverrides = config.ApplyCommandLine(args);
 
 string dataDir = ResolveDataDir(installDir, config.DataDir);
 string savesRoot = Path.IsPathRooted(config.SavesRoot) ? config.SavesRoot : Path.Combine(installDir, config.SavesRoot);
+string? userContentDir = string.IsNullOrEmpty(config.UserContentDir)
+    ? null
+    : (Path.IsPathRooted(config.UserContentDir) ? config.UserContentDir : Path.Combine(installDir, config.UserContentDir));
 
 var logger = new ConsoleGameLogger(Path.Combine(savesRoot, config.WorldName, "logs", "server.log"));
 
@@ -28,8 +31,12 @@ if (appliedOverrides.Count > 0)
 GameContent content;
 try
 {
-    content = ContentLoader.LoadFromDirectory(dataDir);
+    content = ContentLoader.LoadFromDirectory(dataDir, userContentDir);
     logger.Info($"Loaded content: {content.Blocks.Count} blocks, {content.Items.Count} items, {content.Recipes.Count} recipes, {content.Planets.Count} planets.");
+    if (userContentDir != null && Directory.Exists(userContentDir))
+    {
+        logger.Info($"User content '{userContentDir}': {content.StationTemplates.Count} station + {content.SettlementTemplates.Count} settlement template(s) in pool.");
+    }
 }
 catch (Exception ex)
 {

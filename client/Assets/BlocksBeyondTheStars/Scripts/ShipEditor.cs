@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -25,13 +26,23 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _floor;
         private float _yaw, _pitch;
 
-        private readonly Dictionary<Vector3i, string> _design = new();   // cell -> palette id
+        /// <summary>One authored cell: palette id + kind plus the in-game per-voxel modifiers (dye/glow
+        /// colour 0xRRGGBB, packed shape+orientation). Elements/stations carry no modifiers.</summary>
+        private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; }
+
+        private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell
         private readonly Dictionary<Vector3i, GameObject> _cells = new();
         private readonly Dictionary<string, Material> _mats = new();
 
         private struct Pal { public string Id, Label, Kind; public Color Color; }
         private Pal[] _palette;
         private int _selected;
+
+        // Brush: dye/glow colour + shape + orientation applied to newly placed BLOCK cells (elements +
+        // stations ignore them), mirroring the in-game dye + shape + place-orientation. 0 = none / cube.
+        private int _brushTint, _brushGlow, _brushShape, _brushOrient;
+        private string _search = string.Empty;
+        private static readonly string[] ShapeNames = { "Cube", "Slab", "Pyramid", "Dome", "Sphere", "Ramp", "Stairs", "Cone", "Cylinder" };
 
         // --- editable metadata ---
         private string _key = "my_ship";
@@ -56,10 +67,35 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            _palette = new[]
+            _palette = BuildPalette();
+
+            var camGo = new GameObject("EditorCamera");
+            camGo.transform.SetParent(transform, false);
+            _cam = camGo.AddComponent<Camera>();
+            _cam.clearFlags = CameraClearFlags.SolidColor;
+            _cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
+            _cam.farClipPlane = 400f;
+            camGo.AddComponent<AudioListener>();
+            _cam.transform.position = new Vector3(MaxW / 2f, 6f, -10f);
+            _yaw = 0f;
+            _pitch = 15f;
+            _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+
+            BuildRoom();
+            BuildUi();
+        }
+
+        private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
+
+        private string L(string key) => Shell != null ? Shell.L(key) : key;
+
+        /// <summary>The ship palette: the special ship elements + stations + weapons, followed by every
+        /// placeable block from the loaded content (so all materials — dyeable, shapeable, light/glowing —
+        /// are available to author with). Built once from <see cref="AppShell.Content"/>.</summary>
+        private Pal[] BuildPalette()
+        {
+            var list = new List<Pal>
             {
-                P("iron_wall", "Hull", "block", new Color(0.55f, 0.57f, 0.62f)),
-                P("glass", "Window", "block", new Color(0.45f, 0.8f, 0.95f)),
                 P("light", "Light", "element", new Color(1f, 0.95f, 0.55f)),
                 P("headlight", "Headlight", "element", new Color(0.95f, 0.97f, 1f)),
                 P("light_red", "Port Light (red)", "element", new Color(1f, 0.3f, 0.3f)),
@@ -80,23 +116,33 @@ namespace BlocksBeyondTheStars.Client
                 P("ship_cannon_1", "Ship Cannon", "station", new Color(0.95f, 0.55f, 0.4f)),
             };
 
-            var camGo = new GameObject("EditorCamera");
-            camGo.transform.SetParent(transform, false);
-            _cam = camGo.AddComponent<Camera>();
-            _cam.clearFlags = CameraClearFlags.SolidColor;
-            _cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
-            _cam.farClipPlane = 400f;
-            camGo.AddComponent<AudioListener>();
-            _cam.transform.position = new Vector3(MaxW / 2f, 6f, -10f);
-            _yaw = 0f;
-            _pitch = 15f;
-            _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+            var content = Shell != null ? Shell.Content : null;
+            if (content != null)
+            {
+                var keys = new List<string>(content.Blocks.Keys);
+                keys.Sort(StringComparer.Ordinal);
+                foreach (var key in keys)
+                {
+                    if (key == "air")
+                    {
+                        continue;
+                    }
 
-            BuildRoom();
-            BuildUi();
+                    var def = content.GetBlock(key);
+                    list.Add(P(key, def != null ? L(def.NameKey) : key, "block", BlockSwatch(key)));
+                }
+            }
+
+            return list.ToArray();
         }
 
-        private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
+        private static Color BlockSwatch(string key)
+        {
+            int h = 0;
+            foreach (char c in key) h = h * 31 + c;
+            float hue = ((h & 0x7FFFFFFF) % 360) / 360f;
+            return Color.HSVToRGB(hue, 0.32f, 0.78f);
+        }
 
         private void BuildRoom()
         {
@@ -186,6 +232,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     TryRemove();
                 }
+            }
+
+            // Rotate the shape brush (matches the in-game place-orientation control).
+            if (!_mouseOverUi && Input.GetKeyDown(KeyCode.R))
+            {
+                _brushOrient = (_brushOrient + 1) & 3;
             }
         }
 
@@ -282,24 +334,66 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCell(Vector3i cell, Pal pal)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = $"Cell {pal.Id}";
-            go.transform.SetParent(transform, false);
-            go.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
-            go.transform.localScale = Vector3.one * 0.98f;
-            go.GetComponent<Renderer>().sharedMaterial = MatFor(pal);
+            var data = new CellData { Id = pal.Id, Kind = pal.Kind };
+            if (pal.Kind == "block")
+            {
+                // Only real blocks carry dye/glow/shape (elements + stations are special-rendered anchors).
+                data.Tint = _brushTint;
+                data.Glow = _brushGlow;
+                data.Shape = _brushShape != 0 ? ShapeCode.Pack(_brushShape, _brushOrient) : 0;
+            }
+
+            PlaceCellData(cell, pal, data);
+        }
+
+        private void PlaceCellData(Vector3i cell, Pal pal, CellData data)
+        {
+            GameObject go;
+            Mesh shapeMesh = data.Shape != 0
+                ? EditorVoxelPreview.ShapeMesh(ShapeCode.ShapeOf(data.Shape), ShapeCode.OrientationOf(data.Shape))
+                : null;
+            if (shapeMesh != null)
+            {
+                go = new GameObject($"Cell {pal.Id}", typeof(MeshFilter), typeof(MeshRenderer));
+                go.GetComponent<MeshFilter>().sharedMesh = shapeMesh;
+                var bc = go.AddComponent<BoxCollider>();
+                bc.center = Vector3.one * 0.5f;
+                bc.size = Vector3.one;
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3(cell.X, cell.Y, cell.Z);
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = $"Cell {pal.Id}";
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
+                go.transform.localScale = Vector3.one * 0.98f;
+            }
+
+            go.GetComponent<Renderer>().sharedMaterial = MatFor(pal, data);
             _cells[cell] = go;
-            _design[cell] = pal.Id;
+            _design[cell] = data;
         }
 
         private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
 
-        private Material MatFor(Pal pal)
+        private Material MatFor(Pal pal, CellData data)
         {
-            if (!_mats.TryGetValue(pal.Id, out var m))
+            Color baseCol = data.Tint != 0
+                ? EditorVoxelPreview.RgbToColor(data.Tint)
+                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : pal.Color);
+            string key = $"{pal.Id}|{data.Tint}|{data.Glow}";
+            if (!_mats.TryGetValue(key, out var m))
             {
-                m = Lit(pal.Color, null);
-                _mats[pal.Id] = m;
+                m = Lit(baseCol, null);
+                if (data.Glow != 0)
+                {
+                    m.EnableKeyword("_EMISSION");
+                    m.SetColor("_EmissionColor", ShaderColor.Srgb(EditorVoxelPreview.RgbToColor(data.Glow)));
+                }
+
+                _mats[key] = m;
             }
 
             return m;
@@ -313,7 +407,11 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _form;
         private Text _statusLabel;
         private Text _blocksLabel;
+        private Text _shapeLabel;
+        private Text _orientLabel;
+        private Transform _palListParent;
         private readonly List<Image> _palButtons = new();
+        private readonly List<int> _rowToPaletteIndex = new();
         private readonly List<CostUi> _costPool = new();
 
         private sealed class CostUi
@@ -338,16 +436,12 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
-            // Left: block/part palette.
+            // Left: block/part palette (elements + stations + every placeable block) with a search filter.
             var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
             UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, "BLOCKS & PARTS", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            var palList = UiKit.ScrollList(pal.transform, 10f, 48f, 280f, PanelH - 60f);
-            for (int i = 0; i < _palette.Length; i++)
-            {
-                AddPaletteRow(palList, i);
-            }
-
-            Select(_selected);
+            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; RebuildPaletteRows(); });
+            _palListParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, PanelH - 90f);
+            RebuildPaletteRows();
 
             // Right: ship metadata + stats + cost (anchored to the top-right so it hugs the edge).
             var meta = RightPanel(root, 380f, PanelH);
@@ -399,6 +493,16 @@ namespace BlocksBeyondTheStars.Client
             Stepper("Handling", () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
             Stepper("Cargo slots", () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
 
+            // Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells
+            // (every block is dyeable + shapeable in-game; shaped blocks orient at placement).
+            FormHeader("DYE / SHAPE BRUSH");
+            FormLabel("Dye colour (hex RRGGBB, blank = none)");
+            InputRow(HexOf(_brushTint), v => _brushTint = ParseHex(v));
+            FormLabel("Glow colour (hex RRGGBB, blank = none)");
+            InputRow(HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
+            Stepper("Shape (0=Cube…8=Cylinder)", () => _brushShape, v => _brushShape = Mathf.Clamp(Mathf.RoundToInt(v), 0, 8), 0f, 8f, 1f, "0");
+            Stepper("Orientation (×90°, key R)", () => _brushOrient, v => _brushOrient = Mathf.RoundToInt(v) & 3, 0f, 3f, 1f, "0");
+
             _blocksLabel = FormLabel("Blocks placed: 0");
 
             // CRAFT COST is the last section so its dynamic rows can simply append to the form.
@@ -434,8 +538,43 @@ namespace BlocksBeyondTheStars.Client
             swImg.color = _palette[index].Color;
             swImg.raycastTarget = false;
 
-            UiKit.AddText(row, 38f, 0f, 232f, 36f, _palette[index].Label, 16, UiKit.TextCol);
+            string tag = _palette[index].Kind == "marker" ? "◆ " : string.Empty;
+            UiKit.AddText(row, 38f, 0f, 232f, 36f, tag + _palette[index].Label, 16, UiKit.TextCol);
             _palButtons.Add(img);
+            _rowToPaletteIndex.Add(index);
+        }
+
+        /// <summary>Rebuilds the palette list from the search filter; rows carry their real
+        /// <see cref="_palette"/> index so selection stays stable across filters.</summary>
+        private void RebuildPaletteRows()
+        {
+            if (_palListParent == null)
+            {
+                return;
+            }
+
+            for (int i = _palListParent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_palListParent.GetChild(i).gameObject);
+            }
+
+            _palButtons.Clear();
+            _rowToPaletteIndex.Clear();
+
+            string q = _search.Trim().ToLowerInvariant();
+            for (int i = 0; i < _palette.Length; i++)
+            {
+                var p = _palette[i];
+                bool match = q.Length == 0
+                    || (p.Label != null && p.Label.ToLowerInvariant().Contains(q))
+                    || (p.Id != null && p.Id.ToLowerInvariant().Contains(q));
+                if (match)
+                {
+                    AddPaletteRow(_palListParent, i);
+                }
+            }
+
+            Select(_selected);
         }
 
         private void Select(int index)
@@ -443,9 +582,23 @@ namespace BlocksBeyondTheStars.Client
             _selected = index;
             for (int i = 0; i < _palButtons.Count; i++)
             {
-                _palButtons[i].color = i == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
+                _palButtons[i].color = _rowToPaletteIndex[i] == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
             }
         }
+
+        private static int ParseHex(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return 0;
+            }
+
+            s = s.Trim().TrimStart('#');
+            return int.TryParse(s, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? (v & 0xFFFFFF) : 0;
+        }
+
+        private static string HexOf(int rgb) => rgb == 0 ? string.Empty : rgb.ToString("x6");
 
         private void RefreshCostRows()
         {
@@ -545,7 +698,7 @@ namespace BlocksBeyondTheStars.Client
 
         // ----------------------------- export -----------------------------
 
-        [Serializable] private sealed class ExportCellJson { public int x, y, z; public string kind, id; }
+        [Serializable] private sealed class ExportCellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; }
         [Serializable] private sealed class ExportLayoutJson { public int width, height, length; public List<ExportCellJson> cells = new(); }
         [Serializable] private sealed class ExportCostJson { public string item; public int count; }
         [Serializable] private sealed class ExportShipJson
@@ -569,8 +722,13 @@ namespace BlocksBeyondTheStars.Client
             var layout = new ExportLayoutJson();
             foreach (var kv in _design)
             {
-                var pal = Array.Find(_palette, p => p.Id == kv.Value);
-                layout.cells.Add(new ExportCellJson { x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z, kind = pal.Kind ?? "block", id = kv.Value });
+                var d = kv.Value;
+                layout.cells.Add(new ExportCellJson
+                {
+                    x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
+                    kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
+                    tint = d.Tint, glow = d.Glow, shape = d.Shape,
+                });
                 maxX = Mathf.Max(maxX, kv.Key.X);
                 maxY = Mathf.Max(maxY, kv.Key.Y);
                 maxZ = Mathf.Max(maxZ, kv.Key.Z);
@@ -699,7 +857,13 @@ namespace BlocksBeyondTheStars.Client
                             continue; // unknown palette id or out of bounds
                         }
 
-                        PlaceCell(cell, pal);
+                        var data = new CellData
+                        {
+                            Id = c.id,
+                            Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
+                            Tint = c.tint, Glow = c.glow, Shape = c.shape,
+                        };
+                        PlaceCellData(cell, pal, data);
                     }
                 }
 

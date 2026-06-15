@@ -41,6 +41,13 @@ public sealed class SpaceStructure
     /// <summary>The sparse block grid — only non-air cells are stored.</summary>
     public Dictionary<Vector3i, BlockId> Cells { get; } = new();
 
+    /// <summary>Per-cell dye/glow colour (0xRRGGBB each; 0 = none) for cells that carry one. Authored ship
+    /// designs (the ship editor) populate these; plain hulls leave them empty.</summary>
+    public Dictionary<Vector3i, (int Tint, int Glow)> Mods { get; } = new();
+
+    /// <summary>Per-cell packed shape + orientation (<c>ShapeCode.Pack</c>; 0 = cube) for shaped cells.</summary>
+    public Dictionary<Vector3i, int> Shapes { get; } = new();
+
     /// <summary>The design-derived cells (hull/glass/lights/engines/station markers) snapshotted BEFORE the
     /// player's persisted edits apply. On-foot edits (landed ship + ship interior) may never mine these —
     /// the hull is not damageable and modules are not removable; only player-added blocks come out again.
@@ -61,10 +68,40 @@ public sealed class SpaceStructure
         if (block.IsAir)
         {
             Cells.Remove(pos);
+            Mods.Remove(pos);
+            Shapes.Remove(pos);
         }
         else
         {
             Cells[pos] = block;
+        }
+    }
+
+    /// <summary>Sets a block together with its per-cell dye/glow + shape (authored ship cells).</summary>
+    public void Set(Vector3i pos, BlockId block, int tint, int glow, int shape)
+    {
+        Set(pos, block);
+        if (block.IsAir)
+        {
+            return;
+        }
+
+        if (tint != 0 || glow != 0)
+        {
+            Mods[pos] = (tint, glow);
+        }
+        else
+        {
+            Mods.Remove(pos);
+        }
+
+        if (shape != 0)
+        {
+            Shapes[pos] = shape;
+        }
+        else
+        {
+            Shapes.Remove(pos);
         }
     }
 
@@ -149,7 +186,8 @@ public sealed partial class GameServer
                 }
 
                 // Any block key (iron_wall, carbon cargo, …) renders as that block; unknown ids fall back to hull.
-                s.Set(p, _content.GetBlock(cell.Id)?.NumericId ?? wall);
+                // Authored dye/glow/shape ride along (the ship editor can tint + shape + orient any block).
+                s.Set(p, _content.GetBlock(cell.Id)?.NumericId ?? wall, cell.Tint, cell.Glow, cell.Shape);
             }
 
             // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never
@@ -695,6 +733,12 @@ public sealed partial class GameServer
         var ys = new int[n];
         var zs = new int[n];
         var bs = new ushort[n];
+        // Modifier arrays are emitted only when the design actually carries dye/glow/shape (authored ships),
+        // so plain hulls stay as compact as before.
+        bool anyMods = s.Mods.Count > 0 || s.Shapes.Count > 0;
+        var tints = anyMods ? new int[n] : System.Array.Empty<int>();
+        var glows = anyMods ? new int[n] : System.Array.Empty<int>();
+        var shapes = anyMods ? new int[n] : System.Array.Empty<int>();
         int i = 0;
         foreach (var kv in s.Cells)
         {
@@ -702,6 +746,12 @@ public sealed partial class GameServer
             ys[i] = kv.Key.Y;
             zs[i] = kv.Key.Z;
             bs[i] = kv.Value.Value;
+            if (anyMods)
+            {
+                if (s.Mods.TryGetValue(kv.Key, out var m)) { tints[i] = m.Tint; glows[i] = m.Glow; }
+                if (s.Shapes.TryGetValue(kv.Key, out var sh)) { shapes[i] = sh; }
+            }
+
             i++;
         }
 
@@ -719,6 +769,9 @@ public sealed partial class GameServer
             Y = ys,
             Z = zs,
             Block = bs,
+            Tint = tints,
+            Glow = glows,
+            Shape = shapes,
         });
     }
 

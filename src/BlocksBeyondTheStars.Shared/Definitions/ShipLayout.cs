@@ -33,4 +33,13 @@ public sealed class ShipLayoutCell
     /// <summary>The palette id: a block key (iron_wall/glass), a station type (cockpit/medbay/…) or an
     /// element (hatch/light/engine).</summary>
     public string Id { get; set; } = string.Empty;
+
+    /// <summary>Per-cell dye colour (0xRRGGBB; 0 = none). Applied to tintable blocks like in-game dye.</summary>
+    public int Tint { get; set; }
+
+    /// <summary>Per-cell glow colour (0xRRGGBB; 0 = none) — the coloured-light blocks.</summary>
+    public int Glow { get; set; }
+
+    /// <summary>Packed shape + orientation (<c>ShapeCode.Pack(shape, facing)</c>; 0 = plain cube).</summary>
+    public int Shape { get; set; }
 }

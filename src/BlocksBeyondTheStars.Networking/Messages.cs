@@ -950,6 +950,12 @@ public sealed class SpaceShipDesign
     public int[] Y { get; set; } = System.Array.Empty<int>();
     public int[] Z { get; set; } = System.Array.Empty<int>();
     public ushort[] Block { get; set; } = System.Array.Empty<ushort>();
+
+    /// <summary>Per-cell dye/glow colour (0xRRGGBB; 0 = none) and packed shape+orientation (0 = cube),
+    /// parallel to <see cref="Block"/>. Empty = no authored cell carries a modifier (the common case).</summary>
+    public int[] Tint { get; set; } = System.Array.Empty<int>();
+    public int[] Glow { get; set; } = System.Array.Empty<int>();
+    public int[] Shape { get; set; } = System.Array.Empty<int>();
 }
 
 /// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT
@@ -986,6 +992,12 @@ public sealed class LandedShipState
     public int[] Y { get; set; } = System.Array.Empty<int>();
     public int[] Z { get; set; } = System.Array.Empty<int>();
     public ushort[] Block { get; set; } = System.Array.Empty<ushort>();
+
+    /// <summary>Per-cell dye/glow colour (0xRRGGBB; 0 = none) and packed shape+orientation (0 = cube),
+    /// parallel to <see cref="Block"/>. Empty array = no cell carries a modifier (the common case).</summary>
+    public int[] Tint { get; set; } = System.Array.Empty<int>();
+    public int[] Glow { get; set; } = System.Array.Empty<int>();
+    public int[] Shape { get; set; } = System.Array.Empty<int>();
 }
 
 /// <summary>Client → server: place or mine one block on a voxel <see cref="SpaceShipDesign"/> structure while
@@ -1020,6 +1032,12 @@ public sealed class StructureBlockChanged
     public int Y { get; set; }
     public int Z { get; set; }
     public ushort Block { get; set; } // 0 = air
+
+    /// <summary>Per-cell dye / glow colour (0xRRGGBB; 0 = none) and packed shape+orientation (0 = cube),
+    /// matching <see cref="BlockChanged"/>. Lets authored/edited ship cells carry colour + form.</summary>
+    public int Tint { get; set; }
+    public int Glow { get; set; }
+    public int Shape { get; set; }
 }
 
 /// <summary>A remote player's presence in a space instance: their ship (or floating EVA suit) position +

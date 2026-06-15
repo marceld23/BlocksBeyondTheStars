@@ -96,28 +96,31 @@ public sealed partial class GameServer
 
         var surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
 
-        string tier;
         bool ruined;
         SettlementStructure structure;
 
-        // Chance to stamp a hand-designed template from the pool (when one exists); otherwise procedural.
-        // The template roll is only drawn when the pool is non-empty, so default worlds are unchanged.
-        var pool = _content.SettlementTemplates;
-        if (pool.Count > 0 && rng.NextDouble() < StructureTemplateChance)
+        // Four size tiers, tiny hamlets most-to-least common up to rare sprawling cities. The tier is
+        // decided first so a hand-designed template can only ever replace a SAME-TIER procedural one.
+        double tierRoll = rng.NextDouble();
+        string tier = tierRoll < 0.15 ? "hamlet"
+             : tierRoll < 0.55 ? "village"
+             : tierRoll < 0.85 ? "town"
+             : "city";
+
+        // Chance to stamp a hand-designed template (when one fits this tier + the world's enabled packs);
+        // otherwise procedural. Off use / empty sub-pool ⇒ always procedural (default worlds unchanged).
+        var template = rng.NextDouble() < _meta.Description.SettlementTemplateUse.Probability()
+            ? _content.PickSettlementTemplate(tier, _meta.Description.EnabledStructurePacks, rng)
+            : null;
+
+        if (template != null)
         {
-            var template = pool[rng.Next(pool.Count)];
             tier = template.Tier;
             ruined = false;
             structure = SettlementGenerator.FromTemplate(template, _content);
         }
         else
         {
-            // Four size tiers, tiny hamlets most-to-least common up to rare sprawling cities.
-            double tierRoll = rng.NextDouble();
-            tier = tierRoll < 0.15 ? "hamlet"
-                 : tierRoll < 0.55 ? "village"
-                 : tierRoll < 0.85 ? "town"
-                 : "city";
             ruined = rng.NextDouble() < 0.30;
             structure = SettlementGenerator.Generate(tier, ruined, sSeed, surface, _content);
         }
@@ -152,7 +155,9 @@ public sealed partial class GameServer
             ushort b = structure.Get(x, y, z);
             if (b != 0)
             {
-                _world.SetBlock(new Vector3i(origin.X + x, groundY + y, origin.Z + z), new BlockId(b));
+                var (tint, glow) = structure.GetModifier(x, y, z);
+                _world.SetBlock(new Vector3i(origin.X + x, groundY + y, origin.Z + z),
+                    new BlockId(b), tint, glow, structure.GetShape(x, y, z));
             }
         }
 

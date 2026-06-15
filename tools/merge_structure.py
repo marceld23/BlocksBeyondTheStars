@@ -55,6 +55,8 @@ def main():
         "key": meta["key"],
         "name": meta.get("name", meta["key"]),
         "tier": meta.get("tier", "medium"),
+        "pack": meta.get("pack", "default") or "default",
+        "weight": int(meta.get("weight", 1) or 1),
         "width": layout.get("width", 0),
         "height": layout.get("height", 0),
         "length": layout.get("length", 0),

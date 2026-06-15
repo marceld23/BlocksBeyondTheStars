@@ -72,6 +72,12 @@ public sealed class ServerConfig
     public string SavesRoot { get; set; } = "saves";
     public string DataDir { get; set; } = "data";
 
+    /// <summary>Optional writable folder holding in-game-editor structure templates
+    /// (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>). When set, they are merged
+    /// into the template pools at load so player-authored structures appear in new worlds without a
+    /// rebuild. Empty ⇒ only the shipped <c>data/</c> pools are used.</summary>
+    public string UserContentDir { get; set; } = string.Empty;
+
     /// <summary>Whether to stamp the enterable starter-ship hull at the start landing zone (M23a).</summary>
     public bool PlaceStarterShip { get; set; } = true;
 
@@ -195,6 +201,10 @@ public sealed class ServerConfig
                 case "data-dir":
                     DataDir = value; applied.Add("data");
                     break;
+                case "usercontent":
+                case "user-content":
+                    UserContentDir = value; applied.Add("usercontent");
+                    break;
                 case "world":
                 case "world-name":
                     WorldName = value; applied.Add("world");
@@ -295,6 +305,29 @@ public sealed class ServerConfig
                     break;
                 case "exotic":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var ex)) { World.ExoticWorlds = ex; applied.Add("exotic"); }
+                    break;
+                case "station-templates":
+                    if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var st)) { World.StationTemplateUse = st; applied.Add("station-templates"); }
+                    break;
+                case "settlement-templates":
+                    if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var set)) { World.SettlementTemplateUse = set; applied.Add("settlement-templates"); }
+                    break;
+                case "structure-packs":
+                    // The enabled structure-template packs ("a,b"); empty arg ⇒ all packs (the default).
+                    // The "__none__" sentinel means "no packs" (the picker turned everything off), which we
+                    // keep as a single non-matching entry so no template is ever rolled.
+                    var packList = new System.Collections.Generic.List<string>();
+                    foreach (var p in value.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var trimmed = p.Trim();
+                        if (trimmed.Length > 0)
+                        {
+                            packList.Add(trimmed);
+                        }
+                    }
+
+                    World.EnabledStructurePacks = packList;
+                    applied.Add("structure-packs");
                     break;
                 case "systems":
                     if (int.TryParse(value, out var sy)) { World.StarSystemCount = Math.Clamp(sy, 1, 32); applied.Add("systems"); }

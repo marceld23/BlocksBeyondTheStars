@@ -1,4 +1,5 @@
 using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -43,6 +44,27 @@ public sealed class ServerConfigTests
         Assert.Equal(SpaceCombatMode.PvE, config.Rules.SpaceCombat);
         Assert.Equal(AlienActivity.Normal, config.Rules.SpaceNpcEnemies);
         Assert.Contains("free-flight", applied);
+    }
+
+    [Fact]
+    public void ApplyCommandLine_OverridesStructureTemplateOptions()
+    {
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[]
+        {
+            "--station-templates", "Frequent",
+            "--settlement-templates", "Off",
+            "--structure-packs", "vanilla,mybuilds",
+            "--usercontent", @"C:\sp\usercontent",
+        });
+
+        Assert.Equal(Frequency.Frequent, config.World.StationTemplateUse);
+        Assert.Equal(Frequency.Off, config.World.SettlementTemplateUse);
+        Assert.Equal(new[] { "vanilla", "mybuilds" }, config.World.EnabledStructurePacks);
+        Assert.Equal(@"C:\sp\usercontent", config.UserContentDir);
+        Assert.Contains("station-templates", applied);
+        Assert.Contains("structure-packs", applied);
+        Assert.Contains("usercontent", applied);
     }
 
     [Fact]

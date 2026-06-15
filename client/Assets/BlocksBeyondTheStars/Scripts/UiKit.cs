@@ -19,6 +19,7 @@ namespace BlocksBeyondTheStars.Client
         public static readonly Color PanelFill = new Color(1f, 1f, 1f, 1f);
         public static readonly Color TextCol = new Color(0.86f, 0.93f, 1.00f);
         public static readonly Color Ok = new Color(0.35f, 0.95f, 0.55f);
+        public static readonly Color Warn = new Color(1.00f, 0.72f, 0.28f); // amber — caution / developer-tool labels
 
         private static Font _font;
         private static Sprite _panelSprite;
