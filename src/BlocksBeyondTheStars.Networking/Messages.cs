@@ -1075,6 +1075,14 @@ public sealed class NetCreature
     public bool Hostile { get; set; }
     public bool Asleep { get; set; }
     public bool Frozen { get; set; } // held in stasis (item 36) — client tints it icy blue + still
+
+    /// <summary>Owner player id if this is a tamed companion (empty = wild fauna). The client draws owned
+    /// creatures with a friendly tint + ground ring + floating <see cref="CustomName"/> nameplate.</summary>
+    public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>The owner's chosen name for a tamed companion (empty for wild fauna).</summary>
+    public string CustomName { get; set; } = string.Empty;
+
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public float X { get; set; }
@@ -1107,6 +1115,103 @@ public sealed class NetCreature
 public sealed class CreatureList
 {
     public NetCreature[] Creatures { get; set; } = System.Array.Empty<NetCreature>();
+}
+
+// --- Creature taming + companions (design: docs/CREATURE_TAMING_PLAN.md) ---
+
+/// <summary>Client → server: the player's response in an in-progress taming ritual on a creature. The
+/// ritual itself is started/refreshed by right-clicking the <c>creature_translator</c> gadget (which sends
+/// the usual <see cref="UseGadgetIntent"/>); this carries the chosen response to the creature's current
+/// need. <see cref="Response"/> ∈ "feed" | "calm" | "approach" | "space" | "cancel".</summary>
+public sealed class TameRespondIntent
+{
+    public string CreatureId { get; set; } = string.Empty;
+    public string Response { get; set; } = string.Empty;
+}
+
+/// <summary>Server → client: the live state of a taming attempt — the creature's decoded mood + what it
+/// wants now, plus the trust earned so far. Drives the taming HUD prompt. All text fields are localization
+/// keys the client resolves.</summary>
+public sealed class TameProgress
+{
+    public string CreatureId { get; set; } = string.Empty;
+    public string CreatureName { get; set; } = string.Empty; // coined species name (the animal's "kind")
+    public bool Active { get; set; }                          // false = no/ended attempt (client closes the prompt)
+    public string MoodKey { get; set; } = string.Empty;      // creature.tame.mood.*
+    public string NeedKey { get; set; } = string.Empty;      // creature.tame.need.* (the response it wants now)
+    public string BaitKey { get; set; } = string.Empty;      // creature.tame.bait.* when the need is "feed" (else empty)
+    public string BaitItem { get; set; } = string.Empty;     // the exact bait item key it wants (when need is "feed")
+    public string MessageKey { get; set; } = string.Empty;   // creature.tame.msg.* feedback line for this step
+    public int Trust { get; set; }
+    public int Required { get; set; }
+}
+
+/// <summary>Server → client: a taming attempt finished (success or failure). On success it carries the new
+/// companion id + the knowledge awarded.</summary>
+public sealed class TameResult
+{
+    public string CreatureId { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string CompanionId { get; set; } = string.Empty;
+    public string CompanionName { get; set; } = string.Empty;
+    public string MessageKey { get; set; } = string.Empty;   // creature.tame.msg.*
+    public int KnowledgeGained { get; set; }
+    public int KnowledgeTotal { get; set; }
+}
+
+/// <summary>Client → server: open the Companions menu tab (asks for the player's full companion roster).</summary>
+public sealed class RequestCompanionsIntent
+{
+}
+
+/// <summary>Client → server: rename a companion you own.</summary>
+public sealed class SetCompanionNameIntent
+{
+    public string CompanionId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>Client → server: release a companion (untame it — it returns to the wild).</summary>
+public sealed class ReleaseCompanionIntent
+{
+    public string CompanionId { get; set; } = string.Empty;
+}
+
+/// <summary>A tamed companion as shown in the Companions menu — enough of its descriptor to draw a small
+/// procedural portrait, plus its name, home world and bond.</summary>
+public sealed class NetCompanion
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string SpeciesName { get; set; } = string.Empty;  // coined species name
+    public string HomeBodyId { get; set; } = string.Empty;
+    public string HomeBodyName { get; set; } = string.Empty;
+    public bool Present { get; set; }                         // currently materialised near the player
+    public int Bond { get; set; }
+    public string Temperament { get; set; } = "Passive";
+    public string Habitat { get; set; } = "Land";
+
+    // Parametric appearance for the menu portrait (mirrors NetCreature's renderer inputs).
+    public float Size { get; set; } = 1f;
+    public int Legs { get; set; } = 4;
+    public bool HasWings { get; set; }
+    public bool HasTail { get; set; }
+    public int BodySegments { get; set; } = 1;
+    public int ColorRgb { get; set; } = 0xFFFFFF;
+    public int BellyRgb { get; set; } = 0xFFFFFF;
+    public bool Glows { get; set; }
+    public int Eyes { get; set; } = 2;
+    public int Horns { get; set; }
+    public bool HasCrest { get; set; }
+    public int Tentacles { get; set; }
+    public bool EyeStalks { get; set; }
+    public bool HasGasSac { get; set; }
+}
+
+/// <summary>Server → client: the player's full companion roster (for the Companions menu tab).</summary>
+public sealed class CompanionList
+{
+    public NetCompanion[] Companions { get; set; } = System.Array.Empty<NetCompanion>();
 }
 
 /// <summary>A lootable container in the world — a salvage capsule or a defeated player's corpse.</summary>

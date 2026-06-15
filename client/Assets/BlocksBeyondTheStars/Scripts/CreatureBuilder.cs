@@ -47,6 +47,13 @@ namespace BlocksBeyondTheStars.Client
                 baseColor *= 0.6f;
             }
 
+            // Tamed companions read with a gentle friendly green-cyan cast (never the hostile red) so you can
+            // tell your pet apart from wild fauna at a glance (design: docs/CREATURE_TAMING_PLAN.md).
+            if (!string.IsNullOrEmpty(c.OwnerId))
+            {
+                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+            }
+
             _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
 
             // All parts hang off a body rig (a child of the root) so the animator can undulate the whole

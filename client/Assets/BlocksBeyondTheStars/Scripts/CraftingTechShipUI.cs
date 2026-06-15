@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
         // space lives on the Map tab now — there is no separate Space tab.)
-        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8 }
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8, Companions = 9 }
 
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
@@ -170,7 +170,10 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.Alliances?.Allies.Length ?? 0) * 601 + (Game.Alliances?.Incoming.Length ?? 0) * 701
                     + (Game.Alliances?.Outgoing.Length ?? 0) * 809 + (Game.StarMap?.Players.Length ?? 0) * 53
                     // Knowledge total + the new-content flags drive the Tech/Story/Arcade menu badges.
-                    + Game.Knowledge * 131 + (Game.NewArcadeUnseen ? 1201 : 0) + (Game.NewStoryUnseen ? 1303 : 0);
+                    + Game.Knowledge * 131 + (Game.NewArcadeUnseen ? 1201 : 0) + (Game.NewStoryUnseen ? 1303 : 0)
+                    // Companions tab: roster length + present-count + the "new companion" badge flag.
+                    + (Game.Companions?.Companions.Length ?? 0) * 907 + (Game.NewCompanionUnseen ? 1409 : 0)
+                    + (Game.Companions?.Companions.Count(c => c.Present) ?? 0) * 67;
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -398,13 +401,17 @@ namespace BlocksBeyondTheStars.Client
 
             // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
             // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances", "ui.tab.story" };
+            string[] tabs = { "ui.inventory.title", "ui.crafting.title", "ui.tab.tech", "ui.tab.ship", "ui.tab.map", "ui.tab.missions", "ui.tab.settings", "ui.tab.alliances", "ui.tab.story", "ui.tab.companions" };
+            // Tighten the tab metrics once there are many tabs so the whole bar + the Codex/Arcade buttons still
+            // fit the 1920-wide reference canvas.
+            float tw = tabs.Length > 9 ? 132f : 150f;
+            float step = tabs.Length > 9 ? 140f : 158f;
             float x = 40f;
             for (int i = 0; i < tabs.Length; i++)
             {
                 int tab = i; // Tab enum index
                 bool active = (int)_mode == tab;
-                var b = UiKit.AddButton(p, x, 64, 150, 46, L(tabs[i]), () => OnTab(tab));
+                var b = UiKit.AddButton(p, x, 64, tw, 46, L(tabs[i]), () => OnTab(tab));
                 if (active)
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;
@@ -423,13 +430,14 @@ namespace BlocksBeyondTheStars.Client
                 // Badge a tab that has new content waiting behind it: the Tech tab when research is affordable
                 // now, the Story tab when an unread beat/fragment/memory arrived. Cleared by opening the tab.
                 bool badge = (tab == (int)Mode.Tech && AnyBlueprintUnlockable())
-                             || (tab == (int)Mode.Story && (Game?.NewStoryUnseen ?? false));
+                             || (tab == (int)Mode.Story && (Game?.NewStoryUnseen ?? false))
+                             || (tab == (int)Mode.Companions && (Game?.NewCompanionUnseen ?? false));
                 if (badge && !active)
                 {
-                    UiKit.AddBadge(b, 150f);
+                    UiKit.AddBadge(b, tw);
                 }
 
-                x += 158f;
+                x += step;
             }
 
             // Always-available browser screens (separate full-screen overlays): the Codex (wiki) + the Arcade.
@@ -633,6 +641,16 @@ namespace BlocksBeyondTheStars.Client
                     list.Clear();
                     list.Add(("log", L("ui.story.cat_log"), "cat_mission")); // the Story Log (read-only)
                     break;
+                case Mode.Companions:
+                    list.Clear();
+                    if (_category != "here" && _category != "all")
+                    {
+                        _category = "here"; // open on the companions present on this world
+                    }
+
+                    list.Add(("here", L("ui.companions.cat_here"), "cat_mission"));
+                    list.Add(("all", L("ui.companions.cat_all"), "cat_inventory"));
+                    break;
             }
 
             return list;
@@ -663,6 +681,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Character: y = BuildCharacterList(); break;
                 case Mode.Alliances: y = BuildAlliancesList(); break;
                 case Mode.Story: y = BuildStoryList(); break;
+                case Mode.Companions: y = BuildCompanionsList(); break;
             }
 
             SetContentHeight(_listContent, y);
@@ -1642,6 +1661,53 @@ namespace BlocksBeyondTheStars.Client
 
         private static string AllianceName(string name, string id) => string.IsNullOrEmpty(name) ? id : name;
 
+        // --- Companions tab (tamed creatures): roster with rename + release; design docs/CREATURE_TAMING_PLAN.md ---
+
+        /// <summary>Per-companion in-progress rename text (keyed by companion id), so typing survives a rebuild.</summary>
+        private readonly System.Collections.Generic.Dictionary<string, string> _companionDraft = new();
+
+        private float BuildCompanionsList()
+        {
+            var all = Game.Companions?.Companions ?? System.Array.Empty<NetCompanion>();
+            bool hereOnly = _category != "all";
+            var shown = all.Where(c => !hereOnly || c.Present).ToList();
+
+            float y = 0f;
+            if (shown.Count == 0)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 64, L("ui.companions.empty"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return y + 74f;
+            }
+
+            foreach (var c in shown)
+            {
+                string id = c.Id;
+                string dot = c.Present ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
+                string title = string.IsNullOrEmpty(c.Name) ? c.SpeciesName : c.Name;
+                UiKit.AddText(_listContent, 8, y + 4, 700, 26, dot + title, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+                string state = c.Present ? L("ui.companions.present") : L("ui.companions.away");
+                string sub = $"{c.SpeciesName}  ·  {L("ui.companions.home")}: {c.HomeBodyName}  ·  {L("ui.companions.bond")} {c.Bond}  ·  {state}";
+                UiKit.AddText(_listContent, 28, y + 30, 700, 22, sub, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+
+                string draft = _companionDraft.TryGetValue(id, out var d) ? d : c.Name;
+                var field = UiKit.AddInput(_listContent, 8, y + 56, 360, 44, draft, v => _companionDraft[id] = v, L("ui.companion.placeholder"));
+                field.characterLimit = 24;
+                field.lineType = InputField.LineType.SingleLine;
+                UiKit.AddButton(_listContent, 376, y + 56, 150, 44, L("ui.companions.rename"), () =>
+                {
+                    string nm = _companionDraft.TryGetValue(id, out var dd) ? dd : c.Name;
+                    Game.Network?.SendSetCompanionName(id, nm);
+                });
+                var rel = UiKit.AddButton(_listContent, 536, y + 56, 150, 44, L("ui.companions.release"), () => Game.Network?.SendReleaseCompanion(id));
+                rel.GetComponent<Image>().color = new Color(0.5f, 0.22f, 0.22f);
+
+                y += 116f;
+            }
+
+            return y;
+        }
+
         // --- Story Log tab (read-only: progress meter + VEGA beats + recovered net fragments + memories) ---
 
         private float BuildStoryList()
@@ -1797,6 +1863,17 @@ namespace BlocksBeyondTheStars.Client
             if (_mode == Mode.Alliances)
             {
                 SetContentHeight(_detail, DetailAlliances());
+                return;
+            }
+
+            // The Companions list carries its own per-row actions (rename/release), so the detail pane is a short
+            // informational blurb rather than the generic "pick an entry" placeholder.
+            if (_mode == Mode.Companions)
+            {
+                UiKit.AddText(_detail, 8, 16, 620, 30, L("ui.companions.title"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                var info = UiKit.AddText(_detail, 8, 54, 620, 160, L("ui.companions.empty"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                info.horizontalOverflow = HorizontalWrapMode.Wrap;
+                SetContentHeight(_detail, 220);
                 return;
             }
 

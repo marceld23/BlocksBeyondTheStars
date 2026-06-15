@@ -17,6 +17,28 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Creature taming & companions — ✅ server + tests + client wiring + icons, needs Unity client build (2026-06-15)
+**Plan:** [docs/CREATURE_TAMING_PLAN.md](docs/CREATURE_TAMING_PLAN.md). Wild fauna was kill-for-loot only; now a
+player can **tame creatures into named companions** bound to the world they were tamed on.
+- **Creature Translator gadget (`creature_translator`):** right-click a wild creature to start a **bonding ritual** —
+  the translator decodes its **mood + need**; the player **responds** (offer the bait it craves / calm / approach /
+  give space) to earn hidden **trust** until it is tamed. New **bait** consumables (`forage_bait`/`meat_bait`/
+  `nectar_lure`), recipes, a knowledge-gated blueprint, and bilingual locales. OpenAI-generated icons for all four.
+- **Difficulty + randomization (`GameServerTaming.cs`):** required trust + patience scale with **temperament**
+  (Passive→PackHunter), exotic habitat (Cave/Lava/Air), glow + size; a per-individual seed randomises preferred
+  bait + shyness, so even same-species animals tame differently. Skittish bolt on a wrong move; territorial/
+  aggressive provoke; passive forgive.
+- **Companions:** persisted **per-player** as `TamedCreature` (full `SpeciesSnapshot`, since wild fauna is transient/
+  per-world); they **follow** the owner on their home world (new `CreatureBehaviour.FollowStep`), are invulnerable +
+  harmless, excluded from the wild cap/prune, capped at 6/world, re-spawn on return (`ReconcileCompanions`).
+- **Knowledge reward:** a first tame of a species pays **research knowledge** (difficulty-scaled, once per species via
+  a `TamedSpecies` set; small trickle after) — feeds the tech tree without farmable grind.
+- **Client:** `OwnerId`/`CustomName` on `NetCreature` → friendly green-cyan tint + floating **nameplate**; a HUD
+  **taming prompt** (mood + need + trust + four response buttons); a new **Companions/Begleiter menu tab** (roster,
+  rename, release) with a "new companion" badge.
+- **Tests:** 9 new taming tests (598/598 green) — ritual by temperament, seed variance, persistence round-trip,
+  home-body binding, per-world cap, first-tame-knowledge gate.
+
 ### ★ Own-ship repair (hull + EVA-carved hull cells) — ✅ server + client wiring, needs Unity client build (2026-06-15)
 **Plan:** [docs/SHIP_REPAIR_PLAN.md](docs/SHIP_REPAIR_PLAN.md). The player's own ship had no repair path — combat
 dented only the numeric hull (never regenerates; only free-restored on destruction) and EVA-carved hull cells were

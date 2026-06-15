@@ -57,6 +57,13 @@ public sealed class PlayerSnapshot
 
     /// <summary>Star systems this player has entered (reveals their bodies + mini map on the travel screen).</summary>
     public List<string> KnownSystems { get; set; } = new();
+
+    /// <summary>Tamed creatures (companions) — named, bound to their home world. Persisted so they survive a
+    /// reload (the wild fauna they came from does not — it is regenerated per visit).</summary>
+    public List<TamedCreature> TamedCreatures { get; set; } = new();
+
+    /// <summary>Species already tamed once (first-tame knowledge bookkeeping; signature "&lt;body&gt;:&lt;sp&gt;").</summary>
+    public List<string> TamedSpecies { get; set; } = new();
 }
 
 public sealed class ShipSnapshot
@@ -135,7 +142,23 @@ public static class StateMapper
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
+        TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
+        TamedSpecies = p.TamedSpecies.ToList(),
         FacePixels = p.FacePixels,
+    };
+
+    /// <summary>Copies a tamed creature so a snapshot doesn't alias the live list. The species descriptor is
+    /// treated as immutable once tamed, so the reference is shared (it is never mutated in place).</summary>
+    private static TamedCreature CloneTamed(TamedCreature t) => new()
+    {
+        Id = t.Id,
+        HomeBodyId = t.HomeBodyId,
+        Name = t.Name,
+        SpeciesId = t.SpeciesId,
+        Species = t.Species,
+        SizeScale = t.SizeScale,
+        Bond = t.Bond,
+        TamedAtUtc = t.TamedAtUtc,
     };
 
     private static MissionProgress CloneProgress(MissionProgress m) => new()
@@ -197,6 +220,8 @@ public static class StateMapper
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
+        TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
+        TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
         FacePixels = s.FacePixels ?? string.Empty,
     };
 

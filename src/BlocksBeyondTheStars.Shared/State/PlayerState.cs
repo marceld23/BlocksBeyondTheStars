@@ -131,6 +131,15 @@ public sealed class PlayerState
     /// cref="UnlockedBlueprints"/>.</summary>
     public HashSet<string> UnlockedGames { get; set; } = new();
 
+    /// <summary>Creatures the player has tamed — named companions bound to the world they were tamed on
+    /// (design: <c>docs/CREATURE_TAMING_PLAN.md</c>). Present as followers only while the owner is on that
+    /// body; otherwise stored. Server-authoritative, persisted in the player blob.</summary>
+    public List<TamedCreature> TamedCreatures { get; set; } = new();
+
+    /// <summary>Species already tamed at least once — signature <c>"&lt;bodyId&gt;:&lt;speciesId&gt;"</c>, so the
+    /// first-tame knowledge bonus is paid once per species (mirrors <see cref="Scanned"/>). Persisted.</summary>
+    public HashSet<string> TamedSpecies { get; set; } = new();
+
     /// <summary>The player's custom pixel face, drawn in the in-game face editor and shown on this player's
     /// avatar to everyone (cosmetic). Encoded as a compact string of 16×16 palette indices (one hex char per
     /// pixel, index 0 = transparent); empty = no custom face (the default procedural eyes/mouth are used). The

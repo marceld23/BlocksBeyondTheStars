@@ -195,6 +195,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>This player's alliance roster (mutual allies + pending requests), for the Alliances menu tab.</summary>
         public AllianceList Alliances { get; private set; } = new AllianceList();
 
+        /// <summary>This player's tamed-creature roster, for the Companions menu tab. Refreshed by the server.</summary>
+        public CompanionList Companions { get; private set; } = new CompanionList();
+
+        /// <summary>Live taming-ritual state (decoded mood + what the creature wants now), or null when no
+        /// attempt is in progress. Drives the HUD taming prompt + response buttons.</summary>
+        public TameProgress TameState { get; private set; }
+
+        /// <summary>Badge flag: a creature was tamed since the player last opened the Companions tab.</summary>
+        public bool NewCompanionUnseen { get; private set; }
+        public void MarkCompanionsSeen() => NewCompanionUnseen = false;
+
         /// <summary>Recent radio (Funk) chat lines mirrored for the Alliances-tab chat panel (oldest first, capped).
         /// The standalone <see cref="ChatUi"/> overlay keeps its own buffer; this is the shared feed for the tab.</summary>
         public System.Collections.Generic.IReadOnlyList<ChatMessage> RecentChat => _recentChat;
@@ -722,6 +733,15 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
+            Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
+            Network.TameProgressReceived += m => TameState = (m != null && m.Active) ? m : null;
+            Network.TameResultReceived += m =>
+            {
+                TameState = null; // the ritual ended — close the HUD prompt
+                if (m == null) return;
+                if (m.Success) NewCompanionUnseen = true; // badge the Companions tab
+                if (!string.IsNullOrEmpty(m.MessageKey)) ShowMessage(Localizer?.Get(m.MessageKey) ?? m.MessageKey);
+            };
             Network.AllianceRequestReceived += m =>
             {
                 string who = string.IsNullOrEmpty(m.RequesterName) ? m.RequesterId : m.RequesterName;

@@ -35,8 +35,9 @@ marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with th
 usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for
-non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/electronic components, and the
-VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`) are
+non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/electronic components, the
+VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`, and the creature-taming
+set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.

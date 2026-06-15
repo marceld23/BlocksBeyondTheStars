@@ -249,6 +249,20 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
   size doesn't change its health, damage or loot).
 
+### Taming creatures (companions)
+- Craft a **Creature Translator** (`creature_translator`, workshop recipe + blueprint) and some **bait**
+  (`forage_bait` / `meat_bait` / `nectar_lure`, hand-crafted). Select the translator and **right-click** a
+  wild creature to start a **taming ritual**.
+- A HUD panel shows the creature's **mood** and what it **wants now** — offer the bait it craves, **calm** it,
+  **approach** slowly, or **give it space**. Each correct response builds **trust**; reach the threshold and it
+  becomes your **companion** and is named. A first tame of a species also grants **research knowledge**.
+- **Harder creatures are harder to tame:** skittish animals **bolt** at the first wrong move, territorial and
+  aggressive ones turn on you; placid grazers forgive mistakes. Exotic (cave/lava/flying), glowing and oversized
+  creatures need more steps — and two animals of the same kind can behave differently.
+- A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
+  name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
+  (rename, release). Companions are peaceful and can't be hurt.
+
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
   at the death site to recover cargo, per the active rules.

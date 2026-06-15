@@ -33,6 +33,9 @@ public sealed partial class GameServer
     private const int BlasterRadius = 3;         // sphere radius (blocks) — a sizeable crater (~120 blocks)
     private const double BlasterCooldown = 3.0;
 
+    // --- balance: creature translator (taming) ---
+    private const double TranslatorCooldown = 1.5; // seconds between decodes (the ritual responses are free)
+
     // --- balance: terrain scanner (Feature 40) ---
     private const int ScannerRadius = 20;        // pulse radius (blocks) around the player
     private const int ScannerMaxHits = 80;       // nearest hits sent (bounds the message on ore-rich worlds)
@@ -86,6 +89,10 @@ public sealed partial class GameServer
             case "terrain_scanner":
                 UseTerrainScanner(session);
                 cooldown = ScannerCooldown;
+                break;
+            case "creature_translator":
+                UseCreatureTranslator(session, target);
+                cooldown = TranslatorCooldown;
                 break;
             default:
                 Reject(session, "gadget", "Unknown gadget.");

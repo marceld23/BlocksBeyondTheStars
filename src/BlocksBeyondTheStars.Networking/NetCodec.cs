@@ -237,6 +237,16 @@ public static class NetCodec
         // Own-ship repair (hull stat + missing design voxel cells): cockpit "Repair ship" + guided field/EVA fill.
         Register(151, typeof(RepairShipIntent));         // Client -> Server
         Register(152, typeof(ShipRepairStatus));         // Server -> Client
+
+        // Creature taming + companions (design: docs/CREATURE_TAMING_PLAN.md). The translator gadget starts the
+        // ritual via the existing UseGadgetIntent; these carry the responses, progress + companion roster.
+        Register(153, typeof(TameRespondIntent));        // Client -> Server (a response in the taming ritual)
+        Register(154, typeof(TameProgress));             // Server -> Client (decoded mood + need + trust)
+        Register(155, typeof(TameResult));               // Server -> Client (attempt finished)
+        Register(156, typeof(RequestCompanionsIntent));  // Client -> Server (open the Companions tab)
+        Register(157, typeof(CompanionList));            // Server -> Client (my companion roster)
+        Register(158, typeof(SetCompanionNameIntent));   // Client -> Server (rename a companion)
+        Register(159, typeof(ReleaseCompanionIntent));   // Client -> Server (release a companion)
     }
 
     private static void Register(byte tag, Type type)

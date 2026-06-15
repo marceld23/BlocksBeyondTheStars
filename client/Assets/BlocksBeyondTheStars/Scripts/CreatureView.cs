@@ -29,6 +29,8 @@ namespace BlocksBeyondTheStars.Client
             public float AttackUntil; // a visible lunge window when attacking
             public GameObject Stasis; // icy-blue stasis shell shown while frozen (item 36)
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
+            public GameObject Nameplate; // floating name label shown above a tamed companion
+            public TextMesh NameText;    // the label's text component (updated on rename)
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -92,6 +94,7 @@ namespace BlocksBeyondTheStars.Client
                 entry.Root.transform.position = Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z) + lunge;
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
+                UpdateNameplate(entry, c);          // floating name label above a tamed companion
 
                 // Periodic idle vocalisation, spatialised at the creature, pitched by its size.
                 if (Time.time >= entry.NextCall)
@@ -144,9 +147,53 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var e = _creatures[id];
                     ClientAudio.Instance?.At(e.Bank + "_die", e.Root.transform.position, e.Pitch, 0.9f);
+                    if (e.Nameplate != null) Destroy(e.Nameplate); // parented to the game root, not e.Root → free it too
                     Destroy(e.Root);
                     _creatures.Remove(id);
                 }
+            }
+        }
+
+        /// <summary>Shows a floating name label above a tamed companion (design: docs/CREATURE_TAMING_PLAN.md) so
+        /// the player can pick their pet out of the wild fauna. Built lazily; billboarded to face the camera and
+        /// kept under the game root (not the rotating creature rig) so the text stays upright + readable.</summary>
+        private void UpdateNameplate(Entry e, NetCreature c)
+        {
+            bool owned = !string.IsNullOrEmpty(c.OwnerId);
+            if (!owned)
+            {
+                if (e.Nameplate != null) e.Nameplate.SetActive(false);
+                return;
+            }
+
+            if (e.Nameplate == null)
+            {
+                var np = new GameObject("CompanionName");
+                np.transform.SetParent(transform, true); // game root, not the creature rig (no inherited rotation)
+                var tm = np.AddComponent<TextMesh>();
+                tm.font = UiKit.Font;
+                var mr = np.GetComponent<MeshRenderer>();
+                if (mr != null && UiKit.Font != null) mr.sharedMaterial = UiKit.Font.material;
+                tm.fontSize = 48;
+                tm.characterSize = 0.05f;
+                tm.anchor = TextAnchor.LowerCenter;
+                tm.alignment = TextAlignment.Center;
+                tm.color = new Color(0.6f, 0.96f, 0.8f); // friendly green-cyan
+                e.Nameplate = np;
+                e.NameText = tm;
+            }
+
+            if (!e.Nameplate.activeSelf) e.Nameplate.SetActive(true);
+
+            string label = string.IsNullOrEmpty(c.CustomName) ? c.Name : c.CustomName;
+            if (e.NameText.text != label) e.NameText.text = label;
+
+            float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 3f) + 0.4f;
+            e.Nameplate.transform.position = e.Root.transform.position + Vector3.up * top;
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                e.Nameplate.transform.rotation = Quaternion.LookRotation(e.Nameplate.transform.position - cam.transform.position);
             }
         }
 

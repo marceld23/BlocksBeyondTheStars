@@ -107,6 +107,11 @@ namespace BlocksBeyondTheStars.Client
         public event Action<AllianceList> AllianceListReceived;
         public event Action<AllianceRequestNotice> AllianceRequestReceived;
 
+        // Creature taming + companions: the live ritual state, the finished result, and the player's roster.
+        public event Action<TameProgress> TameProgressReceived;
+        public event Action<TameResult> TameResultReceived;
+        public event Action<CompanionList> CompanionsReceived;
+
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
@@ -358,6 +363,22 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Ends an existing alliance with a partner (one-sided — either side may dissolve it).</summary>
         public void SendDissolveAlliance(string partnerId) => Send(new DissolveAllianceIntent { PartnerId = partnerId ?? string.Empty });
 
+        // --- Creature taming + companions ---
+        /// <summary>A response in the taming ritual ("feed" / "calm" / "approach" / "space" / "cancel"). The
+        /// ritual is started by right-clicking the creature_translator gadget (SendUseGadget).</summary>
+        public void SendTameRespond(string creatureId, string response)
+            => Send(new TameRespondIntent { CreatureId = creatureId ?? string.Empty, Response = response ?? string.Empty });
+
+        /// <summary>Asks the server for the player's companion roster (sent when the Companions tab opens).</summary>
+        public void SendRequestCompanions() => Send(new RequestCompanionsIntent());
+
+        /// <summary>Rename a companion I own.</summary>
+        public void SendSetCompanionName(string companionId, string name)
+            => Send(new SetCompanionNameIntent { CompanionId = companionId ?? string.Empty, Name = name ?? string.Empty });
+
+        /// <summary>Release a companion (untame it).</summary>
+        public void SendReleaseCompanion(string companionId) => Send(new ReleaseCompanionIntent { CompanionId = companionId ?? string.Empty });
+
         /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
         public void Poll() => _transport.Poll();
 
@@ -429,6 +450,9 @@ namespace BlocksBeyondTheStars.Client
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
                 case AllianceList m: AllianceListReceived?.Invoke(m); break;
                 case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
+                case TameProgress m: TameProgressReceived?.Invoke(m); break;
+                case TameResult m: TameResultReceived?.Invoke(m); break;
+                case CompanionList m: CompanionsReceived?.Invoke(m); break;
                 case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
                 case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
                 case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;

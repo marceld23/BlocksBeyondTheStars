@@ -30,6 +30,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 } ]
   },
   {
+    "key": "creature_translator", "nameKey": "blueprint.creature_translator.name", "descriptionKey": "blueprint.creature_translator.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 4,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 2 } ]
+  },
+  {
     "key": "radio_beacon", "nameKey": "blueprint.radio_beacon.name", "descriptionKey": "blueprint.radio_beacon.desc",
     "category": "Tools", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 5 }, { "item": "cable", "count": 2 } ]

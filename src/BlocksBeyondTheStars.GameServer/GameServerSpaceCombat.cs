@@ -73,6 +73,22 @@ public sealed class CombatEntity
     /// <summary>True once this hostile has noticed the ship (entered aggro range) and the "spotted" warning has
     /// been raised. Cleared again when it loses the ship, so re-engaging warns afresh. Server-only.</summary>
     public bool Spotted { get; set; }
+
+    // --- Tamed companion (design: docs/CREATURE_TAMING_PLAN.md) ---
+
+    /// <summary>Owner player id if this is a tamed companion (empty = wild fauna). Owned creatures follow their
+    /// owner, never harm anyone, are excluded from the wild population cap + far-prune, and are spawned/
+    /// despawned by the taming system (not the wild spawner).</summary>
+    public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>The persisted companion record id (links this live entity to <c>PlayerState.TamedCreatures</c>).</summary>
+    public string CompanionId { get; set; } = string.Empty;
+
+    /// <summary>A tamed companion's player-given name (drawn as a nameplate); empty for wild fauna.</summary>
+    public string CustomName { get; set; } = string.Empty;
+
+    /// <summary>True when this entity is a tamed companion rather than wild fauna.</summary>
+    public bool IsCompanion => OwnerId.Length > 0;
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>

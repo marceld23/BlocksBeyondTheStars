@@ -40,6 +40,11 @@ namespace BlocksBeyondTheStars.Client
 
         // Scan / wreck panels.
         private GameObject _scanPanel, _wreckPanel, _shipRepairPanel;
+
+        // Creature taming prompt: decoded mood + what the creature wants now, with the four response buttons.
+        private GameObject _tamePanel;
+        private Text _tameName, _tameMood, _tameNeed, _tameTrust;
+        private Button _tameFeed, _tameCalm, _tameApproach, _tameSpace, _tameStop;
         private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
         private Text _shipRepairTitle, _shipRepairProg, _shipRepairHint;
         private Image _wreckBar, _shipRepairBar;
@@ -397,6 +402,32 @@ namespace BlocksBeyondTheStars.Client
             _shipRepairHint = UiKit.AddText(_shipRepairPanel.transform, 10, 50, 230, 36, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
             _shipRepairHint.horizontalOverflow = HorizontalWrapMode.Wrap;
             _shipRepairBtn = UiKit.AddButton(_shipRepairPanel.transform, 10, 90, 230, 24, string.Empty, () => Game.Network?.SendRepairShip("all"));
+
+            // Creature-taming prompt (bottom-centre, above the hotbar): the translator's decoded mood + need,
+            // a trust bar of correct responses, and the four response actions. Captions are set in RefreshTaming.
+            _tamePanel = Panel(root, W / 2f - 250f, 150f, 500f, 172f).gameObject;
+            _tameName = UiKit.AddText(_tamePanel.transform, 14, 8, 410, 22, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _tameStop = UiKit.AddButton(_tamePanel.transform, 432, 8, 56, 24, string.Empty, () => Respond("cancel"));
+            _tameMood = UiKit.AddText(_tamePanel.transform, 14, 34, 472, 20, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _tameNeed = UiKit.AddText(_tamePanel.transform, 14, 56, 472, 38, string.Empty, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            _tameNeed.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _tameTrust = UiKit.AddText(_tamePanel.transform, 14, 96, 472, 18, string.Empty, 13, UiKit.TextCol, TextAnchor.MiddleLeft);
+            const float tby = 122f, tbw = 112f, tbh = 40f, tgap = 6f;
+            _tameFeed = UiKit.AddButton(_tamePanel.transform, 14 + 0 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("feed"));
+            _tameCalm = UiKit.AddButton(_tamePanel.transform, 14 + 1 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("calm"));
+            _tameApproach = UiKit.AddButton(_tamePanel.transform, 14 + 2 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("approach"));
+            _tameSpace = UiKit.AddButton(_tamePanel.transform, 14 + 3 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("space"));
+            _tamePanel.SetActive(false);
+        }
+
+        /// <summary>Sends the player's chosen response in the current taming ritual (read from the live state).</summary>
+        private void Respond(string response)
+        {
+            var t = Game?.TameState;
+            if (t != null && Game?.Network != null)
+            {
+                Game.Network.SendTameRespond(t.CreatureId, response);
+            }
         }
 
         private void Refresh()
@@ -472,6 +503,7 @@ namespace BlocksBeyondTheStars.Client
             RefreshScan(loc);
             RefreshWreck(loc);
             RefreshShipRepair(loc);
+            RefreshTaming(loc);
         }
 
         // --- vitals ---
@@ -782,6 +814,41 @@ namespace BlocksBeyondTheStars.Client
 
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
             if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
+        }
+
+        private void RefreshTaming(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var st = Game.TameState;
+            bool show = st != null && st.Active && !Game.MenuOpen;
+            if (_tamePanel.activeSelf != show)
+            {
+                _tamePanel.SetActive(show);
+                if (show) { UiKit.TransitionIn(_tamePanel); }
+            }
+
+            if (!show) return;
+
+            string name = string.IsNullOrEmpty(st.CreatureName) ? loc.Get("creature.generic.name") : st.CreatureName;
+            _tameName.text = $"{loc.Get("ui.tame.title")} — {name}";
+            _tameMood.text = string.IsNullOrEmpty(st.MoodKey) ? string.Empty : loc.Get(st.MoodKey);
+
+            string need = string.IsNullOrEmpty(st.NeedKey) ? string.Empty : loc.Get(st.NeedKey);
+            if (!string.IsNullOrEmpty(st.BaitKey)) { need += "  (" + loc.Get(st.BaitKey) + ")"; }
+            if (!string.IsNullOrEmpty(st.MessageKey)) { need = loc.Get(st.MessageKey) + "\n" + need; }
+            _tameNeed.text = need;
+            _tameTrust.text = $"{loc.Get("ui.tame.trust")}: {st.Trust}/{st.Required}";
+
+            SetButtonText(_tameFeed, loc.Get("ui.tame.feed"));
+            SetButtonText(_tameCalm, loc.Get("ui.tame.calm"));
+            SetButtonText(_tameApproach, loc.Get("ui.tame.approach"));
+            SetButtonText(_tameSpace, loc.Get("ui.tame.space"));
+            SetButtonText(_tameStop, loc.Get("ui.tame.cancel"));
+        }
+
+        private static void SetButtonText(Button button, string text)
+        {
+            var t = button.GetComponentInChildren<Text>();
+            if (t != null) { t.text = text; }
         }
 
         private string LootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

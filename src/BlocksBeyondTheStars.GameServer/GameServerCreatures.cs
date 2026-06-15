@@ -49,6 +49,9 @@ public sealed partial class GameServer
     /// <summary>Live creatures on the surface (passive + hostile fauna).</summary>
     public IReadOnlyList<CombatEntity> Creatures => _creatures;
 
+    /// <summary>Wild fauna only (excludes tamed companions) — companions don't count against the world's cap.</summary>
+    private int WildCreatureCount => _creatures.Count(c => !c.IsCompanion);
+
     /// <summary>The procedural species this world derived from its seed + planet.</summary>
     public IReadOnlyList<CreatureSpecies> SpeciesRoster => _speciesRoster;
 
@@ -138,6 +141,13 @@ public sealed partial class GameServer
             return; // barren world — no life
         }
 
+        // Companions follow their owners — keep their presence in sync with who is on this world (runs even when
+        // nobody is on foot, so a pet despawns the moment its owner flies off / boards into space).
+        if (ReconcileCompanions())
+        {
+            BroadcastCreatures();
+        }
+
         var targets = JoinedInActiveWorld()
             .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))
             .ToList();
@@ -151,8 +161,8 @@ public sealed partial class GameServer
         _creatureSpawnTimer += dt;
         // Fill faster while the world is far below its cap (a freshly visited world comes alive quickly),
         // then ease to the slow trickle near the cap.
-        double interval = _creatures.Count < cap / 2 ? 1.5 : CreatureSpawnInterval;
-        if (_creatureSpawnTimer >= interval && _creatures.Count < cap)
+        double interval = WildCreatureCount < cap / 2 ? 1.5 : CreatureSpawnInterval;
+        if (_creatureSpawnTimer >= interval && WildCreatureCount < cap)
         {
             _creatureSpawnTimer = 0;
             if (TrySpawnCreatureNear(targets[_creatures.Count % targets.Count].State))
@@ -188,6 +198,11 @@ public sealed partial class GameServer
 
         foreach (var creature in _creatures)
         {
+            if (creature.IsCompanion)
+            {
+                continue; // a tamed companion never harms anyone (even if its species is a hostile kind)
+            }
+
             if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
             {
                 continue;
@@ -251,7 +266,7 @@ public sealed partial class GameServer
     /// </summary>
     private bool TrySpawnCreatureNear(Shared.State.PlayerState player)
     {
-        if (_creatures.Count >= CreatureHardCap)
+        if (WildCreatureCount >= CreatureHardCap)
         {
             return false;
         }
@@ -357,7 +372,7 @@ public sealed partial class GameServer
             return;
         }
 
-        for (int i = 0; i < count && _creatures.Count < System.Math.Min(cap, CreatureHardCap); i++)
+        for (int i = 0; i < count && WildCreatureCount < System.Math.Min(cap, CreatureHardCap); i++)
         {
             TrySpawnCreatureNear(player);
         }
@@ -399,6 +414,12 @@ public sealed partial class GameServer
 
         foreach (var creature in _creatures)
         {
+            if (creature.IsCompanion)
+            {
+                MoveCompanion(creature, moveDt); // tamed companions follow their owner instead of wandering/hunting
+                continue;
+            }
+
             if (creature.FrozenTimer > 0)
             {
                 creature.FrozenTimer = System.Math.Max(0, creature.FrozenTimer - dt);
@@ -570,6 +591,11 @@ public sealed partial class GameServer
         float maxSq = CreatureDespawnRange * CreatureDespawnRange;
         int removed = _creatures.RemoveAll(c =>
         {
+            if (c.IsCompanion)
+            {
+                return false; // companions are managed by ReconcileCompanions, never far-pruned
+            }
+
             var nearest = NearestPlayerPosition(targets, c.Position);
             return nearest is not { } np || WrapDistSq(np, c.Position) > maxSq;
         });
@@ -601,16 +627,18 @@ public sealed partial class GameServer
     private NetCreature ToNetCreature(CombatEntity e)
     {
         _speciesById.TryGetValue(e.SpeciesId, out var sp);
-        bool asleep = sp != null && !SpeciesActive(sp);
+        bool asleep = sp != null && !SpeciesActive(sp) && !e.IsCompanion; // companions are always alert followers
         return new NetCreature
         {
             Id = e.Id,
             SpeciesId = e.SpeciesId,
             NameKey = sp?.NameKey ?? "creature.generic.name",
             Name = sp?.Name ?? string.Empty,
-            Hostile = e.Hostile || e.ProvokeTimer > 0, // provoked creatures read as hostile (red tint)
+            Hostile = !e.IsCompanion && (e.Hostile || e.ProvokeTimer > 0), // provoked creatures read as hostile (red tint); companions never
             Asleep = asleep,
             Frozen = e.FrozenTimer > 0, // held in stasis (item 36) — client tints it icy blue
+            OwnerId = e.OwnerId,        // tamed companion → client draws friendly tint + nameplate
+            CustomName = e.CustomName,
 
             Hull = e.Hull,
             HullMax = e.HullMax,

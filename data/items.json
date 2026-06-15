@@ -70,6 +70,11 @@
   { "key": "stasis_projector","nameKey": "item.stasis_projector.name","category": "tool", "maxStack": 1, "descriptionKey": "item.stasis_projector.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 4.0 } },
   { "key": "terrain_blaster", "nameKey": "item.terrain_blaster.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.terrain_blaster.desc", "tool": { "kind": "gadget", "tier": 3, "energyPerUse": 8.0 } },
   { "key": "terrain_scanner", "nameKey": "item.terrain_scanner.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.terrain_scanner.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 10.0 } },
+  { "key": "creature_translator", "nameKey": "item.creature_translator.name", "category": "tool", "maxStack": 1, "descriptionKey": "item.creature_translator.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 3.0 } },
+
+  { "key": "forage_bait", "nameKey": "item.forage_bait.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.forage_bait.desc" },
+  { "key": "meat_bait",   "nameKey": "item.meat_bait.name",   "category": "consumable", "maxStack": 20, "descriptionKey": "item.meat_bait.desc" },
+  { "key": "nectar_lure", "nameKey": "item.nectar_lure.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.nectar_lure.desc" },
 
   { "key": "machete",        "nameKey": "item.machete.name",        "category": "tool", "maxStack": 1, "descriptionKey": "item.machete.desc",        "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 7, "range": 3.5, "cooldownSeconds": 1.5 } },
   { "key": "vibro_knife",    "nameKey": "item.vibro_knife.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.vibro_knife.desc",    "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 0.3, "damage": 45, "range": 3.5, "cooldownSeconds": 1.0 } },

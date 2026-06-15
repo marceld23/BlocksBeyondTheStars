@@ -538,7 +538,9 @@ public sealed partial class GameServer
         SendPlanetPois(session);
         SendEnvironment(session);
         PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
+        SpawnCompanionsForSession(session); // re-materialise the player's pets if this is their companions' home world
         SendCreatures(session);
+        SendCompanions(session); // the player's full companion roster (for the Companions menu tab)
         SendDoors(session);
         SendDataCubes(session); // minigame download cubes on this body
         SendNetFragments(session); // story net fragments on this body (P2)
@@ -1335,6 +1337,10 @@ public sealed partial class GameServer
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
+            case TameRespondIntent tameResp: HandleTameRespond(session, tameResp); break;
+            case RequestCompanionsIntent: HandleRequestCompanions(session); break;
+            case SetCompanionNameIntent compName: HandleSetCompanionName(session, compName); break;
+            case ReleaseCompanionIntent release: HandleReleaseCompanion(session, release); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
@@ -1498,7 +1504,9 @@ public sealed partial class GameServer
         SendOwnedShips(session);
         SendEnvironment(session);
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
+        SpawnCompanionsForSession(session); // re-materialise the player's pets if they joined onto their companions' home world
         SendCreatures(session);
+        SendCompanions(session); // the player's full companion roster (for the Companions menu tab)
         SendDoors(session);
         SendDataCubes(session);   // minigame download cubes on the join world
         SendNetFragments(session); // story net fragments on the join world (P2)

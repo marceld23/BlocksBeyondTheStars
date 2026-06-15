@@ -62,6 +62,10 @@ ITEMS = [
     ("field_medkit", "a compact handheld medical injector gadget, white and green casing with a small red cross and a glowing green emitter tip"),
     ("stasis_projector", "a sleek handheld sci-fi stasis projector gun, dark metal with a glowing cyan crystal emitter and faint blue energy rings"),
     ("terrain_blaster", "a chunky heavy handheld sci-fi terrain blaster cannon, dark armoured metal with glowing orange energy vents and a wide barrel muzzle"),
+    ("creature_translator", "a sleek handheld sci-fi creature translator device, dark rounded casing with a small glowing cyan screen and a soft concentric sound-wave emitter on the front"),
+    ("forage_bait", "a small tied bundle of leafy green plant forage and seeds"),
+    ("meat_bait", "a raw red strip of fresh meat on a small metal hook"),
+    ("nectar_lure", "a small glass vial of glowing golden sweet nectar with a cork stopper"),
     ("oxygen_tank_1", "a small cyan compressed oxygen gas canister"),
     # Suit / wearable components
     ("suit_teleporter", "a glowing belt teleporter device with swirling portal energy"),

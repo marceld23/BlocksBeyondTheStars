@@ -74,6 +74,52 @@ public static class CreatureBehaviour
     }
 
     /// <summary>
+    /// A tamed companion's movement (design: <c>docs/CREATURE_TAMING_PLAN.md</c>): walk toward its owner
+    /// when farther than <paramref name="followDistance"/> (hurrying when it has fallen well behind),
+    /// otherwise mill gently nearby so it doesn't stand frozen. Horizontal only (the caller keeps Y for
+    /// terrain/water/flight), mirroring <see cref="Step"/>.
+    /// </summary>
+    public static Vector3f FollowStep(
+        Vector3f current,
+        Vector3f owner,
+        float speed,
+        float followDistance,
+        double dt,
+        double wanderPhase)
+    {
+        if (speed <= 0f || dt <= 0)
+        {
+            return current;
+        }
+
+        double dx = owner.X - current.X;
+        double dz = owner.Z - current.Z;
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+
+        double dirX, dirZ, pace;
+        if (dist > followDistance && dist > 1e-4)
+        {
+            dirX = dx / dist;
+            dirZ = dz / dist;
+            pace = dist > followDistance * 3 ? speed * 1.8 : speed; // hurry when far behind, ease off when close
+        }
+        else
+        {
+            // Close enough: a slow idle drift (same hashed-heading wander as Step) so it loiters by the owner.
+            double seg = System.Math.Floor(wanderPhase / 2.2);
+            double h = seg * 0.61803398875;
+            h -= System.Math.Floor(h);
+            double heading = h * 6.2831853 + System.Math.Sin(wanderPhase * 1.7) * 0.4;
+            dirX = System.Math.Cos(heading);
+            dirZ = System.Math.Sin(heading);
+            pace = speed * 0.35;
+        }
+
+        float step = (float)(pace * dt);
+        return new Vector3f(current.X + (float)(dirX * step), current.Y, current.Z + (float)(dirZ * step));
+    }
+
+    /// <summary>
     /// Whether a creature fights back when attacked. Already-hostile hunters do; <b>territorial</b>
     /// species turn hostile when provoked; passive grazers and skittish fleers do not retaliate.
     /// </summary>

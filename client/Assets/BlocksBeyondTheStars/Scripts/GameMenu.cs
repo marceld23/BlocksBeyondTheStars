@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
         public ClientSettings Settings;   // for in-game character customization
         public PlayerAvatar Avatar;       // local avatar, recoloured live
 
-        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances, Story }
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances, Story, Companions }
 
         /// <summary>Which full-screen browser sub-screen (if any) replaces the tab view while the menu is open.
         /// The Wiki ("Codex") and Arcade are reached from buttons in the menu header.</summary>
@@ -175,6 +175,11 @@ namespace BlocksBeyondTheStars.Client
             else if (tab == Tab.Story)
             {
                 Game?.MarkStorySeen(); // opening the Story tab clears its "new content" badge
+            }
+            else if (tab == Tab.Companions)
+            {
+                Game.Network?.SendRequestCompanions(); // refresh the companion roster on open
+                Game?.MarkCompanionsSeen();            // clear the "new companion" badge
             }
         }
 
