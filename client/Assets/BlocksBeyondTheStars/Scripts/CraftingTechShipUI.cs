@@ -558,6 +558,7 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("component", L("ui.craft.cat_components"), "cat_components"));
                     list.Add(("block", L("ui.craft.cat_blocks"), "cat_blocks"));
                     list.Add(("color", L("ui.craft.cat_color"), "cat_blocks"));
+                    list.Add(("shape", L("ui.craft.cat_shape"), "cat_blocks"));
                     list.Add(("market", L("ui.craft.cat_market"), "cat_cargo"));
                     break;
                 case Mode.Tech:
@@ -718,6 +719,11 @@ namespace BlocksBeyondTheStars.Client
                 return BuildColorList();
             }
 
+            if (_category == "shape")
+            {
+                return BuildShapeList();
+            }
+
             float y = 0f;
             foreach (var r in Game.Content.Recipes.Values)
             {
@@ -851,6 +857,110 @@ namespace BlocksBeyondTheStars.Client
 
             int rows = (ColorPalette.Length + cols - 1) / cols;
             return y + rows * (sw + gap);
+        }
+
+        // The forms the always-available "Shape" action can craft (shape index → locale key). 0 = plain cube
+        // (reverts a shaped material). Indices match BlocksBeyondTheStars.Shared.World.BlockShape.
+        private static readonly (int Shape, string Loc)[] ShapeOptions =
+        {
+            (0, "ui.shape.cube"), (1, "ui.shape.slab"), (2, "ui.shape.pyramid"), (3, "ui.shape.dome"),
+            (4, "ui.shape.sphere"), (5, "ui.shape.ramp"), (6, "ui.shape.stairs"), (7, "ui.shape.cone"),
+            (8, "ui.shape.cylinder"),
+        };
+
+        private string ShapeLabel(int shape)
+        {
+            foreach (var o in ShapeOptions)
+            {
+                if (o.Shape == shape)
+                {
+                    return L(o.Loc);
+                }
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>Lists the player's shapeable building materials for the always-available Shape action.</summary>
+        private float BuildShapeList()
+        {
+            float y = 0f;
+            var seen = new HashSet<string>();
+            if (Game.Personal != null)
+            {
+                foreach (var s in Game.Personal)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.Item) || !seen.Add(s.Item))
+                    {
+                        continue;
+                    }
+
+                    var item = Game.Content.GetItem(s.Item);
+                    if (item == null || string.IsNullOrEmpty(item.PlacesBlock))
+                    {
+                        continue;
+                    }
+
+                    var blk = Game.Content.GetBlock(item.PlacesBlock);
+                    if (blk == null || !blk.Shapeable || !MatchesSearch(ItemName(s.Item)))
+                    {
+                        continue;
+                    }
+
+                    string key = "shape:" + s.Item;
+                    AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + Owned(s.Item), UiKit.CyanDim, key,
+                        () => { _selected = key; RebuildDetail(); }, contentKey: s.Item);
+                    y += 88f;
+                }
+            }
+
+            if (y == 0f)
+            {
+                UiKit.AddText(_listContent, 8, 8, 700, 30, L("ui.shape.none"), 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y = 40f;
+            }
+
+            return y;
+        }
+
+        /// <summary>Detail pane for the Shape action: a grid of form buttons that re-form the selected material
+        /// (the current form is shown disabled; "cube" reverts it). Free 1:1, like dyeing. The placement
+        /// direction is decided from where the player faces, so it isn't chosen here.</summary>
+        private float DetailShape()
+        {
+            string src = _selected.Substring("shape:".Length);
+            int current = ItemKey.Shape(src);
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 40, ItemName(src), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 46f;
+            UiKit.AddText(_detail, 8, y, 620, 48, "×" + Owned(src) + "   ·   " + L("ui.shape.help"), 18, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 54f;
+            return AddShapeGrid(y, src, current);
+        }
+
+        /// <summary>A grid of form buttons; clicking one sends the Shape craft for the source material. The
+        /// button for the material's current form is shown disabled.</summary>
+        private float AddShapeGrid(float y, string src, int current)
+        {
+            const int cols = 2;
+            const float bw = 300f, bh = 50f, gap = 10f;
+            for (int i = 0; i < ShapeOptions.Length; i++)
+            {
+                var (shape, loc) = ShapeOptions[i];
+                float bx = 8 + (i % cols) * (bw + gap);
+                float by = y + (i / cols) * (bh + gap);
+                bool isCurrent = shape == current;
+                int target = shape; // capture for the closure
+                var b = UiKit.AddButton(_detail, bx, by, bw, bh, L(loc),
+                    () => { Game.Network.SendShapeCraft(src, target); });
+                if (isCurrent)
+                {
+                    SetInteractable(b, false);
+                }
+            }
+
+            int rows = (ShapeOptions.Length + cols - 1) / cols;
+            return y + rows * (bh + gap) + 8f;
         }
 
         private float BuildTechList()
@@ -1904,6 +2014,11 @@ namespace BlocksBeyondTheStars.Client
                 return DetailColor();
             }
 
+            if (_selected.StartsWith("shape:", System.StringComparison.Ordinal))
+            {
+                return DetailShape();
+            }
+
             var r = Game.Content.GetRecipe(_selected);
             if (r == null)
             {
@@ -2780,6 +2895,12 @@ namespace BlocksBeyondTheStars.Client
             else if (tint != 0)
             {
                 name += " · " + L("ui.color.dyed");
+            }
+
+            int shape = ItemKey.Shape(item);
+            if (shape != 0)
+            {
+                name += " · " + ShapeLabel(shape);
             }
 
             return name;

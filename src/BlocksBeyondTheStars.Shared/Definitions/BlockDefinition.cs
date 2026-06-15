@@ -56,6 +56,14 @@ public sealed class BlockDefinition
     /// </summary>
     public bool Tintable { get; set; }
 
+    /// <summary>
+    /// Whether the player may re-form this block into another shape (the always-available "Shape" crafting
+    /// action — spheres, ramps, pyramids, …). Restricted to the same plain building/terrain materials as
+    /// <see cref="Tintable"/>; machines, doors, glass, flora, fluids and light blocks are excluded because a
+    /// custom hull would break their bespoke geometry/logic. Set by the content registry (not in JSON).
+    /// </summary>
+    public bool Shapeable { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

@@ -53,6 +53,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS block_edit (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, tint INTEGER NOT NULL DEFAULT 0, glow INTEGER NOT NULL DEFAULT 0,
+                shape INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS player (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);
@@ -89,6 +90,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
         // ALTERs throw "duplicate column" and are harmlessly ignored.
         TryExecute("ALTER TABLE block_edit ADD COLUMN tint INTEGER NOT NULL DEFAULT 0;");
         TryExecute("ALTER TABLE block_edit ADD COLUMN glow INTEGER NOT NULL DEFAULT 0;");
+        // Migrate older saves to carry the per-voxel shape descriptor (non-cube building forms). Same pattern:
+        // harmlessly ignored on a fresh DB where the CREATE already added the column.
+        TryExecute("ALTER TABLE block_edit ADD COLUMN shape INTEGER NOT NULL DEFAULT 0;");
     }
 
     // --- Metadata ---
@@ -118,13 +122,13 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
     // --- Block edits ---
 
-    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0)
+    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0)
     {
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO block_edit (planet, x, y, z, block, tint, glow) VALUES ($p, $x, $y, $z, $b, $t, $g) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block = excluded.block, tint = excluded.tint, glow = excluded.glow;";
+            cmd.CommandText = "INSERT INTO block_edit (planet, x, y, z, block, tint, glow, shape) VALUES ($p, $x, $y, $z, $b, $t, $g, $s) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block = excluded.block, tint = excluded.tint, glow = excluded.glow, shape = excluded.shape;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$x", worldPosition.X);
             cmd.Parameters.AddWithValue("$y", worldPosition.Y);
@@ -132,6 +136,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$b", block);
             cmd.Parameters.AddWithValue("$t", tint);
             cmd.Parameters.AddWithValue("$g", glow);
+            cmd.Parameters.AddWithValue("$s", shape);
             cmd.ExecuteNonQuery();
         }
     }
@@ -165,7 +170,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT x, y, z, block, tint, glow FROM block_edit WHERE planet = $p " +
+            cmd.CommandText = "SELECT x, y, z, block, tint, glow, shape FROM block_edit WHERE planet = $p " +
                               "AND x BETWEEN $minx AND $maxx AND y BETWEEN $miny AND $maxy AND z BETWEEN $minz AND $maxz;";
             cmd.Parameters.AddWithValue("$p", planet);
             cmd.Parameters.AddWithValue("$minx", origin.X);
@@ -179,7 +184,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             while (reader.Read())
             {
                 var pos = new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
-                result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5)));
+                result.Add(new BlockEdit(pos, (ushort)reader.GetInt32(3), reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6)));
             }
         }
 

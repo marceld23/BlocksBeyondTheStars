@@ -125,6 +125,7 @@ public sealed class GameContent
 
         AssignBlockIds();
         MarkTintableDefaults();
+        MarkShapeableDefaults();
 
         // Palette lookup: index by numeric id (air at 0).
         ushort max = 0;
@@ -174,6 +175,23 @@ public sealed class GameContent
             if (_blocks.TryGetValue(key, out var block))
             {
                 block.Tintable = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Marks which blocks the always-available "Shape" action may re-form into spheres/ramps/pyramids/…
+    /// We reuse the curated tintable building-material set: exactly the plain solids that look right as a
+    /// custom hull (machines/doors/glass/flora/fluids/light blocks stay excluded). Applied here so client
+    /// and server derive the identical set.
+    /// </summary>
+    private void MarkShapeableDefaults()
+    {
+        foreach (var key in TintableDefaults)
+        {
+            if (_blocks.TryGetValue(key, out var block))
+            {
+                block.Shapeable = true;
             }
         }
     }

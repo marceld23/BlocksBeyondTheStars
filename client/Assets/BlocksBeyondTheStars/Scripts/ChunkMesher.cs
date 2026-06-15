@@ -30,7 +30,8 @@ namespace BlocksBeyondTheStars.Client
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
-            IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null)
+            IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
+            System.Func<int, int, int, int> worldShape = null)
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();   // submesh 0: opaque blocks
@@ -276,6 +277,24 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // Custom building SHAPE (sphere/dome/pyramid/ramp/…): a per-voxel form stamped on a placed
+                // block. Like the cross-plant above, it replaces the standard cube faces with its own geometry
+                // (+ a matching collider) and bows out of neighbour face-culling (see below), so a cube beside
+                // it still draws the face between them. Carries the dye colour through.
+                int shapeDesc = atlas != null ? chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z)) : 0;
+                if (!ShapeCode.IsCube(shapeDesc))
+                {
+                    float shSky = Skylight(wx, wy + 1, wz);          // open sky above the shaped block
+                    Vector3 shBl = BlockLightAt(wx, wy + 1, wz);     // coloured block-light reaching it
+                    Vector3 shBlDir = BlockLightDirAt(wx, wy + 1, wz);
+                    Color shTint = dyed ? dye : Color.black;
+                    float shTintMode = dyed ? 3f : 0f;               // 3 = player-dye recolour (matches cubes)
+                    AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), new Vector3(x, y, z), uv,
+                        matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
+                    continue;
+                }
+
                 for (int f = 0; f < Faces.Length; f++)
                 {
                     var dir = Faces[f];
@@ -288,6 +307,14 @@ namespace BlocksBeyondTheStars.Client
                     // the near leaf faces show the sky/world BEHIND the tree — a clearly see-through crown,
                     // not a dense volume whose holes just reveal more leaves.
                     bool drawFace = transparent ? nb.IsAir : (nb.IsAir || IsTransparent(content, nb));
+
+                    // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
+                    // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
+                    // would otherwise be culled, so chunks with no shapes pay nothing.
+                    if (!drawFace && worldShape != null && !ShapeCode.IsCube(worldShape(nx, ny, nz)))
+                    {
+                        drawFace = true;
+                    }
 
                     // A submerged fluid cell (the same fluid sits directly above it) must NOT draw its vertical
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
@@ -447,6 +474,70 @@ namespace BlocksBeyondTheStars.Client
 
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);
                     tris.Add(baseIdx); tris.Add(baseIdx + 3); tris.Add(baseIdx + 2);
+                }
+            }
+        }
+
+        /// <summary>Adds a non-cube building shape (sphere/dome/pyramid/ramp/…) at a cell: its own outward-faced
+        /// geometry into the opaque submesh AND the collider (shape-matched collision), carrying the same
+        /// per-vertex streams as a cube face so it textures, tints + lights identically. Per-face shade
+        /// (vertex colour .b) comes from the face normal — top-bright/bottom-dark like cube faces — while the
+        /// lit atlas shader does the main directional shading from the recalculated normals.</summary>
+        private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
+            List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
+            List<Vector3> blockLightDir, int shapeIndex, int orientation, Vector3 cell, Rect uv, float matR, float matG,
+            float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir)
+        {
+            var faces = BlockShapeGeometry.Build(shapeIndex, orientation);
+            if (faces == null)
+            {
+                return;
+            }
+
+            var leaf = new Vector4(0f, tint.r, tint.g, tint.b); // not foliage (x=0); yzw = dye tint (mode 3) or black
+            foreach (var face in faces)
+            {
+                Vector3 a = cell + face.A, b = cell + face.B, c = cell + face.C;
+                Vector3 d = face.IsQuad ? cell + face.D : Vector3.zero;
+                Vector3 edge1 = b - a;
+                Vector3 edge2 = (face.IsQuad ? d : c) - a;
+                Vector3 nrm = Vector3.Cross(edge1, edge2).normalized;
+                float shade = Mathf.Clamp(0.76f + 0.24f * nrm.y, 0.5f, 1f);
+                var col = new Color(matR, matG, shade, emission);
+                Vector3 tanDir = edge2.sqrMagnitude > 1e-8f ? edge2.normalized : edge1.normalized;
+                float hand = Vector3.Dot(Vector3.Cross(nrm, tanDir), edge1) < 0f ? -1f : 1f;
+                var tan = new Vector4(tanDir.x, tanDir.y, tanDir.z, hand);
+
+                int baseIdx = verts.Count;
+                int n = face.IsQuad ? 4 : 3;
+                verts.Add(a); verts.Add(b); verts.Add(c);
+                if (face.IsQuad)
+                {
+                    verts.Add(d);
+                    uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMin, uv.yMax));
+                    uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.xMax, uv.yMin));
+                }
+                else
+                {
+                    uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMax, uv.yMin)); uvs.Add(new Vector2(uv.xMax, uv.yMax));
+                }
+
+                for (int i = 0; i < n; i++)
+                {
+                    colors.Add(col);
+                    tangents.Add(tan);
+                    skyUv.Add(new Vector2(sky, tintMode));
+                    leafUv.Add(leaf);
+                    blockLight.Add(bl);
+                    blockLightDir.Add(blDir);
+                }
+
+                tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+                colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 1); colliderTris.Add(baseIdx + 2);
+                if (face.IsQuad)
+                {
+                    tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
+                    colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 2); colliderTris.Add(baseIdx + 3);
                 }
             }
         }

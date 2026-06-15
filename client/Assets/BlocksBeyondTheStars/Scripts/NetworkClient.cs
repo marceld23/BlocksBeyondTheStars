@@ -184,6 +184,12 @@ namespace BlocksBeyondTheStars.Client
         /// and/or a coloured light source). Output is the same item carrying the colour in its key.</summary>
         public void SendTintCraft(string sourceItemKey, int tint, int glow, int count = 1)
             => Send(new TintCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Tint = tint, Glow = glow, Count = count });
+
+        /// <summary>Always-available "Shape" action: re-form a held building material into another geometric
+        /// shape (sphere/dome/pyramid/ramp/…). Output is the same item carrying the shape index in its key;
+        /// shape 0 reverts it to a plain cube.</summary>
+        public void SendShapeCraft(string sourceItemKey, int shape, int count = 1)
+            => Send(new ShapeCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Shape = shape, Count = count });
         public void SendFallDamage(float impactSpeed) => Send(new FallDamageIntent { ImpactSpeed = impactSpeed });
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });

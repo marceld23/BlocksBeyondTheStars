@@ -43,6 +43,19 @@ public static class ItemKey
     /// <summary>The 0xRRGGBB light colour encoded in the key, or 0 if none.</summary>
     public static int Glow(string key) => Field(key, 'g');
 
+    /// <summary>The shape index encoded in the key (see <see cref="World.BlockShape"/>), or 0 (plain cube) if none.
+    /// Only the form is carried by the item; the placement orientation is decided from the player's facing.</summary>
+    public static int Shape(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return 0;
+        }
+
+        int hash = key.IndexOf(Separator);
+        return hash < 0 ? 0 : ReadShape(key.Substring(hash + 1));
+    }
+
     /// <summary>Parses the key into its base + tint + glow in one pass.</summary>
     public static (string Base, int Tint, int Glow) Parse(string key)
     {
@@ -66,17 +79,25 @@ public static class ItemKey
     /// colours are 0 (so plain items never gain a needless suffix). Any existing modifier on
     /// <paramref name="baseKey"/> is dropped first.
     /// </summary>
-    public static string Compose(string baseKey, int tint, int glow)
+    public static string Compose(string baseKey, int tint, int glow) => Compose(baseKey, tint, glow, 0);
+
+    /// <summary>
+    /// Builds a composite key from a base key, colours and a shape index (see <see cref="World.BlockShape"/>).
+    /// Returns the bare base key when all modifiers are absent. Any existing modifier on
+    /// <paramref name="baseKey"/> is dropped first. The order is always <c>t</c>, <c>g</c>, then <c>s</c>.
+    /// </summary>
+    public static string Compose(string baseKey, int tint, int glow, int shape)
     {
         string root = Base(baseKey);
         tint &= 0xFFFFFF;
         glow &= 0xFFFFFF;
-        if (tint == 0 && glow == 0)
+        shape &= 0xFF;
+        if (tint == 0 && glow == 0 && shape == 0)
         {
             return root;
         }
 
-        var sb = new System.Text.StringBuilder(root.Length + 16);
+        var sb = new System.Text.StringBuilder(root.Length + 18);
         sb.Append(root).Append(Separator);
         if (tint != 0)
         {
@@ -86,6 +107,11 @@ public static class ItemKey
         if (glow != 0)
         {
             sb.Append('g').Append(glow.ToString("x6", CultureInfo.InvariantCulture));
+        }
+
+        if (shape != 0)
+        {
+            sb.Append('s').Append(shape.ToString("x2", CultureInfo.InvariantCulture));
         }
 
         return sb.ToString();
@@ -113,6 +139,20 @@ public static class ItemKey
 
         return int.TryParse(payload.AsSpan(at + 1, 6), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int rgb)
             ? rgb & 0xFFFFFF
+            : 0;
+    }
+
+    /// <summary>Reads the 2 hex digits following the <c>'s'</c> shape tag in the payload, or 0 if absent/malformed.</summary>
+    private static int ReadShape(string payload)
+    {
+        int at = payload.IndexOf('s');
+        if (at < 0 || at + 3 > payload.Length)
+        {
+            return 0;
+        }
+
+        return int.TryParse(payload.AsSpan(at + 1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int s)
+            ? s & 0xFF
             : 0;
     }
 }

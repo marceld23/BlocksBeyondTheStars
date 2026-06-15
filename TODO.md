@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **589 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **605 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,28 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Craftable block shapes — re-form materials into spheres/ramps/pyramids/… at the workbench — ✅ server + tests + client wiring, needs Unity client build (2026-06-15)
+Players can re-form a held building material into a non-cube **shape** (slab, pyramid, dome/half-sphere, sphere,
+ramp, stairs, cone, cylinder) that still behaves like a block — analogous to the dye action, and **player-craft
+only**: shapes never appear in world-gen, settlements/villages, space stations or ships (those stay plain cubes).
+- **Shape model:** a per-voxel **shape descriptor** packs a shape index + a yaw orientation (`Shared/World/BlockShape.cs`,
+  `ShapeCode`). Independent of the dye tint, so colour + form compose. 0 = plain cube (the default everywhere, incl.
+  all generated/stamped blocks — the only thing that ever writes a real shape is a player placing a crafted form).
+- **Item identity:** a shaped item is a composite key `base#s<nn>` (`Shared/State/ItemKey.cs`), so it stacks
+  separately and carries the form through place/mine; colour (`t`/`g`) and shape (`s`) coexist on one key.
+- **Storage/persistence/net:** `ChunkData` carries a sparse per-voxel shape dict; persisted in `block_edit`
+  (+`shape` column, migrated) and synced via `ChunkDataMessage.ShapeIndex/ShapeData` + `BlockChanged.Shape`.
+- **Crafting:** always-available `ShapeCraftIntent` → `HandleShapeCraft` (no station, free 1:1, preserves colour);
+  only `Shapeable` building blocks qualify (the curated set shared with `Tintable`). UI: a "Formen/Shape" category
+  in the Crafting menu with a form-button grid (cube = revert).
+- **Placement:** the form comes from the item key; the **orientation is derived from the player's facing** at place
+  time (ramps/stairs face where you look). Mining returns the shaped item; orientation is re-derived on re-place.
+- **Rendering (surface only, v1):** the chunk mesher emits per-shape geometry (`client/.../BlockShapeGeometry.cs`)
+  + a shape-matched collider; a `worldShape` neighbour resolver stops a cube culling the face toward a shaped
+  neighbour (no holes). Ship/station meshers pass `worldShape=null` → they always render cubes.
+- **Tests (`BlockShapeTests.cs`, 7):** ShapeCode pack/unpack, ItemKey encode + colour compose, ChunkData
+  store/clear-on-air, persistence round-trip, networking round-trips, craft forms the item, refuses non-shapeable.
 
 ### ★ Creature taming & companions — ✅ server + tests + client wiring + icons, needs Unity client build (2026-06-15)
 **Plan:** [docs/CREATURE_TAMING_PLAN.md](docs/CREATURE_TAMING_PLAN.md). Wild fauna was kill-for-loot only; now a

@@ -22,6 +22,13 @@ public sealed class ChunkData
     /// </summary>
     private Dictionary<int, (int Tint, int Glow)>? _mods;
 
+    /// <summary>
+    /// Sparse per-voxel SHAPE descriptors, keyed by local index: the packed (shape index, orientation) of a
+    /// placed non-cube building block (see <see cref="ShapeCode"/>). Independent of the colour modifier so
+    /// dye + shape compose freely. Lazily allocated and tiny — only shaped cells appear; 0 means "plain cube".
+    /// </summary>
+    private Dictionary<int, int>? _shapes;
+
     public ChunkData(ChunkCoord coord)
     {
         Coord = coord;
@@ -58,6 +65,7 @@ public sealed class ChunkData
         if (block.Value == BlockId.AirValue)
         {
             _mods?.Remove(idx);
+            _shapes?.Remove(idx);
         }
     }
 
@@ -98,4 +106,35 @@ public sealed class ChunkData
 
     /// <summary>Read-only view of the sparse modifiers (local index → tint/glow) for serialization.</summary>
     public IReadOnlyDictionary<int, (int Tint, int Glow)>? Modifiers => _mods;
+
+    // --- Per-voxel shape descriptors (non-cube building forms; see ShapeCode) ---
+
+    /// <summary>The packed shape descriptor at a cell (0 = plain cube).</summary>
+    public int GetShape(int x, int y, int z) => GetShapeLocal(WorldConstants.LocalIndex(x, y, z));
+
+    /// <summary>The packed shape descriptor at a flat local index (0 = plain cube).</summary>
+    public int GetShapeLocal(int localIndex)
+        => _shapes is not null && _shapes.TryGetValue(localIndex, out var s) ? s : 0;
+
+    /// <summary>Stamps (or clears, when 0) the packed shape descriptor at a cell.</summary>
+    public void SetShape(int x, int y, int z, int shape)
+        => SetShapeLocal(WorldConstants.LocalIndex(x, y, z), shape);
+
+    /// <summary>Stamps (or clears) the packed shape descriptor at a flat local index.</summary>
+    public void SetShapeLocal(int localIndex, int shape)
+    {
+        if (shape == 0)
+        {
+            _shapes?.Remove(localIndex);
+            return;
+        }
+
+        (_shapes ??= new Dictionary<int, int>())[localIndex] = shape;
+    }
+
+    /// <summary>True if any cell in this chunk carries a non-cube shape.</summary>
+    public bool HasShapes => _shapes is { Count: > 0 };
+
+    /// <summary>Read-only view of the sparse shape descriptors (local index → packed shape) for serialization.</summary>
+    public IReadOnlyDictionary<int, int>? Shapes => _shapes;
 }

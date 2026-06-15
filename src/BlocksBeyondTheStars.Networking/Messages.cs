@@ -77,6 +77,24 @@ public sealed class TintCraftIntent
     public int Count { get; set; } = 1;
 }
 
+/// <summary>
+/// The always-available "Shape" crafting action: re-form a held building material into another geometric
+/// shape (sphere, dome, pyramid, ramp, …) that still behaves like a block. The output is the same item with
+/// the shape index encoded in its key (<see cref="BlocksBeyondTheStars.Shared.World.BlockShape"/>); placing
+/// it stamps the shape on the cell. The placement orientation is derived from the player's facing, not here.
+/// </summary>
+public sealed class ShapeCraftIntent
+{
+    /// <summary>Source item to re-form (base key, or an already coloured/shaped key — the server re-bases it,
+    /// preserving any colour).</summary>
+    public string SourceItemKey { get; set; } = string.Empty;
+
+    /// <summary>Target shape index (see <see cref="BlocksBeyondTheStars.Shared.World.BlockShape"/>); 0 = back to a cube.</summary>
+    public int Shape { get; set; }
+
+    public int Count { get; set; } = 1;
+}
+
 /// <summary>The client (which owns on-foot movement) reports a hard landing; the server applies fall damage
 /// scaled by how far over a safe impact speed it was.</summary>
 public sealed class FallDamageIntent
@@ -501,6 +519,12 @@ public sealed class ChunkDataMessage
     public int[] ModIndex { get; set; } = System.Array.Empty<int>();
     public int[] ModTint { get; set; } = System.Array.Empty<int>();
     public int[] ModGlow { get; set; } = System.Array.Empty<int>();
+
+    // Sparse per-voxel SHAPE descriptors (packed shape index + orientation; see ShapeCode), parallel array
+    // keyed by local cell index. Independent of the colour modifiers above — empty for the vast majority of
+    // chunks. (Its own index array, since a cell can be shaped without being coloured and vice versa.)
+    public int[] ShapeIndex { get; set; } = System.Array.Empty<int>();
+    public int[] ShapeData { get; set; } = System.Array.Empty<int>();
 }
 
 public sealed class BlockChanged
@@ -515,6 +539,9 @@ public sealed class BlockChanged
 
     /// <summary>Light colour of the placed block as 0xRRGGBB (0 = no glow).</summary>
     public int Glow { get; set; }
+
+    /// <summary>Packed shape descriptor of the placed block (shape index + orientation; see ShapeCode); 0 = plain cube.</summary>
+    public int Shape { get; set; }
 }
 
 /// <summary>Mining progress on a block (a harder block needs several drill hits): Fraction 0..1 of the

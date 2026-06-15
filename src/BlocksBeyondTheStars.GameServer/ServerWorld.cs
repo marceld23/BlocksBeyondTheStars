@@ -75,6 +75,11 @@ public sealed class ServerWorld
             {
                 chunk.SetModifier(local.X, local.Y, local.Z, edit.Tint, edit.Glow); // dyed block / coloured light
             }
+
+            if (edit.Shape != 0)
+            {
+                chunk.SetShape(local.X, local.Y, local.Z, edit.Shape); // non-cube building form (sphere/ramp/…)
+            }
         }
 
         _loaded[coord] = chunk;
@@ -89,17 +94,19 @@ public sealed class ServerWorld
         return chunk.Get(local.X, local.Y, local.Z);
     }
 
-    /// <summary>Sets a block (with an optional per-voxel colour modifier), persists the edit, and returns
-    /// the previous block id. <paramref name="tint"/>/<paramref name="glow"/> are 0xRRGGBB (0 = none).</summary>
-    public BlockId SetBlock(Vector3i world, BlockId block, int tint = 0, int glow = 0)
+    /// <summary>Sets a block (with an optional per-voxel colour modifier + shape descriptor), persists the
+    /// edit, and returns the previous block id. <paramref name="tint"/>/<paramref name="glow"/> are 0xRRGGBB
+    /// (0 = none); <paramref name="shape"/> is the packed non-cube shape descriptor (0 = plain cube).</summary>
+    public BlockId SetBlock(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
     {
         world = WorldConstants.CanonicalBlock(world, Circumference); // longitude wraps: store/cache the canonical column
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         var previous = chunk.Get(local.X, local.Y, local.Z);
-        chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier when set to air
+        chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier/shape when set to air
         chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
-        _repo.SetBlock(LocationId, world, block.Value, tint, glow);
+        chunk.SetShape(local.X, local.Y, local.Z, shape);
+        _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape);
         return previous;
     }
 
@@ -110,6 +117,15 @@ public sealed class ServerWorld
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
         var local = WorldConstants.WorldToLocal(world);
         return chunk.GetModifier(local.X, local.Y, local.Z);
+    }
+
+    /// <summary>The packed shape descriptor (non-cube building form + orientation; 0 = plain cube) on a cell.</summary>
+    public int GetShape(Vector3i world)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference);
+        var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
+        var local = WorldConstants.WorldToLocal(world);
+        return chunk.GetShape(local.X, local.Y, local.Z);
     }
 
     public BlockDefinition? Definition(BlockId id) => _content.BlockById(id);

@@ -1191,32 +1191,48 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Fills a chunk message's sparse colour-modifier arrays from the chunk's dyed/glowing cells
-    /// (no-op for the overwhelming majority of chunks, which carry none).</summary>
+    /// <summary>Fills a chunk message's sparse colour-modifier + shape arrays from the chunk's dyed/glowing/
+    /// shaped cells (no-op for the overwhelming majority of chunks, which carry none).</summary>
     private static void PackChunkModifiers(BlocksBeyondTheStars.Shared.World.ChunkData chunk, ChunkDataMessage msg)
     {
         var mods = chunk.Modifiers;
-        if (mods is null || mods.Count == 0)
+        if (mods is not null && mods.Count > 0)
         {
-            return;
+            int n = mods.Count;
+            var idx = new int[n];
+            var tint = new int[n];
+            var glow = new int[n];
+            int i = 0;
+            foreach (var kv in mods)
+            {
+                idx[i] = kv.Key;
+                tint[i] = kv.Value.Tint;
+                glow[i] = kv.Value.Glow;
+                i++;
+            }
+
+            msg.ModIndex = idx;
+            msg.ModTint = tint;
+            msg.ModGlow = glow;
         }
 
-        int n = mods.Count;
-        var idx = new int[n];
-        var tint = new int[n];
-        var glow = new int[n];
-        int i = 0;
-        foreach (var kv in mods)
+        var shapes = chunk.Shapes;
+        if (shapes is not null && shapes.Count > 0)
         {
-            idx[i] = kv.Key;
-            tint[i] = kv.Value.Tint;
-            glow[i] = kv.Value.Glow;
-            i++;
-        }
+            int n = shapes.Count;
+            var sIdx = new int[n];
+            var sData = new int[n];
+            int i = 0;
+            foreach (var kv in shapes)
+            {
+                sIdx[i] = kv.Key;
+                sData[i] = kv.Value;
+                i++;
+            }
 
-        msg.ModIndex = idx;
-        msg.ModTint = tint;
-        msg.ModGlow = glow;
+            msg.ShapeIndex = sIdx;
+            msg.ShapeData = sData;
+        }
     }
 
     /// <summary>Heals a stale client chunk view (a "ghost" block the server no longer has): confirms the cell's
@@ -1225,7 +1241,7 @@ public sealed partial class GameServer
     private void ResyncStaleChunk(PlayerSession session, Vector3i pos)
     {
         var (rsTint, rsGlow) = _world.GetModifier(pos);
-        Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value, Tint = rsTint, Glow = rsGlow });
+        Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value, Tint = rsTint, Glow = rsGlow, Shape = _world.GetShape(pos) });
         var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(pos), _world.Circumference);
         session.SentChunks.Remove(coord); // not-sent again → StreamChunks re-streams it on the next tick
     }
@@ -1305,6 +1321,7 @@ public sealed partial class GameServer
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
             case TintCraftIntent tint: HandleTintCraft(session, tint); break;
+            case ShapeCraftIntent shapeIntent: HandleShapeCraft(session, shapeIntent); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case ChatIntent chat: HandleChat(session, chat); break;
             case RequestStarMap: SendStarMap(session); break;
@@ -1716,6 +1733,17 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Runs the always-available "Shape" action for a player (used by local play / tests): re-forms a
+    /// held building material into another geometric shape, like <see cref="Craft"/> for the dye/glow action.</summary>
+    public void ShapeCraft(string playerId, string sourceItemKey, int shape, int count = 1)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            Serve(session);
+            HandleShapeCraft(session, new ShapeCraftIntent { SourceItemKey = sourceItemKey, Shape = shape, Count = count });
+        }
+    }
+
     /// <summary>Runs the authoritative blueprint-unlock validator for a player (used by local play / tests).</summary>
     public void UnlockBlueprint(string playerId, string blueprintKey)
     {
@@ -1897,6 +1925,7 @@ public sealed partial class GameServer
     {
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
+        int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
         _world.SetBlock(pos, BlockId.Air);
         _miningProgress.Remove(pos);
 
@@ -1923,10 +1952,10 @@ public sealed partial class GameServer
         foreach (var drop in def.Drops)
         {
             string item = toxicFlora && drop.Item == "berries" ? "toxic_berries" : drop.Item;
-            // If this cell was dyed/glowing and the drop is the block itself, return it still coloured.
-            if ((dropTint != 0 || dropGlow != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
+            // If this cell was dyed/glowing/shaped and the drop is the block itself, return it still coloured + formed.
+            if ((dropTint != 0 || dropGlow != 0 || dropShape != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
             {
-                item = ItemKey.Compose(item, dropTint, dropGlow);
+                item = ItemKey.Compose(item, dropTint, dropGlow, dropShape);
             }
 
             pool.Add(item, drop.Count);
@@ -2112,7 +2141,21 @@ public sealed partial class GameServer
             placeGlow = ItemKey.Glow(place.ItemKey);
         }
 
-        _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow);
+        // A shaped block carries its FORM in the item key; the placement ORIENTATION is derived from the
+        // player's facing (yaw quantized to one of the four cardinal directions). Together they pack into the
+        // per-voxel shape descriptor. Only shapeable building materials honour a shape.
+        int placeShape = 0;
+        if (blockDef.Shapeable)
+        {
+            int shapeIndex = ItemKey.Shape(place.ItemKey);
+            if (ShapeCode.IsValidShape(shapeIndex))
+            {
+                int facing = ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+                placeShape = ShapeCode.Pack(shapeIndex, facing);
+            }
+        }
+
+        _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape);
 
         if (blockDef.Key == "crate")
         {
@@ -2131,7 +2174,7 @@ public sealed partial class GameServer
             PlaceBeam(session, pos, place.Label); // a placed beam block becomes a named teleporter pad
         }
 
-        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow });
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
@@ -2250,7 +2293,8 @@ public sealed partial class GameServer
         }
 
         int count = System.Math.Clamp(intent.Count, 1, 999);
-        string output = ItemKey.Compose(baseKey, tint, glow);
+        // Preserve any shape the source already carried — colouring a shaped block keeps its form.
+        string output = ItemKey.Compose(baseKey, tint, glow, ItemKey.Shape(intent.SourceItemKey));
 
         // Creative mode: no material cost — just produce the coloured material.
         if (!Rules.CraftingCostsMaterials)
@@ -2279,6 +2323,74 @@ public sealed partial class GameServer
         pool.Remove(inputs);
         pool.Add(output, count);
         Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
+        SendInventory(session);
+        ShipAiOnCraft(session);
+    }
+
+    /// <summary>
+    /// The always-available "Shape" action: re-form a held building material into another geometric shape
+    /// (sphere, dome, pyramid, ramp, …) that still behaves like a block. The output is the same item with the
+    /// shape index encoded in its key (<see cref="ItemKey"/>), preserving any colour the source already
+    /// carried, so it stacks separately and carries the form through place/mine. Free 1:1 (no station, no extra
+    /// item), like dyeing. Only shapeable materials qualify; <c>Shape == 0</c> re-forms back to a plain cube.
+    /// The placement ORIENTATION isn't chosen here — it's derived from the player's facing when the block is set.
+    /// </summary>
+    private void HandleShapeCraft(PlayerSession session, ShapeCraftIntent intent)
+    {
+        string baseKey = ItemKey.Base(intent.SourceItemKey);
+        var item = _content.GetItem(baseKey);
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        {
+            CraftFail(session, "shape", "That item can't be shaped.");
+            return;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null || !blockDef.Shapeable)
+        {
+            CraftFail(session, "shape", "That material can't be shaped.");
+            return;
+        }
+
+        int shape = intent.Shape;
+        if (shape != 0 && !ShapeCode.IsValidShape(shape))
+        {
+            CraftFail(session, "shape", "Unknown shape.");
+            return;
+        }
+
+        // Re-forming to the shape the source already has (incl. "cube" on a plain block) is a no-op.
+        if (shape == ItemKey.Shape(intent.SourceItemKey))
+        {
+            CraftFail(session, "shape", "Already that shape.");
+            return;
+        }
+
+        int count = System.Math.Clamp(intent.Count, 1, 999);
+        // Only the form changes — keep whatever colour the source carried.
+        string output = ItemKey.Compose(baseKey, ItemKey.Tint(intent.SourceItemKey), ItemKey.Glow(intent.SourceItemKey), shape);
+
+        // Creative mode: no material cost — just produce the shaped material.
+        if (!Rules.CraftingCostsMaterials)
+        {
+            new MaterialPool(_content, session.State, _ship).Add(output, count);
+            Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
+            SendInventory(session);
+            return;
+        }
+
+        // Free 1:1: consume the exact source stack (re-shaping an already coloured/shaped item works too).
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var inputs = new List<ItemAmount> { new ItemAmount(intent.SourceItemKey, count) };
+        if (!pool.Has(inputs))
+        {
+            CraftFail(session, "shape", "Missing material.");
+            return;
+        }
+
+        pool.Remove(inputs);
+        pool.Add(output, count);
+        Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
         SendInventory(session);
         ShipAiOnCraft(session);
     }

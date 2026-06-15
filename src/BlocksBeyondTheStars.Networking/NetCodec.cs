@@ -247,6 +247,10 @@ public static class NetCodec
         Register(157, typeof(CompanionList));            // Server -> Client (my companion roster)
         Register(158, typeof(SetCompanionNameIntent));   // Client -> Server (rename a companion)
         Register(159, typeof(ReleaseCompanionIntent));   // Client -> Server (release a companion)
+
+        // Always-available "Shape" crafting: re-form a held building material into another geometric shape
+        // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.
+        Register(160, typeof(ShapeCraftIntent));         // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

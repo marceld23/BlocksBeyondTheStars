@@ -110,20 +110,23 @@ public sealed class StoredSpaceStructure
 }
 
 /// <summary>A single persisted player block edit (placement or removal) in world space, with its
-/// optional per-voxel colour modifier (dyed surface tint / glow light colour; 0 = none).</summary>
+/// optional per-voxel colour modifier (dyed surface tint / glow light colour; 0 = none) and its packed
+/// shape descriptor (non-cube building form + orientation; 0 = plain cube).</summary>
 public readonly struct BlockEdit
 {
     public readonly Vector3i WorldPosition;
     public readonly ushort Block;
     public readonly int Tint;
     public readonly int Glow;
+    public readonly int Shape;
 
-    public BlockEdit(Vector3i worldPosition, ushort block, int tint = 0, int glow = 0)
+    public BlockEdit(Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0)
     {
         WorldPosition = worldPosition;
         Block = block;
         Tint = tint;
         Glow = glow;
+        Shape = shape;
     }
 }
 
@@ -144,8 +147,9 @@ public interface IWorldRepository : IDisposable
     void SaveMetadata(WorldMetadata metadata);
 
     /// <summary>Records a single block change (only deltas against the procedural baseline are stored).
-    /// <paramref name="tint"/>/<paramref name="glow"/> carry the optional per-voxel colour modifier (0 = none).</summary>
-    void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0);
+    /// <paramref name="tint"/>/<paramref name="glow"/> carry the optional per-voxel colour modifier (0 = none);
+    /// <paramref name="shape"/> the packed non-cube shape descriptor (0 = plain cube).</summary>
+    void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0);
 
     /// <summary>Loads all stored block edits that fall inside the given chunk.</summary>
     IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk);

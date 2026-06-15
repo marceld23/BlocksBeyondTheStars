@@ -1014,7 +1014,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnChunk(BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage m)
         {
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
-            World.StoreChunk(coord, m.Blocks, m.ModIndex, m.ModTint, m.ModGlow);
+            World.StoreChunk(coord, m.Blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
             MarkChunkAndNeighborsDirty(coord);
         }
 
@@ -1144,7 +1144,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
-            if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, out var coord))
+            if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, m.Shape, out var coord))
             {
                 return;
             }
@@ -1214,7 +1214,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor,
-                lights: World.LightSourcesNear(coord, ChunkMesher.LightRadius));
+                lights: World.LightSourcesNear(coord, ChunkMesher.LightRadius), worldShape: World.GetShape);
 
             if (!_chunkObjects.TryGetValue(coord, out var go))
             {
