@@ -674,6 +674,20 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<ChunkCoord, GameObject> _chunkObjects = new Dictionary<ChunkCoord, GameObject>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
 
+        // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
+        // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
+        // the rest stay queued in _dirty. Tunable — raise for less pop-in, lower for smoother frame times.
+        public int MeshChunksPerFrame = 4;
+        private readonly List<ChunkCoord> _dirtyScratch = new List<ChunkCoord>();
+
+        // Performance (P2): assigning MeshCollider.sharedMesh cooks the collision mesh synchronously on the
+        // main thread — the single heaviest per-chunk op. Instead we run Physics.BakeMesh on a worker thread
+        // and assign the (now-cached) cook back on the main thread in DrainBakedColliders. _colliderGen +
+        // WorldEpoch guard against a newer rebuild (or a world change) superseding an in-flight bake.
+        private readonly Dictionary<ChunkCoord, int> _colliderGen = new Dictionary<ChunkCoord, int>();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)> _bakedColliders
+            = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)>();
+
         /// <summary>Bumped each time the world is rebuilt (travel); the player re-snaps to the new spawn.</summary>
         public int WorldEpoch { get; private set; }
 
@@ -1028,15 +1042,36 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Rebuild any chunk meshes that changed this frame.
+            // Assign any collision meshes whose async bake finished (cheap now — the PhysX cook is cached).
+            DrainBakedColliders();
+
+            // Rebuild chunk meshes that changed, but cap how many per frame (P1) so a burst of chunks arriving
+            // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
+            // chunks past the budget stay queued for the next frames.
             if (_dirty.Count > 0)
             {
-                foreach (var coord in _dirty)
-                {
-                    RebuildChunk(coord);
-                }
+                _dirtyScratch.Clear();
+                _dirtyScratch.AddRange(_dirty);
+                var pp = PlayerPosition;
+                _dirtyScratch.Sort((a, b) => ChunkDistSqToPlayer(a, pp).CompareTo(ChunkDistSqToPlayer(b, pp)));
 
-                _dirty.Clear();
+                int budget = Mathf.Max(1, MeshChunksPerFrame);
+                int built = 0;
+                foreach (var coord in _dirtyScratch)
+                {
+                    if (built >= budget)
+                    {
+                        break;
+                    }
+
+                    // Neighbours not yet streamed are no-ops — flush them without spending budget; they
+                    // re-mark themselves dirty once their own data arrives.
+                    _dirty.Remove(coord);
+                    if (RebuildChunk(coord))
+                    {
+                        built++;
+                    }
+                }
             }
 
             // Round worlds: keep every loaded chunk drawn at the copy nearest the player as it laps the world
@@ -1148,6 +1183,9 @@ namespace BlocksBeyondTheStars.Client
 
             _chunkObjects.Clear();
             _dirty.Clear();
+            // Bake bookkeeping for the old world is now stale; WorldEpoch (bumped below) fences any in-flight
+            // bakes so they're dropped in DrainBakedColliders instead of landing on the new world's chunks.
+            _colliderGen.Clear();
             World.Clear();
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
@@ -1268,11 +1306,13 @@ namespace BlocksBeyondTheStars.Client
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }
 
-        private void RebuildChunk(ChunkCoord coord)
+        /// <summary>(Re)builds one chunk's render + collision mesh. Returns false (no work) when the chunk
+        /// isn't streamed yet, so the per-frame mesh budget only counts real builds.</summary>
+        private bool RebuildChunk(ChunkCoord coord)
         {
             if (!World.TryGetChunk(coord, out var chunk))
             {
-                return;
+                return false;
             }
 
             var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor,
@@ -1296,9 +1336,82 @@ namespace BlocksBeyondTheStars.Client
             }
 
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
-            // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava;
-            // null (a chunk of only fluids/air) clears the collider so nothing blocks there.
-            go.GetComponent<MeshCollider>().sharedMesh = collider;
+
+            // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava.
+            // Baking the collision mesh is the heaviest per-chunk step, so do it off the main thread (P2): bump
+            // this chunk's bake generation, cook on a worker via Physics.BakeMesh, then assign the cached cook
+            // in DrainBakedColliders. A null collider (only fluids/air) clears the collider immediately.
+            int gen = (_colliderGen.TryGetValue(coord, out var g) ? g : 0) + 1;
+            _colliderGen[coord] = gen;
+            var mcol = go.GetComponent<MeshCollider>();
+            if (collider == null)
+            {
+                if (mcol != null)
+                {
+                    mcol.sharedMesh = null;
+                }
+            }
+            else
+            {
+                int meshId = collider.GetInstanceID();
+                var capturedCoord = coord;
+                var capturedCollider = collider;
+                int epoch = WorldEpoch;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        Physics.BakeMesh(meshId, false);
+                    }
+                    catch
+                    {
+                        // Mesh may have been destroyed before the bake ran; DrainBakedColliders drops stale ones.
+                    }
+
+                    _bakedColliders.Enqueue((capturedCoord, capturedCollider, gen, epoch));
+                });
+            }
+
+            return true;
+        }
+
+        /// <summary>Assigns collision meshes whose off-thread <see cref="Physics.BakeMesh"/> has finished.
+        /// Skips and frees any whose chunk was re-meshed since the bake started, whose world changed, or whose
+        /// chunk GameObject is gone — so a stale cook never lands on the wrong chunk.</summary>
+        private void DrainBakedColliders()
+        {
+            while (_bakedColliders.TryDequeue(out var baked))
+            {
+                bool assigned = false;
+                if (baked.Epoch == WorldEpoch
+                    && _colliderGen.TryGetValue(baked.Coord, out var gen) && gen == baked.Gen
+                    && _chunkObjects.TryGetValue(baked.Coord, out var go) && go != null)
+                {
+                    var mc = go.GetComponent<MeshCollider>();
+                    if (mc != null)
+                    {
+                        mc.sharedMesh = baked.Collider; // cook cached by BakeMesh → cheap assign, no main-thread stall
+                        assigned = true;
+                    }
+                }
+
+                if (!assigned && baked.Collider != null)
+                {
+                    Destroy(baked.Collider); // superseded / world changed / chunk gone → free the throwaway mesh
+                }
+            }
+        }
+
+        /// <summary>Squared distance from the player to a chunk's centre, using the same seam-aware scene
+        /// mapping the chunk objects are placed with — so "nearest first" is correct on the wrapping torus.</summary>
+        private float ChunkDistSqToPlayer(ChunkCoord coord, Vector3 player)
+        {
+            var o = WorldConstants.ChunkOrigin(coord);
+            const float half = WorldConstants.ChunkSize * 0.5f;
+            float dx = SceneX(o.X) + half - player.x;
+            float dy = o.Y + half - player.y;
+            float dz = SceneZ(o.Z) + half - player.z;
+            return dx * dx + dy * dy + dz * dz;
         }
 
         private void OnDestroy() => Network?.Dispose();

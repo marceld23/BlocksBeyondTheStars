@@ -17,6 +17,24 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Planet movement lag — per-frame chunk-mesh budget + off-thread collider bake — ✅ client built (2026-06-16, needs playtest)
+Moving fast on a planet stuttered because the client chunk pipeline did synchronous, unbudgeted work in bursts
+as the player crossed 16-block chunk boundaries: **every** dirty chunk re-meshed in ONE frame, and each
+`MeshCollider.sharedMesh` assignment cooked the collision mesh synchronously on the main thread (the heaviest
+per-chunk step). Standing still was smooth; moving fast = a steady stream of new chunks = repeated frame hitches.
+Both fixes are client-only (no protocol change), all in `GameBootstrap.cs`:
+- **P1 — per-frame mesh budget:** new tunable `MeshChunksPerFrame` (default 4) caps chunk (re)builds per frame,
+  **nearest-first** (`ChunkDistSqToPlayer`, seam-aware via `SceneX/SceneZ` so ordering is correct on the torus);
+  the rest stay queued in `_dirty` for following frames. Not-yet-streamed neighbours are no-ops and don't spend
+  budget. The player's own chunk sorts first, so local edits still re-mesh same-frame (no input lag).
+- **P2 — async collider bake:** the collision mesh is cooked off the main thread via `Physics.BakeMesh` on a
+  `Task`, then the cached cook is assigned in `DrainBakedColliders()`. `_colliderGen` + `WorldEpoch` fence stale
+  bakes (a newer remesh, a world change, or a gone chunk → the throwaway mesh is freed) so a cook never lands on
+  the wrong chunk. Safe vs the station-boarding fall: the spawn settle-freeze raycasts for the collider
+  (`PlayerController.cs`:184-192), so async just releases control 1–2 frames later, never a fall-through.
+- *Tuning: raise `MeshChunksPerFrame` if terrain pops in late under sustained speed; lower it if frames still
+  spike. Follow-ups left open: P3 mesh/buffer pooling (GC spikes), P4 `RepositionChunks`/`LightSourcesNear`.*
+
 ### ★ Avatar face fix — drawn pixel-face + stock features were buried inside the head — ✅ FIXED, client built (2026-06-16)
 The custom pixel-face (FaceEditor) never showed on the avatar or its preview, and the stock eyes/brow/mouth
 read as blank. Root cause: every face element is parented to the head — a unit-cube primitive whose FRONT
