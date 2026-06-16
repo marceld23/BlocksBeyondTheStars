@@ -26,9 +26,12 @@ namespace BlocksBeyondTheStars.Client
         private bool _visible = true;
 
         // Custom pixel face (FaceEditor): a textured plate on the head front that replaces the procedural
-        // eyes/brow/mouth/visor when set. Placed in head-LOCAL space like those features (so the head's scale
-        // is inherited the same way). Nudge these two if a build shows it floating/clipping.
-        private const float FacePlateZ = 0.27f;       // just forward of the pupils (0.275 head-local) so it reads
+        // eyes/brow/mouth/visor when set. Placed in head-LOCAL space, where the head is a unit-cube primitive
+        // (scaled by 0.46) — so its FRONT surface is at local z = 0.5. The plate centre must therefore sit at
+        // ~0.5 so its front face protrudes past that surface; the old 0.27 left the whole plate buried inside
+        // the opaque head (front at 0.295 < 0.5), which is why a drawn face showed nothing. Nudge if a build
+        // shows it floating/clipping.
+        private const float FacePlateZ = 0.5f;        // head front (local) — plate front (0.5 + half-depth) sits just proud
         private const float FacePlateScale = 0.9f;    // covers the face, leaving a thin skin border
         private readonly List<GameObject> _faceFeatures = new List<GameObject>();
         private GameObject _facePlate;
@@ -66,9 +69,11 @@ namespace BlocksBeyondTheStars.Client
             // Neck + head + a dark visor strip on the front.
             AddCube("Neck", transform, new Vector3(0f, 1.69f, 0f), new Vector3(0.18f, 0.14f, 0.18f), _skin);
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
-            // Visor as a lower-face breather strip (sits BELOW the eyes so it no longer covers them — that's
-            // why the face read as blank before).
-            _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.235f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
+            // Face features sit on the head's FRONT surface. The head is a unit-cube primitive, so that surface is
+            // at head-LOCAL z = 0.5; features must protrude past it (z ≳ 0.5). The old z ≈ 0.235–0.275 placed them
+            // at ~half depth, buried INSIDE the opaque head — the real reason "the face read as blank before".
+            // Visor = a lower-face breather strip (below the eyes).
+            _faceFeatures.Add(AddCube("Visor", _head, new Vector3(0f, -0.10f, 0.49f), new Vector3(0.34f, 0.12f, 0.05f), Lit(new Color(0.12f, 0.5f, 0.62f), _visorTex)));
 
             // Eyes (whites + pupils + a brow + a mouth) so the face reads clearly — bigger/clearer (B20).
             var eyeWhite = Lit(new Color(0.96f, 0.97f, 1f), null);
@@ -77,12 +82,15 @@ namespace BlocksBeyondTheStars.Client
             var mouth = Lit(new Color(0.32f, 0.16f, 0.14f), null);
             // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The
             // visor (above) is included so a drawn face fully replaces the stock look.
-            _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
-            _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(0.11f, 0.075f, 0.245f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
-            _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
-            _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(0.11f, 0.06f, 0.275f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
-            _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, 0.175f, 0.245f), new Vector3(0.38f, 0.05f, 0.045f), brow));
-            _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, -0.175f, 0.235f), new Vector3(0.20f, 0.045f, 0.04f), mouth));
+            // z values are head-LOCAL and must clear the head front (0.5); the +0.255 shift over the old
+            // 0.235–0.275 lifts them just proud of the surface while preserving the relief (pupils ahead of the
+            // whites, etc.). See the Visor note above.
+            _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-0.11f, 0.075f, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(0.11f, 0.075f, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-0.11f, 0.06f, 0.53f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(0.11f, 0.06f, 0.53f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, 0.175f, 0.50f), new Vector3(0.38f, 0.05f, 0.045f), brow));
+            _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, -0.175f, 0.49f), new Vector3(0.20f, 0.045f, 0.04f), mouth));
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);

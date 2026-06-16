@@ -17,6 +17,18 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Avatar face fix — drawn pixel-face + stock features were buried inside the head — ✅ FIXED, client built (2026-06-16)
+The custom pixel-face (FaceEditor) never showed on the avatar or its preview, and the stock eyes/brow/mouth
+read as blank. Root cause: every face element is parented to the head — a unit-cube primitive whose FRONT
+surface is at head-LOCAL z = 0.5 — but they sat at z ≈ 0.235–0.275, i.e. ~half depth, buried INSIDE the opaque
+`LitColor` head and occluded by its front face. The data flow (editor → `ApplyFace` → `SetFace` → Character-tab
+preview hash) was already correct; only the geometry was wrong. `PlayerAvatar.cs`:
+- **`FacePlateZ 0.27 → 0.5`** so the drawn face plate's front protrudes past the head surface.
+- **Visor/Eyes/Pupils/Brow/Mouth shifted forward +0.255** (z 0.235–0.275 → 0.49–0.53), preserving the relief
+  (pupils ahead of the whites). Affects every avatar + NPC, not just the opt-in custom face.
+- *Pupils now sit ~2 cm proud — nudge their z down a touch if it reads as bug-eyed in a real build. A possible
+  separate follow-up: the face texture may be horizontally mirrored (orientation, not visibility).*
+
 ### ★ Loading-splash launcher — instant splash over the black startup gap — ✅ launcher built + verified (2026-06-16)
 The built client shows nothing for ~12–14 s on first launch (Windows Defender scanning the 162 Mono DLLs),
 then the Unity splash appears. Unity can't draw before its engine inits, so a separate process must fill the
