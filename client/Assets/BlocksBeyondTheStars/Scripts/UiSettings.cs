@@ -62,7 +62,10 @@ namespace BlocksBeyondTheStars.Client
 
             Head(ref y, L("ui.settings.graphics"));
             Cycle(ref y, L("ui.settings.preset"), S.Preset.ToString(), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); Rebuild(); });
-            Toggle(ref y, L("ui.settings.fullscreen"), S.Fullscreen, () => { S.Fullscreen = !S.Fullscreen; Rebuild(); });
+            // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
+            // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
+            Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
+                () => { S.Window = (WindowMode)(((int)S.Window + 1) % 3); S.Apply(); Rebuild(); });
             Stepper(ref y, L("ui.settings.view_distance"), (S.ViewDistanceChunks - 1) / 7f, 1, 8,
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
@@ -216,6 +219,14 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddImage(_content, _x + _rowW - 56, y + 6, 56, 32, UiKit.SolidSprite, color);
             y += 52f;
         }
+
+        /// <summary>Localizer key for a window-presentation mode (label shown on the cycle button).</summary>
+        private static string WindowModeKey(WindowMode m) => m switch
+        {
+            WindowMode.Borderless => "ui.settings.window_mode.borderless",
+            WindowMode.Exclusive => "ui.settings.window_mode.exclusive",
+            _ => "ui.settings.window_mode.windowed",
+        };
 
         private static Color Next(Color current)
         {

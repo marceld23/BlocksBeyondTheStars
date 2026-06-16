@@ -25,6 +25,14 @@ namespace BlocksBeyondTheStars.Client
     public enum MusicMode { Synth, Tracks }
 
     /// <summary>
+    /// How the standalone window is presented. <see cref="Windowed"/> = a normal resizable, draggable
+    /// window (can be moved to another monitor and maximized via the OS title bar); <see cref="Borderless"/>
+    /// = borderless fullscreen filling the monitor the window currently sits on; <see cref="Exclusive"/> =
+    /// true exclusive fullscreen at the display's native resolution. Maps to <see cref="FullScreenMode"/>.
+    /// </summary>
+    public enum WindowMode { Windowed, Borderless, Exclusive }
+
+    /// <summary>
     /// Local, client-only settings (display, audio, input, comfort). These never affect the
     /// authoritative server rules (PvP, aliens, weapons stay server-decided). Persisted as JSON
     /// in <c>Application.persistentDataPath/client_settings.json</c>. See
@@ -35,7 +43,17 @@ namespace BlocksBeyondTheStars.Client
     {
         // Graphics
         public QualityPreset Preset = QualityPreset.Medium;
-        public bool Fullscreen = true;
+
+        /// <summary>How the window is presented (windowed / borderless / exclusive). Default windowed so the
+        /// window can be dragged to another monitor and maximized; switch to Borderless/Exclusive for a
+        /// fullscreen experience on whichever monitor the window currently sits on.</summary>
+        public WindowMode Window = WindowMode.Windowed;
+
+        /// <summary>Windowed-mode size, persisted so toggling back from fullscreen restores it. Default fits a
+        /// 1080p display with room for the title bar; clamped to the display in <see cref="Apply"/>.</summary>
+        public int WindowedWidth = 1600;
+        public int WindowedHeight = 900;
+
         public int ViewDistanceChunks = 2;
         public float UiScale = 1f;
 
@@ -184,7 +202,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Applies engine-owned settings. View distance feeds <see cref="GameBootstrap"/>; audio buses land later.</summary>
         public void Apply()
         {
-            Screen.fullScreen = Fullscreen;
+            ApplyWindowMode();
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
             UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
 
@@ -206,6 +224,30 @@ namespace BlocksBeyondTheStars.Client
                     QualityPreset.Medium => 70f,
                     _ => 90f,
                 };
+            }
+        }
+
+        /// <summary>Applies the chosen <see cref="Window"/> mode. Windowed uses the persisted
+        /// <see cref="WindowedWidth"/>/<see cref="WindowedHeight"/> (clamped to the display) so the window has a
+        /// title bar and can be dragged to another monitor and maximized; Borderless/Exclusive fill the current
+        /// display at its native resolution. The standalone window must be resizable (Player Settings) for the
+        /// OS maximize/resize affordances to appear in Windowed mode.</summary>
+        private void ApplyWindowMode()
+        {
+            var native = Screen.currentResolution;
+            switch (Window)
+            {
+                case WindowMode.Borderless:
+                    Screen.SetResolution(native.width, native.height, FullScreenMode.FullScreenWindow);
+                    break;
+                case WindowMode.Exclusive:
+                    Screen.SetResolution(native.width, native.height, FullScreenMode.ExclusiveFullScreen);
+                    break;
+                default: // Windowed
+                    int w = Mathf.Clamp(WindowedWidth, 640, Mathf.Max(640, native.width));
+                    int h = Mathf.Clamp(WindowedHeight, 480, Mathf.Max(480, native.height));
+                    Screen.SetResolution(w, h, FullScreenMode.Windowed);
+                    break;
             }
         }
     }

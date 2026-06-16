@@ -17,6 +17,19 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Window mode — windowed / borderless / exclusive, movable + maximizable — ✅ client + Unity build (2026-06-16)
+The client used to always launch as a borderless fullscreen window on the primary monitor, with no way to move
+it to another monitor or maximize it (`resizableWindow: 0` + the legacy `Screen.fullScreen` bool). Now it starts
+as a normal **windowed** 1600×900 window that can be dragged to any monitor and maximized.
+- **Player Settings** (`ProjectSettings.asset`): `resizableWindow 0→1` (title bar + maximize + resize grip),
+  `fullscreenMode 1→3` (Windowed boot), default screen `1920×1080→1600×900`.
+- **`ClientSettings`:** removed `bool Fullscreen`; added `WindowMode { Windowed, Borderless, Exclusive }`
+  (+ persisted `WindowedWidth/Height`). New `ApplyWindowMode()` uses `Screen.SetResolution(..., FullScreenMode.*)`
+  instead of the boolean API. Borderless fills whichever monitor the window currently sits on (Unity 6).
+- **`UiSettings`:** the on/off "Fullscreen" toggle is now a 3-way **"Window mode"** cycle that applies immediately.
+  Locale key `ui.settings.fullscreen` → `ui.settings.window_mode(.windowed/.borderless/.exclusive)` (DE+EN).
+- *Optional follow-up:* remember the last-used monitor across launches via Unity 6 `Screen.MoveMainWindowTo`.
+
 ### ★ Bug-fix wave — face editor (+ Avatar Designer), in-game tab bar, editor scroll — ✅ FIXED, needs Unity client build (2026-06-15)
 Reported in-game UI bugs + a follow-up, all client-only (no server/test changes):
 - **Pixel-face editor unusable + lingering** (`FaceEditor.cs`, `GameMenu.cs`): its canvas was `sortingOrder 30`
