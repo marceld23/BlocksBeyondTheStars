@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **612 passing** (2026-06-15). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **632 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,42 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Taming + shapes woven into the story — companions calm the Wächter, non-cube forms read as anomaly — ✅ server + tests + locale (2026-06-17, needs client build)
+Two of the game's systems now pay off the VEGA arc's canon (Guardian protects the *living worlds*, judges humans the threat):
+- **Companion ward (mechanic + memory):** a present tamed companion within 12 blocks makes the planet machines
+  read its owner as part of the protected biosphere — they neither hunt nor bite while it wards them
+  ([GameServerEnemies.cs](src/BlocksBeyondTheStars.GameServer/GameServerEnemies.cs): `WardedByCompanion`,
+  consulted by the chase scan + the proximity-damage pass). The first time the player sees a machine stand
+  down, VEGA explains it (`story.vega.insight.companion_ward`). The mechanic works regardless of story; only
+  the line is gated.
+- **Shape anomaly (narrative only):** forming the first non-cube block fires VEGA's recovered memory that the
+  Service only ever built in cubes because the Guardian reads any other form as a constructed anomaly
+  (`story.vega.insight.shape_anomaly`, hooked in `HandleShapeCraft`). **No** gameplay penalty — the creative
+  feature stays free.
+- Both VEGA lines are event-driven memories (not threshold beats — they'd break beat ordering), spoken on the
+  existing `ShipAiLine` kind-2 channel the `VegaPanel` already renders (**no client C# change**), once per
+  player, and **gated behind the Guardian reveal** (beat B5 ⇒ `BeatsRevealed ≥ 6`) so an early tame/shape
+  can't pre-empt it — the per-player flag is only consumed once the line actually speaks
+  ([GameServerStory.cs](src/BlocksBeyondTheStars.GameServer/GameServerStory.cs): `GuardianMandateKnown`).
+- Bilingual keys in [data/stories/vega_protocol/locales/](data/stories/vega_protocol/locales/) (en+de), synced
+  to StreamingAssets by `build-client.ps1`. **5 new tests; 632/632 green.** ⏭ Needs a Unity client build.
+
+### ★ Story/finale test commands — read the whole arc + reach the boss without grinding — ✅ server (2026-06-17, needs client build)
+Admin chat commands to fast-track late-game testing (all gated by `IsAdmin` + `CheatsAllowed`, logged as
+`[CHEAT]`). Wired the existing server-only story hooks into chat and added the missing pieces:
+- `/story` (status), `/advance [n]` (advance the arc), `/revealfinale` (reveal all beats + put the Guardian
+  system on the map) — these server handlers existed (`AdminAdvanceStory`/`AdminRevealFinale`) but were not
+  reachable from the client; now wired in [ChatUi.cs](client/Assets/BlocksBeyondTheStars/Scripts/ChatUi.cs).
+- `/lore` → **new** `reveal_lore` (`AdminRevealAllLore`, [GameServerStory.cs](src/BlocksBeyondTheStars.GameServer/GameServerStory.cs)):
+  reveals every fragment + personal memory to the caller (fills the Story tab) and completes the beats.
+- `/jumpdrive` → **new** `grant_module`: fits `jump_generator` to the active ship (no admin module-grant
+  existed before). `/gotocore` → **new** `goto_core` (`AdminGotoCore`, [GameServerStoryFinale.cs](src/BlocksBeyondTheStars.GameServer/GameServerStoryFinale.cs)):
+  reveals the finale and lands the player in the core chamber, skipping the flight + orbital gauntlet.
+- `HandleTravel` gained a `bool adminBypass` to skip the jump-generator gate for `/gotocore`.
+- Docs: [USER_MANUAL.md](docs/USER_MANUAL.md) §7 (new *Story / finale testing* table + two test recipes);
+  `ui.admin.help` (en/de) extended. **Server build green; 70/70 story/finale/travel/admin tests pass.**
+  ⏭ Needs a Unity client build + bundled-server lib sync for the chat commands to be live in-game.
 
 ### ★ Planet movement lag — per-frame chunk-mesh budget + off-thread collider bake — ✅ client built (2026-06-16, needs playtest)
 Moving fast on a planet stuttered because the client chunk pipeline did synchronous, unbudgeted work in bursts

@@ -170,6 +170,17 @@ namespace BlocksBeyondTheStars.Client
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
 
+                // ---- Story finale QA ----
+                case "/story": net.SendAdminCommand("story_status"); return true;
+                case "/advance":
+                    net.SendAdminCommand("advance_story",
+                        intArg: p.Length >= 2 && int.TryParse(p[1], out var steps) ? steps : 1);
+                    return true;
+                case "/revealfinale": net.SendAdminCommand("reveal_finale"); return true;
+                case "/lore": net.SendAdminCommand("reveal_lore"); return true;
+                case "/jumpdrive": net.SendAdminCommand("grant_module", stringArg: "jump_generator"); return true;
+                case "/gotocore": net.SendAdminCommand("goto_core"); return true;
+
                 case "/ai":
                 case "/ai_mission":
                     net.SendAdminCommand("ai_mission", stringArg: t.Substring(p[0].Length).Trim());

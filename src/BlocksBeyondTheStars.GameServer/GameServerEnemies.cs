@@ -64,18 +64,43 @@ public sealed partial class GameServer
             BroadcastPlanetEnemies();
         }
 
+        // A present tamed companion makes the Guardian machines read its owner as part of the protected
+        // biosphere rather than as prey: while one wards a player the machines neither hunt nor bite them.
+        // Computed once per tick (consulted by both the proximity-damage pass and MovePlanetEnemy's chase
+        // scan). Story: RevealCompanionWardInsight has VEGA explain it the first time a machine stands down.
+        var warded = new HashSet<string>();
+        foreach (var session in targets)
+        {
+            if (WardedByCompanion(session.State))
+            {
+                warded.Add(session.State.PlayerId);
+            }
+        }
+
         // Movement + proximity damage: enemies HUNT the nearest detectable player in range, and idly
         // WANDER otherwise (they used to stand rooted at their spawn point forever).
         bool moved = false;
         foreach (var enemy in _planetEnemies)
         {
-            moved |= MovePlanetEnemy(enemy, targets, dt);
+            moved |= MovePlanetEnemy(enemy, targets, warded, dt);
 
             foreach (var session in targets)
             {
                 var p = session.State;
                 if (p.GodMode || p.Stealthed) // cloaked players aren't detected
                 {
+                    continue;
+                }
+
+                if (warded.Contains(p.PlayerId))
+                {
+                    // A companion shields them — the machine holds even point-blank. When one is near enough
+                    // to have struck, the player witnesses it stand down: VEGA's cue to explain why (once).
+                    if (WrapDistSq(p.Position, enemy.Position) <= EnemyHuntRange * EnemyHuntRange)
+                    {
+                        RevealCompanionWardInsight(session);
+                    }
+
                     continue;
                 }
 
@@ -109,18 +134,39 @@ public sealed partial class GameServer
     private double _enemySyncTimer;
     private readonly Dictionary<string, (double Heading, double Until)> _enemyWander = new();
 
+    private const float CompanionWardRange = 12f; // a tamed companion within this of its owner wards them
+
+    /// <summary>True when one of the player's tamed companions is present and close enough to make the
+    /// Guardian machines stand down — they read a creature-bonded human as part of the living world they were
+    /// built to guard, not as prey. (Design: companions show the network the player belongs to the biosphere;
+    /// the inverse of a non-cube structure, which reads as a constructed anomaly.)</summary>
+    private bool WardedByCompanion(Shared.State.PlayerState p)
+    {
+        float r2 = CompanionWardRange * CompanionWardRange;
+        foreach (var c in _creatures)
+        {
+            if (c.IsCompanion && c.OwnerId == p.PlayerId && WrapDistSq(p.Position, c.Position) <= r2)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Moves one planet enemy: hunt the nearest detectable player inside the hunt range, else
     /// wander on a seeded heading that re-rolls every few seconds. Terrain-following (the enemy stands on
     /// the surface at its new column); a cliff step taller than 3 blocks blocks the move and re-rolls the
     /// wander heading. Returns true when the enemy actually moved.</summary>
-    private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, double dt)
+    private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, HashSet<string> warded, double dt)
     {
-        // Nearest detectable (non-cloaked, non-god) player.
+        // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
+        // the machine never paths toward them.
         PlayerSession nearest = null;
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.GodMode || s.State.Stealthed)
+            if (s.State.GodMode || s.State.Stealthed || warded.Contains(s.State.PlayerId))
             {
                 continue;
             }
@@ -368,4 +414,25 @@ public sealed partial class GameServer
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
         => AttackEntity(session.State.PlayerId, intent.EntityId);
+
+    // ---------------- Test hooks ----------------
+
+    /// <summary>Test/util: whether a tamed companion is currently warding the player from the planet machines
+    /// (present + within <see cref="CompanionWardRange"/>).</summary>
+    public bool PlayerWardedByCompanionForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s && WardedByCompanion(s.State);
+
+    /// <summary>Test/util: spawn a hostile planet enemy at a position so combat can be tested deterministically
+    /// without waiting on the random surface spawner (which appears 35–50 blocks out).</summary>
+    public void SpawnPlanetEnemyAtForTest(Vector3f at, float damagePerSecond = 20f)
+        => _planetEnemies.Add(new CombatEntity
+        {
+            Id = NextEntityId(),
+            Kind = CombatEntityKind.Creature,
+            Hostile = true,
+            Hull = 30f,
+            HullMax = 30f,
+            Position = at,
+            DamagePerSecond = damagePerSecond,
+        });
 }

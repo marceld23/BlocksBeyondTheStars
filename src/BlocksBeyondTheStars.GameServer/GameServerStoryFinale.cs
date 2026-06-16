@@ -299,6 +299,40 @@ public sealed partial class GameServer
         return shipHome;
     }
 
+    /// <summary>Admin QA: skip the cross-galaxy hyperjump AND the orbital gauntlet and set the player down right
+    /// inside the Guardian core chamber (revealing the finale first if needed). The hack + duel then play out
+    /// normally from the terminal. No-op when no story is active.</summary>
+    public void AdminGotoCore(PlayerSession session)
+    {
+        if (_story is null)
+        {
+            return;
+        }
+
+        if (!_storyState.GuardianSystemRevealed)
+        {
+            AdminRevealFinale(); // drive the arc to completion so the finale system exists + is on the map
+        }
+
+        EnsureGuardianSystemInGalaxy(); // defensive: the finale body must exist before we land on it
+
+        // Land straight on the core body (bypassing the jump-generator gate). This goes through the normal
+        // landing path — which stamps the chamber via LoadWorld — but skips the space instance, so no gauntlet.
+        HandleTravel(session, new TravelIntent { DestinationBodyId = GuardianCoreBodyId }, quickTravel: false, adminBypass: true);
+
+        // Drop the player from the surface pad down into the chamber, a couple of blocks off the core terminal
+        // (on open floor, within the breach reach) so the hack can channel immediately.
+        var aw = _worlds.Active;
+        if (aw.HasCoreChamber && session.CurrentLocationId == GuardianCoreBodyId)
+        {
+            var c = aw.CoreChamberCenter;
+            session.State.Position = new Vector3f(c.X + 2.5f, c.Y + 0.5f, c.Z + 2.5f);
+            session.State.RespawnPoint = session.State.Position;
+            session.SentChunks.Clear();
+            SendPlayerState(session);
+        }
+    }
+
     // ---------------- Stage 3: hack the core open ----------------
 
     /// <summary>Handles one core-hack channel tick (P6 stage 3). Valid only once the finale system is revealed

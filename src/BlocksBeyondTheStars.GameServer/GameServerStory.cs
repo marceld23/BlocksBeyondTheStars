@@ -368,6 +368,56 @@ public sealed partial class GameServer
         return _story.Memories.Count(m => session.State.Milestones.Contains(MemoryMilestoneKey(m)));
     }
 
+    // ---------------- Event-driven story insights (taming ward + non-cube shapes) ----------------
+    //
+    // Two discrete, action-triggered VEGA memories that tie the taming + block-shape features into the arc.
+    // Unlike the threshold beats (B0–B12) these are NOT progress-gated and must NOT join the Beats list (that
+    // would break the engine's strict beat ordering) — they are spoken directly on their gameplay event, once
+    // per player, tracked with the same per-player milestone mechanism the beats use.
+
+    /// <summary>Beats spoken once the Guardian's protective mandate is known (beat B5 "The Guardian"): beats
+    /// 0..5 revealed ⇒ BeatsRevealed ≥ 6. Both insights stay silent until then so an early tame or shape can't
+    /// pre-empt the Guardian reveal — they defer to the next eligible trigger (the per-player flag is only
+    /// consumed once a line is actually spoken). Assumes the default vega_protocol arc shape.</summary>
+    private const int GuardianMandateBeatCount = 6;
+
+    /// <summary>True once the shared arc has named the Guardian and its "protect the living worlds" mandate —
+    /// the premise both insights build on. Requires an active story (silent in the "none" sandbox).</summary>
+    private bool GuardianMandateKnown => StoryActive && _storyState.BeatsRevealed >= GuardianMandateBeatCount;
+
+    private const string CompanionWardInsightKey = "story:insight:companion-ward";
+    private const string ShapeAnomalyInsightKey = "story:insight:shape-anomaly";
+
+    /// <summary>VEGA's realisation the first time a present companion makes a Guardian machine stand down: the
+    /// network reads a creature-bonded human as part of the biosphere it guards, not as prey. Once-only per
+    /// player, gated behind the Guardian reveal. Returns true if it spoke this call. Driven from
+    /// <c>TickEnemies</c> (a warded player within hunt range of a machine).</summary>
+    private bool RevealCompanionWardInsight(PlayerSession session)
+    {
+        if (!GuardianMandateKnown || !session.State.Milestones.Add(CompanionWardInsightKey))
+        {
+            return false; // story too early (flag NOT consumed → may fire later), or already heard
+        }
+
+        SendVegaLine(session, "story.vega.insight.companion_ward", 2); // ShipAiLine kind 2 = memory/story
+        return true;
+    }
+
+    /// <summary>VEGA's recovered memory the first time the player forms a non-cube block: the Service always
+    /// built in cubes by design — to the Guardian any deliberate curve or edge is a constructed anomaly, the
+    /// mark of a human hand. Narrative only (no mechanic). Once-only per player, gated behind the reveal.
+    /// Returns true if it spoke this call. Driven from <c>HandleShapeCraft</c>.</summary>
+    private bool RevealShapeAnomalyMemory(PlayerSession session)
+    {
+        if (!GuardianMandateKnown || !session.State.Milestones.Add(ShapeAnomalyInsightKey))
+        {
+            return false;
+        }
+
+        SendVegaLine(session, "story.vega.insight.shape_anomaly", 2);
+        return true;
+    }
+
     // ---------------- P7: world knowledge level (NPC flavour gating) ----------------
 
     /// <summary>The world's story "knowledge level" 0..4 (0 = nothing learned … 4 = the Guardian core is
@@ -431,6 +481,32 @@ public sealed partial class GameServer
         AdvanceStory(); // reveals every crossed beat + the finale, persists + broadcasts once
     }
 
+    /// <summary>Admin QA: reveal every story fragment and personal memory to one player so the full lore reads
+    /// in the Story tab (mirrors having found them all). Each fragment is also recorded against the shared arc
+    /// (deduped), so this completes the readable beats too. Returns the number of fragment archive texts sent.</summary>
+    public int AdminRevealAllLore(PlayerSession session)
+    {
+        if (_story is null)
+        {
+            return 0;
+        }
+
+        int sent = 0;
+        foreach (var frag in _story.Fragments)
+        {
+            Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
+            RecordStoryFragment(frag.Key); // dedupes + counts toward the arc + advances/reveals beats
+            sent++;
+        }
+
+        while (UnlockNextPlayerMemory(session))
+        {
+            // unlock every remaining personal memory for this player (each call reveals the next one)
+        }
+
+        return sent;
+    }
+
     // ---------------- Test hooks ----------------
 
     /// <summary>Test hook: record a net fragment find (mirrors the gameplay event).</summary>
@@ -454,4 +530,18 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: win the finale (pacify the galaxy — stops all machine spawns).</summary>
     public void MarkGuardianDefeatedForTest() => MarkGuardianDefeated();
+
+    /// <summary>Test hook: attempt the companion-ward insight for a player (mirrors a machine standing down in
+    /// a companion's presence); returns true if VEGA spoke it this call.</summary>
+    public bool RevealCompanionWardInsightForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s && RevealCompanionWardInsight(s);
+
+    /// <summary>Test hook: attempt the non-cube-shape memory for a player (mirrors forming a shape); returns
+    /// true if VEGA spoke it this call.</summary>
+    public bool RevealShapeAnomalyMemoryForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s && RevealShapeAnomalyMemory(s);
+
+    /// <summary>Test hook: whether a player carries a given per-player story milestone flag.</summary>
+    public bool HasStoryMilestoneForTest(string playerId, string key)
+        => FindSessionByPlayerId(playerId)?.State.Milestones.Contains(key) ?? false;
 }

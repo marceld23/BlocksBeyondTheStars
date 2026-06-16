@@ -432,7 +432,7 @@ public sealed partial class GameServer
     /// shortcut: it is gated by the Instant Travel world rule — when that rule is off you may only quick-travel
     /// to bodies you've already landed on. <paramref name="quickTravel"/> = false is a manual flight landing
     /// (you flew there and chose to set down), which is always allowed.</summary>
-    private void HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel = true)
+    private void HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel = true, bool adminBypass = false)
     {
         Serve(session); // act on the traveller's own world + ship (the jump-drive check below needs it)
 
@@ -484,7 +484,7 @@ public sealed partial class GameServer
         // A jump to a different star system is a hyperspace jump — it needs a jump generator fitted.
         var origin = _galaxy?.FindBody(session.CurrentLocationId);
         bool hyperjump = origin is null || origin.SystemId != body.SystemId;
-        if (hyperjump && (_ship is null || !_ship.HasModule("jump_generator")))
+        if (hyperjump && !adminBypass && (_ship is null || !_ship.HasModule("jump_generator")))
         {
             Reject(session, "travel", "Your ship has no jump generator — fit one to jump between star systems.");
             return;
@@ -2388,6 +2388,7 @@ public sealed partial class GameServer
             new MaterialPool(_content, session.State, _ship).Add(output, count);
             Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
             SendInventory(session);
+            if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
             return;
         }
 
@@ -2405,6 +2406,7 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
         SendInventory(session);
         ShipAiOnCraft(session);
+        if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
     }
 
     /// <summary>Fraction of a crafted item's recipe inputs recovered when it is disassembled.</summary>
@@ -2646,6 +2648,56 @@ public sealed partial class GameServer
                 });
                 break;
             }
+
+            // ---- Finale QA: fit a ship module (e.g. the jump generator), reveal all lore, or drop into the core ----
+            case "grant_module":
+            {
+                var key = cmd.StringArg ?? string.Empty;
+                if (_ship is null)
+                {
+                    Reject(session, "admin", "You have no active ship to fit a module to.");
+                    return;
+                }
+
+                if (_content.GetShipModule(key) is null)
+                {
+                    Reject(session, "admin", "Unknown ship module.");
+                    return;
+                }
+
+                if (!_ship.HasModule(key))
+                {
+                    _ship.Modules.Add(key);
+                    ResizeCargo(_ship);
+                    RecomputeShipCombatStats();
+                    _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship);
+                    SendShipCombatStatus(session);
+                    SendPlayerState(session);
+                }
+
+                Send(session, new ServerMessage { Text = $"Ship module fitted: {key}" });
+                CheatLog(p, $"fitted ship module {key}");
+                break;
+            }
+
+            case "reveal_lore":
+            {
+                int n = AdminRevealAllLore(session);
+                Send(session, new ServerMessage { Text = $"Revealed all story lore ({n} fragments + every memory)." });
+                CheatLog(p, "revealed all story lore");
+                break;
+            }
+
+            case "goto_core":
+                AdminGotoCore(session);
+                Send(session, new ServerMessage
+                {
+                    Text = _storyState.GuardianSystemRevealed
+                        ? "Dropped into the Guardian core chamber."
+                        : "No active story to drop into a finale for.",
+                });
+                CheatLog(p, "teleported to the Guardian core chamber");
+                break;
 
             default:
                 Reject(session, "admin", "Unknown admin command.");

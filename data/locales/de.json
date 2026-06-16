@@ -152,7 +152,7 @@
   "blueprint.comm_radio.desc": "Fertigt ein Funkgerät zum Chatten mit anderen Spielern.",
   "ui.chat.hint": "Enter: Chat",
   "ui.chat.send_hint": "Enter zum Senden · Esc zum Abbrechen",
-  "ui.admin.help": "Admin (falls erlaubt): /give <item> [anzahl] [spieler] · /tp <x> <y> <z> · /tpp <spieler> · /settime <day|night> · /setweather <clear|storm> · /fly · /god · /instant · /bump <notiz>",
+  "ui.admin.help": "Admin (falls erlaubt): /give <item> [anzahl] [spieler] · /tp <x> <y> <z> · /tpp <spieler> · /settime <day|night> · /setweather <clear|storm> · /fly · /god · /instant · /bump <notiz> · Story: /story · /advance [n] · /revealfinale · /lore · /jumpdrive · /gotocore",
   "creature.generic.name": "Kreatur",
   "item.machete.name": "Machete",
   "item.machete.desc": "Eine schwere Klinge für den Nahkampf.",

@@ -322,6 +322,28 @@ is logged (`[CHEAT] …`). Type **`/help`** in chat to see the list in-game.
 | `/ai <prompt>` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](SELF_HOSTING.md) §8) |
 | `/help` | List the admin commands in chat |
 
+#### Story / finale testing (skip ahead to the endgame)
+These fast-track the story so you can read the full arc and reach the **Guardian finale** (the dialogue-duel
+boss) without grinding the whole playthrough. Same admin + `CheatsAllowed` gating as above.
+
+| Command | Effect |
+|---|---|
+| `/story` | Print the story status (fragments, kills, milestones, beats revealed, finale revealed/defeated) |
+| `/advance [n]` | Advance the shared arc by `n` milestones (default 1), revealing any beats you cross |
+| `/revealfinale` | Drive the arc to completion: reveal all narrator beats **and** place the Guardian finale system on the star map |
+| `/lore` | Reveal **every** story fragment and personal memory to you (fills the Story tab); also completes the readable beats |
+| `/jumpdrive` | Fit a **jump generator** (`jump_generator`) to your active ship so you can hyperjump between star systems |
+| `/gotocore` | Reveal the finale (if needed) and drop you straight into the Guardian core chamber — **skips the flight and the orbital gauntlet** |
+
+Two ways to test the finale:
+- **Full run:** `/revealfinale` → `/jumpdrive` → (optionally `/god`) → open the star map and hyperjump to
+  *Guardian Core* → survive the orbital gauntlet → land → descend the aperture shaft → hold to hack the core →
+  win the argument duel.
+- **Shortcut:** `/lore` (to read everything) → `/gotocore` → hack the core and win the duel.
+
+The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
+option until the core concedes and shuts down.
+
 The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` stays a normal chat
 message the server intercepts. Non-admins typing a command just get a rejection toast.
 
