@@ -508,34 +508,46 @@ public static class StationGenerator
         }
     }
 
-    /// <summary>Places a planter ONLY when it is fully backed by the station hull: a solid block directly below
-    /// AND no horizontal side opening onto floorless void. Mirrors the server's runtime flora rule so a generated
-    /// station never spawns a plant you can see through (into space) or walk through out into the void. A block id
-    /// of 0 is air/void; anything else is treated as solid hull/furniture backing.</summary>
-    private static void PlantIfBacked(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
-        int x, int y, int z, ushort plant)
+    /// <summary>Places one decorative planter on a guaranteed-INTERIOR floor cell of the room — never in a
+    /// wall corner. The cell must be at least two cells in from every outer wall, so all four of its horizontal
+    /// neighbours are themselves interior floor (never the hull edge or open space); the plant therefore can
+    /// never be seen through (into the void) or walked through out into space — the enclosure holds by
+    /// construction, not by a per-neighbour check. The cell must also be empty (no furniture/light already there)
+    /// and stand on a <paramref name="hull"/> floor block. Scans deterministically and places the first match;
+    /// a room with no free interior cell simply gets no planter.</summary>
+    private static void PlantInterior(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
+        Vector3i o, int rw, int rl, ushort hull, ushort plant)
     {
-        if (plant == 0 || get(x, y - 1, z) == 0)
+        if (plant == 0 || hull == 0)
         {
-            return; // no plant, or no floor under it
+            return; // nothing to plant, or no hull to stand on
         }
 
-        var dirs = new[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
-        foreach (var (dx, dz) in dirs)
+        int cx = rw / 2, cz = rl / 2; // door/shaft centre columns to keep clear
+        for (int lx = 2; lx <= rw - 3; lx++)
+        for (int lz = 2; lz <= rl - 3; lz++)
         {
-            if (get(x + dx, y, z + dz) == 0 && get(x + dx, y - 1, z + dz) == 0)
+            if (lx == cx || lz == cz)
             {
-                return; // a side opens onto floorless void → skip the planter
+                continue; // never the door/shaft line
+            }
+
+            int wx = o.X + lx, wy = o.Y + 1, wz = o.Z + lz;
+            // Empty cell (no furniture) standing on a hull floor block → a clean interior spot for a plant.
+            if (get(wx, wy, wz) == 0 && get(wx, wy - 1, wz) == hull)
+            {
+                set(wx, wy, wz, plant);
+                return;
             }
         }
-
-        set(x, y, z, plant);
     }
 
     /// <summary>
     /// Furnishes a module's interior by type with floor props + ceiling lights, all placed RELATIVE to
-    /// the room size — corners/edges only, never the centre lines (door/shaft columns). Big rooms get
-    /// denser furnishing (longer counters, more bunks, extra consoles, a centre ceiling light).
+    /// the room size. Built-in fixtures (consoles, counters, bunks, lights) hug the walls/corners, never the
+    /// centre lines (door/shaft columns); decorative planters go the opposite way — set well inside the room
+    /// via <see cref="PlantInterior"/> so they never sit against the hull edge. Big rooms get denser furnishing
+    /// (longer counters, more bunks, extra consoles, a centre ceiling light).
     /// </summary>
     private static void FurnishModule(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
         Vector3i o, string type, int rw, int rh, int rl, ushort hull, ushort light, ushort tank, ushort dark, ushort plant)
@@ -560,7 +572,7 @@ public static class StationGenerator
 
         switch (type)
         {
-            case "hub": // a control console bank along the -X wall + status panels + a planter
+            case "hub": // a control console bank along the -X wall + status panels + an interior planter
                 for (int z = z0 + 1; z <= z1 - 1; z += 2)
                 {
                     if (z == cz || z == cz - 1) continue; // doorway line stays clear
@@ -568,7 +580,7 @@ public static class StationGenerator
                     set(o.X + x0, o.Y + 2, o.Z + z, light);
                 }
 
-                PlantIfBacked(set, get, o.X + x1, o.Y + 1, o.Z + z1, plant);
+                PlantInterior(set, get, o, rw, rl, hull, plant);
                 break;
 
             case "market":
@@ -589,7 +601,7 @@ public static class StationGenerator
                     }
                 }
 
-                PlantIfBacked(set, get, o.X + x1, o.Y + 1, o.Z + z0, plant);
+                PlantInterior(set, get, o, rw, rl, hull, plant);
                 break;
 
             case "medbay": // glowing heal tanks in the corners (two on big rooms)
@@ -604,7 +616,7 @@ public static class StationGenerator
 
                 break;
 
-            case "quarters": // double bunks along the +X wall, one pair per 3 cells of depth + a planter
+            case "quarters": // double bunks along the +X wall, one pair per 3 cells of depth + an interior planter
                 for (int z = z0; z + 1 <= z1; z += 3)
                 {
                     if (z <= cz && cz <= z + 1) continue; // shaft/door line
@@ -614,7 +626,7 @@ public static class StationGenerator
                     set(o.X + x1, o.Y + 1, o.Z + z + 1, dark);
                 }
 
-                PlantIfBacked(set, get, o.X + x0, o.Y + 1, o.Z + z1, plant);
+                PlantInterior(set, get, o, rw, rl, hull, plant);
                 break;
 
             case "hangar":

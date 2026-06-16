@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -233,5 +234,74 @@ public sealed class StationGenerationTests
         }
 
         Assert.True(found, "Colossal stations should merge a market double hall in typical layouts.");
+    }
+
+    /// <summary>
+    /// Regression guard for the "see-through grass in a station" bug: every decorative plant a generated
+    /// station places must sit fully inside the hull — never a cell you can see the void through or walk out
+    /// into space from. We prove it structurally: flood-fill the exterior void treating air AND plants as
+    /// passable (a billboard plant has no opaque face and no collider), then assert no plant cell was reached.
+    /// Also asserts plants are still being placed (the feature isn't silently disabled) and that each stands
+    /// on a solid floor block. This is the coverage that was missing when the bug first slipped through.
+    /// </summary>
+    [Theory]
+    [InlineData("small")]
+    [InlineData("medium")]
+    [InlineData("large")]
+    [InlineData("huge")]
+    [InlineData("colossal")]
+    public void DecorativePlants_StayInsideTheHull_NeverOpenToTheVoid(string tier)
+    {
+        var c = Content();
+        ushort plant = c.GetBlock("flora_plant")!.NumericId.Value;
+        Assert.NotEqual((ushort)0, plant);
+
+        int totalPlants = 0;
+        for (long seed = 1; seed <= 50; seed++)
+        {
+            var s = StationGenerator.Generate(tier, seed * 1009 + 7, c);
+            int W = s.Width, H = s.Height, L = s.Length;
+
+            var reached = new bool[W * H * L];
+            int Idx(int x, int y, int z) => (x * H + y) * L + z;
+            bool Passable(int x, int y, int z) { ushort b = s.Get(x, y, z); return b == 0 || b == plant; }
+            var stack = new Stack<(int X, int Y, int Z)>();
+            void Visit(int x, int y, int z)
+            {
+                if (x < 0 || y < 0 || z < 0 || x >= W || y >= H || z >= L) return;
+                if (reached[Idx(x, y, z)] || !Passable(x, y, z)) return;
+                reached[Idx(x, y, z)] = true;
+                stack.Push((x, y, z));
+            }
+
+            // Seed the flood from every cell on the bounding-box surface, then expand through air/plants.
+            for (int x = 0; x < W; x++)
+            for (int y = 0; y < H; y++) { Visit(x, y, 0); Visit(x, y, L - 1); }
+            for (int x = 0; x < W; x++)
+            for (int z = 0; z < L; z++) { Visit(x, 0, z); Visit(x, H - 1, z); }
+            for (int y = 0; y < H; y++)
+            for (int z = 0; z < L; z++) { Visit(0, y, z); Visit(W - 1, y, z); }
+
+            int[] dx = { 1, -1, 0, 0, 0, 0 }, dy = { 0, 0, 1, -1, 0, 0 }, dz = { 0, 0, 0, 0, 1, -1 };
+            while (stack.Count > 0)
+            {
+                var (x, y, z) = stack.Pop();
+                for (int d = 0; d < 6; d++) Visit(x + dx[d], y + dy[d], z + dz[d]);
+            }
+
+            for (int x = 0; x < W; x++)
+            for (int y = 0; y < H; y++)
+            for (int z = 0; z < L; z++)
+            {
+                if (s.Get(x, y, z) != plant) continue;
+                totalPlants++;
+                Assert.False(reached[Idx(x, y, z)],
+                    $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) is open to the void (see-through / walk-through).");
+                Assert.True(y > 0 && s.Get(x, y - 1, z) != 0,
+                    $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) does not stand on a solid block.");
+            }
+        }
+
+        Assert.True(totalPlants > 0, $"Stations of tier '{tier}' should still be furnished with decorative plants.");
     }
 }
