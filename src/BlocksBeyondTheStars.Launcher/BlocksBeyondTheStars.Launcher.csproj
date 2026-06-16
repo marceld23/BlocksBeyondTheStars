@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>BlocksBeyondTheStars.Launcher</AssemblyName>
+    <RootNamespace>BlocksBeyondTheStars.Launcher</RootNamespace>
+    <Product>Blocks Beyond the Stars</Product>
+    <AssemblyTitle>Blocks Beyond the Stars Launcher</AssemblyTitle>
+    <Version>0.1.0</Version>
+    <!-- Same icon as the game exe (generated from client/.../Icon/app_icon.png via artifacts/make-icon.ps1). -->
+    <ApplicationIcon>app_icon.ico</ApplicationIcon>
+    <!-- Self-contained single-file publish flags are passed by scripts/build-client.ps1 so the launcher
+         needs no .NET runtime on the player's machine. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Keep in lockstep with the client's vendored Velopack (scripts/sync-velopack-libs.ps1) and the vpk
+         CLI version so this launcher can serve as the Velopack main exe and handle install/update hooks. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>

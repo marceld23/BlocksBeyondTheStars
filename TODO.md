@@ -17,6 +17,30 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Loading-splash launcher — instant splash over the black startup gap — ✅ launcher built + verified (2026-06-16)
+The built client shows nothing for ~12–14 s on first launch (Windows Defender scanning the 162 Mono DLLs),
+then the Unity splash appears. Unity can't draw before its engine inits, so a separate process must fill the
+gap. New `src/BlocksBeyondTheStars.Launcher` (.NET 8 WinForms, self-contained single-file ~68 MB — same order
+as the bundled self-contained server) shows an instant "Loading…/Lädt…" splash, starts the player, and hands
+off (closes) the moment the player's window appears (Unity's own splash then takes over — kept visible per the
+free-license terms).
+- **`Program.cs`:** runs `VelopackApp.Build().Run()` first (so the launcher can be the Velopack `--mainExe`
+  and handle install/update/uninstall hooks), then `Process.Start`s `BlocksBeyondTheStars.exe` from its own
+  folder and shows the splash.
+- **`SplashForm.cs`:** borderless top-most procedural splash (dark space gradient + stars + title + sweeping
+  indeterminate bar; loading text localized by OS culture; a `splash.png` next to the exe overrides the art).
+  Polls the child and closes on `MainWindowHandle != 0` (350 ms grace + fade), with a 45 s safety timeout and
+  early close if the child exits.
+- **Build/dist:** `build-client.ps1` publishes the launcher (compressed single-file) and drops it next to the
+  player; `publish-client-installer.ps1` sets `--mainExe` to the launcher (shortcut target + hook host).
+- **Verified** with a deterministic dummy-GUI test: launcher starts the child, hands off while the child window
+  stays open; a console-only child correctly waits. *Cosmetic only — does not speed up startup; combine with
+  code-signing + Defender-exclusion / IL2CPP / shrinking `Resources/` for actual speed. Not committed yet.*
+- **Icon + readability:** the launcher exe/window share the game's rocket icon — `scripts/make-launcher-icon.ps1`
+  builds a multi-size `.ico` from `Icon/app_icon.png`, embedded via the csproj `<ApplicationIcon>`. The splash
+  layout now derives from the live client size (title auto-fits, pixel-unit fonts, manual DPI scaling), so it's
+  crisp and readable at 100 %/150 % DPI; a `--render-splash` dev hook renders it to a PNG for visual checks.
+
 ### ★ Window mode — windowed / borderless / exclusive, movable + maximizable — ✅ client + Unity build (2026-06-16)
 The client used to always launch as a borderless fullscreen window on the primary monitor, with no way to move
 it to another monitor or maximize it (`resizableWindow: 0` + the legacy `Screen.fullScreen` bool). Now it starts

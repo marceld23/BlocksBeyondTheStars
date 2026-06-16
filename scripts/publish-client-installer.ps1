@@ -53,6 +53,11 @@ if (-not (Test-Path (Join-Path $build 'BlocksBeyondTheStars.exe'))) {
     Write-Error "Client build not found at '$build'. Build it first with ./scripts/build-client.ps1."
 }
 
+# The launcher (loading splash) is the executable users launch; it must be present so it can be the mainExe.
+if (-not (Test-Path (Join-Path $build 'BlocksBeyondTheStars.Launcher.exe'))) {
+    Write-Error "Launcher not found at '$build'. Re-run ./scripts/build-client.ps1 (it now builds the launcher)."
+}
+
 # Derive the version from AppShell.Version unless one was given.
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $appShell = Get-Content (Join-Path $repo 'client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs') -Raw
@@ -77,7 +82,10 @@ $packArgs = @(
     '--packTitle', 'Blocks Beyond the Stars',
     '--packAuthors', 'JuMaVe Games',
     '--packDir', $build,
-    '--mainExe', 'BlocksBeyondTheStars.exe',
+    # The launcher is the launched executable (shortcut target + Velopack hook host); it shows the loading
+    # splash, then starts BlocksBeyondTheStars.exe. The launcher calls VelopackApp.Run() first, so install/
+    # update/uninstall hooks are handled correctly.
+    '--mainExe', 'BlocksBeyondTheStars.Launcher.exe',
     '--channel', $Channel,
     '--outputDir', $out
 )

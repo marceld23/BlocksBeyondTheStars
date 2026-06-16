@@ -79,4 +79,18 @@ if ($compileFail -or -not $succeeded) {
     Write-Error "Build FAILED ($why). See $log"
 }
 
+# Front the player with the loading-splash launcher (it shows an instant "Loading…" splash to cover the black
+# pre-engine startup gap, then starts the player and hands off when its window appears). Built self-contained
+# single-file (compressed) so it needs no .NET runtime on the player's machine, then dropped next to the player
+# exe so the Velopack installer (publish-client-installer.ps1, --mainExe) ships it as the launched executable.
+Write-Host "Building the loading-splash launcher..." -ForegroundColor Cyan
+$launcherProj = Join-Path $repo 'src/BlocksBeyondTheStars.Launcher/BlocksBeyondTheStars.Launcher.csproj'
+$launcherTmp = Join-Path $repo 'artifacts/launcher'
+& dotnet publish $launcherProj -c Release -r win-x64 --self-contained true `
+    -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+    -o $launcherTmp
+if ($LASTEXITCODE -ne 0) { Write-Error "Launcher build FAILED." }
+Copy-Item (Join-Path $launcherTmp 'BlocksBeyondTheStars.Launcher.exe') (Join-Path $project $Out) -Force
+
 Write-Host "Build complete → $(Join-Path $project $Out)\BlocksBeyondTheStars.exe" -ForegroundColor Green
+Write-Host "Launcher       → $(Join-Path $project $Out)\BlocksBeyondTheStars.Launcher.exe (run this for the splash)" -ForegroundColor Green
