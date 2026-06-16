@@ -183,14 +183,35 @@ namespace BlocksBeyondTheStars.Client
                 e.NameText = tm;
             }
 
+            float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 3f) + 0.4f;
+            var platePos = e.Root.transform.position + Vector3.up * top;
+
+            // Companion names only read up close, mirroring the NPC nameplates: fade between 18 m and 28 m,
+            // and drop the label entirely beyond that so a distant pet stays anonymous in the fauna.
+            var cam = Camera.main;
+            const float fadeStart = 18f, fadeEnd = 28f;
+            float alpha = 1f;
+            if (cam != null)
+            {
+                float dist = Vector3.Distance(cam.transform.position, platePos);
+                if (dist >= fadeEnd)
+                {
+                    if (e.Nameplate.activeSelf) e.Nameplate.SetActive(false);
+                    return;
+                }
+
+                if (dist > fadeStart) alpha = 1f - (dist - fadeStart) / (fadeEnd - fadeStart);
+            }
+
             if (!e.Nameplate.activeSelf) e.Nameplate.SetActive(true);
 
             string label = string.IsNullOrEmpty(c.CustomName) ? c.Name : c.CustomName;
             if (e.NameText.text != label) e.NameText.text = label;
 
-            float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 3f) + 0.4f;
-            e.Nameplate.transform.position = e.Root.transform.position + Vector3.up * top;
-            var cam = Camera.main;
+            var col = new Color(0.6f, 0.96f, 0.8f, alpha); // friendly green-cyan, faded by distance
+            if (e.NameText.color != col) e.NameText.color = col;
+
+            e.Nameplate.transform.position = platePos;
             if (cam != null)
             {
                 e.Nameplate.transform.rotation = Quaternion.LookRotation(e.Nameplate.transform.position - cam.transform.position);

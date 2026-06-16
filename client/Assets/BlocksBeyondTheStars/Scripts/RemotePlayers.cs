@@ -178,7 +178,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!r.Hidden)
                 {
-                    labels.World(cam, r.Go.transform.position + Vector3.up * 2.1f, r.Name, UiKit.TextCol);
+                    // Fade names out between 30 m and 45 m — a bit further than NPCs so mates stay recognisable.
+                    labels.World(cam, r.Go.transform.position + Vector3.up * 2.1f, r.Name, UiKit.TextCol, false, 30f, 45f);
                 }
             }
         }

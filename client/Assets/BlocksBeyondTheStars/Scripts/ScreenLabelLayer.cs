@@ -49,8 +49,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnEnable() => StartCoroutine(FinalizeLoop());
 
-        /// <summary>Pushes a label anchored to a world position (skipped if behind the camera).</summary>
-        public void World(Camera cam, Vector3 world, string text, Color color, bool bold = false)
+        /// <summary>Pushes a label anchored to a world position (skipped if behind the camera).
+        /// When <paramref name="fadeEnd"/> &gt; 0 the label fades out with distance: fully opaque up to
+        /// <paramref name="fadeStart"/>, linearly down to zero at <paramref name="fadeEnd"/>, and dropped
+        /// entirely beyond it — so names only read up close instead of across the whole world.</summary>
+        public void World(Camera cam, Vector3 world, string text, Color color, bool bold = false,
+                          float fadeStart = 0f, float fadeEnd = 0f)
         {
             if (cam == null || string.IsNullOrEmpty(text))
             {
@@ -63,12 +67,33 @@ namespace BlocksBeyondTheStars.Client
                 return; // behind the camera
             }
 
+            float alpha = 1f;
+            if (fadeEnd > 0f)
+            {
+                float dist = Vector3.Distance(cam.transform.position, world);
+                if (dist >= fadeEnd)
+                {
+                    return; // too far away to show at all
+                }
+
+                if (dist > fadeStart && fadeEnd > fadeStart)
+                {
+                    alpha = 1f - (dist - fadeStart) / (fadeEnd - fadeStart);
+                }
+            }
+
             BeginFrameIfNeeded();
             var e = Acquire();
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
             e.Rt.anchoredPosition = local;
             e.Main.text = e.Shadow.text = text;
-            e.Main.color = color;
+            var main = color;
+            main.a *= alpha;
+            e.Main.color = main;
+            // The drop-shadow must fade with the text or it lingers as an orphan smudge.
+            var shadow = e.Shadow.color;
+            shadow.a = 0.7f * alpha;
+            e.Shadow.color = shadow;
             e.Main.fontStyle = e.Shadow.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
             e.Rt.gameObject.SetActive(true);
         }

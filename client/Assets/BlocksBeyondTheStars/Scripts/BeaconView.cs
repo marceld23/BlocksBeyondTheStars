@@ -33,7 +33,8 @@ namespace BlocksBeyondTheStars.Client
                     : b.Label;
                 // SceneX/SceneZ map the canonical spot to the lap nearest the player, so the label sits over the rendered block.
                 var pos = new Vector3(Game.SceneX(b.X), b.Y + 1.7f, Game.SceneZ(b.Z));
-                labels.World(cam, pos, name, amber);
+                // Landmark labels carry further than NPC names: fade between 40 m and 60 m.
+                labels.World(cam, pos, name, amber, false, 40f, 60f);
             }
         }
     }

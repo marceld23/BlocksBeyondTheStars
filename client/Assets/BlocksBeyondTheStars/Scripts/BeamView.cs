@@ -242,7 +242,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 string name = string.IsNullOrEmpty(b.Name) ? (Game.Localizer?.Get("ui.beam.default") ?? "Beam Block") : b.Name;
                 var pos = Game.ScenePos(b.X, b.Y, b.Z) + Vector3.up * 2.6f;
-                labels.World(cam, pos, name, Cyan);
+                // Teleporter pads are navigation landmarks: fade between 40 m and 60 m.
+                labels.World(cam, pos, name, Cyan, false, 40f, 60f);
             }
         }
 
