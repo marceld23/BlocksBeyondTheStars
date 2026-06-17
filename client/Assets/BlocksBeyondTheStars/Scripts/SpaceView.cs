@@ -68,6 +68,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<string> _structRemove = new List<string>();
 
         private Transform _exhaust;
+        private ParticleSystem _thruster; // real engine-flame particles (replaces the old Unlit cube exhaust bits)
         private GameObject _hatchDoor; // closed door panel capping the rear hatch opening (slides open on an EVA)
         private Material _hatchMat; // glowing entry-hatch marker on the ship's tail (pulses on an EVA)
         private Material _hullMat;  // the ship's hull material — re-tinted when the player picks a colour (item 32)
@@ -291,26 +292,22 @@ namespace BlocksBeyondTheStars.Client
                 _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(Input.GetAxis("Vertical")));
             }
 
-            // Thruster exhaust stretches with throttle + a gentle flame shimmer. The flicker is kept small
-            // and low-frequency so the flame breathes rather than buzzing — a fast/large pulse here read as
-            // the whole ship "wobbling". The front face stays anchored at the engine; only the tail grows.
+            // Engine flame: a real ParticleSystem thruster (BuildThruster) whose emission + jet speed track the
+            // throttle. The small Unlit nozzle core (_exhaust) just glows at the vent; the old stretching flame +
+            // cube exhaust bits are retired in favour of the particle jet.
+            float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(Input.GetAxis("Vertical")) : 0f;
             if (_exhaust != null)
             {
-                float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(Input.GetAxis("Vertical")) : 0.15f;
-                float len = 0.6f + throttle * 2.6f + Mathf.Sin(Time.time * 8f) * 0.04f;
-                _exhaust.localScale = new Vector3(0.6f, 0.6f, len);
-                _exhaust.localPosition = new Vector3(0f, 0f, -2.0f - len * 0.5f);
+                _exhaust.localScale = new Vector3(0.5f, 0.5f, 0.55f + throttle * 0.5f); // steady nozzle glow core
+            }
 
-                // Exhaust particle stream: small fading bits shoot backwards, rate scales with throttle.
-                if (_phase == Phase.Cruise && throttle > 0.1f)
-                {
-                    _exhaustSpawnTimer -= Time.deltaTime;
-                    if (_exhaustSpawnTimer <= 0f)
-                    {
-                        _exhaustSpawnTimer = Mathf.Lerp(0.12f, 0.035f, throttle);
-                        SpawnExhaustBit(throttle);
-                    }
-                }
+            if (_thruster != null)
+            {
+                bool firing = _phase == Phase.Cruise && !_eva;
+                var em = _thruster.emission;
+                em.rateOverTime = firing ? Mathf.Lerp(20f, 130f, throttle) : 0f;
+                var main = _thruster.main;
+                main.startSpeed = 5f + throttle * 9f;
             }
         }
 
@@ -357,6 +354,101 @@ namespace BlocksBeyondTheStars.Client
             go.GetComponent<Renderer>().sharedMaterial = _exhaustBitMat;
             var bit = go.AddComponent<ExhaustBit>();
             bit.Vel = back * (14f + throttle * 10f) + Random.insideUnitSphere * 1.6f;
+        }
+
+        /// <summary>Builds the real engine-flame thruster: a backward cone of additive blue-white particles that
+        /// fade + shrink, parented at the ship's exhaust vent. Emission + jet speed are driven each frame in
+        /// LateUpdate from the throttle. Replaces the old stretched cube + Unlit cube exhaust bits.</summary>
+        private void BuildThruster(Transform ship, Vector3 localPos)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/Particle");
+            if (shader == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("Thruster");
+            go.transform.SetParent(ship, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // cone emits along +Z → ship's −Z (astern)
+
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.startLifetime = 0.35f;
+            main.startSpeed = 7f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.42f);
+            main.startColor = new Color(0.6f, 0.85f, 1f, 1f);
+            main.maxParticles = 240;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local; // the flame stays attached to the engine
+            main.gravityModifier = 0f;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f; // driven by throttle in LateUpdate
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 11f;
+            shape.radius = 0.22f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.85f, 0.93f, 1f), 0f),
+                    new GradientColorKey(new Color(0.35f, 0.6f, 1f), 0.55f),
+                    new GradientColorKey(new Color(0.15f, 0.3f, 0.8f), 1f),
+                },
+                new[] { new GradientAlphaKey(0.9f, 0f), new GradientAlphaKey(0.5f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            col.color = new ParticleSystem.MinMaxGradient(grad);
+
+            var sol = ps.sizeOverLifetime;
+            sol.enabled = true;
+            sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.15f));
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.material = new Material(shader) { mainTexture = ThrusterDot() };
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.sortMode = ParticleSystemSortMode.None;
+
+            ps.Play();
+            _thruster = ps;
+        }
+
+        private static Texture2D _thrusterDot;
+
+        /// <summary>A soft round flame dot (bright core → transparent rim), shared by every thruster instance.</summary>
+        private static Texture2D ThrusterDot()
+        {
+            if (_thrusterDot != null)
+            {
+                return _thrusterDot;
+            }
+
+            const int n = 16;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
+                px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Clamp01(1f - d), 1.8f));
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            _thrusterDot = tex;
+            return tex;
         }
 
         /// <summary>A short-lived debris/exhaust cube: flies along <see cref="Vel"/>, shrinks, self-destroys.
@@ -1822,6 +1914,7 @@ namespace BlocksBeyondTheStars.Client
             _aimHighlight = null; // marker lived under _root (destroyed)
             _ship = null;
             _exhaust = null;
+            _thruster = null; // particle thruster lived under the destroyed _ship
             _hatchDoor = null; // lived under the destroyed _ship
             _sun = null; // sun billboard lived under _root (destroyed); flare sprites persist on _ui
             _sunMat = null;
@@ -2233,6 +2326,7 @@ namespace BlocksBeyondTheStars.Client
             // Glowing thruster exhaust (stretches with throttle in Update).
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, -2.4f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
+            BuildThruster(ship.transform, ex.transform.localPosition);
             return ship;
         }
 
@@ -2286,6 +2380,7 @@ namespace BlocksBeyondTheStars.Client
             Cube("Hatch", ship.transform, new Vector3(0f, lowY, rearZ + 0.1f), new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
             var ex = Cube("Exhaust", ship.transform, new Vector3(0f, 0f, rearZ - 0.6f), new Vector3(0.6f, 0.6f, 1f), Unlit(new Color(0.6f, 0.85f, 1f)));
             _exhaust = ex.transform;
+            BuildThruster(ship.transform, ex.transform.localPosition);
 
             // Cap the rear hatch opening with a CLOSED door so the ship isn't a hole at the stern (you used to see
             // straight into the hull). It slides open (hides) on an EVA so you can still board. Detected from the
@@ -2500,6 +2595,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _exhaust = null;
+            _thruster = null;
             _hatchMat = null;
             _hullMat = null;
             _appliedHullRgb = -1;
