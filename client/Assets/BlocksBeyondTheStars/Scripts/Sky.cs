@@ -162,6 +162,9 @@ namespace BlocksBeyondTheStars.Client
 
             float intensity = env?.Intensity ?? 0f;
             Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback
+            // Per-world daytime sky/atmosphere hue (server-seeded; blue → green → yellow → red). Only worlds with an
+            // atmosphere actually show it (airless bodies go to the space sky below). Fallback = the old fixed blue.
+            Color skyBase = env != null ? Rgb(env.SkyColor) : new Color(0.55f, 0.75f, 0.95f);
             // Boarded on an orbital station: it floats free in space, so show the space sky (black, no fog)
             // and treat it like a lit, life-supported interior — independent of the planet far below.
             bool boarded = !string.IsNullOrEmpty(Game.StationName);
@@ -180,10 +183,10 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f));
             }
 
-            ApplyLighting(_time, intensity, sun, spaceSky, constantLight: boarded);
+            ApplyLighting(_time, intensity, sun, skyBase, spaceSky, constantLight: boarded);
         }
 
-        private void ApplyLighting(float time, float weatherIntensity, Color sunColor, bool spaceSky, bool constantLight = false)
+        private void ApplyLighting(float time, float weatherIntensity, Color sunColor, Color skyBase, bool spaceSky, bool constantLight = false)
         {
             // Sun height: peaks at noon (0.5), lowest at midnight (0/1).
             float sunHeight = Mathf.Sin((time - 0.25f) * Mathf.PI * 2f);
@@ -217,17 +220,22 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                Color daySky = Color.Lerp(new Color(0.55f, 0.75f, 0.95f), new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
+                // The per-world atmosphere hue (server-seeded; blue → green → yellow → red) is the daytime base,
+                // washing toward overcast grey with weather. Each world's sky now reads distinct instead of a
+                // single fixed blue.
+                Color daySky = Color.Lerp(skyBase, new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
 
-                // Tint the daytime sky toward the system star's hue, so a warm / red star gives a warmer sky
-                // and a blue-white star a cooler one (B37 — the world's colouring follows its sun, not a fixed
-                // blue). Normalise the sun colour to a pure hue first so only its tint shifts the sky, not its
-                // brightness. The directional sun light + block diffuse already use the star colour.
+                // Tint the daytime sky a touch toward the system star's hue, so a warm / red star gives a warmer
+                // sky and a blue-white star a cooler one (B37). Normalise the sun colour to a pure hue first so
+                // only its tint shifts the sky, not its brightness. Kept light (0.2) so the per-world atmosphere
+                // colour above reads through. The directional sun light + block diffuse already use the star colour.
                 float sm = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
                 Color sunHue = sm > 0.001f ? new Color(sunColor.r / sm, sunColor.g / sm, sunColor.b / sm) : Color.white;
-                daySky = Color.Lerp(daySky, daySky * sunHue, 0.5f);
+                daySky = Color.Lerp(daySky, daySky * sunHue, 0.2f);
 
-                Color nightSky = new Color(0.03f, 0.04f, 0.09f);
+                // Night sky: a dark base nudged toward the world's atmosphere hue, so a green/red-skied world also
+                // tints its night instead of always reading the same blue-black.
+                Color nightSky = Color.Lerp(new Color(0.03f, 0.04f, 0.09f), skyBase * 0.12f, 0.5f);
                 sky = Color.Lerp(nightSky, daySky, day);
             }
             sky.a = 1f;

@@ -1418,6 +1418,12 @@ public sealed class WorldEnvironment
     /// <summary>Base cloud tint for this planet, packed 0xRRGGBB (storms darken it on the client).</summary>
     public int CloudColor { get; set; } = 0xEDEFF2;
 
+    /// <summary>This world's daytime sky/atmosphere base hue, packed 0xRRGGBB. Worlds WITH an atmosphere
+    /// (not <see cref="SpaceSky"/>) get a seeded per-world colour spanning blue→green→yellow→red, so the sky
+    /// isn't always blue. The client uses it as the daytime sky base (and thus fog/ambient/reflections follow).
+    /// Airless bodies show a space sky and ignore this.</summary>
+    public int SkyColor { get; set; } = 0x8CBFF2;
+
     /// <summary>The planet's uniform flora base hue, packed 0xRRGGBB. All flora on the planet is desaturated
     /// to its texture luminance and re-tinted by this colour, so a world's plant life shares one base colour
     /// (green / brown / pink / purple …) regardless of the underlying tile. White = no tint.</summary>

@@ -92,6 +92,20 @@ public sealed class WorldEnvironmentTests : IDisposable
         }
     }
 
+    [Fact]
+    public void SkyColor_IsAPlausibleSkyHue()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // A world with an atmosphere gets a seeded daytime sky hue (blue → green → yellow → red). It should be
+            // a real mid-bright colour, not near-black and not the bare default — the client uses it as the sky base.
+            int c = server.SkyColor;
+            int r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+            Assert.True(r + g + b > 180, "the sky hue shouldn't be near-black (it's the daytime sky base)");
+        }
+    }
+
     public void Dispose()
     {
         try

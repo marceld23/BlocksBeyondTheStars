@@ -40,6 +40,7 @@ public sealed partial class GameServer
     private double _sinceEnvBroadcast { get => _worlds.Active.SinceEnvBroadcast; set => _worlds.Active.SinceEnvBroadcast = value; }
     private int _sunColor { get => _worlds.Active.SunColor; set => _worlds.Active.SunColor = value; }
     private int _cloudColor { get => _worlds.Active.CloudColor; set => _worlds.Active.CloudColor = value; }
+    private int _skyColor { get => _worlds.Active.SkyColor; set => _worlds.Active.SkyColor = value; }
     private int _floraTint { get => _worlds.Active.FloraTint; set => _worlds.Active.FloraTint = value; }
     private float _cloudDensity { get => _worlds.Active.CloudDensity; set => _worlds.Active.CloudDensity = value; }
     private bool _breathable { get => _worlds.Active.Breathable; set => _worlds.Active.Breathable = value; }
@@ -54,6 +55,9 @@ public sealed partial class GameServer
     public float TimeOfDay => (float)_dayFraction;
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
+
+    /// <summary>This world's daytime sky/atmosphere base hue (0xRRGGBB) — seeded per world (atmosphere worlds).</summary>
+    public int SkyColor => _skyColor;
 
     /// <summary>The planet's uniform flora base hue (0xRRGGBB) — all plant life is re-tinted to this.</summary>
     public int FloraTint => _floraTint;
@@ -100,6 +104,10 @@ public sealed partial class GameServer
         // world seed + planet, so every plant on the world shares a base colour (applied as a desaturate-tint
         // on the client). Airless/floraless worlds still carry a value; it just goes unused with no flora.
         _floraTint = FloraColor(unchecked((uint)(_meta.Seed ^ StableStringHash(_worlds.Active.PlanetType ?? string.Empty))));
+        // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
+        // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
+        // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
+        _skyColor = SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
 
         // Fixed-weather planets: lock the state; dynamic ones start clear.
         _weatherState = _planetWeatherMode switch
@@ -198,6 +206,7 @@ public sealed partial class GameServer
             Precipitation = PrecipitationFor(state, temperature),
             SunColor = _sunColor,
             CloudColor = _cloudColor,
+            SkyColor = _skyColor,
             FloraTint = _floraTint,
             Circumference = _world.Circumference,
             LatitudeLimit = WorldConstants.LatitudeLimitFor(_world.Circumference),
@@ -403,4 +412,52 @@ public sealed partial class GameServer
     }
 
     private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
+
+    // Per-world daytime sky/atmosphere base hue: blue-dominant (most worlds read earth-like), with rarer green /
+    // yellow / orange / red and an exotic violet. Pastel / mid-bright on purpose — the client feeds this straight
+    // into the sky base, distance fog, ambient and reflections, so a too-saturated value would tint the whole world.
+    private static readonly (int Rgb, int Weight)[] SkyPalette =
+    {
+        (0x8CBFF2, 30), // blue (earth-like default)
+        (0x9FD0E8, 14), // pale cyan
+        (0x8FD0B0, 10), // teal-green
+        (0xB8D89A, 8),  // yellow-green
+        (0xE8D89A, 10), // amber / sandy
+        (0xE8B488, 8),  // orange haze
+        (0xE0A0A0, 6),  // rust / red
+        (0xC8A8E0, 4),  // violet (exotic)
+    };
+
+    /// <summary>A deterministic per-world daytime sky hue: a weighted pick from a blue-dominant palette (with
+    /// rarer green / yellow / orange / red and an exotic violet) plus a small per-channel jitter, so most worlds
+    /// have a blue sky but some read strikingly alien. Only worlds with an atmosphere actually show it.</summary>
+    private static int SkyHue(uint h)
+    {
+        int total = 0;
+        foreach (var (_, w) in SkyPalette)
+        {
+            total += w;
+        }
+
+        int roll = (int)(h % (uint)total);
+        int i = 0;
+        for (; i < SkyPalette.Length; i++)
+        {
+            roll -= SkyPalette[i].Weight;
+            if (roll < 0)
+            {
+                break;
+            }
+        }
+
+        if (i >= SkyPalette.Length)
+        {
+            i = SkyPalette.Length - 1;
+        }
+
+        int anchor = SkyPalette[i].Rgb;
+        int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
+        int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
+        return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
+    }
 }
