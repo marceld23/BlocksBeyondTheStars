@@ -194,12 +194,78 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A low dust puff (landing / footfall).</summary>
         public void Dust(Vector3 at, int count = 7)
         {
-            for (int i = 0; i < count; i++)
+            if (DustPuff(at, count))
+            {
+                return;
+            }
+
+            for (int i = 0; i < count; i++) // fallback: the old Unlit cube dust
             {
                 var p = Cube("Dust", at + Vector3.up * 0.05f, Vector3.one * 0.1f, new Color(0.62f, 0.57f, 0.47f));
                 var s = p.AddComponent<Spark>();
                 s.Vel = new Vector3(Random.Range(-1.5f, 1.5f), Random.Range(0.3f, 1.2f), Random.Range(-1.5f, 1.5f));
             }
+        }
+
+        private static Material _dustMat;
+
+        /// <summary>A one-shot alpha-blended dust puff: soft tan bits that drift up + out and settle, self-destroying.
+        /// Returns false if the alpha particle shader is missing (caller falls back to cubes).</summary>
+        private bool DustPuff(Vector3 at, int count)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/ParticleAlpha");
+            if (shader == null)
+            {
+                return false;
+            }
+
+            _dustMat ??= new Material(shader) { mainTexture = SparkDot() };
+
+            var go = new GameObject("DustPuff");
+            go.transform.position = at + Vector3.up * 0.05f;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.loop = false;
+            main.duration = 0.15f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.8f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.14f, 0.3f);
+            main.startColor = new Color(0.66f, 0.6f, 0.5f, 0.7f);
+            main.maxParticles = count + 2;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = 0.25f;
+            main.stopAction = ParticleSystemStopAction.Destroy;
+
+            var em = ps.emission;
+            em.rateOverTime = 0f;
+            em.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)count) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Hemisphere;
+            shape.radius = 0.2f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0.8f, 0f), new GradientAlphaKey(0.6f, 0.4f), new GradientAlphaKey(0f, 1f) });
+            col.color = new ParticleSystem.MinMaxGradient(grad);
+
+            var sol = ps.sizeOverLifetime;
+            sol.enabled = true;
+            sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.7f, 1f, 1.3f)); // expand as it settles
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.material = _dustMat;
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.sortMode = ParticleSystemSortMode.None;
+            ps.Play();
+            return true;
         }
 
         private static GameObject Cube(string name, Vector3 pos, Vector3 scale, Color color)
