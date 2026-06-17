@@ -450,6 +450,16 @@ public sealed class WorldGenerator
 
     private const double RiverHalfWidth = 0.04; // |river-line noise − 0.5| under this is in-channel (narrow, winding)
     private const int RiverMaxDepth = 4;        // channel depth at the river centre, tapering to the banks (item 21 V2)
+    private const int RiverMaxSlope = 4;        // like ponds: only carve on gentle ground (Δheight over ±2 in x+z),
+                                                // so a flush-filled channel never leaves a stepped wall of water on a
+                                                // slope (the "floating water over the terrain" artefact)
+
+    /// <summary>Local terrain steepness at a column: the summed |Δheight| over ±2 blocks in x and z. 0 on a flat
+    /// plain, growing with the grade. Used to gate flush-filled water bodies (ponds, rivers) to ground level
+    /// enough that the water surface doesn't step into free-standing walls.</summary>
+    private int SurfaceSlope(PlanetType planet, int worldX, int worldZ)
+        => System.Math.Abs(SurfaceHeight(planet, worldX + 2, worldZ) - SurfaceHeight(planet, worldX - 2, worldZ))
+         + System.Math.Abs(SurfaceHeight(planet, worldX, worldZ + 2) - SurfaceHeight(planet, worldX, worldZ - 2));
 
     /// <summary>Carve depth (0 = none) for an upland pond at this column: a low-frequency mask scatters ponds
     /// (sized by its peaks → small pools + occasional lakes), gated to flat ground so the water surface stays
@@ -465,14 +475,39 @@ public sealed class WorldGenerator
         }
 
         // Flat-ground gate — sampled lazily, only inside the pond mask, so it doesn't cost on every column.
-        int slope = System.Math.Abs(SurfaceHeight(planet, worldX + 2, worldZ) - SurfaceHeight(planet, worldX - 2, worldZ))
-                  + System.Math.Abs(SurfaceHeight(planet, worldX, worldZ + 2) - SurfaceHeight(planet, worldX, worldZ - 2));
-        if (slope > PondMaxSlope)
+        if (SurfaceSlope(planet, worldX, worldZ) > PondMaxSlope)
         {
             return 0;
         }
 
         return (int)System.Math.Round(System.Math.Min(1.0, strength) * PondMaxDepth);
+    }
+
+    /// <summary>River carve depth (0 = none) at a column: the winding river-line noise band, deepest at the
+    /// centre and tapering to the banks, gated to gentle ground so the flush water fill never leaves a
+    /// free-standing wall on a slope. Pure noise + heightmap → deterministic. Shared by <see cref="Generate"/>
+    /// (placement) and <see cref="SurfaceRiverDepth"/> (water life / client preview / ship landing) so the two
+    /// can never disagree about where river water is. Callers apply the outer eligibility (wet world, above the
+    /// sea, low/mid terrain, no pond here) before calling.</summary>
+    private int RiverDepthAt(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        double rl = FbmT(seed + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
+        double rv = System.Math.Abs(rl - 0.5);
+        if (rv >= RiverHalfWidth)
+        {
+            return 0; // outside the winding channel band
+        }
+
+        // Gentle-ground gate — sampled lazily, only inside the channel band, mirroring the pond gate. Without
+        // it a river crossing a slope/cliff fills flush to each column's local surface and steps down with the
+        // terrain, leaving vertical walls of (never-receding source) water hanging over the lower ground.
+        if (SurfaceSlope(planet, worldX, worldZ) > RiverMaxSlope)
+        {
+            return 0;
+        }
+
+        int depth = (int)System.Math.Round(RiverMaxDepth * (1.0 - rv / RiverHalfWidth));
+        return depth >= 1 ? depth : 0;
     }
 
     /// <summary>Upland-pond carve depth (0 = none) at a surface column — the same scattered-water gate
@@ -526,15 +561,7 @@ public sealed class WorldGenerator
             return 0; // a pond already claims this column (matches Generate's pond-first precedence)
         }
 
-        double rl = FbmT(PlanetSeed(planet) + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
-        double rv = System.Math.Abs(rl - 0.5);
-        if (rv >= RiverHalfWidth)
-        {
-            return 0; // outside the winding channel band
-        }
-
-        int depth = (int)System.Math.Round(RiverMaxDepth * (1.0 - rv / RiverHalfWidth));
-        return depth >= 1 ? depth : 0;
+        return RiverDepthAt(planet, PlanetSeed(planet), worldX, worldZ);
     }
 
     /// <summary>True if this surface column is under water — beneath the global water sea, inside an upland
@@ -733,17 +760,12 @@ public sealed class WorldGenerator
             // fluid, which on a water world equals the column's default fluid — so rivers never carved.)
             if (rivers && !pondHere && surfaceY > fluidLevel && surfaceY <= riverMaxY)
             {
-                double rl = FbmT(seed + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
-                double rv = System.Math.Abs(rl - 0.5);
-                if (rv < RiverHalfWidth)
+                int depth = RiverDepthAt(planet, seed, worldX, worldZ);
+                if (depth >= 1)
                 {
-                    int depth = (int)System.Math.Round(RiverMaxDepth * (1.0 - rv / RiverHalfWidth));
-                    if (depth >= 1)
-                    {
-                        seabedY = surfaceY - depth;
-                        waterTop = surfaceY;
-                        columnFluid = seaWaterId;
-                    }
+                    seabedY = surfaceY - depth;
+                    waterTop = surfaceY;
+                    columnFluid = seaWaterId;
                 }
             }
 

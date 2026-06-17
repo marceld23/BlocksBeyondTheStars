@@ -509,6 +509,37 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void Rivers_OnlyCarveOnGentleSlopes()
+    {
+        // Floating-water fix: a river fills its channel flush to each column's local surface, so on a slope the
+        // water surface used to step down with the terrain, leaving free-standing walls of (never-receding
+        // source) water hanging over the lower ground. Rivers now share the ponds' flat-ground gate. Every
+        // river column must therefore sit on gentle ground — Δheight summed over ±2 in x and z within the cap.
+        const int riverMaxSlope = 4; // mirrors WorldGenerator.RiverMaxSlope
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!; // WaterAbundance 0.55 ≥ 0.4 → rivers
+        var gen = new WorldGenerator(7, content);
+
+        int rivers = 0;
+        for (int wx = 0; wx < 512; wx++)
+        for (int wz = 0; wz < 512; wz++)
+        {
+            if (gen.SurfaceRiverDepth(planet, wx, wz) <= 0)
+            {
+                continue;
+            }
+
+            int slope = System.Math.Abs(gen.SurfaceHeight(planet, wx + 2, wz) - gen.SurfaceHeight(planet, wx - 2, wz))
+                      + System.Math.Abs(gen.SurfaceHeight(planet, wx, wz + 2) - gen.SurfaceHeight(planet, wx, wz - 2));
+            Assert.True(slope <= riverMaxSlope,
+                $"river column ({wx},{wz}) sits on a slope of {slope} (> {riverMaxSlope}) — it would leave a floating water wall");
+            rivers++;
+        }
+
+        Assert.True(rivers > 0, "expected to find river columns on a watery world (else the gate erased all rivers).");
+    }
+
+    [Fact]
     public void FloraWorld_GrowsTrees()
     {
         var content = Content();
