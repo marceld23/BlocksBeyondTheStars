@@ -31,7 +31,7 @@ internal static class Program
             using var bmp = new Bitmap(rw, rh);
             using (var g = Graphics.FromImage(bmp))
             {
-                SplashForm.PaintSplash(g, rw, rh, 0.55f, "Lädt …", null);
+                SplashForm.PaintSplash(g, rw, rh, 0.55f, SplashLocalization.LoadingText(AppContext.BaseDirectory), null);
             }
 
             bmp.Save(args[1], ImageFormat.Png);

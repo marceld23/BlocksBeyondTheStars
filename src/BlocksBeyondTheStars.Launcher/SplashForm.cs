@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
-using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace BlocksBeyondTheStars.Launcher;
@@ -35,7 +34,7 @@ internal sealed class SplashForm : Form
     public SplashForm(Process game)
     {
         _game = game;
-        _loadingText = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de" ? "Lädt …" : "Loading …";
+        _loadingText = SplashLocalization.LoadingText(AppContext.BaseDirectory);
 
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;     // positioned in OnLoad once the DPI-scaled size is known

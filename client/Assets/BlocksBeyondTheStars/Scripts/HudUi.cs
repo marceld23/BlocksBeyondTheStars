@@ -363,7 +363,7 @@ namespace BlocksBeyondTheStars.Client
             _inSpace = UiKit.AddText(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _prompt = UiKit.AddText(root, W / 2f - 160, H / 2f + 24, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _hint = UiKit.AddText(root, 12, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _hint = UiKit.AddText(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
 
             // Vehicle HUD (hover speeder): integrity + energy gauges, speed + drive prompt, where the hotbar sits
             // (the hotbar is hidden while driving). Hidden until the player boards a speeder.
