@@ -121,18 +121,92 @@ namespace BlocksBeyondTheStars.Client
             p.AddComponent<FlashFx>();
         }
 
+        private static Material _burstMat;
+
+        /// <summary>A small debris/dust puff when a block is mined or placed: a one-shot ParticleSystem burst of
+        /// soft alpha bits in the dig/place colour that arc out under gravity and fade, then self-destroys. Replaces
+        /// the old Unlit debris cubes.</summary>
         private void SpawnBurst(Vector3 pos, Material mat)
         {
-            for (int i = 0; i < 6; i++)
+            var shader = Shader.Find("BlocksBeyondTheStars/ParticleAlpha");
+            if (shader == null)
             {
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(p);
-                p.transform.position = pos;
-                p.transform.localScale = Vector3.one * 0.12f;
-                p.GetComponent<Renderer>().sharedMaterial = mat;
-                var fx = p.AddComponent<FxParticle>();
-                fx.Vel = new Vector3(Random.Range(-1.6f, 1.6f), Random.Range(1.5f, 3.5f), Random.Range(-1.6f, 1.6f));
+                return;
             }
+
+            _burstMat ??= new Material(shader) { mainTexture = SoftDot() };
+
+            var go = new GameObject("MineBurst");
+            go.transform.position = pos;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.loop = false;
+            main.duration = 0.2f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.2f, 3.4f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.2f);
+            main.startColor = mat != null ? mat.color : new Color(0.6f, 0.55f, 0.45f, 1f);
+            main.maxParticles = 24;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = 0.8f; // chips arc and fall
+            main.stopAction = ParticleSystemStopAction.Destroy;
+
+            var em = ps.emission;
+            em.rateOverTime = 0f;
+            em.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)10) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Hemisphere; // bias the spray upward/outward from the face
+            shape.radius = 0.25f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.9f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            col.color = new ParticleSystem.MinMaxGradient(grad);
+
+            var sol = ps.sizeOverLifetime;
+            sol.enabled = true;
+            sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.4f));
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.material = _burstMat;
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.sortMode = ParticleSystemSortMode.None;
+            ps.Play();
+        }
+
+        private static Texture2D _softDot;
+
+        /// <summary>A soft round dot (opaque core → transparent rim) for the debris puff bits.</summary>
+        private static Texture2D SoftDot()
+        {
+            if (_softDot != null)
+            {
+                return _softDot;
+            }
+
+            const int n = 16;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
+                px[y * n + x] = new Color(1f, 1f, 1f, Mathf.SmoothStep(1f, 0f, d));
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            _softDot = tex;
+            return tex;
         }
 
         private static GameObject BuildWireCube(Material mat)
