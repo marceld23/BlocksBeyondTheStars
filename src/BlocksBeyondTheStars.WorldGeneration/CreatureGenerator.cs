@@ -267,6 +267,17 @@ public static class CreatureGenerator
 
     private static bool HasWaterLife(PlanetType planet)
     {
+        // Any world that actually pools water — sea, ponds or rivers — hosts aquatic fauna. The threshold
+        // matches WorldGenerator's pond gate (WaterAbundance > 0.15), so wherever the world grows water bodies
+        // it also grows the life for them. The type/surface checks stay as a fallback for worlds that read as
+        // watery (swamp/jungle/ice, mud/grass surfaces) even without an explicit abundance.
+        string atmosphere = (planet.Atmosphere ?? string.Empty).ToLowerInvariant();
+        double waterAbundance = planet.WaterAbundance ?? (atmosphere == "none" ? 0.0 : 0.55);
+        if (waterAbundance > 0.15)
+        {
+            return true;
+        }
+
         string key = planet.Key.ToLowerInvariant();
         string surface = (planet.SurfaceBlock ?? string.Empty).ToLowerInvariant();
         return key is "swamp" or "jungle" or "varied" or "ice"

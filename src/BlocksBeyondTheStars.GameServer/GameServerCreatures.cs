@@ -268,6 +268,38 @@ public sealed partial class GameServer
         (12, -32), (34, -18), (40, 12), (-24, 38), (-42, -16), (16, -41),
     };
 
+    // Outward probe offsets (radius 0..8) used to find a water column near a dry ring spot, so aquatic life
+    // can spawn in a lake/sea the player is standing beside even though the chosen ring cell is on land.
+    private static readonly (int Dx, int Dz)[] WaterProbe =
+    {
+        (0, 0),
+        (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1),
+        (3, 0), (-3, 0), (0, 3), (0, -3), (3, 3), (-3, 3), (3, -3), (-3, -3),
+        (5, 0), (-5, 0), (0, 5), (0, -5), (5, 5), (-5, 5), (5, -5), (-5, -5),
+        (8, 0), (-8, 0), (0, 8), (0, -8),
+    };
+
+    /// <summary>Finds the nearest water column (global sea or upland pond) to a spot, returning its
+    /// coordinates and the water-surface / seabed Y. False if no water is within the probe radius.</summary>
+    private bool TryFindWaterColumnNear(int x, int z, out int wx, out int wz, out int waterTopY, out int seabedY)
+    {
+        foreach (var (dx, dz) in WaterProbe)
+        {
+            if (_generator.TryGetWaterSurface(_world.Planet, x + dx, z + dz, out waterTopY, out seabedY))
+            {
+                wx = x + dx;
+                wz = z + dz;
+                return true;
+            }
+        }
+
+        wx = x;
+        wz = z;
+        waterTopY = 0;
+        seabedY = 0;
+        return false;
+    }
+
     /// <summary>
     /// Spawns one roster species suited to a spread-out spot around the player (habitat-gated, on the
     /// ground). Returns true if one spawned. The rotor advances both the ring slot and the species so
@@ -299,6 +331,7 @@ public sealed partial class GameServer
                 }
 
                 float y;
+                int px = x, pz = z; // the actual spawn column (water species relocate to nearby water)
                 if (sp.Habitat == CreatureHabitat.Cave)
                 {
                     int caveY = FindCaveFloorY(x, z, surface);
@@ -309,12 +342,28 @@ public sealed partial class GameServer
 
                     y = caveY;
                 }
+                else if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)
+                {
+                    // Aquatic life must spawn IN water. The ring spot is usually dry land, and the visible lakes
+                    // (upland ponds) fill flush to the surface — so probing surface+1 always hit air and water
+                    // creatures never spawned. Seek the nearest water column (sea/pond) around the spot and place
+                    // inside it; skip the species if there's no water nearby (no land fallback).
+                    if (!TryFindWaterColumnNear(x, z, out px, out pz, out int waterTopY, out int seabedY))
+                    {
+                        continue;
+                    }
+
+                    // Swimmers sit mid-water; amphibians wade up at the surface cell (still counts as water).
+                    y = sp.Habitat == CreatureHabitat.Water
+                        ? (seabedY + 1 + waterTopY) * 0.5f
+                        : waterTopY;
+                }
                 else
                 {
                     y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
                 }
 
-                var pos = new Vector3f(x + 0.5f, y, z + 0.5f);
+                var pos = new Vector3f(px + 0.5f, y, pz + 0.5f);
                 if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
                 {
                     continue; // never spawn inside (or clipping into) a landed ship
@@ -506,10 +555,13 @@ public sealed partial class GameServer
             case CreatureHabitat.Air:
                 return new Vector3f(p.X, surface + CreatureFlyAltitude, p.Z);
             case CreatureHabitat.Water:
-                int sea = _generator.SeaLevel(_world.Planet);
-                if (sea > surface + 1)
+                // Use the LOCAL water column (sea or upland pond) — not just the global sea level — so swimmers
+                // stay submerged in the upland lakes they were spawned in, not only the deep sea.
+                if (_generator.TryGetWaterSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
+                        out int waterTopY, out int seabedY)
+                    && waterTopY > seabedY + 1)
                 {
-                    float lo = surface + 1f, hi = sea - 0.5f;
+                    float lo = seabedY + 1f, hi = waterTopY - 0.5f;
                     // Dive: drift slowly up and down the water column over time (per-creature phase seeded from
                     // the position) so swimmers porpoise between the seabed and just under the surface instead
                     // of holding a single depth. Clamped to the column, so shallow water just keeps them low.

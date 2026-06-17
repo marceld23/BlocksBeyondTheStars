@@ -499,8 +499,47 @@ public sealed class WorldGenerator
         return PondDepthAt(planet, PlanetSeed(planet), worldX, worldZ, pondThreshold);
     }
 
-    /// <summary>True if this surface column is under water — beneath the global water sea, or inside an upland
-    /// pond/lake (B7). A lava sea is not "water" here. Used to keep ship landings out of the water (B36).</summary>
+    /// <summary>River carve depth (0 = none) at a surface column — the same winding-channel gate
+    /// <see cref="Generate"/> applies, resolved internally so callers (tree/prop placement, ship landing,
+    /// aquatic life) can find/avoid river water without duplicating the rule. Rivers only on the wetter worlds
+    /// (WaterAbundance ≥ 0.4), above the global sea, on low/mid terrain, and not where a pond already sits.</summary>
+    public int SurfaceRiverDepth(PlanetType planet, int worldX, int worldZ)
+    {
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        double pondAbundance = planet.WaterAbundance
+            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
+        if (pondAbundance < 0.4 || seaFluid != waterId || waterId.IsAir)
+        {
+            return 0; // rivers only on the wetter worlds (matches Generate's `rivers` gate)
+        }
+
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        int riverMaxY = planet.BaseHeight + (int)(planet.Amplitude * 0.5);
+        if (surfaceY <= seaLevel || surfaceY > riverMaxY)
+        {
+            return 0; // below the global sea (the sea fills it) or up on the high terrain (rivers stay low/mid)
+        }
+
+        if (SurfacePondDepth(planet, worldX, worldZ) > 0)
+        {
+            return 0; // a pond already claims this column (matches Generate's pond-first precedence)
+        }
+
+        double rl = FbmT(PlanetSeed(planet) + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
+        double rv = System.Math.Abs(rl - 0.5);
+        if (rv >= RiverHalfWidth)
+        {
+            return 0; // outside the winding channel band
+        }
+
+        int depth = (int)System.Math.Round(RiverMaxDepth * (1.0 - rv / RiverHalfWidth));
+        return depth >= 1 ? depth : 0;
+    }
+
+    /// <summary>True if this surface column is under water — beneath the global water sea, inside an upland
+    /// pond/lake (B7), or in a river channel. A lava sea is not "water" here. Used to keep ship landings out of
+    /// the water (B36).</summary>
     public bool IsSurfaceWater(PlanetType planet, int worldX, int worldZ)
     {
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
@@ -510,7 +549,8 @@ public sealed class WorldGenerator
             return true; // beneath the global sea
         }
 
-        return SurfacePondDepth(planet, worldX, worldZ) > 0; // inside an upland pond
+        return SurfacePondDepth(planet, worldX, worldZ) > 0   // inside an upland pond
+            || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
     }
 
     /// <summary>True if this surface column is under a LAVA sea — so a ship landing avoids it too (B54), the
@@ -520,6 +560,45 @@ public sealed class WorldGenerator
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         return seaFluid == lavaId && !lavaId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
+    }
+
+    /// <summary>The local water column at a surface (x,z): true if water actually covers it — the global sea,
+    /// an upland pond, or a river — returning the water-surface Y (topmost filled cell) and the seabed Y (last
+    /// solid cell below the water). Mirrors what <see cref="Generate"/> fills, so the server can place and keep
+    /// aquatic life in ANY water body, not just the deep global sea. False (with 0s) for dry/lava columns.</summary>
+    public bool TryGetWaterSurface(PlanetType planet, int worldX, int worldZ, out int waterTopY, out int seabedY)
+    {
+        waterTopY = 0;
+        seabedY = 0;
+
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        if (seaFluid != waterId || waterId.IsAir)
+        {
+            return false; // a lava/dry world has no water bodies
+        }
+
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+
+        // Global sea: terrain sits at/below the sea level, so water fills surfaceY+1 .. seaLevel.
+        if (surfaceY + 1 <= seaLevel)
+        {
+            waterTopY = seaLevel;
+            seabedY = surfaceY;
+            return true;
+        }
+
+        // Upland pond or river: a carved bowl/channel filled flush to the original surface. SurfaceRiverDepth
+        // already yields 0 where a pond sits, so taking the max keeps Generate's pond-first precedence.
+        int carve = System.Math.Max(SurfacePondDepth(planet, worldX, worldZ), SurfaceRiverDepth(planet, worldX, worldZ));
+        if (carve > 0)
+        {
+            waterTopY = surfaceY;
+            seabedY = surfaceY - carve;
+            return true;
+        }
+
+        return false;
     }
 
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
@@ -592,14 +671,18 @@ public sealed class WorldGenerator
             || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase);
         bool geysers = !geyserVentId.IsAir && (geyserWater > 0.25 || geyserVolcanic);
 
-        // Aquatic flora: kelp stalks rooted on the seabed + lily pads on the surface, only where the sea is
-        // water (never lava). World gen places them directly in the submerged columns below.
+        // Aquatic flora: seabed plants (kelp stalks / coral reefs / seagrass) + lily pads on the surface, only
+        // where the sea is water (never lava). World gen places them directly in the submerged columns below.
         var kelpId = _content.GetBlock("flora_kelp")?.NumericId ?? BlockId.Air;
         var lilyId = _content.GetBlock("flora_lily")?.NumericId ?? BlockId.Air;
+        var coralId = _content.GetBlock("flora_coral")?.NumericId ?? BlockId.Air;
+        var seagrassId = _content.GetBlock("flora_seagrass")?.NumericId ?? BlockId.Air;
         var seaWaterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        ResolveFlora(planet); // pick this world's active flora subset (sets _kelpActive / _lilyActive)
-        bool waterFlora = flora && !kelpId.IsAir && !lilyId.IsAir && fluidId == seaWaterId && !seaWaterId.IsAir
-            && (_kelpActive || _lilyActive);
+        ResolveFlora(planet); // pick this world's active flora subset (sets the aquatic-archetype flags)
+        // Each active seabed archetype contributes its block; nothing is planted if none of them grow here.
+        bool seabedFlora = (_kelpActive && !kelpId.IsAir) || (_coralActive && !coralId.IsAir) || (_seagrassActive && !seagrassId.IsAir);
+        bool waterFlora = flora && fluidId == seaWaterId && !seaWaterId.IsAir
+            && (seabedFlora || (_lilyActive && !lilyId.IsAir));
 
         // Upland ponds/lakes (B7): scattered, swimmable water ABOVE the sea on flat ground. Frequency derives
         // from the world's WaterAbundance — the same property that sets the sea level — so wet worlds get more
@@ -631,6 +714,7 @@ public sealed class WorldGenerator
             int seabedY = surfaceY;
             int waterTop = fluidLevel;
             var columnFluid = fluidId;
+            bool pondHere = false;
             if (ponds && surfaceY > fluidLevel)
             {
                 int pondDepth = PondDepthAt(planet, seed, worldX, worldZ, pondThreshold);
@@ -639,12 +723,15 @@ public sealed class WorldGenerator
                     seabedY = surfaceY - pondDepth;
                     waterTop = surfaceY;
                     columnFluid = seaWaterId;
+                    pondHere = true;
                 }
             }
 
             // Rivers: a winding river-line noise band carves a channel (deepest at the centre, tapering to the
             // banks) and fills it with water flush to the surface — a meandering river across low/mid terrain.
-            if (rivers && columnFluid != seaWaterId && surfaceY > fluidLevel && surfaceY <= riverMaxY)
+            // (Skipped where a pond already claimed the column. The old guard compared columnFluid to the sea
+            // fluid, which on a water world equals the column's default fluid — so rivers never carved.)
+            if (rivers && !pondHere && surfaceY > fluidLevel && surfaceY <= riverMaxY)
             {
                 double rl = FbmT(seed + 0x817E12, worldX, worldZ, planet.TerrainScale * 2.5, octaves: 2);
                 double rv = System.Math.Abs(rl - 0.5);
@@ -786,9 +873,9 @@ public sealed class WorldGenerator
             }
             else if (waterFlora && seabedY + 1 <= waterTop)
             {
-                // Submerged column — the sea or an upland pond grows kelp/lily pads instead of land plants.
+                // Submerged column — the sea or an upland pond grows seabed plants / lily pads, not land flora.
                 StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
-                    kelpId, lilyId, floraDensity);
+                    kelpId, lilyId, coralId, seagrassId, floraDensity);
             }
 
             // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
@@ -886,7 +973,7 @@ public sealed class WorldGenerator
             }
 
             int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0)
+            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
             {
                 continue; // dry ground only
             }
@@ -984,7 +1071,7 @@ public sealed class WorldGenerator
             }
 
             int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0)
+            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
             {
                 continue; // a vent needs open ground (not a sea/pond column)
             }
@@ -1039,7 +1126,7 @@ public sealed class WorldGenerator
             }
 
             int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0)
+            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
             {
                 continue; // not in water
             }
@@ -1159,9 +1246,9 @@ public sealed class WorldGenerator
                 continue; // not in the sea
             }
 
-            if (SurfacePondDepth(planet, wx, wz) > 0)
+            if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
             {
-                continue; // B35: an upland pond/lake here — a tree would stand in the water
+                continue; // B35: an upland pond/lake or a river here — a tree would stand in the water
             }
 
             // Per-tree size (loosely-coupled height + crown): a shared bell factor sets the overall scale,
@@ -1499,35 +1586,62 @@ public sealed class WorldGenerator
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }
 
-    /// <summary>Places aquatic flora in one submerged column: a short kelp stalk rooted on the seabed (a few
-    /// water cells turned to kelp, leaving the top open water) and, less often, a lily pad on the surface.
-    /// Per-column + deterministic from the seed, so no cross-chunk margin is needed (unlike trees).</summary>
+    /// <summary>Places aquatic flora in one submerged column: a seabed plant — a kelp/seagrass stalk that grows
+    /// up a few cells (leaving the top open water) or a single coral clump on the bed — and, separately, an
+    /// occasional lily pad on the surface. Per-column + deterministic from the seed, so no cross-chunk margin
+    /// is needed (unlike trees). Density is generous so a lake reads as visibly planted, not bare.</summary>
     private void StampWaterFlora(ChunkData chunk, Vector3i origin, int lx, int lz, long seed,
-        int worldX, int worldZ, int surfaceY, int fluidLevel, BlockId kelpId, BlockId lilyId, double floraDensity)
+        int worldX, int worldZ, int surfaceY, int fluidLevel, BlockId kelpId, BlockId lilyId,
+        BlockId coralId, BlockId seagrassId, double floraDensity)
     {
         int columnDepth = fluidLevel - surfaceY; // water cells above the seabed (>= 1 here)
         double roll = Noise.Value01(seed + 9007, WorldConstants.WrapX(worldX, _circumference), 11, Wz(worldZ));
 
-        // Kelp needs at least a little depth; it grows from the seabed up a few cells, capped just below the
-        // surface so the top of the column stays open water. Only if this world activated the kelp archetype.
-        if (_kelpActive && columnDepth >= 2 && roll < floraDensity * 1.6)
+        // The seabed plant for this column: pick deterministically among the active seabed archetypes, then
+        // place it if the planting roll lands in this column's (generous) density band. Coral sits as a single
+        // clump on the bed (shallow-friendly); kelp/seagrass need a little depth and grow up a stalk.
+        var stalkOptions = new System.Collections.Generic.List<BlockId>(2);
+        if (_kelpActive && !kelpId.IsAir) stalkOptions.Add(kelpId);
+        if (_seagrassActive && !seagrassId.IsAir) stalkOptions.Add(seagrassId);
+        bool coral = _coralActive && !coralId.IsAir;
+
+        // A coherent patch field decides WHICH seabed plant dominates here (not per-cell salt-and-pepper).
+        double pick = FbmT(seed + 0x5EA6, worldX, worldZ, 14.0, octaves: 2);
+
+        if ((stalkOptions.Count > 0 || coral) && roll < floraDensity * 2.4)
         {
-            int height = 2 + (int)(roll * 997) % 3; // 2..4 cells
-            int top = System.Math.Min(fluidLevel - 1, surfaceY + height);
-            for (int wy = surfaceY + 1; wy <= top; wy++)
+            // Prefer a stalk where there's room; fall back to a coral clump in shallow water.
+            if (stalkOptions.Count > 0 && columnDepth >= 2)
             {
-                int kly = wy - origin.Y;
-                if (kly >= 0 && kly < WorldConstants.ChunkSize)
+                var stalk = stalkOptions[System.Math.Min(stalkOptions.Count - 1, (int)(pick * stalkOptions.Count))];
+                int height = 2 + (int)(roll * 997) % 3; // 2..4 cells
+                int top = System.Math.Min(fluidLevel - 1, surfaceY + height);
+                for (int wy = surfaceY + 1; wy <= top; wy++)
                 {
-                    chunk.Set(lx, kly, lz, kelpId);
+                    int sly = wy - origin.Y;
+                    if (sly >= 0 && sly < WorldConstants.ChunkSize)
+                    {
+                        chunk.Set(lx, sly, lz, stalk);
+                    }
                 }
+
+                return;
             }
 
-            return;
+            if (coral)
+            {
+                int bed = (surfaceY + 1) - origin.Y; // the bottom water cell, sitting on the seabed
+                if (bed >= 0 && bed < WorldConstants.ChunkSize)
+                {
+                    chunk.Set(lx, bed, lz, coralId);
+                }
+
+                return;
+            }
         }
 
-        // Otherwise an occasional lily pad floating on the topmost water cell (if the lily archetype is active).
-        if (_lilyActive && roll > 1.0 - floraDensity * 0.6)
+        // Separately, an occasional lily pad floating on the topmost water cell (if the lily archetype is active).
+        if (_lilyActive && !lilyId.IsAir && roll > 1.0 - floraDensity * 0.9)
         {
             int lily = fluidLevel - origin.Y;
             if (lily >= 0 && lily < WorldConstants.ChunkSize)
@@ -1539,6 +1653,7 @@ public sealed class WorldGenerator
 
     private bool _floraResolved;
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
+    private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
     // surface block id -> the pool of (this world's active) flora that may grow on it.
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
     // flora block id -> its climate tags (for theme-weighted, patchy species selection).
@@ -1568,6 +1683,8 @@ public sealed class WorldGenerator
 
         _kelpActive = active.Contains("flora_kelp");
         _lilyActive = active.Contains("flora_lily");
+        _coralActive = active.Contains("flora_coral");
+        _seagrassActive = active.Contains("flora_seagrass");
 
         var acc = new System.Collections.Generic.Dictionary<ushort, System.Collections.Generic.List<BlockId>>();
         foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)

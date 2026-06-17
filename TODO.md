@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **632 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **635 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,25 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Life in the water — lakes/ponds/seas were lifeless; now planted + populated — ✅ server + tests (2026-06-17, no client build needed)
+Players never saw animals or plants in any water body. Two independent systems, both fixed server-side (the kelp/coral/lily/seagrass blocks already exist in `blocks.json`, so no Unity build is required — applies to newly generated chunks; live for fauna):
+- **Fauna (the main bug):** water creatures probed `y = surface + 1`, which is the *air* cell above the flush
+  pond/sea surface — so `HabitatSuitable` never matched and aquatic life never spawned in the visible lakes.
+  New `WorldGenerator.TryGetWaterSurface` reports the real local water column (sea **or** upland pond); the
+  spawner now seeks the nearest water near each ring spot (skips the species if none) and places swimmers
+  *inside* the column, amphibians at the surface; `AdjustHabitatHeight` keeps swimmers in that local column
+  ([GameServerCreatures.cs](src/BlocksBeyondTheStars.GameServer/GameServerCreatures.cs)). `HasWaterLife`
+  ([CreatureGenerator.cs](src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs)) now keys on
+  `WaterAbundance > 0.15`, so every world that pools water also hosts aquatic fauna.
+- **Flora:** `StampWaterFlora` only ever placed kelp/lily; `flora_coral` + `flora_seagrass` were dead content.
+  All four seabed archetypes now plant (coherent patches), the planting band is wider, and lily is a touch
+  more common, so lakes read as visibly green ([WorldGenerator.cs](src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs)).
+- **Rivers now actually carve (2026-06-17):** Generate's river branch was inert — `columnFluid` started as the
+  sea fluid, so its `columnFluid != seaWaterId` gate never opened on water worlds and no channel ever carved.
+  Replaced the gate with a `pondHere` flag, so wet worlds (WaterAbundance ≥ 0.4) now get winding rivers. Added
+  `WorldGenerator.SurfaceRiverDepth`; trees/props/mushrooms/geysers + `IsSurfaceWater` (ship landings) and the
+  aquatic-life helper all now treat river water as water, so nothing stands in a river and fish/plants fill it.
 
 ### ★ Taming + shapes woven into the story — companions calm the Wächter, non-cube forms read as anomaly — ✅ server + tests + locale (2026-06-17, needs client build)
 Two of the game's systems now pay off the VEGA arc's canon (Guardian protects the *living worlds*, judges humans the threat):

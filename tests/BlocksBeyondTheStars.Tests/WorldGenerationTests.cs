@@ -394,6 +394,121 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void WateryWorld_CanGrowCoralOrSeagrass()
+    {
+        // The coral + seagrass aquatic archetypes used to be defined but never placed (StampWaterFlora only knew
+        // kelp/lily) — so they were dead content. Across a span of seeds, at least one watery world must now grow
+        // one of them in its seas/ponds.
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        ushort coral = content.GetBlock("flora_coral")!.NumericId.Value;
+        ushort seagrass = content.GetBlock("flora_seagrass")!.NumericId.Value;
+
+        int total = 0;
+        for (long seed = 1; seed <= 25 && total == 0; seed++)
+        {
+            var gen = new WorldGenerator(seed, content);
+            total += CountBlock(gen, planet, coral) + CountBlock(gen, planet, seagrass);
+        }
+
+        Assert.True(total > 0, "coral/seagrass aquatic flora should be placed on some watery worlds.");
+    }
+
+    [Fact]
+    public void TryGetWaterSurface_LandsInsideGeneratedWater()
+    {
+        // Guards the fauna fix: aquatic creatures spawn at the column TryGetWaterSurface reports. The old probe
+        // (surface+1) sat in the air above flush ponds, so swimmers never spawned. Here we confirm that the
+        // mid-water cell the helper points a swimmer at is actually a water block in the generated world.
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        var gen = new WorldGenerator(7, content);
+        // A column is a genuine water body if its cells hold water OR the aquatic flora world gen plants in it
+        // (kelp/seagrass stalks, a coral clump, or a lily pad can each occupy a water cell).
+        var aquatic = new System.Collections.Generic.HashSet<ushort>
+        {
+            content.GetBlock("water")!.NumericId.Value,
+            content.GetBlock("flora_kelp")!.NumericId.Value,
+            content.GetBlock("flora_lily")!.NumericId.Value,
+            content.GetBlock("flora_coral")!.NumericId.Value,
+            content.GetBlock("flora_seagrass")!.NumericId.Value,
+        };
+        int cs = WorldConstants.ChunkSize;
+
+        int verified = 0;
+        for (int wx = 0; wx < 512 && verified < 25; wx++)
+        for (int wz = 0; wz < 512 && verified < 25; wz++)
+        {
+            if (!gen.TryGetWaterSurface(planet, wx, wz, out int top, out int bed))
+            {
+                continue;
+            }
+
+            Assert.True(top > bed, "a water column must have at least one water cell above the seabed");
+
+            // Every cell of the reported [seabed+1 .. top] span must be water or aquatic flora in the generated
+            // world — i.e. the helper points a swimmer at a genuine, fully-filled water body (the old surface+1
+            // probe sat in the air above flush ponds, which is what kept water creatures from ever spawning).
+            for (int y = bed + 1; y <= top; y++)
+            {
+                var coord = new ChunkCoord(wx / cs, y / cs, wz / cs);
+                var chunk = gen.Generate(planet, coord);
+                ushort cell = chunk.Get(wx % cs, y % cs, wz % cs).Value;
+                Assert.True(aquatic.Contains(cell), $"cell ({wx},{y},{wz}) in the reported water column should be water/aquatic flora");
+            }
+
+            verified++;
+        }
+
+        Assert.True(verified > 0, "expected to find water columns on a watery world.");
+    }
+
+    [Fact]
+    public void WateryWorld_CarvesRivers()
+    {
+        // Rivers used to never generate: Generate's river gate compared columnFluid to the sea fluid, which on a
+        // water world is the column's own default fluid, so the gate never opened. This guards the fix — a wet
+        // world must carve river channels, and each channel column must actually be filled with water (its flush
+        // surface cell holds water or the aquatic flora that grows in it).
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!; // WaterAbundance defaults to 0.55 (≥ 0.4) → rivers
+        var gen = new WorldGenerator(7, content);
+        int sea = gen.SeaLevel(planet);
+        var aquatic = new System.Collections.Generic.HashSet<ushort>
+        {
+            content.GetBlock("water")!.NumericId.Value,
+            content.GetBlock("flora_kelp")!.NumericId.Value,
+            content.GetBlock("flora_lily")!.NumericId.Value,
+            content.GetBlock("flora_coral")!.NumericId.Value,
+            content.GetBlock("flora_seagrass")!.NumericId.Value,
+        };
+        int cs = WorldConstants.ChunkSize;
+
+        int rivers = 0;
+        for (int wx = 0; wx < 512 && rivers < 10; wx++)
+        for (int wz = 0; wz < 512 && rivers < 10; wz++)
+        {
+            int depth = gen.SurfaceRiverDepth(planet, wx, wz);
+            if (depth <= 0)
+            {
+                continue;
+            }
+
+            int surfaceY = gen.SurfaceHeight(planet, wx, wz);
+            Assert.True(surfaceY > sea, "a river is carved above the global sea level");
+
+            // The channel is filled flush to the surface; the surface water cell must be water/aquatic flora.
+            var coord = new ChunkCoord(wx / cs, surfaceY / cs, wz / cs);
+            var chunk = gen.Generate(planet, coord);
+            ushort cell = chunk.Get(wx % cs, surfaceY % cs, wz % cs).Value;
+            Assert.True(aquatic.Contains(cell), $"river surface cell ({wx},{surfaceY},{wz}) should be water/aquatic flora");
+            rivers++;
+        }
+
+        Assert.True(rivers > 0, "a wet world should carve river channels.");
+    }
+
+    [Fact]
     public void FloraWorld_GrowsTrees()
     {
         var content = Content();
