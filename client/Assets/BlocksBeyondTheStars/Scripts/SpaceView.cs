@@ -476,30 +476,106 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A big debris + fireball burst at <paramref name="at"/> when the ship is destroyed in flight —
         /// the explosion that used to be missing (only a screen flash played). Reuses the spark debris, scaled up
         /// and longer-lived, plus a few bright fireball cores.</summary>
-        private void SpawnShipExplosion(Vector3 at)
-        {
-            _hitSparkMat ??= Unlit(new Color(1f, 0.62f, 0.18f));
-            var core = Unlit(new Color(1f, 0.85f, 0.45f)); // bright yellow-white fireball chunks
-            Transform parent = _root != null ? _root.transform : null;
-            for (int i = 0; i < 34; i++)
-            {
-                bool bright = i % 4 == 0;
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                StripCollider(p);
-                if (parent != null)
-                {
-                    p.transform.SetParent(parent, false);
-                }
+        private void SpawnShipExplosion(Vector3 at) => SpawnParticleExplosion(at, 1.4f);
 
-                p.transform.position = at + Random.insideUnitSphere * 1.6f;
-                float size = bright ? 0.42f : 0.28f;
-                p.transform.localScale = Vector3.one * size;
-                p.GetComponent<Renderer>().sharedMaterial = bright ? core : _hitSparkMat;
-                var bit = p.AddComponent<ExhaustBit>();
-                bit.Vel = Random.onUnitSphere * Random.Range(9f, 24f);
-                bit.LifeSpan = Random.Range(0.7f, 1.25f);
-                bit.Size = size;
+        /// <summary>A one-shot ParticleSystem explosion (expanding orange fireball + a fast spark burst), parented
+        /// under the space root and self-destroying when it finishes (stopAction = Destroy). Replaces the old
+        /// Unlit cube debris. Reusable for ship destruction, asteroid breaks, etc.</summary>
+        private void SpawnParticleExplosion(Vector3 at, float scale)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/Particle");
+            if (shader == null)
+            {
+                return;
             }
+
+            var go = new GameObject("Explosion");
+            if (_root != null)
+            {
+                go.transform.SetParent(_root.transform, true);
+            }
+
+            go.transform.position = at;
+
+            // Fireball: a short outward burst of big additive orange bits that expand then fade to dark red.
+            var fire = go.AddComponent<ParticleSystem>();
+            fire.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var fm = fire.main;
+            fm.loop = false;
+            fm.duration = 0.4f;
+            fm.startLifetime = new ParticleSystem.MinMaxCurve(0.55f, 1.0f);
+            fm.startSpeed = new ParticleSystem.MinMaxCurve(3f, 11f);
+            fm.startSize = new ParticleSystem.MinMaxCurve(0.6f * scale, 1.5f * scale);
+            fm.startColor = new Color(1f, 0.7f, 0.32f, 1f);
+            fm.maxParticles = 70;
+            fm.simulationSpace = ParticleSystemSimulationSpace.World;
+            fm.gravityModifier = 0f;
+            fm.stopAction = ParticleSystemStopAction.Destroy; // tears down the whole GO (incl. child sparks) when done
+            var fe = fire.emission;
+            fe.rateOverTime = 0f;
+            fe.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)28) });
+            var fsh = fire.shape;
+            fsh.shapeType = ParticleSystemShapeType.Sphere;
+            fsh.radius = 0.4f * scale;
+            var fcol = fire.colorOverLifetime;
+            fcol.enabled = true;
+            var fgrad = new Gradient();
+            fgrad.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(1f, 0.92f, 0.6f), 0f),
+                    new GradientColorKey(new Color(1f, 0.5f, 0.18f), 0.5f),
+                    new GradientColorKey(new Color(0.5f, 0.12f, 0.05f), 1f),
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.8f, 0.45f), new GradientAlphaKey(0f, 1f) });
+            fcol.color = new ParticleSystem.MinMaxGradient(fgrad);
+            var fsol = fire.sizeOverLifetime;
+            fsol.enabled = true;
+            fsol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.15f)); // expand
+            var fr = fire.GetComponent<ParticleSystemRenderer>();
+            fr.material = new Material(shader) { mainTexture = ThrusterDot() };
+            fr.renderMode = ParticleSystemRenderMode.Billboard;
+            fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            fr.receiveShadows = false;
+            fr.sortMode = ParticleSystemSortMode.None;
+            fire.Play();
+
+            // Sparks: a faster, smaller white-gold burst that streaks outward.
+            var sgo = new GameObject("Sparks");
+            sgo.transform.SetParent(go.transform, false);
+            sgo.transform.position = at;
+            var sp = sgo.AddComponent<ParticleSystem>();
+            sp.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var sm = sp.main;
+            sm.loop = false;
+            sm.duration = 0.3f;
+            sm.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.85f);
+            sm.startSpeed = new ParticleSystem.MinMaxCurve(11f, 28f);
+            sm.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.22f);
+            sm.startColor = new Color(1f, 0.9f, 0.55f, 1f);
+            sm.maxParticles = 90;
+            sm.simulationSpace = ParticleSystemSimulationSpace.World;
+            sm.gravityModifier = 0f;
+            var se = sp.emission;
+            se.rateOverTime = 0f;
+            se.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)(40f * scale)) });
+            var ssh = sp.shape;
+            ssh.shapeType = ParticleSystemShapeType.Sphere;
+            ssh.radius = 0.2f * scale;
+            var scol = sp.colorOverLifetime;
+            scol.enabled = true;
+            var sgrad = new Gradient();
+            sgrad.SetKeys(
+                new[] { new GradientColorKey(new Color(1f, 0.95f, 0.7f), 0f), new GradientColorKey(new Color(1f, 0.6f, 0.2f), 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            scol.color = new ParticleSystem.MinMaxGradient(sgrad);
+            var sr = sgo.GetComponent<ParticleSystemRenderer>();
+            sr.material = new Material(shader) { mainTexture = ThrusterDot() };
+            sr.renderMode = ParticleSystemRenderMode.Billboard;
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
+            sr.sortMode = ParticleSystemSortMode.None;
+            sp.Play();
         }
 
         /// <summary>Plays the queued NPC-trader warp flashes (a localized hyperspace burst at a world position),
