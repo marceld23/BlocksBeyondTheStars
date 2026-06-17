@@ -121,6 +121,7 @@ internal sealed class LoadedWorld
     public string Biome { get; set; } = "rock";
     public double OxygenExtractability { get; set; }
     public double AtmosphereHeight { get; set; }
+    public double AtmosphereDensity { get; set; }
     public System.Random EnvRng { get; set; } = new(1);
 }
 

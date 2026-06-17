@@ -2,7 +2,9 @@
   "name": "BlocksBeyondTheStars.Client.Editor",
   "rootNamespace": "BlocksBeyondTheStars.Client.EditorTools",
   "references": [
-    "BlocksBeyondTheStars.Client"
+    "BlocksBeyondTheStars.Client",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.Core.Runtime"
   ],
   "includePlatforms": [
     "Editor"

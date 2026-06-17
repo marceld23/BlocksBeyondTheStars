@@ -47,6 +47,7 @@ public sealed partial class GameServer
     private string _biome { get => _worlds.Active.Biome; set => _worlds.Active.Biome = value; }
     private double _oxygenExtractability { get => _worlds.Active.OxygenExtractability; set => _worlds.Active.OxygenExtractability = value; }
     private double _atmosphereHeight { get => _worlds.Active.AtmosphereHeight; set => _worlds.Active.AtmosphereHeight = value; }
+    private double _atmosphereDensity { get => _worlds.Active.AtmosphereDensity; set => _worlds.Active.AtmosphereDensity = value; }
     private System.Random _envRng { get => _worlds.Active.EnvRng; set => _worlds.Active.EnvRng = value; }
 
     // Public accessors (HUD / tests).
@@ -66,6 +67,9 @@ public sealed partial class GameServer
     /// <summary>Absolute Y above which an on-foot player is in space (item 10); 0 = no atmosphere line here.</summary>
     public double AtmosphereHeight => _atmosphereHeight;
 
+    /// <summary>How thick/hazy this world's air is, 0..1 (0 = airless/clear). Drives fog density + fog weather.</summary>
+    public double AtmosphereDensity => _atmosphereDensity;
+
     private void InitWeather()
     {
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
@@ -80,6 +84,11 @@ public sealed partial class GameServer
         _biome = string.IsNullOrEmpty(_worlds.Active.PlanetType) ? "rock" : _worlds.Active.PlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
         _atmosphereHeight = planet?.AtmosphereHeight ?? 0.0;
+        // Per-world air thickness (drives fog density + fog-weather chance): airless bodies are clear-vacuum (0);
+        // otherwise the planet's explicit value, or a seeded 0.2..0.8 so worlds range from crisp to hazy.
+        _atmosphereDensity = _spaceSky ? 0.0
+            : planet?.AtmosphereDensity is { } ad ? System.Math.Clamp(ad, 0.0, 1.0)
+            : 0.2 + ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 0.6;
         _envRng = new System.Random((int)_meta.Seed);
         _dayFraction = 0.35;
         _weatherTimer = 0;
@@ -117,17 +126,35 @@ public sealed partial class GameServer
             if (_weatherTimer >= WeatherChangeInterval)
             {
                 _weatherTimer = 0;
-                int idx = System.Array.IndexOf(WeatherStates, _weatherState);
-                if (idx < 0)
+                string next;
+                if (_weatherState == "fog")
                 {
-                    idx = 0;
+                    next = "clear"; // fog lifts back to a clear sky
+                }
+                else
+                {
+                    int idx = System.Array.IndexOf(WeatherStates, _weatherState);
+                    if (idx < 0)
+                    {
+                        idx = 0;
+                    }
+
+                    // From calm air (clear/clouds), the world can roll into fog instead of progressing along the
+                    // rain ramp; thicker atmospheres fog up more often (airless worlds never — density is 0).
+                    double fogChance = idx <= 1 ? 0.3 * _atmosphereDensity : 0.0;
+                    if (_envRng.NextDouble() < fogChance)
+                    {
+                        next = "fog";
+                    }
+                    else
+                    {
+                        idx = _envRng.NextDouble() < _stormChance
+                            ? System.Math.Min(WeatherStates.Length - 1, idx + 1)
+                            : System.Math.Max(0, idx - 1);
+                        next = WeatherStates[idx];
+                    }
                 }
 
-                idx = _envRng.NextDouble() < _stormChance
-                    ? System.Math.Min(WeatherStates.Length - 1, idx + 1)
-                    : System.Math.Max(0, idx - 1);
-
-                string next = WeatherStates[idx];
                 if (next != _weatherState)
                 {
                     _weatherState = next;
@@ -149,6 +176,7 @@ public sealed partial class GameServer
     {
         "storm" => 1.0f,
         "rain" => 0.6f,
+        "fog" => 0.5f,
         "clouds" => 0.3f,
         _ => 0f,
     };
@@ -174,6 +202,7 @@ public sealed partial class GameServer
             Circumference = _world.Circumference,
             LatitudeLimit = WorldConstants.LatitudeLimitFor(_world.Circumference),
             CloudDensity = _cloudDensity,
+            AtmosphereDensity = (float)_atmosphereDensity,
             Breathable = _breathable,
             SpaceSky = _spaceSky,
             Biome = _biome,
@@ -200,7 +229,7 @@ public sealed partial class GameServer
 
         double baseT = planet?.BaseTemperature ?? 15.0;
         double variation = ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 28.0 - 14.0;
-        double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "clouds" => -2.0, _ => 2.0 };
+        double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "fog" => -3.0, "clouds" => -2.0, _ => 2.0 };
         double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
         return (float)System.Math.Round(baseT + variation + weatherDelta + dayNight);
@@ -230,6 +259,12 @@ public sealed partial class GameServer
         if (_planetWeatherMode != "dynamic")
         {
             return (_weatherState, _weatherIntensity);
+        }
+
+        // Fog blankets the whole world uniformly (it's not on the per-biome rain ramp).
+        if (_weatherState == "fog")
+        {
+            return ("fog", _weatherIntensity);
         }
 
         int worldLevel = System.Array.IndexOf(WeatherStates, _weatherState);

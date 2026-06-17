@@ -15,6 +15,11 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        /// <summary>The player's view distance in chunks (from settings) — the linear distance fog is scaled to
+        /// this so the haze engages within the streamed terrain (otherwise it sits beyond the render distance and
+        /// is never seen) and softly hides the chunk pop-in at the edge.</summary>
+        public int ViewChunks = 4;
+
         private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
@@ -23,6 +28,12 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
         private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
         private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
+        // Per-world+weather volumetric-fog density (the FullScreenPassRendererFeature reads this global); derived
+        // from the same view distance the linear fog uses, 0 in space/airless so no fog is drawn there.
+        private static readonly int VolFogDensityId = Shader.PropertyToID("_VolFogDensity");
+        // Explicit distance haze for the block shaders (Unity's MixFog doesn't engage on the unlit voxels):
+        // x=start, y=end, z=max strength (already faded out indoors), w=on.
+        private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
         private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
 
         private Light _sun;
@@ -118,6 +129,8 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
+                Shader.SetGlobalFloat(VolFogDensityId, 0f); // no volumetric fog in the space view
+                Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off in space
                 RenderSettings.fog = false;
                 if (_sunDisc != null)
                 {
@@ -294,33 +307,64 @@ namespace BlocksBeyondTheStars.Client
             RenderSettings.fog = fog;
             if (!fog)
             {
+                Shader.SetGlobalFloat(VolFogDensityId, 0f); // airless body / space → no volumetric fog
+                Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off
                 return;
             }
 
             RenderSettings.fogColor = sky;
             RenderSettings.fogMode = FogMode.Linear;
-            // Clear weather sees far; storms close in; night a touch hazier than day.
-            float far = Mathf.Lerp(240f, 80f, weatherIntensity) * Mathf.Lerp(0.85f, 1f, day);
 
-            // Weather drama (W-R4): sandstorms + ash storms CRUSH visibility — a wall of dust you can get
-            // lost in, not just a tint. Scales with the storm's intensity.
+            // Scale the fog to the actual render distance (view-distance chunks × 16-block chunk), so the haze
+            // engages WITHIN the streamed terrain instead of beyond it (the old fixed 240 m sat past the ~32 m
+            // render edge → invisible) and softly hides the chunk pop-in at the boundary.
+            float renderDist = Mathf.Max(32f, ViewChunks * 16f);
+
+            // Per-world air thickness sets where the haze sits: thin air fogs near the far edge, soupy air hazes
+            // well inside the view. Kept well within the render distance so the haze is actually visible and masks
+            // the chunk pop-in at the edge (tuned aggressive for now; raise the factors to push the haze farther).
+            float airDensity = Game?.Environment?.AtmosphereDensity ?? 0.4f;
+            float far = renderDist * Mathf.Lerp(1.6f, 1.0f, Mathf.Clamp01(airDensity));
+
+            far *= Mathf.Lerp(1f, 0.8f, weatherIntensity); // storms haze in a bit more
+            far *= Mathf.Lerp(0.9f, 1f, day);                // night a touch hazier than day
+
+            // Fog weather (a transient state like rain/storm): a real pea-souper — well inside the view.
+            if (string.Equals(Game?.Environment?.Weather, "fog", System.StringComparison.Ordinal))
+            {
+                far = Mathf.Min(far, renderDist * Mathf.Lerp(0.5f, 0.28f, Mathf.Clamp01(weatherIntensity)));
+            }
+
+            // Sandstorms / ash storms CRUSH visibility — a wall of dust you can get lost in.
             string precip = Game?.Environment?.Precipitation ?? string.Empty;
             if (precip is "sandstorm" or "ash")
             {
-                far = Mathf.Lerp(far, 26f, Mathf.Clamp01(0.35f + weatherIntensity));
+                far = Mathf.Min(far, renderDist * 0.3f);
             }
 
-            // Dawn/dusk valley fog (W-R4): a soft haze band around sunrise/sunset on calm days, burning off
-            // toward noon — mornings read moody instead of identical to midday.
+            // Dawn/dusk valley fog: a soft haze band around sunrise/sunset on calm days, burning off toward noon.
             float tod = Game?.Environment != null ? Game.LocalTimeOfDay : 0.5f;
             float dawn = Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.27f) * 14f) + Mathf.Max(0f, 1f - Mathf.Abs(tod - 0.73f) * 14f);
             if (dawn > 0f && weatherIntensity < 0.4f)
             {
-                far = Mathf.Lerp(far, far * 0.45f, dawn);
+                far = Mathf.Lerp(far, far * 0.7f, dawn);
             }
 
-            RenderSettings.fogStartDistance = far * 0.35f;
+            RenderSettings.fogStartDistance = far * 0.55f;
             RenderSettings.fogEndDistance = far;
+
+            // The actual visible haze: an explicit distance blend the block shader applies (Unity's MixFog is dead
+            // on the unlit voxels). Strong toward the sky at the far edge so it masks chunk pop-in; faded out
+            // indoors via _indoor so the cabin never hazes.
+            float maxHaze = 0.7f * (1f - _indoor);
+            Shader.SetGlobalVector(FogId, new Vector4(far * 0.55f, far, maxHaze, 1f));
+
+            // Drive the volumetric fog (full-screen pass) from the same final view distance, so the screen-space
+            // haze matches the linear fog's reach: ~0.6 raw fog at the far edge (then capped by the material's
+            // _MaxFog). Storms/sandstorms/cloudy worlds → shorter far → denser fog, all from one value.
+            // Faded out indoors (_indoor = ship/station interior fill) so the exterior haze never darkens the
+            // cabin — a screen-space depth fog can't tell inside from out, so we gate it by the interior state.
+            Shader.SetGlobalFloat(VolFogDensityId, (1.5f / Mathf.Max(40f, far)) * (1f - _indoor));
         }
 
         /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the
@@ -364,6 +408,8 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
+            Shader.SetGlobalFloat(VolFogDensityId, 0f); // volumetric fog off (menu/space)
+            Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off (menu/space)
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)
             {

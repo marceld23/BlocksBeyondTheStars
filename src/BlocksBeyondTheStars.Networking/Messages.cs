@@ -1400,7 +1400,7 @@ public sealed class WorldEnvironment
     /// <summary>Full day length in seconds (the client advances time locally between updates).</summary>
     public float DayLengthSeconds { get; set; } = 600f;
 
-    /// <summary>clear / clouds / rain / storm.</summary>
+    /// <summary>clear / clouds / rain / storm / fog.</summary>
     public string Weather { get; set; } = "clear";
 
     /// <summary>0..1 weather strength.</summary>
@@ -1432,6 +1432,10 @@ public sealed class WorldEnvironment
 
     /// <summary>0..1 cloud cover for this planet (frequency + thickness; 0 = clear skies).</summary>
     public float CloudDensity { get; set; } = 0.45f;
+
+    /// <summary>0..1 how thick/hazy the air is — drives the volumetric fog density (denser air → shorter view
+    /// distance) and, server-side, the chance of fog weather. 0 on airless bodies.</summary>
+    public float AtmosphereDensity { get; set; } = 0.4f;
 
     /// <summary>Whether the planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool Breathable { get; set; }

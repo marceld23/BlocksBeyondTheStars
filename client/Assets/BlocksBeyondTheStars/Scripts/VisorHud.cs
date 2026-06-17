@@ -36,7 +36,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Always-on, just gentler under the reduced-effects / low-end preset.</summary>
         public void ApplyPreset(QualityPreset preset, bool reducedEffects)
         {
-            _intensity = reducedEffects ? 0.4f : 0.6f;
+            // Much subtler by default: the visor composite only began rendering once Phase 0 forced an
+            // intermediate colour target, and at the old 0.6 it washed the whole frame out. Keep it a faint
+            // stylistic touch so the world stays crisp and readable.
+            _intensity = reducedEffects ? 0.12f : 0.22f;
             if (_composite != null)
             {
                 _composite.Intensity = _intensity;
@@ -189,12 +192,12 @@ namespace BlocksBeyondTheStars.Client
                 m.SetColor("_RimColor", ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
                 m.SetFloat("_ScanCount", Mathf.Max(120f, _h * 0.5f));
                 m.SetFloat("_Intensity", fx ? _intensity : 0f);
-                m.SetFloat("_Curvature", fx ? 0.045f : 0f);
-                m.SetFloat("_Chroma", fx ? 0.005f : 0f);
+                m.SetFloat("_Curvature", fx ? 0.012f : 0f);   // gentle bow (was 0.045 — warped/softened the HUD)
+                m.SetFloat("_Chroma", fx ? 0.0015f : 0f);     // whisper of fringe (was 0.005)
                 m.SetVector("_Parallax", fx ? new Vector4(_parallax.x, _parallax.y, 0f, 0f) : Vector4.zero);
-                m.SetFloat("_Glow", fx ? 0.6f : 0f);
-                m.SetFloat("_Reflect", fx ? 0.08f : 0f);
-                m.SetFloat("_RimIntensity", fx ? 0.10f : 0f);
+                m.SetFloat("_Glow", fx ? 0.35f : 0f);         // softer hologram bloom (was 0.6)
+                m.SetFloat("_Reflect", fx ? 0.02f : 0f);      // barely-there world reflection (was 0.08 — ghosted the frame)
+                m.SetFloat("_RimIntensity", fx ? 0.05f : 0f); // faint edge glow (was 0.10)
             }
         }
 
@@ -299,14 +302,14 @@ namespace BlocksBeyondTheStars.Client
 
             if (Effects)
             {
-                // Stylised — but kept subtle ("dezent"): gentle bow, a whisper of chroma, soft glow.
+                // Stylised — but kept very subtle so the world stays crisp/readable (user: visor was far too strong).
                 _mat.SetFloat("_Intensity", Intensity);
-                _mat.SetFloat("_Curvature", 0.045f);  // outward-curved visor bow (subtle)
-                _mat.SetFloat("_Chroma", 0.005f);     // chromatic edge fringing (subtle)
+                _mat.SetFloat("_Curvature", 0.012f);  // gentle bow (was 0.045)
+                _mat.SetFloat("_Chroma", 0.0015f);    // whisper of fringe (was 0.005)
                 _mat.SetVector("_Parallax", new Vector4(Parallax.x, Parallax.y, 0f, 0f));
-                _mat.SetFloat("_Glow", 0.6f);         // emissive hologram glow
-                _mat.SetFloat("_Reflect", 0.08f);     // faint visor reflection of the world
-                _mat.SetFloat("_RimIntensity", 0.10f); // visor glass edge glow
+                _mat.SetFloat("_Glow", 0.35f);        // softer hologram glow (was 0.6)
+                _mat.SetFloat("_Reflect", 0.02f);     // barely-there reflection (was 0.08)
+                _mat.SetFloat("_RimIntensity", 0.05f); // faint edge glow (was 0.10)
             }
             else
             {

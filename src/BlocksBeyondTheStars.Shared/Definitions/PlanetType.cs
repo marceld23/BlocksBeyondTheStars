@@ -177,6 +177,13 @@ public sealed class PlanetType
     public double AtmosphereHeight { get; set; }
 
     /// <summary>
+    /// How thick / hazy this world's air is, 0..1 (0 = thin & crystal-clear, 1 = soupy). Drives the volumetric
+    /// fog density on the client (denser air → shorter view distance) and the likelihood of fog weather. Null
+    /// (the default) = derive a per-world seeded value from the atmosphere type; airless bodies are forced to 0.
+    /// </summary>
+    public double? AtmosphereDensity { get; set; }
+
+    /// <summary>
     /// Whether the universe generator may pick this type for a random system planet. Special
     /// bodies (e.g. landable asteroids) set this false so they don't appear as ordinary planets.
     /// </summary>

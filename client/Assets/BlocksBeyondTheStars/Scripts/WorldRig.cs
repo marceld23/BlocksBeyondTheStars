@@ -221,6 +221,7 @@ namespace BlocksBeyondTheStars.Client
             var sky = root.AddComponent<Sky>();
             sky.Game = boot;
             sky.Camera = cam;
+            sky.ViewChunks = shell.Settings.ViewDistanceChunks; // scale distance fog to the render distance
 
             // Procedural nebula backdrop behind the stars in deep space (colour + depth instead of flat black).
             var nebula = root.AddComponent<NebulaField>();
@@ -291,6 +292,7 @@ namespace BlocksBeyondTheStars.Client
             urpPost.Preset = shell.Settings.Preset;                 // gates lens flare (Medium+) / motion blur (High+)
             urpPost.LensFlareEnabled = shell.Settings.LensFlare;
             urpPost.MotionBlurEnabled = shell.Settings.MotionBlur;
+            urpPost.VolumetricFogEnabled = shell.Settings.VolumetricFog;
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();

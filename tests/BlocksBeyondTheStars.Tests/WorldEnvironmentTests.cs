@@ -55,7 +55,27 @@ public sealed class WorldEnvironmentTests : IDisposable
             Assert.InRange(r, 0xC0, 0xFF);
             Assert.InRange(g, 0xA0, 0xFF);
             Assert.InRange(b, 0x60, 0xFF);
-            Assert.Contains(server.Weather, new[] { "clear", "clouds", "rain", "storm" });
+            Assert.Contains(server.Weather, new[] { "clear", "clouds", "rain", "storm", "fog" });
+        }
+    }
+
+    [Fact]
+    public void AtmosphereDensity_IsInRange_AndWeatherStaysValidOverTime()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // The default world has an atmosphere → a seeded haziness in 0..1 (drives fog density + fog weather).
+            Assert.InRange(server.AtmosphereDensity, 0.0, 1.0);
+
+            // Run a long stretch of weather changes; the state must always stay a known value — including the
+            // new "fog" — so the fog branch integrates cleanly with the per-biome rain ramp.
+            var valid = new[] { "clear", "clouds", "rain", "storm", "fog" };
+            for (int i = 0; i < 400; i++)
+            {
+                server.Tick(1.0);
+                Assert.Contains(server.Weather, valid);
+            }
         }
     }
 

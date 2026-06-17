@@ -49,6 +49,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_Light;
             float4 _Sc_SunDir;
             float4 _Sc_Sky;
+            float4 _Sc_Fog;       // explicit distance haze (URP MixFog doesn't engage here): x=start, y=end, z=max, w=on
             float4 _Sc_LampPos;
             float4 _Sc_LampDir;
             float4 _Sc_LampColor;
@@ -200,6 +201,17 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float atten = saturate(1.0 - ld / _Sc_LampPos.w);
                     float ndl2 = saturate(dot(N, -dir));
                     col += albedo * _Sc_LampColor.rgb * cone * atten * atten * ndl2;
+                }
+
+                // Explicit distance haze toward the sky colour (Unity's MixFog path doesn't engage on this
+                // unlit shader). Driven by _Sc_Fog (x=start, y=end, z=max already faded indoors, w=on). Blends in
+                // shader space so it only tints distant terrain — it never darkens the frame like a full-screen pass.
+                if (_Sc_Fog.w > 0.5)
+                {
+                    float camDist = distance(i.wp, _WorldSpaceCameraPos);
+                    float haze = saturate((camDist - _Sc_Fog.x) / max(1.0, _Sc_Fog.y - _Sc_Fog.x)) * _Sc_Fog.z;
+                    float3 hazeCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
+                    col = lerp(col, hazeCol, haze);
                 }
 
                 half4 outc = half4(col, 1);
