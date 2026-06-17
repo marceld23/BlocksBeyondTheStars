@@ -34,6 +34,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            // Scene depth (enabled by the URP asset's depth texture, Phase 0) — lets water read its own column
+            // depth against the bed/objects behind it for a shallow→deep colour gradient + intersection foam.
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Sc_Light;
@@ -152,6 +155,25 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     {
                         // Calm lake/pond: a barely-there slow shimmer, nothing more.
                         col += light * 0.03 * (0.5 + 0.5 * sin(t * 0.6 + i.wp.x * 0.8 + i.wp.z * 1.1));
+                    }
+
+                    // Depth-based water body: read how much water sits between the surface and the bed/object
+                    // behind this pixel, then darken+blue with depth (you can't see the bottom of a deep sea)
+                    // and froth a bright foam line where geometry breaks the surface (shores, rocks, swimmers).
+                    // Degrades to the old flat look if no depth texture is bound.
+                    float2 screenUV = GetNormalizedScreenSpaceUV(i.positionCS);
+                    float sceneEye = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
+                    float fragEye = -TransformWorldToView(i.wp).z;
+                    float column = max(0.0, sceneEye - fragEye); // metres of water column at this pixel
+                    float depth01 = saturate(column / 6.0);
+                    col = lerp(col, col * 0.45 + light * float3(0.015, 0.07, 0.13), depth01 * 0.85);
+                    alpha = lerp(alpha, saturate(alpha + 0.4), depth01); // deep water turns opaque, hides the bed
+                    float edge = 1.0 - saturate(column / 0.55);          // ~1 right at the waterline / around objects
+                    if (edge > 0.01)
+                    {
+                        float ef = edge * (0.6 + 0.4 * sin(t * 3.1 + (i.wp.x + i.wp.z) * 3.7));
+                        col = lerp(col, light * float3(0.96, 0.99, 1.0), saturate(ef) * 0.7);
+                        alpha = saturate(alpha + saturate(ef) * 0.5);
                     }
                 }
                 else

@@ -57,6 +57,17 @@ namespace BlocksBeyondTheStars.Client
         public int ViewDistanceChunks = 2;
         public float UiScale = 1f;
 
+        // Look effects (the "professional / sci-fi look" layer). Each is also preset-gated at runtime — these
+        // toggles only matter from Medium upward; Potato/Low force the expensive ones off regardless.
+        /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
+        public bool LensFlare = true;
+        /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>
+        public bool MotionBlur = true;
+        /// <summary>Volumetric fog + god-rays (light shafts). Needs the depth texture (Medium+).</summary>
+        public bool VolumetricFog = true;
+        /// <summary>Screen-space reflections on water / glossy hull / metal. Needs depth + opaque (High+).</summary>
+        public bool Reflections = true;
+
         // Audio (0..1)
         public float MasterVolume = 0.8f;
         public float MusicVolume = 0.6f;
@@ -224,6 +235,13 @@ namespace BlocksBeyondTheStars.Client
                     QualityPreset.Medium => 70f,
                     _ => 90f,
                 };
+
+                // Depth + opaque copies feed the screen-space effects (volumetric fog, SSR, water refraction).
+                // They cost a prepass + a colour copy, so the two weakest presets turn them off entirely —
+                // which also disables every dependent effect for free (the features early-out without the textures).
+                bool wantsScreenSpace = Preset >= QualityPreset.Medium;
+                urp.supportsCameraDepthTexture = wantsScreenSpace;
+                urp.supportsCameraOpaqueTexture = wantsScreenSpace;
             }
         }
 

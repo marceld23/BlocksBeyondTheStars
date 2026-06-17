@@ -29,6 +29,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
         Pass
         {
             Tags { "LightMode" = "UniversalForward" }
+            // Alpha-to-coverage smooths the hard foliage cutout edges against MSAA (opaque tiles have a=1 →
+            // full coverage, unaffected); kills the shimmering on leaf/grass silhouettes for free.
+            AlphaToMask On
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -261,6 +264,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
         Pass
         {
+            AlphaToMask On // smooth foliage cutout edges against MSAA (opaque a=1 unaffected) — Built-in RP path
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag

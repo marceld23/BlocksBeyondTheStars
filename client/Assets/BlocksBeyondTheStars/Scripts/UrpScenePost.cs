@@ -24,11 +24,22 @@ namespace BlocksBeyondTheStars.Client
         /// accessibility "reduced effects" setting. Wired from WorldRig.</summary>
         public bool ReducedEffects;
 
+        /// <summary>Quality preset — gates the cost-bearing look effects (lens flare from Medium, motion blur from
+        /// High). Wired from WorldRig.</summary>
+        public QualityPreset Preset = QualityPreset.Medium;
+
+        /// <summary>Player look-effect toggles (mirror <see cref="ClientSettings"/>). Wired from WorldRig.</summary>
+        public bool LensFlareEnabled = true;
+        public bool MotionBlurEnabled = true;
+
         private ColorAdjustments _grade;
         private DepthOfField _menuBlur;
         private Vignette _vignette;
         private ChromaticAberration _chroma;
         private FilmGrain _grain;
+        private MotionBlur _motionBlur;
+        private ScreenSpaceLensFlare _lensFlare;
+        private float _speed; // 0..1 camera-motion intensity driver for the motion blur (set via SetMotion)
 
         private const float BaseVignette = 0.26f;
         private float _damagePulse;   // decaying 0..1 → a red-tinted vignette kick on damage
@@ -69,6 +80,30 @@ namespace BlocksBeyondTheStars.Client
             _grade.saturation.Override(6f);
             _grade.colorFilter.Override(Color.white);
 
+            // Cinematic teal-orange baseline: cool the shadows, warm the highlights a touch. Subtle and global —
+            // the per-biome ApplyGrade colour filter still rides on top. This is the single biggest "looks like
+            // a finished game" win per line; it shapes the whole frame's mood without touching gameplay clarity.
+            var smh = profile.Add<ShadowsMidtonesHighlights>(true);
+            smh.shadows.Override(new Vector4(0.92f, 0.97f, 1.06f, 0f));    // shadows lean cool/blue
+            smh.midtones.Override(new Vector4(1f, 1f, 1f, 0f));
+            smh.highlights.Override(new Vector4(1.05f, 1.0f, 0.93f, 0f));  // highlights lean warm
+
+            // Screen-space lens flare: streaks/ghosts off the HDR-bright pixels (sun, engines, glow blocks,
+            // force fields). Pure sci-fi flavour, ~free. Gated to Medium+ and the player toggle in Update.
+            _lensFlare = profile.Add<ScreenSpaceLensFlare>(false);
+            _lensFlare.intensity.Override(0.6f);
+            _lensFlare.tintColor.Override(new Color(0.7f, 0.82f, 1f)); // cool sci-fi tint
+            _lensFlare.firstFlareIntensity.Override(0.6f);
+            _lensFlare.secondaryFlareIntensity.Override(0.5f);
+            _lensFlare.warpedFlareIntensity.Override(0.5f);
+            _lensFlare.streaksIntensity.Override(0.7f);
+
+            // Camera motion blur for flight/driving speed. URP motion blur is camera-only (blurs on camera move),
+            // so it stays dormant on foot and only smears when the ship/speeder swings the view. High+ only.
+            _motionBlur = profile.Add<MotionBlur>(false);
+            _motionBlur.intensity.Override(0f);
+            _motionBlur.clamp.Override(0.05f);
+
             // Menu blur (graphics quick-win): a gaussian DoF that blurs everything past arm's length while
             // the in-game menu is open. Inactive during play; toggled in Update from Game.MenuOpen.
             _menuBlur = profile.Add<DepthOfField>(false);
@@ -95,8 +130,31 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Lens flare: enabled by the player toggle from Medium upward.
+            if (_lensFlare != null)
+            {
+                bool on = LensFlareEnabled && Preset >= QualityPreset.Medium;
+                if (_lensFlare.active != on) { _lensFlare.active = on; }
+            }
+
+            // Motion blur: High+ and the toggle, never in reduced-effects. Intensity tracks the camera-speed
+            // driver (SetMotion), so on-foot it's ~0 and only flight/driving smears the frame.
+            if (_motionBlur != null)
+            {
+                bool allowed = MotionBlurEnabled && !ReducedEffects && Preset >= QualityPreset.High;
+                float target = allowed ? Mathf.Clamp01(_speed) * 0.35f : 0f;
+                bool on = target > 0.001f;
+                if (_motionBlur.active != on) { _motionBlur.active = on; }
+                if (on) { _motionBlur.intensity.Override(target); }
+                _speed = Mathf.MoveTowards(_speed, 0f, Time.deltaTime * 1.5f); // decays unless SetMotion refreshes it
+            }
+
             UpdateDynamicFx();
         }
+
+        /// <summary>Feeds the camera-motion intensity (0..1) that scales the flight/driving motion blur. Call each
+        /// frame from the ship/speeder controllers with normalized speed; it decays on its own when not refreshed.</summary>
+        public void SetMotion(float intensity01) => _speed = Mathf.Max(_speed, Mathf.Clamp01(intensity01));
 
         /// <summary>Animates the runtime-driven effects each frame: the low-O₂ vignette pulse, the
         /// damage vignette kick (both gated by ReducedEffects) and the timed chroma/grain bursts.</summary>

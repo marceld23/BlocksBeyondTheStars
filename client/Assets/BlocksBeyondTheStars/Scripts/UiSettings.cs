@@ -70,6 +70,10 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
                 S.ViewDistanceChunks.ToString());
+            Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; Rebuild(); });
+            Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; Rebuild(); });
+            Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; Rebuild(); });
+            Toggle(ref y, L("ui.settings.reflections"), S.Reflections, () => { S.Reflections = !S.Reflections; Rebuild(); });
 
             Head(ref y, L("ui.settings.audio"));
             VolRow(ref y, L("ui.settings.master_volume"), () => S.MasterVolume, v => S.MasterVolume = v);

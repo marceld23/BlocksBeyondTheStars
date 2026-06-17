@@ -222,6 +222,22 @@ namespace BlocksBeyondTheStars.Client
             sky.Game = boot;
             sky.Camera = cam;
 
+            // Procedural nebula backdrop behind the stars in deep space (colour + depth instead of flat black).
+            var nebula = root.AddComponent<NebulaField>();
+            nebula.Game = boot;
+            nebula.Camera = cam;
+
+            // Additive atmosphere glow on planets: horizon brightening + warm dawn/dusk sun scattering.
+            var atmosphere = root.AddComponent<AtmosphereDome>();
+            atmosphere.Game = boot;
+            atmosphere.Camera = cam;
+
+            // Slow ambient air motes (dust/pollen/embers) on the surface — the air feels alive.
+            var ambientDust = root.AddComponent<AmbientParticles>();
+            ambientDust.Game = boot;
+            ambientDust.Camera = cam;
+            ambientDust.ReducedEffects = shell.Settings.ReducedEffects;
+
             // Twinkling stars behind the world (space, airless skies, station windows, planet nights).
             var starfield = root.AddComponent<Starfield>();
             starfield.Game = boot;
@@ -272,6 +288,9 @@ namespace BlocksBeyondTheStars.Client
             var urpPost = root.AddComponent<UrpScenePost>();
             urpPost.Game = boot;
             urpPost.ReducedEffects = shell.Settings.ReducedEffects; // skip alarm/damage pulses + bursts
+            urpPost.Preset = shell.Settings.Preset;                 // gates lens flare (Medium+) / motion blur (High+)
+            urpPost.LensFlareEnabled = shell.Settings.LensFlare;
+            urpPost.MotionBlurEnabled = shell.Settings.MotionBlur;
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();
