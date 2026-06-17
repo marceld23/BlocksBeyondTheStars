@@ -58,24 +58,122 @@ namespace BlocksBeyondTheStars.Client
             parent.AddComponent<Sweep>();
         }
 
-        /// <summary>A brief muzzle/impact flash (a quickly-shrinking bright cube).</summary>
+        /// <summary>A brief muzzle/impact flash: a soft additive glow billboard that fades fast (was a cube).</summary>
         public void Flash(Vector3 at, Color color, float size)
         {
-            var f = Cube("Flash", at, Vector3.one * size, color);
-            var fk = f.AddComponent<FadeKill>();
-            fk.Life = 0.1f;
-            fk.Shrink = true;
+            if (!ParticleBurst(at, color, 1, 0f, 0.12f, size * 1.6f, false))
+            {
+                var f = Cube("Flash", at, Vector3.one * size, color); // fallback if the particle shader is missing
+                var fk = f.AddComponent<FadeKill>();
+                fk.Life = 0.1f;
+                fk.Shrink = true;
+            }
         }
 
-        /// <summary>A small shower of spark particles at a point (impacts, drilling).</summary>
+        /// <summary>A small shower of additive spark particles at a point (impacts, drilling).</summary>
         public void Sparks(Vector3 at, Color color, int count = 5)
         {
-            for (int i = 0; i < count; i++)
+            if (ParticleBurst(at, color, count, 3.6f, 0.45f, 0.13f, true))
+            {
+                return;
+            }
+
+            for (int i = 0; i < count; i++) // fallback: the old Unlit cube sparks
             {
                 var p = Cube("Spark", at, Vector3.one * 0.07f, color);
                 var s = p.AddComponent<Spark>();
                 s.Vel = new Vector3(Random.Range(-2.2f, 2.2f), Random.Range(0.5f, 3f), Random.Range(-2.2f, 2.2f));
             }
+        }
+
+        private static Material _sparkMat;
+
+        /// <summary>One-shot additive particle burst (sparks / flashes): <paramref name="count"/> glowing bits in
+        /// <paramref name="color"/> flying out of a point, fading + shrinking, optionally arcing under gravity, then
+        /// self-destroying (stopAction = Destroy). Returns false if the additive particle shader is unavailable so
+        /// callers can fall back to the legacy cubes.</summary>
+        private bool ParticleBurst(Vector3 at, Color color, int count, float speed, float life, float size, bool gravity)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/Particle");
+            if (shader == null)
+            {
+                return false;
+            }
+
+            _sparkMat ??= new Material(shader) { mainTexture = SparkDot() };
+
+            var go = new GameObject("WeaponBurst");
+            go.transform.position = at;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.loop = false;
+            main.duration = 0.1f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(life * 0.6f, life);
+            main.startSpeed = speed > 0f ? new ParticleSystem.MinMaxCurve(speed * 0.3f, speed) : new ParticleSystem.MinMaxCurve(0f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.6f, size);
+            main.startColor = color;
+            main.maxParticles = count + 2;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = gravity ? 0.9f : 0f;
+            main.stopAction = ParticleSystemStopAction.Destroy;
+
+            var em = ps.emission;
+            em.rateOverTime = 0f;
+            em.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)count) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.05f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            col.color = new ParticleSystem.MinMaxGradient(grad);
+
+            var sol = ps.sizeOverLifetime;
+            sol.enabled = true;
+            sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.2f));
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.material = _sparkMat;
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.sortMode = ParticleSystemSortMode.None;
+            ps.Play();
+            return true;
+        }
+
+        private static Texture2D _sparkDot;
+
+        /// <summary>A soft round glow dot (bright core → transparent rim) shared by the weapon bursts.</summary>
+        private static Texture2D SparkDot()
+        {
+            if (_sparkDot != null)
+            {
+                return _sparkDot;
+            }
+
+            const int n = 16;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Clamp01(Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c);
+                px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Pow(Mathf.Clamp01(1f - d), 1.8f));
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            _sparkDot = tex;
+            return tex;
         }
 
         /// <summary>An expanding horizontal ring of bits — a scanner ping.</summary>
