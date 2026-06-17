@@ -105,7 +105,7 @@
   { "key": "pine_needles",    "nameKey": "block.pine_needles.name",    "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "drops": [] },
   { "key": "palm_frond",      "nameKey": "block.palm_frond.name",      "hardness": 0.3, "requiredTool": "none", "minToolTier": 0, "drops": [] },
   { "key": "fire",         "nameKey": "block.fire.name",         "hardness": 0, "requiredTool": "none", "minToolTier": 0, "mineable": false, "solid": false, "emission": 0.95, "color": 16734488, "drops": [] },
-  { "key": "ash",          "nameKey": "block.ash.name",          "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 2829355, "drops": [] },
+  { "key": "ash",          "nameKey": "block.ash.name",          "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 2829355, "drops": [ { "item": "ash", "count": 1 } ] },
   { "key": "radio_beacon", "nameKey": "block.radio_beacon.name", "hardness": 1.8, "requiredTool": "none", "minToolTier": 0, "emission": 0.45, "drops": [ { "item": "radio_beacon", "count": 1 } ] },
   { "key": "beam_block",   "nameKey": "block.beam_block.name",   "hardness": 2.4, "requiredTool": "none", "minToolTier": 0, "emission": 0.8, "color": 2733768, "drops": [ { "item": "beam_block", "count": 1 } ] },
   { "key": "base_core",    "nameKey": "block.base_core.name",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5, "color": 4156101, "drops": [ { "item": "base_core", "count": 1 } ] },
@@ -121,5 +121,23 @@
   { "key": "lab_panel",        "nameKey": "block.lab_panel.name",        "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 12573160, "drops": [] },
   { "key": "cargo_floor",      "nameKey": "block.cargo_floor.name",      "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 14196760, "drops": [] },
   { "key": "engine_panel",     "nameKey": "block.engine_panel.name",     "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "color": 3816000,  "drops": [] },
-  { "key": "engine_nozzle",    "nameKey": "block.engine_nozzle.name",    "hardness": 4.8, "requiredTool": "drill", "minToolTier": 1, "emission": 0.25, "color": 3026483, "drops": [] }
+  { "key": "engine_nozzle",    "nameKey": "block.engine_nozzle.name",    "hardness": 4.8, "requiredTool": "drill", "minToolTier": 1, "emission": 0.25, "color": 3026483, "drops": [] },
+
+  { "key": "detoxifier",   "nameKey": "block.detoxifier.name",   "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.2, "color": 4174699, "drops": [ { "item": "detoxifier", "count": 1 } ] },
+  { "key": "diamond_ore",  "nameKey": "block.diamond_ore.name",  "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "diamond_ore", "count": 1 } ] },
+  { "key": "insulated_wall", "nameKey": "block.insulated_wall.name", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 1, "color": 3684408, "drops": [ { "item": "insulated_wall", "count": 1 } ] },
+
+  { "key": "iron_block",      "nameKey": "block.iron_block.name",      "hardness": 5.0, "requiredTool": "drill", "minToolTier": 1, "color": 10197915, "drops": [ { "item": "iron_block", "count": 1 } ] },
+  { "key": "copper_block",    "nameKey": "block.copper_block.name",    "hardness": 4.4, "requiredTool": "drill", "minToolTier": 1, "color": 12088115, "drops": [ { "item": "copper_block", "count": 1 } ] },
+  { "key": "gold_block",      "nameKey": "block.gold_block.name",      "hardness": 4.8, "requiredTool": "drill", "minToolTier": 1, "color": 16766797, "drops": [ { "item": "gold_block", "count": 1 } ] },
+  { "key": "silver_block",    "nameKey": "block.silver_block.name",    "hardness": 4.6, "requiredTool": "drill", "minToolTier": 1, "color": 14211296, "drops": [ { "item": "silver_block", "count": 1 } ] },
+  { "key": "aluminium_block", "nameKey": "block.aluminium_block.name", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "color": 13225428, "drops": [ { "item": "aluminium_block", "count": 1 } ] },
+  { "key": "tin_block",       "nameKey": "block.tin_block.name",       "hardness": 3.8, "requiredTool": "drill", "minToolTier": 1, "color": 12633800, "drops": [ { "item": "tin_block", "count": 1 } ] },
+  { "key": "nickel_block",    "nameKey": "block.nickel_block.name",    "hardness": 5.2, "requiredTool": "drill", "minToolTier": 1, "color": 11911336, "drops": [ { "item": "nickel_block", "count": 1 } ] },
+  { "key": "cobalt_block",    "nameKey": "block.cobalt_block.name",    "hardness": 5.6, "requiredTool": "drill", "minToolTier": 1, "color": 2773694,  "drops": [ { "item": "cobalt_block", "count": 1 } ] },
+  { "key": "platinum_block",  "nameKey": "block.platinum_block.name",  "hardness": 6.4, "requiredTool": "drill", "minToolTier": 2, "color": 15066850, "drops": [ { "item": "platinum_block", "count": 1 } ] },
+  { "key": "lead_block",      "nameKey": "block.lead_block.name",      "hardness": 4.2, "requiredTool": "drill", "minToolTier": 1, "color": 5922406,  "drops": [ { "item": "lead_block", "count": 1 } ] },
+  { "key": "zinc_block",      "nameKey": "block.zinc_block.name",      "hardness": 3.9, "requiredTool": "drill", "minToolTier": 1, "color": 11122882, "drops": [ { "item": "zinc_block", "count": 1 } ] },
+  { "key": "tungsten_block",  "nameKey": "block.tungsten_block.name",  "hardness": 8.2, "requiredTool": "drill", "minToolTier": 2, "color": 5592410,  "drops": [ { "item": "tungsten_block", "count": 1 } ] },
+  { "key": "titanium_block",  "nameKey": "block.titanium_block.name",  "hardness": 7.4, "requiredTool": "drill", "minToolTier": 2, "color": 12633548, "drops": [ { "item": "titanium_block", "count": 1 } ] }
 ]

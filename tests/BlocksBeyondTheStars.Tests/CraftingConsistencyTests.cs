@@ -140,6 +140,8 @@ public sealed class CraftingConsistencyTests
             "platinum_ingot", "lead_ingot", "zinc_ingot", "tungsten_ingot", "lithium", "uranium", "neodymium",
             "sulfur", "steel", "bronze", "brass", "circuit_board", "power_cell", "reactor_fuel", "carbide",
             "magnet", "light_alloy",
+            // New tiers / functional sinks (Materialvielfalt): each must be made AND consumed somewhere.
+            "diamond", "polymer", "biofuel", "bronze_gear", "brass_fitting",
         };
         var consumed = Consumed();
         var deadEnds = intermediates.Where(m => !consumed.Contains(m)).ToList();
@@ -148,6 +150,41 @@ public sealed class CraftingConsistencyTests
         // And each is obtainable (has a recipe producing it).
         var unbuildable = intermediates.Where(m => !obtainable.Contains(m)).ToList();
         Assert.True(unbuildable.Count == 0, "new materials with no recipe to make them: " + string.Join(", ", unbuildable));
+    }
+
+    /// <summary>
+    /// Guard against dead items: every defined item must be reachable in-game — mined/dropped, crafted, a
+    /// fauna drop, granted in the starter kit, or dropped by structure loot. This is what would have caught
+    /// the unobtainable plant_seed / crystal_seed (defined items with no source).
+    /// </summary>
+    [Fact]
+    public void EveryItem_IsObtainable_OrIntentionallyGranted()
+    {
+        // Items handed out by code rather than a recipe/drop (so legitimately not in Obtainable()):
+        var granted = new HashSet<string>
+        {
+            "basic_drill", "block_placer", "hand_scanner", // starter hotbar kit
+            "ai_memory_fragment",                          // VEGA data-terminal structure loot
+            "toxic_berries",                               // runtime poison variant of a toxic flora's berries
+        };
+
+        var obtainable = Obtainable();
+        var dead = _c.Items.Keys
+            .Where(k => !obtainable.Contains(k) && !granted.Contains(k))
+            .OrderBy(k => k)
+            .ToList();
+
+        Assert.True(dead.Count == 0, "items with no in-game source (dead items): " + string.Join(", ", dead));
+    }
+
+    [Fact]
+    public void Seeds_AreCraftable()
+    {
+        // plant_seed / crystal_seed were dead (placeable but unobtainable); a hand recipe now sources them.
+        foreach (var seed in new[] { "plant_seed", "crystal_seed" })
+        {
+            Assert.Contains(_c.Recipes.Values, r => r.Outputs.Any(o => o.Item == seed));
+        }
     }
 
     [Fact]

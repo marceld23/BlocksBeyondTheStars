@@ -36,13 +36,14 @@ usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for
 non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/electronic components, the
-VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`, and the creature-taming
-set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`) are
+VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`, the creature-taming
+set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`, and the
+material-variety tier `item_diamond`/`item_diamond_drill`/`item_polymer`/`item_biofuel`/`item_bronze_gear`/`item_brass_fitting`) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, the `beam_block` teleporter pad, and the planet-enemy
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, the `beam_block` teleporter pad, the material-variety set (`detoxifier`, `diamond_ore`, `insulated_wall`, the 13 metal storage blocks `iron_block`…`titanium_block`), and the planet-enemy
 `enemy_hide` chitin tile) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the

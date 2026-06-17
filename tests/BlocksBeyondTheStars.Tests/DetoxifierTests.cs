@@ -1,3 +1,4 @@
+using System.Linq;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -46,6 +47,18 @@ public sealed class DetoxifierTests : IDisposable
         var recipe = _content.Recipes["detoxify_gland"];
         Assert.Equal("toxic_gland", recipe.Inputs[0].Item);
         Assert.Equal("creature_meat", recipe.Outputs[0].Item);
+    }
+
+    [Fact]
+    public void Detoxifier_IsPlaceable_AsAStationBlock()
+    {
+        // The planetside counterpart to the ship module: a craftable, placeable block that enables the
+        // detoxifier station on foot (GameServer.StationAvailable maps Detoxifier -> the "detoxifier" block).
+        var item = _content.GetItem("detoxifier");
+        Assert.NotNull(item);
+        Assert.Equal("detoxifier", item!.PlacesBlock);
+        Assert.NotNull(_content.GetBlock("detoxifier"));
+        Assert.Contains(_content.Recipes.Values, r => r.Outputs.Any(o => o.Item == "detoxifier"));
     }
 
     [Fact]

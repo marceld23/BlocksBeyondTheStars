@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **635 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **638 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,14 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Material variety overhaul — dead-ends fixed, new tiers + metal blocks, depth-banding — ✅ data + server + tests + assets (2026-06-17, NEEDS Unity client build)
+A full pass over mineable materials, crafting and ore distribution (analysis: [memory] mineable-materials-analysis). All data/server/tests green (638); 22 new OpenAI tiles/icons generated, bundled and installed; the client must be rebuilt to surface the new blocks/items. **Adds 16 blocks → block numeric ids re-sort, so existing savegames become palette-incompatible** (acceptable pre-release; do future block adds in one batch).
+- **P1 dead-ends fixed:** `plant_seed`/`crystal_seed` were defined but unobtainable — now hand-craftable (`2 plant_fiber → seed`, `1 crystal → crystal_seed`). `ash` is now collectable+placeable (the block dropped nothing). The **detoxifier** is now a craftable, placeable station block (planetside counterpart to the ship module; `GameServer.StationAvailable` maps `Detoxifier → "detoxifier"` block). `tin`/`zinc` got functional payoff: new `bronze_gear` (doors) and `brass_fitting` (comm_radio/radar_scanner) sinks beyond the cosmetic bronze/brass blocks.
+- **P2 depth-banding:** rare metals (uranium/platinum/tungsten/neodymium/cobalt) pushed deeper; new deep gem tier `diamond_ore` seeded on crystal/crystal_living/lava/ashen/highland/corrupted/asteroid (within each crust's reach, enforced by `EconomyBalanceTests`).
+- **P3 new tiers:** `diamond` (refine 2 ore → 1) → `diamond_drill` (tier-3, no energy; new blueprint) + sinks in plasma_sword/plasma_blaster. `polymer` (carbon_composite+sulfur) → alt cable, `insulated_wall`, jetpack/stealth_suit. `biofuel` (berries+fibre) → alt energy cell — gives the large flora-drop set a real sink.
+- **P4 placeability:** 13 metal **storage blocks** (iron…titanium) with 9:1 pack + unpack recipes — compact storage, decoration, and a building use for gold/silver (previously circuit-board only).
+- **Guards:** `CraftingConsistencyTests` extended (`EveryItem_IsObtainable_OrIntentionallyGranted` catches future dead items; new intermediates must be made+consumed); `DetoxifierTests` covers the placeable block.
 
 ### ★ Life in the water — lakes/ponds/seas were lifeless; now planted + populated — ✅ server + tests (2026-06-17, no client build needed)
 Players never saw animals or plants in any water body. Two independent systems, both fixed server-side (the kelp/coral/lily/seagrass blocks already exist in `blocks.json`, so no Unity build is required — applies to newly generated chunks; live for fauna):

@@ -120,6 +120,13 @@ ITEMS = [
     ("light_alloy", "a lightweight brushed silver alloy plate"),
     ("radio_beacon", "a sci-fi radio beacon transmitter device, a slim metal mast on a tripod base with a glowing cyan antenna ring and a blinking status light"),
     ("speeder", "a sleek futuristic single-seat hover speeder vehicle seen at a three-quarter angle, smooth silver-blue aerodynamic hull with an open cockpit seat, swept side pods and two glowing cyan engine thrusters at the rear, hovering"),
+    # Materialvielfalt — new tiers + functional alloy sinks (non-block items only).
+    ("diamond", "a brilliant cut clear pale-blue diamond gemstone with sparkling facets"),
+    ("diamond_drill", "a heavy-duty sci-fi mining drill tipped with a glittering blue industrial diamond bit"),
+    ("polymer", "a coil of glossy dark synthetic polymer sheet, like industrial plastic"),
+    ("biofuel", "a small glass flask of glowing green-amber biofuel liquid with a cork stopper"),
+    ("bronze_gear", "a single toothed bronze mechanical gear cog with a warm golden-brown sheen"),
+    ("brass_fitting", "a small polished brass pipe fitting coupling with threads"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

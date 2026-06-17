@@ -135,6 +135,23 @@ TEXTURES = [
     ("radio_beacon", "a sci-fi radio beacon transmitter tower, a slim metal pole on a base with a glowing cyan antenna ring and blinking status light, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),
     ("beam_block", "a sci-fi teleporter pad, a dark metal floor plate with a glowing cyan hexagonal grid, concentric light rings and small status lights around the rim, top-down"),
+    # Materialvielfalt — dead-end fixes + new tiers + metal storage blocks.
+    ("detoxifier", "a sci-fi chemical detox station, a metal vat of bubbling glowing green fluid with pipes and valves, top-down"),
+    ("diamond_ore", "dark grey rock with glittering pale-blue and white embedded diamond crystals"),
+    ("insulated_wall", "a matte dark polymer-coated wall panel with rubber seams and rounded bolts, top-down"),
+    ("iron_block", "a solid polished grey iron metal block, seamless"),
+    ("copper_block", "a solid polished orange-brown copper metal block, seamless"),
+    ("gold_block", "a solid polished bright yellow gold metal block, seamless"),
+    ("silver_block", "a solid polished metallic silver-white metal block, seamless"),
+    ("aluminium_block", "a solid brushed pale silver aluminium metal block, seamless"),
+    ("tin_block", "a solid dull pale silvery tin metal block, seamless"),
+    ("nickel_block", "a solid polished pale greenish-silver nickel metal block, seamless"),
+    ("cobalt_block", "a solid polished deep blue cobalt metal block, seamless"),
+    ("platinum_block", "a solid polished bright silvery-white platinum metal block, seamless"),
+    ("lead_block", "a solid dull bluish-grey lead metal block, seamless"),
+    ("zinc_block", "a solid bluish-silver zinc metal block, seamless"),
+    ("tungsten_block", "a solid hard dark metallic grey tungsten metal block, seamless"),
+    ("titanium_block", "a solid brushed silvery-grey titanium metal block, seamless"),
 ]
 
 

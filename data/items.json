@@ -142,5 +142,31 @@
   { "key": "station_core", "nameKey": "item.station_core.name", "category": "block", "maxStack": 16, "placesBlock": "station_core", "descriptionKey": "item.station_core.desc" },
   { "key": "station_vendor",    "nameKey": "item.station_vendor.name",    "category": "block", "maxStack": 16, "placesBlock": "station_vendor",    "descriptionKey": "item.station_vendor.desc" },
   { "key": "mission_board",     "nameKey": "item.mission_board.name",     "category": "block", "maxStack": 16, "placesBlock": "mission_board",     "descriptionKey": "item.mission_board.desc" },
-  { "key": "station_container", "nameKey": "item.station_container.name", "category": "block", "maxStack": 16, "placesBlock": "station_container", "descriptionKey": "item.station_container.desc" }
+  { "key": "station_container", "nameKey": "item.station_container.name", "category": "block", "maxStack": 16, "placesBlock": "station_container", "descriptionKey": "item.station_container.desc" },
+
+  { "key": "ash",            "nameKey": "item.ash.name",            "category": "block",     "maxStack": 99, "placesBlock": "ash" },
+  { "key": "diamond_ore",    "nameKey": "item.diamond_ore.name",    "category": "material",  "maxStack": 99 },
+  { "key": "diamond",        "nameKey": "item.diamond.name",        "category": "material",  "maxStack": 99 },
+  { "key": "polymer",        "nameKey": "item.polymer.name",        "category": "material",  "maxStack": 99 },
+  { "key": "biofuel",        "nameKey": "item.biofuel.name",        "category": "component", "maxStack": 50, "descriptionKey": "item.biofuel.desc" },
+  { "key": "bronze_gear",    "nameKey": "item.bronze_gear.name",    "category": "component", "maxStack": 99 },
+  { "key": "brass_fitting",  "nameKey": "item.brass_fitting.name",  "category": "component", "maxStack": 99 },
+  { "key": "diamond_drill",  "nameKey": "item.diamond_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.diamond_drill.desc", "tool": { "kind": "drill", "tier": 3, "miningPower": 3.2, "energyPerUse": 0.0 } },
+
+  { "key": "detoxifier",     "nameKey": "item.detoxifier.name",     "category": "block", "maxStack": 16, "placesBlock": "detoxifier", "descriptionKey": "item.detoxifier.desc" },
+  { "key": "insulated_wall", "nameKey": "item.insulated_wall.name", "category": "block", "maxStack": 99, "placesBlock": "insulated_wall" },
+
+  { "key": "iron_block",      "nameKey": "item.iron_block.name",      "category": "block", "maxStack": 99, "placesBlock": "iron_block" },
+  { "key": "copper_block",    "nameKey": "item.copper_block.name",    "category": "block", "maxStack": 99, "placesBlock": "copper_block" },
+  { "key": "gold_block",      "nameKey": "item.gold_block.name",      "category": "block", "maxStack": 99, "placesBlock": "gold_block" },
+  { "key": "silver_block",    "nameKey": "item.silver_block.name",    "category": "block", "maxStack": 99, "placesBlock": "silver_block" },
+  { "key": "aluminium_block", "nameKey": "item.aluminium_block.name", "category": "block", "maxStack": 99, "placesBlock": "aluminium_block" },
+  { "key": "tin_block",       "nameKey": "item.tin_block.name",       "category": "block", "maxStack": 99, "placesBlock": "tin_block" },
+  { "key": "nickel_block",    "nameKey": "item.nickel_block.name",    "category": "block", "maxStack": 99, "placesBlock": "nickel_block" },
+  { "key": "cobalt_block",    "nameKey": "item.cobalt_block.name",    "category": "block", "maxStack": 99, "placesBlock": "cobalt_block" },
+  { "key": "platinum_block",  "nameKey": "item.platinum_block.name",  "category": "block", "maxStack": 99, "placesBlock": "platinum_block" },
+  { "key": "lead_block",      "nameKey": "item.lead_block.name",      "category": "block", "maxStack": 99, "placesBlock": "lead_block" },
+  { "key": "zinc_block",      "nameKey": "item.zinc_block.name",      "category": "block", "maxStack": 99, "placesBlock": "zinc_block" },
+  { "key": "tungsten_block",  "nameKey": "item.tungsten_block.name",  "category": "block", "maxStack": 99, "placesBlock": "tungsten_block" },
+  { "key": "titanium_block",  "nameKey": "item.titanium_block.name",  "category": "block", "maxStack": 99, "placesBlock": "titanium_block" }
 ]

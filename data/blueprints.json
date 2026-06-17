@@ -150,6 +150,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
   },
   {
+    "key": "diamond_drill", "nameKey": "blueprint.diamond_drill.name", "descriptionKey": "blueprint.diamond_drill.desc",
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 18,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 8 }, { "item": "diamond", "count": 1 } ]
+  },
+  {
     "key": "armor_chest", "nameKey": "blueprint.armor_chest.name", "descriptionKey": "blueprint.armor_chest.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 4,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 12 } ]

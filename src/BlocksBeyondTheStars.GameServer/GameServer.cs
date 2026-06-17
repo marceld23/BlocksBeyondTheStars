@@ -2805,6 +2805,7 @@ public sealed partial class GameServer
             {
                 CraftingStation.Workshop => NearStationBlock(player, "workbench"),
                 CraftingStation.Refinery => NearStationBlock(player, "forge"),
+                CraftingStation.Detoxifier => NearStationBlock(player, "detoxifier"),
                 _ => false,
             };
         }
