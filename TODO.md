@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **638 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **646 passing** (2026-06-17). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,14 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Natural movement overhaul — creatures + NPCs + planet enemies — ✅ server + client + tests (2026-06-17, NEEDS Unity client build)
+Fauna, settlement NPCs and planet enemies all moved mechanically (constant speed, never paused, beeline hunts, no facing). A new shared pure controller fixes it; analysis + plan in `[memory] creature-movement-naturalness-analysis` + `movement-overhaul-implementation-plan`. 646 tests green (new `LocomotionControllerTests` + extended `CreatureTests`); client libs synced, needs a Unity build to see it.
+- **Shared `LocomotionController`** (`src/BlocksBeyondTheStars.Shared/Definitions/LocomotionController.cs`): pure, deterministic, unit-tested. Stop-and-go (roam↔pause), eased speed (momentum), turn-rate inertia (no instant heading snaps), in-segment weave, and a per-actor vertical-life wave. Carried as a `LocomotionState` on `CombatEntity` + `ServerNpc`.
+- **Creatures — per-species variation:** every species rolls a `LocomotionStyle` (Grazer/Darter/Prowler/Hopper/Drifter/Slitherer/Glider/Schooler/Strider) in `CreatureGenerator.MakeSpecies`, biased by its body+habitat+temperament (drawn LAST so existing rosters are byte-identical). Drives a seeded profile (`LocomotionController.ForSpecies`). Pausing finally lets the existing graze/alert/lunge idle gestures fire; pack-hunters flank/encircle; gliders swoop, swimmers porpoise on their own wave, hoppers pop — via `AdjustHabitatHeight`.
+- **NPCs — uniform (no variation):** the endless Lissajous loop is gone; one shared `NpcProfile` gives loiter↔stroll (stand, potter to a new spot within the leash, stand again) and real travel-direction facing.
+- **Planet enemies — uniform per kind:** walking robots are heavy (slow accel, slow pivots, pause-and-scan); the flying scan-drone orbits/strafes the player at a standoff and hover-bobs instead of ramming. Seam-correct via an `Unwrapped` helper.
+- **Client:** `CreatureView` now turns the body to face its smoothed velocity (creatures used to slide/moonwalk — `NetCreature` carries no facing, so it's velocity-derived). Planet-enemy + NPC views already faced movement, so the server changes flow in for free.
 
 ### ★ Material variety overhaul — dead-ends fixed, new tiers + metal blocks, depth-banding — ✅ data + server + tests + assets (2026-06-17, NEEDS Unity client build)
 A full pass over mineable materials, crafting and ore distribution (analysis: [memory] mineable-materials-analysis). All data/server/tests green (638); 22 new OpenAI tiles/icons generated, bundled and installed; the client must be rebuilt to surface the new blocks/items. **Adds 16 blocks → block numeric ids re-sort, so existing savegames become palette-incompatible** (acceptable pre-release; do future block adds in one batch).

@@ -62,6 +62,40 @@ public sealed class CreatureTests : IDisposable
             Assert.Equal(a[i].Activity, b[i].Activity);
             Assert.Equal(a[i].MaxHealth, b[i].MaxHealth);
             Assert.Equal(a[i].DropItem, b[i].DropItem);
+            Assert.Equal(a[i].LocoStyle, b[i].LocoStyle); // movement signature is seeded too → reproducible
+        }
+    }
+
+    [Fact]
+    public void Roster_AssignsLocomotionStyle_BiasedByTraits()
+    {
+        // Across a few planets every species gets a style, and the strong body/habitat biases hold: limbless
+        // ground fauna slither, fliers glide/drift, water fauna school/slither/drift.
+        foreach (var key in new[] { "jungle", "ocean", "desert" })
+        {
+            var planet = _content.GetPlanet(key);
+            if (planet is null) continue;
+
+            foreach (var sp in CreatureGenerator.GenerateRoster(planet, 999))
+            {
+                // Sanity: the style yields a usable movement profile.
+                var prof = BlocksBeyondTheStars.Shared.Definitions.LocomotionController.ForSpecies(sp);
+                Assert.True(prof.CruiseSpeed > 0f);
+
+                if (sp.Habitat == CreatureHabitat.Air)
+                {
+                    Assert.Contains(sp.LocoStyle, new[] { LocomotionStyle.Glider, LocomotionStyle.Drifter, LocomotionStyle.Strider });
+                }
+                else if (sp.Habitat == CreatureHabitat.Water)
+                {
+                    Assert.Contains(sp.LocoStyle, new[] { LocomotionStyle.Schooler, LocomotionStyle.Slitherer, LocomotionStyle.Drifter });
+                }
+                else if (sp.Legs == 0)
+                {
+                    // limbless ground movers never stride/hop on legs they don't have
+                    Assert.NotEqual(LocomotionStyle.Hopper, sp.LocoStyle);
+                }
+            }
         }
     }
 

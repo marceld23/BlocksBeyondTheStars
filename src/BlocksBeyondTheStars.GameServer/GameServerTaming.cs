@@ -509,9 +509,11 @@ public sealed partial class GameServer
             return; // owner not on this world — hold (reconciliation will despawn it)
         }
 
-        double phase = _creatureClock * 0.8 + (Hash(c.Id, "wander") % 360) * (System.Math.PI / 180.0);
-        var next = CreatureBehaviour.FollowStep(c.Position, owner.State.Position, sp.Speed, CompanionFollowDistance, moveDt, phase);
-        next = AdjustHabitatHeight(sp, next);
+        var profile = ProfileFor(c.SpeciesId);
+        var res = LocomotionController.FollowStep(
+            c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
+        c.Loco = res.State;
+        var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile);
         c.Position = EntityBlockedByShip(next) ? c.Position : next;
     }
 

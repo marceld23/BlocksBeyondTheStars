@@ -134,6 +134,37 @@ public sealed partial class GameServer
     private double _enemySyncTimer;
     private readonly Dictionary<string, (double Heading, double Until)> _enemyWander = new();
 
+    // Uniform per-kind gaits (NO per-individual variation). Walking robots are heavy + deliberate (slow accel,
+    // slow pivots, pause-and-scan between patrol legs); the flying scan-drone is nimble and hover-bobs.
+    private static readonly LocomotionProfile RobotProfile = new()
+    {
+        Style = LocomotionStyle.Prowler,
+        CruiseSpeed = EnemyWanderSpeed, BurstSpeed = EnemyHuntSpeed, Accel = 3.0f, TurnRate = 1.8f,
+        HoldMin = 3.0f, HoldMax = 7.0f, PauseChance = 0.5f, PauseMin = 1.0f, PauseMax = 2.5f,
+        WeaveAmp = 0.12f, WeaveFreq = 0.8f, VertAmp = 0f, VertFreq = 0f,
+    };
+
+    private static readonly LocomotionProfile ToughRobotProfile = new()
+    {
+        Style = LocomotionStyle.Prowler,
+        CruiseSpeed = EnemyWanderSpeed, BurstSpeed = EnemyToughHuntSpeed, Accel = 3.4f, TurnRate = 2.0f,
+        HoldMin = 3.0f, HoldMax = 7.0f, PauseChance = 0.45f, PauseMin = 0.8f, PauseMax = 2.0f,
+        WeaveAmp = 0.12f, WeaveFreq = 0.8f, VertAmp = 0f, VertFreq = 0f,
+    };
+
+    private static readonly LocomotionProfile DroneProfile = new()
+    {
+        Style = LocomotionStyle.Glider,
+        CruiseSpeed = EnemyWanderSpeed * 1.3f, BurstSpeed = EnemyHuntSpeed, Accel = 5.0f, TurnRate = 3.5f,
+        HoldMin = 2.0f, HoldMax = 4.5f, PauseChance = 0.25f, PauseMin = 0.6f, PauseMax = 1.5f,
+        WeaveAmp = 0.25f, WeaveFreq = 1.1f, VertAmp = 0.6f, VertFreq = 1.4f, // hover bob
+    };
+
+    private const float DroneStandoff = 7f;     // a hunting drone hovers this far from the player rather than ramming
+    private const float DroneStrafe = 3f;       // ...oscillating in/out by this for darting strafes
+    private const float DroneOrbitSpeed = 0.9f; // rad/s it circles the player
+    private const float DroneBob = 0.6f;        // vertical hover-bob amplitude
+
     private const float CompanionWardRange = 12f; // a tamed companion within this of its owner wards them
 
     /// <summary>True when one of the player's tamed companions is present and close enough to make the
@@ -154,10 +185,11 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Moves one planet enemy: hunt the nearest detectable player inside the hunt range, else
-    /// wander on a seeded heading that re-rolls every few seconds. Terrain-following (the enemy stands on
-    /// the surface at its new column); a cliff step taller than 3 blocks blocks the move and re-rolls the
-    /// wander heading. Returns true when the enemy actually moved.</summary>
+    /// <summary>Moves one planet enemy through the shared locomotion controller (eased speed + turn inertia +
+    /// stop-and-go), with kind-specific behaviour: a walking robot stalks the nearest detectable player straight
+    /// in (heavy + deliberate) or patrols with pause-and-scan; the flying scan-drone orbits/strafes the player at
+    /// a standoff and hover-bobs instead of ramming. Terrain-following; a cliff step taller than 3 blocks blocks
+    /// the move and re-rolls the heading. Returns true when the enemy actually moved.</summary>
     private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, HashSet<string> warded, double dt)
     {
         // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
@@ -179,8 +211,11 @@ public sealed partial class GameServer
             }
         }
 
-        double dx, dz;
-        float speed;
+        bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
+        var profile = drone ? DroneProfile : (enemy.Kind == CombatEntityKind.AlienMonster ? ToughRobotProfile : RobotProfile);
+
+        MoveMode intent;
+        Vector3f? target;
         if (nearest != null)
         {
             if (bestSq <= EnemyStopRange * EnemyStopRange)
@@ -188,48 +223,57 @@ public sealed partial class GameServer
                 return false; // in biting range — hold position (the aura damages)
             }
 
-            // The short way round both wrap seams toward the player.
-            dx = WorldConstants.WrapDeltaX(nearest.State.Position.X - enemy.Position.X, _world.Circumference);
-            dz = WorldConstants.WrapDeltaZ(nearest.State.Position.Z - enemy.Position.Z, _world.Circumference);
-            double len = System.Math.Sqrt(dx * dx + dz * dz);
-            if (len < 0.001)
-            {
-                return false;
-            }
+            intent = MoveMode.Seek;
 
-            dx /= len;
-            dz /= len;
-            speed = enemy.Kind == CombatEntityKind.AlienMonster ? EnemyToughHuntSpeed : EnemyHuntSpeed;
+            // Resolve the player to the enemy's local (unwrapped) frame so heading points the short way round the seams.
+            var player = Unwrapped(enemy.Position, nearest.State.Position);
+            if (drone)
+            {
+                // Don't ram: orbit the player at a standoff that oscillates in/out for darting strafes, so the
+                // drone circles + banks. Target a moving point on a ring around the player.
+                float bearing = (float)System.Math.Atan2(enemy.Position.Z - player.Z, enemy.Position.X - player.X);
+                bearing += DroneOrbitSpeed * (float)dt; // advance around the ring → it circles
+                float ring = DroneStandoff + DroneStrafe *
+                    (float)System.Math.Sin(_uptime * 0.7 + (StableStringHash(enemy.Id) % 628) / 100.0);
+                target = new Vector3f(player.X + (float)System.Math.Cos(bearing) * ring, player.Y,
+                                      player.Z + (float)System.Math.Sin(bearing) * ring);
+            }
+            else
+            {
+                target = player; // robots stalk straight in — now eased + heavy via the controller
+            }
         }
         else
         {
-            // Idle wander: keep a heading for a few seconds, then re-roll (seeded — no Random allocs).
-            if (!_enemyWander.TryGetValue(enemy.Id, out var w) || _uptime >= w.Until)
-            {
-                uint h = (uint)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(enemy.Id + ":" + (long)(_uptime * 10));
-                w = (h % 6283 / 1000.0, _uptime + 3.0 + h % 40 / 10.0); // heading 0..2π, 3..7 s
-                _enemyWander[enemy.Id] = w;
-            }
-
-            dx = System.Math.Cos(w.Heading);
-            dz = System.Math.Sin(w.Heading);
-            speed = EnemyWanderSpeed;
+            intent = MoveMode.Roam;
+            target = null;
         }
 
-        float nx = (float)WorldConstants.WrapX(enemy.Position.X + dx * speed * dt, _world.Circumference);
-        float nz = (float)WorldConstants.WrapZ(enemy.Position.Z + dz * speed * dt, _world.Circumference);
-        int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
-        int hover = enemy.Kind == CombatEntityKind.ScanDrone ? ScanDroneHover : 0; // scan-drones float above ground
+        var res = LocomotionController.Step(enemy.Loco, profile, enemy.Position, intent, target, dt, (uint)StableStringHash(enemy.Id));
+        enemy.Loco = res.State;
 
-        if (System.Math.Abs(groundY - (enemy.Position.Y - hover)) > 3f)
+        float nx = (float)WorldConstants.WrapX(res.Position.X, _world.Circumference);
+        float nz = (float)WorldConstants.WrapZ(res.Position.Z, _world.Circumference);
+        int prevGround = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(enemy.Position.X), (int)System.Math.Floor(enemy.Position.Z)) + 1;
+        int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
+        if (System.Math.Abs(groundY - prevGround) > 3)
         {
-            _enemyWander.Remove(enemy.Id); // cliff/spike in the way — stop and pick a new direction next tick
+            enemy.Loco.ModeTimer = 0f; // cliff/spike in the way — pick a new direction next tick
             return false;
         }
 
-        enemy.Position = new Vector3f(nx, groundY + hover, nz);
-        return true;
+        int hover = drone ? ScanDroneHover : 0;          // scan-drones float above the ground
+        float bob = drone ? DroneBob * res.VertWave : 0f; // ...and hover-bob; robots stay grounded
+        enemy.Position = new Vector3f(nx, groundY + hover + bob, nz);
+        return res.Moving;
     }
+
+    /// <summary>Returns <paramref name="to"/> expressed in <paramref name="from"/>'s local frame across the world's
+    /// wrap seams, so a direction computed as (result - from) takes the short way round.</summary>
+    private Vector3f Unwrapped(Vector3f from, Vector3f to) => new(
+        from.X + (float)WorldConstants.WrapDeltaX(to.X - from.X, _world.Circumference),
+        to.Y,
+        from.Z + (float)WorldConstants.WrapDeltaZ(to.Z - from.Z, _world.Circumference));
 
     private void SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
     {

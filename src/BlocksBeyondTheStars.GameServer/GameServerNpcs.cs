@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -17,9 +18,19 @@ public sealed partial class GameServer
 {
     private const double NpcBroadcastInterval = 0.2;  // position-sync cadence (client interpolates between)
     private const float NpcWanderLeash = 1.6f;        // how far an NPC drifts from its home marker
-    private const double NpcWanderSpeed = 0.4;        // idle-stroll angular speed
     private const float NpcFaceRange = 6f;            // turn to face a player within this range
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
+
+    /// <summary>One uniform inhabitant gait for ALL settlement NPCs (no per-NPC variation): a slow stroll with
+    /// frequent long pauses, so they stand around and potter rather than tracing an endless drift loop.</summary>
+    private static readonly LocomotionProfile NpcProfile = new()
+    {
+        Style = LocomotionStyle.Grazer,
+        CruiseSpeed = 0.7f, BurstSpeed = 0.9f, Accel = 2.5f, TurnRate = 3.0f,
+        HoldMin = 1.2f, HoldMax = 3.0f,
+        PauseChance = 0.6f, PauseMin = 2.0f, PauseMax = 5.0f,
+        WeaveAmp = 0.15f, WeaveFreq = 1.0f, VertAmp = 0f, VertFreq = 0f,
+    };
 
     /// <summary>A settlement inhabitant. Lives only on the server; the client sees a <c>NetNpc</c>.</summary>
     internal sealed class ServerNpc
@@ -37,6 +48,7 @@ public sealed partial class GameServer
         public uint OutfitRgb;
         public bool IsRobot;
         public double WanderPhase;
+        public LocomotionState Loco; // stop-and-go loiter/stroll state
     }
 
     private List<ServerNpc> _npcs => _worlds.Active.Npcs;
@@ -177,11 +189,16 @@ public sealed partial class GameServer
         double moveDt = System.Math.Min(dt, NpcMoveDtCap);
         foreach (var npc in _npcs)
         {
-            // Gentle stroll around home: a small Lissajous drift bounded by the leash.
-            npc.WanderPhase += moveDt * NpcWanderSpeed;
-            float ox = (float)System.Math.Cos(npc.WanderPhase) * NpcWanderLeash;
-            float oz = (float)System.Math.Sin(npc.WanderPhase * 0.7) * NpcWanderLeash;
-            var next = new Vector3f(npc.Home.X + ox, npc.Home.Y, npc.Home.Z + oz);
+            // Loiter ↔ stroll around home: stand a while, then potter to a new spot within the leash, then stand
+            // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
+            float hx = npc.Pos.X - npc.Home.X, hz = npc.Pos.Z - npc.Home.Z;
+            bool beyondLeash = hx * hx + hz * hz > NpcWanderLeash * NpcWanderLeash;
+            var intent = beyondLeash ? MoveMode.Seek : MoveMode.Roam;
+            Vector3f? target = beyondLeash ? npc.Home : (Vector3f?)null;
+
+            var res = LocomotionController.Step(npc.Loco, NpcProfile, npc.Pos, intent, target, moveDt, (uint)npc.Id);
+            npc.Loco = res.State;
+            var next = new Vector3f(res.Position.X, npc.Home.Y, res.Position.Z); // keep the flat settlement floor Y
 
             // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
             // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
@@ -190,16 +207,22 @@ public sealed partial class GameServer
             {
                 npc.Pos = next;
             }
+            else
+            {
+                npc.Loco.ModeTimer = 0f; // blocked by a wall → re-pick a heading next tick rather than pushing in
+            }
 
-            // Face the nearest player if one is close, else look along the stroll heading.
+            // Face the nearest player if one is close; else face the way it's walking (and keep the last facing
+            // while standing still, so a paused NPC doesn't snap back to a default heading).
             var nearest = NearestPlayerPosition(targets, npc.Pos);
             if (nearest is { } np && WrapDistSq(np, npc.Pos) <= NpcFaceRange * NpcFaceRange)
             {
                 npc.Facing = (float)System.Math.Atan2(np.X - npc.Pos.X, np.Z - npc.Pos.Z);
             }
-            else
+            else if (res.Moving)
             {
-                npc.Facing = (float)npc.WanderPhase;
+                // controller heading is math-convention (dirX=cos, dirZ=sin); NPC facing yaw is atan2(dirX, dirZ).
+                npc.Facing = (float)System.Math.Atan2(System.Math.Cos(res.Facing), System.Math.Sin(res.Facing));
             }
         }
     }

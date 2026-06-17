@@ -39,6 +39,7 @@ public sealed partial class GameServer
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
+    private readonly Dictionary<string, LocomotionProfile> _locoProfiles = new(); // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
     private double _creatureSpawnTimer { get => _worlds.Active.CreatureSpawnTimer; set => _worlds.Active.CreatureSpawnTimer = value; }
     private double _creatureClock { get => _worlds.Active.CreatureClock; set => _worlds.Active.CreatureClock = value; }
@@ -63,9 +64,11 @@ public sealed partial class GameServer
             : CreatureGenerator.GenerateRoster(planet, _meta.Seed).ToArray();
 
         _speciesById.Clear();
+        _locoProfiles.Clear();
         foreach (var sp in _speciesRoster)
         {
             _speciesById[sp.Id] = sp;
+            _locoProfiles[sp.Id] = LocomotionController.ForSpecies(sp);
         }
 
         _creatures.Clear();
@@ -519,17 +522,45 @@ public sealed partial class GameServer
                 creature.ChaseTimer = System.Math.Max(0, creature.ChaseTimer - dt); // decay when not chasing
             }
 
-            // While giving up, the aggressor ignores the player (no target → it wanders off).
+            var profile = ProfileFor(creature.SpeciesId);
+
+            // Sleepers rest in place during their off-phase — only their habitat Y is kept (a sleeping flier
+            // still hovers), no roaming or hunting.
+            if (!SpeciesActive(sp))
+            {
+                creature.Position = AdjustHabitatHeight(sp, creature.Position, 0f, profile);
+                continue;
+            }
+
+            // Decide intent: hunters Seek a nearby player, skittish flee one, everyone else (and a give-up
+            // aggressor) roams with stop-and-go. Pack-hunters angle their approach so kin converge from spread
+            // directions (encircle) rather than all stacking on one beeline.
+            var intent = MoveMode.Roam;
+            Vector3f? target = null;
             Vector3f? stepTarget = aggressor && creature.GiveUpTimer > 0 ? null : nearest;
+            if (stepTarget is { } tp)
+            {
+                float dx = tp.X - creature.Position.X, dz = tp.Z - creature.Position.Z;
+                float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
+                if (aggressor && dist <= CreatureAggroRange)
+                {
+                    intent = MoveMode.Seek;
+                    target = temperament == CreatureTemperament.PackHunter ? FlankPoint(creature, tp, dx, dz) : tp;
+                }
+                else if (temperament == CreatureTemperament.Skittish && dist <= CreatureFleeRange)
+                {
+                    intent = MoveMode.Flee;
+                    target = tp;
+                }
+            }
 
-            double phase = _creatureClock * 0.8 + (StableStringHash(creature.Id) % 360) * (System.Math.PI / 180.0);
-            var next = CreatureBehaviour.Step(
-                creature.Position, temperament, sp.Speed, SpeciesActive(sp),
-                stepTarget, CreatureAggroRange, CreatureFleeRange, moveDt, phase);
+            uint seed = (uint)StableStringHash(creature.Id);
+            var res = LocomotionController.Step(creature.Loco, profile, creature.Position, intent, target, moveDt, seed);
+            creature.Loco = res.State;
 
-            // Follow the world as they roam: land/lava walkers track the ground, fliers hover above it, and
-            // swimmers stay submerged in the water (instead of all keeping their fixed spawn height).
-            next = AdjustHabitatHeight(sp, next);
+            // Follow the world as they roam: land/lava walkers track the ground (hoppers pop up), fliers hover +
+            // swoop, swimmers porpoise through the water column — driven by the per-creature vertical wave.
+            var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile);
 
             // Creatures don't walk into the player's ship — hold position at the hull.
             creature.Position = EntityBlockedByShip(next) ? creature.Position : next;
@@ -543,17 +574,40 @@ public sealed partial class GameServer
         return dx * dx + dz * dz <= CreatureAggroRange * CreatureAggroRange;
     }
 
+    /// <summary>The movement profile for a species id (falls back to a default if somehow unknown).</summary>
+    private LocomotionProfile ProfileFor(string speciesId)
+        => _locoProfiles.TryGetValue(speciesId, out var p) ? p : default;
+
+    /// <summary>A flanking target for a pack-hunter: a point on a small ring around the player, offset by a
+    /// per-individual angle, so kin converge from spread directions and encircle instead of all stacking on one
+    /// approach line. <paramref name="dx"/>/<paramref name="dz"/> are (player - creature).</summary>
+    private Vector3f FlankPoint(CombatEntity c, Vector3f player, float dx, float dz)
+    {
+        float bearing = (float)System.Math.Atan2(-dz, -dx); // player → creature
+        float spread = ((StableStringHash(c.Id) % 1000) / 1000f - 0.5f) * 1.4f; // ±0.7 rad, stable per individual
+        float a = bearing + spread;
+        const float ring = 2.0f;
+        return new Vector3f(player.X + (float)System.Math.Cos(a) * ring, player.Y, player.Z + (float)System.Math.Sin(a) * ring);
+    }
+
     private const float CreatureFlyAltitude = 5f; // how high above the ground fliers hover
 
-    /// <summary>Snaps a creature's Y to suit its habitat as it roams: land/lava walk on the ground, fliers
-    /// hover above it, swimmers stay submerged between the seabed and the sea surface.</summary>
-    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p)
+    /// <summary>Habitat Y-snap for a one-off placement (spawn / teleport) — no vertical-life wave.</summary>
+    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p) => AdjustHabitatHeight(sp, p, 0f, default);
+
+    /// <summary>Snaps a creature's Y to suit its habitat as it roams: land/lava walk on the ground (hoppers pop
+    /// up on their hop beat), fliers hover above it (gliders swoop), swimmers porpoise between the seabed and the
+    /// surface. <paramref name="vertWave"/> is the creature's own vertical-life wave (sin, ∈ [-1,1]) and
+    /// <paramref name="prof"/> supplies its amplitude — so each animal's vertical motion is its own, not a shared
+    /// global sine.</summary>
+    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p, float vertWave, in LocomotionProfile prof)
     {
         int surface = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z));
         switch (sp.Habitat)
         {
             case CreatureHabitat.Air:
-                return new Vector3f(p.X, surface + CreatureFlyAltitude, p.Z);
+                // Hover above the ground; gliders/drifters swoop up and down on their own wave (others hold steady).
+                return new Vector3f(p.X, surface + CreatureFlyAltitude + prof.VertAmp * vertWave, p.Z);
             case CreatureHabitat.Water:
                 // Use the LOCAL water column (sea or upland pond) — not just the global sea level — so swimmers
                 // stay submerged in the upland lakes they were spawned in, not only the deep sea.
@@ -562,11 +616,10 @@ public sealed partial class GameServer
                     && waterTopY > seabedY + 1)
                 {
                     float lo = seabedY + 1f, hi = waterTopY - 0.5f;
-                    // Dive: drift slowly up and down the water column over time (per-creature phase seeded from
-                    // the position) so swimmers porpoise between the seabed and just under the surface instead
-                    // of holding a single depth. Clamped to the column, so shallow water just keeps them low.
-                    double dive = System.Math.Sin(_creatureClock * 0.22 + p.X * 0.7 + p.Z * 0.5);
-                    float target = lo + (hi - lo) * (float)(0.5 + 0.45 * dive);
+                    // Porpoise up and down the water column on the creature's OWN vertical wave (per-species freq,
+                    // decorrelated) instead of one shared global sine. Clamped to the column, so shallow water
+                    // just keeps them low.
+                    float target = lo + (hi - lo) * (0.5f + 0.45f * vertWave);
                     return new Vector3f(p.X, target, p.Z);
                 }
 
@@ -577,7 +630,10 @@ public sealed partial class GameServer
                 int caveY = FindCaveFloorY((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z), surface);
                 return caveY >= 0 ? new Vector3f(p.X, caveY, p.Z) : p;
             default:
-                return new Vector3f(p.X, surface + 1f, p.Z); // land / lava / amphibian follow the ground
+                // Land / lava / amphibian follow the ground. Hoppers (and floaty drifters) pop up on their own
+                // wave; everyone else has VertAmp 0 and walks flat.
+                float pop = prof.VertAmp > 0f ? System.Math.Max(0f, prof.VertAmp * vertWave) : 0f;
+                return new Vector3f(p.X, surface + 1f + pop, p.Z);
         }
     }
 

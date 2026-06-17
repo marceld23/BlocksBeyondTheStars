@@ -26,6 +26,8 @@ namespace BlocksBeyondTheStars.Client
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
             public float PrevHull;   // to detect a hull drop (hurt)
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
+            public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
+            public Vector3 FaceDir;     // smoothed heading the body turns to face (so it doesn't moonwalk)
             public float AttackUntil; // a visible lunge window when attacking
             public GameObject Stasis; // icy-blue stasis shell shown while frozen (item 36)
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
@@ -69,6 +71,8 @@ namespace BlocksBeyondTheStars.Client
                         Pitch = Mathf.Clamp(sizePitch * speciesOffset, 0.6f, 1.85f),
                         NextCall = Time.time + Random.Range(2f, 6f),
                         Settled = pos,
+                        PrevSettled = pos,
+                        FaceDir = Vector3.forward,
                         PrevHostile = c.Hostile,
                         PrevHull = c.Hull,
                     };
@@ -92,6 +96,21 @@ namespace BlocksBeyondTheStars.Client
 
                 // Smoothing is in world space; map to the scene at the copy nearest the player (longitude wraps).
                 entry.Root.transform.position = Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z) + lunge;
+
+                // Turn the body to face the way it's actually moving (it used to slide/moonwalk — the server never
+                // sent a facing). Derived from the smoothed velocity; held when standing still. Direction is the
+                // same in world + scene space (the scene only offsets for longitude wrap, it doesn't rotate).
+                Vector3 vel = entry.Settled - entry.PrevSettled;
+                entry.PrevSettled = entry.Settled;
+                vel.y = 0f;
+                if (vel.sqrMagnitude > 1e-5f)
+                {
+                    entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                    if (entry.FaceDir.sqrMagnitude > 1e-4f)
+                    {
+                        entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up);
+                    }
+                }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
                 UpdateNameplate(entry, c);          // floating name label above a tamed companion

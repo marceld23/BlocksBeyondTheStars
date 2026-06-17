@@ -79,7 +79,7 @@ public static class CreatureGenerator
             bellyRgb = ShiftTowardBiomeHue(bellyRgb, biomeAffinity);
         }
 
-        return new CreatureSpecies
+        var species = new CreatureSpecies
         {
             Id = "sp" + index,
             NameKey = "creature.generic.name",
@@ -126,6 +126,58 @@ public static class CreatureGenerator
             DropCount = dropCount,
             DropKind = dropKind,
         };
+
+        // Movement signature (item: natural locomotion): a randomly-chosen gait biased by the body + habitat +
+        // temperament we just generated, so fauna move in recognisably different ways. Drawn LAST so the species'
+        // appearance rolls (hence existing worlds' rosters) are unchanged by adding it.
+        species.LocoStyle = PickLocoStyle(rng, species);
+        return species;
+    }
+
+    /// <summary>Picks a creature's <see cref="LocomotionStyle"/> from its already-generated traits: limbless +
+    /// segmented bodies slither, two-leggers hop, gas-sacs drift, fliers glide, water fauna school, and the
+    /// temperament colours the ground gait (predators prowl, skittish ones dart, grazers feed in stop-and-go).</summary>
+    private static LocomotionStyle PickLocoStyle(System.Random rng, CreatureSpecies sp)
+    {
+        var w = new List<(int Value, int Weight)>();
+        void Add(LocomotionStyle st, int weight) { if (weight > 0) w.Add(((int)st, weight)); }
+
+        if (sp.Habitat == CreatureHabitat.Air)
+        {
+            Add(LocomotionStyle.Glider, sp.HasWings ? 50 : 20);
+            Add(LocomotionStyle.Drifter, sp.HasGasSac ? 45 : 20);
+            Add(LocomotionStyle.Strider, 10);
+        }
+        else if (sp.Habitat == CreatureHabitat.Water)
+        {
+            Add(LocomotionStyle.Schooler, 50);
+            Add(LocomotionStyle.Slitherer, sp.Legs == 0 ? 30 : 12);
+            Add(LocomotionStyle.Drifter, 12);
+        }
+        else // land / cave / lava / amphibian — ground movers
+        {
+            if (sp.Legs == 0) Add(LocomotionStyle.Slitherer, 45);
+            if (sp.Legs == 2) Add(LocomotionStyle.Hopper, 35);
+            if (sp.BodySegments >= 3) Add(LocomotionStyle.Slitherer, 25);
+            if (sp.HasGasSac) Add(LocomotionStyle.Drifter, 30);
+
+            switch (sp.Temperament)
+            {
+                case CreatureTemperament.Aggressive:
+                case CreatureTemperament.PackHunter:
+                    Add(LocomotionStyle.Prowler, 45); Add(LocomotionStyle.Strider, 20); break;
+                case CreatureTemperament.Skittish:
+                    Add(LocomotionStyle.Darter, 45); Add(LocomotionStyle.Strider, 15); break;
+                case CreatureTemperament.Passive:
+                    Add(LocomotionStyle.Grazer, 45); Add(LocomotionStyle.Strider, 20); break;
+                default: // Territorial
+                    Add(LocomotionStyle.Strider, 35); Add(LocomotionStyle.Grazer, 20); break;
+            }
+
+            Add(LocomotionStyle.Strider, 10); // always a small chance of the plain strider
+        }
+
+        return (LocomotionStyle)WeightedList(rng, w);
     }
 
     private static CreatureHabitat PickHabitat(System.Random rng, bool allowWater, bool allowLava, bool allowCave)

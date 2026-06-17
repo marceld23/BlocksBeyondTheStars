@@ -68,6 +68,11 @@ public sealed class CreatureSpecies
     public CreatureActivity Activity { get; set; }
     public CreatureTemperament Temperament { get; set; }
 
+    /// <summary>The species' randomly-chosen movement signature (gait/cadence), biased by its body + habitat +
+    /// temperament. Drives a per-species <see cref="LocomotionProfile"/> so a world's fauna move in
+    /// recognisably different ways (grazers pause to feed, darters skitter, gliders swoop, slitherers weave).</summary>
+    public LocomotionStyle LocoStyle { get; set; } = LocomotionStyle.Strider;
+
     // --- Stats ---
     public float Size { get; set; } = 1f;
     public float MaxHealth { get; set; } = 20f;
