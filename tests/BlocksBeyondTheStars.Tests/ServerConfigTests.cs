@@ -47,6 +47,23 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_OverridesShipWeaponsAndKeepRules()
+    {
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[]
+        {
+            "--ship-weapons", "NpcsOnly", "--keep-ship", "false", "--keep-inventory", "true",
+        });
+
+        Assert.Equal(ShipWeaponMode.NpcsOnly, config.Rules.ShipWeapons);
+        Assert.False(config.Rules.KeepShipOnDeath);
+        Assert.True(config.Rules.KeepInventoryOnDeath);
+        Assert.Contains("ship-weapons", applied);
+        Assert.Contains("keep-ship", applied);
+        Assert.Contains("keep-inventory", applied);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesStructureTemplateOptions()
     {
         var config = new ServerConfig();

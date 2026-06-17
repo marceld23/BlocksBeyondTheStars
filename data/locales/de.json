@@ -1230,6 +1230,8 @@
   "ui.worldopt.planet_enemies": "Alien-Gegner (Planeten)",
   "ui.worldopt.space_npcs": "Feindschiffe (Weltraum)",
   "ui.worldopt.ufos": "Alien-UFOs",
+  "ui.worldopt.space_combat": "Raumkampf (Gegner bekämpfbar)",
+  "ui.worldopt.keep_ship": "Schiff bei Zerstörung behalten",
   "ui.worldopt.instant_travel": "Instant Travel",
   "ui.worldopt.flora": "Flora-Dichte",
   "ui.worldopt.ore": "Erzreichtum",

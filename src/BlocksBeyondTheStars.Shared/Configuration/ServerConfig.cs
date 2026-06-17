@@ -226,6 +226,9 @@ public sealed class ServerConfig
                 case "space-combat":
                     if (Enum.TryParse<SpaceCombatMode>(value, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("space-combat"); }
                     break;
+                case "ship-weapons":
+                    if (Enum.TryParse<ShipWeaponMode>(value, ignoreCase: true, out var sw)) { Rules.ShipWeapons = sw; applied.Add("ship-weapons"); }
+                    break;
                 case "space-npcs":
                     if (Enum.TryParse<AlienActivity>(value, ignoreCase: true, out var sn)) { Rules.SpaceNpcEnemies = sn; applied.Add("space-npcs"); }
                     break;
@@ -278,6 +281,12 @@ public sealed class ServerConfig
                     break;
                 case "death-penalty":
                     if (Enum.TryParse<DeathPenalty>(value, ignoreCase: true, out var dp)) { Rules.DeathPenalty = dp; applied.Add("death-penalty"); }
+                    break;
+                case "keep-inventory":
+                    if (bool.TryParse(value, out var ki)) { Rules.KeepInventoryOnDeath = ki; applied.Add("keep-inventory"); }
+                    break;
+                case "keep-ship":
+                    if (bool.TryParse(value, out var ks)) { Rules.KeepShipOnDeath = ks; applied.Add("keep-ship"); }
                     break;
                 case "story":
                     Rules.StoryId = value; applied.Add("story"); // pack id, "none" for sandbox, or "default"/empty

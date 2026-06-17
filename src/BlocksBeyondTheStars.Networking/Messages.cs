@@ -641,6 +641,10 @@ public sealed class ServerRules
     public string EnvironmentalHazards { get; set; } = string.Empty;
     public string DeathPenalty { get; set; } = string.Empty;
     public bool KeepInventoryOnDeath { get; set; }
+
+    /// <summary>When true, a ship defeated in space combat is recovered intact to base (casual safety net);
+    /// when false it is left a wreck the owner must repair before flying again.</summary>
+    public bool KeepShipOnDeath { get; set; } = true;
     public bool OxygenEnabled { get; set; }
     public bool AdminCheatsActive { get; set; }
 
@@ -667,6 +671,12 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Instant Travel toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string InstantTravel { get; set; } = string.Empty;
+
+    /// <summary>Keep-inventory-on-death toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string KeepInventoryOnDeath { get; set; } = string.Empty;
+
+    /// <summary>Keep-ship-on-death toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string KeepShipOnDeath { get; set; } = string.Empty;
 }
 
 // --- Missions ---

@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **649 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **652 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,30 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Ship-loss rule (KeepShipOnDeath) + space combat fightability — ✅ server + tests + client wiring + locale (2026-06-18, NEEDS Unity client build)
+Analysis+plan: `[memory] ship-loss-setting-and-enemy-kill-analysis`. Two asks: a host/SP setting for what happens
+when the player ship is destroyed in space combat (analogous to `KeepInventoryOnDeath`), and "I can't destroy
+space enemies".
+
+- **`KeepShipOnDeath` world rule (default true) now wired** (was a dead field). In `DisableShip`
+  (`GameServerSpaceCombat.cs`): **true** = the existing free full-restore-to-base casual safety net; **false** =
+  the lost ship is left a **WRECK** — hull stays at 0 and a scattered ~40% of non-critical hull cells are carved
+  away as durable edits (`WreckShipHull`, skips station/module + medbay cells so the heal-tank respawn survives),
+  the ship is re-parked on the owner's home pad, and the ship is **grounded** (new `ShipState.Downed`) until
+  repaired through the **existing own-ship repair flow** (`SendShipRepairStatus` clears `Downed` once hull is full
+  and no cells are missing). Launch is gated in `EnterSpace`. This reuses the repair system, so the wreck is the
+  player's **exact** ship, **owner-only** to repair, and **occupies the landing pad** — all for free.
+- **Setting surfaces everywhere:** `ServerRules` msg + `SendRules`; CLI `--keep-ship` (+ added the missing
+  `--keep-inventory`); world-creation UI toggle (`UiWorldOptions`/`WorldCreationOptions.ToArgs`); admin live-edit
+  (`SetWorldRulesIntent` + `HandleSetWorldRules`, toggle row in `CraftingTechShipUI`). en/de locale keys.
+- **Why enemies couldn't be destroyed:** `WeaponAllowedAgainst` needs `SpaceCombat∈{PvE,Both}` **and**
+  `ShipWeapons∉{Off,MiningOnly}` — **both default Off**, while enemy spawns are governed by separate rules, so
+  worlds show enemies you can't damage. Fixes: new **`--ship-weapons` CLI** (only `--space-combat` existed); a
+  **world-creation "Space combat" toggle (default on)** that sets BOTH `SpaceCombat=PvE` + `ShipWeapons=NpcsOnly`,
+  so new worlds are fightable. (The reject already surfaces client-side via `LastMessage`.)
+- **Tests:** `KeepShipOff_DefeatLeavesWreck_AndGroundsRelaunch`, `KeepShipOff_RepairingWreck_RestoresFlight`,
+  `ApplyCommandLine_OverridesShipWeaponsAndKeepRules`; existing keep=true defeat test extended. 652 green.
 
 ### ★ Sci-fi / professional look overhaul (URP) — 🚧 in progress (2026-06-17, NEEDS Unity client build)
 Pushing the render look toward stylised-clean sci-fi (analysis + roadmap: `[memory] scifi-render-look-analysis`). Phased; each phase is preset-gated and individually shippable. Voxel shaders stay custom-unlit — the wins come from screen-space post, atmosphere and VFX, not from changing block lighting.

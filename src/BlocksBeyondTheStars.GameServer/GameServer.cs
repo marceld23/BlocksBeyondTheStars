@@ -3084,6 +3084,7 @@ public sealed partial class GameServer
             EnvironmentalHazards = r.EnvironmentalHazards.ToString(),
             DeathPenalty = r.DeathPenalty.ToString(),
             KeepInventoryOnDeath = r.KeepInventoryOnDeath,
+            KeepShipOnDeath = r.KeepShipOnDeath,
             OxygenEnabled = r.OxygenEnabled,
             AdminCheatsActive = r.CheatsAllowed,
             CreatureAbundance = r.CreatureAbundance.ToString(),
@@ -3120,6 +3121,16 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(intent.InstantTravel))
         {
             Rules.InstantTravel = intent.InstantTravel.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!string.IsNullOrEmpty(intent.KeepInventoryOnDeath))
+        {
+            Rules.KeepInventoryOnDeath = intent.KeepInventoryOnDeath.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!string.IsNullOrEmpty(intent.KeepShipOnDeath))
+        {
+            Rules.KeepShipOnDeath = intent.KeepShipOnDeath.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit

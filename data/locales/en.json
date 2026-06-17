@@ -1225,6 +1225,8 @@
   "ui.worldopt.planet_enemies": "Alien enemies (planets)",
   "ui.worldopt.space_npcs": "Hostile ships (space)",
   "ui.worldopt.ufos": "Alien UFOs",
+  "ui.worldopt.space_combat": "Space combat (fightable enemies)",
+  "ui.worldopt.keep_ship": "Keep ship when destroyed",
   "ui.worldopt.instant_travel": "Instant Travel",
   "ui.worldopt.flora": "Flora density",
   "ui.worldopt.ore": "Ore richness",

@@ -592,6 +592,68 @@ public sealed class SpaceCombatTests : IDisposable
             Assert.False(server.InSpace("Pilot"));        // forced out of space
             Assert.Equal(100f, server.Ship.Hull);          // hull restored (recovered to base)
             Assert.Equal(100f, pilot.State.Health);         // respawned at heal-tank
+            Assert.False(server.Ship.Downed);               // KeepShipOnDeath=true → not grounded
+        }
+    }
+
+    [Fact]
+    public void KeepShipOff_DefeatLeavesWreck_AndGroundsRelaunch()
+    {
+        // KeepShipOnDeath=false: a ship lost in combat is NOT free-restored — it is downed (hull 0) and grounded
+        // until repaired, so a relaunch is rejected.
+        var server = NewServer("wreck", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Normal; // 2 drones, 10 dps
+            r.KeepShipOnDeath = false;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
+            server.Tick(30.0);
+
+            Assert.False(server.InSpace("Pilot")); // forced out of space
+            Assert.True(server.Ship.Downed);        // grounded as a wreck
+            Assert.Equal(0f, server.Ship.Hull);     // hull NOT restored (the wreck must be repaired)
+
+            // Relaunch is blocked until the wreck is repaired.
+            server.EnterSpace("Pilot");
+            Assert.False(server.InSpace("Pilot"));
+        }
+    }
+
+    [Fact]
+    public void KeepShipOff_RepairingWreck_RestoresFlight()
+    {
+        var server = NewServer("wreckrepair", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Normal;
+            r.KeepShipOnDeath = false;
+        }, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
+            server.Tick(30.0);
+            Assert.True(server.Ship.Downed);
+
+            // Repair the wreck for free (creative-style) → hull + carved cells restored, flight ungated.
+            pilot.State.InstantBuild = true;
+            server.RepairShipForTest("Pilot", new RepairShipIntent { Mode = "all" });
+
+            Assert.False(server.Ship.Downed);
+            Assert.True(server.Ship.Hull >= 100f);
+
+            server.EnterSpace("Pilot");
+            Assert.True(server.InSpace("Pilot"));
         }
     }
 

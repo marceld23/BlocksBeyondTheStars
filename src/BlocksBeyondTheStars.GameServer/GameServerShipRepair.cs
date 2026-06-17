@@ -154,6 +154,14 @@ public sealed partial class GameServer
         bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
 
+        // A ship lost under KeepShipOnDeath=false is grounded until its wreck is fully restored. Once the hull is
+        // topped up and no design cells are missing, clear the downed flag so it may launch again.
+        if (_ship.Downed && missing == 0 && _ship.Hull >= _shipHullMax)
+        {
+            _ship.Downed = false;
+            Send(session, new ServerMessage { Text = "Ship fully repaired — ready to launch." });
+        }
+
         Send(session, new ShipRepairStatus
         {
             Hull = _ship.Hull,

@@ -28,5 +28,13 @@ public sealed class ShipState
     /// <summary>Current shield charge; regenerates out of combat up to the module-derived maximum.</summary>
     public float Shield { get; set; }
 
+    /// <summary>
+    /// True when this ship was destroyed in space combat under the <c>KeepShipOnDeath = false</c> rule:
+    /// instead of the free full restore it is left a WRECK on the owner's home pad — hull at zero and a
+    /// chunk of the hull carved away. The owner must repair it (the normal own-ship repair flow) before it
+    /// can launch again; <see cref="GameServer"/> clears this once the ship is fully repaired.
+    /// </summary>
+    public bool Downed { get; set; }
+
     public bool HasModule(string moduleKey) => Modules.Contains(moduleKey);
 }

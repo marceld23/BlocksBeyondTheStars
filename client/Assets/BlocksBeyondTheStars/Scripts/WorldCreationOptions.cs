@@ -57,6 +57,16 @@ namespace BlocksBeyondTheStars.Client
         public int Hazards = 2;        // Normal
         public int DeathPenalty = 1;   // Light (server default)
 
+        /// <summary>Space combat (world rule): ON makes spawned space enemies actually fightable — enabling it
+        /// sets both <c>SpaceCombat=PvE</c> and <c>ShipWeapons=NpcsOnly</c> (the server defaults BOTH to Off, so
+        /// without this you can meet space NPCs you cannot damage). Default ON since the standard panel already
+        /// spawns space NPCs.</summary>
+        public bool SpaceCombat = true;
+
+        /// <summary>Keep-ship-on-death (world rule, default ON = server default): ON recovers a ship lost in space
+        /// combat intact to base; OFF leaves it a wreck the owner must repair before flying again.</summary>
+        public bool KeepShip = true;
+
         // Story (P8 world option): which story pack runs + how fast it unfolds.
         public int Story = 0;          // 0 = Default pack, 1 = None (sandbox)
         public int StoryDensity = 1;   // 0 Sparse · 1 Normal · 2 Dense
@@ -66,7 +76,7 @@ namespace BlocksBeyondTheStars.Client
         public readonly Dictionary<string, int> PlanetTypes = new Dictionary<string, int>();
 
         public static WorldCreationOptions Peaceful()
-            => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Hazards = 1, DeathPenalty = 0 };
+            => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Hazards = 1, DeathPenalty = 0, SpaceCombat = false };
 
         public static WorldCreationOptions Standard() => new WorldCreationOptions();
 
@@ -85,6 +95,7 @@ namespace BlocksBeyondTheStars.Client
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
+            SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip;
             Story = other.Story; StoryDensity = other.StoryDensity;
             PlanetTypes.Clear();
             foreach (var kv in other.PlanetTypes)
@@ -159,6 +170,11 @@ namespace BlocksBeyondTheStars.Client
             if (!Hunger) Arg("hunger", "false");
             if (Hazards != 2) Arg("hazards", HazardSteps[Hazards]);
             if (DeathPenalty != 1) Arg("death-penalty", DeathSteps[DeathPenalty]);
+
+            // Space combat: enabling it flips BOTH server rules so spawned space enemies are fightable. The server
+            // defaults both to Off, so we emit the overrides whenever the toggle is on (= the panel default).
+            if (SpaceCombat) { Arg("space-combat", "PvE"); Arg("ship-weapons", "NpcsOnly"); }
+            if (!KeepShip) Arg("keep-ship", "false");
 
             if (Story == 1) Arg("story", "none");                              // sandbox (no story)
             if (StoryDensity != 1) Arg("story-density", StoryDensitySteps[StoryDensity]);

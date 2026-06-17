@@ -2,6 +2,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -329,6 +330,12 @@ public sealed partial class GameServer
         if (_playerInstance.ContainsKey(playerId))
         {
             return; // already in space
+        }
+
+        if (_ship.Downed)
+        {
+            RejectSpace(session, "Your ship is wrecked — repair it on the landing pad before launching.");
+            return;
         }
 
         string locationId = string.IsNullOrEmpty(_ship.CurrentLocationId) ? _meta.ActiveLocationId : _ship.CurrentLocationId;
@@ -1235,14 +1242,34 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// The ship was defeated. Per §8.5 there is no permanent loss by default: the ship is
-    /// recovered to its base with restored hull, present players respawn at the heal-tank,
-    /// and the instance is unloaded.
+    /// The ship was defeated. The outcome depends on the <see cref="GameRules.KeepShipOnDeath"/> world rule:
+    /// <list type="bullet">
+    /// <item><b>true</b> (default, §8.5 casual safety net): no permanent loss — the ship is recovered to base
+    /// with restored hull/shields and present players respawn at the heal-tank.</item>
+    /// <item><b>false</b>: the ship is left a WRECK — its hull stays at zero and a chunk of the hull is carved
+    /// away (durable edits) — parked on the owner's home landing pad. The owner must repair it through the
+    /// normal own-ship repair flow before it can launch again (enforced in <see cref="EnterSpace"/>).</item>
+    /// </list>
+    /// Either way the flight instance is unloaded.
     /// </summary>
     private void DisableShip(SpaceInstance instance)
     {
-        _ship.Hull = _shipHullMax;
-        _ship.Shield = _shipShieldMax; // recovered to base with shields restored too (baseline + modules)
+        bool keepShip = Rules.KeepShipOnDeath;
+        string shipOwnerId = instance.Structures.Values.FirstOrDefault(s => s.Kind == "ship")?.OwnerId ?? string.Empty;
+
+        if (keepShip)
+        {
+            _ship.Hull = _shipHullMax;
+            _ship.Shield = _shipShieldMax; // recovered to base with shields restored too (baseline + modules)
+            _ship.Downed = false;
+        }
+        else
+        {
+            _ship.Hull = 0f;
+            _ship.Shield = 0f;
+            _ship.Downed = true; // grounded until repaired (gate in EnterSpace)
+            WreckShipHull(shipOwnerId); // carve a chunk of the hull (durable) so it reads + repairs as a wreck
+        }
 
         foreach (var playerId in instance.Players.ToList())
         {
@@ -1253,19 +1280,89 @@ public sealed partial class GameServer
             }
 
             var p = session.State;
-            p.Position = p.RespawnPoint;
-            p.AboardShip = true;
             p.InEva = false; // the ship's loss ends any spacewalk
             p.Health = 100f;
             p.Oxygen = 100f;
 
-            Send(session, new SpaceClosed { Reason = "Ship disabled — recovered to base.", ShipDisabled = true });
+            if (!keepShip && playerId == shipOwnerId)
+            {
+                // Park the wreck on the owner's home pad so it occupies a landing spot AND is repairable there
+                // (the repair flow needs a placed own-ship structure). The medbay survives the carving, so the
+                // heal-tank respawn still works.
+                SetCurrent(session);
+                if (SetActiveWorld(session.CurrentLocationId))
+                {
+                    PlaceLandedShip();
+                }
+
+                p.AboardShip = true;
+                p.Position = _healTank;
+                p.RespawnPoint = _healTank;
+            }
+            else
+            {
+                p.Position = p.RespawnPoint;
+                p.AboardShip = true;
+            }
+
+            Send(session, new SpaceClosed
+            {
+                Reason = keepShip
+                    ? "Ship disabled — recovered to base."
+                    : "Ship destroyed — its wreck sits on your landing pad. Repair it before flying again.",
+                ShipDisabled = true,
+            });
             SendShipCombatStatus(session);
             SendPlayerState(session);
+            if (!keepShip && playerId == shipOwnerId)
+            {
+                SendShipRepairStatus(session); // show the repair job immediately
+            }
         }
 
         instance.Players.Clear();
         _spaceInstances.Remove(instance.Id);
+    }
+
+    /// <summary>Carves a scattered ~40% of the owner ship's non-critical hull cells away as durable edits, so a
+    /// ship lost under <c>KeepShipOnDeath = false</c> reads as a breached wreck and the existing own-ship repair
+    /// flow (hull plating + per-cell rebuild) gives a real repair job. Station/module cells and the medbay cell
+    /// are spared so the heal-tank respawn keeps working.</summary>
+    private void WreckShipHull(string ownerId)
+    {
+        if (string.IsNullOrEmpty(ownerId))
+        {
+            return;
+        }
+
+        if (FindSessionByPlayerId(ownerId) is { } owner)
+        {
+            SetCurrent(owner); // pin _ship/design reference to the wreck's owner
+        }
+
+        var design = OwnShipDesignReference(ownerId);
+        var spared = new HashSet<Vector3i>(design.StationCells.Select(sc => sc.Cell));
+        if (design.MedbayCell is { } mb)
+        {
+            spared.Add(mb);
+        }
+
+        int i = 0, carved = 0;
+        foreach (var cell in design.Baseline)
+        {
+            if (spared.Contains(cell))
+            {
+                continue;
+            }
+
+            if (i++ % 5 < 2) // ~2 of every 5 hull cells, scattered deterministically
+            {
+                _repo.SetStructureBlock("ship:" + ownerId, cell, BlockId.AirValue);
+                carved++;
+            }
+        }
+
+        _log.Info($"Ship of {ownerId} wrecked: carved {carved} hull cells (KeepShipOnDeath off).");
     }
 
     // ---------------- Helpers ----------------

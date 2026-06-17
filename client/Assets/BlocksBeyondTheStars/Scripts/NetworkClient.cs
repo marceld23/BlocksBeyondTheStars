@@ -141,7 +141,8 @@ namespace BlocksBeyondTheStars.Client
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
-        public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "", string instantTravel = "")
+        public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
+            string instantTravel = "", string keepInventory = "", string keepShip = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
@@ -149,6 +150,8 @@ namespace BlocksBeyondTheStars.Client
                 SpaceNpcEnemies = spaceNpcs,
                 AlienUfos = ufos,
                 InstantTravel = instantTravel,
+                KeepInventoryOnDeath = keepInventory,
+                KeepShipOnDeath = keepShip,
             });
 
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>

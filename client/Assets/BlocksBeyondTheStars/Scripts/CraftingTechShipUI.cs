@@ -1423,6 +1423,19 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(instantBtn.transform, 560, 0, 200, 78, instant ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 instant ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // Keep ship on destruction (world option): when on (default) a ship lost in space combat is recovered
+            // intact to base; when off it is left a wreck the owner must repair before flying again.
+            bool keepShip = rules?.KeepShipOnDeath ?? true;
+            var keepShipBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+            {
+                Game?.Network?.SendSetWorldRules(keepShip: keepShip ? "Off" : "On");
+                Invoke(nameof(RebuildList), 0.35f);
+            });
+            UiKit.AddText(keepShipBtn.transform, 16, 0, 520, 78, L("ui.worldopt.keep_ship"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(keepShipBtn.transform, 560, 0, 200, 78, keepShip ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                keepShip ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 96f;
             y += 16f;
 
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).

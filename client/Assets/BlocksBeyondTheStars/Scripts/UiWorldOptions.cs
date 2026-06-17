@@ -91,6 +91,9 @@ namespace BlocksBeyondTheStars.Client
                 () => opt.Hunger ? 1 : 0, v => opt.Hunger = v == 1);
             Row(true, shell.L("ui.worldopt.hazards"), L4("ui.worldopt.hz"), () => opt.Hazards, v => opt.Hazards = v);
             Row(true, shell.L("ui.worldopt.death"), L4("ui.worldopt.dp"), () => opt.DeathPenalty, v => opt.DeathPenalty = v);
+            var onOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
+            Row(true, shell.L("ui.worldopt.space_combat"), onOff, () => opt.SpaceCombat ? 1 : 0, v => opt.SpaceCombat = v == 1);
+            Row(true, shell.L("ui.worldopt.keep_ship"), onOff, () => opt.KeepShip ? 1 : 0, v => opt.KeepShip = v == 1);
 
             // Authored hand-designed stations/towns (template pools) get their own page (left column has room).
             ly += 16f;
