@@ -175,6 +175,10 @@ namespace BlocksBeyondTheStars.Client
 
         public static ClientSettings Load()
         {
+            // Capture before touching the file: a genuine first run is the only time we auto-pick the
+            // language from the OS. Returning players keep whatever they chose (even an explicit "en").
+            bool freshInstall = !File.Exists(FilePath);
+
             ClientSettings settings = null;
             try
             {
@@ -189,6 +193,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             settings ??= new ClientSettings();
+            if (freshInstall)
+            {
+                // German Windows starts in German; everything else falls back to English. The chosen value
+                // is persisted by the Save below, so the pre-engine launcher splash picks it up next launch.
+                settings.Language = Application.systemLanguage == SystemLanguage.German ? "de" : "en";
+            }
+
             if (string.IsNullOrEmpty(settings.PlayerToken))
             {
                 settings.PlayerToken = Guid.NewGuid().ToString("N");
