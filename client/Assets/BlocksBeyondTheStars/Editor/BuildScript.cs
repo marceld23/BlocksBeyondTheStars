@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/BlockAtlas",
             "BlocksBeyondTheStars/LitColor",
             "BlocksBeyondTheStars/SunGlow",
+            "BlocksBeyondTheStars/SunRays",
             "BlocksBeyondTheStars/Nebula",
             "BlocksBeyondTheStars/Atmosphere",
             "BlocksBeyondTheStars/Particle",

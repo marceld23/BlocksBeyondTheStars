@@ -39,6 +39,8 @@ namespace BlocksBeyondTheStars.Client
         private Light _sun;
         private Transform _sunDisc;     // visible glowing sun billboard in the sky
         private Material _sunDiscMat;
+        private Transform _sunRays;     // additive god-ray streaks (depth-tested → occluded by terrain → shafts)
+        private Material _sunRaysMat;
         private float _time;        // local 0..1 day fraction
         private float _dayLength = 600f;
         private bool _haveEnv;
@@ -56,6 +58,82 @@ namespace BlocksBeyondTheStars.Client
             _sun.shadowStrength = 0.7f; // soft, not pitch-black shadows
 
             BuildSunDisc();
+            BuildSunRays();
+        }
+
+        private void BuildSunRays()
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = "SunRays";
+            var col = quad.GetComponent<Collider>();
+            if (col != null)
+            {
+                Destroy(col);
+            }
+
+            var shader = Shader.Find("BlocksBeyondTheStars/SunRays");
+            if (shader == null)
+            {
+                Destroy(quad); // no shader → skip god-rays (the disc still shows)
+                return;
+            }
+
+            _sunRaysMat = new Material(shader) { mainTexture = GenerateRayTexture() };
+            _sunRaysMat.SetColor(ColorId, Color.white);
+
+            var mr = quad.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _sunRaysMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+
+            _sunRays = quad.transform;
+            _sunRays.SetParent(transform, false);
+            _sunRays.gameObject.SetActive(false);
+        }
+
+        /// <summary>A radial god-ray texture: soft bright spokes fanning out from the centre, fading outward — the
+        /// "shafts" that get occluded by foreground terrain via the depth-tested SunRays billboard.</summary>
+        private static Texture2D GenerateRayTexture()
+        {
+            const int n = 256;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color[n * n];
+            float c = (n - 1) * 0.5f;
+            var rng = new System.Random(20260618);
+            // A few dozen spokes at random angles + widths so the fan looks natural, not a clean star.
+            const int spokes = 28;
+            var ang = new float[spokes];
+            var wid = new float[spokes];
+            var amp = new float[spokes];
+            for (int s = 0; s < spokes; s++)
+            {
+                ang[s] = (float)(rng.NextDouble() * Mathf.PI * 2.0);
+                wid[s] = 18f + (float)rng.NextDouble() * 60f; // angular sharpness
+                amp[s] = 0.35f + (float)rng.NextDouble() * 0.65f;
+            }
+
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float dx = (x - c) / c, dy = (y - c) / c;
+                float r = Mathf.Sqrt(dx * dx + dy * dy);
+                float a = Mathf.Atan2(dy, dx);
+                float ray = 0f;
+                for (int s = 0; s < spokes; s++)
+                {
+                    float da = Mathf.Abs(Mathf.DeltaAngle(a * Mathf.Rad2Deg, ang[s] * Mathf.Rad2Deg));
+                    ray += amp[s] * Mathf.Exp(-da * da / (2f * (180f / wid[s]) * (180f / wid[s])));
+                }
+
+                float radial = Mathf.Clamp01(1f - r);            // fade to the rim
+                float core = Mathf.Pow(Mathf.Clamp01(1f - r * 1.6f), 2f); // a soft bright hub
+                float v = Mathf.Clamp01(Mathf.Clamp01(ray) * radial * 0.8f + core * 0.25f);
+                px[y * n + x] = new Color(1f, 1f, 1f, 1f) * v; // white; tinted by _Color (sun colour) at runtime
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
         }
 
         private void BuildSunDisc()
@@ -135,6 +213,11 @@ namespace BlocksBeyondTheStars.Client
                 if (_sunDisc != null)
                 {
                     _sunDisc.gameObject.SetActive(false);
+                }
+
+                if (_sunRays != null)
+                {
+                    _sunRays.gameObject.SetActive(false);
                 }
 
                 return;
@@ -388,6 +471,11 @@ namespace BlocksBeyondTheStars.Client
             _sunDisc.gameObject.SetActive(active);
             if (!active)
             {
+                if (_sunRays != null)
+                {
+                    _sunRays.gameObject.SetActive(false);
+                }
+
                 return;
             }
 
@@ -406,6 +494,29 @@ namespace BlocksBeyondTheStars.Client
             Color c = sunColor;
             c.a = Mathf.Clamp01(a);
             _sunDiscMat.SetColor(ColorId, ShaderColor.Srgb(c));
+
+            // God-ray shafts: a big additive ray fan at the sun, depth-tested (SunRays shader) so foreground
+            // terrain occludes it → shafts above ridgelines/canopies. Atmospheric scattering, so only with air
+            // (off in space/airless), stronger when the sun is lowish and the air is thick. Purely additive.
+            if (_sunRays != null)
+            {
+                bool raysOn = !spaceSky;
+                _sunRays.gameObject.SetActive(raysOn);
+                if (raysOn)
+                {
+                    _sunRays.position = camPos + dir * dist;
+                    _sunRays.rotation = Quaternion.LookRotation(camPos - _sunRays.position);
+                    float rsize = dist * 0.9f; // a wide fan around the disc
+                    _sunRays.localScale = new Vector3(rsize, rsize, rsize);
+
+                    float airDensity = Game?.Environment?.AtmosphereDensity ?? 0.4f;
+                    float lowBoost = Mathf.Lerp(1.3f, 0.7f, Mathf.Clamp01(sunHeight)); // longer shafts near the horizon
+                    float strength = Mathf.Clamp01(sunHeight * 2.5f) * lowBoost * Mathf.Lerp(0.35f, 0.9f, Mathf.Clamp01(airDensity));
+                    Color rc = sunColor;
+                    rc.a = Mathf.Clamp01(strength * 0.14f); // overall additive ray brightness (subtle)
+                    _sunRaysMat.SetColor(ColorId, ShaderColor.Srgb(rc));
+                }
+            }
         }
 
         private void OnDisable()
