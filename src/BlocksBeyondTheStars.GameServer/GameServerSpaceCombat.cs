@@ -854,26 +854,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var leftover = new List<ItemAmount>();
-            foreach (var item in drop.Loot)
+            if (StowDrop(instance, drop))
             {
-                int max = _content.GetItem(item.Item)?.MaxStack ?? 99;
-                int notStowed = _ship.Cargo.Add(item.Item, item.Count, max); // cargo full → leave the rest floating
-                if (notStowed < item.Count)
-                {
-                    changed = true;
-                }
-
-                if (notStowed > 0)
-                {
-                    leftover.Add(new ItemAmount(item.Item, notStowed));
-                }
-            }
-
-            drop.Loot = leftover;
-            if (drop.Loot.Count == 0)
-            {
-                instance.Entities.Remove(drop);
+                changed = true;
             }
         }
 
@@ -890,10 +873,43 @@ public sealed partial class GameServer
         }
     }
 
-    private const float TractorPullRange = 30f; // a manual quick-bar tractor sweep reaches further than the passive pull
+    /// <summary>Stows one salvage drop's loot into the ship's cargo hold (until full), removing the drop when it
+    /// is emptied. Returns true if anything was stowed (cargo full ⇒ false, loot stays floating).</summary>
+    private bool StowDrop(SpaceInstance instance, CombatEntity drop)
+    {
+        bool stowed = false;
+        var leftover = new List<ItemAmount>();
+        foreach (var item in drop.Loot)
+        {
+            int max = _content.GetItem(item.Item)?.MaxStack ?? 99;
+            int notStowed = _ship.Cargo.Add(item.Item, item.Count, max); // cargo full → leave the rest floating
+            if (notStowed < item.Count)
+            {
+                stowed = true;
+            }
 
-    /// <summary>Manual tractor pull (quick-bar): sweeps salvage within a wider range into the cargo hold.</summary>
-    public void TractorPull(string playerId)
+            if (notStowed > 0)
+            {
+                leftover.Add(new ItemAmount(item.Item, notStowed));
+            }
+        }
+
+        drop.Loot = leftover;
+        if (drop.Loot.Count == 0)
+        {
+            instance.Entities.Remove(drop);
+        }
+
+        return stowed;
+    }
+
+    private const float TractorPullRange = 30f; // a manual quick-bar tractor sweep reaches further than the passive pull
+    private const float TractorReach = 45f;     // an AIMED (auto-locked) drop pulls in from as far as the laser reaches
+
+    /// <summary>Manual tractor pull (quick-bar). With a locked <paramref name="targetId"/> the client picked,
+    /// pulls THAT drop in from a generous range (3D depth is hard to eyeball, so the blind radius sweep used to
+    /// miss drops that looked close). With no target it falls back to the legacy radius sweep.</summary>
+    public void TractorPull(string playerId, string targetId = "")
     {
         var session = FindSessionByPlayerId(playerId);
         if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
@@ -904,14 +920,48 @@ public sealed partial class GameServer
 
         if (!_ship.HasModule(TractorModule))
         {
-            RejectSpace(session, "No tractor beam fitted on this ship.");
+            RejectSpace(session, Localize(session?.Locale ?? "en", "space.tractor.none_fitted"));
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(targetId))
+        {
+            var drop = instance.Entities.FirstOrDefault(e => e.Id == targetId
+                && e.Kind == CombatEntityKind.ResourceDrop);
+            if (drop is null)
+            {
+                return; // already collected / gone — no need to nag
+            }
+
+            if (drop.Position.DistanceSquared(instance.ShipPosition) > TractorReach * TractorReach)
+            {
+                RejectSpace(session, Localize(session?.Locale ?? "en", "space.tractor.out_of_range"));
+                return;
+            }
+
+            if (!StowDrop(instance, drop))
+            {
+                RejectSpace(session, Localize(session?.Locale ?? "en", "space.tractor.cargo_full"));
+                return;
+            }
+
+            BroadcastSpaceState(instance);
+            foreach (var playerId2 in instance.Players)
+            {
+                if (FindSessionByPlayerId(playerId2) is { } s)
+                {
+                    SendInventory(s);
+                }
+            }
+
             return;
         }
 
         CollectSalvage(instance, TractorPullRange);
     }
 
-    private void HandleTractorPull(PlayerSession session) => TractorPull(session.State.PlayerId);
+    private void HandleTractorPull(PlayerSession session, TractorPullIntent intent)
+        => TractorPull(session.State.PlayerId, intent.TargetEntityId);
 
     /// <summary>Sets the player's ship position in its space instance (trusted + finite-clamped, like on-foot move).</summary>
     public void ShipMove(string playerId, float x, float y, float z, float yaw = 0f)

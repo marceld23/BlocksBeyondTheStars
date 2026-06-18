@@ -197,6 +197,10 @@ public sealed class SaveGameIntent
 /// <summary>Client fires the ship's tractor beam as a manual sweep (quick-bar): pull nearby salvage in.</summary>
 public sealed class TractorPullIntent
 {
+    /// <summary>The salvage drop the client auto-locked onto. When set, the server pulls THAT drop in from a
+    /// generous range (depth is hard to judge in 3D flight, so the old blind radius sweep often missed drops
+    /// that looked close). Empty = legacy radius sweep. Contractless-additive: old payloads default to empty.</summary>
+    public string TargetEntityId { get; set; } = string.Empty;
 }
 
 /// <summary>Client asks to leave the space instance and return to the surface/base.</summary>

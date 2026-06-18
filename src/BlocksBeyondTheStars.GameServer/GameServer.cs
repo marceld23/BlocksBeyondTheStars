@@ -1331,7 +1331,7 @@ public sealed partial class GameServer
             case ChatIntent chat: HandleChat(session, chat); break;
             case RequestStarMap: SendStarMap(session); break;
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
-            case TractorPullIntent: HandleTractorPull(session); break;
+            case TractorPullIntent pull: HandleTractorPull(session, pull); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
             case UnlockGameIntent unlockGame: HandleUnlockGame(session, unlockGame); break;
             case MinigameResultIntent miniResult: HandleMinigameResult(session, miniResult); break;

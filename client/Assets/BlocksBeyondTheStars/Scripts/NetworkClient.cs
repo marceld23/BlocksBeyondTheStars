@@ -252,8 +252,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Asks the server to save the world + players to disk now (explicit save).</summary>
         public void SendSaveGame() => Send(new SaveGameIntent());
 
-        /// <summary>Fires the ship's tractor beam as a manual sweep to pull in nearby salvage.</summary>
-        public void SendTractorPull() => Send(new TractorPullIntent());
+        /// <summary>Fires the ship's tractor beam to pull in salvage. Pass the auto-locked drop's id so the server
+        /// pulls THAT drop in from a generous range; empty falls back to a blind radius sweep.</summary>
+        public void SendTractorPull(string targetEntityId = "") => Send(new TractorPullIntent { TargetEntityId = targetEntityId });
 
         public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
 

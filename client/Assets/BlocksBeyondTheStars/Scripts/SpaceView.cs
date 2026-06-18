@@ -976,11 +976,14 @@ namespace BlocksBeyondTheStars.Client
             }
             else // tractor
             {
-                _fireTargetId = null;
+                // Auto-lock the nearest salvage drop (like the laser) so the reticle confirms what you'll pull —
+                // a blind radius sweep was impossible to aim in 3D, where depth is hard to judge.
+                var drop = BestTractorTarget();
+                _fireTargetId = drop?.Id;
                 if (_fireCd <= 0f && Input.GetMouseButtonDown(0))
                 {
                     _fireCd = 0.6f;
-                    ActivateTractor();
+                    ActivateTractor(drop);
                 }
             }
         }
@@ -1183,12 +1186,50 @@ namespace BlocksBeyondTheStars.Client
 
         private string Loc(string key, string fallback) => Game.Localizer != null ? Game.Localizer.Get(key) : fallback;
 
-        /// <summary>Manual tractor sweep: pulls nearby salvage in (server-authoritative) with a cyan beam + ping.</summary>
-        private void ActivateTractor()
+        // The tractor auto-locks (and the server pulls in) salvage from as far as the laser reaches — matches
+        // the server's TractorReach so the beam never visually "hits" a drop the server then rejects as too far.
+        private const float TractorLockRange = 45f;
+
+        /// <summary>The nearest salvage drop within tractor reach (omnidirectional — unlike the laser, the tractor
+        /// has no firing arc). Drives the lock reticle and which drop a pull collects.</summary>
+        private BlocksBeyondTheStars.Networking.Messages.NetCombatEntity BestTractorTarget()
         {
-            Game.Network?.SendTractorPull();
+            var space = Game.Space;
+            if (space == null || _ship == null)
+            {
+                return null;
+            }
+
+            Vector3 shipPos = _ship.transform.localPosition;
+            BlocksBeyondTheStars.Networking.Messages.NetCombatEntity best = null;
+            float bestSq = TractorLockRange * TractorLockRange;
+            foreach (var e in space.Entities)
+            {
+                if (e.Kind != "ResourceDrop")
+                {
+                    continue;
+                }
+
+                float sq = (new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude;
+                if (sq < bestSq)
+                {
+                    bestSq = sq;
+                    best = e;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>Manual tractor pull: tells the server to pull in the auto-locked salvage drop (or, with none
+        /// locked, a blind radius sweep) and draws the cyan beam to the drop + a ping.</summary>
+        private void ActivateTractor(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity target)
+        {
+            Game.Network?.SendTractorPull(target?.Id ?? string.Empty);
             Vector3 from = _ship.transform.localPosition;
-            Vector3 to = from + _ship.transform.localRotation * Vector3.forward * 12f;
+            Vector3 to = target != null
+                ? new Vector3(target.X, target.Y, target.Z)               // beam to the actual drop
+                : from + _ship.transform.localRotation * Vector3.forward * 12f; // nothing locked: a short sweep
             SpawnLaserBeam(from, to, new Color(0.4f, 0.85f, 1f));
             ClientAudio.Instance?.Cue("scan_ping");
         }

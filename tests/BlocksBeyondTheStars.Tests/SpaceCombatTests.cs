@@ -826,6 +826,48 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TractorBeam_AimedPull_CollectsDrop_BeyondPassiveRange()
+    {
+        var server = NewServer("tractor-aim", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.AsteroidDestruction = AsteroidDestructionMode.MiningOnly;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Add("tractor_beam");
+            server.EnterSpace("Pilot");
+
+            CombatEntity? drop = null;
+            for (int i = 0; i < 24 && drop == null; i++)
+            {
+                var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
+                if (a != null)
+                {
+                    server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+                }
+
+                drop = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.ResourceDrop);
+            }
+
+            Assert.NotNull(drop);
+
+            // Sit ~25 units away — outside the passive auto-collect radius (16), but inside the aimed reach (45).
+            server.ShipMove("Pilot", drop!.Position.X + 25f, drop.Position.Y, drop.Position.Z);
+            server.Tick(0.1); // passive sweep must NOT reach it
+            Assert.Equal(0, server.Ship.Cargo.CountOf("iron_ore"));
+            Assert.Contains(server.SpaceEntitiesFor("Pilot"), e => e.Id == drop.Id);
+
+            // An aimed pull (the client locked this drop) reaches it.
+            server.TractorPull("Pilot", drop.Id);
+            Assert.True(server.Ship.Cargo.CountOf("iron_ore") >= 5, "Aimed tractor pull should stow the salvage.");
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Pilot"), e => e.Id == drop.Id);
+        }
+    }
+
     // ---------------- Planet enemies ----------------
 
     [Fact]
