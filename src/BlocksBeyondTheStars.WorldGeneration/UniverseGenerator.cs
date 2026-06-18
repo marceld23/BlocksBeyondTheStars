@@ -25,6 +25,7 @@ public sealed class UniverseGenerator
     private const float OrbitJitter = 140f; // random radial wobble so orbits aren't perfectly spaced
     private const float MoonOrbit = 90f;    // first moon's radius around its planet
     private const float MoonStep = 55f;     // extra radius per moon
+    private const float StationOrbit = 500f; // a station hangs just beyond its planet's clearance (470) — "over" it
 
     private readonly long _seed;
     private readonly WorldDescription _desc;
@@ -162,11 +163,46 @@ public sealed class UniverseGenerator
                 });
             }
 
+            // Stations: the per-world frequency gate decides whether a system has ANY station at all (Rare by
+            // default ⇒ most systems have none). When it fires the system gets 1–3, each hanging over a DISTINCT
+            // planet and named after it ("<planet> Station") so they're attributable. A second station is rare and
+            // a third very rare. Count + planet picks come from a SEPARATE hash (not rng), so adding stations never
+            // disturbs the wreck rng draw below — only the stations themselves change for existing universes.
             if (rng.NextDouble() < _desc.SpaceStations.Probability())
             {
-                var (sx, sz) = DiscPoint(i, planets, 302);
-                (sx, sz) = SeparateFromBodies(system, sx, sz); // never park a station inside a planet/moon/asteroid (B29)
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-st", Name = $"{system.Name} Station", Kind = CelestialKind.SpaceStation, SystemId = system.Id, SystemX = sx, SystemZ = sz });
+                var systemPlanets = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+
+                int stationCount = 1;
+                if (Hash01(i, 320, 1) < 0.25f) stationCount = 2;                          // second station: ~25%
+                if (stationCount == 2 && Hash01(i, 320, 2) < 0.30f) stationCount = 3;      // third: ~7.5% (very rare)
+                stationCount = System.Math.Min(stationCount, systemPlanets.Count);        // can't exceed planets (one each)
+
+                // Deterministic shuffle so each station sits over a different planet (no two share one).
+                var order = new List<int>();
+                for (int k = 0; k < systemPlanets.Count; k++) order.Add(k);
+                for (int k = order.Count - 1; k > 0; k--)
+                {
+                    int j = System.Math.Min(k, (int)(Hash01(i, 321, k) * (k + 1)));
+                    (order[k], order[j]) = (order[j], order[k]);
+                }
+
+                for (int s = 0; s < stationCount; s++)
+                {
+                    var planet = systemPlanets[order[s]];
+                    float ang = Hash01(i, 322, s) * Tau;
+                    float sx = planet.SystemX + StationOrbit * System.MathF.Cos(ang);
+                    float sz = planet.SystemZ + StationOrbit * System.MathF.Sin(ang);
+                    (sx, sz) = SeparateFromBodies(system, sx, sz); // never park a station inside a planet/moon/asteroid (B29)
+                    system.Bodies.Add(new CelestialBody
+                    {
+                        Id = s == 0 ? $"{system.Id}-st" : $"{system.Id}-st{s}", // keep legacy id for the first
+                        Name = $"{planet.Name} Station",
+                        Kind = CelestialKind.SpaceStation,
+                        SystemId = system.Id,
+                        SystemX = sx,
+                        SystemZ = sz,
+                    });
+                }
             }
 
             if (rng.NextDouble() < _desc.Wrecks.Probability())

@@ -98,6 +98,49 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void Stations_AreOnePerThreeMax_OverDistinctPlanets_NamedAfterThem()
+    {
+        // Frequent so most systems get stations, across many systems so the 1–3 spread shows up.
+        var desc = new WorldDescription
+        {
+            StarSystemCount = 120,
+            PlanetsPerSystemMin = 3,
+            PlanetsPerSystemMax = 6,
+            SpaceStations = Frequency.Frequent,
+        };
+        var galaxy = new UniverseGenerator(7, desc, _content).Generate();
+
+        bool sawTwo = false, sawThree = false;
+        foreach (var sys in galaxy.Systems)
+        {
+            var stations = sys.Bodies.Where(b => b.Kind == CelestialKind.SpaceStation).ToList();
+            if (stations.Count == 0) continue;
+
+            // Never more than three, and never more than the system has planets.
+            int planetCount = sys.Bodies.Count(b => b.Kind == CelestialKind.Planet);
+            Assert.InRange(stations.Count, 1, 3);
+            Assert.True(stations.Count <= planetCount);
+            if (stations.Count == 2) sawTwo = true;
+            if (stations.Count == 3) sawThree = true;
+
+            // Each station is named after a planet that exists in this system, and no two share a planet.
+            var planetNames = sys.Bodies.Where(b => b.Kind == CelestialKind.Planet).Select(p => p.Name).ToHashSet();
+            var claimedPlanets = new HashSet<string>();
+            foreach (var st in stations)
+            {
+                Assert.EndsWith(" Station", st.Name);
+                string planetName = st.Name[..^" Station".Length];
+                Assert.Contains(planetName, planetNames);
+                Assert.True(claimedPlanets.Add(planetName), $"two stations share planet {planetName}");
+            }
+        }
+
+        // Multi-station systems are possible but rare; with 120 Frequent systems we expect to see both 2 and 3.
+        Assert.True(sawTwo, "expected at least one system with two stations");
+        Assert.True(sawThree, "expected at least one system with three stations");
+    }
+
+    [Fact]
     public void Procedural_generation_never_collides_with_the_reserved_finale_area()
     {
         // The finale system + body ids are RESERVED for the hand-built Guardian core (added to the galaxy only

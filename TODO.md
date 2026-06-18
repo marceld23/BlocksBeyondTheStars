@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **658 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **659 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,16 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Multiple space stations per system — ✅ worldgen-only + test (2026-06-18, NO Unity build needed)
+A system that rolls a station (per the `SpaceStations` frequency gate) now gets **1–3** instead of always one.
+A second station is rare (~25%) and a third very rare (~7.5%); the count is capped at the system's planet count.
+Each station hangs over a **distinct** planet (deterministic hash-shuffle, never two on one) at `StationOrbit=500`
+just beyond the planet's clearance, and is named `"<planet> Station"` so it's attributable. Count + planet picks
+use the separate `Hash01` stream (not `rng`), so wrecks/planets stay byte-identical for existing universes — only
+stations change. First station keeps the legacy `-st` id; extras are `-st1`/`-st2`. Runtime already supported
+multiple stations per system (`GameServerSpaceStations` iterates all `SpaceStation` bodies). `UniverseGenerator.cs`;
+new `UniverseTests.Stations_AreOnePerThreeMax_OverDistinctPlanets_NamedAfterThem`.
 
 ### ★ Server hardening + optimization pass — ✅ server-only + tests (2026-06-18, NO Unity build needed)
 Analysis+plan: `[memory] server-hardening-and-optimization-plan`. Four critical fixes + perf + anti-cheat from a
