@@ -37,6 +37,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             // Scene depth (enabled by the URP asset's depth texture, Phase 0) — lets water read its own column
             // depth against the bed/objects behind it for a shallow→deep colour gradient + intersection foam.
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            // Opaque scene colour (Phase 0 opaque texture) — the bed behind the water, sampled wave-distorted for
+            // refraction (the surface bends what's beneath it; plain alpha-blending can't do that).
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Sc_Light;
@@ -175,6 +178,17 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                         col = lerp(col, light * float3(0.96, 0.99, 1.0), saturate(ef) * 0.7);
                         alpha = saturate(alpha + saturate(ef) * 0.5);
                     }
+
+                    // Refraction: composite the bed ourselves from the opaque texture, sampled at a wave-distorted
+                    // screen position, so the surface BENDS what's beneath it (plain alpha-blending can't). We then
+                    // output opaque and reuse `alpha` (depth-driven) as how much the water hides the bed — shallow
+                    // water shows the wobbling bed, deep water its own blue. Degrades gracefully if no opaque texture.
+                    float2 wob = float2(sin(i.wp.x * 1.3 + t * 1.5) + sin(i.wp.z * 0.9 - t * 1.1),
+                                        cos(i.wp.z * 1.2 + t * 1.3) + sin(i.wp.x * 0.7 - t * 0.9));
+                    float refr = 0.018 * (1.0 - depth01); // shallow distorts the visible bed; deep hides it anyway
+                    float3 bed = SampleSceneColor(screenUV + wob * refr);
+                    col = lerp(bed, col, saturate(alpha));
+                    alpha = 1.0; // bed composited here → opaque output, no hardware double-blend of the background
                 }
                 else
                 {
