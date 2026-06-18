@@ -17,6 +17,28 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Main-menu backdrop now reflects the real in-game space look — ✅ code (2026-06-19, NEEDS Unity build)
+The shell/menu attract scene (`MenuBackground`) was a standalone hand-built scene (420 cube "stars", primitive cube
+ship, no nebula/sun/post) that no longer matched the game. It now shares the **same** rendering systems the live
+space view uses:
+- **Real starfield + nebula:** the actual `Starfield` (1500-star twinkling dome) and `NebulaField` (coloured gas)
+  now run in a new **menu mode** — a `MenuBrightness ≥ 0` (and `MenuSeed` for the nebula) lets them render at a
+  fixed strength **without a live `Game`** (they previously early-returned on `Game == null`).
+- **Sun + god-rays:** a glowing `SunGlow` disc + additive `SunRays` fan, with the radial textures extracted into a
+  new game-independent `SkyVisuals` helper (`Sky` now delegates to it — no duplication).
+- **Real voxel ship:** the menu builds the block atlas + chunk materials (same recipe as `GameBootstrap`) from the
+  already-loaded `AppShell.Content`, authors a compact real fighter as a `SpaceShipDesign` (iron_wall hull, glass
+  canopy, cyan-glow engine nozzles) and meshes it through `ShipMeshBuilder` — so the menu shows the actual atlas-
+  textured, hull-painted voxel ship (with a thruster particle plume). Falls back to the old cube ship if the atlas
+  isn't available. Space-sky shader globals (`_Sc_Light` white, `_Sc_SunDir`, grade/fog off) are set so the atlas
+  shader lights it (no live `Sky`).
+- **Cinematic post:** the menu camera gets the same `UrpScenePost` stack (bloom + ACES tonemap + vignette + lens
+  flare; URP post enabled on the camera), or `PostFx` under Built-in RP.
+- Files: `MenuBackground.cs` (rewrite, builds in `Start` so `AppShell` can inject `Shell`), `SkyVisuals.cs` (new),
+  `Sky.cs` (delegate the two generators), `Starfield.cs` + `NebulaField.cs` (menu mode), `ShipMeshBuilder.cs`
+  (game-less `BuildVoxelShip` overload; existing `GameBootstrap` overload forwards), `AppShell.cs` (inject `Shell`).
+  Client-only; no `.NET`/codec change. NEEDS a Unity client build to verify.
+
 ### ★ Creatures sleep + wake when you near or hit them — ✅ code (2026-06-19, NEEDS Unity build)
 Off-phase fauna already rested in place (each species is Diurnal/Nocturnal/Crepuscular/Cathemeral; `SpeciesActive`
 gates movement). That rest was purely clock-based — proximity and attacks did nothing. Now a sleeping creature

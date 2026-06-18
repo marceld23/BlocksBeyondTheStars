@@ -18,6 +18,14 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        /// <summary>Menu attract-scene mode: when ≥ 0 the nebula runs WITHOUT a live <see cref="Game"/> at this fixed
+        /// brightness (0..1) and a fixed <see cref="MenuSeed"/>, so the shell screens get the same real gas backdrop
+        /// the world uses. Default −1 = driven by the game's space/night state + per-system re-seed.</summary>
+        public float MenuBrightness = -1f;
+
+        /// <summary>The fixed nebula seed used in menu mode (ignored unless <see cref="MenuBrightness"/> ≥ 0).</summary>
+        public int MenuSeed = 1337;
+
         private const float MaxBrightness = 0.5f; // additive cap — keep the void mostly dark, clouds a soft glow
 
         private Transform _dome;
@@ -55,7 +63,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            if (_dome == null || Camera == null || Game == null)
+            if (_dome == null || Camera == null)
             {
                 return;
             }
@@ -65,6 +73,32 @@ namespace BlocksBeyondTheStars.Client
             _dome.SetPositionAndRotation(Camera.transform.position, Quaternion.identity);
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.44f;
             _dome.localScale = new Vector3(r, r, r);
+
+            // Menu attract scene: no game — build the fixed-seed dome once and hold a fixed brightness.
+            if (MenuBrightness >= 0f)
+            {
+                string menuKey = "menu:" + MenuSeed;
+                if (menuKey != _builtForSystem)
+                {
+                    _builtForSystem = menuKey;
+                    var prev = _mesh;
+                    _mesh = BuildDomeMesh(MenuSeed);
+                    _filter.sharedMesh = _mesh;
+                    if (prev != null)
+                    {
+                        Destroy(prev);
+                    }
+                }
+
+                _brightness = Mathf.Clamp01(MenuBrightness);
+                _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+                return;
+            }
+
+            if (Game == null)
+            {
+                return;
+            }
 
             // Re-seed the nebula per star system so each system reads distinct (patch positions, hues AND cloud
             // density all vary). Rebuilds only when the system actually changes — a rare event, so the alloc is

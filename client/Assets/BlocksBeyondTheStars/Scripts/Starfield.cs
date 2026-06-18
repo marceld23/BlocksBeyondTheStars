@@ -14,6 +14,11 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        /// <summary>Menu attract-scene mode: when ≥ 0 the field runs WITHOUT a live <see cref="Game"/> at this fixed
+        /// brightness (0..1), so the shell screens get the same real starfield the world uses. Default −1 = driven
+        /// by the game's day/space state.</summary>
+        public float MenuBrightness = -1f;
+
         private const int StarCount = 1500;
         private const float MaxBrightness = 1.3f; // additive cap (per-star dots, so the sky as a whole stays dark)
 
@@ -47,7 +52,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            if (_dome == null || Camera == null || Game == null)
+            if (_dome == null || Camera == null)
             {
                 return;
             }
@@ -57,6 +62,19 @@ namespace BlocksBeyondTheStars.Client
             _dome.SetPositionAndRotation(Camera.transform.position, Quaternion.identity);
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.45f;
             _dome.localScale = new Vector3(r, r, r);
+
+            // Menu attract scene: no game, just a fixed full-strength field.
+            if (MenuBrightness >= 0f)
+            {
+                _brightness = Mathf.Clamp01(MenuBrightness);
+                _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+                return;
+            }
+
+            if (Game == null)
+            {
+                return;
+            }
 
             // Out in true space / on an airless body / inside a station the stars are there instantly (no slow
             // fade-in — that's why none seemed to show on entering space); a planet keeps the soft dusk/dawn fade.

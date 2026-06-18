@@ -35,9 +35,18 @@ namespace BlocksBeyondTheStars.Client
         /// null when the design or the block atlas/material isn't ready (caller falls back to a placeholder).</summary>
         public static GameObject BuildVoxelShip(GameBootstrap game, Transform parent,
             BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, out float extent, Color hull = default)
+            => BuildVoxelShip(game?.Content, game?.Atlas, game?.ChunkMaterial, game?.ChunkMaterialTransparent,
+                parent, d, out extent, hull);
+
+        /// <summary>Game-less overload: builds the voxel ship straight from the block atlas + chunk materials, so the
+        /// menu attract scene (which has no <see cref="GameBootstrap"/>) can render the SAME real voxel ship the
+        /// flight view does. The in-game overload forwards here. Returns null when any piece is missing.</summary>
+        public static GameObject BuildVoxelShip(GameContent content, BlockTextureAtlas atlas,
+            Material chunkMat, Material chunkMatTransparent, Transform parent,
+            BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, out float extent, Color hull = default)
         {
             extent = 2f;
-            if (game == null || game.ChunkMaterial == null || game.Atlas == null || game.Content == null || !HasDesign(d))
+            if (content == null || atlas == null || chunkMat == null || !HasDesign(d))
             {
                 return null;
             }
@@ -68,7 +77,8 @@ namespace BlocksBeyondTheStars.Client
 
             var ship = new GameObject("VoxelShip");
             ship.transform.SetParent(parent, false);
-            BuildVoxChunks(game, ship.transform, cells, centre, hull.a > 0f ? HullPaint(game.Content, hull) : null, mods, shapes);
+            BuildVoxChunks(content, atlas, chunkMat, chunkMatTransparent, ship.transform, cells, centre,
+                hull.a > 0f ? HullPaint(content, hull) : null, mods, shapes);
             return ship;
         }
 
@@ -90,7 +100,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Meshes a sparse block grid into chunk meshes under <paramref name="parent"/>, centred on
         /// <paramref name="centre"/> (mirrors SpaceView.BuildVoxChunks; no colliders — display only).</summary>
-        private static void BuildVoxChunks(GameBootstrap game, Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
+        private static void BuildVoxChunks(GameContent content, BlockTextureAtlas atlas, Material chunkMat, Material chunkMatTransparent,
+            Transform parent, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
             System.Func<BlockId, Color> paint,
             Dictionary<Vector3i, (int Tint, int Glow)> mods = null, Dictionary<Vector3i, int> shapes = null)
         {
@@ -106,9 +117,9 @@ namespace BlocksBeyondTheStars.Client
 
             int cs = WorldConstants.ChunkSize;
             int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
-            var mats = game.ChunkMaterialTransparent != null
-                ? new[] { game.ChunkMaterial, game.ChunkMaterialTransparent }
-                : new[] { game.ChunkMaterial };
+            var mats = chunkMatTransparent != null
+                ? new[] { chunkMat, chunkMatTransparent }
+                : new[] { chunkMat };
 
             for (int cx = FloorDiv(minX, cs); cx <= FloorDiv(maxX, cs); cx++)
             for (int cy = FloorDiv(minY, cs); cy <= FloorDiv(maxY, cs); cy++)
@@ -130,7 +141,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, _) = ChunkMesher.Build(chunk, game.Content, WorldBlock, game.Atlas, paintTint: paint);
+                var (mesh, _) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint);
                 if (mesh.vertexCount == 0)
                 {
                     continue;

@@ -136,7 +136,7 @@ namespace BlocksBeyondTheStars.Client
             if (_menuBackground == null)
             {
                 _menuBackground = new GameObject("MenuBackground");
-                _menuBackground.AddComponent<MenuBackground>();
+                _menuBackground.AddComponent<MenuBackground>().Shell = this; // supplies content + hull colour
             }
         }
 
