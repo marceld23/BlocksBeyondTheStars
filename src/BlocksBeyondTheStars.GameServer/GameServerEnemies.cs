@@ -19,6 +19,8 @@ public sealed partial class GameServer
 
     private List<CombatEntity> _planetEnemies => _worlds.Active.PlanetEnemies;
     private double _enemySpawnTimer { get => _worlds.Active.EnemySpawnTimer; set => _worlds.Active.EnemySpawnTimer = value; }
+    private readonly List<PlayerSession> _enemyTargets = new(); // reused per tick (no per-tick LINQ alloc)
+    private readonly HashSet<string> _wardedPlayers = new();    // reused per tick (companion-ward set)
 
     /// <summary>Hostile creatures currently active on the surface.</summary>
     public IReadOnlyList<CombatEntity> PlanetEnemies => _planetEnemies;
@@ -43,9 +45,17 @@ public sealed partial class GameServer
         }
 
         // Eligible targets: joined players on the surface (outside the ship, not flying in space).
-        var targets = JoinedInActiveWorld()
-            .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))
-            .ToList();
+        // Reuse a field list instead of allocating a fresh Where(...).ToList() every tick (15 Hz).
+        _enemyTargets.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
+            {
+                _enemyTargets.Add(s);
+            }
+        }
+
+        var targets = _enemyTargets;
 
         if (targets.Count == 0)
         {
@@ -68,7 +78,8 @@ public sealed partial class GameServer
         // biosphere rather than as prey: while one wards a player the machines neither hunt nor bite them.
         // Computed once per tick (consulted by both the proximity-damage pass and MovePlanetEnemy's chase
         // scan). Story: RevealCompanionWardInsight has VEGA explain it the first time a machine stands down.
-        var warded = new HashSet<string>();
+        var warded = _wardedPlayers;
+        warded.Clear();
         foreach (var session in targets)
         {
             if (WardedByCompanion(session.State))

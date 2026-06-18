@@ -38,6 +38,7 @@ public sealed partial class GameServer
     private const double CreatureGiveUpCooldownSeconds = 15.0; // ...then leaves you alone (no chase/attack) for this
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
+    private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
     private readonly Dictionary<string, LocomotionProfile> _locoProfiles = new(); // per-species movement tuning
     private List<CombatEntity> _creatures => _worlds.Active.Creatures;
@@ -151,10 +152,17 @@ public sealed partial class GameServer
             BroadcastCreatures();
         }
 
-        var targets = JoinedInActiveWorld()
-            .Where(s => !s.State.AboardShip && !InSpace(s.State.PlayerId))
-            .ToList();
+        // Reuse a field list instead of allocating a fresh Where(...).ToList() every tick (15 Hz).
+        _creatureTargets.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.State.AboardShip && !InSpace(s.State.PlayerId))
+            {
+                _creatureTargets.Add(s);
+            }
+        }
 
+        var targets = _creatureTargets;
         if (targets.Count == 0)
         {
             return;

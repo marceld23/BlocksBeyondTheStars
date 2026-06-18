@@ -1,3 +1,4 @@
+using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
 
@@ -183,12 +184,14 @@ public sealed partial class GameServer
 
         foreach (var subject in joined)
         {
-            var presence = PresenceOf(subject);
+            // Encode each subject's presence once, then fan it out to every other viewer — the old per-viewer
+            // Send re-serialized it, making this O(players²) encodes per presence tick.
+            var payload = NetCodec.Encode(PresenceOf(subject));
             foreach (var viewer in joined)
             {
                 if (viewer.ConnectionId != subject.ConnectionId)
                 {
-                    Send(viewer, presence);
+                    SendEncoded(viewer.ConnectionId, payload);
                 }
             }
         }

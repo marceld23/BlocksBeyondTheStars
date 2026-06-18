@@ -350,28 +350,34 @@ public sealed partial class GameServer
             minX = minY = minZ = maxX = maxY = maxZ = 0;
         }
 
-        foreach (var kv in src.Cells)
-        {
-            var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
-            _world.SetBlock(w, kv.Value);
-        }
-
         // Spawn at the build's centre with a guaranteed floor pad + headroom (never fall through into the void).
         int cx = station.Origin.X + (maxX - minX) / 2;
         int cz = station.Origin.Z + (maxZ - minZ) / 2;
         int fy = station.Origin.Y;
         var hull = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
-        if (!hull.IsAir)
-        {
-            for (int dx = -1; dx <= 1; dx++)
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
-                }
-        }
 
-        _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
-        _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
+        // Stamp the whole build in one transaction: a station can be hundreds of voxels and each SetBlock is
+        // otherwise its own WAL commit — that loop stalls the tick thread for as long as it runs.
+        _repo.RunInTransaction(() =>
+        {
+            foreach (var kv in src.Cells)
+            {
+                var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
+                _world.SetBlock(w, kv.Value);
+            }
+
+            if (!hull.IsAir)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
+                    }
+            }
+
+            _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
+            _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
+        });
 
         station.Spawn = new Vector3f(cx + 0.5f, fy + 1f, cz + 0.5f);
         station.Markers.Clear();

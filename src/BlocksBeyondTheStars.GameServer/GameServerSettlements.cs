@@ -137,29 +137,34 @@ public sealed partial class GameServer
         var origin = new Vector3i(ax, groundY, az); // structure y=0 sits at ground level
         var foundationId = _content.GetBlock(surface)?.NumericId ?? BlockId.Air;
 
-        // 1) Flatten a foundation slab at ground level across the footprint (so it sits flush).
-        if (!foundationId.IsAir)
+        // Stamp the foundation + structure in one transaction: a settlement is many hundreds of voxels and
+        // each SetBlock is otherwise its own WAL commit, stalling whatever thread runs the stamp.
+        _repo.RunInTransaction(() =>
         {
+            // 1) Flatten a foundation slab at ground level across the footprint (so it sits flush).
+            if (!foundationId.IsAir)
+            {
+                for (int x = 0; x < structure.Width; x++)
+                for (int z = 0; z < structure.Length; z++)
+                {
+                    _world.SetBlock(new Vector3i(origin.X + x, groundY, origin.Z + z), foundationId);
+                }
+            }
+
+            // 2) Stamp the structure above the foundation (y=0 of the structure is the foundation row).
             for (int x = 0; x < structure.Width; x++)
+            for (int y = 0; y < structure.Height; y++)
             for (int z = 0; z < structure.Length; z++)
             {
-                _world.SetBlock(new Vector3i(origin.X + x, groundY, origin.Z + z), foundationId);
+                ushort b = structure.Get(x, y, z);
+                if (b != 0)
+                {
+                    var (tint, glow) = structure.GetModifier(x, y, z);
+                    _world.SetBlock(new Vector3i(origin.X + x, groundY + y, origin.Z + z),
+                        new BlockId(b), tint, glow, structure.GetShape(x, y, z));
+                }
             }
-        }
-
-        // 2) Stamp the structure above the foundation (y=0 of the structure is the foundation row).
-        for (int x = 0; x < structure.Width; x++)
-        for (int y = 0; y < structure.Height; y++)
-        for (int z = 0; z < structure.Length; z++)
-        {
-            ushort b = structure.Get(x, y, z);
-            if (b != 0)
-            {
-                var (tint, glow) = structure.GetModifier(x, y, z);
-                _world.SetBlock(new Vector3i(origin.X + x, groundY + y, origin.Z + z),
-                    new BlockId(b), tint, glow, structure.GetShape(x, y, z));
-            }
-        }
+        });
 
         // 3) Record bounds, markers (in world space) + metadata.
         _settlementMin = origin;

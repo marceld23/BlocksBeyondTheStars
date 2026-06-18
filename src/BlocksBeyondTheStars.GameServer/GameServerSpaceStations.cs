@@ -436,18 +436,22 @@ public sealed partial class GameServer
 
         station.Structure = structure;
 
-        for (int x = 0; x < structure.Width; x++)
-        for (int y = 0; y < structure.Height; y++)
-        for (int z = 0; z < structure.Length; z++)
+        // Stamp the whole station in one transaction (hundreds of voxels, otherwise one WAL commit each).
+        _repo.RunInTransaction(() =>
         {
-            ushort b = structure.Get(x, y, z);
-            if (b != 0)
+            for (int x = 0; x < structure.Width; x++)
+            for (int y = 0; y < structure.Height; y++)
+            for (int z = 0; z < structure.Length; z++)
             {
-                var (tint, glow) = structure.GetModifier(x, y, z);
-                _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
-                    new BlockId(b), tint, glow, structure.GetShape(x, y, z));
+                ushort b = structure.Get(x, y, z);
+                if (b != 0)
+                {
+                    var (tint, glow) = structure.GetModifier(x, y, z);
+                    _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
+                        new BlockId(b), tint, glow, structure.GetShape(x, y, z));
+                }
             }
-        }
+        });
 
         station.Markers.Clear();
         foreach (var m in structure.Markers)

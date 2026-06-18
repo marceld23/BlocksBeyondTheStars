@@ -64,14 +64,15 @@ server.Start();
 
 Console.CancelKeyPress += (_, e) =>
 {
+    // Only REQUEST the stop here (this runs on the SIGINT handler thread). The run loop notices the flag,
+    // drains + saves on the tick thread, then returns from Run() — so the save never races a live Tick().
     e.Cancel = true;
     logger.Info("Shutdown requested...");
-    server.Stop();
-    Environment.Exit(0);
+    server.RequestStop();
 };
 
 logger.Info("Press Ctrl+C to stop the server.");
-server.Run();
+server.Run(); // returns once the shutdown request has been drained + saved on the tick thread
 return 0;
 
 // Resolves the content directory: configured path, else next to the executable, else by

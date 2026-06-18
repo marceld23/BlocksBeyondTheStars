@@ -255,6 +255,12 @@ public interface IWorldRepository : IDisposable
 
     void DeleteMission(string id);
 
+    /// <summary>Runs <paramref name="body"/> inside a single database transaction so a burst of writes (e.g.
+    /// stamping a station voxel-by-voxel, or saving every player at once) commits once instead of paying a
+    /// WAL commit per row — turning a multi-second stall on the tick thread into a single commit. Reentrant:
+    /// a nested call just runs the body in the already-open transaction. Rolls back if the body throws.</summary>
+    void RunInTransaction(Action body);
+
     /// <summary>Flushes any pending writes durably to disk.</summary>
     void Flush();
 

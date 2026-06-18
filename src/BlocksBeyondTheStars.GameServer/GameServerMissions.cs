@@ -255,8 +255,39 @@ public sealed partial class GameServer
     public void TryThreadMissionForTest(string nameKey)
         => TryThreadMission(new BlocksBeyondTheStars.Shared.Missions.MissionDefinition { Id = nameKey, NameKey = nameKey });
 
+    private static string Truncate(string? s, int max)
+        => string.IsNullOrEmpty(s) ? string.Empty : (s!.Length <= max ? s : s.Substring(0, max));
+
+    private const int MaxPlayerMissions = 10;     // active player-created missions per creator
+    private const int MaxMissionParts = 8;         // objectives / rewards a single mission may carry
+    private const int MaxMissionTitleLength = 80;
+    private const int MaxMissionDescriptionLength = 500;
+
     private void HandleCreateMission(PlayerSession session, CreateMissionIntent intent)
     {
+        // Anti-spam caps: a client could otherwise mint unbounded persisted missions with megabyte strings and
+        // huge objective/reward lists (store bloat + broadcast amplification in MissionList).
+        int mine = 0;
+        foreach (var d in _missionDefs.Values)
+        {
+            if (d.Source == MissionSource.Player && d.CreatorId == session.State.PlayerId && d.Active)
+            {
+                mine++;
+            }
+        }
+
+        if (mine >= MaxPlayerMissions)
+        {
+            MissionFail(session, "", $"You already have {MaxPlayerMissions} active missions posted.");
+            return;
+        }
+
+        if (intent.Objectives.Length > MaxMissionParts || intent.Rewards.Length > MaxMissionParts)
+        {
+            MissionFail(session, "", $"A mission may have at most {MaxMissionParts} objectives and rewards.");
+            return;
+        }
+
         var objectives = new List<MissionObjective>();
         foreach (var o in intent.Objectives)
         {
@@ -315,8 +346,8 @@ public sealed partial class GameServer
             Id = id,
             Source = MissionSource.Player,
             CreatorId = session.State.PlayerId,
-            Title = intent.Title,
-            Description = intent.Description,
+            Title = Truncate(intent.Title, MaxMissionTitleLength),
+            Description = Truncate(intent.Description, MaxMissionDescriptionLength),
             Objectives = objectives,
             Rewards = rewards,
             Active = true,

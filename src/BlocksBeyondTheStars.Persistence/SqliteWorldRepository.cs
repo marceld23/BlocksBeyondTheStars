@@ -19,6 +19,10 @@ public sealed class SqliteWorldRepository : IWorldRepository
     private readonly SaveGamePaths _paths;
     private readonly object _gate = new();
     private SqliteConnection? _connection;
+    // True while a RunInTransaction batch is open (manual BEGIN/COMMIT via raw SQL — all the per-row write
+    // commands then run inside it at the SQLite level without each needing a SqliteTransaction object).
+    // Guards against an illegal nested BEGIN so RunInTransaction can be called reentrantly.
+    private bool _inTransaction;
 
     public string WorldDirectory => _paths.WorldDirectory;
 
@@ -857,6 +861,38 @@ public sealed class SqliteWorldRepository : IWorldRepository
     }
 
     // --- Maintenance ---
+
+    public void RunInTransaction(Action body)
+    {
+        // The _gate is a Monitor (reentrant on the same thread), so the per-row write methods called inside
+        // body() can re-acquire it freely. Holding it for the whole batch also keeps the transaction atomic
+        // against any other thread that might write through the same connection.
+        lock (_gate)
+        {
+            if (_inTransaction)
+            {
+                body(); // already inside a batch — SQLite forbids a nested BEGIN, so just join it
+                return;
+            }
+
+            _inTransaction = true;
+            Execute("BEGIN;");
+            try
+            {
+                body();
+                Execute("COMMIT;");
+            }
+            catch
+            {
+                Execute("ROLLBACK;");
+                throw;
+            }
+            finally
+            {
+                _inTransaction = false;
+            }
+        }
+    }
 
     public void Flush()
     {

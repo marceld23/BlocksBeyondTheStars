@@ -284,7 +284,10 @@ public static class NetCodec
         return payload;
     }
 
-    /// <summary>Decodes a payload into a message object, or null if the tag is unknown/empty.</summary>
+    /// <summary>Decodes a payload into a message object, or null if the tag is unknown/empty or the body is
+    /// malformed. A corrupt/truncated/maliciously-shaped body must never throw out to the caller — a single
+    /// bad packet would otherwise crash the single-threaded server tick (DoS); we swallow it and return null
+    /// so the caller can drop the message.</summary>
     public static object? Decode(byte[] payload)
     {
         if (payload.Length == 0 || !TagToType.TryGetValue(payload[0], out var type))
@@ -292,7 +295,14 @@ public static class NetCodec
             return null;
         }
 
-        var body = new ReadOnlyMemory<byte>(payload, 1, payload.Length - 1);
-        return MessagePackSerializer.Deserialize(type, body, Options);
+        try
+        {
+            var body = new ReadOnlyMemory<byte>(payload, 1, payload.Length - 1);
+            return MessagePackSerializer.Deserialize(type, body, Options);
+        }
+        catch (MessagePackSerializationException)
+        {
+            return null; // corrupt/truncated body for this tag — drop it
+        }
     }
 }

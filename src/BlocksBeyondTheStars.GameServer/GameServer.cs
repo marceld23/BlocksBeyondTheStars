@@ -24,6 +24,18 @@ public sealed partial class GameServer
     private const string ShipId = "default";
     private const float MaxReach = 8f;
     private const int HotbarSlots = 9;
+    private const int MaxPlayerNameLength = 24; // client-supplied names are capped to this on join
+
+    // Vertical build band: client-driven block edits and chunk streaming are clamped to this Y range so a
+    // spoofed position can't make the server generate/persist chunks at arbitrary heights — otherwise a cheat
+    // client placing/mining at ever-increasing Y grows RAM + disk without bound (DoS). The band is far wider
+    // than any legitimate build: terrain sits near Y≈64, the highest planet atmosphere line is ~320 (above
+    // which a player floats in space on foot), so towers to space and deep mines stay well inside it.
+    private const int MinBuildY = -512;
+    private const int MaxBuildY = 1024;
+
+    /// <summary>True when a client-supplied block Y is inside the legal vertical build band (see MinBuildY).</summary>
+    private static bool WithinBuildHeight(int y) => y >= MinBuildY && y <= MaxBuildY;
 
     private readonly ServerConfig _config;
     private readonly GameContent _content;
@@ -103,6 +115,10 @@ public sealed partial class GameServer
 
     private double _sinceAutoSave;
     private volatile bool _running;
+    // True while the Run() loop owns the tick thread. Lets Stop() (possibly called from another thread, e.g. a
+    // Ctrl-C handler) hand the save off to the run loop instead of saving concurrently with a live Tick().
+    private volatile bool _runLoopActive;
+    private readonly System.Threading.ManualResetEventSlim _stopped = new(true);
     private string _timeOfDay = "day";
     private string _weather = "clear";
 
@@ -639,29 +655,64 @@ public sealed partial class GameServer
     public void Run()
     {
         _running = true;
+        _runLoopActive = true;
+        _stopped.Reset();
         double tickSeconds = 1.0 / System.Math.Max(1, _config.TickRate);
         var sw = System.Diagnostics.Stopwatch.StartNew();
         double last = sw.Elapsed.TotalSeconds;
 
-        while (_running)
+        try
         {
-            double now = sw.Elapsed.TotalSeconds;
-            double dt = now - last;
-            last = now;
-
-            Tick(dt);
-
-            double sleep = tickSeconds - (sw.Elapsed.TotalSeconds - now);
-            if (sleep > 0)
+            while (_running)
             {
-                System.Threading.Thread.Sleep((int)(sleep * 1000));
+                double now = sw.Elapsed.TotalSeconds;
+                double dt = now - last;
+                last = now;
+
+                Tick(dt);
+
+                double sleep = tickSeconds - (sw.Elapsed.TotalSeconds - now);
+                if (sleep > 0)
+                {
+                    System.Threading.Thread.Sleep((int)(sleep * 1000));
+                }
             }
+
+            // Shutdown was requested (RequestStop): persist + close down HERE, on the tick thread, so the
+            // save never races a concurrent Tick. This is the only place that touches _sessions/_repo at
+            // shutdown when a run loop is active.
+            Shutdown();
+        }
+        finally
+        {
+            _runLoopActive = false;
+            _stopped.Set(); // wake any thread blocked in Stop()
         }
     }
 
+    /// <summary>Signals the <see cref="Run"/> loop to stop after the current tick. Safe to call from any
+    /// thread (e.g. a Ctrl-C handler): it does NOT save — the run loop drains + saves on the tick thread.</summary>
+    public void RequestStop() => _running = false;
+
     public void Stop()
     {
-        _running = false;
+        if (_runLoopActive)
+        {
+            // A run loop owns the tick thread: ask it to stop and let IT do the save (no cross-thread save
+            // race). Block until it has drained, with a timeout so a wedged tick can't hang shutdown forever.
+            RequestStop();
+            _stopped.Wait(TimeSpan.FromSeconds(10));
+            return;
+        }
+
+        // No run loop (tests / manual TickForTest drivers): save synchronously inline on the caller's thread.
+        Shutdown();
+    }
+
+    /// <summary>Persists everything and closes the transport. Always runs on the thread that owns ticking
+    /// (the run loop, or the test driver) so it never races a concurrent <see cref="Tick"/>.</summary>
+    private void Shutdown()
+    {
         SaveAll();
         _repo.Flush();
         _transport.Stop();
@@ -1139,9 +1190,15 @@ public sealed partial class GameServer
         int radius = System.Math.Max(1, _config.ViewDistanceChunks);
         const int perTickBudget = 12;
 
+        // Chunk band the build height maps to — the streamed column is clamped into it so a spoofed player
+        // position can't make the server generate/cache chunks at arbitrary heights (memory DoS). See MinBuildY.
+        int minChunkY = WorldConstants.WorldToChunk(MinBuildY);
+        int maxChunkY = WorldConstants.WorldToChunk(MaxBuildY);
+
         foreach (var session in JoinedInActiveWorld())
         {
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
+            center = new ChunkCoord(center.X, System.Math.Clamp(center.Y, minChunkY, maxChunkY), center.Z);
 
             // Collect the not-yet-sent chunks in the view column and stream them NEAREST-FIRST. The player's
             // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
@@ -1317,6 +1374,20 @@ public sealed partial class GameServer
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
 
+        // A handler throwing must never take down the single-threaded tick (whole-server DoS). Log it with
+        // the offending message type + connection and drop the message; the world keeps simulating.
+        try
+        {
+            Dispatch(session, message);
+        }
+        catch (Exception ex)
+        {
+            _log.Error($"Handler for {message.GetType().Name} from connection {connectionId} threw: {ex}");
+        }
+    }
+
+    private void Dispatch(PlayerSession session, object message)
+    {
         switch (message)
         {
             case MoveIntent move: HandleMove(session, move); break;
@@ -1443,6 +1514,10 @@ public sealed partial class GameServer
         }
 
         var name = string.IsNullOrWhiteSpace(join.PlayerName) ? $"player_{connectionId}" : join.PlayerName.Trim();
+        if (name.Length > MaxPlayerNameLength)
+        {
+            name = name.Substring(0, MaxPlayerNameLength); // cap a client-supplied name so it can't be a multi-KB blob (persisted + broadcast in presence)
+        }
 
         if (_config.WhitelistEnabled && !_config.Whitelist.Contains(name))
         {
@@ -1840,6 +1915,13 @@ public sealed partial class GameServer
         // X=6000 onto a column thousands of blocks away on bigger worlds — "cannot mine anything".
         var pos = WorldConstants.CanonicalBlock(new Vector3i(mine.X, mine.Y, mine.Z), _world.Circumference);
 
+        // Outside the legal build band there is no world to touch — drop it without loading/caching a chunk
+        // there (a spoofed-Y mining spam would otherwise generate chunks at arbitrary heights). See MinBuildY.
+        if (!WithinBuildHeight(pos.Y))
+        {
+            return;
+        }
+
         // A player-built door fills an air cell as an entity — mining it removes the door + returns the item.
         if (RemovePlayerDoorAt(session, pos))
         {
@@ -2037,6 +2119,15 @@ public sealed partial class GameServer
         }
 
         var pos = WorldConstants.CanonicalBlock(new Vector3i(place.X, place.Y, place.Z), _world.Circumference); // wraps at THIS world's seam
+
+        // Reject before touching the world: a block edit outside the build band would generate + persist a
+        // chunk at an arbitrary height (unbounded RAM/disk DoS from a spoofed-position place spam). See MinBuildY.
+        if (!WithinBuildHeight(pos.Y))
+        {
+            Reject(session, "place", "Out of the buildable height range.");
+            return;
+        }
+
         if (!_world.GetBlock(pos).IsAir)
         {
             Reject(session, "place", "Target is not empty.");
@@ -2862,21 +2953,26 @@ public sealed partial class GameServer
 
     private void SaveAll()
     {
-        foreach (var session in _sessions.Values)
+        // One transaction for the whole save: every player + ship + metadata commits once instead of paying a
+        // separate WAL commit per row (which scales with the player count and stalls the tick thread).
+        _repo.RunInTransaction(() =>
         {
-            if (!session.Joined)
+            foreach (var session in _sessions.Values)
             {
-                continue;
+                if (!session.Joined)
+                {
+                    continue;
+                }
+
+                _repo.SavePlayer(session.State);
+                if (session.Ships.TryGetValue(session.ActiveShipId, out var ship))
+                {
+                    _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship); // each player's own ship
+                }
             }
 
-            _repo.SavePlayer(session.State);
-            if (session.Ships.TryGetValue(session.ActiveShipId, out var ship))
-            {
-                _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship); // each player's own ship
-            }
-        }
-
-        _repo.SaveMetadata(_meta);
+            _repo.SaveMetadata(_meta);
+        });
     }
 
     /// <summary>Auto-saves at a natural checkpoint (landing on a body, docking a station) so the player's
@@ -2896,9 +2992,17 @@ public sealed partial class GameServer
             return;
         }
 
-        // Debug snapshot command — captured + persisted for the dev; works without a comm radio.
+        // Debug snapshot command — captured + persisted for the dev; works without a comm radio. Rate-limit it
+        // like chat so it can't be spammed to write a dev snapshot per packet (disk/log growth).
         if (text.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
         {
+            int bumpNow = System.Environment.TickCount;
+            if (bumpNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = bumpNow;
             HandleBump(session, text.Length > 5 ? text.Substring(5).Trim() : string.Empty);
             return;
         }
@@ -3220,6 +3324,11 @@ public sealed partial class GameServer
     private void Send(PlayerSession session, object message)
         => _transport.Send(session.ConnectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
 
+    /// <summary>Sends an already-encoded payload (so a broadcast encodes the message once and reuses the same
+    /// bytes for every recipient instead of re-serializing per send). The payload is read-only after encoding.</summary>
+    private void SendEncoded(int connectionId, byte[] payload)
+        => _transport.Send(connectionId, payload, DeliveryMode.ReliableOrdered);
+
     private void SendTo(int connectionId, object message)
         => _transport.Send(connectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
 
@@ -3246,9 +3355,12 @@ public sealed partial class GameServer
     /// players in the active cursor world, so a player on planet A never receives planet B's events.</summary>
     private void BroadcastToWorld(object message)
     {
+        // Encode ONCE and reuse the bytes for every recipient — re-encoding per send made a 4-player world
+        // serialize the same block-change / entity / environment message 4× (the biggest steady-state GC cost).
+        var payload = NetCodec.Encode(message);
         foreach (var s in JoinedInActiveWorld())
         {
-            Send(s, message);
+            SendEncoded(s.ConnectionId, payload);
         }
     }
 

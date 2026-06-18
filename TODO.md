@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **652 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **658 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,33 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Server hardening + optimization pass — ✅ server-only + tests (2026-06-18, NO Unity build needed)
+Analysis+plan: `[memory] server-hardening-and-optimization-plan`. Four critical fixes + perf + anti-cheat from a
+full server code analysis. All server/shared-side; the only client-facing change is the `NetCodec` decode guard
+(synced via `sync-client-libs`).
+
+- **K1 — malformed-packet DoS closed.** `NetCodec.Decode` now swallows a corrupt MessagePack body (returns null
+  instead of throwing); `GameServer.OnPayload` wraps the dispatch in try/catch and logs+drops a throwing handler.
+  A single bad packet could previously kill the single-threaded tick (whole-server freeze). Test in `NetworkingTests`.
+- **K3 — unbounded block-Y DoS closed.** New build-height band (`MinBuildY=-512 … MaxBuildY=1024`, far wider than
+  any legit build — terrain ≈64, highest atmosphere ≈320). `HandlePlace`/`HandleMine` reject out-of-band edits
+  before touching the world; `StreamChunks` clamps the streamed column. Stops spoofed-position place/mine spam from
+  growing RAM/disk without bound. Tests in `ServerHardeningTests`.
+- **K2 — clean shutdown.** Ctrl-C now only `RequestStop()`s; the run loop drains + saves on the tick thread (no
+  cross-thread `SaveAll` race against a live `Tick`). `Stop()` still saves synchronously when no run loop is active
+  (tests/manual drivers).
+- **K4 — bulk writes batched.** New `IWorldRepository.RunInTransaction` (reentrant, manual BEGIN/COMMIT). Station/
+  settlement/space-station stamping and `SaveAll` now commit once instead of one WAL commit per voxel/row — removes
+  multi-hundred-ms tick stalls. Commit/rollback tests in `ServerHardeningTests`.
+- **H1 — encode-once broadcast.** `BroadcastToWorld` + presence fan-out serialize the message once and reuse the
+  bytes for every recipient (was O(recipients) re-encodes; presence was O(players²)).
+- **H2 — reuse per-tick target lists.** Creatures/Enemies/NPCs/Doors fill reused field lists instead of a fresh
+  `Where(...).ToList()` each tick; the companion-ward `HashSet` is reused too.
+- **Anti-cheat caps:** player name ≤24 chars on join; player-created missions capped (≤10/creator, ≤8 objectives+
+  rewards, title/description truncated); `/bump` debug command now rate-limited like chat.
+- **Deferred:** per-weapon fire-rate cooldown (M1) — backed out because it conflicts with the rapid-fire
+  asteroid-mining test contract and is a gameplay-balance decision (what cadence? mining feel?). Needs a design call.
 
 ### ★ Ship-loss rule (KeepShipOnDeath) + space combat fightability — ✅ server + tests + client wiring + locale (2026-06-18, NEEDS Unity client build)
 Analysis+plan: `[memory] ship-loss-setting-and-enemy-kill-analysis`. Two asks: a host/SP setting for what happens

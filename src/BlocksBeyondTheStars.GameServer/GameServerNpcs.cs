@@ -53,6 +53,7 @@ public sealed partial class GameServer
 
     private List<ServerNpc> _npcs => _worlds.Active.Npcs;
     private double _npcBroadcastTimer { get => _worlds.Active.NpcBroadcastTimer; set => _worlds.Active.NpcBroadcastTimer = value; }
+    private readonly List<PlayerSession> _npcTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private int _nextNpcId { get => _worlds.Active.NextNpcId; set => _worlds.Active.NextNpcId = value; }
 
     /// <summary>Read-only view of live settlement NPCs (id/role/current/home) for tests + inspection.</summary>
@@ -165,10 +166,17 @@ public sealed partial class GameServer
             return;
         }
 
-        var targets = JoinedInActiveWorld()
-            .Where(s => (!_shipPlaced || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
-            .ToList();
+        // Reuse a field list instead of allocating a fresh Where(...).ToList() every tick (15 Hz).
+        _npcTargets.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if ((!_shipPlaced || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
+            {
+                _npcTargets.Add(s);
+            }
+        }
 
+        var targets = _npcTargets;
         if (targets.Count == 0)
         {
             return; // nobody on the surface — freeze NPCs (no need to sim/broadcast)

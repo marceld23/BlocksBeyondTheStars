@@ -45,6 +45,7 @@ public sealed partial class GameServer
     }
 
     private List<ServerDoor> _doors => _worlds.Active.Doors;
+    private readonly List<Vector3f> _doorTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private int _nextDoorId { get => _worlds.Active.NextDoorId; set => _worlds.Active.NextDoorId = value; }
 
     /// <summary>Door states (id/kind/pos/open) for tests + inspection.</summary>
@@ -173,11 +174,17 @@ public sealed partial class GameServer
         // Any player on foot (incl. someone standing inside their ship at the hatch) opens a slide door near
         // them; only players piloting in space are excluded. (The old NPC-style aboard-ship filter kept the
         // ship's own hatch from ever opening for the player inside it.)
-        var targets = JoinedInActiveWorld()
-            .Where(s => !InSpace(s.State.PlayerId))
-            .Select(s => s.State.Position)
-            .ToList();
+        // Reuse a field list instead of allocating a fresh Where(...).Select(...).ToList() every tick (15 Hz).
+        _doorTargets.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!InSpace(s.State.PlayerId))
+            {
+                _doorTargets.Add(s.State.Position);
+            }
+        }
 
+        var targets = _doorTargets;
         bool changed = false;
         foreach (var door in _doors)
         {
@@ -186,7 +193,16 @@ public sealed partial class GameServer
                 continue; // hinge doors are manual (HandleDoorInteract); slide + energy auto-open on proximity
             }
 
-            bool near = targets.Any(p => WrapDistSq(p, door.Pos) <= door.OpenRange * door.OpenRange);
+            bool near = false;
+            foreach (var p in targets)
+            {
+                if (WrapDistSq(p, door.Pos) <= door.OpenRange * door.OpenRange)
+                {
+                    near = true;
+                    break;
+                }
+            }
+
             if (near)
             {
                 door.AutoCloseTimer = SlideDoorAutoClose;
