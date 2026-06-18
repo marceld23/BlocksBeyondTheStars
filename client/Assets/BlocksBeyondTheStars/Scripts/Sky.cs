@@ -20,6 +20,10 @@ namespace BlocksBeyondTheStars.Client
         /// is never seen) and softly hides the chunk pop-in at the edge.</summary>
         public int ViewChunks = 4;
 
+        /// <summary>Player "Volumetric fog / light shafts" graphics toggle (wired from WorldRig) — gates the visible
+        /// distance haze + the god-ray shafts. (The old full-screen volumetric pass is gone.)</summary>
+        public bool FogEnabled = true;
+
         private static readonly int LightId = Shader.PropertyToID("_Sc_Light");
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int SkyId = Shader.PropertyToID("_Sc_Sky");
@@ -28,9 +32,6 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
         private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
         private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
-        // Per-world+weather volumetric-fog density (the FullScreenPassRendererFeature reads this global); derived
-        // from the same view distance the linear fog uses, 0 in space/airless so no fog is drawn there.
-        private static readonly int VolFogDensityId = Shader.PropertyToID("_VolFogDensity");
         // Explicit distance haze for the block shaders (Unity's MixFog doesn't engage on the unlit voxels):
         // x=start, y=end, z=max strength (already faded out indoors), w=on.
         private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
@@ -207,7 +208,6 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
-                Shader.SetGlobalFloat(VolFogDensityId, 0f); // no volumetric fog in the space view
                 Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off in space
                 RenderSettings.fog = false;
                 if (_sunDisc != null)
@@ -398,7 +398,6 @@ namespace BlocksBeyondTheStars.Client
             RenderSettings.fog = fog;
             if (!fog)
             {
-                Shader.SetGlobalFloat(VolFogDensityId, 0f); // airless body / space → no volumetric fog
                 Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off
                 return;
             }
@@ -447,15 +446,8 @@ namespace BlocksBeyondTheStars.Client
             // The actual visible haze: an explicit distance blend the block shader applies (Unity's MixFog is dead
             // on the unlit voxels). Strong toward the sky at the far edge so it masks chunk pop-in; faded out
             // indoors via _indoor so the cabin never hazes.
-            float maxHaze = 0.7f * (1f - _indoor);
-            Shader.SetGlobalVector(FogId, new Vector4(far * 0.55f, far, maxHaze, 1f));
-
-            // Drive the volumetric fog (full-screen pass) from the same final view distance, so the screen-space
-            // haze matches the linear fog's reach: ~0.6 raw fog at the far edge (then capped by the material's
-            // _MaxFog). Storms/sandstorms/cloudy worlds → shorter far → denser fog, all from one value.
-            // Faded out indoors (_indoor = ship/station interior fill) so the exterior haze never darkens the
-            // cabin — a screen-space depth fog can't tell inside from out, so we gate it by the interior state.
-            Shader.SetGlobalFloat(VolFogDensityId, (1.5f / Mathf.Max(40f, far)) * (1f - _indoor));
+            float maxHaze = (FogEnabled ? 0.7f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
+            Shader.SetGlobalVector(FogId, new Vector4(far * 0.55f, far, maxHaze, FogEnabled ? 1f : 0f));
         }
 
         /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the
@@ -500,7 +492,7 @@ namespace BlocksBeyondTheStars.Client
             // (off in space/airless), stronger when the sun is lowish and the air is thick. Purely additive.
             if (_sunRays != null)
             {
-                bool raysOn = !spaceSky;
+                bool raysOn = !spaceSky && FogEnabled;
                 _sunRays.gameObject.SetActive(raysOn);
                 if (raysOn)
                 {
@@ -527,7 +519,6 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
-            Shader.SetGlobalFloat(VolFogDensityId, 0f); // volumetric fog off (menu/space)
             Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off (menu/space)
             RenderSettings.fog = false; // don't leak fog into the menu / space view
             if (_sunDisc != null)

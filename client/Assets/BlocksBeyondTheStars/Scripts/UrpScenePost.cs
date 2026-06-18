@@ -31,9 +31,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Player look-effect toggles (mirror <see cref="ClientSettings"/>). Wired from WorldRig.</summary>
         public bool LensFlareEnabled = true;
         public bool MotionBlurEnabled = true;
-        public bool VolumetricFogEnabled = true;
-
-        private static readonly int VolFogId = Shader.PropertyToID("_VolFog");
 
         private ColorAdjustments _grade;
         private DepthOfField _menuBlur;
@@ -132,11 +129,6 @@ namespace BlocksBeyondTheStars.Client
                     _menuBlur.active = open;
                 }
             }
-
-            // Volumetric fog master switch (the full-screen pass reads this global): the player toggle, from
-            // Medium up (the depth texture it needs is off on Potato/Low). Sky.cs sets the per-world density;
-            // this just gates the whole effect to a cheap passthrough when off.
-            Shader.SetGlobalFloat(VolFogId, VolumetricFogEnabled && Preset >= QualityPreset.Medium ? 1f : 0f);
 
             // Lens flare: enabled by the player toggle from Medium upward.
             if (_lensFlare != null)

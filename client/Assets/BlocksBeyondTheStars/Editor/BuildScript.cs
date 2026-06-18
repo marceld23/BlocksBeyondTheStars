@@ -36,7 +36,6 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/Atmosphere",
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
-            "BlocksBeyondTheStars/VolumetricFog",
             "BlocksBeyondTheStars/Cloud",
             "BlocksBeyondTheStars/PostBloom",
             "BlocksBeyondTheStars/PostComposite",
@@ -124,100 +123,45 @@ namespace BlocksBeyondTheStars.Client.EditorTools
         }
 
         private const string RendererPath = "Assets/Settings/BlocksBeyondTheStarsURP_Renderer.asset";
-        private const string FogMatPath = "Assets/Settings/VolumetricFog.mat";
-
-        /// <summary>Temporary isolation switch: false leaves the volumetric-fog full-screen feature on the renderer
-        /// but DISABLED, to confirm whether it (interacting with the visor compositor) caused the full-frame blur.
-        /// Flip back to true once the interaction is resolved.</summary>
-        private const bool EnableVolumetricFog = false;
 
         /// <summary>
-        /// Auto-wires the screen-space look features onto the URP renderer at build time, so no manual Inspector
-        /// step is needed (and no fragile hand-edited YAML). Currently: a built-in
-        /// <see cref="FullScreenPassRendererFeature"/> running the <c>BlocksBeyondTheStars/VolumetricFog</c>
-        /// material (depth-driven fog + sun in-scatter, gated by the <c>_VolFog</c>/<c>_VolFogDensity</c> globals).
-        /// Idempotent — skips features already present by name. The renderer-feature map (local-id list) is rebuilt
-        /// to match, mirroring URP's own ScriptableRendererData.UpdateMap.
+        /// Cleanup pass: strips the retired <c>VolumetricFog</c> full-screen renderer feature from the URP renderer
+        /// (and any null/missing feature entries), keeping SSAO. The volumetric full-screen pass darkened the whole
+        /// frame (its colour copy), so its fog role was replaced by the in-shader distance haze in BlockAtlas and
+        /// its light-shafts by the additive SunRays billboard. Idempotent (no-op once gone); rebuilds the
+        /// renderer-feature map to match the trimmed list. Runs at build so the asset cleans itself.
         /// </summary>
         public static void EnsureRendererFeatures()
         {
             var rd = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
             if (rd == null)
             {
-                Debug.LogWarning($"URP renderer data not found at {RendererPath}; skipping renderer-feature wiring.");
                 return;
             }
 
-            EnsureFullScreenFeature(rd, "VolumetricFog", "BlocksBeyondTheStars/VolumetricFog", FogMatPath,
-                FullScreenPassRendererFeature.InjectionPoint.BeforeRenderingPostProcessing,
-                ScriptableRenderPassInput.Depth, mat =>
-                {
-                    // Tuning (re-applied every build so edits here take effect). Density is driven per-world by the
-                    // _VolFogDensity global (Sky.cs); these shape the look.
-                    mat.SetFloat("_SunScatter", 0.7f);
-                    mat.SetFloat("_MaxFog", 0.5f); // lower cap so dusk/night haze tints the distance without darkening it
-                    mat.SetColor("_FogTint", Color.white);
-                    mat.SetFloat("_FogHeightFalloff", 0f);
-                });
-        }
-
-        private static void EnsureFullScreenFeature(UniversalRendererData rd, string featureName, string shaderName,
-            string matPath, FullScreenPassRendererFeature.InjectionPoint injection, ScriptableRenderPassInput inputs,
-            System.Action<Material> tune)
-        {
-            foreach (var existing in rd.rendererFeatures)
+            bool changed = false;
+            for (int i = rd.rendererFeatures.Count - 1; i >= 0; i--)
             {
-                if (existing != null && existing.name == featureName)
+                var f = rd.rendererFeatures[i];
+                if (f == null || f.name == "VolumetricFog")
                 {
-                    // Already wired — refresh the material tuning and the active state (isolation switch).
-                    existing.SetActive(EnableVolumetricFog);
-                    EditorUtility.SetDirty(rd);
-                    var m = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-                    if (m != null) { tune(m); EditorUtility.SetDirty(m); }
-                    AssetDatabase.SaveAssets();
-                    return;
+                    rd.rendererFeatures.RemoveAt(i);
+                    if (f != null)
+                    {
+                        AssetDatabase.RemoveObjectFromAsset(f);
+                        Object.DestroyImmediate(f, true);
+                    }
+
+                    changed = true;
                 }
             }
 
-            var shader = Shader.Find(shaderName);
-            if (shader == null)
+            if (!changed)
             {
-                Debug.LogWarning($"Shader '{shaderName}' not found; skipping renderer feature '{featureName}'.");
                 return;
             }
 
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-            if (mat == null)
-            {
-                mat = new Material(shader) { name = featureName };
-                AssetDatabase.CreateAsset(mat, matPath);
-            }
-
-            tune(mat);
-            EditorUtility.SetDirty(mat);
-
-            var feature = ScriptableObject.CreateInstance<FullScreenPassRendererFeature>();
-            feature.name = featureName;
-            feature.passMaterial = mat;
-            feature.injectionPoint = injection;
-            feature.fetchColorBuffer = true; // the material samples the screen (_BlitTexture)
-            feature.requirements = inputs;   // Depth → URP generates + binds the depth texture for the pass
-            feature.SetActive(EnableVolumetricFog);
-            feature.hideFlags = HideFlags.HideInHierarchy;
-
-            AssetDatabase.AddObjectToAsset(feature, rd);
-            rd.rendererFeatures.Add(feature);
             EditorUtility.SetDirty(rd);
-            AssetDatabase.SaveAssets(); // persist so the sub-asset gets a stable local file id
-
-            RebuildFeatureMap(rd);
-            AssetDatabase.SaveAssets();
-            Debug.Log($"Renderer feature added: {featureName}");
-        }
-
-        /// <summary>Rebuilds m_RendererFeatureMap to the features' local file ids (mirrors URP's private UpdateMap).</summary>
-        private static void RebuildFeatureMap(UniversalRendererData rd)
-        {
             var so = new SerializedObject(rd);
             var feats = so.FindProperty("m_RendererFeatures");
             var map = so.FindProperty("m_RendererFeatureMap");
@@ -225,14 +169,15 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             for (int i = 0; i < feats.arraySize; i++)
             {
                 var f = feats.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (f == null) continue;
-                if (AssetDatabase.TryGetGUIDAndLocalFileIdentifier(f, out _, out long localId))
+                if (f != null && AssetDatabase.TryGetGUIDAndLocalFileIdentifier(f, out _, out long localId))
                 {
                     map.GetArrayElementAtIndex(i).longValue = localId;
                 }
             }
 
             so.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+            Debug.Log("Removed retired VolumetricFog renderer feature from the URP renderer.");
         }
 
         private const string IconAssetPath = "Assets/BlocksBeyondTheStars/Icon/app_icon.png";
