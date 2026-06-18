@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Color");
+            var shader = Shader.Find("BlocksBeyondTheStars/Aurora")
+                         ?? Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Color");
             for (int i = 0; i < Ribbons; i++)
             {
                 var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -32,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 go.transform.SetParent(transform, true);
-                go.transform.localScale = new Vector3(420f, 46f + i * 14f, 1f);
+                go.transform.localScale = new Vector3(300f, 150f + i * 34f, 1f); // tall hanging curtains, not flat sheets
                 _mats[i] = new Material(shader);
                 go.GetComponent<Renderer>().sharedMaterial = _mats[i];
                 _ribbons[i] = go.transform;
@@ -48,8 +49,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var env = Game.Environment;
-            bool coldWorld = env != null
-                && (env.Biome is "ice" or "tundra" || env.Temperature < -8f);
+            // Auroras need an atmosphere: skip airless bodies (asteroids / space-sky), which also report the
+            // NoAirTemperature sentinel (-999) — that used to read as "very cold" and drew auroras in their
+            // black, airless sky. Guard the sentinel too so only genuinely cold AIR worlds qualify.
+            bool coldWorld = env != null && !env.SpaceSky
+                && (env.Biome is "ice" or "tundra" || (env.Temperature > -100f && env.Temperature < -8f));
             float tod = Game.LocalTimeOfDay;
             bool deepNight = tod < 0.20f || tod > 0.80f;
             bool show = coldWorld && deepNight && !Game.SpaceViewActive && Game.ExposedToSky;
@@ -79,10 +83,11 @@ namespace BlocksBeyondTheStars.Client
                 _ribbons[i].rotation = Quaternion.LookRotation(_ribbons[i].position - p)
                                        * Quaternion.Euler(Mathf.Sin(t * 1.3f) * 8f, 0f, Mathf.Sin(t) * 10f);
 
-                // Shifting polar colours: green → teal → violet, gently pulsing, alpha-faded.
-                float hue = Mathf.Repeat(0.36f + 0.12f * Mathf.Sin(t + i), 1f);
-                var c = Color.HSVToRGB(hue, 0.75f, 1f);
-                c.a = _fade * (0.16f + 0.08f * Mathf.Sin(t * 2.3f + i));
+                // Shifting polar colours: green → teal → violet, slowly drifting per band; the shader does the
+                // waving folds + ray streaks, here we drive the hue + a slow brightness pulse (additive glow).
+                float hue = Mathf.Repeat(0.34f + 0.12f * Mathf.Sin(t * 0.5f + i * 1.7f), 1f);
+                var c = Color.HSVToRGB(hue, 0.8f, 1f);
+                c.a = _fade * (0.5f + 0.28f * Mathf.Sin(t * 0.8f + i * 2.1f)); // additive brightness, gently pulsing
                 _mats[i].color = c;
             }
         }

@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/Atmosphere",
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
+            "BlocksBeyondTheStars/Aurora",
             "BlocksBeyondTheStars/Cloud",
             "BlocksBeyondTheStars/PostBloom",
             "BlocksBeyondTheStars/PostComposite",
