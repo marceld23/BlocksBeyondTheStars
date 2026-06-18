@@ -149,6 +149,12 @@ namespace BlocksBeyondTheStars.Client
         private Material _sunMat;
         private Color _sunColor = new Color(1f, 0.96f, 0.88f);
         private static readonly Vector3 SunDir = new Vector3(-0.45f, 0.32f, 1f).normalized;
+        // The system star's position in the scene (the bodies are laid out relative to the launched-from body,
+        // so the star sits at -currentSystemPos·scale). Drives the sun-lit phase on each body + aims the visible
+        // sun billboard at the true star. Falls back to the fixed SunDir when there's no star map.
+        private Vector3 _starLocal;
+        private bool _hasStar;
+        private static readonly int PhaseSunDirId = Shader.PropertyToID("_PhaseSunDir");
         private readonly List<Image> _flare = new List<Image>();
         private Sprite _glowSprite;
         private static readonly float[] FlareT = { 0f, 0.35f, 0.62f, 1.0f, 1.32f };       // 0 = at sun … 1 = screen centre
@@ -1070,6 +1076,12 @@ namespace BlocksBeyondTheStars.Client
             raw.texture = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128);
             raw.raycastTarget = true;
 
+            // Day/night terminator: shade the night half of the strip + mark dawn/dusk, so you can see which pads
+            // sit in daylight vs darkness right now. Local time at longitude u is (arrivalTime + u); landing puts
+            // you at the pad's longitude with that same arrival time, so a pad under the dark band = a night-side
+            // touchdown. Children of the map (drawn over the texture, under the pad markers added below).
+            DrawDayNightOverlay(mapGo.transform, mapW, mapH, Game != null ? Game.LandingPadsTimeOfDay : 0.35f);
+
             const float marker = 40f;
             foreach (var p in pads)
             {
@@ -1081,7 +1093,10 @@ namespace BlocksBeyondTheStars.Client
                 float vNorm = Mathf.Clamp01(0.5f + p.Z / (float)latP);
                 float mx = pad + u * mapW - marker * 0.5f;
                 float my = mapTop + (1f - vNorm) * mapH - marker * 0.5f;
-                mx = Mathf.Clamp(mx, pad - marker * 0.5f, pad + mapW - marker * 0.5f);
+                // Keep the whole marker INSIDE the map rect, not just its centre — a pad on the seam (the home
+                // pad is at longitude 0) would otherwise hang half off the left edge ("marker 1 too far left").
+                mx = Mathf.Clamp(mx, pad, pad + mapW - marker);
+                my = Mathf.Clamp(my, mapTop, mapTop + mapH - marker);
 
                 bool free = !p.Occupied;
                 var col = free ? new Color(0.16f, 0.55f, 0.30f, 0.98f) : new Color(0.45f, 0.12f, 0.12f, 0.98f);
@@ -1111,6 +1126,38 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(panel.transform, (pw - 220) * 0.5f, ph - 64, 220, 46,
                 loc != null ? loc.Get("ui.action.close") : "Cancel (Esc)", CancelLandChooser);
+        }
+
+        /// <summary>Draws the day/night terminator onto the equirect pad map (children of <paramref name="map"/>,
+        /// in its local 0..mapW × 0..mapH space). A pad's local time is <paramref name="arrivalTod"/> + its
+        /// longitude fraction; night is when that is outside dawn..dusk (0.25..0.75). Shades the night band dark
+        /// (1–2 rects, longitude wraps) and draws warm/indigo lines at sunrise/sunset. Non-interactive overlay.</summary>
+        private void DrawDayNightOverlay(Transform map, float mapW, float mapH, float arrivalTod)
+        {
+            // Night band spans half the circumference, beginning at sunset (local time 0.75).
+            float nightStart = Mathf.Repeat(0.75f - arrivalTod, 1f); // u of sunset (start of night)
+            var nightCol = new Color(0f, 0.012f, 0.05f, 0.46f);
+            void Band(float u0, float uw)
+            {
+                if (uw <= 0.0005f) { return; }
+                UiKit.AddPanel(map, u0 * mapW, 0f, uw * mapW, mapH, nightCol).raycastTarget = false;
+            }
+
+            if (nightStart + 0.5f <= 1f)
+            {
+                Band(nightStart, 0.5f);
+            }
+            else
+            {
+                Band(nightStart, 1f - nightStart);     // to the right edge …
+                Band(0f, nightStart + 0.5f - 1f);      // … and wrapped past the seam
+            }
+
+            // Terminator lines: sunrise (local 0.25, warm) and sunset (local 0.75, indigo).
+            float dawnU = Mathf.Repeat(0.25f - arrivalTod, 1f);
+            float duskU = Mathf.Repeat(0.75f - arrivalTod, 1f);
+            UiKit.AddPanel(map, dawnU * mapW - 1.5f, 0f, 3f, mapH, new Color(1f, 0.72f, 0.34f, 0.85f)).raycastTarget = false;
+            UiKit.AddPanel(map, duskU * mapW - 1.5f, 0f, 3f, mapH, new Color(0.45f, 0.55f, 1f, 0.85f)).raycastTarget = false;
         }
 
         /// <summary>Finds a star-map body by id (the active system is searched too), or null.
@@ -2176,6 +2223,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // The star sits at the system origin; the scene is centred on the body you launched from, so the
+            // star renders at -currentSystemPos·scale. Bodies are sun-lit from here (true per-body phase), and
+            // the visible sun billboard is aimed this way too. Without a star map we keep the stylised fixed sun.
+            _hasStar = current != null;
+            _starLocal = _hasStar
+                ? new Vector3(-current.SystemX * SystemViewScale, 0f, -current.SystemZ * SystemViewScale)
+                : Vector3.zero;
+
             // The planet you launched from: a real body, rendered "below" you (you rose off its surface),
             // landable (E returns home). Always present, even without a star map, so there is always a real
             // planet to fly back to — never a decorative filler.
@@ -2357,6 +2412,12 @@ namespace BlocksBeyondTheStars.Client
             sphere.transform.localPosition = pos;
             sphere.transform.localScale = Vector3.one * diameter;
 
+            // World-space direction from this body to the system star → its sun-lit phase. The star sits at
+            // _starLocal in the scene; without a star map fall back to the stylised fixed sun direction.
+            Vector3 sunDir = _hasStar
+                ? _root.transform.TransformDirection(_starLocal - pos)
+                : _root.transform.TransformDirection(SunDir);
+
             var planet = Game?.Content?.GetPlanet(planetType ?? string.Empty);
             if (planet != null && Game != null)
             {
@@ -2364,13 +2425,13 @@ namespace BlocksBeyondTheStars.Client
                     string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId, ClassOf(kind, planetType));
                 var baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48);
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
-                sphere.GetComponent<Renderer>().sharedMaterial = Lit(washTint, baked, new Vector2(1f, 1f));
+                sphere.GetComponent<Renderer>().sharedMaterial = LitPhase(washTint, sunDir, baked, new Vector2(1f, 1f));
             }
             else
             {
                 var look = PlanetLookFor(planetType, locationName);
                 Color bodyTint = Color.Lerp(look.tint, look.tint * sunHue, 0.35f);
-                sphere.GetComponent<Renderer>().sharedMaterial = Lit(bodyTint, LoadTex(look.tex), new Vector2(3f, 2f));
+                sphere.GetComponent<Renderer>().sharedMaterial = LitPhase(bodyTint, sunDir, LoadTex(look.tex), new Vector2(3f, 2f));
             }
 
             var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
@@ -2879,7 +2940,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _sun.localPosition = Camera.transform.localPosition + SunDir * 1500f;
+            // Aim the visible sun at the true system star (so its direction agrees with the bodies' sun-lit
+            // phases), keeping it far off at the "horizon" of space. Fall back to the stylised fixed direction.
+            Vector3 dir = _hasStar ? (_starLocal - Camera.transform.localPosition) : SunDir;
+            if (dir.sqrMagnitude < 1e-4f)
+            {
+                dir = SunDir;
+            }
+
+            _sun.localPosition = Camera.transform.localPosition + dir.normalized * 1500f;
             _sun.rotation = Quaternion.LookRotation(_sun.position - Camera.transform.position, Vector3.up);
             _sun.localScale = Vector3.one;
         }
@@ -3790,6 +3859,31 @@ namespace BlocksBeyondTheStars.Client
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var m = new Material(shader) { color = ShaderColor.Srgb(c) };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+                if (tiling != default)
+                {
+                    m.mainTextureScale = tiling;
+                }
+            }
+
+            return m;
+        }
+
+        /// <summary>Sun-lit-phase material for a celestial body, lit from the world-space direction to the star
+        /// <paramref name="sunDir"/> so a terminator / crescent emerges. Falls back to the fixed-light Lit shader
+        /// when the phase shader is unavailable. Same colour/texture/tiling handling as <see cref="Lit"/>.</summary>
+        private static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase");
+            if (shader == null)
+            {
+                return Lit(c, tex, tiling);
+            }
+
+            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
+            m.SetVector(PhaseSunDirId, sunDir.sqrMagnitude > 1e-6f ? (Vector4)sunDir.normalized : new Vector4(0f, 0f, 1f, 0f));
             if (tex != null)
             {
                 m.mainTexture = tex;

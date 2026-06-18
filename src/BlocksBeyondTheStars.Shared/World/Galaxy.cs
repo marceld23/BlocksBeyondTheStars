@@ -34,9 +34,21 @@ public sealed class CelestialBody
 
     // System-space coordinates (the star at the origin) used by the system-scale flight layer so the
     // ship can fly between bodies and approach them. Deterministic from the seed. Planar today (Y≈0).
+    // These stay the t=0 reference snapshot the flight/travel/docking layer uses; the orbital motion
+    // below is a purely visual/phase driver (the client derives a live position from it), so it never
+    // disturbs landing, pad reservations or travel distances.
     public float SystemX { get; set; }
     public float SystemY { get; set; }
     public float SystemZ { get; set; }
+
+    /// <summary>Orbital period in (in-game) days; the client advances the body around its parent by
+    /// 2π·SystemTimeDays/OrbitPeriodDays to drive sky position + sun-lit phase. Seeded per system so each
+    /// system has its own rhythm; signed (negative = retrograde). 0 = treat as static.</summary>
+    public float OrbitPeriodDays { get; set; }
+
+    /// <summary>The body this one orbits: a moon's parent planet, else empty (planets/asteroids orbit the
+    /// star at the system origin). Lets the client centre a moon's orbit on its (also-moving) planet.</summary>
+    public string ParentId { get; set; } = string.Empty;
 }
 
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>

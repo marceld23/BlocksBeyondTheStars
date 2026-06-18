@@ -18,24 +18,33 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>Reference seconds per "system day" — MUST match the server's GameServerWeather.SystemDaySeconds
+        /// so the locally-advanced orbital clock stays in lockstep with the authoritative SystemTimeDays.</summary>
+        private const float SystemDaySeconds = 600f;
+
         private sealed class SkyBody
         {
             public GameObject Go;
             public Material Mat;
             public Color Tint;
-            public float CyclesPerDay;  // own sky cycle: how many times it crosses per local day
-            public float Phase;         // 0..1 cycle offset
-            public float BaseAz;        // compass bearing from the body's REAL relative system position (deg)
-            public float Peak;          // max elevation of its daily arc (deg) — never the zenith, so paths spread
-            public float Sweep;         // azimuth travel across the visible arc (deg) — an east→up→west drift
-            public float Size;          // world-space sphere scale at the fixed sky distance
+            public float Phase;          // 0..1 initial rise-time offset (hashed) — spreads bodies across the day
+            public float OrbitPeriodDays; // signed synodic period; the body drifts relative to the sun by this →
+                                          // its sun-lit phase waxes/wanes once per |period| (0 = no drift)
+            public float BaseAz;         // compass bearing from the body's REAL relative system position (deg)
+            public float Peak;           // max elevation of its daily arc (deg) — never the zenith, so paths spread
+            public float Sweep;          // azimuth travel across the visible arc (deg) — an east→up→west drift
+            public float Size;           // world-space sphere scale at the fixed sky distance
         }
+
+        private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
+        private static readonly int PhaseSunDirId = Shader.PropertyToID("_PhaseSunDir");
 
         private readonly List<SkyBody> _bodies = new();
         private string _builtFor = "\0"; // ActiveLocationId the current set was built for
         private float _requestTimer;
         private bool _subscribed;
         private float _tod = -1f; // continuous local day clock (the env's TimeOfDay only steps per update)
+        private double _sysDays = -1.0; // continuous local copy of the authoritative SystemTimeDays orbital clock
 
         private void Update()
         {
@@ -55,6 +64,7 @@ namespace BlocksBeyondTheStars.Client
                     _builtFor = Game.StarMap?.ActiveLocationId ?? "\0";
                     _requestTimer = 1.5f;
                     _tod = -1f; // new world, new day clock — resync from its first env update
+                    // (_sysDays is server-wide + monotonic, so it stays — the orbits keep their continuity.)
                 };
                 _subscribed = true;
             }
@@ -95,7 +105,29 @@ namespace BlocksBeyondTheStars.Client
             float err = Mathf.DeltaAngle(_tod * 360f, target * 360f) / 360f;
             _tod = Mathf.Repeat(_tod + err * Mathf.Min(1f, Time.deltaTime * 0.4f), 1f);
 
+            // The monotonic orbital clock: advance locally (fixed reference day) and softly resync to the
+            // authoritative SystemTimeDays so the slow phase drift is a glide, not 5-second broadcast steps.
+            double sysTarget = Game.Environment != null ? Game.Environment.SystemTimeDays : -1.0;
+            if (_sysDays < 0.0)
+            {
+                _sysDays = sysTarget >= 0.0 ? sysTarget : 0.0;
+            }
+
+            _sysDays += Time.deltaTime / SystemDaySeconds;
+            if (sysTarget >= 0.0)
+            {
+                _sysDays += (sysTarget - _sysDays) * Mathf.Min(1f, Time.deltaTime * 0.4f);
+            }
+
             float day = Mathf.Clamp01(Mathf.Sin(_tod * Mathf.PI));
+            // Direction TO the sun in the sky (set by Sky.cs each frame); lighting the body sphere with it makes
+            // the correct phase + terminator emerge, with the bright limb pointing at the sun.
+            Vector3 sunDir = Shader.GetGlobalVector(SunDirId);
+            if (sunDir.sqrMagnitude < 1e-4f)
+            {
+                sunDir = Vector3.up; // before the first lighting update — harmless fallback
+            }
+
             var cam = Camera.main;
 
             foreach (var b in _bodies)
@@ -116,7 +148,11 @@ namespace BlocksBeyondTheStars.Client
                 // own Peak so it never reaches the zenith. Azimuth drifts across the sky during the visible
                 // arc, centred on the body's REAL bearing at its peak. Uses the smoothed continuous clock so
                 // motion is a glide, not server-update steps.
-                float c = Mathf.Repeat(_tod * b.CyclesPerDay + b.Phase, 1f);
+                // Crosses ~once per local day (the planet's rotation), but its rise time drifts slowly by its
+                // orbital rate — so it rises a little earlier/later each day and, crucially, its angle to the
+                // sun sweeps through a full cycle once per |OrbitPeriodDays|, driving the visible phase change.
+                float drift = b.OrbitPeriodDays != 0f ? (float)(_sysDays / b.OrbitPeriodDays) : 0f;
+                float c = Mathf.Repeat(_tod + b.Phase + drift, 1f);
                 float el = b.Peak * Mathf.Sin(c * Mathf.PI * 2f);
                 float az = b.BaseAz + (c - 0.25f) * b.Sweep;
                 float elRad = el * Mathf.Deg2Rad, azRad = az * Mathf.Deg2Rad;
@@ -138,10 +174,12 @@ namespace BlocksBeyondTheStars.Client
                 b.Go.transform.position = cam.transform.position + dir * dist;
                 b.Go.transform.localScale = Vector3.one * (b.Size * dist / 460f);
 
-                // A touch brighter at night (like a real moon dominating the dark sky), dimmer by day,
-                // fading out right at the horizon.
+                // The phase shader does the sun-lit shading; feed it the current sky sun direction. Brightness is
+                // now just an overall dim: bodies dominate the dark night sky and wash out toward day, fading at
+                // the horizon. (The lit/unlit split across the disc is the phase, handled in the shader.)
+                b.Mat.SetVector(PhaseSunDirId, sunDir);
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
-                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 0.85f, day) * horizon);
+                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.15f, 0.45f, day) * horizon);
             }
         }
 
@@ -228,13 +266,39 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 go.transform.SetParent(transform, true);
-                var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-                // Data-driven body colour (surface block + per-planet flora hue + water/lava blend);
-                // the hand-kept palette only backstops unknown types.
-                var tint = PlanetOrbitLook.GroundColor(
-                    Game.Content, Game.Atlas, Game.WorldSeed,
-                    PlanetOrbitLook.LocationKeyFor(system.Name, body.Name), body.PlanetType, TintFor(body.PlanetType));
+                var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase")
+                    ?? Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+
+                // Match the orbit/space view: a known planet type gets its REAL generated world map baked as a
+                // texture (seas/ground/this world's vegetation), washed a touch toward the system star's hue, so
+                // the same body reads the same from the surface as from orbit. Bake is cached + keyed identically
+                // to the space view, so it's shared (no extra cost), and mipmaps collapse a tiny disc to its
+                // average colour anyway. An unknown type falls back to the data-driven flat GroundColor.
+                string locationKey = PlanetOrbitLook.LocationKeyFor(system.Name, body.Name);
+                Color sunHue = SunHue();
+                var planet = Game.Content?.GetPlanet(body.PlanetType ?? string.Empty);
+                Color tint;
+                Texture2D baked = null;
+                if (planet != null)
+                {
+                    int circ = WorldConstants.CircumferenceFor(body.Id, cls);
+                    baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, circ, 96, 48);
+                    tint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
+                }
+                else
+                {
+                    // Data-driven flat colour (surface block + per-planet flora hue + water/lava blend), star-hue washed.
+                    Color ground = PlanetOrbitLook.GroundColor(
+                        Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, TintFor(body.PlanetType));
+                    tint = Color.Lerp(ground, ground * sunHue, 0.35f);
+                }
+
                 var mat = new Material(shader) { color = ShaderColor.Srgb(tint) };
+                if (baked != null)
+                {
+                    mat.mainTexture = baked;
+                    mat.mainTextureScale = Vector2.one;
+                }
 
                 var mr = go.GetComponent<MeshRenderer>();
                 mr.sharedMaterial = mat;
@@ -283,14 +347,10 @@ namespace BlocksBeyondTheStars.Client
                     Go = go,
                     Mat = mat,
                     Tint = tint,
-                    // Slow stately giants to fast low skimmers: asteroids cross quickest, planets drift.
-                    CyclesPerDay = cls switch
-                    {
-                        WorldConstants.WorldSizeClass.Asteroid => 1.0f + (h % 100) / 100f * 1.5f,  // 1.0..2.5
-                        WorldConstants.WorldSizeClass.Moon => 0.4f + (h % 90) / 90f * 0.9f,        // 0.4..1.3
-                        _ => 0.15f + (h % 80) / 80f * 0.45f,                                       // 0.15..0.6
-                    },
+                    // Initial rise-time offset spreads the bodies across the day; the authoritative per-system
+                    // orbital period (signed) then drifts each one relative to the sun → its phase waxes/wanes.
                     Phase = (h >> 7) % 1000 / 1000f,
+                    OrbitPeriodDays = body.OrbitPeriodDays,
                     BaseAz = baseAz,
                     Peak = 28f + (h % 47),          // 28..74° — well below the zenith, so arcs spread out
                     Sweep = 150f + (h % 5) * 12f,   // 150..198° east→up→west drift across the sky
@@ -315,6 +375,16 @@ namespace BlocksBeyondTheStars.Client
             "skylands" or "highland" => new Color(0.62f, 0.72f, 0.66f),
             _ => new Color(0.62f, 0.58f, 0.52f), // rocky + unknown
         };
+
+        /// <summary>The system star's colour normalised to a pure hue (brightness removed), so it tints the body
+        /// without darkening it — same light star-hue wash the orbit/space view applies. White when unknown.</summary>
+        private Color SunHue()
+        {
+            int packed = Game?.Environment != null ? Game.Environment.SunColor : 0xFFF6E8;
+            var c = new Color(((packed >> 16) & 0xFF) / 255f, ((packed >> 8) & 0xFF) / 255f, (packed & 0xFF) / 255f);
+            float m = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+            return m > 0.001f ? new Color(c.r / m, c.g / m, c.b / m) : Color.white;
+        }
 
         private static int Hash(string s)
         {

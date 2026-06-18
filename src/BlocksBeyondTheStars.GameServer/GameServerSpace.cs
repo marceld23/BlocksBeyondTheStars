@@ -478,8 +478,17 @@ public sealed partial class GameServer
             pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
         }
 
-        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = pads });
+        // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
+        Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = pads, TimeOfDay = (float)_dayFraction });
     }
+
+    /// <summary>The day fraction the player will arrive at when landing on <paramref name="bodyId"/>: the live time
+    /// if it's the active body, else the activation default every world resets to. Lets the pad chooser draw the
+    /// day/night terminator exactly where the surface will be on touchdown.</summary>
+    private float BodyArrivalTimeOfDay(string bodyId)
+        => string.Equals(bodyId, _world?.LocationId, System.StringComparison.Ordinal)
+            ? (float)_dayFraction
+            : (float)InitialDayFraction;
 
     /// <summary>Tells the players already on a body that another player's ship is arriving/departing at a pad, so
     /// they see a landing/launch animation (item 38). Sent only to the others on that body (not the mover, not
@@ -536,7 +545,7 @@ public sealed partial class GameServer
             pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
         }
 
-        Send(session, new LandingPadList { BodyId = body.Id, Pads = pads });
+        Send(session, new LandingPadList { BodyId = body.Id, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
     }
 
     /// <summary>The real pad set for a body (the chooser path). Resolves the body's planet type + circumference,

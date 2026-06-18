@@ -30,6 +30,20 @@ public sealed partial class GameServer
     private const double WeatherChangeInterval = 25.0;
     private const double EnvBroadcastInterval = 5.0;
 
+    /// <summary>Day fraction every world starts at when it's activated (late-morning). Reset on each entry, so a
+    /// body's arrival time-of-day is deterministic — day or night then depends purely on the landing longitude.</summary>
+    private const double InitialDayFraction = 0.35;
+
+    /// <summary>Reference seconds per "system day" for the orbital clock — fixed (not the local world's rotation
+    /// period, which varies per body), so orbital periods mean the same wall-clock time everywhere and bodies
+    /// stay in sync across all worlds in the system.</summary>
+    private const double SystemDaySeconds = 600.0;
+
+    /// <summary>Monotonic total elapsed system-days, advanced every tick. Server-wide (not per-world) so the
+    /// orbital clock is shared by all players/worlds; runtime-only (a restart re-bases the phases, fine for
+    /// pure ambience). Sent to clients in <see cref="WorldEnvironment.SystemTimeDays"/>.</summary>
+    private double _systemTimeDays;
+
     private double _dayFraction { get => _worlds.Active.DayFraction; set => _worlds.Active.DayFraction = value; }
     private double _dayLength { get => _worlds.Active.DayLength; set => _worlds.Active.DayLength = value; }
     private double _stormChance { get => _worlds.Active.StormChance; set => _worlds.Active.StormChance = value; }
@@ -94,7 +108,7 @@ public sealed partial class GameServer
             : planet?.AtmosphereDensity is { } ad ? System.Math.Clamp(ad, 0.0, 1.0)
             : 0.2 + ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 0.6;
         _envRng = new System.Random((int)_meta.Seed);
-        _dayFraction = 0.35;
+        _dayFraction = InitialDayFraction;
         _weatherTimer = 0;
         _sinceEnvBroadcast = 0;
 
@@ -126,6 +140,9 @@ public sealed partial class GameServer
         {
             _dayFraction = (_dayFraction + dt / _dayLength) % 1.0;
         }
+
+        // Advance the monotonic orbital clock (fixed reference day, so it's independent of this world's rotation).
+        _systemTimeDays += dt / SystemDaySeconds;
 
         // Dynamic planets cycle weather; fixed ones never change.
         if (_planetWeatherMode == "dynamic")
@@ -200,6 +217,7 @@ public sealed partial class GameServer
         {
             TimeOfDay = (float)_dayFraction,
             DayLengthSeconds = (float)_dayLength,
+            SystemTimeDays = _systemTimeDays,
             Weather = state,
             Intensity = intensity,
             Temperature = temperature,

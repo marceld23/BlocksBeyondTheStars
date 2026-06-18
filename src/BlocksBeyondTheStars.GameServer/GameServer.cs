@@ -3171,6 +3171,8 @@ public sealed partial class GameServer
             SystemX = b.SystemX,
             SystemY = b.SystemY,
             SystemZ = b.SystemZ,
+            OrbitPeriodDays = b.OrbitPeriodDays,
+            ParentId = b.ParentId,
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total) : 0,
         };

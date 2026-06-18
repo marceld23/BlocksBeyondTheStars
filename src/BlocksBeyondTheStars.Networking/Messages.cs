@@ -770,6 +770,14 @@ public sealed class NetBody
     public float SystemY { get; set; }
     public float SystemZ { get; set; }
 
+    /// <summary>Visual orbital period in (in-game) days; the client advances the body around its parent by
+    /// 2π·SystemTimeDays/OrbitPeriodDays for its sky position + sun-lit phase. Signed (negative = retrograde),
+    /// seeded per system. 0 = static. Does not move <see cref="SystemX"/>/<see cref="SystemZ"/> (the t=0 ref).</summary>
+    public float OrbitPeriodDays { get; set; }
+
+    /// <summary>The body this one orbits (a moon's parent planet); empty = orbits the star at the origin.</summary>
+    public string ParentId { get; set; } = string.Empty;
+
     /// <summary>Fixed landing pads on this body (item 38): how many there are and how many are currently free
     /// (live occupancy). PadsFree == 0 means the body is full — landing there is refused.</summary>
     public int PadsTotal { get; set; }
@@ -1413,6 +1421,11 @@ public sealed class WorldEnvironment
 
     /// <summary>Full day length in seconds (the client advances time locally between updates).</summary>
     public float DayLengthSeconds { get; set; } = 600f;
+
+    /// <summary>Monotonic total elapsed in-game days since world start — the shared, authoritative clock the
+    /// client uses to place orbital bodies and compute their sun-lit phase (θ = 2π·SystemTimeDays/OrbitPeriodDays).
+    /// Unlike <see cref="TimeOfDay"/> (which wraps 0..1 per day) this keeps counting, so phases drift over days.</summary>
+    public double SystemTimeDays { get; set; }
 
     /// <summary>clear / clouds / rain / storm / fog.</summary>
     public string Weather { get; set; } = "clear";

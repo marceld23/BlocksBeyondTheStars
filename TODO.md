@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **659 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **660 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,52 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Landing-pad chooser: marker fix + day/night terminator — ✅ code (2026-06-19, NEEDS Unity build)
+Three fixes to the pre-landing pad-chooser map (`SpaceView.ShowLandMap`):
+- **Marker "1" no longer hangs off the left.** Markers are now clamped to stay **fully inside** the map rect
+  (`Clamp(mx, pad, pad+mapW-marker)` + the same for `my`), not centred-then-clamped. The home pad is always at
+  longitude 0 (the strip's left seam), so its marker used to sit half outside the map's left edge.
+- **Day/night terminator drawn on the map.** `DrawDayNightOverlay` shades the night half of the equirect strip
+  (1–2 rects, longitude-wrap aware) and draws warm (sunrise) + indigo (sunset) terminator lines. A pad shown on
+  the dark band = a night-side touchdown. Non-interactive overlay (markers stay clickable on top).
+- **Landing day/night matches the spot — now visible + accurate.** It already worked (`Sky` uses
+  `LocalTimeOfDay = global + playerX/circ`, and landing places you at `pad.CenterX`); since `InitWeather` resets a
+  world to `InitialDayFraction=0.35` on entry, arrival time is deterministic. The server now sends that arrival
+  day fraction in `LandingPadList.TimeOfDay` (live time for the active body, else the 0.35 default) so the map's
+  terminator is drawn for the body you're actually landing on, not the stale orbit-view environment.
+- Files: `Messages/LandingPadMessages.cs` (+`TimeOfDay`), `GameServerSpace.cs` (`BodyArrivalTimeOfDay`, both pad
+  senders), `GameServerWeather.cs` (`InitialDayFraction` const), `GameBootstrap.cs` (`LandingPadsTimeOfDay`),
+  `SpaceView.cs`. No codec/`Register` change (new field only). 660 tests green; libs synced.
+
+### ★ Sun-lit celestial-body phases + per-system orbital periods — ✅ code (2026-06-18, NEEDS Unity build)
+Analysis+plan: `[memory] celestial-phases-and-orbits-analysis`. Nearby same-system bodies in the sky now show a
+real **terminator/crescent/gibbous/full phase** (like the Earth's moon), and each system has its own **orbital
+rhythm** that makes the phase drift visibly within a play session. Vantage-based sizing (planet→small moons→tinier
+asteroids; moon→huge planet; asteroid→huge nearby bodies) was already implemented and is unchanged.
+
+- **Server/Shared (authoritative).** `CelestialBody`/`NetBody` gain `OrbitPeriodDays` (signed; planet 6–40d /
+  moon 0.4–2.5d / asteroid 0.6–3d, ~20% retrograde) + `ParentId` (moon→planet). Seeded in `UniverseGenerator` via
+  the **separate `Hash01`** stream (not `rng`) so existing universes stay byte-identical. `SystemX/Z` remain the
+  t=0 reference the flight/travel/docking layer uses — the orbit is a purely visual/phase driver. `WorldEnvironment`
+  gains `SystemTimeDays` (monotonic, fixed 600s reference day) advanced in `GameServerWeather.TickWeather` — the
+  shared clock. No codec/`Register` change (contractless MessagePack, new fields only).
+- **Shader.** New `BlocksBeyondTheStars/SkyBodyPhase` (both pipelines) lights a sphere from a per-material
+  `_PhaseSunDir` → the phase emerges; soft terminator + dim earthshine night-side floor + limb darkening. Added to
+  `m_AlwaysIncludedShaders` (code-loaded via `Shader.Find`).
+- **Surface sky (`SkyBodiesView`).** Phase-shaded, fed the local sun's sky direction (`_Sc_SunDir`). The per-pair
+  hashed sky-cycle is replaced by a coherent clock: bodies cross ~once/day (rotation) and drift by their orbital
+  rate → rise a little later each day and their phase waxes/wanes once per `OrbitPeriodDays` (visible per session).
+  Bodies are now textured with their **real baked world map** (`WorldMinimap.Bake`, cached + shared with the space
+  view) + a light star-hue wash — so a body reads the same from the surface as from orbit (seas/ground/vegetation);
+  unknown types fall back to the flat data-driven `GroundColor`. Mipmaps collapse a tiny disc to its average colour.
+- **Space view (`SpaceView`).** Planets/moons lit from the **true** direction to the system star (`-currentPos·scale`
+  in the scene); the visible sun billboard is aimed the same way so phases agree. Body **positions** stay static
+  within a visit (no travel/landing desync); phase is the correct snapshot. Live orbital position drift in the
+  space view is a possible follow-up.
+- **Tests.** New `UniverseTests.OrbitParameters_AreDeterministic_InBandPerKind_AndParentedCorrectly`; byte-identity
+  + full suite green (**660**). `UniverseGenerator.cs`, `Galaxy.cs`, `Messages.cs`, `GameServer.cs`,
+  `GameServerWeather.cs`, `SkyBodyPhase.shader`, `SkyBodiesView.cs`, `SpaceView.cs`.
 
 ### ★ Multiple space stations per system — ✅ worldgen-only + test (2026-06-18, NO Unity build needed)
 A system that rolls a station (per the `SpaceStations` frequency gate) now gets **1–3** instead of always one.

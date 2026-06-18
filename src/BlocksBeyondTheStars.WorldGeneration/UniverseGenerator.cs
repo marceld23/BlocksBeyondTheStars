@@ -123,6 +123,11 @@ public sealed class UniverseGenerator
                 float pRadius = BaseOrbit + p * OrbitStep + (Hash01(i, p, 102) - 0.5f) * OrbitJitter;
                 planet.SystemX = pRadius * System.MathF.Cos(pAngle);
                 planet.SystemZ = pRadius * System.MathF.Sin(pAngle);
+                // Visual/phase orbit (does not move the t=0 coords above). Period seeded from a SEPARATE hash
+                // so the body sequence stays byte-identical; signed for occasional retrograde variety. Short
+                // enough that, at the default ~10-min day, the phase visibly drifts within a play session.
+                planet.OrbitPeriodDays = OrbitSign(i, p, 130) * (6f + Hash01(i, p, 131) * 34f); // 6..40 d
+                planet.ParentId = string.Empty; // orbits the star at the origin
                 system.Bodies.Add(planet);
 
                 int moons = rng.Range(_desc.MoonsPerPlanetMin, _desc.MoonsPerPlanetMax);
@@ -139,6 +144,9 @@ public sealed class UniverseGenerator
                         SystemId = system.Id,
                         SystemX = planet.SystemX + mRadius * System.MathF.Cos(mAngle),
                         SystemZ = planet.SystemZ + mRadius * System.MathF.Sin(mAngle),
+                        // Moons swing fast around their parent → a quick, lively phase cycle from the surface.
+                        OrbitPeriodDays = OrbitSign(i, p, 240 + m) * (0.4f + Hash01(i, p, 260 + m) * 2.1f), // 0.4..2.5 d
+                        ParentId = planet.Id, // orbit centred on the (also-moving) parent planet
                     });
                 }
             }
@@ -160,6 +168,8 @@ public sealed class UniverseGenerator
                     SystemId = system.Id,
                     SystemX = ax,
                     SystemZ = az,
+                    OrbitPeriodDays = OrbitSign(i, 350 + a, 1) * (0.6f + Hash01(i, 350 + a, 2) * 2.4f), // 0.6..3 d
+                    ParentId = string.Empty, // a free body on the disc → orbits the star
                 });
             }
 
@@ -221,6 +231,9 @@ public sealed class UniverseGenerator
     /// <summary>A 0..1 deterministic value from a separate hash (does not disturb the body-generation rng).</summary>
     private float Hash01(long a, long b, long c)
         => (float)((Noise.Hash(_seed, a, b, c) >> 11) * (1.0 / 9007199254740992.0));
+
+    /// <summary>Seeded orbit direction: mostly prograde (+1), ~20% retrograde (-1), so a system mixes both.</summary>
+    private float OrbitSign(long a, long b, long c) => Hash01(a, b, c) < 0.2f ? -1f : 1f;
 
     /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>
     private (float X, float Z) DiscPoint(int systemIndex, int planets, int salt)

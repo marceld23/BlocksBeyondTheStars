@@ -223,6 +223,10 @@ namespace BlocksBeyondTheStars.Client
         /// (world map markers) or the body the pad chooser asked about. Keyed by <see cref="LandingPadsBody"/>.</summary>
         public NetLandingPad[] LandingPads { get; private set; } = System.Array.Empty<NetLandingPad>();
         public string LandingPadsBody { get; private set; } = string.Empty;
+
+        /// <summary>The day fraction (0..1) the player arrives at when landing on <see cref="LandingPadsBody"/> —
+        /// drives the day/night terminator on the pad chooser map (local time at a pad = this + padX/circ).</summary>
+        public float LandingPadsTimeOfDay { get; private set; } = 0.35f;
         public string NearbyStation;
 
         // Navigation, missions & rules (M23).
@@ -768,7 +772,7 @@ namespace BlocksBeyondTheStars.Client
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
             Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
-            Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; };
+            Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; LandingPadsTimeOfDay = m.TimeOfDay; };
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
             Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
             Network.GameUnlocksReceived += m =>

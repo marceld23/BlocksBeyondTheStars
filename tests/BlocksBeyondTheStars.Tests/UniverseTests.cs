@@ -59,6 +59,50 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void OrbitParameters_AreDeterministic_InBandPerKind_AndParentedCorrectly()
+    {
+        var desc = new WorldDescription { StarSystemCount = 30, PlanetsPerSystemMin = 3, PlanetsPerSystemMax = 6, MoonsPerPlanetMin = 1, MoonsPerPlanetMax = 3 };
+        var a = new UniverseGenerator(42, desc, _content).Generate();
+        var b = new UniverseGenerator(42, desc, _content).Generate();
+
+        // Same seed → identical orbital parameters (deterministic).
+        var pa = a.AllBodies().Select(x => (x.OrbitPeriodDays, x.ParentId)).ToList();
+        var pb = b.AllBodies().Select(x => (x.OrbitPeriodDays, x.ParentId)).ToList();
+        Assert.Equal(pa, pb);
+
+        foreach (var body in a.AllBodies())
+        {
+            float mag = System.MathF.Abs(body.OrbitPeriodDays);
+            switch (body.Kind)
+            {
+                case CelestialKind.Planet:
+                    Assert.InRange(mag, 6f, 40f);
+                    Assert.Equal(string.Empty, body.ParentId); // orbits the star
+                    break;
+                case CelestialKind.Moon:
+                    Assert.InRange(mag, 0.4f, 2.5f);
+                    // A moon orbits its parent planet, which exists in the same system.
+                    Assert.False(string.IsNullOrEmpty(body.ParentId));
+                    Assert.Contains(a.AllBodies(), p => p.Id == body.ParentId && p.Kind == CelestialKind.Planet);
+                    break;
+                case CelestialKind.AsteroidField:
+                    Assert.InRange(mag, 0.6f, 3f);
+                    Assert.Equal(string.Empty, body.ParentId);
+                    break;
+            }
+        }
+
+        // Some bodies are retrograde (negative period) — the system mixes both directions.
+        Assert.Contains(a.AllBodies(), x => x.OrbitPeriodDays < 0f);
+        Assert.Contains(a.AllBodies(), x => x.OrbitPeriodDays > 0f);
+
+        // Each system has its own rhythm: two systems' planet-period sets are not identical.
+        var sys0 = a.Systems[0].Bodies.Where(x => x.Kind == CelestialKind.Planet).Select(x => x.OrbitPeriodDays).ToList();
+        var sys1 = a.Systems[1].Bodies.Where(x => x.Kind == CelestialKind.Planet).Select(x => x.OrbitPeriodDays).ToList();
+        Assert.NotEqual(sys0, sys1);
+    }
+
+    [Fact]
     public void StationsAndWrecks_NeverSpawnInsideABody()
     {
         // Generate plenty of systems so stations + wrecks actually appear, then assert each free-floater keeps

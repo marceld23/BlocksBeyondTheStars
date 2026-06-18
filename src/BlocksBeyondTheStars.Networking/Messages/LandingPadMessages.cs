@@ -25,6 +25,12 @@ public sealed class LandingPadList
 {
     public string BodyId { get; set; } = string.Empty;
     public NetLandingPad[] Pads { get; set; } = System.Array.Empty<NetLandingPad>();
+
+    /// <summary>The body's day fraction (0..1) the player will arrive at when landing — its current time if the
+    /// body is already active, else the activation default. The chooser map draws the day/night terminator from
+    /// this (local time at a pad = TimeOfDay + padX/circumference), so a pad shown on the dark band means a
+    /// night-side touchdown. Matches what the surface actually shows on arrival.</summary>
+    public float TimeOfDay { get; set; } = 0.35f;
 }
 
 /// <summary>Tells the players already on a body that another player's ship is arriving or departing at a pad, so
