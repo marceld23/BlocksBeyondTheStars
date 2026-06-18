@@ -454,6 +454,94 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    // ---------------- Sleep / rest + waking ----------------
+
+    [Fact]
+    public void SleepingCreature_WakesWhenPlayerComesClose()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Walker");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0); // seed fauna
+            // Force a nocturnal species: at the default daytime fraction it is asleep (resting in place).
+            var sp = server.SpeciesRoster.First();
+            sp.Activity = CreatureActivity.Nocturnal;
+            sp.Temperament = CreatureTemperament.Skittish;
+            var creature = server.Creatures.First();
+            creature.SpeciesId = sp.Id;
+            creature.AwakeOverrideTimer = 0;
+            creature.Position = new Vector3f(0, 64, 0);
+
+            // Player far away: the sleeper is left undisturbed and settles at its rest spot.
+            p.State.Position = new Vector3f(20, 64, 0);
+            server.Tick(0.5);
+            Assert.Equal(0.0, creature.AwakeOverrideTimer);
+
+            // Player steps right next to that rest spot (within wake distance): the creature stirs awake.
+            var rest = creature.Position;
+            p.State.Position = new Vector3f(rest.X + 2f, rest.Y, rest.Z);
+            server.Tick(0.5);
+            Assert.True(creature.AwakeOverrideTimer > 0, "A sleeping creature should wake when a player comes close.");
+        }
+    }
+
+    [Fact]
+    public void SleepingCreature_WakesWhenHit_EvenIfItDoesNotRetaliate()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Hunter");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            server.Tick(6.0);
+            var sp = server.SpeciesRoster.First();
+            sp.Activity = CreatureActivity.Nocturnal;      // asleep at daytime
+            sp.Temperament = CreatureTemperament.Skittish; // does NOT retaliate when attacked
+            var creature = server.Creatures.First();
+            creature.SpeciesId = sp.Id;
+            creature.Hull = 9999f;                         // survive the hit
+            creature.AwakeOverrideTimer = 0;
+            creature.Position = new Vector3f(0, 64, 5);    // within attack reach (6) but outside wake distance (4)
+
+            Assert.False(CreatureBehaviour.RetaliatesWhenAttacked(sp.Temperament));
+            server.AttackEntity("Hunter", creature.Id);
+
+            Assert.Equal(0.0, creature.ProvokeTimer);      // skittish: no retaliation...
+            Assert.True(creature.AwakeOverrideTimer > 0, "A hit should rouse even a non-retaliating sleeper.");
+        }
+    }
+
+    [Fact]
+    public void RousedSleeper_SettlesBackAfterTimerDecays()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Walker");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(50, 64, 0); // far enough that it won't re-wake from proximity
+
+            server.Tick(6.0);
+            var sp = server.SpeciesRoster.First();
+            sp.Activity = CreatureActivity.Nocturnal;
+            var creature = server.Creatures.First();
+            creature.SpeciesId = sp.Id;
+            creature.AwakeOverrideTimer = 5.0;
+
+            server.Tick(2.0);
+            Assert.True(creature.AwakeOverrideTimer is < 5.0 and > 0.0);
+
+            server.Tick(5.0);
+            Assert.Equal(0.0, creature.AwakeOverrideTimer);
+        }
+    }
+
     // ---------------- Give-up leash (aggressors don't hound the player forever) ----------------
 
     [Fact]

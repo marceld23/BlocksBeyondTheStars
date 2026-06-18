@@ -435,6 +435,7 @@ public sealed partial class GameServer
             // for a while it hunts and bites back (and a pack-hunter rallies nearby kin).
             if (isCreature)
             {
+                target.AwakeOverrideTimer = CreatureWakeSeconds; // a hit jolts any sleeping creature awake (then it acts per temperament)
                 ProvokeCreature(target);
             }
 

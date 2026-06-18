@@ -33,6 +33,8 @@ namespace BlocksBeyondTheStars.Client
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
             public GameObject Nameplate; // floating name label shown above a tamed companion
             public TextMesh NameText;    // the label's text component (updated on rename)
+            public GameObject Zzz;       // floating "z z z" shown above a sleeping (off-phase) creature
+            public TextMesh ZzzText;     // the sleep label's text component
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -114,12 +116,22 @@ namespace BlocksBeyondTheStars.Client
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
                 UpdateNameplate(entry, c);          // floating name label above a tamed companion
+                UpdateSleep(entry, c);              // breathing bob + "z z z" while the creature is asleep (off-phase)
 
-                // Periodic idle vocalisation, spatialised at the creature, pitched by its size.
+                // Periodic idle vocalisation, spatialised at the creature, pitched by its size. A sleeper is
+                // quiet — only an occasional soft, low snore rather than its full waking call.
                 if (Time.time >= entry.NextCall)
                 {
-                    entry.NextCall = Time.time + Random.Range(5f, 12f);
-                    ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch, 0.8f, entry.Echo);
+                    if (c.Asleep)
+                    {
+                        entry.NextCall = Time.time + Random.Range(9f, 18f);
+                        ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch * 0.7f, 0.3f, entry.Echo);
+                    }
+                    else
+                    {
+                        entry.NextCall = Time.time + Random.Range(5f, 12f);
+                        ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch, 0.8f, entry.Echo);
+                    }
                 }
 
                 // React to authoritative state: hurt on a hull drop, alert on turning hostile,
@@ -167,6 +179,7 @@ namespace BlocksBeyondTheStars.Client
                     var e = _creatures[id];
                     ClientAudio.Instance?.At(e.Bank + "_die", e.Root.transform.position, e.Pitch, 0.9f);
                     if (e.Nameplate != null) Destroy(e.Nameplate); // parented to the game root, not e.Root → free it too
+                    if (e.Zzz != null) Destroy(e.Zzz);             // sleep label is under the game root too
                     Destroy(e.Root);
                     _creatures.Remove(id);
                 }
@@ -235,6 +248,67 @@ namespace BlocksBeyondTheStars.Client
             {
                 e.Nameplate.transform.rotation = Quaternion.LookRotation(e.Nameplate.transform.position - cam.transform.position);
             }
+        }
+
+        /// <summary>A creature in its off-phase (night for a diurnal animal, day for a nocturnal one) sleeps in
+        /// place — the server flags it <see cref="NetCreature.Asleep"/>. Render it as resting: settle a touch
+        /// lower with a slow breathing bob, and float a soft "z z z" above it so the player can read that it is
+        /// asleep (and can be snuck up on, or woken by coming close / hitting it). Label is built lazily, kept
+        /// under the game root (upright, not the creature rig) and billboarded + distance-faded like nameplates.</summary>
+        private void UpdateSleep(Entry e, NetCreature c)
+        {
+            if (!c.Asleep)
+            {
+                if (e.Zzz != null && e.Zzz.activeSelf) e.Zzz.SetActive(false);
+                return;
+            }
+
+            float s = Mathf.Clamp(c.Size, 0.4f, 3f);
+            float breathe = Mathf.Sin(Time.time * 1.6f) * 0.03f * s;
+            e.Root.transform.position += Vector3.up * (breathe - 0.12f * s); // settle low + gentle breathing
+
+            if (e.Zzz == null)
+            {
+                var z = new GameObject("CreatureZzz");
+                z.transform.SetParent(transform, true); // game root, upright (not the rotating creature rig)
+                var tm = z.AddComponent<TextMesh>();
+                tm.font = UiKit.Font;
+                var mr = z.GetComponent<MeshRenderer>();
+                if (mr != null && UiKit.Font != null) mr.sharedMaterial = UiKit.Font.material;
+                tm.fontSize = 48;
+                tm.characterSize = 0.05f;
+                tm.anchor = TextAnchor.LowerCenter;
+                tm.alignment = TextAlignment.Center;
+                tm.text = "z z z";
+                tm.color = new Color(0.8f, 0.88f, 1f, 0.85f); // soft sleepy blue-white
+                e.Zzz = z;
+                e.ZzzText = tm;
+            }
+
+            float top = 1.5f * s + 0.5f;
+            float drift = Mathf.Repeat(Time.time * 0.4f, 1f) * 0.5f; // slow upward drift
+            var platePos = e.Root.transform.position + Vector3.up * (top + drift);
+            e.Zzz.transform.position = platePos;
+
+            var cam = Camera.main;
+            float alpha = 1f;
+            if (cam != null)
+            {
+                e.Zzz.transform.rotation = Quaternion.LookRotation(platePos - cam.transform.position);
+                float dist = Vector3.Distance(cam.transform.position, platePos);
+                if (dist >= 28f)
+                {
+                    if (e.Zzz.activeSelf) e.Zzz.SetActive(false);
+                    return;
+                }
+
+                if (dist > 18f) alpha = 1f - (dist - 18f) / 10f;
+            }
+
+            if (!e.Zzz.activeSelf) e.Zzz.SetActive(true);
+            alpha *= 0.6f + 0.4f * Mathf.Abs(Mathf.Sin(Time.time * 1.2f)); // gentle breathing pulse
+            var col = new Color(0.8f, 0.88f, 1f, 0.85f * alpha);
+            if (e.ZzzText.color != col) e.ZzzText.color = col;
         }
 
         /// <summary>Shows/hides an icy-blue stasis shell around a creature while it is frozen by the stasis

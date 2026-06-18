@@ -36,6 +36,8 @@ public sealed partial class GameServer
     private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this
     private const double CreatureChaseGiveUpSeconds = 7.0;     // an aggressor gives up after chasing this long
     private const double CreatureGiveUpCooldownSeconds = 15.0; // ...then leaves you alone (no chase/attack) for this
+    private const float CreatureWakeDistance = 4f;             // a sleeping creature stirs awake when a player comes this close
+    private const double CreatureWakeSeconds = 9.0;            // ...and then stays roused (alert/active) for this long
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
@@ -500,6 +502,11 @@ public sealed partial class GameServer
                 creature.ProvokeTimer = System.Math.Max(0, creature.ProvokeTimer - dt);
             }
 
+            if (creature.AwakeOverrideTimer > 0)
+            {
+                creature.AwakeOverrideTimer = System.Math.Max(0, creature.AwakeOverrideTimer - dt);
+            }
+
             if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
             {
                 continue;
@@ -532,9 +539,18 @@ public sealed partial class GameServer
 
             var profile = ProfileFor(creature.SpeciesId);
 
+            // A creature in its off-phase is asleep — but a player coming within wake distance stirs it (being
+            // hit does too, via ProvokeCreature). Once roused it stays alert for a while, then settles back.
+            if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0 && nearest is { } wakePos
+                && WrapDistSq(creature.Position, wakePos) <= CreatureWakeDistance * CreatureWakeDistance)
+            {
+                creature.AwakeOverrideTimer = CreatureWakeSeconds;
+            }
+
             // Sleepers rest in place during their off-phase — only their habitat Y is kept (a sleeping flier
-            // still hovers), no roaming or hunting.
-            if (!SpeciesActive(sp))
+            // still hovers), no roaming or hunting. A roused sleeper falls through to normal temperament-driven
+            // behaviour (skittish ones flee, hunters seek, others just wander).
+            if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0)
             {
                 creature.Position = AdjustHabitatHeight(sp, creature.Position, 0f, profile);
                 continue;
@@ -752,7 +768,7 @@ public sealed partial class GameServer
     private NetCreature ToNetCreature(CombatEntity e)
     {
         _speciesById.TryGetValue(e.SpeciesId, out var sp);
-        bool asleep = sp != null && !SpeciesActive(sp) && !e.IsCompanion; // companions are always alert followers
+        bool asleep = sp != null && !SpeciesActive(sp) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion; // roused or companion → not asleep
         return new NetCreature
         {
             Id = e.Id,

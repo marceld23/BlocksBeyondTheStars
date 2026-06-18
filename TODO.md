@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **660 passing** (2026-06-18). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **663 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,22 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ Creatures sleep + wake when you near or hit them — ✅ code (2026-06-19, NEEDS Unity build)
+Off-phase fauna already rested in place (each species is Diurnal/Nocturnal/Crepuscular/Cathemeral; `SpeciesActive`
+gates movement). That rest was purely clock-based — proximity and attacks did nothing. Now a sleeping creature
+**rouses**: a new `CombatEntity.AwakeOverrideTimer` (server-only) is set when a player comes within
+`CreatureWakeDistance` (4 blocks, checked in `MoveCreatures` before the sleep gate) **or** when the creature is hit
+(set in the attack path for *any* creature, before `ProvokeCreature`, so even a non-retaliating skittish one wakes).
+While the override runs (9 s) it ignores the day/night gate and falls through to normal **temperament-driven**
+behaviour — skittish flees, hunters seek, others wander — then settles back to sleep. `NetCreature.Asleep` now
+reflects the override (a roused sleeper is not "asleep"). Client `CreatureView` finally uses `Asleep`: a resting
+**breathing bob** + floating **"z z z"** (billboarded, distance-faded) and a quiet, low **snore** instead of the
+full idle call. Companions never sleep (unchanged).
+- Files: `GameServerCreatures.cs` (consts, decay, wake-on-proximity gate, `ToNetCreature`), `GameServerSpaceCombat.cs`
+  (`AwakeOverrideTimer` field), `GameServerEnemies.cs` (wake-on-hit), `CreatureView.cs` (sleep pose/Zzz/snore).
+  No codec/`Register` change (`Asleep` already on the wire). +3 tests in `CreatureTests` (wake-on-near, wake-on-hit,
+  re-sleep decay); 663 tests green.
 
 ### ★ Landing-pad chooser: marker fix + day/night terminator — ✅ code (2026-06-19, NEEDS Unity build)
 Three fixes to the pre-landing pad-chooser map (`SpaceView.ShowLandMap`):

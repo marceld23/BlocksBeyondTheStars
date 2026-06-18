@@ -63,6 +63,11 @@ public sealed class CombatEntity
     /// can be scanned safely. Decays each tick; networked as <c>NetCreature.Frozen</c> for the blue tint.</summary>
     public double FrozenTimer { get; set; }
 
+    /// <summary>Seconds a creature roused from its off-phase rest stays awake (a player came too close, or it was
+    /// hit). While &gt; 0 it ignores the day/night sleep gate and behaves per its temperament (flee/hunt/roam);
+    /// decays each tick, after which it settles back to sleep. Server-only.</summary>
+    public double AwakeOverrideTimer { get; set; }
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 
