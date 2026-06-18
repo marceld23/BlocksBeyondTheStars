@@ -44,6 +44,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _Sc_Light;
             float4 _Sc_SunDir;
+            float4 _Sc_Sky;   // sky colour (set by Sky.cs) — water SSR sky fallback
             float _BaseAlpha;
 
             struct Attributes
@@ -188,7 +189,41 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float refr = 0.018 * (1.0 - depth01); // shallow distorts the visible bed; deep hides it anyway
                     float3 bed = SampleSceneColor(screenUV + wob * refr);
                     col = lerp(bed, col, saturate(alpha));
-                    alpha = 1.0; // bed composited here → opaque output, no hardware double-blend of the background
+
+                    // Screen-space reflection on the surface: mirror the view ray about the (wave-rippled) normal
+                    // and march it through the depth buffer; on a hit reflect the opaque colour there, else fall
+                    // back to the sky. Blended by Fresnel (grazing angles reflect most) + a tight sun glint. This
+                    // is SSR localised to WATER — no full-screen pass, so no darkening risk, and it only reflects
+                    // the surface that should (the sea), never matte walls.
+                    float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
+                    float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.06);
+                    float3 Rw = reflect(Vw, rn);
+                    float fres = lerp(0.35, 1.0, pow(1.0 - saturate(dot(-Vw, rn)), 4.0)); // base sheen + full mirror at grazing angles
+                    float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
+                    float3 sp = i.wp;
+                    float stepLen = 0.5;
+                    [loop] for (int k = 0; k < 14; k++)
+                    {
+                        sp += Rw * stepLen;
+                        stepLen *= 1.35;
+                        float4 cp = TransformWorldToHClip(sp);
+                        if (cp.w <= 0.0) { break; }
+                        float2 ruv = cp.xy / cp.w * 0.5 + 0.5;
+                        if (_ProjectionParams.x < 0.0) { ruv.y = 1.0 - ruv.y; }
+                        if (ruv.x < 0.0 || ruv.x > 1.0 || ruv.y < 0.0 || ruv.y > 1.0) { break; }
+                        float hitEye = LinearEyeDepth(SampleSceneDepth(ruv), _ZBufferParams);
+                        float rayEye = -TransformWorldToView(sp).z;
+                        if (rayEye > hitEye + 0.1 && rayEye < hitEye + 4.0)
+                        {
+                            reflCol = SampleSceneColor(ruv);
+                            break;
+                        }
+                    }
+                    float sunSpec = pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 4.0;
+                    reflCol += light * sunSpec;
+                    col = lerp(col, reflCol, saturate(fres) * 0.7);
+
+                    alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend
                 }
                 else
                 {
