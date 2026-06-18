@@ -512,6 +512,7 @@
   "ui.map.station_here": "Du hast hier eine Station",
   "ui.map.base_here": "Du hast hier eine Basis",
   "ui.map.board": "Betreten",
+  "ui.map.need_ship": "Geh in dein Raumschiff, um zu reisen.",
   "ui.map.visit_to_unlock": "einmal besuchen zum Freischalten",
   "ui.map.rename": "Umbenennen",
   "ui.map.rename_base": "Basis umbenennen",

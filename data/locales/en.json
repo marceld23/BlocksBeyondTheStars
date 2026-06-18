@@ -507,6 +507,7 @@
   "ui.map.station_here": "You have a station here",
   "ui.map.base_here": "You have a base here",
   "ui.map.board": "Board",
+  "ui.map.need_ship": "Board your ship to travel.",
   "ui.map.visit_to_unlock": "visit it once to unlock",
   "ui.map.rename": "Rename",
   "ui.map.rename_base": "Rename base",

@@ -181,6 +181,9 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
                     + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0)
+                    // Aboard / ship-interior state drives the Map tab dimming + travel-button gating, so a change
+                    // (board/leave the ship with the menu open) must rebuild the header + map buttons.
+                    + (Game.Aboard ? 8887 : 0) + (Game.LoadingPlanetType?.GetHashCode() ?? 0)
                     + (Game.LastMessage?.GetHashCode() ?? 0)
                     // Alliances tab: roster + pending changes refresh the lists; the online-player count drives the
                     // "find players" picker. The radio (Funk) feed is deliberately NOT hashed — its log refreshes in
@@ -436,6 +439,18 @@ namespace BlocksBeyondTheStars.Client
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;
                 }
+                else if (!IsTabAvailable(Tabs[i].Mode))
+                {
+                    // Context not met (Map needs you aboard; Crafting/Tech/Ship need their bench): dim the tab so
+                    // it reads as out-of-reach. It stays CLICKABLE so the player can still browse the tab's
+                    // content — the action buttons inside enforce the actual gate.
+                    b.GetComponent<Image>().color = UiKit.TabLocked;
+                    var dimLbl = b.GetComponentInChildren<Text>();
+                    if (dimLbl != null)
+                    {
+                        dimLbl.color = UiKit.CyanDim;
+                    }
+                }
 
                 // Auto-fit the label so a long localized tab (e.g. German "Einstellungen") shrinks to fit the
                 // fixed-width button instead of spilling over its graphic (B28); short labels keep full size.
@@ -688,7 +703,9 @@ namespace BlocksBeyondTheStars.Client
 
             ClearChildren(_listContent);
             bool production = _mode == Mode.Crafting || _mode == Mode.Tech || _mode == Mode.Ship;
-            _hint.text = (production && !AtStation()) ? L("ui.craft.go_to_" + StationKey()) : string.Empty;
+            _hint.text = (production && !AtStation()) ? L("ui.craft.go_to_" + StationKey())
+                : (_mode == Mode.Map && !AboardShipNow()) ? L("ui.map.need_ship")
+                : string.Empty;
 
             float y = 0f;
             switch (_mode)
@@ -1152,6 +1169,11 @@ namespace BlocksBeyondTheStars.Client
                 y += 64f;
                 var jump = UiKit.AddButton(_listContent, 0, y, 760, 60, L("ui.map.hyperjump_here"), () => Game.Network?.SendHyperjumpSystem(sys.Id));
                 jump.GetComponent<Image>().color = new Color(0.30f, 0.18f, 0.46f); // hyperspace-violet accent
+                if (!AboardShipNow())
+                {
+                    SetInteractable(jump, false); // travel happens from your ship — board it first
+                }
+
                 y += 76f;
                 return y;
             }
@@ -2480,7 +2502,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (TravelUnlocked(body))
                     {
-                        UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.map.board"), () => Game.Network?.SendTravel(body.Id));
+                        var boardBtn = UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.map.board"), () => Game.Network?.SendTravel(body.Id));
+                        if (!AboardShipNow())
+                        {
+                            SetInteractable(boardBtn, false); // board your ship before travelling
+                        }
+
                         y += 64f;
                     }
                     else
@@ -2524,7 +2551,12 @@ namespace BlocksBeyondTheStars.Client
                 // A reachable destination — quick-travel (a cross-system one is a hyperspace jump).
                 var destSystem = map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == body.Id));
                 bool crossSystem = destSystem != null && destSystem.Id != CurrentSystemId();
-                UiKit.AddButton(_detail, 8, y, 280, 56, crossSystem ? L("ui.map.hyperjump") : L("ui.map.travel"), () => Game.Network?.SendTravel(body.Id));
+                var travelBtn = UiKit.AddButton(_detail, 8, y, 280, 56, crossSystem ? L("ui.map.hyperjump") : L("ui.map.travel"), () => Game.Network?.SendTravel(body.Id));
+                if (!AboardShipNow())
+                {
+                    SetInteractable(travelBtn, false); // travel happens from your ship — board it first
+                }
+
                 y += 64f;
                 if (crossSystem)
                 {
@@ -2799,18 +2831,36 @@ namespace BlocksBeyondTheStars.Client
 
         private string StationKey() => _mode switch { Mode.Tech => "lab", Mode.Ship => "console", _ => "workshop" };
 
-        private bool AtStation()
+        private bool AtStation() => StationOkFor(_mode);
+
+        // True when the player stands at the station a production tab needs. Mode-parameterized so the tab bar
+        // can ask about ANY tab (not only the open one) when dimming out-of-reach tabs.
+        // The lab doubles as a research bench at the workshop; the ship console doubles at the cockpit — so
+        // designed ships without a dedicated lab/console tile still work.
+        private bool StationOkFor(Mode mode)
         {
             string at = Game.NearbyStation ?? string.Empty;
-            // The lab doubles as a research bench at the workshop; the ship console doubles at the cockpit
-            // — so designed ships without a dedicated lab/console tile still work.
-            return _mode switch
+            return mode switch
             {
                 Mode.Tech => at == "lab" || at == "workshop",
                 Mode.Ship => at == "console" || at == "cockpit",
                 _ => at == "workshop", // crafting
             };
         }
+
+        // The player counts as "aboard" for travel when on/in the ship, piloting in space, or inside the ship
+        // interior floating in space — i.e. not on foot out on a surface.
+        private bool AboardShipNow() => Game.Aboard || Game.InSpace || Game.LoadingPlanetType == "ship_interior";
+
+        // Whether a tab's function is usable right now. Used only to DIM out-of-reach tabs in the header — they
+        // stay clickable so the player can still browse content (the action buttons inside enforce the gate).
+        // Tabs without a context requirement are always available.
+        private bool IsTabAvailable(Mode mode) => mode switch
+        {
+            Mode.Crafting or Mode.Tech or Mode.Ship => StationOkFor(mode),
+            Mode.Map => AboardShipNow(),
+            _ => true,
+        };
 
         private string IconFor(string item)
         {

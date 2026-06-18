@@ -20,6 +20,7 @@ namespace BlocksBeyondTheStars.Client
         public static readonly Color TextCol = new Color(0.86f, 0.93f, 1.00f);
         public static readonly Color Ok = new Color(0.35f, 0.95f, 0.55f);
         public static readonly Color Warn = new Color(1.00f, 0.72f, 0.28f); // amber — caution / developer-tool labels
+        public static readonly Color TabLocked = new Color(0.30f, 0.34f, 0.42f, 0.85f); // dimmed tab whose context isn't met (stays clickable)
 
         private static Font _font;
         private static Sprite _panelSprite;
