@@ -64,6 +64,27 @@ implemented", movement-overhaul body — are TODO-correct and only need memory c
 - **River floating-water fix** — ✅ committed (`0ea6175`, server-only, 648 tests): rivers carved flush with no
   slope gate via shared `SurfaceSlope` + `RiverDepthAt` (previously only folded under the water-life entry).
 
+### ★ Cloud overhaul: varied/realistic shapes + per-world cloud colour that stands out from the sky — ✅ client+server (2026-06-19)
+Surface clouds were four repeated Gaussian-blob billboards drifting in lockstep, flat (no volume), and their
+colour varied only by planet **type** — every ice world had identical clouds, while the sky hue is seeded
+per individual world. Reworked shape, lighting and colour:
+- **Shapes/variety** (`Clouds.cs`) — 12 noise-broken textures across 3 archetypes (puffy **cumulus**, broad flat
+  **stratus**, thin wispy **cirrus**) with fractal (fBm) edges + internal density; shuffled no-repeat assignment;
+  varied size **and** aspect. Two-layer dome (low + high toward the zenith), **per-cloud** drift (near clouds
+  faster), and a lifecycle (slow swell/fade + bob) so clouds form and dissipate instead of riding a rigid ring.
+  Weather drives storm towers (low clouds grow tall) and hides the high cirrus in storms.
+- **Directional sun lighting** (`Cloud.shader`) — opt-in `_SunShade`/`_Bulge`/`_CloudSunDir`/`_ShadeColor`: each
+  puff fakes a volume normal from its UV and is lit from the real sun direction (`_Sc_SunDir`) → a bright and a
+  shadowed side, warm at sunset. No extra passes, stays depth-texture-free; existing flat users (atmosphere haze)
+  unchanged via the `_SunShade=0` default.
+- **Per-world cloud colour** (`GameServerWeather.CloudTint`, the colour analogue of `SkyHue`) — the type base
+  colour gets a per-world seeded jitter (`LocationId ^ Seed`, salted so it doesn't track the sky), so two same-type
+  worlds differ. **Contrast guarantee:** if the tint lands within ~64 RGB of THIS world's sky colour it is pushed
+  apart in brightness (bright sky → greyer/darker cloud, dark sky → brighter) so **clouds always stand out from the
+  sky, including colour-wise**. No client change for the surface (reads `env.CloudColor`); 671 tests stay green.
+- **Orbit cloud shell** (`SpaceView`) — fBm per-body shell texture (seamless, per-body seed) + day/night terminator
+  shading (real sphere normal × the body's sun dir) + a per-body colour jitter so planets differ from space too.
+
 ### ★ Temperature screen FX: cold frost + rain-on-glass beads + hot-world heat shimmer — ✅ client (2026-06-19, Unity-built, pushed `01ce012`+`b3255ec`)
 The display now reacts to the world's air. All client-side, driven by the authoritative `WorldEnvironment.Temperature`
 + atmosphere flags already broadcast every 5 s (no server/network change), atmosphere-gated like the auroras

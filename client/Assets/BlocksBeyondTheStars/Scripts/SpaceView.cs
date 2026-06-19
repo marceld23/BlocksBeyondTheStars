@@ -2548,7 +2548,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var (cloudCol, cloudDen) = PlanetCloudLook(planetType);
-            AddCloudShell(sphere.transform, Color.Lerp(cloudCol, cloudCol * sunHue, 0.35f), cloudDen);
+            int shellSeed = CloudShellSeed(string.IsNullOrEmpty(bodyId) ? (locationName ?? "home") : bodyId);
+            cloudCol = JitterCloudColor(cloudCol, shellSeed); // per-body variation (mirrors the per-world surface tint)
+            AddCloudShell(sphere.transform, Color.Lerp(cloudCol, cloudCol * sunHue, 0.35f), cloudDen, shellSeed, sunDir);
 
             // Atmosphere haze: a thin translucent shell over everything — a breathable atmosphere reads
             // as a denser, bluer glow than a toxic one; airless bodies stay crisp bare rock.
@@ -4120,8 +4122,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Adds a slowly-spinning, semi-transparent cloud shell over a planet sphere (the clouds
-        /// you see from space). Density drives how much of the planet the cover hides.</summary>
-        private void AddCloudShell(Transform planet, Color color, float density)
+        /// you see from space). Density drives how much of the planet the cover hides; <paramref name="seed"/>
+        /// gives every body its own cloud pattern, and <paramref name="sunDir"/> lights the shell so its day
+        /// side reads bright and its night side dark (matching the planet's own terminator).</summary>
+        private void AddCloudShell(Transform planet, Color color, float density, int seed, Vector3 sunDir)
         {
             if (density <= 0.001f)
             {
@@ -4136,11 +4140,18 @@ namespace BlocksBeyondTheStars.Client
             shell.transform.localScale = Vector3.one * 1.035f; // just above the surface
 
             var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-            var mat = new Material(shader) { mainTexture = CloudCoverTexture(density) };
+            var mat = new Material(shader) { mainTexture = CloudCoverTexture(density, seed) };
             mat.renderQueue = 3000;
             var c = color;
             c.a = Mathf.Clamp01(0.55f + density * 0.4f);
             mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(c));
+            // Day/night terminator: the shell uses its real sphere normal (not the billboard UV bulge).
+            var shade = color * 0.25f;
+            shade.a = c.a;
+            mat.SetColor(Shader.PropertyToID("_ShadeColor"), ShaderColor.Srgb(shade));
+            mat.SetVector(Shader.PropertyToID("_CloudSunDir"), sunDir.sqrMagnitude > 1e-4f ? sunDir.normalized : Vector3.up);
+            mat.SetFloat(Shader.PropertyToID("_SunShade"), 1f);
+            mat.SetFloat(Shader.PropertyToID("_Bulge"), 0f);
 
             var mr = shell.GetComponent<Renderer>();
             mr.sharedMaterial = mat;
@@ -4149,8 +4160,9 @@ namespace BlocksBeyondTheStars.Client
             _cloudShells.Add(shell.transform);
         }
 
-        /// <summary>A wrapping cloud-cover tile: white patches with alpha gaps, coverage set by density.</summary>
-        private static Texture2D CloudCoverTexture(float density)
+        /// <summary>A wrapping cloud-cover tile: fractal (fBm) patches with alpha gaps, coverage set by density,
+        /// pattern set by <paramref name="seed"/>. Seamless because the noise lattice wraps per octave.</summary>
+        private static Texture2D CloudCoverTexture(float density, int seed)
         {
             const int n = 128;
             var tex = new Texture2D(n, n, TextureFormat.RGBA32, true)
@@ -4159,19 +4171,15 @@ namespace BlocksBeyondTheStars.Client
                 filterMode = FilterMode.Bilinear,
             };
 
-            // Sum a few sine bands (seamless across the wrap) into a soft field, then threshold by density.
-            float threshold = Mathf.Lerp(0.85f, 0.30f, Mathf.Clamp01(density));
+            float threshold = Mathf.Lerp(0.72f, 0.28f, Mathf.Clamp01(density));
             var px = new Color[n * n];
             for (int y = 0; y < n; y++)
             {
                 for (int x = 0; x < n; x++)
                 {
-                    float u = x / (float)n * Mathf.PI * 2f, v = y / (float)n * Mathf.PI * 2f;
-                    float f = 0.5f
-                        + 0.25f * Mathf.Sin(u * 3f + Mathf.Sin(v * 2f))
-                        + 0.15f * Mathf.Sin(v * 4f + Mathf.Cos(u * 3f))
-                        + 0.10f * Mathf.Sin((u + v) * 5f);
-                    float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((f - threshold) * 3f));
+                    float u = x / (float)n, v = y / (float)n;
+                    float f = TiledFbm(u, v, 3, seed);
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((f - threshold) * 3.5f));
                     px[y * n + x] = new Color(1f, 1f, 1f, a);
                 }
             }
@@ -4179,6 +4187,69 @@ namespace BlocksBeyondTheStars.Client
             tex.SetPixels(px);
             tex.Apply(true);
             return tex;
+        }
+
+        /// <summary>A small per-body cloud-shell colour jitter so two same-type planets read differently in
+        /// orbit (the colour analogue of the per-world surface cloud tint). Kept subtle and light so the shell
+        /// still stands out over the planet.</summary>
+        private static Color JitterCloudColor(Color c, int seed)
+        {
+            var rng = new System.Random(seed);
+            float J() => ((float)rng.NextDouble() - 0.5f) * 0.12f; // ~+-0.06
+            return new Color(
+                Mathf.Clamp01(c.r + J()),
+                Mathf.Clamp01(c.g + J()),
+                Mathf.Clamp01(c.b + J()),
+                c.a);
+        }
+
+        /// <summary>Stable per-body seed from its id/name so each planet's cloud shell pattern differs.</summary>
+        private static int CloudShellSeed(string key)
+        {
+            int h = 17;
+            foreach (char ch in key ?? string.Empty)
+            {
+                h = h * 31 + ch;
+            }
+
+            return h;
+        }
+
+        // --- Seamless (wrapping) value-noise fBm for the cloud-cover shell texture ---
+        private static float TiledFbm(float u, float v, int baseFreq, int seed)
+        {
+            float sum = 0f, amp = 0.5f;
+            int freq = baseFreq;
+            for (int o = 0; o < 4; o++)
+            {
+                sum += amp * TiledNoise(u * freq, v * freq, freq, seed + o * 97);
+                freq *= 2;
+                amp *= 0.5f;
+            }
+
+            return sum;
+        }
+
+        private static float TiledNoise(float x, float y, int period, int seed)
+        {
+            int xi = Mathf.FloorToInt(x), yi = Mathf.FloorToInt(y);
+            float xf = x - xi, yf = y - yi;
+            float u = xf * xf * (3f - 2f * xf), v = yf * yf * (3f - 2f * yf);
+            int x0 = ((xi % period) + period) % period, x1 = (x0 + 1) % period;
+            int y0 = ((yi % period) + period) % period, y1 = (y0 + 1) % period;
+            float v00 = Hash01(x0, y0, seed), v10 = Hash01(x1, y0, seed);
+            float v01 = Hash01(x0, y1, seed), v11 = Hash01(x1, y1, seed);
+            return Mathf.Lerp(Mathf.Lerp(v00, v10, u), Mathf.Lerp(v01, v11, u), v);
+        }
+
+        private static float Hash01(int x, int y, int seed)
+        {
+            unchecked
+            {
+                int h = x * 374761393 + y * 668265263 + seed * 982451653;
+                h = (h ^ (h >> 13)) * 1274126177;
+                return ((h ^ (h >> 16)) & 0xFFFF) / 65535f;
+            }
         }
 
         private static Color Rgb(int rgb)

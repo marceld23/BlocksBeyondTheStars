@@ -110,7 +110,8 @@ public sealed partial class GameServer
         // weather (no rain/storm) and no fog haze; only worlds with air (breathable/toxic) have weather.
         bool airless = (planet?.IsAirless ?? true) || _spaceSky;
         _planetWeatherMode = airless ? "clear" : (string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather);
-        _cloudColor = planet?.CloudColor ?? 0xEDEFF2;
+        // Base cloud tint comes from the planet type; the final per-world tint is derived below, once the
+        // per-world sky hue is known (so clouds can be kept distinct from THIS world's sky).
         _cloudDensity = airless ? 0f : (float)System.Math.Clamp(planet?.CloudDensity ?? 0.45, 0.0, 1.0);
         _biome = string.IsNullOrEmpty(_worlds.Active.PlanetType) ? "rock" : _worlds.Active.PlanetType;
         _oxygenExtractability = System.Math.Clamp(planet?.OxygenExtractability ?? 0.0, 0.0, 1.0);
@@ -135,6 +136,15 @@ public sealed partial class GameServer
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
         _skyColor = SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
+        // One seeded cloud tint per WORLD (not just per planet type), the colour analogue of the per-world sky
+        // hue: the planet-type base colour gets a small per-world jitter so two same-type worlds differ, then a
+        // contrast guarantee pushes it apart in brightness if it drifted too close to this world's sky — clouds
+        // must always read clearly against the sky. Seeded from LocationId ^ Seed with a salt so it doesn't
+        // track the sky hue. Airless bodies carry a value but show no clouds.
+        _cloudColor = CloudTint(
+            planet?.CloudColor ?? 0xEDEFF2,
+            _skyColor,
+            unchecked((uint)((StableStringHash(_world.LocationId) ^ (int)_meta.Seed) ^ 0x5F356495)));
         // One seeded gravity multiplier per WORLD: the body's size class sets the band (asteroids feather-light,
         // moons low, planets full + occasionally heavy) and the seed picks within it, so two same-size worlds
         // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).
@@ -511,5 +521,33 @@ public sealed partial class GameServer
         int r = (anchor >> 16) & 0xFF, g = (anchor >> 8) & 0xFF, b = anchor & 0xFF;
         int Jit(int shift) => (int)((h >> shift) & 0x1F) - 16; // -16..+15
         return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
+    }
+
+    /// <summary>A deterministic per-world cloud tint: the planet-type base colour plus a small per-world
+    /// jitter (so two same-type worlds differ), then a contrast guarantee — if the tint ended up too close to
+    /// <paramref name="skyRgb"/>, its brightness is pushed apart (lighter over a dark sky, greyer under a bright
+    /// one) so clouds always stand out from the sky, both in luminance and hue.</summary>
+    private static int CloudTint(int baseRgb, int skyRgb, uint h)
+    {
+        int r = (baseRgb >> 16) & 0xFF, g = (baseRgb >> 8) & 0xFF, b = baseRgb & 0xFF;
+        // Modest jitter: keeps the type's character (storm-grey ash, sandy desert) but makes each world unique.
+        int Jit(int shift) => (int)((h >> shift) & 0xF) - 8; // -8..+7
+        r = Clamp8b(r + Jit(2));
+        g = Clamp8b(g + Jit(7));
+        b = Clamp8b(b + Jit(12));
+
+        // Contrast guarantee: if cloud and sky are within ~64 units in RGB, separate them in brightness.
+        int sr = (skyRgb >> 16) & 0xFF, sg = (skyRgb >> 8) & 0xFF, sb = skyRgb & 0xFF;
+        int dr = r - sr, dg = g - sg, db = b - sb;
+        if (dr * dr + dg * dg + db * db < 64 * 64)
+        {
+            int skyLum = (sr * 299 + sg * 587 + sb * 114) / 1000;
+            int push = skyLum > 140 ? -60 : 60; // bright sky → darker (grey) cloud, dark sky → brighter cloud
+            r = Clamp8b(r + push);
+            g = Clamp8b(g + push);
+            b = Clamp8b(b + push);
+        }
+
+        return (r << 16) | (g << 8) | b;
     }
 }
