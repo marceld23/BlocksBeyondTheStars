@@ -17,7 +17,7 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ Temperature screen FX: cold frost + rain-on-glass beads + hot-world heat shimmer — ✅ client (2026-06-19, NEEDS Unity build)
+### ★ Temperature screen FX: cold frost + rain-on-glass beads + hot-world heat shimmer — ✅ client (2026-06-19, Unity-built, pushed `01ce012`+`b3255ec`)
 The display now reacts to the world's air. All client-side, driven by the authoritative `WorldEnvironment.Temperature`
 + atmosphere flags already broadcast every 5 s (no server/network change), atmosphere-gated like the auroras
 (`!SpaceSky`, sentinel `−999` guarded, `ExposedToSky`, not in space/menu):
@@ -28,11 +28,17 @@ The display now reacts to the world's air. All client-side, driven by the author
   sandstorm) water beads cling to the display, shimmer, then run down leaving a faint streak; storms bead bigger and
   run faster. Procedural glass-bead sprite (faint body + dark rim + highlight), `Resources/rain_droplet` override
   supported. Pure IMGUI — robust in both pipelines.
-- **Heat shimmer** (`HeatShimmer` + `HeatHaze.shader`) — on hot worlds (>38 °C) a camera-parented full-screen quad
-  re-displays the scene with a faint rising UV warp, **depth-faded so only the far field boils** (samples
-  `_CameraOpaqueTexture` + `_CameraDepthTexture`, both on in the URP asset). Global `_HeatAmp` driven from temperature;
-  the quad switches off when there's no heat so normal worlds pay nothing. URP only (Built-in subshader is a no-op).
-  New shader registered in the always-included list.
+- **Heat shimmer** (`HeatShimmer` + `HeatHaze.shader`) — on hot worlds (>38 °C, full ≥75 °C) a camera-parented
+  full-screen quad re-displays the scene with a faint rising UV warp, **depth-faded so only the far field boils**
+  (samples `_CameraOpaqueTexture` + `_CameraDepthTexture`, both on in the URP asset). Global `_HeatAmp` driven from
+  temperature; the quad switches off when there's no heat so normal worlds pay nothing. URP only (Built-in subshader
+  is a no-op). New shader registered in the always-included list.
+  - **Verified the gating holds:** plenty of worlds get hot enough — lava base **115 °C** (always full), ashen 70,
+    desert 44, salt_flats 40, savanna 32 on hot seeds. AND the distance fade is **tied to the actual fog/view
+    distance** (`_Sc_Fog` global), not a fixed metre count — the client default render distance is only
+    `ViewDistanceChunks=2` → ~32 m (fog by ~42 m), so a hard 56 m fade had buried the shimmer behind the fog wall
+    (`b3255ec`). Now it peaks where terrain is still visible at any view-distance setting. General rule for future
+    distance-keyed screen effects: scale to `_Sc_Fog`/renderDist, never hard metres.
 
 ### ★ Waterfalls: mist spray + visible streaming cascade where water falls > 3 blocks — ✅ client (2026-06-19, Unity-built)
 A tall drop of water looked flat and dead: the column's side faces were culled and there was no spray. All
