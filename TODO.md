@@ -17,6 +17,16 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Block-selection outline no longer flickers in mid-air — ✅ client (2026-06-20, NEEDS Unity build)
+The black aim/mining wireframe box flickered in the air while walking (noticed moving backwards): it was placed
+by a forward `Physics.Raycast`, so it snapped onto whatever collider the ray hit — a creature / parked ship /
+speeder hovering in the air, a just-mined cell whose `MeshCollider` had not re-baked yet, or it blinked off for a
+frame while a chunk collider was mid-rebuild (the same collider-desync the drill already avoids, B32). `MiningFx`
+now targets the cell with an Amanatides & Woo voxel march mirroring `PlayerController.AimTarget` (solid world
+block **or** a parked-ship cell, fluids passed through), reading the authoritative block data directly — so the
+box highlights exactly the block a mine/place click would hit and never sits where there is no targetable block.
+Client-only; no server / NetCodec change; .NET tests unaffected. NEEDS Unity build.
+
 ### ★ Micro-fauna ("Kleinstlebewesen"): tiny ambient critters that make planets feel alive — ✅ client + art (2026-06-20, NEEDS Unity build)
 A new category of *tiny, purely-cosmetic* creatures populates planets: fluttering **butterflies / moths /
 fireflies / bees / dragonflies / flies**, crawling **beetles / ants / caterpillars / worms / snails / spiders**,
