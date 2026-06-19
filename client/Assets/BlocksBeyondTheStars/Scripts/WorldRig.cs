@@ -306,6 +306,11 @@ namespace BlocksBeyondTheStars.Client
             var aurora = root.AddComponent<AuroraView>();
             aurora.Game = boot;
 
+            // Heat-haze shimmer on hot worlds: a depth-faded screen warp over the far field (URP only).
+            var heat = root.AddComponent<HeatShimmer>();
+            heat.Game = boot;
+            heat.Camera = cam;
+
             // Orbital bodies in the planet sky (moons/neighbour planets/landable asteroids — no stations),
             // each on its own deterministic per-planet sky cycle.
             var skyBodies = root.AddComponent<SkyBodiesView>();

@@ -17,6 +17,23 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Temperature screen FX: cold frost + rain-on-glass beads + hot-world heat shimmer — ✅ client (2026-06-19, NEEDS Unity build)
+The display now reacts to the world's air. All client-side, driven by the authoritative `WorldEnvironment.Temperature`
++ atmosphere flags already broadcast every 5 s (no server/network change), atmosphere-gated like the auroras
+(`!SpaceSky`, sentinel `−999` guarded, `ExposedToSky`, not in space/menu):
+- **Frost** (`WeatherFx`) — on cold AIR worlds, ice creeps in from the screen edges, alpha eased from 0 °C (none) to
+  −25 °C (full, capped). Drawn as a tinted edge-vignette: AI texture `Resources/frost_overlay.png` (generated, alpha
+  rebuilt to a clear centre) with a procedural crystalline fallback so it works even before art lands.
+- **Rain-on-glass beads** (`WeatherFx`) — during **real rain only** (never ashfall/"lava rain", snow, hail or
+  sandstorm) water beads cling to the display, shimmer, then run down leaving a faint streak; storms bead bigger and
+  run faster. Procedural glass-bead sprite (faint body + dark rim + highlight), `Resources/rain_droplet` override
+  supported. Pure IMGUI — robust in both pipelines.
+- **Heat shimmer** (`HeatShimmer` + `HeatHaze.shader`) — on hot worlds (>38 °C) a camera-parented full-screen quad
+  re-displays the scene with a faint rising UV warp, **depth-faded so only the far field boils** (samples
+  `_CameraOpaqueTexture` + `_CameraDepthTexture`, both on in the URP asset). Global `_HeatAmp` driven from temperature;
+  the quad switches off when there's no heat so normal worlds pay nothing. URP only (Built-in subshader is a no-op).
+  New shader registered in the always-included list.
+
 ### ★ Waterfalls: mist spray + visible streaming cascade where water falls > 3 blocks — ✅ client (2026-06-19, Unity-built)
 A tall drop of water looked flat and dead: the column's side faces were culled and there was no spray. All
 client-side, inferred from block ids (no server/network change, works on old saves like the water-surface look):
