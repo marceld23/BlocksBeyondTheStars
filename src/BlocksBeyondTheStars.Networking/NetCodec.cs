@@ -261,6 +261,10 @@ public static class NetCodec
         Register(165, typeof(RefuelSpeederIntent));      // Client -> Server (refuel from an energy cell)
         Register(166, typeof(SpeederImpactIntent));      // Client -> Server (hard collision → server-side damage)
         Register(167, typeof(SpeederFx));                // Server -> Client (deploy shimmer / destruction burst)
+
+        // /bump bug report carrying a screenshot (client -> server). The text-only /bump still arrives as a
+        // ChatIntent the server intercepts; this variant additionally ships a JPG screenshot.
+        Register(168, typeof(BumpReport));               // Client -> Server (bug report + optional screenshot)
     }
 
     private static void Register(byte tag, Type type)

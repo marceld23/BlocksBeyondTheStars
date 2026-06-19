@@ -32,6 +32,9 @@ client/*.sln
 client/.vsconfig
 *.csproj.user
 
+# Test / coverage artifacts (reproduce via scripts/test-coverage.ps1)
+TestResults/
+
 # Savegames / runtime data
 saves/
 *.db
@@ -39,6 +42,9 @@ saves/
 *.db-wal
 logs/
 backups/
+
+# /bump bug reports written when the server runs from inside the repo (dev only).
+/bugreports/
 
 # Local planning / requirement specs (kept out of the repo by request)
 plans/

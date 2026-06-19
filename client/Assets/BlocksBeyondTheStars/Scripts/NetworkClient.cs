@@ -202,6 +202,11 @@ namespace BlocksBeyondTheStars.Client
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
         public void SendChat(string text) => Send(new ChatIntent { Text = text });
 
+        /// <summary>Sends a <c>/bump</c> bug report with an optional in-game screenshot (JPG bytes). The server
+        /// persists a rich snapshot of the reporter's situation and writes the image alongside it.</summary>
+        public void SendBumpReport(string description, byte[] image)
+            => Send(new BumpReport { Description = description ?? string.Empty, Image = image ?? Array.Empty<byte>() });
+
         // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).
         public void SendAdminCommand(string command, string stringArg = null, int intArg = 0,
             string targetPlayer = null, float x = 0f, float y = 0f, float z = 0f)

@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **678 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **683 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -16,6 +16,24 @@ code (no scene authoring). One shared world; contractless MessagePack networking
 world-gen; SQLite persistence.
 
 ---
+
+### ★ /bump bug reports now carry a screenshot + land in the repo when run from source — ✅ server + client + tests (2026-06-19, libs synced, NEEDS Unity build)
+The `/bump <text>` debug command already persisted a rich JSON snapshot (player/env/ship/surroundings + 30 s
+history); it gained a screenshot and a smarter output location:
+- **Screenshot** — new `BumpReport` message (NetCodec id 168: description + JPG `byte[]`, ReliableOrdered).
+  `ChatUi` intercepts `/bump`, captures the screen at end-of-frame with the **chat overlay hidden** (HUD kept),
+  downscales to ≤1600 px and JPG-encodes (q70), then `NetworkClient.SendBumpReport`. If capture fails it falls
+  back to the old text `/bump` so a JSON-only snapshot is still written. Server `HandleBumpReport` writes the
+  `.jpg` beside the `.json` (same stem, referenced via a `screenshot` field), caps images at 2 MB, rate-limits
+  like chat.
+- **Output location** — new pure `BugReportPaths.Resolve`: when the server runs from **inside the repo**
+  (client build under `./client/Build/Windows/…` or the Unity Editor → its exe sits in the working tree), it
+  walks up from `AppContext.BaseDirectory` for a `.git`/`.sln` marker and writes reports to
+  `<repoRoot>/bugreports/server/`; otherwise it keeps the old per-world `<world>/bumps/` (under %appdata%).
+  Filenames are now `bump_<world>_<utc>_<NNN>.{json,jpg}` (collision-safe in the shared dev folder).
+  `/bugreports/` added to `.gitignore`.
+- New `BugReportPathsTests` (repo detection by `.git` + `.sln`, both branches) and an extended `BumpTests`
+  (screenshot variant writes the JPG + references it in the JSON). 683 tests green.
 
 ### ★ Tree-trunk bark colour: per-world random, guaranteed darker than the leaves — ✅ client (2026-06-19, libs synced, NEEDS Unity build)
 Trunks (`wood_log`) were never tinted — they always showed the plain bark texture while leaves recolour per

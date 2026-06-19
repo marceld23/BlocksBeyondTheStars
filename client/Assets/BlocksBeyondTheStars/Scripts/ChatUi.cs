@@ -97,7 +97,14 @@ namespace BlocksBeyondTheStars.Client
             if (enter)
             {
                 string t = text.Trim();
-                if (t.Length > 0 && !TryAdminCommand(t))
+                if (t.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // Bug report: grab a screenshot first, then send it with the description. The capture
+                    // runs next frame (after the chat box closes), so the input box stays out of the shot.
+                    string desc = t.Length > 5 ? t.Substring(5).Trim() : string.Empty;
+                    StartCoroutine(CaptureBumpAndSend(desc, t));
+                }
+                else if (t.Length > 0 && !TryAdminCommand(t))
                 {
                     Game.Network.SendChat(t);
                 }
@@ -108,6 +115,86 @@ namespace BlocksBeyondTheStars.Client
             _input.text = string.Empty;
             _inputRow.gameObject.SetActive(false);
             RefreshLog();
+        }
+
+        /// <summary>Captures an in-game screenshot (downscaled JPG) at the end of the frame — with the chat
+        /// overlay hidden, HUD kept — and sends it to the server as a <c>/bump</c> bug report. Falls back to a
+        /// plain text <c>/bump</c> (JSON-only snapshot) when the capture fails.</summary>
+        private System.Collections.IEnumerator CaptureBumpAndSend(string description, string rawCommand)
+        {
+            byte[] jpg = null;
+            bool canvasWasOn = _canvas != null && _canvas.enabled;
+            if (_canvas != null)
+            {
+                _canvas.enabled = false; // keep the chat overlay out of the shot; other HUD canvases remain
+            }
+
+            yield return new WaitForEndOfFrame();
+
+            try
+            {
+                var shot = ScreenCapture.CaptureScreenshotAsTexture();
+                try
+                {
+                    jpg = EncodeDownscaledJpg(shot, 1600, 70);
+                }
+                finally
+                {
+                    Destroy(shot);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Bump screenshot failed: {e.Message}");
+            }
+
+            if (_canvas != null)
+            {
+                _canvas.enabled = canvasWasOn;
+            }
+
+            if (Game?.Network == null)
+            {
+                yield break;
+            }
+
+            if (jpg != null && jpg.Length > 0)
+            {
+                Game.Network.SendBumpReport(description, jpg);
+            }
+            else
+            {
+                Game.Network.SendChat(rawCommand); // fallback: server still writes the snapshot, just no image
+            }
+        }
+
+        /// <summary>JPG-encodes a screenshot, downscaled so its longest side is at most <paramref name="maxDim"/>
+        /// (keeping packet/disk size modest). Returns the encoded bytes.</summary>
+        private static byte[] EncodeDownscaledJpg(Texture2D src, int maxDim, int quality)
+        {
+            int w = src.width, h = src.height;
+            float scale = Mathf.Min(1f, (float)maxDim / Mathf.Max(w, h));
+            int tw = Mathf.Max(1, Mathf.RoundToInt(w * scale));
+            int th = Mathf.Max(1, Mathf.RoundToInt(h * scale));
+
+            if (tw == w && th == h)
+            {
+                return ImageConversion.EncodeToJPG(src, quality);
+            }
+
+            var rt = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB32);
+            var prev = RenderTexture.active;
+            Graphics.Blit(src, rt);
+            RenderTexture.active = rt;
+            var small = new Texture2D(tw, th, TextureFormat.RGB24, false);
+            small.ReadPixels(new Rect(0, 0, tw, th), 0, 0);
+            small.Apply();
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+
+            byte[] jpg = ImageConversion.EncodeToJPG(small, quality);
+            UnityEngine.Object.Destroy(small);
+            return jpg;
         }
 
         /// <summary>

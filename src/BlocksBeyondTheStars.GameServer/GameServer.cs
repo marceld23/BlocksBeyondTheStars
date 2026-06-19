@@ -1436,6 +1436,7 @@ public sealed partial class GameServer
             case ShapeCraftIntent shapeIntent: HandleShapeCraft(session, shapeIntent); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case ChatIntent chat: HandleChat(session, chat); break;
+            case BumpReport bump: HandleBumpReport(session, bump); break;
             case RequestStarMap: SendStarMap(session); break;
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case TractorPullIntent pull: HandleTractorPull(session, pull); break;

@@ -368,11 +368,17 @@ planets get the ore: any / airless / with-atmosphere / single-biome / multi-biom
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
   radio** in your inventory; messages are rate-limited and length-capped.
 
-### `/bump` — debug snapshot (any player, no radio needed)
+### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump <description of the problem>`
 - Writes a detailed JSON snapshot of your current situation (player state, environment, nearby
-  blocks/creatures/players, ship status, and a 30-second history) to the world's `bumps/` folder. The
-  server replies with the saved filename. Use it to capture a bug in the moment.
+  blocks/creatures/players, ship status, and a 30-second history) **plus a screenshot** of the moment
+  (the chat box is hidden for the shot; the HUD stays). The server replies with the saved filename. Use
+  it to capture a bug in the moment.
+- **Where it's saved:** when the game runs from inside the project source tree (a developer build under
+  `client/Build/Windows/…` or the Unity Editor), reports go to the repository's `bugreports/server/`
+  folder so they sit next to the code. In a normal installed build they go to the world's `bumps/` folder
+  (under your save data) as before. Each report is a `bump_<world>_<timestamp>_<n>.json` with a matching
+  `.jpg` screenshot beside it.
 
 ### Admin cheats (world admin / admin only)
 Type these **in the chat box** (Enter to open). They are **server-authoritative** and gated twice: the
@@ -415,8 +421,9 @@ Two ways to test the finale:
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
 option until the core concedes and shuts down.
 
-The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` stays a normal chat
-message the server intercepts. Non-admins typing a command just get a rejection toast.
+The client parses these slash-commands and sends an `AdminCommandIntent`; `/bump` is special — the client
+captures a screenshot and sends it as a `BumpReport` (falling back to a plain chat message the server
+intercepts if the screenshot fails). Non-admins typing a command just get a rejection toast.
 
 ---
 

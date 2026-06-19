@@ -1350,6 +1350,18 @@ public sealed class ChatIntent
     public string Text { get; set; } = string.Empty;
 }
 
+/// <summary>A <c>/bump</c> bug report (client→server): a free-text description plus an optional in-game
+/// screenshot (JPG bytes). The server persists a rich JSON snapshot of the reporter's situation and writes
+/// the screenshot alongside it. Works without a comm radio; intercepted before the chat gate.</summary>
+public sealed class BumpReport
+{
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>JPG-encoded screenshot, or empty when the client could not capture one (the server then
+    /// falls back to a snapshot without an image).</summary>
+    public byte[] Image { get; set; } = System.Array.Empty<byte>();
+}
+
 /// <summary>A broadcast chat line (server→clients).</summary>
 public sealed class ChatMessage
 {
