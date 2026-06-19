@@ -50,6 +50,14 @@ client/Assets/Plugins.meta
 client/Assets/StreamingAssets/
 client/Assets/StreamingAssets.meta
 
+# Build-script scratch logs + markers (scripts/_*.log, scripts/_lastbuild.txt, ...)
+scripts/_*.log
+scripts/_*.txt
+
+# Python bytecode (tools/)
+__pycache__/
+*.pyc
+
 # OS
 Thumbs.db
 .DS_Store
