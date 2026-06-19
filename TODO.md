@@ -17,6 +17,50 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Backlog reconciled against the memory audit — deferred plans + missing entries logged (2026-06-19)
+A full pass over the project memory notes against this file surfaced work that had been analysed/decided or
+even shipped but never written into the backlog. Logged here so nothing is lost. (Pure lessons/reference and
+already-tracked features are not repeated; a few stale memory notes — music 20-track, sci-fi-look "not
+implemented", movement-overhaul body — are TODO-correct and only need memory cleanup, not a TODO entry.)
+
+**Deferred plans — analysed/decided, NOT implemented (open backlog):**
+- **Per-world seeded gravity** — size-class base + jitter (f≈0.35–1.6) scaling jump (always ≥1 block via a
+  targetH floor), walk speed (6/√f), jetpack thrust and fall damage. Client-side `PlayerController` scaling,
+  no save migration; mirror the `SkyColor` server→client wiring. *(analysis + decisions done, not started)*
+- **Optional playtime display + break reminder** — client realtime session timer + per-save cumulative
+  playtime (`WorldMetadata`, shown in the saves list) + a repeating Vega "take a break" reminder; 3
+  `ClientSettings`/`UiSettings` toggles. *(planned, not started)*
+- **Center the on-foot controls hint under the hotbar** — `HudUi.cs` hint anchor `MiddleLeft`→`MiddleCenter`
+  (the space HUD is already centered). One-line UI fix. *(planned, not started)*
+- **Auto language detection (game side)** — pick DE/EN from the OS on first run in `ClientSettings.Load`
+  (`Application.systemLanguage`, first-run only, no retroactive flip). The launcher already does this; only the
+  game is open. *(planned, not started)*
+- **Localize the launcher splash** — read the "Loading…"/"Lädt…" string (`ui.loading.title`) from the game's
+  own locale file driven by the in-game chosen language (`client_settings.json`), instead of the hardcoded
+  `SplashForm.cs` text / OS culture. Pairs with auto-language-detection. *(decided, not implemented)*
+
+**Shipped but never logged here:**
+- **Tab availability dimming** — ✅ code (2026-06-19, NEEDS Unity build): menu tabs whose context isn't met
+  (Map=aboard, Crafting=workshop, Tech=lab, Ship=console) are dimmed-but-clickable via `IsTabAvailable` +
+  `BuildHeader`; Map travel buttons disabled when not aboard (client-only gate; server still allows on-foot
+  travel). `ui.map.need_ship` key; ContentTests 10/10.
+- **Landing fly-away animation** — ✅ committed (`a6da709`, fixed `fefc6e5`): the "ship sinks down" landing
+  replaced with a fly-toward-planet shrink in `SpaceView` (`BeginLandingFlyAway` + landing branch of
+  `UpdateSequence`, re-timed fade). The follow-up fix corrects the "flew straight down" report: the target body
+  resolves to `_choosePadBody`, else the landable most directly ahead of the nose (never defaults to down); the
+  ship orients its nose onto the body; and the camera now holds its position but **turns to follow** the receding
+  ship so it stays centred while it shrinks toward the planet/asteroid ahead. LookRotation up-hints guard the
+  near-vertical-dive flip for both ship and camera. Build-verified.
+
+**Small follow-ups surfaced:**
+- **Station flora see-through — P4 hardening** — close the residual grass-into-space: harden the structure
+  stamp path (`FromTemplate` / `StampPlayerStation`) with flora-enclosure checks + ledge-hole closure, and
+  re-clear persisted pre-fix station worlds (the P1–P3 procedural guard doesn't touch already-stamped worlds).
+- **Graphics quick-wins — commit/playtest status** — the URP MSAA/HDR/shadow/SSAO tuning was applied in the
+  asset; confirm it's committed + playtested (SSAO After-Opaque behaviour; dye/coloured-lights still correct).
+- **River floating-water fix** — ✅ committed (`0ea6175`, server-only, 648 tests): rivers carved flush with no
+  slope gate via shared `SurfaceSlope` + `RiverDepthAt` (previously only folded under the water-life entry).
+
 ### ★ Temperature screen FX: cold frost + rain-on-glass beads + hot-world heat shimmer — ✅ client (2026-06-19, Unity-built, pushed `01ce012`+`b3255ec`)
 The display now reacts to the world's air. All client-side, driven by the authoritative `WorldEnvironment.Temperature`
 + atmosphere flags already broadcast every 5 s (no server/network change), atmosphere-gated like the auroras
@@ -3847,6 +3891,9 @@ Client-only. *Playtest wanted.*
   motion makes sense (point the descent/ascent along the planet direction). Where: the space-view landing/launch
   sequence in `SpaceView` (the `Phase.Landing` descent + the launch/take-off path) + how the planet body is
   positioned relative to the ship in that view. Medium; (a) is the clearer bug, (b) is a polish/orientation pass.
+  - **✅ UPDATE (2026-06-19, `a6da709`):** the **landing** half of (b) is resolved — landing now flies the ship
+    toward the planet (shrinking) via `BeginLandingFlyAway` instead of sinking straight down (see the memory-audit
+    entry up top). The **take-off** half + the (a) skip-launch investigation remain open.
   **(a) FIXED 2026-06-08:** the ship interior is **only ever entered from a space instance** (`EnterShipInterior`
   requires one), so launching to space from there must always skip the take-off. The client already shows the
   **helm** there (skips), but the server's `EnterSpaceIntent` handler (`HandleEnterSpace`) always used
