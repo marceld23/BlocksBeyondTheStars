@@ -132,6 +132,13 @@ internal sealed class LoadedWorld
     public double AtmosphereHeight { get; set; }
     public double AtmosphereDensity { get; set; }
     public System.Random EnvRng { get; set; } = new(1);
+
+    /// <summary>This body's size class (asteroid/moon/planet), set on load — seeds the per-world gravity band.</summary>
+    public WorldConstants.WorldSizeClass SizeClass { get; set; } = WorldConstants.WorldSizeClass.Planet;
+
+    /// <summary>This world's seeded gravity multiplier (1.0 = baseline). Sent to clients in
+    /// <see cref="WorldEnvironment.GravityFactor"/>; scales jump/walk/jetpack/fall on the client.</summary>
+    public float GravityFactor { get; set; } = 1.0f;
 }
 
 /// <summary>One player's ship PARKED on a world as a placed voxel structure OBJECT (ship-as-object — the

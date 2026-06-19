@@ -34,6 +34,18 @@ namespace BlocksBeyondTheStars.Client
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
 
+        // --- Per-world gravity ---
+        // The movement fields above are the BASELINE (1.0× gravity). These are the live values actually used by
+        // Move()/ApplyGravityOnly(), recomputed from this world's WorldEnvironment.GravityFactor: lighter worlds
+        // jump higher and walk faster, heavier worlds jump only ~1 block and walk slower. A ≥1-block jump is
+        // always preserved, and jetpack net-thrust + safe fall distance stay constant so nothing breaks.
+        private float _gFactor = 1f;           // last applied factor (only redo the maths when it moves)
+        private float _effGravity = 20f;       // live gravity accel
+        private float _effJumpSpeed = 7f;      // live jump impulse (sized to clear the target jump height)
+        private float _effMoveSpeed = 6f;      // live walk speed
+        private float _effJetpackAccel = 26f;  // live jetpack accel (net thrust kept constant vs gravity)
+        private float _effSafeFallSpeed = 14f; // live fall-damage threshold (keeps ~constant fall distance)
+
         /// <summary>Comfort toggle (settings): head bob + FOV kick + impact shake. Off = steady camera.</summary>
         public bool CameraMotion = true;
         public bool ThirdPerson = false;
@@ -135,6 +147,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            RecomputeGravity(); // keep the live movement constants in step with this world's gravity factor
+
             // On travel the world is rebuilt at a new location: re-run the spawn snap there.
             if (Game != null && Game.WorldEpoch != _lastWorldEpoch)
             {
@@ -1019,7 +1033,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                _verticalVelocity -= Gravity * Time.deltaTime;
+                _verticalVelocity -= _effGravity * Time.deltaTime;
             }
 
             _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
@@ -1217,11 +1231,44 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>Recompute the live movement constants from this world's gravity multiplier (sent in
+        /// <see cref="WorldEnvironment.GravityFactor"/>). Lighter worlds → higher jumps + faster walk; heavier
+        /// worlds → still ≥1-block jumps but slower walk + faster falls. Jetpack net thrust and the safe fall
+        /// distance are held constant so nothing breaks at the extremes. Cheap: the trig only runs when the
+        /// factor actually changes (once per world, not per frame).</summary>
+        private void RecomputeGravity()
+        {
+            float f = Game?.Environment != null ? Game.Environment.GravityFactor : 1f;
+            if (f <= 0.05f) f = 1f;          // guard a missing/zero value — fall back to the baseline
+            f = Mathf.Clamp(f, 0.2f, 2.5f);  // safety rails beyond the server's authored band
+            if (Mathf.Approximately(f, _gFactor)) return;
+            _gFactor = f;
+
+            _effGravity = Gravity * f;
+
+            // Jump: keep today's ~1.2-block jump as the FLOOR (so one block is always clearable) and let lighter
+            // worlds jump proportionally higher. targetHeight = baseHeight × max(1, 1/f); impulse = √(2·g·h).
+            float baseHeight = (JumpSpeed * JumpSpeed) / (2f * Gravity); // = 1.225 blocks at the inspector defaults
+            float targetHeight = baseHeight * Mathf.Max(1f, 1f / f);
+            _effJumpSpeed = Mathf.Sqrt(2f * _effGravity * targetHeight);
+
+            // Walk: lighter gravity → floatier, faster strides (1/√f), clamped so it never gets silly.
+            _effMoveSpeed = Mathf.Clamp(MoveSpeed / Mathf.Sqrt(f), MoveSpeed * 0.55f, MoveSpeed * 1.6f);
+
+            // Jetpack: preserve the baseline NET thrust (accel − gravity) so it still lifts under heavy gravity
+            // (a fixed 26 accel can't beat a >26 pull) and doesn't rocket away under light gravity.
+            _effJetpackAccel = _effGravity + (JetpackAccel - Gravity);
+
+            // Fall damage: scale the safe-impact speed by √f so the number of blocks you can fall unharmed stays
+            // about the same regardless of how fast this world accelerates you downward.
+            _effSafeFallSpeed = SafeFallSpeed * Mathf.Sqrt(f);
+        }
+
         private void Move()
         {
             float h = Input.GetAxis("Horizontal");
             float v = Input.GetAxis("Vertical");
-            Vector3 move = (transform.right * h + transform.forward * v) * MoveSpeed;
+            Vector3 move = (transform.right * h + transform.forward * v) * _effMoveSpeed;
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
@@ -1243,7 +1290,7 @@ namespace BlocksBeyondTheStars.Client
                     ClientAudio.Instance?.Cue("jump", 0.6f);
                 }
 
-                _verticalVelocity = Input.GetButton("Jump") ? JumpSpeed : -1f;
+                _verticalVelocity = Input.GetButton("Jump") ? _effJumpSpeed : -1f;
             }
             else if (Game != null && Game.OnFootInSpace)
             {
@@ -1255,14 +1302,14 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                _verticalVelocity -= Gravity * Time.deltaTime;
+                _verticalVelocity -= _effGravity * Time.deltaTime;
 
                 // Jetpack: hold Jump in the air to thrust upward (needs the item + suit energy). The server
                 // drains energy on the reported state and forces it off when empty (SuitEnergy then hits 0).
                 if (Input.GetButton("Jump") && CanJetpack())
                 {
                     jetpacking = true;
-                    _verticalVelocity += JetpackAccel * Time.deltaTime;
+                    _verticalVelocity += _effJetpackAccel * Time.deltaTime;
                     if (_verticalVelocity > JetpackMaxRise)
                     {
                         _verticalVelocity = JetpackMaxRise;
@@ -1303,7 +1350,7 @@ namespace BlocksBeyondTheStars.Client
                 // A hard landing hurts: report the impact speed so the server (which owns health) applies
                 // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Water breaks
                 // the fall (you enter the swim branch instead of becoming grounded), so no splash damage.
-                if (-prevVy > SafeFallSpeed)
+                if (-prevVy > _effSafeFallSpeed)
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
                 }

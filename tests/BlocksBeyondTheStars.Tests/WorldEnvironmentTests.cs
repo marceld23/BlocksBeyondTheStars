@@ -106,6 +106,19 @@ public sealed class WorldEnvironmentTests : IDisposable
         }
     }
 
+    [Fact]
+    public void GravityFactor_IsSeededInTheAuthoredBand()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // Every world gets a seeded gravity multiplier from its size class band (asteroid 0.35..0.55,
+            // moon 0.55..0.85, planet 0.80..1.60). It must be a real positive value inside the overall range —
+            // the client scales jump/walk/jetpack/fall from it, so a 0 (missing) would break movement.
+            Assert.InRange(server.GravityFactor, 0.35f, 1.60f);
+        }
+    }
+
     public void Dispose()
     {
         try

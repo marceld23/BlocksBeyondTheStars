@@ -747,7 +747,12 @@ namespace BlocksBeyondTheStars.Client
             float secs = frac * Mathf.Max(1f, env.DayLengthSeconds);
             int mm = Mathf.FloorToInt(secs / 60f), ss = Mathf.FloorToInt(secs % 60f);
             string tempStr = env.Temperature <= -900f || Game.OnFootInSpace ? "—" : $"{Mathf.RoundToInt(env.Temperature)}°C";
-            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}";
+            // Show this world's gravity (e.g. "0.6 g") only when it notably differs from Earth-like, so normal
+            // worlds stay uncluttered. Hidden in space (on-foot zero-g) where gravity doesn't apply.
+            string gravStr = env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
+                ? "  " + string.Format(loc.Get("ui.hud.gravity"), env.GravityFactor.ToString("0.0"))
+                : string.Empty;
+            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{gravStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
         }
 

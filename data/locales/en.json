@@ -396,6 +396,7 @@
   "ui.hud.energy": "Energy",
   "ui.hud.hunger": "Hunger",
   "ui.hud.breathable": "breathable",
+  "ui.hud.gravity": "{0} g",
   "mission.settlement.gather.title": "Settlement Supply Request",
   "mission.settlement.gather.desc": "Deliver the requested resources to the settlement's mission board for a reward.",
   "ui.hud.hint": "WASD move · LMB mine · RMB place · 1-9 hotbar · F attack · G loot · R repair · L lamp · M map · Enter chat · E use · V view · Tab menu · Esc quit",

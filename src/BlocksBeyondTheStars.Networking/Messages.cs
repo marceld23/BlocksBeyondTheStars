@@ -1478,6 +1478,12 @@ public sealed class WorldEnvironment
 
     /// <summary>Active planet/biome key (e.g. "jungle", "desert", "ice", "lava") for client ambience.</summary>
     public string Biome { get; set; } = "rock";
+
+    /// <summary>This world's gravity multiplier (1.0 = Earth-like baseline). Seeded per world from its size class
+    /// (asteroids feather-light, moons low, planets full — occasionally heavy), so worlds feel physically
+    /// different. The client scales jump height, walk speed, jetpack thrust and the fall-damage threshold from
+    /// it; a ≥1-block jump is always preserved (lighter worlds jump higher, heavier worlds walk slower).</summary>
+    public float GravityFactor { get; set; } = 1.0f;
 }
 
 /// <summary>

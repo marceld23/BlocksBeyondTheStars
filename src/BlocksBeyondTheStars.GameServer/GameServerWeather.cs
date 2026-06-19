@@ -63,6 +63,7 @@ public sealed partial class GameServer
     private double _oxygenExtractability { get => _worlds.Active.OxygenExtractability; set => _worlds.Active.OxygenExtractability = value; }
     private double _atmosphereHeight { get => _worlds.Active.AtmosphereHeight; set => _worlds.Active.AtmosphereHeight = value; }
     private double _atmosphereDensity { get => _worlds.Active.AtmosphereDensity; set => _worlds.Active.AtmosphereDensity = value; }
+    private float _gravityFactor { get => _worlds.Active.GravityFactor; set => _worlds.Active.GravityFactor = value; }
     private System.Random _envRng { get => _worlds.Active.EnvRng; set => _worlds.Active.EnvRng = value; }
 
     // Public accessors (HUD / tests).
@@ -87,6 +88,9 @@ public sealed partial class GameServer
 
     /// <summary>Whether this body shows a space sky (black + stars) on the surface (landable asteroids).</summary>
     public bool SpaceSky => _spaceSky;
+
+    /// <summary>This world's seeded gravity multiplier (1.0 = baseline) — test seam.</summary>
+    public float GravityFactor => _gravityFactor;
 
     /// <summary>Absolute Y above which an on-foot player is in space (item 10); 0 = no atmosphere line here.</summary>
     public double AtmosphereHeight => _atmosphereHeight;
@@ -131,6 +135,10 @@ public sealed partial class GameServer
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
         _skyColor = SkyHue(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
+        // One seeded gravity multiplier per WORLD: the body's size class sets the band (asteroids feather-light,
+        // moons low, planets full + occasionally heavy) and the seed picks within it, so two same-size worlds
+        // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).
+        _gravityFactor = GravityFor(_worlds.Active.SizeClass, unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
 
         // Fixed-weather planets: lock the state; dynamic ones start clear.
         _weatherState = _planetWeatherMode switch
@@ -242,7 +250,24 @@ public sealed partial class GameServer
             Breathable = _breathable,
             SpaceSky = _spaceSky,
             Biome = _biome,
+            GravityFactor = _gravityFactor,
         };
+    }
+
+    /// <summary>One seeded per-world gravity multiplier (1.0 = baseline). A body's size class sets the band —
+    /// asteroids feather-light, moons low, planets full and sometimes heavy — and the seed picks within it, so
+    /// two same-size worlds still differ. Range spans ~0.35..1.6 across all classes.</summary>
+    private static float GravityFor(WorldConstants.WorldSizeClass cls, uint h)
+    {
+        (float lo, float hi) = cls switch
+        {
+            WorldConstants.WorldSizeClass.Asteroid => (0.35f, 0.55f),
+            WorldConstants.WorldSizeClass.Moon => (0.55f, 0.85f),
+            _ => (0.80f, 1.60f),
+        };
+        // Salt the hash (so gravity isn't correlated with the sky/flora hues seeded from the same id ^ seed).
+        float t = ((h ^ 0x9E3779B9u) & 0xFFFFu) / 65535f;
+        return lo + t * (hi - lo);
     }
 
     /// <summary>Air temperature (°C): the planet-type base + a per-world seeded variation (so there are

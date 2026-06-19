@@ -310,6 +310,7 @@ public sealed partial class GameServer
         int circumference = WorldConstants.CircumferenceFor(locationId, sizeClass);
 
         var world = _worlds.GetOrCreate(planet, locationId, circumference, out bool isNew);
+        world.SizeClass = sizeClass; // remembered for the per-world gravity band seeded in InitWeather
         _generator.SetCircumference(world.World.Circumference); // active world's size for direct gen queries
         // Airless MOONS get cratered regolith too (item 33) — even when their planet type normally has air on a
         // full planet. The asteroid type carries Cratered in data, so it's handled by the planet type itself.

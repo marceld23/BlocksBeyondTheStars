@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **670 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **671 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -26,7 +26,10 @@ implemented", movement-overhaul body — are TODO-correct and only need memory c
 **Deferred plans — analysed/decided, NOT implemented (open backlog):**
 - **Per-world seeded gravity** — size-class base + jitter (f≈0.35–1.6) scaling jump (always ≥1 block via a
   targetH floor), walk speed (6/√f), jetpack thrust and fall damage. Client-side `PlayerController` scaling,
-  no save migration; mirror the `SkyColor` server→client wiring. *(analysis + decisions done, not started)*
+  no save migration; mirror the `SkyColor` server→client wiring. *(IMPLEMENTED 2026-06-19, 671 tests, libs
+  synced, NEEDS Unity build: `WorldEnvironment.GravityFactor` seeded per world in `GameServerWeather`
+  (`GravityFor` band by `WorldSizeClass`); `PlayerController.RecomputeGravity` scales gravity/jump/walk/
+  jetpack-net-thrust/fall-threshold; HUD shows "0.6 g" via `ui.hud.gravity`)*
 - **Optional playtime display + break reminder** — client realtime session timer + per-save cumulative
   playtime (`WorldMetadata`, shown in the saves list) + a repeating Vega "take a break" reminder; 3
   `ClientSettings`/`UiSettings` toggles. *(planned, not started)*
