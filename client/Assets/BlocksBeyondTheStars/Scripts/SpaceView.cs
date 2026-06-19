@@ -642,21 +642,17 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Snapshots the vantage the landing descent is watched from: the camera is frozen here while the
-        /// ship flies off toward the planet, so it shrinks into the distance instead of sinking in-frame.</summary>
+        /// <summary>Snapshots the descent: the ship flies off toward the body it's landing on (the one ahead of
+        /// the nose) and the camera tracks it from a fixed vantage, so it shrinks into the distance — centred —
+        /// instead of sliding straight down out of frame.</summary>
         private void BeginLandingFlyAway()
         {
-            if (Camera != null)
-            {
-                _landCamPos = Camera.transform.localPosition;
-                _landCamRot = Camera.transform.localRotation;
-            }
-
             _landShipStart = _ship != null ? _ship.transform.localPosition : Vector3.zero;
+            Vector3 fwd = _ship != null ? _ship.transform.forward : Vector3.forward;
 
-            // Fly toward the body being landed on (_choosePadBody — empty id = the home body we launched from),
-            // with a fixed fallback matching BuildSystemBodies; aim a touch short of the centre so the hull dives
-            // at the surface rather than through the core.
+            // The body we're heading for. First choice: the pad-chooser's body (_choosePadBody; empty id = the
+            // home body we launched from). If that can't be resolved, pick whichever landable lies most directly
+            // ahead of the nose — "the planet/asteroid in front of the ship" — so we never default to straight down.
             Vector3 dest = new Vector3(0f, -150f, -20f);
             string destId = _choosePadBody ?? string.Empty;
             bool found = false;
@@ -672,17 +668,33 @@ namespace BlocksBeyondTheStars.Client
 
             if (!found)
             {
+                float bestDot = -2f;
                 foreach (var b in _landables)
                 {
-                    if (string.IsNullOrEmpty(b.Id))
+                    Vector3 to = b.Pos - _landShipStart;
+                    if (to.sqrMagnitude < 0.0001f)
                     {
+                        continue;
+                    }
+
+                    float dot = Vector3.Dot(to.normalized, fwd);
+                    if (dot > bestDot)
+                    {
+                        bestDot = dot;
                         dest = b.Pos;
-                        break;
+                        found = true;
                     }
                 }
             }
 
+            // Aim a touch short of the centre so the hull dives at the surface rather than through the core.
             _landTargetPos = Vector3.Lerp(_landShipStart, dest, 0.92f);
+
+            if (Camera != null)
+            {
+                _landCamPos = Camera.transform.localPosition;
+                _landCamRot = Camera.transform.localRotation;
+            }
         }
 
         private void UpdateSequence(bool rising)
@@ -691,8 +703,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (!rising)
             {
-                // Landing: fly the ship away toward the planet on an accelerating (ease-in) curve so it streaks
-                // off and dwindles. The camera stays put (PlaceCamera freezes it for this phase).
+                // Landing: fly the ship away toward the body on an accelerating (ease-in) curve so it streaks off
+                // and dwindles. The camera holds position but turns to follow it (PlaceCamera), keeping it centred.
                 float lt = Mathf.Clamp01(_seq / LandDuration);
                 float lease = lt * lt;
                 if (_ship != null)
@@ -702,9 +714,11 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 dir = _landTargetPos - pos;
                     if (dir.sqrMagnitude > 0.0001f)
                     {
-                        // The dive is almost straight down, so Vector3.up would be (nearly) anti-parallel to the
-                        // heading and make LookRotation flip; use Vector3.forward as a stable up hint instead.
-                        _ship.transform.localRotation = Quaternion.LookRotation(dir.normalized, Vector3.forward);
+                        // Point the nose at the body. A near-vertical dive would make Vector3.up (anti-)parallel to
+                        // the heading and flip LookRotation, so fall back to Vector3.forward as the up hint then.
+                        Vector3 nd = dir.normalized;
+                        Vector3 up = Mathf.Abs(nd.y) > 0.95f ? Vector3.forward : Vector3.up;
+                        _ship.transform.localRotation = Quaternion.LookRotation(nd, up);
                     }
                 }
 
@@ -2022,12 +2036,23 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Landing: hold the camera at the descent's start pose so the ship flies away and shrinks (instead of
-            // the camera chasing it down, which read as "sinking"). Cockpit view is forced to this too.
+            // Landing: keep the camera at the descent's start vantage but turn it to follow the receding ship, so
+            // the hull stays centred while it flies off toward the body and shrinks (instead of the camera chasing
+            // it down at a fixed offset, which read as "sinking"). Cockpit view is forced to this too.
             if (_phase == Phase.Landing)
             {
                 Camera.transform.localPosition = _landCamPos;
-                Camera.transform.localRotation = _landCamRot;
+                Vector3 toShip = _ship.transform.localPosition - _landCamPos;
+                if (toShip.sqrMagnitude > 0.0001f)
+                {
+                    Vector3 nts = toShip.normalized;
+                    Vector3 camUp = Mathf.Abs(nts.y) > 0.95f ? Vector3.forward : Vector3.up;
+                    Camera.transform.localRotation = Quaternion.LookRotation(nts, camUp);
+                }
+                else
+                {
+                    Camera.transform.localRotation = _landCamRot;
+                }
                 if (_shake > 0.001f)
                 {
                     Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
