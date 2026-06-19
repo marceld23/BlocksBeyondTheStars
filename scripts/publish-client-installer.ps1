@@ -64,6 +64,22 @@ if (-not (Test-Path $iconPath)) {
     Write-Error "Installer icon not found at '$iconPath'. Run ./scripts/make-launcher-icon.ps1 to generate it."
 }
 
+# Render the installer splash from the launcher itself, so the install window matches the loading splash the
+# player sees at startup (same procedural space art). We render WITHOUT the launcher's indeterminate bar —
+# Velopack overlays its own live progress bar, which we tint to the game's cyan (#7DDEEC) below.
+$splashImage = Join-Path $repo 'artifacts/installer-splash.png'
+$splashColor = '#7DDEEC'
+New-Item -ItemType Directory -Force (Split-Path -Parent $splashImage) | Out-Null
+if (Test-Path $splashImage) { Remove-Item $splashImage -Force }
+Write-Host 'Rendering installer splash from the launcher (game look)...' -ForegroundColor Cyan
+# The launcher is a WinExe (GUI subsystem), so it does not block the shell — Start-Process -Wait ensures the
+# PNG is fully written before we pack it.
+$render = Start-Process -FilePath (Join-Path $build 'BlocksBeyondTheStars.Launcher.exe') `
+    -ArgumentList @('--render-install-splash', $splashImage, '560', '320') -Wait -PassThru -NoNewWindow
+if ($render.ExitCode -ne 0 -or -not (Test-Path $splashImage)) {
+    Write-Error "Failed to render the installer splash via the launcher at '$build'."
+}
+
 # Derive the version from AppShell.Version unless one was given.
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $appShell = Get-Content (Join-Path $repo 'client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs') -Raw
@@ -95,6 +111,9 @@ $packArgs = @(
     # Give Setup.exe / Update.exe the game icon too (the installed shortcut already inherits it from the
     # launcher's embedded <ApplicationIcon>; vpk does NOT derive the installer icon from mainExe).
     '--icon', $iconPath,
+    # Game-styled install window: our rendered splash art + a cyan progress bar (matches the launcher).
+    '--splashImage', $splashImage,
+    '--splashProgressColor', $splashColor,
     '--channel', $Channel,
     '--outputDir', $out
 )

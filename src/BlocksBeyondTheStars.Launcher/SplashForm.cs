@@ -172,8 +172,10 @@ internal sealed class SplashForm : Form
 
     /// <summary>Draws the whole splash into <paramref name="g"/> for a <paramref name="w"/>×<paramref name="h"/>
     /// area. Pure of any window state so it can be unit-rendered to a bitmap for visual checks. The title font
-    /// auto-fits the width (never wraps/clips) and all sizes scale with the area, so it reads at any DPI.</summary>
-    internal static void PaintSplash(Graphics g, int w, int h, float barPhase, string loadingText, Image? background)
+    /// auto-fits the width (never wraps/clips) and all sizes scale with the area, so it reads at any DPI.
+    /// Pass <paramref name="showBar"/> = false to omit the indeterminate bar — used when rendering the static
+    /// image for the Velopack installer, which draws its own (live) progress bar over the same art.</summary>
+    internal static void PaintSplash(Graphics g, int w, int h, float barPhase, string loadingText, Image? background, bool showBar = true)
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
@@ -235,6 +237,11 @@ internal sealed class SplashForm : Form
             // Studio + copyright footer (below the progress bar).
             g.DrawString("JuMaVe Games", studioFont, studioBrush, new RectangleF(0, h * 0.70f, w, h * 0.10f), centre);
             g.DrawString("(c) by Justus Dütscher und Marcel Dütscher", copyFont, copyBrush, new RectangleF(0, h * 0.82f, w, h * 0.10f), centre);
+        }
+
+        if (!showBar)
+        {
+            return;
         }
 
         // Indeterminate bar: a soft highlight sweeping along a dim track (clipped to the track).
