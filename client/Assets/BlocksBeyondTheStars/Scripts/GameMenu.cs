@@ -47,7 +47,9 @@ namespace BlocksBeyondTheStars.Client
 
                 _wasInSpaceView = Game.SpaceViewActive;
 
-                if (Input.GetKeyDown(KeyCode.Tab) && (Game == null || !Game.ChatTyping))
+                // Don't let Tab open the menu while the death / ship-destruction prompt is up — only its
+                // "Weiter" button proceeds.
+                if (Input.GetKeyDown(KeyCode.Tab) && !Game.AwaitingRespawnConfirm && !Game.ChatTyping)
                 {
                     SetOpen(!_open);
                 }

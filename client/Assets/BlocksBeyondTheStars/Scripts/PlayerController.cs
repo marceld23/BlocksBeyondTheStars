@@ -186,7 +186,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 transform.position = _spawnPos;
                 _verticalVelocity = 0f;
-                _settleTimer += Time.deltaTime;
+
+                // While the "Du bist gestorben" prompt is up, stay frozen at the heal-tank and do NOT reveal
+                // the world yet — the player only "appears" in the ship once they click Weiter. Freeze the
+                // settle timer too so the void-rescue grace doesn't fire the instant they confirm.
+                bool awaitingConfirm = Game.AwaitingRespawnConfirm;
+                if (!awaitingConfirm)
+                {
+                    _settleTimer += Time.deltaTime;
+                }
 
                 // Publish the spawn position NOW (before the settling return below) so the world's seam-aware
                 // chunk placement (GameBootstrap.SceneX uses PlayerPosition) renders the chunks AROUND the spawn
@@ -203,7 +211,7 @@ namespace BlocksBeyondTheStars.Client
                 // or after a short grace (then the server's void-rescue recovers a still-streaming spawn chunk by
                 // teleporting onto the ship). Tying reveal to release means you never see a "loaded" world you
                 // can't move in; the short grace means the veil never lingers and feels stuck either.
-                if (groundBelow || _settleTimer > 8f)
+                if (!awaitingConfirm && (groundBelow || _settleTimer > 8f))
                 {
                     if (!_worldRevealed)
                     {

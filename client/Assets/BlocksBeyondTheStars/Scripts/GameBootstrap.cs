@@ -558,6 +558,12 @@ namespace BlocksBeyondTheStars.Client
         /// to this point (the ship's heal-tank) on the next frame, then clears it.</summary>
         public Vector3? RespawnTarget;
 
+        /// <summary>True while the "Du bist gestorben" / "Das Schiff wurde zerstört" prompt is up after a
+        /// death or ship destruction. The server has already respawned us; the client holds the world
+        /// reveal (on-foot settle) and the space-view landing teardown until the player clicks "Weiter",
+        /// so the player/ship only re-appears once they confirm. Set/cleared by <see cref="RespawnPrompt"/>.</summary>
+        public bool AwaitingRespawnConfirm;
+
         // Latest authoritative inventory (personal + ship cargo) for the UI.
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();

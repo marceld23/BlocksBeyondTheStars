@@ -17,6 +17,23 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ "Du bist gestorben" / "Das Schiff wurde zerstört" confirmation screen before respawn — ✅ client + locale (2026-06-19, NEEDS Unity build)
+After dying on a planet (or having the ship destroyed in space), the death/explosion animation now plays first,
+then a dark overlay with a title and a single **Weiter** button appears; the player / ship only re-appears once
+it is clicked. Entirely client-side — the server still respawns instantly + authoritatively (no server, NetCodec
+or message change); the client just holds the existing respawn presentation behind a new
+`GameBootstrap.AwaitingRespawnConfirm` gate.
+- **Prompt** — new `RespawnPrompt` (rigged next to `DeathFx` in `WorldRig`): subscribes to the same
+  `RespawnNotice{Died}` / `SpaceClosed{ShipDisabled}` events, sets the gate immediately on receipt, and after a
+  short delay (so the red death wash / orange explosion glare is seen) fades in a full-screen modal with the
+  localized title + Weiter button. Clicking releases the gate and re-locks the cursor.
+- **Hold** — while the gate is set, `PlayerController` keeps the on-foot settle frozen and skips the world reveal
+  (player stays at the heal-tank), `SpaceView` holds the landing-fly-away teardown (explosion + hidden hull stay
+  on screen) and freezes flight input, and `GameMenu` ignores the Tab toggle — only Weiter proceeds. The ship
+  then recovers "wie bisher" (whole or as a wreck per `KeepShipOnDeath`).
+- Bilingual DE/EN strings (`ui.death.title`, `ui.death.ship_title`, `ui.death.continue`). 683 .NET tests green
+  (UI is Unity-only; verified by the player build).
+
 ### ★ Craftable camera: HUD-free photos saved to disk + an in-game Photos gallery with editable notes — ✅ client + data (2026-06-19, libs synced + Unity-built)
 A new **camera** tool item lets players photograph the world and keep an annotated album — entirely client-side
 (no server round-trip, no codec change); only crafting goes through the normal server-validated path.

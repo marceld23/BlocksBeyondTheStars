@@ -236,7 +236,9 @@ namespace BlocksBeyondTheStars.Client
             // Server says we left. A hyperspace jump (its full-screen warp covers the transition) or a
             // station board tears down immediately — no surface-landing descent. Otherwise fly the
             // landing sequence back down to the body we launched from, then tear down.
-            if (!Game.InSpace)
+            // When the ship was destroyed, hold here (explosion + hidden hull stay on screen) until the
+            // player clicks "Weiter" on the destruction prompt — only then fly the recovery descent.
+            if (!Game.InSpace && !Game.AwaitingRespawnConfirm)
             {
                 if (_hyperjumping || _phase == Phase.Boarding || _enteringInterior)
                 {
@@ -817,8 +819,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
-            // system) so flight input doesn't fight the UI.
-            if (Game.MenuOpen)
+            // system), or while the ship-destruction "Weiter" prompt is up, so flight input doesn't fight
+            // the UI / swing the camera behind the modal.
+            if (Game.MenuOpen || Game.AwaitingRespawnConfirm)
             {
                 return;
             }

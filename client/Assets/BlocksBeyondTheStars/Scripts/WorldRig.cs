@@ -190,6 +190,11 @@ namespace BlocksBeyondTheStars.Client
             var deathFx = root.AddComponent<DeathFx>();
             deathFx.Game = boot;
 
+            // "Du bist gestorben" / "Das Schiff wurde zerstört" prompt: after the death/explosion animation,
+            // hold the respawn behind a Weiter button (gates AwaitingRespawnConfirm).
+            var respawnPrompt = root.AddComponent<RespawnPrompt>();
+            respawnPrompt.Game = boot;
+
             // Player-to-player docking + trade UI (M24).
             var interactions = root.AddComponent<PlayerInteractions>();
             interactions.Game = boot;
