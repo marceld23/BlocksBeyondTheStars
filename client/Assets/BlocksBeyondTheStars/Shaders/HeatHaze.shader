@@ -26,7 +26,8 @@ Shader "BlocksBeyondTheStars/HeatHaze"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
-            float _HeatAmp; // 0 = none .. 1 = full (global, set by HeatShimmer.cs)
+            float _HeatAmp;  // 0 = none .. 1 = full (global, set by HeatShimmer.cs)
+            float4 _Sc_Fog;  // shared distance-haze global (x = fog start, y = fog end) — set by Sky.cs
 
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings { float4 positionCS : SV_POSITION; float4 screenPos : TEXCOORD0; };
@@ -43,10 +44,14 @@ Shader "BlocksBeyondTheStars/HeatHaze"
             {
                 float2 uv = i.screenPos.xy / i.screenPos.w;
 
-                // Distance fade from scene depth — near surfaces stay rock-steady, the far field boils.
+                // Distance fade from scene depth — near surfaces stay rock-steady, the far field boils. Tied to
+                // the world's actual fog distance (not a fixed metre count) so the shimmer always peaks where the
+                // terrain is still visible, at any render-distance setting — beyond the fog wall there's nothing
+                // to shimmer. Falls back to a sane range if the fog global isn't set.
                 float raw = SampleSceneDepth(uv);
                 float eye = LinearEyeDepth(raw, _ZBufferParams);
-                float distFade = saturate((eye - 6.0) / 50.0);
+                float rampEnd = max(12.0, _Sc_Fog.x); // fog start ≈ where haze begins to swallow the scene
+                float distFade = saturate((eye - 3.0) / (rampEnd - 3.0));
 
                 float amount = _HeatAmp * distFade;
                 if (amount <= 0.0001)
