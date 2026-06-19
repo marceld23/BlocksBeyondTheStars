@@ -58,6 +58,12 @@ if (-not (Test-Path (Join-Path $build 'BlocksBeyondTheStars.Launcher.exe'))) {
     Write-Error "Launcher not found at '$build'. Re-run ./scripts/build-client.ps1 (it now builds the launcher)."
 }
 
+# The installer icon (.ico). Regenerate from the game PNG via ./scripts/make-launcher-icon.ps1 if missing.
+$iconPath = Join-Path $repo 'src/BlocksBeyondTheStars.Launcher/app_icon.ico'
+if (-not (Test-Path $iconPath)) {
+    Write-Error "Installer icon not found at '$iconPath'. Run ./scripts/make-launcher-icon.ps1 to generate it."
+}
+
 # Derive the version from AppShell.Version unless one was given.
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $appShell = Get-Content (Join-Path $repo 'client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs') -Raw
@@ -86,6 +92,9 @@ $packArgs = @(
     # splash, then starts BlocksBeyondTheStars.exe. The launcher calls VelopackApp.Run() first, so install/
     # update/uninstall hooks are handled correctly.
     '--mainExe', 'BlocksBeyondTheStars.Launcher.exe',
+    # Give Setup.exe / Update.exe the game icon too (the installed shortcut already inherits it from the
+    # launcher's embedded <ApplicationIcon>; vpk does NOT derive the installer icon from mainExe).
+    '--icon', $iconPath,
     '--channel', $Channel,
     '--outputDir', $out
 )
