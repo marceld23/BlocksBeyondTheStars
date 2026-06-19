@@ -1,0 +1,30 @@
+# Line-ending policy: normalize all text to LF in the repo AND keep LF in the
+# working tree (eol=lf overrides core.autocrlf). The repository is already
+# LF-only and the .NET server also runs on Linux / Raspberry Pi, so LF
+# everywhere — including on Windows — is the consistent, drift-free choice.
+# Windows (Unity, .NET, Visual Studio, modern editors) handles LF fine.
+* text=auto eol=lf
+
+# Binary types — never apply end-of-line conversion to these.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.bmp   binary
+*.tga   binary
+*.psd   binary
+*.mp3   binary
+*.wav   binary
+*.ogg   binary
+*.ttf   binary
+*.otf   binary
+*.dll   binary
+*.pdb   binary
+*.exe   binary
+*.so    binary
+*.dylib binary
+*.a     binary
+*.zip   binary
+*.nupkg binary
+*.bytes binary
