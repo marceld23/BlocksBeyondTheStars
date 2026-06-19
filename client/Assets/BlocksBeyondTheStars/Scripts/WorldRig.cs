@@ -272,6 +272,10 @@ namespace BlocksBeyondTheStars.Client
             var geysers = root.AddComponent<GeyserView>();
             geysers.Game = boot;
 
+            // Waterfall mist: spray rising off the impact wherever water falls more than three blocks.
+            var waterfalls = root.AddComponent<WaterfallMistView>();
+            waterfalls.Game = boot;
+
             // Ship-station decor (cockpit console + holo map, medbay tank, terminals, workshop sparks).
             var stationDecor = root.AddComponent<StationDecorView>();
             stationDecor.Game = boot;

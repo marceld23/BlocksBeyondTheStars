@@ -125,7 +125,19 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     float mode = i.water.x;
                     float t = _Time.y;
-                    if (mode > 2.5)
+                    if (mode > 3.5)
+                    {
+                        // Waterfall flank: a bright sheet of streaks racing straight DOWN the face. Procedural on
+                        // world height (atlas UVs can't scroll); sin(k*y + w*t) translates the pattern downward.
+                        float across = i.wp.x + i.wp.z;
+                        float ph = i.wp.y * 3.0 + t * 6.5;
+                        float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.3) * 1.5);
+                        col += light * 0.12 * rip;
+                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + across * 3.3));
+                        col = lerp(col, light * float3(0.95, 0.98, 1.0), streak * 0.45);
+                        alpha = saturate(alpha + streak * 0.30 + rip * 0.06);
+                    }
+                    else if (mode > 2.5)
                     {
                         // River/brook: bright ripple bands + thin white streaks racing along the channel's
                         // flow axis. UVs cannot scroll inside an atlas tile, so the motion is procedural
@@ -164,8 +176,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     // Screen-space water (depth colour, refraction, SSR) needs the depth + opaque textures, which
                     // Potato/Low switch off — gate the whole block so on those presets the water keeps the simple
-                    // alpha look above (no sampling of unbound textures → never black/garbage).
-                    if (_Sc_ScreenFx > 0.5)
+                    // alpha look above (no sampling of unbound textures → never black/garbage). Falling water
+                    // (mode 4) is a VERTICAL sheet: the depth/refraction/SSR assume a flat surface and would
+                    // blue it out opaque + reflect wrong, so skip it and keep the simple streaky cascade look.
+                    if (_Sc_ScreenFx > 0.5 && mode < 3.5)
                     {
                     // Depth-based water body: read how much water sits between the surface and the bed/object
                     // behind this pixel, then darken+blue with depth (you can't see the bottom of a deep sea)
@@ -343,7 +357,19 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                     float mode = i.water.x;
                     float t = _Time.y;
-                    if (mode > 2.5)
+                    if (mode > 3.5)
+                    {
+                        // Waterfall flank: bright streaks racing straight DOWN the face (procedural on world
+                        // height — atlas UVs cannot scroll; sin(k*y + w*t) moves the pattern downward).
+                        float across = i.wp.x + i.wp.z;
+                        float ph = i.wp.y * 3.0 + t * 6.5;
+                        float rip = 0.5 + 0.5 * sin(ph + sin(across * 2.3) * 1.5);
+                        col += light * 0.12 * rip;
+                        float streak = smoothstep(0.84, 1.0, sin(ph * 1.27 + across * 3.3));
+                        col = lerp(col, light * fixed3(0.95, 0.98, 1.0), streak * 0.45);
+                        alpha = saturate(alpha + streak * 0.30 + rip * 0.06);
+                    }
+                    else if (mode > 2.5)
                     {
                         // River/brook: ripple bands + white streaks racing along the flow axis (procedural
                         // on world position — atlas UVs cannot scroll).

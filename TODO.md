@@ -17,6 +17,20 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Waterfalls: mist spray + visible streaming cascade where water falls > 3 blocks — ✅ client (2026-06-19, Unity-built)
+A tall drop of water looked flat and dead: the column's side faces were culled and there was no spray. All
+client-side, inferred from block ids (no server/network change, works on old saves like the water-surface look):
+- **Falling-water detection** (`WaterfallDetect`) — a cell reads as *falling* when it's water, has water directly
+  above (fed from above) and ≥2 horizontal neighbours open to air (a thin hanging stream, not a filled pool).
+  `ImpactDrop` measures the drop height above a landing cell.
+- **Mist at the impact** (`WaterfallMistView`, mirrors `GeyserView`, wired in `WorldRig`) — scans around the player,
+  and at every drop **taller than three blocks** keeps a continuous puff of pooled pale-spray particles rising and
+  arcing off the landing point (capped, gravity-arced, shrink-fade; build-safe `Unlit/Color`). Lava left alone.
+- **Visible cascade** (`ChunkMesher`) — falling-water flanks are no longer culled and are tagged TEXCOORD2 **mode 4**;
+  the transparent shader (`BlockAtlasTransparent`, both URP + Built-in passes) streaks them downward (procedural on
+  world height + `_Time`), and the screen-space depth/refraction/SSR block is skipped for mode 4 (it would blue out
+  the vertical sheet). No new shader (existing file edited → no always-included list change).
+
 ### ★ Settlements overhauled: many per world, hospitality/size-scaled, collision-free + weather gated on atmosphere — ✅ server (2026-06-19, libs synced; client build only needed for the new lava look)
 Villages/cities were near-invisible: exactly **one** settlement per planet, anchored at a fixed pad offset with no
 water/flatness check and no terrain carve (so it sank into hills / drowned), and compounded gating made cities ~5%/planet.

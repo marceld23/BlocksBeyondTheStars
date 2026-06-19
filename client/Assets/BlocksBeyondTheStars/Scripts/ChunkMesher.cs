@@ -253,6 +253,10 @@ namespace BlocksBeyondTheStars.Client
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
                 bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir;
                 Vector4 waterData = isWaterSurface ? WaterCellData(id, wx, wy, wz) : Vector4.zero;
+                // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
+                // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
+                // them and tag them mode 4 so the transparent shader streaks them downward.
+                bool isFallingWater = collKey == "water" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz);
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
@@ -320,7 +324,7 @@ namespace BlocksBeyondTheStars.Client
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
                     // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
                     // Only the true top layer (air above) keeps its faces, so the real water surface still shows.
-                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value)
+                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater)
                     {
                         drawFace = false;
                     }
@@ -370,6 +374,12 @@ namespace BlocksBeyondTheStars.Client
                         leafUv.Add(new Vector4(waterData.x, c01.x, c01.y, waterData.w));
                         leafUv.Add(new Vector4(waterData.x, c11.x, c11.y, waterData.w));
                         leafUv.Add(new Vector4(waterData.x, c10.x, c10.y, waterData.w));
+                    }
+                    else if (isFallingWater && dir.Y == 0)
+                    {
+                        // Falling-water flank: mode 4 → the transparent shader scrolls a bright streak straight down.
+                        var fall = new Vector4(4f, 0f, 0f, 0f);
+                        leafUv.Add(fall); leafUv.Add(fall); leafUv.Add(fall); leafUv.Add(fall);
                     }
                     else
                     {
