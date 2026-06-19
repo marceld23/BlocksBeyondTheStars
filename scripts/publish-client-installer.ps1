@@ -10,11 +10,17 @@
     BlocksBeyondTheStars-<ver>-full.nupkg     the release payload (the update feed)
     releases.win.json / RELEASES              the feed manifest the client reads
     BlocksBeyondTheStars-win-Portable.zip     a no-install portable copy (bonus)
+    BlocksBeyondTheStars-win.msi              a full WiX wizard installer (only with -Msi)
 
   Players install the Setup.exe (per-user, no admin needed — Velopack installs to %LOCALAPPDATA%) and
   the in-app updater (ClientUpdater.cs) pulls future versions from a feed URL served by
   BlocksBeyondTheStars.Api at /updates. Use -ServeDir to copy the feed straight into a server install so
   the API serves it (its /download button hands out the Setup.exe; /updates is the feed).
+
+  -Msi additionally builds a machine-wide MSI: a classic Windows Installer wizard (Welcome → MIT license
+  → install scope → progress → finish) with the game icon and game-art banner/dialog bitmaps rendered from
+  the launcher. It installs per-user without admin by default but also offers a machine-wide scope (UAC).
+  The MSI adds the WiX toolset acquisition + ~2-3 min to the pack; leave it off for routine dev builds.
 
   Prerequisites:
     1. The Velopack runtime must be in the client build: run ./scripts/sync-velopack-libs.ps1 ONCE,
@@ -32,16 +38,22 @@
 .PARAMETER ServeDir
   Optional server install dir; the installer + feed are copied to <ServeDir>/clients so the API serves them.
 
+.PARAMETER Msi
+  Also build a machine-wide MSI (full WiX wizard) alongside the Setup.exe. Shows the MIT LICENSE on the
+  license page and uses game-art banner/dialog bitmaps + the game icon.
+
 .EXAMPLE
   ./scripts/publish-client-installer.ps1
   ./scripts/publish-client-installer.ps1 -Version 0.21.0 -ServeDir artifacts/win-x64
+  ./scripts/publish-client-installer.ps1 -Version 0.21.0 -Msi
 #>
 param(
     [string] $Version = '',
     [string] $BuildDir = 'client/Build/Windows',
     [string] $OutputDir = 'artifacts/installer',
     [string] $ServeDir = '',
-    [string] $Channel = 'win'
+    [string] $Channel = 'win',
+    [switch] $Msi      # also build a machine-wide MSI (full WiX wizard with the MIT license + game art)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -96,6 +108,43 @@ if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force $out | Out-Null
 
+# Optional machine-wide MSI (full WiX wizard). Build its extra args + render its two game-art bitmaps.
+$msiArgs = @()
+if ($Msi) {
+    # MSI ProductVersion must be purely numeric (x.x.x, each part <= 65535) — strip any pre-release suffix
+    # like "-dev" so a dev build still produces a valid MSI.
+    $msiVersion = ($Version -split '-')[0]
+
+    # The MIT license shown on the wizard's License page. Velopack requires the file to end in .txt/.md/.rtf,
+    # but the repo LICENSE has no extension — copy it to a .txt next to the other build artifacts (.txt keeps
+    # the MIT text verbatim; .md would reflow it).
+    $licenseSrc = Join-Path $repo 'LICENSE'
+    if (-not (Test-Path $licenseSrc)) { Write-Error "LICENSE not found at '$licenseSrc' (needed for the MSI license page)." }
+    $licensePath = Join-Path $repo 'artifacts/LICENSE.txt'
+    Copy-Item $licenseSrc $licensePath -Force
+
+    # Game-art wizard bitmaps, rendered from the launcher at WiX's fixed resolutions (banner 493x58,
+    # dialog/logo 493x312). Light text areas + dark space art where WiX leaves room (see MsiArt.cs).
+    $msiBanner = Join-Path $repo 'artifacts/msi-banner.bmp'
+    $msiLogo = Join-Path $repo 'artifacts/msi-logo.bmp'
+    $launcher = Join-Path $build 'BlocksBeyondTheStars.Launcher.exe'
+    Write-Host 'Rendering MSI wizard bitmaps from the launcher (game look)...' -ForegroundColor Cyan
+    foreach ($spec in @(@{ mode = '--render-msi-banner'; path = $msiBanner }, @{ mode = '--render-msi-logo'; path = $msiLogo })) {
+        if (Test-Path $spec.path) { Remove-Item $spec.path -Force }
+        $r = Start-Process -FilePath $launcher -ArgumentList @($spec.mode, $spec.path) -Wait -PassThru -NoNewWindow
+        if ($r.ExitCode -ne 0 -or -not (Test-Path $spec.path)) { Write-Error "Failed to render MSI bitmap ($($spec.mode))." }
+    }
+
+    $msiArgs = @(
+        '--msi', 'true',
+        '--msiVersion', $msiVersion,
+        '--instLicense', $licensePath,
+        '--msiBanner', $msiBanner,
+        '--msiLogo', $msiLogo
+    )
+    Write-Host "MSI will be built (version $msiVersion, MIT license page, game-art wizard)." -ForegroundColor Cyan
+}
+
 Write-Host "Packaging Blocks Beyond the Stars $Version (channel '$Channel') from $build ..." -ForegroundColor Cyan
 $packArgs = @(
     'pack',
@@ -117,12 +166,17 @@ $packArgs = @(
     '--channel', $Channel,
     '--outputDir', $out
 )
+$packArgs += $msiArgs
 # Sign here later by adding: --signParams "..."  (an unsigned Setup.exe triggers a one-time SmartScreen prompt).
 vpk @packArgs
 
 $setup = Get-ChildItem $out -Filter '*Setup.exe' | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
 Write-Host "Installer: $($setup.FullName)" -ForegroundColor Green
 Write-Host "Feed:      $out (releases.$Channel.json + *.nupkg)" -ForegroundColor Green
+if ($Msi) {
+    $msiFile = Get-ChildItem $out -Filter '*.msi' | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+    if ($msiFile) { Write-Host "MSI:       $($msiFile.FullName)" -ForegroundColor Green }
+}
 
 # Optionally stage installer + feed into a server install dir for the API to serve.
 if (-not [string]::IsNullOrWhiteSpace($ServeDir)) {

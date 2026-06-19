@@ -43,6 +43,32 @@ internal static class Program
             return 0;
         }
 
+        // Render the MSI wizard bitmaps (WiX fixed resolutions), then exit. Invoked by
+        // scripts/publish-client-installer.ps1 -Msi so the MSI matches the game look.
+        //   --render-msi-banner <out.bmp>   493×58  top banner (light, emblem on the right)
+        //   --render-msi-logo   <out.bmp>   493×312 welcome/exit background (space art left, light right)
+        if (args.Length >= 2 && (args[0] == "--render-msi-banner" || args[0] == "--render-msi-logo"))
+        {
+            bool banner = args[0] == "--render-msi-banner";
+            int rw = 493;
+            int rh = banner ? 58 : 312;
+            using var bmp = new Bitmap(rw, rh);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                if (banner)
+                {
+                    MsiArt.PaintBanner(g, rw, rh);
+                }
+                else
+                {
+                    MsiArt.PaintDialog(g, rw, rh);
+                }
+            }
+
+            bmp.Save(args[1], ImageFormat.Bmp);
+            return 0;
+        }
+
         // Velopack install/update/uninstall/firstrun hooks. On a normal user launch this returns immediately;
         // for a hook command it performs the action and exits the process before we reach the splash.
         try
