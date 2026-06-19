@@ -18,8 +18,8 @@
   the API serves it (its /download button hands out the Setup.exe; /updates is the feed).
 
   -Msi additionally builds a machine-wide MSI: a classic Windows Installer wizard (Welcome → MIT license
-  → install scope → progress → finish) with the game icon and game-art banner/dialog bitmaps rendered from
-  the launcher. It installs per-user without admin by default but also offers a machine-wide scope (UAC).
+  → install scope → progress → finish) with clean default WiX dialogs and the game icon as the only
+  branding. It installs per-user without admin by default but also offers a machine-wide scope (UAC).
   The MSI adds the WiX toolset acquisition + ~2-3 min to the pack; leave it off for routine dev builds.
 
   Prerequisites:
@@ -108,7 +108,10 @@ if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force $out | Out-Null
 
-# Optional machine-wide MSI (full WiX wizard). Build its extra args + render its two game-art bitmaps.
+# Optional machine-wide MSI (full WiX wizard). We deliberately do NOT pass custom banner/dialog bitmaps:
+# WiX overlays its own dark heading/welcome text on those, so full-bleed game art is unreadable, and
+# Velopack 1.2.0 also feeds --msiBanner/--msiLogo into the opposite UI slots (stretched/squished). Instead
+# we keep WiX's clean default dialogs and use the game icon as the only branding (--icon below).
 $msiArgs = @()
 if ($Msi) {
     # MSI ProductVersion must be purely numeric (x.x.x, each part <= 65535) — strip any pre-release suffix
@@ -123,26 +126,12 @@ if ($Msi) {
     $licensePath = Join-Path $repo 'artifacts/LICENSE.txt'
     Copy-Item $licenseSrc $licensePath -Force
 
-    # Game-art wizard bitmaps, rendered from the launcher at WiX's fixed resolutions (banner 493x58,
-    # dialog/logo 493x312). Light text areas + dark space art where WiX leaves room (see MsiArt.cs).
-    $msiBanner = Join-Path $repo 'artifacts/msi-banner.bmp'
-    $msiLogo = Join-Path $repo 'artifacts/msi-logo.bmp'
-    $launcher = Join-Path $build 'BlocksBeyondTheStars.Launcher.exe'
-    Write-Host 'Rendering MSI wizard bitmaps from the launcher (game look)...' -ForegroundColor Cyan
-    foreach ($spec in @(@{ mode = '--render-msi-banner'; path = $msiBanner }, @{ mode = '--render-msi-logo'; path = $msiLogo })) {
-        if (Test-Path $spec.path) { Remove-Item $spec.path -Force }
-        $r = Start-Process -FilePath $launcher -ArgumentList @($spec.mode, $spec.path) -Wait -PassThru -NoNewWindow
-        if ($r.ExitCode -ne 0 -or -not (Test-Path $spec.path)) { Write-Error "Failed to render MSI bitmap ($($spec.mode))." }
-    }
-
     $msiArgs = @(
         '--msi', 'true',
         '--msiVersion', $msiVersion,
-        '--instLicense', $licensePath,
-        '--msiBanner', $msiBanner,
-        '--msiLogo', $msiLogo
+        '--instLicense', $licensePath
     )
-    Write-Host "MSI will be built (version $msiVersion, MIT license page, game-art wizard)." -ForegroundColor Cyan
+    Write-Host "MSI will be built (version $msiVersion, MIT license page, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
 }
 
 Write-Host "Packaging Blocks Beyond the Stars $Version (channel '$Channel') from $build ..." -ForegroundColor Cyan
@@ -175,7 +164,28 @@ Write-Host "Installer: $($setup.FullName)" -ForegroundColor Green
 Write-Host "Feed:      $out (releases.$Channel.json + *.nupkg)" -ForegroundColor Green
 if ($Msi) {
     $msiFile = Get-ChildItem $out -Filter '*.msi' | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-    if ($msiFile) { Write-Host "MSI:       $($msiFile.FullName)" -ForegroundColor Green }
+    if ($msiFile) {
+        Write-Host "MSI:       $($msiFile.FullName)" -ForegroundColor Green
+
+        # vpk embeds the game icon as the 'appicon' Icon-table row (used for the Start-menu shortcut) but does
+        # NOT set ARPPRODUCTICON, so the entry in Apps & Features would show a generic icon. Point it at that
+        # existing icon so the game icon shows there too. (Done post-pack; safe on the still-unsigned MSI.)
+        try {
+            $msiInstaller = New-Object -ComObject WindowsInstaller.Installer
+            $msiDb = $msiInstaller.OpenDatabase($msiFile.FullName, 1)  # 1 = msiOpenDatabaseModeTransact
+            $del = $msiDb.OpenView("DELETE FROM ``Property`` WHERE ``Property``='ARPPRODUCTICON'")
+            $del.Execute(); $del.Close()
+            $ins = $msiDb.OpenView("INSERT INTO ``Property`` (``Property``,``Value``) VALUES ('ARPPRODUCTICON','appicon')")
+            $ins.Execute(); $ins.Close()
+            $msiDb.Commit()
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($msiDb)
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($msiInstaller)
+            Write-Host '           (set ARPPRODUCTICON -> game icon for Apps & Features)' -ForegroundColor DarkGray
+        }
+        catch {
+            Write-Warning "Could not set ARPPRODUCTICON on the MSI: $_"
+        }
+    }
 }
 
 # Optionally stage installer + feed into a server install dir for the API to serve.
