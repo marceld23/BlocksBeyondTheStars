@@ -22,6 +22,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly Vector3 SceneOrigin = new Vector3(0f, 6000f, 0f);
         private const float SeqDuration = 1.6f;
+        private const float LandDuration = 2.2f;  // landing flies the ship away toward the planet — a touch longer so the shrink reads
         private const float BoardDuration = 1.2f; // dock-approach animation before boarding a station
         private const float MoveSpeed = 14f;
         private const float LookSpeed = 2.2f;
@@ -89,6 +90,13 @@ namespace BlocksBeyondTheStars.Client
         private float _camPrevFar;
         private CameraClearFlags _camPrevClear;
         private Color _camPrevBg;
+
+        // Landing fly-away: the camera is frozen at the pose it had when the descent began, while the ship
+        // flies off toward the planet — so it visibly shrinks into the distance instead of sinking in-frame.
+        private Vector3 _landCamPos;
+        private Quaternion _landCamRot;
+        private Vector3 _landShipStart;
+        private Vector3 _landTargetPos;
 
         private bool _active;
         private Phase _phase;
@@ -241,6 +249,7 @@ namespace BlocksBeyondTheStars.Client
                     _phase = Phase.Landing;
                     _seq = 0f;
                     ClientAudio.Instance?.Cue("ship_landing");
+                    BeginLandingFlyAway();
                 }
             }
 
@@ -633,12 +642,84 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Snapshots the vantage the landing descent is watched from: the camera is frozen here while the
+        /// ship flies off toward the planet, so it shrinks into the distance instead of sinking in-frame.</summary>
+        private void BeginLandingFlyAway()
+        {
+            if (Camera != null)
+            {
+                _landCamPos = Camera.transform.localPosition;
+                _landCamRot = Camera.transform.localRotation;
+            }
+
+            _landShipStart = _ship != null ? _ship.transform.localPosition : Vector3.zero;
+
+            // Fly toward the body being landed on (_choosePadBody — empty id = the home body we launched from),
+            // with a fixed fallback matching BuildSystemBodies; aim a touch short of the centre so the hull dives
+            // at the surface rather than through the core.
+            Vector3 dest = new Vector3(0f, -150f, -20f);
+            string destId = _choosePadBody ?? string.Empty;
+            bool found = false;
+            foreach (var b in _landables)
+            {
+                if (b.Id == destId)
+                {
+                    dest = b.Pos;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                foreach (var b in _landables)
+                {
+                    if (string.IsNullOrEmpty(b.Id))
+                    {
+                        dest = b.Pos;
+                        break;
+                    }
+                }
+            }
+
+            _landTargetPos = Vector3.Lerp(_landShipStart, dest, 0.92f);
+        }
+
         private void UpdateSequence(bool rising)
         {
             _seq += Time.deltaTime;
+
+            if (!rising)
+            {
+                // Landing: fly the ship away toward the planet on an accelerating (ease-in) curve so it streaks
+                // off and dwindles. The camera stays put (PlaceCamera freezes it for this phase).
+                float lt = Mathf.Clamp01(_seq / LandDuration);
+                float lease = lt * lt;
+                if (_ship != null)
+                {
+                    Vector3 pos = Vector3.Lerp(_landShipStart, _landTargetPos, lease);
+                    _ship.transform.localPosition = pos;
+                    Vector3 dir = _landTargetPos - pos;
+                    if (dir.sqrMagnitude > 0.0001f)
+                    {
+                        // The dive is almost straight down, so Vector3.up would be (nearly) anti-parallel to the
+                        // heading and make LookRotation flip; use Vector3.forward as a stable up hint instead.
+                        _ship.transform.localRotation = Quaternion.LookRotation(dir.normalized, Vector3.forward);
+                    }
+                }
+
+                if (_seq >= LandDuration)
+                {
+                    Exit();
+                }
+
+                return;
+            }
+
+            // Launch: rise off the pad with an ease-out, level and centred.
             float t = Mathf.Clamp01(_seq / SeqDuration);
-            float ease = rising ? 1f - (1f - t) * (1f - t) : t * t;
-            float y = rising ? Mathf.Lerp(-40f, 0f, ease) : Mathf.Lerp(0f, -40f, ease);
+            float ease = 1f - (1f - t) * (1f - t);
+            float y = Mathf.Lerp(-40f, 0f, ease);
             if (_ship != null)
             {
                 _ship.transform.localPosition = new Vector3(0f, y, 0f);
@@ -647,14 +728,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_seq >= SeqDuration)
             {
-                if (rising)
-                {
-                    _phase = Phase.Cruise;
-                }
-                else
-                {
-                    Exit();
-                }
+                _phase = Phase.Cruise;
             }
         }
 
@@ -1940,6 +2014,20 @@ namespace BlocksBeyondTheStars.Client
             {
                 Camera.transform.localPosition = _evaPos;
                 Camera.transform.localRotation = Quaternion.Euler(_evaPitch, _evaYaw, 0f);
+                if (_shake > 0.001f)
+                {
+                    Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
+                }
+
+                return;
+            }
+
+            // Landing: hold the camera at the descent's start pose so the ship flies away and shrinks (instead of
+            // the camera chasing it down, which read as "sinking"). Cockpit view is forced to this too.
+            if (_phase == Phase.Landing)
+            {
+                Camera.transform.localPosition = _landCamPos;
+                Camera.transform.localRotation = _landCamRot;
                 if (_shake > 0.001f)
                 {
                     Camera.transform.localPosition += Random.insideUnitSphere * (_shake * 0.5f);
@@ -3512,9 +3600,19 @@ namespace BlocksBeyondTheStars.Client
 
             if (_phase != Phase.Cruise)
             {
-                float dur = _phase == Phase.Boarding ? BoardDuration : SeqDuration;
+                float dur = _phase == Phase.Boarding ? BoardDuration : (_phase == Phase.Landing ? LandDuration : SeqDuration);
                 float t = Mathf.Clamp01(_seq / dur);
-                float alpha = (_phase == Phase.Landing || _phase == Phase.Boarding) ? t : 1f - t;
+                float alpha;
+                if (_phase == Phase.Landing)
+                {
+                    // Hold the view clear while the ship streaks away, then fade to black over the last stretch.
+                    alpha = Mathf.Clamp01((t - 0.55f) / 0.45f);
+                }
+                else
+                {
+                    alpha = _phase == Phase.Boarding ? t : 1f - t;
+                }
+
                 _fade.color = new Color(0f, 0f, 0f, alpha);
                 _hint.gameObject.SetActive(false);
                 _board.gameObject.SetActive(false);
