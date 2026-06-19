@@ -36,7 +36,7 @@ namespace BlocksBeyondTheStars.Client
     /// Local, client-only settings (display, audio, input, comfort). These never affect the
     /// authoritative server rules (PvP, aliens, weapons stay server-decided). Persisted as JSON
     /// in <c>Application.persistentDataPath/client_settings.json</c>. See
-    /// <c>docs/CLIENT_SHELL_AND_ASSETS.md</c>.
+    /// <c>docs/developer/CLIENT_SHELL_AND_ASSETS.md</c>.
     /// </summary>
     [Serializable]
     public sealed class ClientSettings
@@ -134,6 +134,18 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Show the ship AI's (VEGA) advisor hints and story lines. The onboarding objective chip
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
+
+        // Comfort / wellbeing (playtime). Purely client-side: the session timer counts real wall-clock from
+        // the moment you enter a world; the reminder is VEGA gently suggesting a break (a real-world nudge, not
+        // an in-fiction event). Both default on but unobtrusive.
+        /// <summary>Show a small "session / total playtime" readout in the in-game HUD.</summary>
+        public bool ShowSessionTime = true;
+
+        /// <summary>Let VEGA remind you to take a break after a long unbroken session, repeating each interval.</summary>
+        public bool PlaytimeReminder = true;
+
+        /// <summary>Minutes of continuous session play between break reminders (also the first reminder's delay).</summary>
+        public int ReminderMinutes = 60;
 
         /// <summary>Local personal-best scores for the bundled arcade minigames, keyed by game key. Local only —
         /// no server leaderboard. Stored as a flat list so JsonUtility can persist it.</summary>

@@ -504,6 +504,10 @@ public sealed class JoinAccepted
     /// <summary>Friendly name of the body the player is on, and its star system (for the HUD).</summary>
     public string PlanetName { get; set; } = string.Empty;
     public string SystemName { get; set; } = string.Empty;
+
+    /// <summary>Total seconds this world has been played (server-accumulated, see
+    /// <c>WorldMetadata.CumulativePlaytimeSeconds</c>); shown alongside the per-session timer in the HUD.</summary>
+    public long CumulativePlaytimeSeconds { get; set; }
 }
 
 public sealed class JoinRejected
@@ -1188,7 +1192,7 @@ public sealed class CreatureList
     public NetCreature[] Creatures { get; set; } = System.Array.Empty<NetCreature>();
 }
 
-// --- Creature taming + companions (design: docs/CREATURE_TAMING_PLAN.md) ---
+// --- Creature taming + companions (design: docs/developer/CREATURE_TAMING.md) ---
 
 /// <summary>Client → server: the player's response in an in-progress taming ritual on a creature. The
 /// ritual itself is started/refreshed by right-clicking the <c>creature_translator</c> gadget (which sends

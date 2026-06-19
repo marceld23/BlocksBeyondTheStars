@@ -17,12 +17,18 @@ public sealed class SaveGamePaths
     public string BackupsDirectory { get; }
     public string LogsDirectory { get; }
 
+    /// <summary>Plain-JSON sidecar next to <see cref="DatabaseFile"/> mirroring a few headline save stats
+    /// (name, playtime, last-played). Lets the menu world-picker show metadata without opening the SQLite
+    /// DB — the Unity client has no SQLite library, and the picker runs before any server is launched.</summary>
+    public string MetaSidecarFile { get; }
+
     public SaveGamePaths(string savesRoot, string worldName)
     {
         WorldDirectory = Path.Combine(savesRoot, Sanitize(worldName));
         DatabaseFile = Path.Combine(WorldDirectory, "world.db");
         BackupsDirectory = Path.Combine(WorldDirectory, "backups");
         LogsDirectory = Path.Combine(WorldDirectory, "logs");
+        MetaSidecarFile = Path.Combine(WorldDirectory, "world.meta.json");
     }
 
     /// <summary>Creates the directory structure if it does not yet exist.</summary>

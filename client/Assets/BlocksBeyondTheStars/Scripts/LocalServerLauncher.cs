@@ -7,7 +7,7 @@ using Debug = UnityEngine.Debug;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Singleplayer hosting (Option A — see docs/CLIENT_COMPLETION_PLAN.md). Launches the
+    /// Singleplayer hosting (Option A — see docs/developer/CLIENT_COMPLETION.md). Launches the
     /// bundled dedicated server as a child process bound to loopback, so "Singleplayer" runs
     /// the exact same authoritative server as multiplayer. The server reads CLI overrides
     /// (<c>--port/--saves/--data/--world/--name</c>); we point it at the client's synced
@@ -48,6 +48,38 @@ namespace BlocksBeyondTheStars.Client
 
             dirs.Sort((a, b) => File.GetLastWriteTimeUtc(Path.Combine(b, "world.db")).CompareTo(File.GetLastWriteTimeUtc(Path.Combine(a, "world.db"))));
             return dirs.ConvertAll(Path.GetFileName).ToArray();
+        }
+
+        /// <summary>Shape of the <c>world.meta.json</c> sidecar the server writes beside each <c>world.db</c>
+        /// (field names match the server's <c>WorldSaveSummary</c> so Unity's JsonUtility reads it verbatim).</summary>
+        [Serializable]
+        private sealed class WorldMetaSidecar
+        {
+            public string WorldName;
+            public long PlaytimeSeconds;
+            public string LastPlayedUtc;
+        }
+
+        /// <summary>Reads a world's accumulated playtime (seconds) from its <c>world.meta.json</c> sidecar.
+        /// Returns -1 when no sidecar exists yet (e.g. a save from before playtime tracking) so the caller can
+        /// simply omit the figure rather than show "0".</summary>
+        public static long ReadWorldPlaytimeSeconds(string worldName)
+        {
+            try
+            {
+                string path = Path.Combine(SavesRoot, worldName, "world.meta.json");
+                if (!File.Exists(path))
+                {
+                    return -1;
+                }
+
+                var s = JsonUtility.FromJson<WorldMetaSidecar>(File.ReadAllText(path));
+                return s != null ? s.PlaytimeSeconds : -1;
+            }
+            catch
+            {
+                return -1;
+            }
         }
 
         /// <summary>Permanently deletes a singleplayer world's save folder (its whole directory). Returns true

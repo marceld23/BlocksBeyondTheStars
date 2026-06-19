@@ -114,6 +114,9 @@ public sealed partial class GameServer
     private ServerWorld _world => _worlds.Active.World;
 
     private double _sinceAutoSave;
+    // Fractional playtime carry: whole seconds are flushed into _meta.CumulativePlaytimeSeconds, the
+    // sub-second remainder lives here between ticks. Only advanced while a player is joined.
+    private double _playtimeCarry;
     private volatile bool _running;
     // True while the Run() loop owns the tick thread. Lets Stop() (possibly called from another thread, e.g. a
     // Ctrl-C handler) hand the save off to the run loop instead of saving concurrently with a live Tick().
@@ -766,12 +769,44 @@ public sealed partial class GameServer
         TickMissionTexts(); // push mission-list refreshes when L3 board texts arrive
         TickVegaBanter(); // push VEGA's LLM banter lines finished off-thread
 
+        AccumulatePlaytime(deltaSeconds);
+
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
         {
             _sinceAutoSave = 0;
             SaveAll();
             _log.Info("Autosave complete.");
+        }
+    }
+
+    /// <summary>Advances the world's cumulative playtime — but only while at least one player is joined, so an
+    /// idle dedicated server (or a headless test with no players) never inflates it. Whole elapsed seconds are
+    /// committed to <see cref="WorldMetadata.CumulativePlaytimeSeconds"/>; the sub-second remainder carries over.
+    /// The value is persisted by the next <see cref="SaveAll"/> (it rides along in the metadata blob).</summary>
+    private void AccumulatePlaytime(double deltaSeconds)
+    {
+        bool anyJoined = false;
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined)
+            {
+                anyJoined = true;
+                break;
+            }
+        }
+
+        if (!anyJoined)
+        {
+            return;
+        }
+
+        _playtimeCarry += deltaSeconds;
+        if (_playtimeCarry >= 1.0)
+        {
+            long whole = (long)_playtimeCarry;
+            _meta.CumulativePlaytimeSeconds += whole;
+            _playtimeCarry -= whole;
         }
     }
 
@@ -1595,6 +1630,7 @@ public sealed partial class GameServer
             PlanetType = joinBodyType,
             PlanetName = planetName,
             SystemName = systemName,
+            CumulativePlaytimeSeconds = _meta.CumulativePlaytimeSeconds,
         });
         SendInventory(session);
         SendPlayerState(session);

@@ -87,6 +87,20 @@ namespace BlocksBeyondTheStars.Client
         public long WorldSeed => _worldSeed;
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
+        /// <summary>Total seconds this world has been played (from JoinAccepted, server-accumulated). The live
+        /// in-game total adds <see cref="SessionSeconds"/> on top so the HUD readout ticks up in real time.</summary>
+        public long CumulativePlaytimeSeconds { get; private set; }
+
+        // Real wall-clock baseline for this in-game session, captured on join (-1 until then). Uses
+        // realtimeSinceStartup so it's immune to pause / timescale and never goes backwards.
+        private float _sessionStartRealtime = -1f;
+
+        /// <summary>Seconds elapsed in the current in-game session (real wall-clock, 0 before joining).</summary>
+        public float SessionSeconds => _sessionStartRealtime < 0f ? 0f : Time.realtimeSinceStartup - _sessionStartRealtime;
+
+        /// <summary>Live total playtime = the server's saved cumulative seconds plus this session so far.</summary>
+        public long TotalPlaytimeSeconds => CumulativePlaytimeSeconds + (long)SessionSeconds;
+
         /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location,
         /// so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
         private void RebuildFloraTints()
@@ -746,6 +760,12 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
+                CumulativePlaytimeSeconds = m.CumulativePlaytimeSeconds; // saved world total; session ticks on top
+                if (_sessionStartRealtime < 0f)
+                {
+                    _sessionStartRealtime = Time.realtimeSinceStartup; // start the session clock on first join
+                }
+
                 RebuildFloraTints(); // per-species flora colours for this world (seed + location)
                 WorldReady = false;          // hold the loading overlay until we settle onto the first world
                 WorldLoadStarted?.Invoke();

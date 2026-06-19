@@ -2,11 +2,11 @@
 
 The single source of truth for **what is built** and **what is still open**. Design notes and deep
 plans live under [docs/](docs/) (committed); this file is the high-level status. Player-facing operation
-(controls, mechanics, editors, commands) is documented in [docs/USER_MANUAL.md](docs/USER_MANUAL.md) —
+(controls, mechanics, editors, commands) is documented in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md) —
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **671 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **674 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -32,7 +32,13 @@ implemented", movement-overhaul body — are TODO-correct and only need memory c
   jetpack-net-thrust/fall-threshold; HUD shows "0.6 g" via `ui.hud.gravity`)*
 - **Optional playtime display + break reminder** — client realtime session timer + per-save cumulative
   playtime (`WorldMetadata`, shown in the saves list) + a repeating Vega "take a break" reminder; 3
-  `ClientSettings`/`UiSettings` toggles. *(planned, not started)*
+  `ClientSettings`/`UiSettings` toggles. *(IMPLEMENTED 2026-06-19, 674 tests, libs synced, NEEDS Unity build:
+  server accumulates `WorldMetadata.CumulativePlaytimeSeconds` in `GameServer.Tick` only while a player is
+  joined + mirrors it into a `world.meta.json` sidecar (client has no SQLite, reads it in the save picker);
+  `JoinAccepted` carries the total; `HudUi` shows session + total (toggle `ShowSessionTime`); `VegaPanel`
+  fires an escalating, repeating break reminder client-side every `ReminderMinutes` (NOT via ShipAiLine, so it
+  stays out of the Story Log); `UiSettings` "Comfort & wellbeing" section; new `ui.hud.playtime*`/
+  `ui.settings.comfort`+toggles/`ui.reminder.break*` locale keys (de+en); new `PlaytimeTests`)*
 - **Center the on-foot controls hint under the hotbar** — `HudUi.cs` hint anchor `MiddleLeft`→`MiddleCenter`
   (the space HUD is already centered). One-line UI fix. *(planned, not started)*
 - **Auto language detection (game side)** — pick DE/EN from the OS on first run in `ClientSettings.Load`
@@ -379,7 +385,7 @@ Admin chat commands to fast-track late-game testing (all gated by `IsAdmin` + `C
   existed before). `/gotocore` → **new** `goto_core` (`AdminGotoCore`, [GameServerStoryFinale.cs](src/BlocksBeyondTheStars.GameServer/GameServerStoryFinale.cs)):
   reveals the finale and lands the player in the core chamber, skipping the flight + orbital gauntlet.
 - `HandleTravel` gained a `bool adminBypass` to skip the jump-generator gate for `/gotocore`.
-- Docs: [USER_MANUAL.md](docs/USER_MANUAL.md) §7 (new *Story / finale testing* table + two test recipes);
+- Docs: [USER_MANUAL.md](docs/user/USER_MANUAL.md) §7 (new *Story / finale testing* table + two test recipes);
   `ui.admin.help` (en/de) extended. **Server build green; 70/70 story/finale/travel/admin tests pass.**
   ⏭ Needs a Unity client build + bundled-server lib sync for the chat commands to be live in-game.
 
@@ -519,7 +525,7 @@ only**: shapes never appear in world-gen, settlements/villages, space stations o
   store/clear-on-air, persistence round-trip, networking round-trips, craft forms the item, refuses non-shapeable.
 
 ### ★ Creature taming & companions — ✅ server + tests + client wiring + icons, needs Unity client build (2026-06-15)
-**Plan:** [docs/CREATURE_TAMING_PLAN.md](docs/CREATURE_TAMING_PLAN.md). Wild fauna was kill-for-loot only; now a
+**Plan:** [docs/developer/CREATURE_TAMING.md](docs/developer/CREATURE_TAMING.md). Wild fauna was kill-for-loot only; now a
 player can **tame creatures into named companions** bound to the world they were tamed on.
 - **Creature Translator gadget (`creature_translator`):** right-click a wild creature to start a **bonding ritual** —
   the translator decodes its **mood + need**; the player **responds** (offer the bait it craves / calm / approach /
@@ -541,7 +547,7 @@ player can **tame creatures into named companions** bound to the world they were
   home-body binding, per-world cap, first-tame-knowledge gate.
 
 ### ★ Own-ship repair (hull + EVA-carved hull cells) — ✅ server + client wiring, needs Unity client build (2026-06-15)
-**Plan:** [docs/SHIP_REPAIR_PLAN.md](docs/SHIP_REPAIR_PLAN.md). The player's own ship had no repair path — combat
+**Plan:** [docs/developer/SHIP_REPAIR.md](docs/developer/SHIP_REPAIR.md). The player's own ship had no repair path — combat
 dented only the numeric hull (never regenerates; only free-restored on destruction) and EVA-carved hull cells were
 only refillable by hand. Now one cockpit action restores both.
 - **One engine, one material model (`GameServerShipRepair.cs`):** repairs against the ship's **design reference**
@@ -560,7 +566,7 @@ only refillable by hand. Now one cockpit action restores both.
 - **Follow-up (not built):** a client field/EVA per-cell highlight UI (the server already accepts `Mode="cell"`).
 
 ### ★ Peaceful NPC trader ships (living space) — ✅ P1–P3 server + tests complete, needs Unity client build (2026-06-15)
-**Plan:** [docs/NPC_TRADER_SHIPS_PLAN.md](docs/NPC_TRADER_SHIPS_PLAN.md). Ambient civilian traffic so space feels alive.
+**Plan:** [docs/developer/NPC_TRADER_SHIPS.md](docs/developer/NPC_TRADER_SHIPS.md). Ambient civilian traffic so space feels alive.
 - **Traffic per system:** deterministic **None / Rare / Often** from seed + system id (`TrafficFor`); systems with a
   station lean busier. Drives a per-instance spawn scheduler — traders spawn **only in occupied flight instances**
   (instances are per-launch-body), capped (Rare ≤1, Often ≤3), paced ~25–70 s (Often) / ~90–240 s (Rare).
@@ -599,9 +605,9 @@ only refillable by hand. Now one cockpit action restores both.
   detail and the "unlockable" status (`ui.tech.knowledge`, DE+EN) — it was ignored client-side (server-validated only).
 
 ### ★ Story system ("The VEGA Protocol") — ✅ P0–P8 COMPLETE, server + Unity build-verified (2026-06-14)
-**Plans:** [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) (engineering, phased P0–P8 +
-Suno appendix), [docs/STORY_VEGA_PROTOCOL_CONCEPT.md](docs/STORY_VEGA_PROTOCOL_CONCEPT.md) (design rationale),
-[docs/LORE_STRUCTURE.md](docs/LORE_STRUCTURE.md) (authoritative canon + content-generation agenda).
+**Plans:** [docs/developer/STORY_IMPLEMENTATION.md](docs/developer/STORY_IMPLEMENTATION.md) (engineering, phased P0–P8 +
+Suno appendix), [docs/developer/STORY_VEGA_PROTOCOL_CONCEPT.md](docs/developer/STORY_VEGA_PROTOCOL_CONCEPT.md) (design rationale),
+[docs/developer/LORE_STRUCTURE.md](docs/developer/LORE_STRUCTURE.md) (authoritative canon + content-generation agenda).
 A **pluggable, story-agnostic engine** drives swappable **story packs** (the active story is selectable
 in-game); the first pack is *The VEGA Protocol* — SPS grundstory, clone twist, three Guardian machine types
 (space UFO + planet three-eyed robots + planet scan-drones), text-only **net fragments** + **player memories**,
@@ -645,7 +651,7 @@ finale** vs. the dormant Guardian core. Story is data: `data/stories/<id>/`.
   core console, gauntlet HUD, **boss/core visuals**, robotic SFX · P4 robotic SFX +
   a proper Fragment/Memory **reader panel** · P8 story-selection world-option UI + story-density slider · P7
   flavour-line pool + mission threading.
-  See [docs/STORY_IMPLEMENTATION_PLAN.md](docs/STORY_IMPLEMENTATION_PLAN.md) §P0–P8.
+  See [docs/developer/STORY_IMPLEMENTATION.md](docs/developer/STORY_IMPLEMENTATION.md) §P0–P8.
 
 ### ★ Flora variety — per-biome themes, lush patchy undergrowth, multi-layer plants, tree archetypes — ✅ IMPLEMENTED (2026-06-14)
 **Goal:** every biome reads as its own ecosystem — a forest is not "trees on bare ground" but a carpeted, layered,
@@ -826,7 +832,7 @@ Q4 base core craftable from the start.
 **Goal:** play small bundled HTML5/JS minigames in-game, and read an in-game wiki — both rendered by an
 embedded browser. Minigames are found as "data cubes" on planets (download → personal collection); the wiki
 shows general content always but gates Systems/Worlds to the player's discoveries. Highscores local-only,
-not user-moddable. Full design: [docs/MINIGAMES_AND_WIKI.md](docs/MINIGAMES_AND_WIKI.md).
+not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/developer/MINIGAMES_AND_WIKI.md).
 **What was built:**
 - **Server (verified, in the bundled server):** `PlayerState.UnlockedGames` (+ snapshot persistence, SP+MP);
   `GameServerDataCubes.cs` scatters 0–N cubes per body (≈45% none) deterministically from the seed and
@@ -940,7 +946,7 @@ volume buses. Splash stings left untouched.
 - **Assets:** the 20 supplied tracks + 3 newly-generated gap tracks (cave / verdant / planet-night) copied to
   `client/Assets/Resources/music/*.mp3` with descriptive `music_*` names and **Streaming** import (so the
   multi-minute songs don't sit decompressed in RAM). Kept out of `Resources/audio/` so `ClientAudio` doesn't
-  preload them. Prompts + context mapping documented in [docs/MUSIC_TRACKS.md](docs/MUSIC_TRACKS.md).
+  preload them. Prompts + context mapping documented in [docs/developer/MUSIC_TRACKS.md](docs/developer/MUSIC_TRACKS.md).
 - **Director:** `ClientMusic` is now a **persistent AppShell-owned** component (spans splash→menu→loading→
   in-game, closing the old main-menu-hook gap; removed from WorldRig, reads `AppShell.CurrentBoot`). Two modes
   (`ClientSettings.MusicMode` Synth | **Tracks** default), toggle row in `UiSettings` (en/de keys). Context from
@@ -956,7 +962,7 @@ volume buses. Splash stings left untouched.
   `music_idle_default_2`, `music_explore_planet_2`. Each is guarded by the existing
   `RemoveAll(LoadMusic == null)`, so it activates the moment its `.mp3` lands in `Resources/music/` (no
   further code change). **Edit-ready Suno prompts** for all of them are in
-  [docs/MUSIC_TRACKS.md](docs/MUSIC_TRACKS.md) → *Variance pack*. **Open:** owner generates the tracks →
+  [docs/developer/MUSIC_TRACKS.md](docs/developer/MUSIC_TRACKS.md) → *Variance pack*. **Open:** owner generates the tracks →
   drop in → Unity client rebuild to import + compile.
 - **Open:** needs a Unity client rebuild to import the new audio + compile; not yet play-verified in-engine.
 
@@ -1119,9 +1125,9 @@ Screen wash (`WeatherFx`) + muted rain bed (`ClientAudio`) stay player-gated on 
 no drops on the lens, muffled audio.
 
 ### ★ Professional-look pass (WP-1…16) — ✅ IMPLEMENTED (2026-06-12); PT-1/PT-2 playtests pending
-Driven by [docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) and
-[docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md](docs/PROFESSIONAL_LOOK_IMPLEMENTATION_PLAN.md)
-(one commit per WP). Style rules now codified in [docs/ART_BIBLE.md](docs/ART_BIBLE.md).
+Driven by [docs/developer/PROFESSIONAL_LOOK_GAP_ANALYSIS.md](docs/developer/PROFESSIONAL_LOOK_GAP_ANALYSIS.md) and
+[docs/developer/PROFESSIONAL_LOOK_IMPLEMENTATION.md](docs/developer/PROFESSIONAL_LOOK_IMPLEMENTATION.md)
+(one commit per WP). Style rules now codified in [docs/developer/ART_BIBLE.md](docs/developer/ART_BIBLE.md).
 **Verification:** client batch builds green, 475 tests green (locale parity incl. the new block
 names). **Open:** the two human playtest checkpoints — **PT-1** (linear-color-space parity: 8
 scenarios + retune candidates flora blend / grade strength / emission ×2 / bloom threshold /
@@ -1162,7 +1168,7 @@ block variants, ship rooms/cockpit/decor/thrusters/damage/ghost+materialize).
   <50% hull, pulsing red emergency light + `hull_alarm` <25% (hysteresis at 30%).
 - **WP-15 Build preview + materialize** ✅ — ship-editor placement ghost (green/red, pulsing);
   restamp materialize sweep (rising holo ring + shimmer, keyed off ShipStations changes).
-- **WP-16 Docs** ✅ — `docs/ART_BIBLE.md` (normative style + palette + checklist); stale
+- **WP-16 Docs** ✅ — `docs/developer/ART_BIBLE.md` (normative style + palette + checklist); stale
   ADVANCED_GRAPHICS_PLAN header fixed; gap-analysis statuses closed.
 
 ### ★ In-game multiplayer hosting ("Host Game") — ✅ SHIPPED (2026-06-12; 475 tests green)
@@ -1781,7 +1787,7 @@ Baseline is better than it looks: lit block shader (normals/sun/spec/AO/sky-occl
 - ✅ **URP migration — DONE 2026-06-10** (merged to main, dev-verified): real soft shadows (terrain + models +
   creatures + enemies, cast + receive), URP Volume post (ACES/bloom/vignette/grade) + SSAO, diegetic visor via
   a render-graph blit pass, per-system sun tint restored (grade share 0.4), all 12 shaders dual-pipeline,
-  Potato preset shadows off. Progress log: [docs/URP_MIGRATION_PLAN.md](docs/URP_MIGRATION_PLAN.md).
+  Potato preset shadows off. Progress log: [docs/developer/URP_MIGRATION.md](docs/developer/URP_MIGRATION.md).
 - **Quick wins (kept, smaller now that URP shadows exist):** held-item real texture (currently a flat cube,
   `HeldItem.cs`), flora as cross-billboards (currently alpha-cutout cube faces), menu backdrop blur (80%
   opaque quad, no blur).
@@ -4340,7 +4346,7 @@ Features: B7/B11. Rendering: B6/B8/B17/B20. B15/B19 need an in-engine look; B21 
    (status / config editing / backups / log tail / admin missions / content packs); `/api/*` is the JSON API,
    gated by an `X-Admin-Password` header when `adminPassword` is set (no password → loopback-bind reliance +
    a status warning); plus a public `/portal` landing page and the `/play` browser-client placeholder.
-   **Documented:** new "Admin dashboard" section in `README.md` + expanded `docs/SELF_HOSTING.md` §5 (start,
+   **Documented:** new "Admin dashboard" section in `README.md` + expanded `docs/developer/SELF_HOSTING.md` §5 (start,
    URL, auth, full API route table, curl/Invoke-RestMethod example, dev-mode config caveat). *(Original entry:)*
    *(Docs only — backlog, requested 2026-06-08.)* There is
    an ASP.NET server admin component (`src/Spacecraft.Api`); **find out how/where its admin dashboard is opened**
@@ -4838,7 +4844,7 @@ until the real station floor chunk streams in. Also hardens normal planet-to-pla
 Boarding a station is now a real world transition (the proven `WorldReset` path): each station is its **own
 void world** (space sky, no weather/clouds, lit interior, life support, NPCs), so you land **inside** the
 station floating in space instead of falling through to the planet. Implemented S1–S7 of
-**[docs/STATION_AS_LOCATION_PLAN.md](docs/STATION_AS_LOCATION_PLAN.md)** (`PlanetType.Void` + all-air gen,
+**[docs/developer/STATION_AS_LOCATION.md](docs/developer/STATION_AS_LOCATION.md)** (`PlanetType.Void` + all-air gen,
 `orbital_station` type, `LoadWorld` skips surface content for void worlds, `BoardStation`/`LeaveStation`
 travel in/out, station NPCs per-world). Tests: `BoardStation_PutsPlayerInOwnVoidWorld_OnSolidGround_…`,
 `LeaveStation_TravelsBackToThePlanet`, `VoidPlanet_GeneratesEmptySpace`.
@@ -4969,7 +4975,7 @@ simultaneously, plus **fly between planets in a system and land on any of them**
 multi-world core (per-player worlds + per-player ship) mandatory, with a system-scale flight layer on top.
 Full phased design (P1 body positions → **P2 WorldManager indirection, the keystone** → P3 multi-world +
 per-player location → P4 per-player ship → P5 system flight + land-anywhere → P6 inter-system → P7
-cross-world MP polish) in **[docs/MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN.md](docs/MULTIWORLD_AND_SYSTEM_FLIGHT_PLAN.md)**.
+cross-world MP polish) in **[docs/developer/MULTIWORLD_AND_SYSTEM_FLIGHT.md](docs/developer/MULTIWORLD_AND_SYSTEM_FLIGHT.md)**.
 Key enabler found: persistence is already **location-scoped** (the save DB can hold many worlds; only the
 in-memory single `_world` blocks it). **Decision: one ship per player, no crew.**
 
@@ -5214,9 +5220,9 @@ Everything builds + **302 tests pass** as of `0d988a9`.
   ore/structures continuous across X = 0 ≡ X = 6000). Seam-free generation via circular-domain noise; server
   + client + persistence + interaction all route X through one wrap helper. **Remaining: W5 (poles)** — bound
   latitude (Z) with an ice-wall/barrier biome. Full plan + progress in
-  [docs/WORLD_WRAP_PLAN.md](docs/WORLD_WRAP_PLAN.md).
+  [docs/developer/WORLD_WRAP.md](docs/developer/WORLD_WRAP.md).
 - **Advanced graphics roadmap** — Built-in RP vs URP decision, god rays, reflection probes, LUT grade.
-  Full research in [docs/ADVANCED_GRAPHICS_PLAN.md](docs/ADVANCED_GRAPHICS_PLAN.md).
+  Full research in [docs/developer/ADVANCED_GRAPHICS.md](docs/developer/ADVANCED_GRAPHICS.md).
 - **Texture audit** — review/expand item & icon art and creature/NPC texture variety.
 - **uGUI theme polish — ✅ icon pass SHIPPED 2026-06-11:** 10 new generated cyan line icons
   (`map_player/ship/waypoint/beacon/pad/settlement/ruin/wreck/station` + `icon_vega`). The world map's
@@ -5224,7 +5230,7 @@ Everything builds + **302 tests pass** as of `0d988a9`.
   get distinct art) with glyph fallback when an icon is missing; the glyph legend line became a real
   icon legend row; the VEGA companion panel shows her avatar chip beside the name. Remaining (kept):
   hover/selected states + spacing harmonisation across the newer screens.
-- **Deferred by design** (see [docs/SPACE_COMBAT_CONCEPT.md](docs/SPACE_COMBAT_CONCEPT.md)): PvP ship
+- **Deferred by design** (see [docs/developer/SPACE_COMBAT_CONCEPT.md](docs/developer/SPACE_COMBAT_CONCEPT.md)): PvP ship
   combat, large cruisers/bosses. (Per-player ships shipped in P4.)
 
 ---

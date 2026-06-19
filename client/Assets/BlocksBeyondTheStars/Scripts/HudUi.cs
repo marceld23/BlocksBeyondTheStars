@@ -14,6 +14,9 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>Local settings (wired by <see cref="WorldRig"/>) — read live for the optional playtime readout.</summary>
+        public ClientSettings Settings;
+
         private const int Slots = 9;
         private const float W = UiKit.HudRefW, H = UiKit.HudRefH; // smaller reference → a ~1.25× bigger HUD
 
@@ -27,6 +30,8 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
         private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist;
+        private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
+        private Text _playtimeText;
         private RectTransform _todMarker;
         private RectTransform _compassShip, _compassWp;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
@@ -358,6 +363,12 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddImage(tod.transform, 10 + 150 * 0.25f, 32, 150 * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
             _todMarker = UiKit.AddImage(tod.transform, 10, 30, 2, 16, UiKit.SolidSprite, UiKit.Cyan).rectTransform;
 
+            // Optional playtime readout, tucked just under the clock (top-right). Hidden unless the comfort
+            // setting is on; refreshed each frame in RefreshPlaytime.
+            _playtimePanel = Panel(root, W - 210f, 200, 200, 40).gameObject;
+            _playtimeText = UiKit.AddText(_playtimePanel.transform, 10, 4, 184, 30, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _playtimePanel.SetActive(false);
+
             // Toast / indicators / prompts / hint.
             _toast = UiKit.AddText(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _inSpace = UiKit.AddText(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -408,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
             _wreckClaim = UiKit.AddButton(_wreckPanel.transform, 10, 120, 230, 24, string.Empty, () => Game.Network?.SendClaimWreck());
 
             // Ship-repair panel (right, below the wreck panel) — the cockpit "Repair ship" action: buy hull
-            // back + refill EVA-carved hull cells with one click, paid in metal (docs/SHIP_REPAIR_PLAN.md).
+            // back + refill EVA-carved hull cells with one click, paid in metal (docs/developer/SHIP_REPAIR.md).
             _shipRepairPanel = Panel(root, W - 260f, 300, 250, 120).gameObject;
             _shipRepairTitle = UiKit.AddText(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
@@ -489,6 +500,7 @@ namespace BlocksBeyondTheStars.Client
             RefreshHotbar(loc);
             RefreshCompass();
             RefreshTimeOfDay(loc);
+            RefreshPlaytime(loc);
 
             _toast.text = Game.LastMessage ?? string.Empty;
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
@@ -754,6 +766,41 @@ namespace BlocksBeyondTheStars.Client
                 : string.Empty;
             _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{gravStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+        }
+
+        /// <summary>Optional comfort readout: the current session's real-world playtime, plus this world's
+        /// saved total. Hidden entirely unless the player enabled it in settings. Counts real wall-clock so it
+        /// keeps ticking while paused in menus.</summary>
+        private void RefreshPlaytime(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            if (_playtimePanel == null)
+            {
+                return;
+            }
+
+            bool show = Settings != null && Settings.ShowSessionTime;
+            if (_playtimePanel.activeSelf != show)
+            {
+                _playtimePanel.SetActive(show);
+            }
+
+            if (!show)
+            {
+                return;
+            }
+
+            _playtimeText.text = $"{loc.Get("ui.hud.playtime")}  {FormatDuration((long)Game.SessionSeconds)}"
+                                 + $"  ·  {loc.Get("ui.hud.playtime_total")}  {FormatDuration(Game.TotalPlaytimeSeconds)}";
+        }
+
+        /// <summary>Formats a span of seconds as <c>H:MM:SS</c> (or <c>M:SS</c> under an hour) for the HUD.</summary>
+        private static string FormatDuration(long totalSeconds)
+        {
+            if (totalSeconds < 0) totalSeconds = 0;
+            long h = totalSeconds / 3600;
+            long m = (totalSeconds % 3600) / 60;
+            long s = totalSeconds % 60;
+            return h > 0 ? $"{h}:{m:00}:{s:00}" : $"{m}:{s:00}";
         }
 
         private void RefreshScan(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

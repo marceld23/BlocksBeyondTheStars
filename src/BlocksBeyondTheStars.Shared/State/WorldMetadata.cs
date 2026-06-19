@@ -22,6 +22,11 @@ public sealed class WorldMetadata
     /// <summary>Schema/content version for future migrations.</summary>
     public int SaveVersion { get; set; } = 1;
 
+    /// <summary>Total wall-clock seconds this world has been actively played (accumulated server-side only
+    /// while at least one player is joined, so an idle dedicated server doesn't inflate it). Shown in the HUD
+    /// and the save picker. 0 on saves from before playtime tracking existed.</summary>
+    public long CumulativePlaytimeSeconds { get; set; }
+
     /// <summary>Admin-defined universe description; combined with the seed it yields the galaxy.</summary>
     public WorldDescription Description { get; set; } = new();
 

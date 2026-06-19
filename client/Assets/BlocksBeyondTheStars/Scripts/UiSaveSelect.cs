@@ -11,6 +11,16 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class UiSaveSelect
     {
+        /// <summary>Compact playtime for a save-list row: "12 h 30 min", "45 min", or "&lt;1 min" (h/min are
+        /// understood in both German and English, so the figure needs no localization).</summary>
+        private static string FormatPlaytime(long totalSeconds)
+        {
+            long minutes = totalSeconds / 60;
+            if (minutes <= 0) return "<1 min";
+            long h = minutes / 60, m = minutes % 60;
+            return h > 0 ? $"{h} h {m} min" : $"{m} min";
+        }
+
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("SaveSelectUI");
@@ -56,7 +66,9 @@ namespace BlocksBeyondTheStars.Client
                 for (int i = 0; i < shown; i++)
                 {
                     string w = worlds[i];
-                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, $"▸  {w}", () => Launch(w), "btn_singleplayer");
+                    long played = LocalServerLauncher.ReadWorldPlaytimeSeconds(w);
+                    string label = played > 0 ? $"▸  {w}    ({FormatPlaytime(played)})" : $"▸  {w}";
+                    UiKit.AddButton(left, 20f, 56f + i * 62f, 612f, 54f, label, () => Launch(w), "btn_singleplayer");
                     UiKit.AddButton(left, 640f, 56f + i * 62f, 60f, 54f, "✕", () =>
                     {
                         target[0] = w;

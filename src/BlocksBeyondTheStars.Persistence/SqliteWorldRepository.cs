@@ -122,6 +122,29 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$json", JsonSerializer.Serialize(metadata, JsonOptions));
             cmd.ExecuteNonQuery();
         }
+
+        WriteMetaSidecar(metadata);
+    }
+
+    /// <summary>Mirrors a few headline stats into <c>world.meta.json</c> so the client world-picker can show
+    /// them without opening this SQLite DB. Best-effort: a sidecar write failure never blocks the real (DB)
+    /// save — the picker simply falls back to showing the bare world name.</summary>
+    private void WriteMetaSidecar(WorldMetadata metadata)
+    {
+        try
+        {
+            var summary = new WorldSaveSummary
+            {
+                WorldName = metadata.WorldName,
+                PlaytimeSeconds = metadata.CumulativePlaytimeSeconds,
+                LastPlayedUtc = DateTime.UtcNow.ToString("o"),
+            };
+            File.WriteAllText(_paths.MetaSidecarFile, JsonSerializer.Serialize(summary, JsonOptions));
+        }
+        catch
+        {
+            // Non-fatal: the DB is the source of truth; the sidecar is a convenience for the menu.
+        }
     }
 
     // --- Block edits ---

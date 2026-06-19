@@ -35,6 +35,9 @@ namespace BlocksBeyondTheStars.Client
         private string _objectiveKey = string.Empty;
         private int _objProgress, _objTarget;
 
+        // How many break reminders have fired this session — drives the escalating wording and the next due time.
+        private int _remindersSent;
+
         private void Start()
         {
             _canvas = UiKit.CreateDiegeticCanvas("VegaPanel");
@@ -115,6 +118,33 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Real-world "take a break" nudge: once the player has been in this session for the chosen
+        /// number of minutes (and again every interval after), VEGA enqueues a break reminder. This is driven
+        /// purely client-side from the session wall-clock — deliberately NOT a server <see cref="ShipAiLine"/>,
+        /// so the meta hint never lands in the Story Log. Gated on the comfort setting; the wording escalates.</summary>
+        private void CheckPlaytimeReminder()
+        {
+            if (Game == null || Settings is not { PlaytimeReminder: true })
+            {
+                return;
+            }
+
+            float interval = Mathf.Max(1, Settings.ReminderMinutes) * 60f;
+            if (Game.SessionSeconds < (_remindersSent + 1) * interval)
+            {
+                return;
+            }
+
+            _remindersSent++;
+            string key = _remindersSent switch
+            {
+                1 => "ui.reminder.break",
+                2 => "ui.reminder.break.again",
+                _ => "ui.reminder.break.long",
+            };
+            _queue.Enqueue(L(key)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
+        }
+
         /// <summary>True when the continue key should be ignored: the in-game menu is open, or a text
         /// field (chat, beacon label) currently has keyboard focus.</summary>
         private bool InputCaptured()
@@ -127,6 +157,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 return;
             }
+
+            CheckPlaytimeReminder();
 
             if (_current.Length == 0 && _queue.Count > 0)
             {

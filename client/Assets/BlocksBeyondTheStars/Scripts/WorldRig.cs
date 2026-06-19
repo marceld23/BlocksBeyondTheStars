@@ -98,6 +98,7 @@ namespace BlocksBeyondTheStars.Client
             // Localized vitals HUD + hotbar.
             var hud = root.AddComponent<HudUi>(); // modern uGUI HUD
             hud.Game = boot;
+            hud.Settings = shell.Settings; // live read for the optional playtime readout
 
             // Toggleable full-screen planet map (key M), distinct from the star map.
             var worldMap = root.AddComponent<WorldMap>();

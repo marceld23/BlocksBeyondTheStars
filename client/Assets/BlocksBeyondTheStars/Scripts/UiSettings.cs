@@ -91,6 +91,15 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; Rebuild(); });
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; Rebuild(); });
 
+            Head(ref y, L("ui.settings.comfort"));
+            Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
+            Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });
+            // Reminder interval: 15-minute steps from 15 min up to 4 hours; greyed in effect when the toggle is off.
+            Stepper(ref y, L("ui.settings.reminder_interval"), (S.ReminderMinutes - 15) / 225f, 15, 240,
+                () => { S.ReminderMinutes = Mathf.Clamp(S.ReminderMinutes - 15, 15, 240); Rebuild(); },
+                () => { S.ReminderMinutes = Mathf.Clamp(S.ReminderMinutes + 15, 15, 240); Rebuild(); },
+                S.ReminderMinutes + " min");
+
             Head(ref y, L("ui.settings.character"));
             ColorRow(ref y, L("ui.settings.skin"), S.SkinColor, () => { S.SkinColor = Next(S.SkinColor); Rebuild(); });
             ColorRow(ref y, L("ui.settings.torso"), S.TorsoColor, () => { S.TorsoColor = Next(S.TorsoColor); Rebuild(); });
