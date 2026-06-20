@@ -23,6 +23,22 @@ dotnet run --project src/BlocksBeyondTheStars.GameServer    # local dedicated se
 dotnet run --project src/BlocksBeyondTheStars.Api           # admin UI (http://127.0.0.1:31416)
 ```
 
+## Running the tests
+
+```powershell
+dotnet test                                # all .NET xUnit suites (server/shared + headless client<->server)
+./scripts/run-tests.ps1                     # selectable runner — default: fast .NET suites only
+./scripts/run-tests.ps1 -Suites All         # + the Unity Editor suites (EditMode + PlayMode-vs-real-server)
+./scripts/run-tests.ps1 -Suites ClientCore  # just the headless client<->server integration tests
+./scripts/run-tests.ps1 -Coverage           # .NET suites with a coverage report (TestResults/)
+```
+
+`run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
+Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at
+the default `6000.4.9f1` path). The client is tested against the **real** server at three tiers — the design,
+the `Client.Core` split, and the per-tier prerequisites are documented in
+[CLIENT_TESTING.md](CLIENT_TESTING.md).
+
 ## Building the Windows client
 
 One command produces a fully self-contained singleplayer/multiplayer client:
@@ -34,8 +50,8 @@ One command produces a fully self-contained singleplayer/multiplayer client:
 It runs these steps:
 
 1. **Sync shared libs + content** (`scripts/sync-client-libs.ps1`) — `dotnet publish`es
-   `BlocksBeyondTheStars.Shared`, `.WorldGeneration` and `.Networking` (netstandard2.1) with their
-   NuGet dependencies (MessagePack, LiteNetLib, …) and copies the DLLs into
+   `BlocksBeyondTheStars.Shared`, `.WorldGeneration`, `.Networking` and `.Client.Core` (netstandard2.1) with
+   their NuGet dependencies (MessagePack, LiteNetLib, …) and copies the DLLs into
    `client/Assets/Plugins/`. It also copies `data/*` (blocks, items, recipes, locales, …)
    into `client/Assets/StreamingAssets/data/`.
 2. **Bundle the singleplayer server** (`scripts/publish-local-server.ps1`) — publishes a

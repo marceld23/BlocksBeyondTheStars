@@ -101,8 +101,10 @@ src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + lo
 src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           validate/info/backup CLI
-tests/BlocksBeyondTheStars.Tests/         xUnit tests
-client/                         Unity project (scripts + scaffold; open in the Unity Editor)
+src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
+tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
+tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration tests
+client/                         Unity project (scripts + scaffold + Assets/Tests; open in the Unity Editor)
 ai-backend/                     optional Python LLM service (mission/NPC/ship-AI text) — game runs without it
 tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)
@@ -118,7 +120,8 @@ Requires the **.NET 8 SDK**.
 
 ```powershell
 dotnet build BlocksBeyondTheStars.sln       # build everything
-dotnet test                       # run all tests
+dotnet test                       # run all .NET tests (server/shared + headless client<->server)
+./scripts/run-tests.ps1           # selectable test runner (adds the Unity Editor suites with -Suites All)
 dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local dedicated server (UDP 31415)
 dotnet run --project src/BlocksBeyondTheStars.Api          # start the admin UI (http://127.0.0.1:31416)
 ```
@@ -126,7 +129,8 @@ dotnet run --project src/BlocksBeyondTheStars.Api          # start the admin UI 
 The playable Windows client is built with `scripts/build-client.ps1` (publishes the shared libs +
 the bundled server and runs a Unity batch build; requires the Unity Editor). See
 [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) for the full build guide, how to verify a build is
-fresh, and known build pitfalls.
+fresh, and known build pitfalls. The Unity client is tested against the **real** game server — the approach is
+documented in [docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
 
 Server configuration lives in `config/server.json` (created on first run) and is editable
 via the admin UI. See [docs/developer/SELF_HOSTING.md](docs/developer/SELF_HOSTING.md).

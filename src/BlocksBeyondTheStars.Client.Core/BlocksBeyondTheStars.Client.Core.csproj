@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Unity-free client logic shared between the Unity player and the headless test suite.
+    Targets netstandard2.1 (like Shared/WorldGeneration/Networking) so the *exact same*
+    NetworkClient + ClientWorld run inside Unity and inside dotnet-test integration tests
+    that drive the real in-process GameServer over a LoopbackLink. Keep this assembly
+    Unity-free (no UnityEngine reference) — Unity-coupled code (meshers, MonoBehaviours)
+    stays in the client asmdef. See docs/developer/CLIENT_TESTING.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
+    <ProjectReference Include="..\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj" />
+  </ItemGroup>
+
+</Project>

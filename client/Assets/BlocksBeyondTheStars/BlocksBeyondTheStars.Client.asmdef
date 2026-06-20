@@ -14,6 +14,7 @@
     "BlocksBeyondTheStars.Shared.dll",
     "BlocksBeyondTheStars.WorldGeneration.dll",
     "BlocksBeyondTheStars.Networking.dll",
+    "BlocksBeyondTheStars.Client.Core.dll",
     "MessagePack.dll",
     "LiteNetLib.dll",
     "Velopack.dll",

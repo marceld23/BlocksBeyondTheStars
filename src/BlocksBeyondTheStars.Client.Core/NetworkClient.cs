@@ -2,15 +2,20 @@ using System;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
-using UnityEngine;
+using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Thin Unity-side wrapper around the shared <see cref="IClientTransport"/> and
-    /// <see cref="NetCodec"/>. It sends intents and raises typed events for authoritative
-    /// state from the server. The client never decides outcomes — it only renders what the
-    /// server reports.
+    /// Thin wrapper around the shared <see cref="IClientTransport"/> and <see cref="NetCodec"/>.
+    /// It sends intents and raises typed events for authoritative state from the server. The
+    /// client never decides outcomes — it only renders what the server reports.
+    ///
+    /// Lives in the Unity-free <c>BlocksBeyondTheStars.Client.Core</c> assembly so the exact same
+    /// class runs inside the Unity player and inside the headless integration tests that drive the
+    /// real in-process <c>GameServer</c> over a <see cref="LoopbackLink"/>. Continuous positions use
+    /// Shared's <see cref="Vector3f"/>; the Unity layer adds <c>UnityEngine.Vector3</c> overloads via
+    /// <c>NetworkClientUnityExtensions</c> so call-sites stay unchanged.
     /// </summary>
     public sealed class NetworkClient : IDisposable
     {
@@ -157,8 +162,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
         public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
 
-        public void SendMove(Vector3 pos, float yaw, float pitch)
-            => Send(new MoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
+        public void SendMove(Vector3f pos, float yaw, float pitch)
+            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
@@ -263,8 +268,8 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendConsume(string itemKey) => Send(new ConsumeItemIntent { ItemKey = itemKey });
 
-        public void SendUseGadget(string gadgetKey, Vector3 target)
-            => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.x, Y = target.y, Z = target.z });
+        public void SendUseGadget(string gadgetKey, Vector3f target)
+            => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
 
         public void SendLoadRation(string itemKey, int count) => Send(new LoadRationIntent { ItemKey = itemKey, Count = count });
 
@@ -312,7 +317,7 @@ namespace BlocksBeyondTheStars.Client
         public void SendTradeCancel() => Send(new TradeCancelIntent());
 
         // Reports the ship's position while flying in space (for server-side collision).
-        public void SendShipMove(Vector3 pos, float yaw = 0f) => Send(new ShipMoveIntent { X = pos.x, Y = pos.y, Z = pos.z, Yaw = yaw });
+        public void SendShipMove(Vector3f pos, float yaw = 0f) => Send(new ShipMoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw });
 
         /// <summary>EVA build/mine on a voxel structure (item 20 S2). Design-local cell coords.</summary>
         public void SendStructureEdit(string structureId, int x, int y, int z, bool mine, string itemKey = "")
@@ -400,7 +405,7 @@ namespace BlocksBeyondTheStars.Client
 
         // --- Hover speeders ---
         /// <summary>Deploy a speeder in front of the player (reuses the gadget path on the speeder item).</summary>
-        public void SendDeploySpeeder(Vector3 at) => SendUseGadget("speeder", at);
+        public void SendDeploySpeeder(Vector3f at) => SendUseGadget("speeder", at);
 
         /// <summary>Board a parked speeder I own.</summary>
         public void SendEnterSpeeder(string speederId) => Send(new EnterSpeederIntent { SpeederId = speederId ?? string.Empty });

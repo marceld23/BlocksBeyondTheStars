@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Code-coverage configuration for the .NET server test suite (BlocksBeyondTheStars.Tests).
+  Usage:  dotnet test  /collect "XPlat Code Coverage"  /settings coverlet.runsettings
+  (run via scripts/test-coverage.ps1 for the full report-generating workflow).
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+
+          <!-- Scope coverage to the server assemblies; exclude the test project itself. -->
+          <Include>
+            [BlocksBeyondTheStars.Shared]*,
+            [BlocksBeyondTheStars.WorldGeneration]*,
+            [BlocksBeyondTheStars.Persistence]*,
+            [BlocksBeyondTheStars.Networking]*,
+            [BlocksBeyondTheStars.GameServer]*,
+            [BlocksBeyondTheStars.Api]*
+          </Include>
+          <Exclude>
+            [BlocksBeyondTheStars.Tests]*
+          </Exclude>
+
+          <!-- Skip generated / non-meaningful code. -->
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/obj/**,**/*.g.cs,**/*.Designer.cs</ExcludeByFile>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

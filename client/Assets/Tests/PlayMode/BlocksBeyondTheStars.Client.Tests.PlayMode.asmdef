@@ -1,0 +1,25 @@
+{
+  "name": "BlocksBeyondTheStars.Client.Tests.PlayMode",
+  "rootNamespace": "BlocksBeyondTheStars.Client.Tests",
+  "references": [
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner",
+    "BlocksBeyondTheStars.Client"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "BlocksBeyondTheStars.Client.Core.dll",
+    "BlocksBeyondTheStars.Shared.dll",
+    "BlocksBeyondTheStars.Networking.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

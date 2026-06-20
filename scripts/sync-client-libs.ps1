@@ -20,7 +20,8 @@ New-Item -ItemType Directory -Force $streaming | Out-Null
 $projects = @(
     'src/BlocksBeyondTheStars.Shared',
     'src/BlocksBeyondTheStars.WorldGeneration',
-    'src/BlocksBeyondTheStars.Networking'
+    'src/BlocksBeyondTheStars.Networking',
+    'src/BlocksBeyondTheStars.Client.Core'   # Unity-free client logic (NetworkClient, ClientWorld) — see docs/developer/CLIENT_TESTING.md
 )
 
 # Publish (not just build) each library so its NuGet dependencies (MessagePack, LiteNetLib,

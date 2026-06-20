@@ -22,6 +22,7 @@
     "dev.voltstro.unitywebbrowser.engine.cef.win.x64": "2.2.8",
     "com.cysharp.unitask": "2.5.11",
     "com.unity.render-pipelines.universal": "17.4.0",
+    "com.unity.test-framework": "1.4.6",
     "com.unity.ugui": "1.0.0",
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.imageconversion": "1.0.0",

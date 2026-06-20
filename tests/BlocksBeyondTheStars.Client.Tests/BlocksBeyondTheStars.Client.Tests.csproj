@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Headless client↔server integration tests: they drive the REAL Unity-free NetworkClient
+    (from BlocksBeyondTheStars.Client.Core) against the REAL in-process GameServer over a
+    LoopbackLink — no Unity, no sockets. Same authoritative server logic as the shipping game.
+    Run via `scripts/run-tests.ps1 -Suites ClientCore` (or the whole `dotnet test`).
+    See docs/developer/CLIENT_TESTING.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Client.Core\BlocksBeyondTheStars.Client.Core.csproj" />
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.WorldGeneration\BlocksBeyondTheStars.WorldGeneration.csproj" />
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Persistence\BlocksBeyondTheStars.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj" />
+    <ProjectReference Include="..\..\src\BlocksBeyondTheStars.GameServer\BlocksBeyondTheStars.GameServer.csproj" />
+  </ItemGroup>
+
+</Project>

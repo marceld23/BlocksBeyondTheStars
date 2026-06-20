@@ -17,6 +17,28 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Unity-client tests against the real game server — ✅ infra + fully validated (2026-06-20, Unity-built)
+The Unity client is now testable against the **real** authoritative server, not a mock, at three tiers. The
+Unity-free client logic (`NetworkClient`, `ClientWorld`) was extracted into a new netstandard2.1 assembly
+`src/BlocksBeyondTheStars.Client.Core/` so the *same* code runs in the Unity player and in headless tests; the
+Unity layer keeps `UnityEngine.Vector3` call-sites working via `NetworkClientUnityExtensions` (the Core
+`NetworkClient` speaks Shared's `Vector3f`).
+- **Tier 1 — `tests/BlocksBeyondTheStars.Client.Tests/`** (xUnit, net8.0): the real `NetworkClient` drives the
+  real in-process `GameServer` over a `LoopbackLink` (no Unity, no sockets) via `ClientServerHarness` — join,
+  chunk streaming, mine→block-change+inventory, craft success, craft-rejected. **5 tests green.**
+- **Tier 1.5 — `client/Assets/Tests/EditMode/`**: in-Editor unit tests — `ClientWorld` round-trips (Unity-safe
+  logic). **3 tests green.**
+- **Tier 2 — `client/Assets/Tests/PlayMode/`**: a `[UnityTest]` launches the **published** server exe over
+  loopback UDP and drives a real `NetworkClient` through connect→join→chunks (the shipping path), plus the real
+  `BlockTextureAtlas` build. **2 tests green.** (Atlas runs in PlayMode — its builder calls `Object.Destroy`,
+  illegal in edit mode; and the PlayMode asmdef must be `includePlatforms: []` or Unity treats it as EditMode.)
+- **Runner**: `scripts/run-tests.ps1 -Suites Dotnet,ClientCore,UnityEdit,UnityPlay,All` (+ `-Coverage`) —
+  selectable, defaults to the fast .NET suites; the Unity suites are opt-in. `com.unity.test-framework` added;
+  `sync-client-libs.ps1` + the client asmdef now carry `Client.Core.dll`. Docs: new
+  `docs/developer/CLIENT_TESTING.md` (+ AGENTS.md, DEVELOPER.md, README, index). **All suites green
+  (683/5/3/2); full Windows player build verified with `Client.Core.dll` bundled (no CS0246).** CI intentionally
+  deferred (local only).
+
 ### ★ Block-selection outline no longer flickers in mid-air — ✅ client (2026-06-20, NEEDS Unity build)
 The black aim/mining wireframe box flickered in the air while walking (noticed moving backwards): it was placed
 by a forward `Physics.Raycast`, so it snapped onto whatever collider the ray hit — a creature / parked ship /

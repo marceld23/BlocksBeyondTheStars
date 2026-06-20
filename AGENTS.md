@@ -42,8 +42,10 @@ src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + lo
 src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
-tests/BlocksBeyondTheStars.Tests/         xUnit tests
-client/                         Unity project
+src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
+tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
+tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration (real NetworkClient vs real GameServer)
+client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites)
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
@@ -74,15 +76,27 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
    RAM and disk-write load low and configurable.
 6. **Atomic saves** — write to a temp file then swap; autosave + rotating backups.
 7. **Keep `Shared`/`WorldGeneration` netstandard2.1-clean** so Unity can consume them.
+8. **Unity-free client logic goes in `Client.Core`** (netstandard2.1, no `UnityEngine`) so the *same*
+   `NetworkClient`/`ClientWorld` can be tested headless against the real server. Unity-coupled code
+   (meshers, MonoBehaviours, views) stays in the client asmdef. A new shared DLL Unity consumes must be
+   listed in **both** the client asmdef's `precompiledReferences` **and** `scripts/sync-client-libs.ps1`
+   (miss either → the player build fails `CS0246` while the Editor still compiles). See
+   [docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
 
 ## Build & test
 
 ```powershell
 dotnet build BlocksBeyondTheStars.sln      # build everything
-dotnet test                      # run all xUnit tests
+dotnet test                      # run all xUnit tests (server/shared + headless client<->server)
+./scripts/run-tests.ps1          # selectable suites: Dotnet, ClientCore, UnityEdit, UnityPlay, All
 dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local server
 ./scripts/build-client.ps1       # full Windows client (shared libs + bundled server + Unity batch build)
 ```
+
+`run-tests.ps1` defaults to the fast .NET suites (`Dotnet` + `ClientCore`); the Unity Editor suites
+(`UnityEdit` EditMode, `UnityPlay` PlayMode-vs-real-server-exe) are opt-in via `-Suites`. How the client is
+tested against the real server is documented in
+[docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
 
 To confirm a client rebuild actually happened, check the `BlocksBeyondTheStars.Client.dll` timestamp in the
 build output (the `.exe` timestamp is not reliable). The full build guide — pipeline details,
