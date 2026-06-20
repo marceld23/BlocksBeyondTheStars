@@ -290,8 +290,8 @@ namespace BlocksBeyondTheStars.Client
                 _ship.transform.localScale = Vector3.one * (_eva ? 1f : FlightShipScale);
             }
 
-            // The rear hatch door is closed while piloting (so the stern isn't an open hole) and opens — hidden —
-            // while you're on an EVA so you can float out and board.
+            // The rear hatch energy field is up while piloting (so the stern isn't an open hole) and drops —
+            // hidden — while you're on an EVA so you can float out and board.
             if (_hatchDoor != null)
             {
                 _hatchDoor.SetActive(!_eva);
@@ -2687,17 +2687,17 @@ namespace BlocksBeyondTheStars.Client
             _exhaust = ex.transform;
             BuildThruster(ship.transform, ex.transform.localPosition);
 
-            // Cap the rear hatch opening with a CLOSED door so the ship isn't a hole at the stern (you used to see
-            // straight into the hull). It slides open (hides) on an EVA so you can still board. Detected from the
-            // cells so it tracks any ship's actual rear opening, not a hard-coded box.
+            // Cap the rear hatch opening with a powered energy door so the ship isn't a hole at the stern (you
+            // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
+            // Detected from the cells so it tracks any ship's actual rear opening, not a hard-coded box.
             AddRearHatchDoor(ship, cells, _shipCentre, minX, maxX, minY, maxY, minZ, maxZ);
             return ship;
         }
 
-        /// <summary>Finds the rear (-Z) wall's hatch opening in <paramref name="cells"/> and caps it with a closed
-        /// two-leaf door panel parented to the ship, stored in <see cref="_hatchDoor"/>. No-op when the rear is
-        /// already sealed (no opening). The rear wall is the lowest-z near-solid face; its enclosed air cells are
-        /// the opening.</summary>
+        /// <summary>Finds the rear (-Z) wall's hatch opening in <paramref name="cells"/> and caps it with a
+        /// powered energy door (a translucent blue field in an emissive rim) parented to the ship, stored in
+        /// <see cref="_hatchDoor"/>. No-op when the rear is already sealed (no opening). The rear wall is the
+        /// lowest-z near-solid face; its enclosed air cells are the opening.</summary>
         private void AddRearHatchDoor(GameObject ship, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
             int minX, int maxX, int minY, int maxY, int minZ, int maxZ)
         {
@@ -2726,7 +2726,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 int area = (sxMax - sxMin + 1) * (syMax - syMin + 1);
-                if (area >= 9 && count >= area * 0.7f) // a real wall face (≥3×3, mostly filled)
+                if (area >= 6 && count >= area * 0.55f) // a real wall face (≥ a small grid, mostly filled)
                 {
                     zWall = z;
                     break; // lowest such z = the rear end cap
@@ -2779,13 +2779,18 @@ namespace BlocksBeyondTheStars.Client
             door.transform.localPosition = new Vector3(cxLocal, cyLocal, czLocal);
             _hatchDoor = door;
 
-            // Steel-blue leaves with a dark centre seam + a cyan power strip (matches the hatch beacon theme), so
-            // it clearly reads as a powered, CLOSED airlock door.
-            var leaf = LitTex("iron_wall", new Color(0.5f, 0.58f, 0.7f));
-            Cube("LeafL", door.transform, new Vector3(-w * 0.25f, 0f, 0f), new Vector3(w * 0.5f - 0.04f, h - 0.04f, 0.2f), leaf);
-            Cube("LeafR", door.transform, new Vector3(w * 0.25f, 0f, 0f), new Vector3(w * 0.5f - 0.04f, h - 0.04f, 0.2f), leaf);
-            Cube("Seam", door.transform, Vector3.zero, new Vector3(0.06f, h - 0.04f, 0.22f), Unlit(new Color(0.05f, 0.08f, 0.1f)));
-            Cube("PowerStrip", door.transform, new Vector3(0f, h * 0.5f - 0.18f, 0f), new Vector3(w - 0.2f, 0.08f, 0.24f), Unlit(new Color(0.2f, 0.85f, 1f)));
+            // A powered ENERGY door (same look as the on-foot energy doors, item 35): a translucent blue field
+            // fills the opening, framed by a thin emissive cyan rim, so the stern clearly reads as a closed,
+            // powered airlock instead of the bare hull hole you used to see straight through. The rim + field
+            // slightly over-fill the opening so there's no visible seam gap at the half flight scale.
+            var rim = Unlit(new Color(0.2f, 0.85f, 1f));
+            const float t = 0.16f; // rim bar thickness
+            Cube("RimTop", door.transform, new Vector3(0f, h * 0.5f - t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
+            Cube("RimBottom", door.transform, new Vector3(0f, -h * 0.5f + t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
+            Cube("RimLeft", door.transform, new Vector3(-w * 0.5f + t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
+            Cube("RimRight", door.transform, new Vector3(w * 0.5f - t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
+            Cube("EnergyField", door.transform, Vector3.zero, new Vector3(w - t, h - t, 0.12f),
+                EnergyField(new Color(0.35f, 0.80f, 1f, 0.6f)));
         }
 
         /// <summary>(Re)builds the ship's voxel chunk meshes + colliders from <see cref="_shipCells"/> (item 20
@@ -3955,6 +3960,17 @@ namespace BlocksBeyondTheStars.Client
         {
             var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
             return new Material(shader) { color = ShaderColor.Srgb(c) };
+        }
+
+        /// <summary>A translucent tinted "energy field" quad material — the same alpha-blend Cloud shader the
+        /// on-foot energy doors + the atmosphere halo use, so the ship's rear hatch reads as a powered energy
+        /// door (the colour's alpha sets how solid the field looks). Falls back to Unlit/Transparent.</summary>
+        private static Material EnergyField(Color c)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+            var m = new Material(shader) { mainTexture = Texture2D.whiteTexture, renderQueue = 3000 };
+            m.SetColor("_Color", ShaderColor.Srgb(c));
+            return m;
         }
 
         private Material _asteroidMat; // shared stone material for the field's asteroids (rebuilt per view)
