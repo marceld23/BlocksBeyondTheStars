@@ -125,7 +125,10 @@ jobs:
           Copy-Item artifacts/launcher/BlocksBeyondTheStars.Launcher.exe player/ -Force
           Compress-Archive -Path player/* -DestinationPath "BlocksBeyondTheStars-${{ github.ref_name }}.zip"
 
+      # Only a tag push can create a Release. A manual workflow_dispatch run still builds + uploads
+      # the player-windows artifact (downloadable from the run) but skips publishing.
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: BlocksBeyondTheStars-${{ github.ref_name }}.zip
