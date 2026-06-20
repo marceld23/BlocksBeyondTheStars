@@ -91,6 +91,12 @@ and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to on
 > were consolidated and removed.)
 > Docs and code comments are **English**. In-game text is **bilingual (German + English)**.
 
+## Project Status
+
+Blocks Beyond the Stars is a free in-development game. Bugs, missing content and compatibility issues are expected. Multiplayer and server behavior may change between versions.
+
+The software is provided as-is under the terms of the license included in this repository.
+
 ## Guiding principle
 
 > **The Unity client is presentation and input. The .NET server is the truth of the game world.**
