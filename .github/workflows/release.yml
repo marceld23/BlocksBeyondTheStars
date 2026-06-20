@@ -109,14 +109,15 @@ jobs:
           unityVersion: 6000.4.9f1
           targetPlatform: StandaloneWindows64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows
-          # Disable GameCI's own GitVersion-based versioning — it would set bundleVersion from the last tag
-          # (e.g. v0.1.0 -> 0.1.0) and override our exact -buildVersion. We want the precise tag, so None
-          # leaves bundleVersion to BuildScript's -buildVersion.
-          versioning: None
-          # BuildScript reads -buildOut + -buildVersion (bakes the version into PlayerSettings.bundleVersion,
-          # so Application.version shows it in-game, and writes version.txt for the guard below).
+          # GameCI always applies its versioning to PlayerSettings.bundleVersion (overriding anything our
+          # build method sets), so we drive it directly: Custom + our exact resolved version (the git tag).
+          # This makes Application.version in-game == the release version. BuildScript writes version.txt
+          # from the resulting bundleVersion, which the guard checks.
+          versioning: Custom
+          version: ${{ steps.ver.outputs.version }}
+          # BuildScript reads -buildOut and writes version.txt from the bundleVersion GameCI applied above.
           # allowDirtyBuild because the synced StreamingAssets/Plugins make the tree "dirty" for GameCI.
-          customParameters: -buildOut /github/workspace/player -buildVersion ${{ steps.ver.outputs.version }}
+          customParameters: -buildOut /github/workspace/player
           allowDirtyBuild: true
 
       # GameCI runs Unity as root; make the output readable by the (non-root) runner user.
