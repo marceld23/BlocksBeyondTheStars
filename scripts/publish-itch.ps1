@@ -60,7 +60,7 @@ if (-not $butler) {
         Write-Host 'Downloading butler (itch.io CLI, win-x64) ...' -ForegroundColor Cyan
         New-Item -ItemType Directory -Force $toolDir | Out-Null
         $zip = Join-Path $toolDir 'butler.zip'
-        Invoke-WebRequest -Uri 'https://broth.itch.ovh/butler/windows-amd64/LATEST/archive/default' -OutFile $zip
+        Invoke-WebRequest -Uri 'https://broth.itch.zone/butler/windows-amd64/LATEST/archive/default' -OutFile $zip
         Expand-Archive -Path $zip -DestinationPath $toolDir -Force
         Remove-Item $zip -Force
     }
