@@ -27,7 +27,7 @@ Preparing the repo to go open source and recruit contributors (repo still PRIVAT
 - **Menu/splash blur** reduced ([UrpScenePost.cs](client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs) new `ShellMode`: tighter bloom threshold 1.1 / intensity 0.28 / scatter 0.4; [MenuBackground.cs](client/Assets/BlocksBeyondTheStars/Scripts/MenuBackground.cs) nebula menu-brightness 0.75→0.6; URP asset Adaptive Performance off) — it was a *look* issue (bloom over an emissive-dense attract scene), not resolution (renderScale 1, direct render). Tune by eye after a build.
 - Locale parity kept (en+de); localization + content tests green. **Follow-up: rebuild the Windows player, eyeball the blur/menu, then re-capture marketing screenshots (`scripts/capture-screenshots.ps1`) since the splash changed.**
 
-### ★ GitHub Actions release build (public-repo safe) — ✅ working end-to-end (2026-06-20, v0.1.0 published)
+### ★ GitHub Actions release build (public-repo safe) — ✅ working end-to-end (2026-06-20, v0.2.0 = version-SoT + installer trio)
 `.github/workflows/release.yml` builds a Windows release and publishes a GitHub Release on a pushed `v*` tag
 (or the manual *Run workflow* button). **Validated: v0.1.0 published a 450 MB `BlocksBeyondTheStars-v0.1.0.zip`
 (player + bundled server + launcher).** The repo can be public without exposing the Unity key: GitHub masks
