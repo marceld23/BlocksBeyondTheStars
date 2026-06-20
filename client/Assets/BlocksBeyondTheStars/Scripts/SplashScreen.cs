@@ -115,6 +115,7 @@ namespace BlocksBeyondTheStars.Client
 
             Centered(lateGo.transform, new Vector2(0f, -65f), 18, new Color(0.75f, 0.85f, 0.95f), _shell.L("ui.splash.tagline"), false);
             Centered(lateGo.transform, new Vector2(0f, -108f), 18, new Color(1f, 0.72f, 0.2f), $"{_shell.L("ui.splash.build")}   v{AppShell.Version}", false);
+            Centered(lateGo.transform, new Vector2(0f, -150f), 17, new Color(0.5f, 0.85f, 1f), _shell.L("ui.splash.contribute"), true);
             Centered(lateGo.transform, new Vector2(0f, -432f), 18, new Color(0.7f, 0.8f, 0.9f, 0.6f), _shell.L("ui.splash.skip"), false);
 
             Animate(0f);

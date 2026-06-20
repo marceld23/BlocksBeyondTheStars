@@ -65,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
             stars.MenuBrightness = 1f;
             var nebula = gameObject.AddComponent<NebulaField>();
             nebula.Camera = _cam;
-            nebula.MenuBrightness = 0.75f;
+            nebula.MenuBrightness = 0.6f; // a touch dimmer so the gas dome doesn't haze over the backdrop
             nebula.MenuSeed = 73;
 
             BuildSun();
@@ -103,6 +103,7 @@ namespace BlocksBeyondTheStars.Client
                 post.Preset = QualityPreset.High;
                 post.LensFlareEnabled = true;
                 post.MotionBlurEnabled = false;
+                post.ShellMode = true; // tighter bloom so the attract scene reads crisp, not hazy
 
                 // A code-created URP camera has post-processing OFF by default — turn it on or the global Volume
                 // (bloom/tonemap/vignette/lens flare) never touches the menu scene.

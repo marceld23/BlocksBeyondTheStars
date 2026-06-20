@@ -298,6 +298,18 @@ namespace BlocksBeyondTheStars.Client
             return img;
         }
 
+        /// <summary>A full-screen dark scrim for modal overlays: dims the menu/scene behind a dialog so the
+        /// foreground panel reads clearly, and swallows clicks meant for the panel (raycast target on). Add it to
+        /// the canvas root right before the dialog panel so the panel draws on top; parent the panel under the
+        /// returned scrim's transform. Returns the scrim <see cref="Image"/> (use <c>.gameObject</c> to show/hide
+        /// the whole overlay).</summary>
+        public static Image AddModalDim(Transform parent, float alpha = 0.7f)
+        {
+            var dim = AddImage(parent, 0f, 0f, 1920f, 1080f, SolidSprite, new Color(0f, 0f, 0f, alpha));
+            dim.raycastTarget = true; // swallow clicks behind the dialog
+            return dim;
+        }
+
         public static Text AddText(Transform parent, float x, float y, float w, float h, string text, int size,
             Color color, TextAnchor anchor = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
         {

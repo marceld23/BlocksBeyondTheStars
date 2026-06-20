@@ -235,7 +235,10 @@ namespace BlocksBeyondTheStars.Client
             slrt.anchoredPosition = new Vector2(0f, -230f);
             slrt.sizeDelta = new Vector2(900f, 40f);
             _sloganGroup = slGo.AddComponent<CanvasGroup>();
-            Part(slrt, Vector2.zero, 24, new Color(0.8f, 0.88f, 0.96f), "Built from imagination.");
+            Part(slrt, Vector2.zero, 24, new Color(0.8f, 0.88f, 0.96f), _shell.L("ui.studio.slogan"));
+
+            // Open-source invite: "Contributors: your name could be here" — fades in with the slogan group.
+            Part(slrt, new Vector2(0f, -46f), 18, new Color(0.55f, 0.80f, 1f), _shell.L("ui.studio.contributors"));
 
             // Full-screen reveal flash (on top).
             _flash = Full(root, "Flash", new Color(1f, 1f, 1f, 0f));

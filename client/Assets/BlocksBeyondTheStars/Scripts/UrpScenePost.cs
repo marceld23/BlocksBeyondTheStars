@@ -28,6 +28,10 @@ namespace BlocksBeyondTheStars.Client
         /// High). Wired from WorldRig.</summary>
         public QualityPreset Preset = QualityPreset.Medium;
 
+        /// <summary>Menu/splash attract scene: keep bloom tight so the emissive-dense backdrop (nebula dome, sun
+        /// rays, engine glow, stars) reads crisp instead of washing into a soft haze. Set before Start runs.</summary>
+        public bool ShellMode;
+
         /// <summary>Player look-effect toggles (mirror <see cref="ClientSettings"/>). Wired from WorldRig.</summary>
         public bool LensFlareEnabled = true;
         public bool MotionBlurEnabled = true;
@@ -60,9 +64,20 @@ namespace BlocksBeyondTheStars.Client
             tonemap.mode.Override(TonemappingMode.ACES); // filmic, matches the old PostComposite ACES curve
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.Override(0.9f);
-            bloom.intensity.Override(0.5f);
-            bloom.scatter.Override(0.6f);
+            if (ShellMode)
+            {
+                // Tighter bloom for the attract scene: higher threshold + lower intensity/scatter so only the
+                // brightest cores glow and the backdrop stays sharp (the menu has far more emissive pixels than play).
+                bloom.threshold.Override(1.1f);
+                bloom.intensity.Override(0.28f);
+                bloom.scatter.Override(0.4f);
+            }
+            else
+            {
+                bloom.threshold.Override(0.9f);
+                bloom.intensity.Override(0.5f);
+                bloom.scatter.Override(0.6f);
+            }
 
             _vignette = profile.Add<Vignette>(true);
             _vignette.intensity.Override(BaseVignette);

@@ -1,8 +1,7 @@
 # AGENTS.md — Guide for AI Agents Working on Blocks Beyond the Stars
 
-This file orients any AI agent (or developer) contributing to **Blocks Beyond the Stars**
-(renamed 2026-06-12 from the former working title; solution, namespaces, binaries and paths
-all use `BlocksBeyondTheStars`). Read it before making changes.
+This file orients any AI agent (or developer) contributing to **Blocks Beyond the Stars**.
+Read it before making changes.
 
 ## What Blocks Beyond the Stars is
 

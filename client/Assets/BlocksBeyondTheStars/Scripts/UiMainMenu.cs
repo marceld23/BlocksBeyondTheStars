@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -62,9 +63,13 @@ namespace BlocksBeyondTheStars.Client
             AddInfo(root, 834f, "info_procedural", shell.L("ui.info.proc_title"), shell.L("ui.info.proc_desc"));
 
             // --- Bottom bar ---
+            // The participate / "Join in" overlay (built below); the bottom-right button reveals it.
+            GameObject participate = null;
             UiKit.AddText(root, 90f, 1030f, 500f, 26f, shell.L("ui.menu.community"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(root, 660f, 1030f, 600f, 26f, shell.L("ui.splash.tagline"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddText(root, 1420f, 1030f, 460f, 26f, shell.L("ui.menu.wishlist"), 16, UiKit.Cyan, TextAnchor.MiddleRight, FontStyle.Bold);
+            // "Mach mit" — replaces the old "Wishlist on Steam" line; opens the open-source participate panel.
+            UiKit.AddButton(root, 1620f, 1018f, 260f, 48f, shell.L("ui.menu.contribute"),
+                () => { if (participate != null) participate.SetActive(true); }, "btn_credits");
 
             // --- Connect-to-server dialog (added last so it draws on top; hidden until JOIN is pressed) ---
             string[] name = { shell.PlayerName };
@@ -100,6 +105,27 @@ namespace BlocksBeyondTheStars.Client
             }, "btn_join");
             UiKit.AddButton(dlg, 310f, 432f, 260f, 54f, shell.L("ui.menu.back"), () => connect.SetActive(false), "btn_exit");
             connect.SetActive(false);
+
+            // --- Participate / "Join in" overlay (added last so it draws on top; hidden until "Mach mit") ---
+            var pdim = UiKit.AddModalDim(root);
+            participate = pdim.gameObject;
+            var pdlg = UiKit.AddPanel(participate.transform, 560f, 290f, 800f, 500f, UiKit.Panel).transform;
+            UiKit.AddText(pdlg, 40f, 28f, 720f, 36f, shell.L("ui.contribute.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            Text Para(float y, string text, int size, Color col)
+            {
+                var t = UiKit.AddText(pdlg, 40f, y, 720f, 64f, text, size, col, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return t;
+            }
+
+            Para(92f, shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
+            Para(168f, "1.  " + shell.L("ui.contribute.play"), 17, UiKit.TextCol);
+            Para(232f, "2.  " + shell.L("ui.contribute.bugs"), 17, UiKit.TextCol);
+            Para(326f, "3.  " + shell.L("ui.contribute.dev"), 17, UiKit.TextCol);
+            UiKit.AddText(pdlg, 40f, 400f, 720f, 26f, shell.L("ui.contribute.github"), 17, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(pdlg, 270f, 436f, 260f, 52f, shell.L("ui.menu.back"), () => participate.SetActive(false), "btn_exit");
+            participate.SetActive(false);
 
             return canvas.gameObject;
         }

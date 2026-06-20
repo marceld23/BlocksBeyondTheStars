@@ -5,10 +5,6 @@ explore procedurally generated planets, mine resources, craft gear, research blu
 and grow your ship — built from day one as a client/server game so multiplayer and
 self-hosting come naturally.
 
-> **Naming note:** the game was renamed on 2026-06-12 from its former working title "Spacecraft" —
-> display title, solution, namespaces, binaries and asset paths all use **Blocks Beyond the Stars** /
-> `BlocksBeyondTheStars` now. Old client installs migrate their settings/saves automatically on first start.
-
 ## What is it? (the short pitch)
 
 You wake aboard **your own spaceship** at the edge of an unknown universe. Out there are
@@ -80,6 +76,7 @@ A family project:
 - **Verena Dütscher** (mother) — game balancing and playtesting
 
 We're hoping for community support! Get involved and join in — your name could soon be here too!
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to play, report bugs, or send a pull request.
 
 *(This is the same credit shown in the game's Credits screen — `ui.credits.body`.)*
 
