@@ -31,8 +31,29 @@ jobs:
   build-player:
     name: Build Unity player (Linux)
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+
+      # Version single source of truth: a tag push (vX.Y.Z) defines the version for the whole build —
+      # in-game (Application.version), the launcher and the Velopack installers all derive from it. A manual
+      # workflow_dispatch run has no tag, so it builds a 0.0.0-dev test artifact (and never publishes).
+      - name: Resolve + validate version
+        id: ver
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+              echo "::error::Tag '$GITHUB_REF_NAME' is not SemVer — expected vX.Y.Z (e.g. v0.3.0)."
+              exit 1
+            fi
+          else
+            v="0.0.0-dev"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Resolved build version: $v"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -88,14 +109,23 @@ jobs:
           unityVersion: 6000.4.9f1
           targetPlatform: StandaloneWindows64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows
-          # BuildScript reads -buildOut; point it at a host-visible folder. allowDirtyBuild because
-          # the synced StreamingAssets/Plugins make the working tree "dirty" from GameCI's git check.
-          customParameters: -buildOut /github/workspace/player
+          # BuildScript reads -buildOut + -buildVersion (bakes the version into PlayerSettings.bundleVersion,
+          # so Application.version shows it in-game, and writes version.txt for the guard below).
+          # allowDirtyBuild because the synced StreamingAssets/Plugins make the tree "dirty" for GameCI.
+          customParameters: -buildOut /github/workspace/player -buildVersion ${{ steps.ver.outputs.version }}
           allowDirtyBuild: true
 
       # GameCI runs Unity as root; make the output readable by the (non-root) runner user.
       - name: Fix output permissions
         run: sudo chmod -R a+rwX player
+
+      # Guard: the version baked into the player must equal the resolved tag version (single-source-of-truth).
+      - name: Verify baked version matches the tag
+        shell: bash
+        run: |
+          baked="$(cat player/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
+          test "$baked" = "${{ steps.ver.outputs.version }}"
 
       - name: Upload player artifact
         uses: actions/upload-artifact@v4
@@ -116,31 +146,48 @@ jobs:
           dotnet-version: '8.0.x'
 
       # Self-contained single-file launcher (same flags as scripts/build-client.ps1) so it needs no
-      # .NET runtime on the player's machine.
+      # .NET runtime on the player's machine. -p:Version stamps it with the same release version.
       - name: Build loading-splash launcher
         run: >
           dotnet publish src/BlocksBeyondTheStars.Launcher/BlocksBeyondTheStars.Launcher.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -p:Version=${{ needs.build-player.outputs.version }}
           -o artifacts/launcher
 
+      # Download the player into the layout publish-client-installer.ps1 expects (its default -BuildDir).
       - name: Download player artifact
         uses: actions/download-artifact@v4
         with:
           name: player-windows
-          path: player
+          path: client/Build/Windows
 
-      - name: Assemble release archive
+      - name: Add launcher to the player folder
+        shell: pwsh
+        run: Copy-Item artifacts/launcher/BlocksBeyondTheStars.Launcher.exe client/Build/Windows/ -Force
+
+      # Pin vpk to the vendored Velopack runtime version (sync-velopack-libs.ps1 = 1.2.0) for reproducible
+      # packaging, and expose it on PATH so the script's own `Get-Command vpk` check finds it.
+      - name: Install Velopack CLI (pinned)
         shell: pwsh
         run: |
-          Copy-Item artifacts/launcher/BlocksBeyondTheStars.Launcher.exe player/ -Force
-          Compress-Archive -Path player/* -DestinationPath "BlocksBeyondTheStars-${{ github.ref_name }}.zip"
+          dotnet tool install -g vpk --version 1.2.0
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      # Only a tag push can create a Release. A manual workflow_dispatch run still builds + uploads
-      # the player-windows artifact (downloadable from the run) but skips publishing.
+      # Produces the Windows installer trio in artifacts/installer: Setup.exe (per-user, no admin),
+      # the WiX MSI (machine-wide for IT/MDM), and a portable zip — plus the update feed (.nupkg/RELEASES).
+      - name: Package installers (Setup.exe + MSI + Portable)
+        shell: pwsh
+        run: ./scripts/publish-client-installer.ps1 -Version ${{ needs.build-player.outputs.version }} -Msi
+
+      # Only a tag push can create a Release. A manual workflow_dispatch run still builds the installers
+      # (verifiable from the run logs) but skips publishing.
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: BlocksBeyondTheStars-${{ github.ref_name }}.zip
+          files: |
+            artifacts/installer/*Setup.exe
+            artifacts/installer/*.msi
+            artifacts/installer/*Portable.zip
           generate_release_notes: true

@@ -28,9 +28,10 @@
     2. The Velopack CLI (vpk). Auto-installed here as a global tool if missing.
 
 .PARAMETER Version
-  SemVer for this release. Default: read from AppShell.Version (e.g. 0.20.0-dev). Pass a clean value
-  like 0.20.0 for an actual release. Each published version MUST be higher than the last for updates to
-  apply.
+  SemVer for this release. Default: read from PlayerSettings.bundleVersion in ProjectSettings.asset (the
+  single source of truth, which the release CI sets from the git tag; local builds keep 0.0.0-dev). Pass a
+  clean value like 0.20.0 for an actual local release. Each published version MUST be higher than the last
+  for updates to apply.
 
 .PARAMETER BuildDir
   The Unity player folder to package (must contain BlocksBeyondTheStars.exe). Default: client/Build/Windows.
@@ -92,11 +93,13 @@ if ($render.ExitCode -ne 0 -or -not (Test-Path $splashImage)) {
     Write-Error "Failed to render the installer splash via the launcher at '$build'."
 }
 
-# Derive the version from AppShell.Version unless one was given.
+# Derive the version unless one was given. The single source of truth is PlayerSettings.bundleVersion
+# (set by the release CI from the git tag at build time, e.g. "0.3.0"); read it from ProjectSettings.asset.
+# A local build keeps the committed dev value (0.0.0-dev) — pass -Version for a real local release.
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $appShell = Get-Content (Join-Path $repo 'client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs') -Raw
-    if ($appShell -match 'Version\s*=\s*"([^"]+)"') { $Version = $Matches[1] }
-    else { Write-Error 'Could not read AppShell.Version; pass -Version explicitly.' }
+    $projSettings = Get-Content (Join-Path $repo 'client/ProjectSettings/ProjectSettings.asset') -Raw
+    if ($projSettings -match '(?m)^\s*bundleVersion:\s*(\S+)') { $Version = $Matches[1] }
+    else { Write-Error 'Could not read bundleVersion from ProjectSettings.asset; pass -Version explicitly.' }
 }
 
 # Ensure the vpk CLI is on PATH (install the global tool on first use).

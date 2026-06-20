@@ -52,6 +52,16 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             EnsureRendererFeatures();
             EnsureAppIcon();
 
+            // Single source of truth for the version: the release CI passes the git tag (e.g. "0.3.0") here, so
+            // the in-game UI (AppShell.Version → Application.version), the installer and the launcher all match.
+            // No arg = a local/dev build, which keeps the committed bundleVersion (0.0.0-dev).
+            string version = GetArg("-buildVersion");
+            if (!string.IsNullOrEmpty(version))
+            {
+                PlayerSettings.bundleVersion = version;
+                Debug.Log($"BlocksBeyondTheStars version set from -buildVersion: {version}");
+            }
+
             string outDir = GetArg("-buildOut") ?? "Build/Windows";
             Directory.CreateDirectory(outDir);
 
@@ -71,6 +81,10 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             {
                 EditorApplication.Exit(1);
             }
+
+            // Record the version baked into the player so the release CI can assert it equals the git tag
+            // (the version single-source-of-truth guard).
+            File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
         }
 
         /// <summary>

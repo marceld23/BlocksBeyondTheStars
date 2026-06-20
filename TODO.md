@@ -23,6 +23,15 @@ world-gen; SQLite persistence.
 (player + bundled server + launcher).** The repo can be public without exposing the Unity key: GitHub masks
 secrets in all logs and never hands them to fork PRs, and the workflow runs **only** on tags / manual dispatch
 (never on `pull_request`), so no foreign code can reach the Unity secrets.
+- **Version single-source-of-truth (2026-06-20):** the git tag `vX.Y.Z` is now the only version source.
+  CI passes it as `-buildVersion` → `BuildScript` sets `PlayerSettings.bundleVersion`, so the in-game UI shows
+  it via `AppShell.Version` (now `=> Application.version`, no longer a hardcoded const); the launcher gets
+  `-p:Version` and Velopack `--packVersion` the same value. Committed `bundleVersion` = `0.0.0-dev` for local
+  builds. A CI guard fails the build if the baked `version.txt` ≠ the tag. `Protocol.Version` stays separate.
+- **Windows installer trio (2026-06-20):** the release no longer ships a hand-rolled zip — the windows job runs
+  `publish-client-installer.ps1 -Msi` (vpk pinned 1.2.0) and attaches **Setup.exe** (per-user, no admin),
+  the **WiX MSI** (machine-wide/IT) and **Portable.zip**. (Linux/macOS client installers intentionally skipped
+  — blocked by the UWB/CEF cross-platform wall; see the version-SoT memory.)
 - **Gotchas hit + fixed during bring-up:** (1) GameCI v4 Personal license needs **three** secrets —
   `UNITY_LICENSE` (.ulf) + `UNITY_EMAIL` + `UNITY_PASSWORD` (a Google-SSO Unity account must set a password via
   "Forgot password" first). (2) `ClientUpdater.cs` references Velopack in the **player** build (`#if !UNITY_EDITOR`),
