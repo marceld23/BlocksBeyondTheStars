@@ -208,7 +208,14 @@ zip hand-off. This uses [Velopack](https://velopack.io) (MIT) for the installer 
 
 That produces `BlocksBeyondTheStars-win-Setup.exe` plus an update feed
 (`releases.win.json` + `*-full.nupkg`) and, with `-ServeDir`, copies them into the install's
-`clients/` folder so the API serves them.
+`clients/` folder so the API serves them. Add `-Msi` to also build the machine-wide WiX MSI.
+
+> The release version comes from `PlayerSettings.bundleVersion` (the single source of truth) unless you pass
+> `-Version`; local/dev builds carry `0.1.0-dev`, which Velopack accepts (it requires `packVersion >= 0.0.1`).
+> For *public* downloads you usually don't build by hand: pushing a git tag `vX.Y.Z` makes CI publish a GitHub
+> Release with the Setup.exe + MSI + Portable.zip — see
+> [DEVELOPER.md → Releases & versioning](DEVELOPER.md#releases-github-actions--versioning). The self-host
+> portal below is the LAN/own-server channel; the two are complementary.
 
 **On the host:** start `BlocksBeyondTheStars.Api`, and (for LAN/internet reach) bind it beyond loopback —
 set `adminBindAddress` to the LAN IP or `0.0.0.0` **and** set an `adminPassword` first (§4). Only `/api/*`

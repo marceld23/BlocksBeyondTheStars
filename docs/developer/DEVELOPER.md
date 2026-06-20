@@ -83,9 +83,12 @@ Useful parameters:
 > or `data/`, run the **full** build *without* `-SkipPrereqs` — those changes reach the
 > client only through the synced DLLs/content from step 1.
 
-To package the built player as a Velopack installer/update feed, run
-`scripts/publish-client-installer.ps1` after a successful `build-client.ps1` (it ships the
-launcher exe as `--mainExe`).
+To package the built player locally as a Velopack installer/update feed, run
+`scripts/publish-client-installer.ps1` after a successful `build-client.ps1` (it ships the launcher exe as
+`--mainExe`). Add `-Msi` to also build the machine-wide WiX MSI. Pass `-Version <semver>` for a real release;
+without it the version is read from `PlayerSettings.bundleVersion` in `ProjectSettings.asset` (the version
+source of truth — see [Releases & versioning](#releases-github-actions--versioning) below). For an actual
+shipped release you normally do **not** run this by hand — push a tag and let CI do it.
 
 ### Build log, exit codes and duration
 
@@ -130,6 +133,58 @@ Get-ChildItem client/Build/Windows/BlocksBeyondTheStars_Data/Managed/BlocksBeyon
   is old, the prereq sync didn't run (you probably built with `-SkipPrereqs`).
 - **Symptom of a stale build:** a brand-new feature "does nothing" in the game although the
   code is correct and all tests pass.
+
+## Releases (GitHub Actions) & versioning
+
+Shipped releases are built in the cloud by [`.github/workflows/release.yml`](../../.github/workflows/release.yml),
+not locally. Cut one by pushing a SemVer tag:
+
+```bash
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+The workflow has two jobs:
+
+1. **Build Unity player (Linux)** — GameCI (`game-ci/unity-builder`) cross-builds the `StandaloneWindows64`
+   player from a Docker image (Mono backend). It first runs the same prereqs as `build-client.ps1`
+   (`sync-client-libs.ps1`, `sync-velopack-libs.ps1`, `publish-local-server.ps1 -Runtime win-x64`), caches
+   `client/Library`, and frees runner disk space before the ~6 GB editor image pull.
+2. **Package + release (Windows)** — builds the launcher, downloads the player, and runs
+   `publish-client-installer.ps1 -Msi` (with `vpk` pinned to the vendored Velopack version) to produce and
+   attach three assets to a published GitHub Release: **`…-win-Setup.exe`** (per-user, no admin),
+   **`…-win.msi`** (machine-wide, for IT/MDM) and **`…-win-Portable.zip`**.
+
+The workflow triggers **only** on tag pushes and manual dispatch (never `pull_request`), so the Unity license
+secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are never exposed — safe even with a public repo. A
+manual *Run workflow* dispatch builds and packages a `0.1.0-dev` test artifact but does not publish a Release.
+
+### The git tag is the single source of truth for the version
+
+The tag (e.g. `v0.3.0`) is the only place the version is set. It flows everywhere automatically:
+
+- CI passes it to GameCI **`versioning: Custom`**, which sets `PlayerSettings.bundleVersion`. So in-game,
+  `AppShell.Version` — now a property **`=> Application.version`** (no longer a hardcoded const) — shows the
+  release version in the menu, loading and splash screens.
+- The launcher gets `-p:Version`, and Velopack gets `--packVersion`, with the same value.
+- `BuildScript` writes `version.txt` next to the player; a CI guard step **fails the build** if the baked
+  version ≠ the tag, so the in-game version and the release can never silently drift.
+- The committed `bundleVersion` is **`0.1.0-dev`** so local/dev builds are clearly marked.
+- `Networking/Protocol.Version` (an `int`, wire-format compatibility) is **separate** and unrelated to the
+  game version — do not conflate them.
+
+When working on this pipeline, three non-obvious gotchas already cost a debugging cycle each:
+
+- **GameCI always overrides `bundleVersion`** with its own versioning, beating anything the build method sets
+  via a custom arg (`versioning: None` even bakes the literal string `"none"`). Drive it through
+  `versioning: Custom` + `version:`; do not fight it.
+- **Velopack requires `packVersion >= 0.0.1`** — that is why the dev value is `0.1.0-dev`, not `0.0.0-*`.
+- **`gh workflow run` right after `git push`** can dispatch the *previous* commit (tag/branch HEAD hasn't
+  propagated yet) — wait ~20 s and verify the run's `headSha`.
+
+Linux/macOS **client** installers are intentionally not built: the client can't yet build for those platforms
+(the Windows-only UnityWebBrowser/CEF engine is the blocker — see
+[WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md)). The .NET **server** already cross-builds
+(`publish-server.ps1`: win-x64/linux-x64/linux-arm64) and could be attached separately.
 
 ## Troubleshooting: works in the Editor, silently broken in the build
 
