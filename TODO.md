@@ -17,11 +17,20 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ GitHub Actions release build (public-repo safe) — ✅ workflow added (2026-06-20, needs first run + UNITY_LICENSE secret)
+### ★ GitHub Actions release build (public-repo safe) — ✅ working end-to-end (2026-06-20, v0.1.0 published)
 `.github/workflows/release.yml` builds a Windows release and publishes a GitHub Release on a pushed `v*` tag
-(or the manual *Run workflow* button). The repo can be public without exposing the Unity key: GitHub masks
+(or the manual *Run workflow* button). **Validated: v0.1.0 published a 450 MB `BlocksBeyondTheStars-v0.1.0.zip`
+(player + bundled server + launcher).** The repo can be public without exposing the Unity key: GitHub masks
 secrets in all logs and never hands them to fork PRs, and the workflow runs **only** on tags / manual dispatch
-(never on `pull_request`), so no foreign code can reach `UNITY_LICENSE`.
+(never on `pull_request`), so no foreign code can reach the Unity secrets.
+- **Gotchas hit + fixed during bring-up:** (1) GameCI v4 Personal license needs **three** secrets —
+  `UNITY_LICENSE` (.ulf) + `UNITY_EMAIL` + `UNITY_PASSWORD` (a Google-SSO Unity account must set a password via
+  "Forgot password" first). (2) `ClientUpdater.cs` references Velopack in the **player** build (`#if !UNITY_EDITOR`),
+  so CI must run `sync-velopack-libs.ps1` too (build-client.ps1 doesn't — it relies on the gitignored Plugins
+  DLLs persisting locally). (3) The ~6 GB GameCI image + restored Library cache overflow the runner disk →
+  a "Free disk space" step (rm android/ghc/dotnet/CodeQL) is required. (4) The publish step is guarded with
+  `if: startsWith(github.ref,'refs/tags/')` so manual dispatch builds the artifact without erroring on the
+  missing tag.
 - **Job 1 (ubuntu):** `setup-dotnet` → `sync-client-libs.ps1` + `publish-local-server.ps1 -Runtime win-x64`
   (the gitignored `StreamingAssets`/`Plugins` are generated content, so they must be produced first) → cache
   `client/Library` → **GameCI** `game-ci/unity-builder@v4` builds the `StandaloneWindows64` player via the
