@@ -37,6 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private const float ChunkSettle = 5.0f;        // after WorldReady, let chunks mesh / the veil fully lower
         private const float PoseSettle = 2.5f;         // after a pose change, before the shot
         private const float FlightHeading = 0f; // flight heading that frames the asteroids/planet behind the ship
+        private const float CaptureReadyTimeout = 14f; // give the player this long to settle on solid, dry ground
 
         private string _lang = "en";
         private long _seed = DefaultSeed;
@@ -246,16 +247,52 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
-            // Step the on-foot player out of the hull onto terrain, looking back at the landed ship (no input →
-            // the player can't move otherwise). Gravity settles them onto the ground before the shot.
+            // Step the on-foot player out of the hull onto REAL terrain near the ship, facing back at it. The
+            // terrain-aware placement raycasts down to the actual surface (no blind offset), so the player isn't
+            // dropped through the floor / off a floating island / into water — the exact failures that wrecked the
+            // fungal/skylands/ocean shots on the first run. Then we wait until the player has actually settled on
+            // solid, DRY ground while ALIVE; if that never happens (tiny island / all-water world), we SKIP the
+            // shot rather than write a broken frame.
             var pc = FindFirstObjectByType<PlayerController>();
-            if (pc != null)
+            if (pc == null)
             {
-                var p = boot.PlayerPosition;
-                pc.SetCapturePose(new Vector3(p.x + 16f, p.y + 1f, p.z + 16f), 225f, 4f);
+                Debug.LogWarning($"[Capture] {_planet}: no PlayerController — skipping shot.");
+                yield break;
             }
 
-            yield return new WaitForSecondsRealtime(ChunkSettle);
+            var p = boot.PlayerPosition;
+            var anchor = new Vector3(p.x, p.y, p.z);
+
+            bool placed = false;
+            bool ready = false;
+            float t = 0f;
+            while (t < CaptureReadyTimeout)
+            {
+                // Retry placement until a near chunk's collider exists (raycast hits); once placed, stop moving
+                // the player so gravity can settle it and isGrounded can latch.
+                if (!placed)
+                {
+                    placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                }
+
+                bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;
+                if (placed && pc.IsCaptureGrounded && !pc.IsHeadUnderwater() && alive)
+                {
+                    ready = true;
+                    break;
+                }
+
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (!ready)
+            {
+                Debug.LogWarning($"[Capture] {_planet}: no safe dry footing near the ship (placed={placed}) — skipping shot.");
+                yield break;
+            }
+
+            yield return new WaitForSecondsRealtime(PoseSettle);
             yield return Capture(Path.Combine(dir, "surface_" + _planet + ".png"));
         }
 
