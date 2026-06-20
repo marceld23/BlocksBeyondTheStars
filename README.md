@@ -1,5 +1,7 @@
 # Blocks Beyond the Stars
 
+### 🌐 [www.blocksbeyondthestars.com](https://www.blocksbeyondthestars.com/) &nbsp;·&nbsp; [Play / report a bug](CONTRIBUTING.md) &nbsp;·&nbsp; [Contribute](CONTRIBUTING.md)
+
 A block-based 3D space crafting game for Windows. You start with a small spaceship,
 explore procedurally generated planets, mine resources, craft gear, research blueprints,
 and grow your ship — built from day one as a client/server game so multiplayer and
@@ -76,7 +78,8 @@ A family project:
 - **Verena Dütscher** (mother) — game balancing and playtesting
 
 We're hoping for community support! Get involved and join in — your name could soon be here too!
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to play, report bugs, or send a pull request.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how to play, report bugs, or send a pull request,
+and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to one another).
 
 *(This is the same credit shown in the game's Credits screen — `ui.credits.body`.)*
 

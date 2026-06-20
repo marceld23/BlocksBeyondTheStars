@@ -4,7 +4,11 @@ Thanks for your interest! **Blocks Beyond the Stars** is a family project that w
 opening up to the community — and we would love your help. There are three ways to join
 in, from "no setup at all" to "write some code".
 
+Everyone is welcome here. Please be kind — see our short
+[Code of Conduct](CODE_OF_CONDUCT.md) (it's basically "be nice to one another").
+
 > Repository: <https://github.com/marceld23/BlocksBeyondTheStars>
+> · Website: <https://www.blocksbeyondthestars.com/>
 
 ## 1. Play it (and have fun)
 

@@ -1,0 +1,24 @@
+name: "✨ Idea / feature request"
+description: Suggest a new feature, block, creature, or improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea to make the game better? We'd love to hear it. There are no bad ideas —
+        please search [existing issues](../) first in case it's already suggested.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like to see? What problem does it solve or what would it make more fun?
+      placeholder: It would be great if you could rename tamed companions from the Begleiter tab...
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: How might it work?
+      description: Any details — how you'd imagine it playing out. Totally optional.
+    validations:
+      required: false

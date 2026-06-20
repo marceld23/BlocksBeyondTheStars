@@ -1,0 +1,54 @@
+name: "🐞 Bug report"
+description: Report something broken or confusing in the game.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! A good report makes a bug fixable.
+        Please search [existing issues](../) first — a 👍 on an existing report helps too.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What actually happened, and what did you expect instead?
+      placeholder: I tried to mine a glass block and it said "already empty"; I expected it to drop glass.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The steps that led to it, as exactly as you can.
+      placeholder: |
+        1. Start a new singleplayer world
+        2. Place a glass block, then try to mine it
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where?
+      description: Singleplayer or on a server?
+      options:
+        - Singleplayer
+        - Hosted world (playing with friends)
+        - Dedicated server
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      description: Shown in the main menu / Credits screen (e.g. v0.2.0). Optional but helpful.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Screenshots, which planet/screen, roughly when it happened, log snippets, etc.
+    validations:
+      required: false
