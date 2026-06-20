@@ -64,6 +64,7 @@ public sealed class WorldOptionsTests : IDisposable
             "--exotic", "Off", "--systems", "12", "--planets-min", "3", "--planets-max", "8",
             "--moons-max", "4", "--oxygen", "Slow", "--hunger", "false", "--hazards", "Hard",
             "--death-penalty", "None", "--planet-types", "corrupted=Frequent,ocean=Rare",
+            "--start-planet", "lava",
         });
 
         Assert.Equal(AlienActivity.Extreme, config.Rules.CreatureAbundance);
@@ -86,6 +87,7 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.Equal(DeathPenalty.None, config.Rules.DeathPenalty);
         Assert.Equal(Frequency.Frequent, config.World.PlanetTypeFrequencies["corrupted"]);
         Assert.Equal(Frequency.Rare, config.World.PlanetTypeFrequencies["ocean"]);
+        Assert.Equal("lava", config.StartPlanet);
     }
 
     // ---- The world owns its rules (RulesOverride bake + reload) -------------------------------

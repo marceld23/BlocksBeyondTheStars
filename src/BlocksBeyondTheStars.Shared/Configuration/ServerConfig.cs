@@ -244,6 +244,10 @@ public sealed class ServerConfig
                 case "seed":
                     if (long.TryParse(value, out var sd)) { Seed = sd; applied.Add("seed"); }
                     break;
+                case "start-planet":
+                    // Planet type the world spawns on (an unknown key falls back to the worldgen default).
+                    if (!string.IsNullOrWhiteSpace(value)) { StartPlanet = value.Trim(); applied.Add("start-planet"); }
+                    break;
                 case "admin-bind":
                     AdminBindAddress = value; applied.Add("admin-bind");
                     break;

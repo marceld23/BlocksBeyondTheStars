@@ -42,13 +42,14 @@ namespace BlocksBeyondTheStars.Client
         private long _seed = DefaultSeed;
         private string _outDir;
         private bool _headless; // true = launched via the -captureShots command line (exit the process when done)
+        private string _planet; // when set (-planet <key>), capture ONLY that planet's surface (surface_<key>.png)
 
         /// <summary>Self-install at startup when capture is requested. Reload-safe: reads config fresh from the
         /// command line (player/headless) or EditorPrefs (editor menu) rather than relying on static state.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
         {
-            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless))
+            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet))
             {
                 return;
             }
@@ -60,14 +61,16 @@ namespace BlocksBeyondTheStars.Client
             d._outDir = outDir;
             d._seed = seed;
             d._headless = headless;
+            d._planet = planet;
         }
 
-        private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless)
+        private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet)
         {
             lang = "en";
             outDir = null;
             seed = DefaultSeed;
             headless = false;
+            planet = null;
 
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
@@ -89,6 +92,10 @@ namespace BlocksBeyondTheStars.Client
                          && long.TryParse(args[i + 1], out var s))
                 {
                     seed = s;
+                }
+                else if (string.Equals(a, "-planet", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    planet = args[i + 1];
                 }
             }
 
@@ -126,7 +133,18 @@ namespace BlocksBeyondTheStars.Client
 
             string dir = ResolveOutDir();
             Directory.CreateDirectory(dir);
-            Debug.Log($"[Capture] lang={_lang} seed={_seed} out={dir}");
+            Debug.Log($"[Capture] lang={_lang} seed={_seed} planet={_planet ?? "(none)"} out={dir}");
+
+            // Planet-variety mode: when -planet <key> is given, shoot ONLY that planet's surface and quit.
+            // The menu/cockpit/flight shots are planet-agnostic, so they're skipped — the ps1 loops this over a
+            // curated list of planet types to build a "many worlds" gallery.
+            if (!string.IsNullOrEmpty(_planet))
+            {
+                yield return CapturePlanetSurface(shell, dir);
+                Debug.Log("[Capture] Done (planet surface).");
+                Quit(0);
+                yield break;
+            }
 
             // 1) Start screen — wait for the studio/title splash chain to auto-advance to the main menu.
             yield return WaitForPhase(shell, ShellPhase.MainMenu, 30f);
@@ -203,6 +221,42 @@ namespace BlocksBeyondTheStars.Client
 
             Debug.Log("[Capture] Done.");
             Quit(0);
+        }
+
+        /// <summary>Surface-only capture for one forced planet type (<c>-planet &lt;key&gt;</c>): start a fresh world
+        /// pinned to that planet type, then step the on-foot player out of the spawn hull onto open terrain and
+        /// shoot <c>surface_&lt;key&gt;.png</c>. A fresh world spawns the player INSIDE the ship hull on the surface
+        /// (not a void interior), so no EnterSpace/LeaveSpace round-trip is needed — just SetCapturePose out.</summary>
+        private IEnumerator CapturePlanetSurface(AppShell shell, string dir)
+        {
+            // A distinct world name per planet so each run is its own fresh save (no leftover state between types).
+            string worldName = WorldName + "_" + _planet;
+            var opts = new WorldCreationOptions { StartPlanetType = _planet };
+            shell.StartSingleplayerWorld(worldName, _seed, creativeUnlockAll: true, creativeAllShips: true,
+                creativeKit: true, worldOptions: opts);
+
+            yield return WaitForPhase(shell, ShellPhase.InGame, WorldLoadTimeout);
+            var boot = shell.CurrentBoot;
+            if (boot == null || boot.Network == null)
+            {
+                Debug.LogError($"[Capture] World '{worldName}' did not start (bundled server missing?). Skipping {_planet}.");
+                yield break;
+            }
+
+            yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
+            yield return new WaitForSecondsRealtime(ChunkSettle);
+
+            // Step the on-foot player out of the hull onto terrain, looking back at the landed ship (no input →
+            // the player can't move otherwise). Gravity settles them onto the ground before the shot.
+            var pc = FindFirstObjectByType<PlayerController>();
+            if (pc != null)
+            {
+                var p = boot.PlayerPosition;
+                pc.SetCapturePose(new Vector3(p.x + 16f, p.y + 1f, p.z + 16f), 225f, 4f);
+            }
+
+            yield return new WaitForSecondsRealtime(ChunkSettle);
+            yield return Capture(Path.Combine(dir, "surface_" + _planet + ".png"));
         }
 
         /// <summary>Output folder: an explicit -shotOut, else <c>&lt;repo&gt;/docs/screenshots/&lt;lang&gt;</c> in the
