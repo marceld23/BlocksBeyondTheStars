@@ -94,6 +94,10 @@ namespace BlocksBeyondTheStars.Client
         public void OpenMap() => OpenAt(Tab.Map);
         public void OpenMissions() => OpenAt(Tab.Missions);
 
+        /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): open/close the in-game menu exactly
+        /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
+        public void SetMenuOpen(bool open) => SetOpen(open);
+
         /// <summary>Opens the in-game Wiki ("Codex") browser screen — an always-available menu point.</summary>
         public void OpenWiki() { EnsureBrowserHost(); _browser = BrowserScreen.Wiki; SetOpen(true); }
 

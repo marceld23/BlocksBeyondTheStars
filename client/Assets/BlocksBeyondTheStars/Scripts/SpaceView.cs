@@ -20,6 +20,11 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): force the flight heading so the
+        /// marketing vantage shots differ. Safe because in manual flight <c>_yaw</c> only changes from mouse
+        /// input, which is absent during an unattended capture run.</summary>
+        public void SetFlightYaw(float yawDeg) => _yaw = yawDeg;
+
         private static readonly Vector3 SceneOrigin = new Vector3(0f, 6000f, 0f);
         private const float SeqDuration = 1.6f;
         private const float LandDuration = 2.2f;  // landing flies the ship away toward the planet — a touch longer so the shrink reads

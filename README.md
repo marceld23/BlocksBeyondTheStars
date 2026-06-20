@@ -50,6 +50,25 @@ is shared, persistent, and self-hostable (even on a Raspberry Pi).
 - 📖 Follow the exciting **VEGA Protocol** story (optional, narrated by your ship AI) to its finale
 - 🎵 Set the mood with a built-in music library
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/en/start_screen.png" width="100%" alt="Main menu"><br><sub>Main menu</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/planet_surface.png" width="100%" alt="On a planet surface"><br><sub>On a planet surface</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/en/space_flight.png" width="100%" alt="Space flight"><br><sub>Space flight between worlds</sub></td>
+    <td width="50%"><img src="docs/screenshots/en/cockpit_hud.png" width="100%" alt="Ship cockpit"><br><sub>The ship cockpit</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/en/cockpit_menu.png" width="100%" alt="In-game menu"><br><sub>The in-game menu (crafting, tech, ship, map…)</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
+<sub>Generated from the live game — see [docs/screenshots/](docs/screenshots/README.md).</sub>
+
 ## About this project
 
 **Blocks Beyond the Stars — JuMaVe Games**

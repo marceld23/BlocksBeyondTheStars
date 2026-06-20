@@ -60,6 +60,9 @@ client/Assets/StreamingAssets.meta
 scripts/_*.log
 scripts/_*.txt
 
+# Local build/capture run logs at the repo root (build-run*.log, capture-run*.log, ...)
+/*.log
+
 # Python bytecode (tools/)
 __pycache__/
 *.pyc

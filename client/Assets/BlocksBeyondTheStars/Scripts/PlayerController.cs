@@ -1048,6 +1048,21 @@ namespace BlocksBeyondTheStars.Client
             _verticalVelocity = 0f;
         }
 
+        /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): pose the on-foot player at a world
+        /// position + facing so an outdoor planet shot can step out of the landed ship onto open terrain. SnapTo
+        /// bypasses collision for the move; with no mouse input during a capture run the look sticks, and gravity
+        /// then settles the player onto the ground.</summary>
+        public void SetCapturePose(Vector3 pos, float yaw, float pitch)
+        {
+            SnapTo(pos);
+            transform.eulerAngles = new Vector3(0f, yaw, 0f);
+            _pitch = Mathf.Clamp(pitch, -89f, 89f);
+            if (Camera != null)
+            {
+                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
+            }
+        }
+
         private void ApplyGravityOnly()
         {
             if (_controller.isGrounded)
