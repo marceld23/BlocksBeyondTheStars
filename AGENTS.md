@@ -136,6 +136,20 @@ built (blocked by the Windows-only UnityWebBrowser/CEF engine).
   `IsExternalInit` polyfill in `BlocksBeyondTheStars.Shared/Compatibility`.
 - The author is JAM Software; follow sensible, consistent C# conventions.
 
+## Git workflow (mandatory)
+
+The repository is **public** and `main` is **branch-protected** — direct pushes to `main` are rejected.
+Every change ships through a **pull request**:
+
+1. **Branch off `main`** for each change: `git switch -c <type>/<short-topic>` (`feat/…`, `fix/…`, `docs/…`, `ci/…`).
+2. **Commit on the branch** with a conventional-commit message, ending each message with the
+   `Co-Authored-By: Claude …` trailer.
+3. **Push the branch and open a PR** (`gh pr create` with a clear title + body). Never push to `main` directly.
+4. **Merge via the PR** once checks pass (`gh pr merge`). Do not force-push or rewrite shared history on `main`.
+
+Other agents may share this clone, so **stage only your own files** (`git add <paths>` — never `git add -A`),
+and never sweep another worker's in-progress changes into your commit.
+
 ## Before every commit and push (mandatory)
 
 Documentation must never drift behind the code. Before *every* commit, and again before *every* push,
