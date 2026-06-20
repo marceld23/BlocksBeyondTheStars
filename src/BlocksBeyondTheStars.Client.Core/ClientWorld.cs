@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<Vector3i, int> _lightSources = new Dictionary<Vector3i, int>();
 
         // The inherent light colour of a block id (0 = not a light block), supplied once from GameContent.
-        private System.Func<ushort, int> _blockLightColor;
+        private System.Func<ushort, int> _blockLightColor = _ => 0;
 
         public IReadOnlyDictionary<ChunkCoord, ChunkData> Chunks => _chunks;
 
@@ -37,8 +37,8 @@ namespace BlocksBeyondTheStars.Client
         // Round worlds: chunks are cached by canonical chunk coordinate (a chunk a lap away — east OR
         // north — is the same chunk), and block lookups canonicalize X AND Z so an unbounded player
         // coordinate still resolves after laps in any direction.
-        public void StoreChunk(ChunkCoord coord, ushort[] blocks, int[] modIndex = null, int[] modTint = null, int[] modGlow = null,
-            int[] shapeIndex = null, int[] shapeData = null)
+        public void StoreChunk(ChunkCoord coord, ushort[] blocks, int[]? modIndex = null, int[]? modTint = null, int[]? modGlow = null,
+            int[]? shapeIndex = null, int[]? shapeData = null)
         {
             coord = WorldConstants.CanonicalChunk(coord, _circumference);
             var chunk = ChunkData.FromRaw(coord, blocks);

@@ -726,7 +726,7 @@ public sealed partial class GameServer
     /// <summary><paramref name="kindOverride"/> = "ship_remote" sends ANOTHER player's ship design (the
     /// client caches it per pilot for the flight view + the landing/launch FX instead of treating it
     /// as the own ship).</summary>
-    private void SendShipDesign(PlayerSession session, SpaceStructure s, string kindOverride = null)
+    private void SendShipDesign(PlayerSession session, SpaceStructure s, string? kindOverride = null)
     {
         int n = s.Cells.Count;
         var xs = new int[n];

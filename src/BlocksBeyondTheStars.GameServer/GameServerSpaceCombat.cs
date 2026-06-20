@@ -1470,7 +1470,7 @@ public sealed partial class GameServer
     /// for the flight view to render.</summary>
     private NetSpacePlayer[] OtherPlayersInSpace(string recipientId, SpaceInstance instance)
     {
-        List<NetSpacePlayer> others = null;
+        List<NetSpacePlayer>? others = null;
         foreach (var kv in instance.PlayerPoses)
         {
             if (kv.Key == recipientId || !instance.Players.Contains(kv.Key))

@@ -21,110 +21,110 @@ namespace BlocksBeyondTheStars.Client
     {
         private readonly IClientTransport _transport;
 
-        public event Action<JoinAccepted> JoinAccepted;
-        public event Action<JoinRejected> JoinRejected;
-        public event Action<ChunkDataMessage> ChunkReceived;
-        public event Action<BlockChanged> BlockChanged;
-        public event Action<InventoryUpdate> InventoryUpdated;
-        public event Action<PlayerStateUpdate> PlayerStateUpdated;
-        public event Action<CraftResult> CraftCompleted;
-        public event Action<ActionRejected> ActionRejected;
-        public event Action<ServerMessage> ServerMessageReceived;
+        public event Action<JoinAccepted>? JoinAccepted;
+        public event Action<JoinRejected>? JoinRejected;
+        public event Action<ChunkDataMessage>? ChunkReceived;
+        public event Action<BlockChanged>? BlockChanged;
+        public event Action<InventoryUpdate>? InventoryUpdated;
+        public event Action<PlayerStateUpdate>? PlayerStateUpdated;
+        public event Action<CraftResult>? CraftCompleted;
+        public event Action<ActionRejected>? ActionRejected;
+        public event Action<ServerMessage>? ServerMessageReceived;
 
         // Ship docking (M18) and free space flight / combat (M19). Rendering is added later;
         // these hooks let the client react to the authoritative state the server reports.
-        public event Action<DockRequestNotice> DockRequested;
-        public event Action<DockStatus> DockStatusChanged;
-        public event Action<ShipCombatStatus> ShipCombatStatusChanged;
-        public event Action<SpaceState> SpaceStateReceived;
-        public event Action<SpaceShipDesign> SpaceShipDesignReceived; // item 20 S1: own ship as a voxel structure
-        public event Action<StructureBlockChanged> StructureBlockChangedReceived; // item 20 S2: a structure cell changed
-        public event Action<LandedShipState> LandedShipReceived; // ship-as-object: a parked ship placed/replaced/removed
-        public event Action<SpaceEntityDestroyed> SpaceEntityDestroyed;
-        public event Action<SpaceClosed> SpaceClosed;
-        public event Action<SpaceWarpFx> SpaceWarpReceived; // peaceful NPC trader warp-in/out flash for bystanders
-        public event Action<StationBoarded> StationBoardedReceived;
-        public event Action<PlanetEnemyList> PlanetEnemiesReceived;
-        public event Action<PlanetEnemyDefeated> PlanetEnemyDefeated;
-        public event Action<CreatureList> CreaturesReceived;
-        public event Action<ContainerList> ContainersReceived;
-        public event Action<ShipPlacement> ShipPlacementReceived;
-        public event Action<ShipStations> ShipStationsReceived;
-        public event Action<PlanetPoiList> PlanetPoisReceived;
-        public event Action<BeaconList> BeaconsReceived;
-        public event Action<BeamList> BeamsReceived; // placed beam blocks (teleporter pads) on the current world
-        public event Action<BeamTeleported> BeamTeleportedReceived; // my arrival after a beam (snap + arrival fx)
-        public event Action<BeamFx> BeamFxReceived; // beam column VFX at both pads, shown to everyone on the world
-        public event Action<BaseList> BasesReceived; // player-founded planet bases (Grundstein) on the current world
-        public event Action<LandingPadList> LandingPadsReceived;
-        public event Action<ShipTransitFx> ShipTransitReceived;
-        public event Action<ChatMessage> ChatReceived;
+        public event Action<DockRequestNotice>? DockRequested;
+        public event Action<DockStatus>? DockStatusChanged;
+        public event Action<ShipCombatStatus>? ShipCombatStatusChanged;
+        public event Action<SpaceState>? SpaceStateReceived;
+        public event Action<SpaceShipDesign>? SpaceShipDesignReceived; // item 20 S1: own ship as a voxel structure
+        public event Action<StructureBlockChanged>? StructureBlockChangedReceived; // item 20 S2: a structure cell changed
+        public event Action<LandedShipState>? LandedShipReceived; // ship-as-object: a parked ship placed/replaced/removed
+        public event Action<SpaceEntityDestroyed>? SpaceEntityDestroyed;
+        public event Action<SpaceClosed>? SpaceClosed;
+        public event Action<SpaceWarpFx>? SpaceWarpReceived; // peaceful NPC trader warp-in/out flash for bystanders
+        public event Action<StationBoarded>? StationBoardedReceived;
+        public event Action<PlanetEnemyList>? PlanetEnemiesReceived;
+        public event Action<PlanetEnemyDefeated>? PlanetEnemyDefeated;
+        public event Action<CreatureList>? CreaturesReceived;
+        public event Action<ContainerList>? ContainersReceived;
+        public event Action<ShipPlacement>? ShipPlacementReceived;
+        public event Action<ShipStations>? ShipStationsReceived;
+        public event Action<PlanetPoiList>? PlanetPoisReceived;
+        public event Action<BeaconList>? BeaconsReceived;
+        public event Action<BeamList>? BeamsReceived; // placed beam blocks (teleporter pads) on the current world
+        public event Action<BeamTeleported>? BeamTeleportedReceived; // my arrival after a beam (snap + arrival fx)
+        public event Action<BeamFx>? BeamFxReceived; // beam column VFX at both pads, shown to everyone on the world
+        public event Action<BaseList>? BasesReceived; // player-founded planet bases (Grundstein) on the current world
+        public event Action<LandingPadList>? LandingPadsReceived;
+        public event Action<ShipTransitFx>? ShipTransitReceived;
+        public event Action<ChatMessage>? ChatReceived;
 
         // Navigation, missions & feedback (M23).
-        public event Action<StarMapData> StarMapReceived;
-        public event Action<MissionList> MissionsReceived;
-        public event Action<MissionResult> MissionResultReceived;
-        public event Action<RespawnNotice> RespawnNoticeReceived;
-        public event Action<ServerRules> ServerRulesReceived;
+        public event Action<StarMapData>? StarMapReceived;
+        public event Action<MissionList>? MissionsReceived;
+        public event Action<MissionResult>? MissionResultReceived;
+        public event Action<RespawnNotice>? RespawnNoticeReceived;
+        public event Action<ServerRules>? ServerRulesReceived;
 
         // Multiplayer presence (M24).
-        public event Action<PlayerPresence> PlayerPresenceReceived;
-        public event Action<PlayerLeft> PlayerLeftReceived;
-        public event Action<PlayerFace> PlayerFaceReceived; // another player's custom pixel face
-        public event Action<OwnedShips> OwnedShipsReceived;
-        public event Action<WorldEnvironment> WorldEnvironmentReceived;
-        public event Action<WorldReset> WorldResetReceived;
-        public event Action<NpcList> NpcsReceived;
-        public event Action<DoorList> DoorsReceived;
-        public event Action<MiningProgress> MiningProgressReceived;
+        public event Action<PlayerPresence>? PlayerPresenceReceived;
+        public event Action<PlayerLeft>? PlayerLeftReceived;
+        public event Action<PlayerFace>? PlayerFaceReceived; // another player's custom pixel face
+        public event Action<OwnedShips>? OwnedShipsReceived;
+        public event Action<WorldEnvironment>? WorldEnvironmentReceived;
+        public event Action<WorldReset>? WorldResetReceived;
+        public event Action<NpcList>? NpcsReceived;
+        public event Action<DoorList>? DoorsReceived;
+        public event Action<MiningProgress>? MiningProgressReceived;
 
         // Data-cube minigames: cubes to render on the current world + the player's downloaded-games collection.
-        public event Action<DataCubeList> DataCubesReceived;
-        public event Action<GameUnlocks> GameUnlocksReceived;
+        public event Action<DataCubeList>? DataCubesReceived;
+        public event Action<GameUnlocks>? GameUnlocksReceived;
 
         // Story system ("The VEGA Protocol"): the active story's shared progress, the world's net fragments,
         // a picked-up fragment's archive text, and a personal player memory unlocked by a machine kill.
-        public event Action<StoryStateMessage> StoryStateReceived;
-        public event Action<NetFragmentList> NetFragmentsReceived;
-        public event Action<NetFragmentRevealed> NetFragmentRevealedReceived;
-        public event Action<PlayerMemoryRevealed> PlayerMemoryReceived;
-        public event Action<GuardianSystemRevealed> GuardianSystemRevealedReceived; // finale system placed on the map
-        public event Action<CoreHackProgress> CoreHackProgressReceived;             // core-hack channel progress
-        public event Action<CoreDialogueMessage> CoreDialogueReceived;              // argument-duel node / win
+        public event Action<StoryStateMessage>? StoryStateReceived;
+        public event Action<NetFragmentList>? NetFragmentsReceived;
+        public event Action<NetFragmentRevealed>? NetFragmentRevealedReceived;
+        public event Action<PlayerMemoryRevealed>? PlayerMemoryReceived;
+        public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
+        public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
+        public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
 
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
-        public event Action<ScanResult> ScanResultReceived;
-        public event Action<WreckRepairStatus> WreckRepairStatusChanged;
-        public event Action<ShipRepairStatus> ShipRepairStatusChanged;
-        public event Action<TradeUpdate> TradeUpdated;
-        public event Action<TradeClosed> TradeClosedReceived;
+        public event Action<ScanResult>? ScanResultReceived;
+        public event Action<WreckRepairStatus>? WreckRepairStatusChanged;
+        public event Action<ShipRepairStatus>? ShipRepairStatusChanged;
+        public event Action<TradeUpdate>? TradeUpdated;
+        public event Action<TradeClosed>? TradeClosedReceived;
 
         // Contextual NPC greetings (item 15): a speech-bubble line when interacting with a vendor/quartermaster.
-        public event Action<NpcGreeting> NpcGreetingReceived;
+        public event Action<NpcGreeting>? NpcGreetingReceived;
 
         // Terrain-scanner pulse result (Feature 40): ore positions for the through-wall glow markers.
-        public event Action<OreScanResult> OreScanReceived;
+        public event Action<OreScanResult>? OreScanReceived;
 
         // Ship AI companion "VEGA": onboarding/advisor/story lines + the active objective chip.
-        public event Action<ShipAiLine> ShipAiLineReceived;
+        public event Action<ShipAiLine>? ShipAiLineReceived;
 
         // Player alliances: the full roster (allies + pending requests) and a "someone proposed" toast notice.
-        public event Action<AllianceList> AllianceListReceived;
-        public event Action<AllianceRequestNotice> AllianceRequestReceived;
+        public event Action<AllianceList>? AllianceListReceived;
+        public event Action<AllianceRequestNotice>? AllianceRequestReceived;
 
         // Creature taming + companions: the live ritual state, the finished result, and the player's roster.
-        public event Action<TameProgress> TameProgressReceived;
-        public event Action<TameResult> TameResultReceived;
-        public event Action<CompanionList> CompanionsReceived;
+        public event Action<TameProgress>? TameProgressReceived;
+        public event Action<TameResult>? TameResultReceived;
+        public event Action<CompanionList>? CompanionsReceived;
 
         // Hover speeders: the world's live speeders + one-shot deploy/destruction effects.
-        public event Action<SpeederList> SpeedersReceived;
-        public event Action<SpeederFx> SpeederFxReceived;
+        public event Action<SpeederList>? SpeedersReceived;
+        public event Action<SpeederFx>? SpeederFxReceived;
 
         public bool Connected { get; private set; }
 
         /// <summary>Uses the UDP transport by default; pass a loopback transport for singleplayer.</summary>
-        public NetworkClient(IClientTransport transport = null)
+        public NetworkClient(IClientTransport? transport = null)
         {
             _transport = transport ?? new LiteNetLibClientTransport();
             _transport.Connected += () => Connected = true;
@@ -134,7 +134,7 @@ namespace BlocksBeyondTheStars.Client
 
         public void Connect(string host, int port) => _transport.Connect(host, port);
 
-        public void Join(string playerName, string password = null, string locale = "en", string token = null)
+        public void Join(string playerName, string? password = null, string locale = "en", string? token = null)
             => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token });
 
         /// <summary>Asks the server for the greeting line of the nearby NPC of this role ("vendor"/"quartermaster")
@@ -167,7 +167,7 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
-        public void SendPlace(int x, int y, int z, string itemKey, string label = null)
+        public void SendPlace(int x, int y, int z, string itemKey, string? label = null)
             => Send(new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty });
 
         public void SendSetBeaconLabel(int beaconId, string label)
@@ -213,8 +213,8 @@ namespace BlocksBeyondTheStars.Client
             => Send(new BumpReport { Description = description ?? string.Empty, Image = image ?? Array.Empty<byte>() });
 
         // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).
-        public void SendAdminCommand(string command, string stringArg = null, int intArg = 0,
-            string targetPlayer = null, float x = 0f, float y = 0f, float z = 0f)
+        public void SendAdminCommand(string command, string? stringArg = null, int intArg = 0,
+            string? targetPlayer = null, float x = 0f, float y = 0f, float z = 0f)
             => Send(new AdminCommandIntent
             {
                 Command = command, StringArg = stringArg, IntArg = intArg,

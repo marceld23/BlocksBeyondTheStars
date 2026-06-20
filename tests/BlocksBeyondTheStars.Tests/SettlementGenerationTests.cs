@@ -137,6 +137,4 @@ public sealed class SettlementGenerationTests
         // Town-style tiers are multi-storey; village-style are single-storey huts (shorter).
         Assert.True(town.Height > village.Height);
     }
-
-    public void Dispose() { }
 }

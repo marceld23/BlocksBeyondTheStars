@@ -191,7 +191,7 @@ public sealed partial class GameServer
         string npcName = npc.Name;
         string role = npc.Role;
 
-        System.Threading.Tasks.Task.Run(() =>
+        _ = System.Threading.Tasks.Task.Run(() =>
         {
             try
             {

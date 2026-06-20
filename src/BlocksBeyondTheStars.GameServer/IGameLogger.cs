@@ -9,6 +9,8 @@ public interface IGameLogger
 }
 
 /// <summary>Writes timestamped log lines to the console (and optionally a log file).</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "Process-lifetime logger; the optional log file uses AutoFlush and its handle is released when the host process exits. Making it IDisposable would force a dispose obligation on every long-lived call site without benefit.")]
 public sealed class ConsoleGameLogger : IGameLogger
 {
     private readonly object _gate = new();

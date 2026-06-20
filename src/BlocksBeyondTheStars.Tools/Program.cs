@@ -59,7 +59,7 @@ static void RequireArgs(string[] args, int count, string usage)
 {
     if (args.Length < count)
     {
-        throw new ArgumentException($"Usage: {usage}");
+        throw new ArgumentException($"Usage: {usage}", nameof(args));
     }
 }
 

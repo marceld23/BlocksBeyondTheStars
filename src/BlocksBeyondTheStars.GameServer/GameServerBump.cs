@@ -93,7 +93,7 @@ public sealed partial class GameServer
         HandleBump(session, report.Description ?? string.Empty, image);
     }
 
-    private void HandleBump(PlayerSession session, string description, byte[] image = null)
+    private void HandleBump(PlayerSession session, string description, byte[]? image = null)
     {
         var p = session.State;
         var (systemName, planetName) = ActiveLocationNames();
@@ -109,7 +109,7 @@ public sealed partial class GameServer
         // instead and leave the planet scans empty.
         var blocks = new List<object>();
         List<object> census = new();
-        object space = null;
+        object? space = null;
         object creatures = new List<object>();
         object npcs = new List<object>();
         object others = new List<object>();
@@ -198,7 +198,7 @@ public sealed partial class GameServer
             // stem with world + UTC timestamp to keep files unique.
             string stem = $"bump_{SanitizeFileStem(_meta.WorldName)}_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{_bumpCount:D3}";
             bool hasImage = image != null && image.Length > 0;
-            string imageName = hasImage ? stem + ".jpg" : null;
+            string? imageName = hasImage ? stem + ".jpg" : null;
 
             var snapshot = new
             {
@@ -231,7 +231,7 @@ public sealed partial class GameServer
             File.WriteAllText(file, JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true }));
             if (hasImage)
             {
-                File.WriteAllBytes(Path.Combine(dir, imageName), image);
+                File.WriteAllBytes(Path.Combine(dir, imageName!), image!);
             }
 
             _log.Info($"Bump #{_bumpCount} captured for {p.Name}: \"{description}\"{(hasImage ? " (+screenshot)" : string.Empty)} -> {file}");

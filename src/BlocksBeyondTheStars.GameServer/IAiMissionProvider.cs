@@ -124,11 +124,13 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits",
+        Justification = "Synchronous provider contract; invoked off the game tick / on background threads where the server has no SynchronizationContext, so GetAwaiter().GetResult() cannot deadlock.")]
     public MissionPlan? Generate(string context)
     {
         try
         {
-            var body = new StringContent(JsonSerializer.Serialize(new { context }), Encoding.UTF8, "application/json");
+            using var body = new StringContent(JsonSerializer.Serialize(new { context }), Encoding.UTF8, "application/json");
             using var response = _http.PostAsync(_missionUrl, body).GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode)
             {
@@ -148,11 +150,13 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits",
+        Justification = "Synchronous provider contract; invoked off the game tick / on background threads where the server has no SynchronizationContext, so GetAwaiter().GetResult() cannot deadlock.")]
     public string? GenerateNpcLine(NpcLineRequest request)
     {
         try
         {
-            var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            using var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             using var response = _http.PostAsync(_npcLineUrl, body).GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode)
             {
@@ -172,11 +176,13 @@ public sealed class HttpAiMissionProvider : IAiMissionProvider
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits",
+        Justification = "Synchronous provider contract; invoked off the game tick / on background threads where the server has no SynchronizationContext, so GetAwaiter().GetResult() cannot deadlock.")]
     public MissionTextResult? GenerateMissionText(MissionTextRequest request)
     {
         try
         {
-            var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            using var body = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             using var response = _http.PostAsync(_missionTextUrl, body).GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode)
             {

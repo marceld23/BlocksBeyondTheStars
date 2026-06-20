@@ -67,7 +67,7 @@ public sealed partial class GameServer
         var req = BoardMissionTextRequest(def, session.Locale);
         int connId = session.ConnectionId;
 
-        System.Threading.Tasks.Task.Run(() =>
+        _ = System.Threading.Tasks.Task.Run(() =>
         {
             try
             {
