@@ -61,11 +61,21 @@ $report = [ordered]@{
     }
 }
 if (-not $NoScreenshot) {
-    # A 1x1 JPG so the media-upload path is exercised too.
+    # A real (small) JPG so the Wix media-upload path is exercised properly. A degenerate 1x1 image is
+    # rejected by the media manager (→ HTTP 500); the real client sends a downscaled screenshot.
+    Add-Type -AssemblyName System.Drawing
+    $bmp = New-Object System.Drawing.Bitmap 320, 180
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.Clear([System.Drawing.Color]::MidnightBlue)
+    $g.FillEllipse([System.Drawing.Brushes]::Orange, 120, 50, 80, 80)
+    $g.Dispose()
+    $ms = New-Object System.IO.MemoryStream
+    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    $bmp.Dispose()
     $report.screenshot = [ordered]@{
         fileName = "feedback_test.jpg"
         mimeType = "image/jpeg"
-        base64   = "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AfwD/2Q=="
+        base64   = [Convert]::ToBase64String($ms.ToArray())
     }
 }
 $json = $report | ConvertTo-Json -Depth 6
