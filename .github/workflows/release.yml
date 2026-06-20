@@ -1,0 +1,119 @@
+# Builds the Windows player + loading-splash launcher and publishes a GitHub Release.
+#
+# Triggered ONLY by pushing a version tag (or the manual "Run workflow" button), never by
+# pull_request — so forked PRs can never reach the Unity license secret. In a PUBLIC repo,
+# GitHub secrets stay masked in logs and are unavailable to fork PRs, so UNITY_LICENSE is safe.
+#
+# One-time setup (Unity Personal):
+#   1. Get your license file: run the GameCI activation flow
+#      (https://game.ci/docs/github/activation) to obtain a Unity_v6.x.ulf.
+#   2. Repo -> Settings -> Secrets and variables -> Actions -> New repository secret:
+#        UNITY_LICENSE = the full contents of that .ulf file
+#   3. Push a tag:  git tag v1.0.0 && git push origin v1.0.0
+#
+# Why two jobs: the Unity build runs in GameCI's Linux Docker image (Windows player cross-built
+# with the Mono backend). The WinForms launcher needs the Windows Desktop SDK, so it is built on
+# a windows-latest runner and merged into the player afterwards.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the GitHub Release
+
+jobs:
+  build-player:
+    name: Build Unity player (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # StreamingAssets/ (data + web + bundled server) and Plugins/ (shared libs) are gitignored
+      # generated content, so they must be produced before the Unity build. pwsh ships on the runner.
+      - name: Sync shared libs + content
+        shell: pwsh
+        run: ./scripts/sync-client-libs.ps1
+
+      - name: Publish bundled local server (win-x64)
+        shell: pwsh
+        run: ./scripts/publish-local-server.ps1 -Runtime win-x64
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: client/Library
+          key: Library-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+      - name: Build Windows player
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: StandaloneWindows64
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows
+          # BuildScript reads -buildOut; point it at a host-visible folder. allowDirtyBuild because
+          # the synced StreamingAssets/Plugins make the working tree "dirty" from GameCI's git check.
+          customParameters: -buildOut /github/workspace/player
+          allowDirtyBuild: true
+
+      # GameCI runs Unity as root; make the output readable by the (non-root) runner user.
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player
+
+      - name: Upload player artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-windows
+          path: player
+
+  package:
+    name: Package + release (Windows)
+    needs: build-player
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Self-contained single-file launcher (same flags as scripts/build-client.ps1) so it needs no
+      # .NET runtime on the player's machine.
+      - name: Build loading-splash launcher
+        run: >
+          dotnet publish src/BlocksBeyondTheStars.Launcher/BlocksBeyondTheStars.Launcher.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -o artifacts/launcher
+
+      - name: Download player artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: player-windows
+          path: player
+
+      - name: Assemble release archive
+        shell: pwsh
+        run: |
+          Copy-Item artifacts/launcher/BlocksBeyondTheStars.Launcher.exe player/ -Force
+          Compress-Archive -Path player/* -DestinationPath "BlocksBeyondTheStars-${{ github.ref_name }}.zip"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlocksBeyondTheStars-${{ github.ref_name }}.zip
+          generate_release_notes: true

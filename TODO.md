@@ -17,6 +17,22 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ GitHub Actions release build (public-repo safe) — ✅ workflow added (2026-06-20, needs first run + UNITY_LICENSE secret)
+`.github/workflows/release.yml` builds a Windows release and publishes a GitHub Release on a pushed `v*` tag
+(or the manual *Run workflow* button). The repo can be public without exposing the Unity key: GitHub masks
+secrets in all logs and never hands them to fork PRs, and the workflow runs **only** on tags / manual dispatch
+(never on `pull_request`), so no foreign code can reach `UNITY_LICENSE`.
+- **Job 1 (ubuntu):** `setup-dotnet` → `sync-client-libs.ps1` + `publish-local-server.ps1 -Runtime win-x64`
+  (the gitignored `StreamingAssets`/`Plugins` are generated content, so they must be produced first) → cache
+  `client/Library` → **GameCI** `game-ci/unity-builder@v4` builds the `StandaloneWindows64` player via the
+  existing `BuildScript.BuildWindows` (`-buildOut` passed through `customParameters`). Mono backend
+  cross-compiles the Windows player from Linux — **switching to IL2CPP would break this** (needs a self-hosted
+  Windows runner). Player uploaded as an artifact.
+- **Job 2 (windows):** builds the self-contained WinForms loading-splash launcher (Windows-only SDK), merges it
+  with the player, zips, and attaches to the release via `softprops/action-gh-release@v2`.
+- **One-time setup:** obtain the Unity Personal `.ulf` via the GameCI activation flow
+  (https://game.ci/docs/github/activation), then add its full contents as the repo secret `UNITY_LICENSE`.
+
 ### ★ Unity-client tests against the real game server — ✅ infra + fully validated (2026-06-20, Unity-built)
 The Unity client is now testable against the **real** authoritative server, not a mock, at three tiers. The
 Unity-free client logic (`NetworkClient`, `ClientWorld`) was extracted into a new netstandard2.1 assembly
