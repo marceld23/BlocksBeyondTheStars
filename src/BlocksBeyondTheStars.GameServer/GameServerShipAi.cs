@@ -508,7 +508,7 @@ public sealed partial class GameServer
 
         var req = VegaBanterRequest(session);
         int connId = session.ConnectionId;
-        System.Threading.Tasks.Task.Run(() =>
+        _ = System.Threading.Tasks.Task.Run(() =>
         {
             try
             {

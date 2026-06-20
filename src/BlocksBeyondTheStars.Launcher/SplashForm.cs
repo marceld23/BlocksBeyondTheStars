@@ -217,7 +217,7 @@ internal sealed class SplashForm : Form
             titleFont = new Font("Segoe UI Semibold", next, FontStyle.Bold, GraphicsUnit.Pixel);
         }
 
-        var centre = new StringFormat(StringFormatFlags.NoWrap)
+        using var centre = new StringFormat(StringFormatFlags.NoWrap)
         {
             Alignment = StringAlignment.Center,
             LineAlignment = StringAlignment.Center,

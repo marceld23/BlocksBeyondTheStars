@@ -205,7 +205,7 @@ public sealed partial class GameServer
     {
         // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
         // the machine never paths toward them.
-        PlayerSession nearest = null;
+        PlayerSession? nearest = null;
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {

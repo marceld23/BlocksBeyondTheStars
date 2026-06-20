@@ -133,11 +133,13 @@ namespace BlocksBeyondTheStars.Client.Feedback
                 using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint) { Content = content };
                 request.Headers.TryAddWithoutValidation(ApiKeyHeader, _apiKey);
 
+#pragma warning disable VSTHRD002 // Runs on a background uploader thread (no SynchronizationContext) — cannot deadlock.
                 using var response = _http.SendAsync(request).GetAwaiter().GetResult();
                 result.StatusCode = (int)response.StatusCode;
                 result.Ok = response.IsSuccessStatusCode;
 
                 string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
                 if (result.Ok)
                 {
                     result.ReportId = TryReadReportId(body);

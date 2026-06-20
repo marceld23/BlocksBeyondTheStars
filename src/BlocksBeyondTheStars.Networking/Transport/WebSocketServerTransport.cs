@@ -15,6 +15,8 @@ namespace BlocksBeyondTheStars.Networking.Transport;
 /// </summary>
 public sealed class WebSocketServerTransport : IServerTransport
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
+        Justification = "Per-connection holder; the socket is torn down when the receive loop ends or the listener stops, and SendLock is used only for WaitAsync/Release (no WaitHandle is ever allocated), so there is nothing requiring deterministic disposal.")]
     private sealed class Client
     {
         public WebSocket Socket = null!;
@@ -106,7 +108,9 @@ public sealed class WebSocketServerTransport : IServerTransport
                         break;
                     }
 
+#pragma warning disable VSTHRD103 // MemoryStream.Write is an in-memory copy with nothing to await.
                     ms.Write(buffer, 0, result.Count);
+#pragma warning restore VSTHRD103
                 }
                 while (!result.EndOfMessage);
 

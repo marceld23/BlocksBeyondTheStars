@@ -175,7 +175,7 @@ public sealed partial class GameServer
         Send(session, new ServerMessage { Text = $"+{reward} knowledge — data fragment analysed." });
     }
 
-    private List<string> _minigameKeys;
+    private List<string>? _minigameKeys;
 
     /// <summary>Loads the bundled minigame keys from the client catalogue (synced next to the data dir), so the
     /// server can unlock them all in a Creative world. Best-effort: empty if the catalogue isn't found.</summary>

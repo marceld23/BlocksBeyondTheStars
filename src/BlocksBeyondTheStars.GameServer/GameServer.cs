@@ -19,6 +19,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// (technical requirements §7, §15). Drive it by calling <see cref="Tick"/> at the
 /// configured rate, or use <see cref="Run"/> for a blocking loop.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "Process-lifetime singleton; its ManualResetEventSlim is released when the host process exits. Making it IDisposable would cascade CA2213 onto the long-lived owned services (transport, persistence) that the host tears down explicitly.")]
 public sealed partial class GameServer
 {
     private const string ShipId = "default";
@@ -1830,7 +1832,7 @@ public sealed partial class GameServer
 
     /// <summary>Places a block from a held item for a player (test/util entrypoint). An optional label rides
     /// along for labelled blocks (a radio beacon).</summary>
-    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string label = null)
+    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string? label = null)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {

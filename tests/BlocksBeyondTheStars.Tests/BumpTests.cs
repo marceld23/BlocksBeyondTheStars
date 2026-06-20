@@ -22,10 +22,10 @@ public sealed class BumpTests : IDisposable
     // The server may route bumps to a shared <repo>/bugreports/server folder (when tests run inside the
     // working tree), so each test uses a unique world name and only ever touches its own files.
     private readonly string _world = "bumpworld_" + Guid.NewGuid().ToString("N");
-    private string _bumpDir;
-    private SqliteWorldRepository _repo;
-    private LoopbackServerTransport _st;
-    private LoopbackClientTransport _client;
+    private string _bumpDir = null!;
+    private SqliteWorldRepository _repo = null!;
+    private LoopbackServerTransport _st = null!;
+    private LoopbackClientTransport _client = null!;
 
     public BumpTests()
     {

@@ -14,7 +14,7 @@ public static class BugReportPaths
     /// (historically <c>&lt;world&gt;/bumps</c>).</param>
     /// <param name="startDirectory">Where to begin the upward search; defaults to the running
     /// executable's base directory.</param>
-    public static string Resolve(string perWorldFallback, string startDirectory = null)
+    public static string Resolve(string perWorldFallback, string? startDirectory = null)
     {
         var repoRoot = FindRepositoryRoot(startDirectory ?? System.AppContext.BaseDirectory);
         return repoRoot != null
@@ -25,7 +25,7 @@ public static class BugReportPaths
     /// <summary>Walks up from <paramref name="startDirectory"/> looking for the repository root — the nearest
     /// ancestor that contains a <c>.git</c> entry (a <c>BlocksBeyondTheStars.sln</c> is accepted as a secondary
     /// marker). Returns null when none is found within a bounded number of levels.</summary>
-    public static string FindRepositoryRoot(string startDirectory)
+    public static string? FindRepositoryRoot(string startDirectory)
     {
         if (string.IsNullOrEmpty(startDirectory))
         {

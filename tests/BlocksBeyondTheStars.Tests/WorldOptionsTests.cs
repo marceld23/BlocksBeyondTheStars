@@ -194,7 +194,7 @@ public sealed class WorldOptionsTests : IDisposable
 
         var exoticKeys = _content.Planets.Values.Where(p => p.Exotic).Select(p => p.Key).ToHashSet();
         Assert.NotEmpty(exoticKeys); // the data flags exist
-        Assert.DoesNotContain(galaxy.AllBodies(), b => exoticKeys.Contains(b.PlanetType));
+        Assert.DoesNotContain(galaxy.AllBodies(), b => exoticKeys.Contains(b.PlanetType ?? string.Empty));
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class WorldOptionsTests : IDisposable
     {
         var exoticKeys = _content.Planets.Values.Where(p => p.Exotic).Select(p => p.Key).ToHashSet();
         int Count(Frequency f) => new UniverseGenerator(42, new WorldDescription { StarSystemCount = 16, ExoticWorlds = f }, _content)
-            .Generate().AllBodies().Count(b => exoticKeys.Contains(b.PlanetType));
+            .Generate().AllBodies().Count(b => exoticKeys.Contains(b.PlanetType ?? string.Empty));
 
         Assert.True(Count(Frequency.Frequent) > Count(Frequency.Normal),
             "Frequent exotic worlds must produce more exotic planets than Normal.");
