@@ -36,7 +36,12 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<string, Entry> _enemies = new();
         private bool _subscribed;
+        private WeaponFx _weapons; // shared VFX layer (laser beams), resolved lazily
         private static Material _hideMat, _hideDarkMat, _eyeMat, _clawMat;
+
+        /// <summary>Range at which a hovering scan-drone opens fire on the player (blocks). Ground robots have
+        /// no ranged attack — they only claw in melee.</summary>
+        private const float DroneFireRange = 16f;
 
         private void Update()
         {
@@ -99,12 +104,25 @@ namespace BlocksBeyondTheStars.Client
                         audio.At("enemy_hurt", en.Root.transform.position, en.Pitch, 0.9f);
                     }
 
-                    // Claw-swipe attack when hostile and in melee range of the player (throttled).
-                    if (e.Hostile && Time.time >= en.NextAttack && toPlayer.sqrMagnitude < 7f)
+                    // Hostile attack (throttled). Hovering drones snipe with a red laser from afar; ground
+                    // robots only claw in melee range.
+                    if (e.Hostile && Time.time >= en.NextAttack)
                     {
-                        en.NextAttack = Time.time + Random.Range(1.4f, 2.8f);
-                        en.AttackUntil = Time.time + 0.35f;
-                        audio.At("enemy_attack", en.Root.transform.position, en.Pitch);
+                        if (en.IsDrone)
+                        {
+                            if (toPlayer.sqrMagnitude < DroneFireRange * DroneFireRange)
+                            {
+                                en.NextAttack = Time.time + Random.Range(0.7f, 1.3f);
+                                en.AttackUntil = Time.time + 0.18f; // brief charge/recoil tic
+                                FireDroneLaser(en, audio);
+                            }
+                        }
+                        else if (toPlayer.sqrMagnitude < 7f)
+                        {
+                            en.NextAttack = Time.time + Random.Range(1.4f, 2.8f);
+                            en.AttackUntil = Time.time + 0.35f;
+                            audio.At("enemy_attack", en.Root.transform.position, en.Pitch);
+                        }
                     }
                 }
 
@@ -140,13 +158,39 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The hovering scan-drone's ranged attack: a short red laser beam from its eye to the player
+        /// (with a little scatter) plus the attack zap. Cosmetic only — the server's proximity aura applies the
+        /// actual damage, so this is a render-side mirror of the space <c>UpdateHostileFire</c> tracers.</summary>
+        private void FireDroneLaser(Entry en, ClientAudio audio)
+        {
+            audio?.At("enemy_attack", en.Root.transform.position, en.Pitch);
+
+            _weapons ??= FindObjectOfType<WeaponFx>();
+            if (_weapons == null || Game == null)
+            {
+                return;
+            }
+
+            // Muzzle = the drone's glowing red eye (world space); aim at the player's chest with slight scatter.
+            Vector3 muzzle = en.Body.TransformPoint(new Vector3(0f, -0.02f, 0.26f));
+            Vector3 target = Game.PlayerPosition + Vector3.up * 0.9f
+                + new Vector3(Random.Range(-0.3f, 0.3f), Random.Range(-0.2f, 0.2f), Random.Range(-0.3f, 0.3f));
+            _weapons.Shoot(muzzle, target, new Color(1f, 0.2f, 0.12f)); // angry red bolt (matches space hostiles)
+        }
+
         /// <summary>Drives the stalk/attack/flinch pose from movement + state (no Animator — procedural).</summary>
         private void Animate(Entry en, float speed, bool hostile)
         {
             if (en.IsDrone)
             {
                 // Hovering scan-drone: a gentle bob + a slow scanning yaw; no limbs to pose.
-                en.Body.localRotation = Quaternion.Euler(Mathf.Sin((Time.time + en.Seed) * 2f) * 4f, (Time.time * 50f) % 360f, 0f);
+                float pitch = Mathf.Sin((Time.time + en.Seed) * 2f) * 4f;
+                if (Time.time < en.AttackUntil)
+                {
+                    pitch -= 12f; // a brief nose-up recoil kick when it fires
+                }
+
+                en.Body.localRotation = Quaternion.Euler(pitch, (Time.time * 50f) % 360f, 0f);
                 return;
             }
 
