@@ -28,6 +28,31 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
   </tr>
 </table>
 
+### Planet variety — one surface per planet type
+
+`surface_<key>.png` shows the player's view on a different planet **type**, to showcase the world
+variety. Each is a separate run that spawns a fresh world pinned to that type
+(`capture-screenshots.ps1 -Planets`, see below).
+
+<table>
+  <tr>
+    <td width="50%"><img src="en/surface_jungle.png" width="100%" alt="Jungle surface"><br><sub><b>surface_jungle.png</b> — Lush jungle world</sub></td>
+    <td width="50%"><img src="en/surface_lava.png" width="100%" alt="Lava surface"><br><sub><b>surface_lava.png</b> — Volcanic lava world</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="en/surface_ice.png" width="100%" alt="Ice surface"><br><sub><b>surface_ice.png</b> — Frozen tundra world</sub></td>
+    <td width="50%"><img src="en/surface_crystal.png" width="100%" alt="Crystal surface"><br><sub><b>surface_crystal.png</b> — Crystalline world</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="en/surface_desert.png" width="100%" alt="Desert surface"><br><sub><b>surface_desert.png</b> — Arid/forested world (framing obstructed — reshoot pending)</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
+> Some planet types (currently **ocean**, **fungal**, **skylands**) are intentionally **not** in the
+> set yet: the capture pose dropped the player into water or through the floor on those worlds. The
+> per-type spawn/pose fix is tracked separately before they are re-added.
+
 ## How to regenerate
 
 The shots are produced by **running the built game player** with a `-captureShots` flag. A
