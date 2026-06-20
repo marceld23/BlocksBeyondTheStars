@@ -75,6 +75,11 @@ namespace BlocksBeyondTheStars.Client
         /// Empty = the simple "exotic worlds" slider + data weights decide.</summary>
         public readonly Dictionary<string, int> PlanetTypes = new Dictionary<string, int>();
 
+        /// <summary>Forces the planet type the world SPAWNS on (e.g. "lava", "ocean"). Empty = worldgen default
+        /// ("rocky"). Not exposed in the normal create-world UI — used by the marketing screenshot capture to
+        /// shoot one surface per planet type. Emitted as <c>--start-planet</c>.</summary>
+        public string StartPlanetType = "";
+
         public static WorldCreationOptions Peaceful()
             => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Hazards = 1, DeathPenalty = 0, SpaceCombat = false };
 
@@ -97,6 +102,7 @@ namespace BlocksBeyondTheStars.Client
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
             SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip;
             Story = other.Story; StoryDensity = other.StoryDensity;
+            StartPlanetType = other.StartPlanetType;
             PlanetTypes.Clear();
             foreach (var kv in other.PlanetTypes)
             {
@@ -188,6 +194,11 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Arg("planet-types", "\"" + string.Join(",", pairs) + "\"");
+            }
+
+            if (!string.IsNullOrEmpty(StartPlanetType))
+            {
+                Arg("start-planet", StartPlanetType);
             }
 
             return sb.ToString();

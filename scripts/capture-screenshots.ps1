@@ -13,10 +13,17 @@
 
   Output: <repo>/docs/screenshots/<lang>/*.png
 
+  In addition to the main sequence, this captures one surface shot per planet TYPE (surface_<key>.png) to
+  showcase the world variety — the -Planets list drives which types (each is a short, separate player run that
+  spawns a fresh world pinned to that planet type via -planet). Use -SkipMain to capture only the planet
+  surfaces, or -Planets @() to capture only the main sequence.
+
 .EXAMPLE
-  ./scripts/capture-screenshots.ps1                # both languages, existing build
+  ./scripts/capture-screenshots.ps1                # main sequence + curated planet surfaces, both languages
   ./scripts/capture-screenshots.ps1 -Lang de       # German only
-  ./scripts/capture-screenshots.ps1 -Build         # build the client first, then capture both
+  ./scripts/capture-screenshots.ps1 -Build         # build the client first, then capture
+  ./scripts/capture-screenshots.ps1 -SkipMain -Lang en   # only the planet surfaces, English
+  ./scripts/capture-screenshots.ps1 -Planets lava,ocean  # only these two surface types
 #>
 param(
     [ValidateSet("both", "de", "en")]
@@ -24,6 +31,8 @@ param(
     [string] $Exe,
     [string] $OutRoot,
     [long]   $Seed = 424242,
+    [string[]] $Planets = @("jungle", "lava", "ocean", "ice", "desert", "fungal", "skylands", "crystal"),
+    [switch] $SkipMain,
     [switch] $Build
 )
 
@@ -44,24 +53,38 @@ if (-not (Test-Path $Exe)) {
 
 $langs = if ($Lang -eq "both") { @("de", "en") } else { @($Lang) }
 
-foreach ($l in $langs) {
-    $out = Join-Path $OutRoot $l
-    New-Item -ItemType Directory -Force -Path $out | Out-Null
-    Write-Host "Capturing '$l' → $out" -ForegroundColor Cyan
+# Runs the built player once with the -captureShots flag (+ any extra args) and waits for it to finish.
+function Invoke-Capture {
+    param([string] $OutDir, [string[]] $ExtraArgs, [string] $Label)
 
+    New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
     $args = @(
         "-captureShots",
-        "-lang", $l,
-        "-shotOut", $out,
+        "-shotOut", $OutDir,
         "-seed", $Seed,
         "-screen-width", "1920",
         "-screen-height", "1080",
         "-screen-fullscreen", "0"
-    )
+    ) + $ExtraArgs
 
     $proc = Start-Process -FilePath $Exe -ArgumentList $args -PassThru -Wait
     if ($proc.ExitCode -ne 0) {
-        Write-Warning "Capture run for '$l' exited with code $($proc.ExitCode) — check the player log."
+        Write-Warning "Capture run ($Label) exited with code $($proc.ExitCode) — check the player log."
+    }
+}
+
+foreach ($l in $langs) {
+    $out = Join-Path $OutRoot $l
+
+    if (-not $SkipMain) {
+        Write-Host "Capturing main sequence '$l' → $out" -ForegroundColor Cyan
+        Invoke-Capture -OutDir $out -ExtraArgs @("-lang", $l) -Label "main/$l"
+    }
+
+    # One run per planet type → surface_<key>.png, showing the world variety.
+    foreach ($p in $Planets) {
+        Write-Host "Capturing surface '$p' ('$l') → $out" -ForegroundColor Cyan
+        Invoke-Capture -OutDir $out -ExtraArgs @("-lang", $l, "-planet", $p) -Label "surface:$p/$l"
     }
 
     $shots = @(Get-ChildItem -Path $out -Filter *.png -ErrorAction SilentlyContinue)
