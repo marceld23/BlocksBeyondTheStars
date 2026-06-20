@@ -30,7 +30,7 @@ exciting story narrated by your ship's AI *VEGA* that builds to a real finale.
 
 Play **solo**, **host a world for friends**, or **join a dedicated server**. In multiplayer
 you can **form alliances** and then share bases and structures with your allies — the world
-is shared, persistent, and self-hostable (even on a Raspberry Pi).
+is shared, persistent, and self-hostable.
 
 **In one session you might:**
 
@@ -106,7 +106,7 @@ oxygen, damage, blueprints or travel.
 | Client | Unity 6 LTS (6000.4.x), URP + C# (Windows) — see [`client/`](client/) |
 | Server | .NET 8, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
-| Database | SQLite (default, portable, Raspberry Pi friendly); PostgreSQL later |
+| Database | SQLite (default, portable); PostgreSQL later |
 | Realtime net | LiteNetLib (UDP) + MessagePack |
 | Shared logic | `netstandard2.1` so the same code runs in Unity *and* the server |
 
@@ -184,7 +184,7 @@ returns. See [ai-backend/README.md](ai-backend/README.md) and
 ### Self-hosting packages
 
 ```powershell
-./scripts/publish-server.ps1            # win-x64, linux-x64, linux-arm64 (Raspberry Pi 5)
+./scripts/publish-server.ps1            # win-x64, linux-x64, linux-arm64
 ```
 Produces self-contained, single-file packages (no .NET install needed on the host) under
 `artifacts/`. On Linux/macOS use `scripts/publish-server.sh`.
@@ -215,7 +215,7 @@ alliances**, shared bases and trading, planet **bases + teleporter pads**, mater
 colored-light building, in-game customization (avatar pixel-face editor, content/ship/station
 editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**,
 the VEGA ship-AI onboarding/advisor companion, world-creation options, and an optional LLM backend
-for dynamic dialogue/mission text. Self-hostable dedicated server (Raspberry Pi friendly).
+for dynamic dialogue/mission text. Self-hostable dedicated server.
 Currently 584 xUnit tests pass.
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
