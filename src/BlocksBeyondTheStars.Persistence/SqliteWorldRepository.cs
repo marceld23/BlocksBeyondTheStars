@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.Persistence;
 /// <summary>
 /// SQLite-backed savegame repository. Stores world metadata, per-block player edits and
 /// player/ship snapshots. Uses WAL mode for durable, low-overhead writes suitable for
-/// small self-hosted servers (including a Raspberry Pi 5).
+/// small self-hosted servers.
 /// </summary>
 public sealed class SqliteWorldRepository : IWorldRepository
 {

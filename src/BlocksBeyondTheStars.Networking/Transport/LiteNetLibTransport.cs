@@ -16,7 +16,7 @@ internal static class DeliveryMapping
 
 /// <summary>
 /// UDP server transport built on LiteNetLib. Lightweight and dependency-free of any game
-/// engine, so it runs on a plain .NET host (including Raspberry Pi 5). Connection ids are
+/// engine, so it runs on a plain .NET host. Connection ids are
 /// LiteNetLib peer ids.
 /// </summary>
 public sealed class LiteNetLibServerTransport : IServerTransport

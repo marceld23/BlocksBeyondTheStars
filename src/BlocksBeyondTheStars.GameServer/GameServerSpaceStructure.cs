@@ -360,7 +360,7 @@ public sealed partial class GameServer
     /// freshly rebuilt ship voxel baseline, so mined-out / built-on cells survive a server restart and
     /// re-entry into space — and, ship-as-object, carry into the landed ship + walkable interior too.
     /// Only player deltas are stored (mirrors the per-cell planet block-edit model), keeping it
-    /// Raspberry-Pi-friendly. An edit setting a cell to air is honoured via <see cref="SpaceStructure.Set"/>.</summary>
+    /// lightweight. An edit setting a cell to air is honoured via <see cref="SpaceStructure.Set"/>.</summary>
     private void ApplyPersistedShipEdits(SpaceStructure s)
     {
         foreach (var edit in _repo.LoadStructureEdits(s.Id))

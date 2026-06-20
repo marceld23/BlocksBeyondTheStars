@@ -19,3 +19,46 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# ---------------------------------------------------------------------------
+# Static analysis severity tuning (Stage 2).
+# Goal: keep real-bug signal (async correctness, nullability, dispose hygiene)
+# as warnings; silence purely stylistic rules that fight this project's
+# conventions (partial GameServer split across files, game-not-crypto Random,
+# culture-agnostic gameplay strings, MessagePack DTOs needing public members).
+# Nothing fails the build yet (TreatWarningsAsErrors stays false).
+# ---------------------------------------------------------------------------
+[*.cs]
+
+# -- Meziantou: silence stylistic / culture-pedantic rules (noise here) --
+dotnet_diagnostic.MA0048.severity = none   # File name must match type name (partial classes split intentionally)
+dotnet_diagnostic.MA0049.severity = none   # Type name matches namespace (GameServer.GameServer is fine)
+dotnet_diagnostic.MA0006.severity = none   # Use string.Equals instead of ==
+dotnet_diagnostic.MA0002.severity = none   # Use StringComparer for string collections
+dotnet_diagnostic.MA0011.severity = none   # Use an IFormatProvider
+dotnet_diagnostic.MA0074.severity = none   # Avoid implicit culture-sensitive methods
+dotnet_diagnostic.MA0004.severity = none   # Use ConfigureAwait (server has no SynchronizationContext)
+dotnet_diagnostic.MA0016.severity = none   # Prefer returning a collection abstraction
+dotnet_diagnostic.MA0046.severity = none   # Use EventHandler<T> to declare events
+dotnet_diagnostic.MA0051.severity = none   # Method is too long
+dotnet_diagnostic.MA0099.severity = none   # Use explicit enum value
+dotnet_diagnostic.MA0008.severity = none   # Add StructLayoutAttribute
+
+# -- Meziantou: keep genuine-bug rules as warnings --
+dotnet_diagnostic.MA0134.severity = warning  # Observe the result of a fire-and-forget async call
+dotnet_diagnostic.MA0015.severity = warning  # Specify the parameter name in ArgumentException
+
+# -- VS.Threading: async/await correctness (keep all as warnings) --
+dotnet_diagnostic.VSTHRD002.severity = warning  # Avoid synchronously blocking on async (.Result/.Wait)
+dotnet_diagnostic.VSTHRD103.severity = warning  # Call async methods when in an async method
+dotnet_diagnostic.VSTHRD110.severity = warning  # Observe the result of async calls
+
+# -- Built-in CA: deliberately enable dispose-hygiene rules (off by default) --
+dotnet_diagnostic.CA2000.severity = warning  # Dispose objects before losing scope
+dotnet_diagnostic.CA2213.severity = warning  # Disposable fields should be disposed
+dotnet_diagnostic.CA1001.severity = warning  # Types that own disposable fields should be IDisposable
+
+# Test code: relax rules that only make sense for production code.
+[tests/**.cs]
+dotnet_diagnostic.CA2000.severity = none   # short-lived test fixtures dispose at process exit
+dotnet_diagnostic.CA1707.severity = none   # underscores in Method_State_Expected test names are intentional

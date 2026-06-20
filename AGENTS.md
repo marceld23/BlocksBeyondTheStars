@@ -26,7 +26,7 @@ LAN/self-hosting and anti-cheat correct by construction.
 - **Client:** Unity 6 LTS (6000.4.x), C#. Lives in `client/` (open in the Unity Editor).
 - **Server:** .NET 8, standalone console host. **No Unity runtime on the server.**
 - **Admin/API:** ASP.NET Core 8 (Minimal API).
-- **DB:** SQLite by default (portable, Raspberry Pi friendly); PostgreSQL later.
+- **DB:** SQLite by default (portable); PostgreSQL later.
 - **Realtime networking:** LiteNetLib (UDP). MessagePack for wire serialization.
 - **Shared/WorldGeneration target `netstandard2.1`** so the *same* code runs in both
   Unity and the .NET server. Everything else targets `net8.0`.
@@ -71,7 +71,7 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
    require touching game logic.
 4. **World = seed + parameters + deltas.** Only persist player changes, never every
    natural block.
-5. **Raspberry Pi friendly** — no rendering/physics engine on the server; keep CPU,
+5. **Lightweight server** — no rendering/physics engine on the server; keep CPU,
    RAM and disk-write load low and configurable.
 6. **Atomic saves** — write to a temp file then swap; autosave + rotating backups.
 7. **Keep `Shared`/`WorldGeneration` netstandard2.1-clean** so Unity can consume them.

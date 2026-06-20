@@ -44,7 +44,7 @@ developer in the editor before continuing.
   cast + receive (planet enemies were flipped from `Unlit/Color` to `LitColor`); creature eyes/glints
   stay unlit by design.
 - **Per-preset cost.** One URP asset serves all Quality levels, so `ClientSettings.Apply()` scales the
-  effective shadow distance by preset (Potato 0 = shadows off for Pi-class machines, Low 40, Medium 70,
+  effective shadow distance by preset (Potato 0 = shadows off for weak machines, Low 40, Medium 70,
   High 90) and forces depth/opaque textures off on Potato/Low so dependent effects early-out for free.
 
 ## Key files

@@ -5,7 +5,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- Static analysis (Stage 0 baseline): built-in .NET analyzers as warnings only.
+         AnalysisLevel=latest = recommended default rule set (not the noisy -all set).
+         Build is intentionally NOT failed yet (TreatWarningsAsErrors stays false). -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Authors>JAM Software</Authors>
     <Product>Blocks Beyond the Stars</Product>
   </PropertyGroup>
+
+  <!-- Stage 1: curated third-party analyzers (warnings only; severities tuned in .editorconfig).
+       Meziantou = bug/perf defaults; VS.Threading = async/await + threading correctness. -->
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.105">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>

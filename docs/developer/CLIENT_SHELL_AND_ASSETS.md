@@ -76,14 +76,14 @@ First-version settings (a deliberately small subset of §6.2):
 
 | Group | MVP settings |
 |---|---|
-| Graphics | Quality **preset** (Low/Medium/High + **Pi/Potato**), fullscreen, view distance (chunks), UI scale |
+| Graphics | Quality **preset** (Potato/Low/Medium/High), fullscreen, view distance (chunks), UI scale |
 | Audio | Master, music, SFX volumes; "audio on start screen" toggle |
 | Controls | Mouse sensitivity, invert-Y |
 | Language | **German / English** (drives the `Localizer`) |
 | Accessibility | Reduced effects, camera-shake off, larger UI (flags wired; effects applied later) |
 
 - **Presets** map to view distance + later to shadow/particle/postprocessing quality. A
-  **Pi/Potato** preset exists for Raspberry-Pi-hosted / weak machines (spec §6.3). Auto-detect
+  **Potato** preset exists for weak / low-power machines (spec §6.3). Auto-detect
   of sensible defaults is deferred (we default to Medium).
 
 ## Textures & visual style (answers §7.2)

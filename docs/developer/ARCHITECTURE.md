@@ -85,7 +85,7 @@ feature files. It is **single-threaded and tick-driven** by design (`GameServer.
   (in-process), and `CompositeServerTransport` (runs UDP + WebSocket together). UDP is the
   default; WebSocket is opt-in (`EnableWebSocket`).
 - **Persistence** — `Persistence/SqliteWorldRepository.cs` behind `IWorldRepository`. SQLite
-  in **WAL** mode (`synchronous=NORMAL`), portable and Raspberry-Pi-friendly. Stores world
+  in **WAL** mode (`synchronous=NORMAL`), portable. Stores world
   metadata, **only player block-edit deltas** (`block_edit`, keyed by planet+xyz with
   tint/glow/shape), player/ship JSON blobs, containers, doors, beacons, beams, bases,
   alliances, story state, space structures + their per-cell edits, location statuses and

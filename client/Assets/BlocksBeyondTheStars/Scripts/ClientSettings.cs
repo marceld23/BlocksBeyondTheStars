@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
         public int Best;
     }
 
-    /// <summary>Graphics quality presets, including a Potato/Pi profile for weak machines and Pi-hosted servers.</summary>
+    /// <summary>Graphics quality presets, including a Potato profile for weak / low-power machines.</summary>
     public enum QualityPreset { Potato, Low, Medium, High }
 
     /// <summary>
@@ -247,7 +247,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // URP: one pipeline asset serves every quality level, so scale the expensive part — shadow reach —
-            // by preset here (Potato/Pi: shadows off entirely; High: the full tuned distance).
+            // by preset here (Potato: shadows off entirely; High: the full tuned distance).
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline
                 is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
             {

@@ -132,7 +132,7 @@ public readonly struct BlockEdit
 
 /// <summary>
 /// Abstraction over savegame persistence. The default implementation is SQLite-backed
-/// (portable, Raspberry Pi friendly); a PostgreSQL implementation can be added later
+/// (portable); a PostgreSQL implementation can be added later
 /// without touching the game server (technical requirements §10.2, §23.3).
 /// </summary>
 public interface IWorldRepository : IDisposable

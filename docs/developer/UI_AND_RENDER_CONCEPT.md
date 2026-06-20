@@ -89,7 +89,7 @@ permissive/own assets, logged in `NOTICES.md`.
 ## 6. Renderer overhaul — fancy sci‑fi world look
 
 Goal: lift the world from "unlit voxels + global tint" to a richer lit, glossy, glowing look while
-keeping the blocky charm and staying performant (quality presets, incl. Potato/Pi, must still run).
+keeping the blocky charm and staying performant (quality presets, incl. Potato, must still run).
 
 - **Lit block shader:** move blocks from unlit to a **lit** shader (vertex normals + the directional
   sun + ambient + the planned **suit lamp / point lights**), so faces shade by light direction and
@@ -107,7 +107,7 @@ keeping the blocky charm and staying performant (quality presets, incl. Potato/P
 - **Particles/VFX:** weather (blocky clouds + rain/snow/dust + lightning), thruster trails, weapon
   shots/impacts, mining/placing feedback, collision sparks, hyperspace warp streaks.
 - **Performance:** everything gated by the quality presets; the lit/post stack scales down (or off)
-  on low tiers so the Pi/Potato build still runs. Greedy meshing / chunk LOD as needed.
+  on low tiers so the Potato build still runs. Greedy meshing / chunk LOD as needed.
 
 ## 7. Phasing
 

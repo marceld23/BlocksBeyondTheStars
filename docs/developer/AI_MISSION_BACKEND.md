@@ -46,7 +46,7 @@ Any level **other than `Off`** also lets the server fetch the flavour-text endpo
 
 ## Why this shape
 
-- Keeps the heavy/optional generative dependency out of the lightweight, Pi-friendly game
+- Keeps the heavy/optional generative dependency out of the lightweight game
   server (separate process, separate language).
 - Server-side validation + reward clamping make AI output safe by construction.
 - A real LLM can replace the template generator behind the same HTTP contract with no
