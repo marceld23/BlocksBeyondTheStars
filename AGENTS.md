@@ -102,6 +102,33 @@ build output (the `.exe` timestamp is not reliable). The full build guide — pi
 freshness verification and the known "works in the Editor, broken in the build" pitfalls — is in
 [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md).
 
+## Releases & versioning
+
+Releases are built in the cloud by [.github/workflows/release.yml](.github/workflows/release.yml) — never
+build a release locally for distribution. Cut one by pushing a SemVer tag:
+
+```bash
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+That triggers two jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
+backend), then a `windows-latest` job builds the launcher and runs `scripts/publish-client-installer.ps1 -Msi`
+to attach **Setup.exe** (per-user, no admin), the **WiX MSI** (machine-wide/IT) and **Portable.zip** to a
+published GitHub Release. The workflow runs *only* on tags / manual dispatch (never `pull_request`), so the
+Unity license secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are safe in a public repo. A manual
+*Run workflow* dispatch builds + packages a `0.1.0-dev` test artifact but does not publish.
+
+**The git tag is the single source of truth for the version.** It flows into GameCI `versioning: Custom` →
+`PlayerSettings.bundleVersion`, so the in-game UI (`AppShell.Version` is a property `=> Application.version`,
+**not** a hardcoded const), the launcher (`-p:Version`) and Velopack (`--packVersion`) all show the same
+value. `BuildScript` writes `version.txt`; a CI guard fails the build if the baked version ≠ the tag. The
+committed `bundleVersion` is `0.1.0-dev` for local/dev builds. Keep `Networking/Protocol.Version` (wire
+compatibility) separate — it is not the game version. Gotchas if you touch this: GameCI *always* overrides
+`bundleVersion` (drive it via `versioning: Custom`, don't fight it with `-buildVersion`); Velopack needs
+`packVersion >= 0.0.1` (so dev is `0.1.0-dev`, not `0.0.0-*`); after `git push` wait ~20 s before
+`gh workflow run` or it dispatches the previous commit. Linux/macOS *client* installers are intentionally not
+built (blocked by the Windows-only UnityWebBrowser/CEF engine).
+
 ## Project conventions
 
 - C#: `LangVersion=latest`, nullable enabled, 4-space indent, Allman braces
