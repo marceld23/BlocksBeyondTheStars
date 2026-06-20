@@ -109,6 +109,10 @@ jobs:
           unityVersion: 6000.4.9f1
           targetPlatform: StandaloneWindows64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWindows
+          # Disable GameCI's own GitVersion-based versioning — it would set bundleVersion from the last tag
+          # (e.g. v0.1.0 -> 0.1.0) and override our exact -buildVersion. We want the precise tag, so None
+          # leaves bundleVersion to BuildScript's -buildVersion.
+          versioning: None
           # BuildScript reads -buildOut + -buildVersion (bakes the version into PlayerSettings.bundleVersion,
           # so Application.version shows it in-game, and writes version.txt for the guard below).
           # allowDirtyBuild because the synced StreamingAssets/Plugins make the tree "dirty" for GameCI.
