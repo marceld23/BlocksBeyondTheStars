@@ -65,6 +65,17 @@ is shared, persistent, and self-hostable.
   </tr>
 </table>
 
+**Many different worlds** — every planet type has its own terrain, flora and sky:
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/en/surface_jungle.png" width="100%" alt="Jungle world"><br><sub>Jungle</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/surface_lava.png" width="100%" alt="Lava world"><br><sub>Lava</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/surface_ice.png" width="100%" alt="Ice world"><br><sub>Ice</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/surface_crystal.png" width="100%" alt="Crystal world"><br><sub>Crystal</sub></td>
+  </tr>
+</table>
+
 <sub>Generated from the live game — see [docs/screenshots/](docs/screenshots/README.md).</sub>
 
 ## About this project
