@@ -113,6 +113,10 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _confirmLand;        // a landing prompt is up — the pad chooser map (item 38)
         private string _choosePadBody;    // body whose pads the chooser is showing (null = no chooser)
+        private string _landDestBody;     // confirmed landing destination of the in-flight descent (survives until
+                                          // the animation reads it; "" = home body, null = no landing committed).
+                                          // Separate from _choosePadBody, which is cleared the moment a pad is picked
+                                          // — reading it in BeginLandingFlyAway() would yield "" → wrong (home) planet.
         private GameObject _landMapGo;    // the on-screen planet map of landing pads (built while choosing)
         private string _landMapBody;      // which body the currently-built land map is for
         private string _boardTargetId;    // station being boarded during the dock-approach animation
@@ -662,7 +666,7 @@ namespace BlocksBeyondTheStars.Client
             // home body we launched from). If that can't be resolved, pick whichever landable lies most directly
             // ahead of the nose — "the planet/asteroid in front of the ship" — so we never default to straight down.
             Vector3 dest = new Vector3(0f, -150f, -20f);
-            string destId = _choosePadBody ?? string.Empty;
+            string destId = _landDestBody ?? string.Empty;
             bool found = false;
             foreach (var b in _landables)
             {
@@ -1105,12 +1109,17 @@ namespace BlocksBeyondTheStars.Client
         {
             _confirmLand = false;
             _choosePadBody = null;
+            _landDestBody = null; // chooser cancelled — no committed landing destination
             HideLandMap();
         }
 
         /// <summary>Touches down on the chosen pad and tears the chooser down.</summary>
         private void LandOnPad(int padIndex)
         {
+            // Remember the chosen destination before clearing _choosePadBody: the descent animation
+            // (BeginLandingFlyAway) only fires a frame later, once the server confirms we left space, and
+            // would otherwise read a nulled _choosePadBody → "" → fly back to the home/launch body instead.
+            _landDestBody = _choosePadBody;
             Game.Network?.SendLeaveSpace(_choosePadBody, padIndex);
             _confirmLand = false;
             _choosePadBody = null;
@@ -2165,6 +2174,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Exit()
         {
+            _landDestBody = null; // descent finished — don't let a stale target steer a later recovery landing
             Camera.transform.SetParent(_camPrevParent, false);
             Camera.transform.localPosition = _camPrevLocalPos;
             Camera.transform.localRotation = _camPrevLocalRot;
