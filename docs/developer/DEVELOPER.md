@@ -152,11 +152,38 @@ The workflow has two jobs:
 2. **Package + release (Windows)** — builds the launcher, downloads the player, and runs
    `publish-client-installer.ps1 -Msi` (with `vpk` pinned to the vendored Velopack version) to produce and
    attach three assets to a published GitHub Release: **`…-win-Setup.exe`** (per-user, no admin),
-   **`…-win.msi`** (machine-wide, for IT/MDM) and **`…-win-Portable.zip`**.
+   **`…-win.msi`** (machine-wide, for IT/MDM) and **`…-win-Portable.zip`**. The same three assets are then
+   mirrored to **itch.io** (see below).
 
 The workflow triggers **only** on tag pushes and manual dispatch (never `pull_request`), so the Unity license
 secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are never exposed — safe even with a public repo. A
 manual *Run workflow* dispatch builds and packages a `0.1.0-dev` test artifact but does not publish a Release.
+
+> **Note:** `publish-client-installer.ps1` deletes Unity's developer-only `*_DoNotShip` (Burst AOT debug
+> symbols) and `*_BackUpThisFolder_ButDontShipItWithYourGame` (IL2CPP backup) folders from the player before
+> packing, so they never end up inside the shipped installers. They are regenerated on the next Unity build.
+
+### Mirroring releases to itch.io
+
+After the GitHub Release is published, the same job pushes the three installers to the itch.io page
+[`jumavegames/blocks-beyond-the-stars`](https://jumavegames.itch.io/blocks-beyond-the-stars) via
+[butler](https://itch.io/docs/butler/) (`scripts/publish-itch.ps1`). Each artifact goes to its own channel,
+stamped with the release version (`--userversion`):
+
+| Artifact          | itch.io channel    |
+| ----------------- | ------------------ |
+| `…-win-Setup.exe` | `windows-setup`    |
+| `…-win.msi`       | `windows-msi`      |
+| `…-win-Portable.zip` | `windows-portable` |
+
+Notes:
+
+- The upload runs **after** the GitHub Release step, so a butler hiccup can never block the GitHub publish.
+- butler authenticates with an itch.io API key stored as the **`BUTLER_API_KEY`** repository secret (Settings →
+  Secrets and variables → Actions). It is **never** committed — generate one at itch.io → *Settings → API keys*.
+- The script auto-downloads butler (win-x64) if it is not already on `PATH`, so it also works locally:
+  `$env:BUTLER_API_KEY = '…'; ./scripts/publish-itch.ps1 -Version 0.3.0` (run after `publish-client-installer.ps1`).
+- The `windows` prefix in each channel name tags the upload as a Windows download on the itch.io page.
 
 ### The git tag is the single source of truth for the version
 
