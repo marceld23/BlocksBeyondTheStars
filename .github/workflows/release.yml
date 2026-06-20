@@ -65,6 +65,17 @@ jobs:
           restore-keys: |
             Library-
 
+      # The ~6 GB GameCI editor image plus the restored Library cache overflow the hosted runner's
+      # ~14 GB free disk ("no space left on device"). Drop preinstalled toolchains we don't need
+      # (our .NET steps already ran) to free ~25 GB before the Docker pull.
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
       - name: Build Windows player
         uses: game-ci/unity-builder@v4
         env:
