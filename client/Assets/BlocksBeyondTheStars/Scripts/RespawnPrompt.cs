@@ -18,8 +18,10 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        // Let the death flash / explosion be seen before the modal slides in.
+        // Let the death flash / explosion be seen before the modal slides in. On-foot death is a quick red wash;
+        // a ship blowing up in space gets longer so the full fireball + debris play out before the modal covers it.
         private const float ShowDelay = 1.1f;
+        private const float ShipShowDelay = 2.1f;
         private const float FadeIn = 0.4f;
         private const float BackdropAlpha = 0.82f;
 
@@ -32,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _armed;   // a death/destruction arrived; counting down to show
         private bool _shown;   // the modal is currently up
         private float _delay;
+        private float _showDelay = ShowDelay; // how long to let the death FX play before the modal (per death kind)
         private float _fade;
         private string _titleKey = "ui.death.title";
 
@@ -47,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
             if (_armed && !_shown)
             {
                 _delay += Time.deltaTime;
-                if (_delay >= ShowDelay)
+                if (_delay >= _showDelay)
                 {
                     Show();
                 }
@@ -79,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (m.Died)
             {
-                Arm("ui.death.title");
+                Arm("ui.death.title", ShowDelay);
             }
         }
 
@@ -87,11 +90,11 @@ namespace BlocksBeyondTheStars.Client
         {
             if (m.ShipDisabled)
             {
-                Arm("ui.death.ship_title");
+                Arm("ui.death.ship_title", ShipShowDelay);
             }
         }
 
-        private void Arm(string titleKey)
+        private void Arm(string titleKey, float showDelay)
         {
             if (_armed || _shown)
             {
@@ -99,6 +102,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _titleKey = titleKey;
+            _showDelay = showDelay;
             _armed = true;
             _delay = 0f;
             // Set the gate immediately (synchronously with the event) so PlayerController / SpaceView hold
