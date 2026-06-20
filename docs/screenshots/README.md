@@ -44,14 +44,22 @@ variety. Each is a separate run that spawns a fresh world pinned to that type
     <td width="50%"><img src="en/surface_crystal.png" width="100%" alt="Crystal surface"><br><sub><b>surface_crystal.png</b> — Crystalline world</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="en/surface_fungal.png" width="100%" alt="Fungal surface"><br><sub><b>surface_fungal.png</b> — Fungal world (glowing mycelium)</sub></td>
+    <td width="50%"><img src="en/surface_skylands.png" width="100%" alt="Skylands surface"><br><sub><b>surface_skylands.png</b> — Floating skylands world</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="en/surface_ocean.png" width="100%" alt="Ocean surface"><br><sub><b>surface_ocean.png</b> — Ocean world (water-dominated, so the view is mostly sea)</sub></td>
     <td width="50%"><img src="en/surface_desert.png" width="100%" alt="Desert surface"><br><sub><b>surface_desert.png</b> — Arid/forested world (framing obstructed — reshoot pending)</sub></td>
-    <td width="50%"></td>
   </tr>
 </table>
 
-> Some planet types (currently **ocean**, **fungal**, **skylands**) are intentionally **not** in the
-> set yet: the capture pose dropped the player into water or through the floor on those worlds. The
-> per-type spawn/pose fix is tracked separately before they are re-added.
+> **Placement** is terrain-aware (`PlayerController.PlaceForCaptureNear`): the director probes a ring
+> of spots around the landed ship and only stands on a SOLID, DRY one with OPEN SKY above (a downward
+> ray for the surface, an upward ray to reject the ship hull / caves / overhangs), then waits until the
+> player is grounded, alive and not submerged before the shot — otherwise it skips that type rather
+> than writing a broken frame. This fixed the earlier fungal/skylands fall-throughs and the ocean
+> submersion. **ocean** is an honest water-world view (mostly sea); **desert** spawned right against a
+> tree — both are candidates for a nicer reshoot.
 
 ## How to regenerate
 

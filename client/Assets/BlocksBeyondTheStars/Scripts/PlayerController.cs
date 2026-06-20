@@ -1063,6 +1063,86 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): place the on-foot player on REAL terrain near
+        /// an anchor (the landed ship) and face back toward it, for a per-planet surface shot. Unlike the blind
+        /// <see cref="SetCapturePose"/>, this is terrain-aware. It probes a ring of spots around the ship (radii
+        /// chosen to clear the ship's footprint — the hull is stamped into the world voxels, so it can't be told
+        /// apart from terrain by collider) and for each:
+        /// <list type="bullet">
+        ///   <item>raycasts DOWN from high above to find the true surface Y (a probe over the void or an unbaked
+        ///   far chunk simply misses → the player is never dropped through the floor / off a floating island),</item>
+        ///   <item>rejects deep water (chest-height block is water → would be a submerged murk),</item>
+        ///   <item>requires OPEN SKY above the spot (a short up-ray that hits a ceiling means we're under the ship
+        ///   hull / in a cave / under an overhang → reject), which is what reliably keeps the shot OUTDOORS.</item>
+        /// </list>
+        /// Returns false when no safe, open, dry footing exists near the ship (tiny island / all-water world) so
+        /// the caller can skip the shot instead of writing a broken frame.</summary>
+        public bool PlaceForCaptureNear(Vector3 anchor, float pitch)
+        {
+            if (_controller == null)
+            {
+                return false;
+            }
+
+            float half = _controller.height * 0.5f + _controller.skinWidth;
+            // Start clear of the hull (~16), then nearer (for small floating islands) and a little farther; every
+            // candidate is gated by the open-sky check below, so a too-near one that lands inside the hull is
+            // rejected rather than shot.
+            float[] dists = { 16f, 13f, 19f, 11f, 22f, 25f };
+            for (int di = 0; di < dists.Length; di++)
+            {
+                for (int a = 0; a < 8; a++)
+                {
+                    float ang = a * 45f * Mathf.Deg2Rad;
+                    float x = anchor.x + Mathf.Sin(ang) * dists[di];
+                    float z = anchor.z + Mathf.Cos(ang) * dists[di];
+
+                    // Surface under this spot? Start the ray well above any local terrain so a hill doesn't make us
+                    // start inside a collider.
+                    if (!Physics.Raycast(new Vector3(x, anchor.y + 60f, z), Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore)
+                        || hit.collider == _controller)
+                    {
+                        continue;
+                    }
+
+                    var stand = new Vector3(x, hit.point.y + half + 0.05f, z);
+                    if (BlockKeyAt(stand + Vector3.up * 1.1f) == "water")
+                    {
+                        continue; // solid floor but chest-deep underwater — not a usable surface shot
+                    }
+
+                    // Open sky overhead? A hit means a ceiling above us (ship hull / cave / overhang) → indoors.
+                    if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, ~0, QueryTriggerInteraction.Ignore)
+                        && up.collider != _controller)
+                    {
+                        continue;
+                    }
+
+                    SnapTo(stand);
+                    Vector3 d = anchor - transform.position;
+                    float yaw = (Mathf.Abs(d.x) + Mathf.Abs(d.z) > 0.01f)
+                        ? Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg
+                        : transform.eulerAngles.y;
+                    transform.eulerAngles = new Vector3(0f, yaw, 0f);
+                    _pitch = Mathf.Clamp(pitch, -89f, 89f);
+                    if (Camera != null)
+                    {
+                        Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>
+        public bool IsCaptureGrounded => _controller != null && _controller.enabled && _controller.isGrounded;
+
+        /// <summary>Capture hook: the player's head is under water (so the shot would be a submerged murk).</summary>
+        public bool IsHeadUnderwater() => IsSubmerged();
+
         private void ApplyGravityOnly()
         {
             if (_controller.isGrounded)
@@ -1399,17 +1479,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
         /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
-        private bool IsSubmerged()
+        private bool IsSubmerged() => BlockKeyAt(transform.position + Vector3.up * 1.1f) == "water";
+
+        /// <summary>The content key of the block at a world position (null if the world/content isn't ready).</summary>
+        private string BlockKeyAt(Vector3 world)
         {
             if (Game?.World == null || Game.Content == null)
             {
-                return false;
+                return null;
             }
 
-            var c = transform.position + Vector3.up * 1.1f;
             var def = Game.Content.BlockById(Game.World.GetBlock(
-                Mathf.FloorToInt(c.x), Mathf.FloorToInt(c.y), Mathf.FloorToInt(c.z)));
-            return def?.Key == "water";
+                Mathf.FloorToInt(world.x), Mathf.FloorToInt(world.y), Mathf.FloorToInt(world.z)));
+            return def?.Key;
         }
 
         /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while

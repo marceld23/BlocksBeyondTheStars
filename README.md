@@ -74,6 +74,12 @@ is shared, persistent, and self-hostable.
     <td width="25%"><img src="docs/screenshots/en/surface_ice.png" width="100%" alt="Ice world"><br><sub>Ice</sub></td>
     <td width="25%"><img src="docs/screenshots/en/surface_crystal.png" width="100%" alt="Crystal world"><br><sub>Crystal</sub></td>
   </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/en/surface_fungal.png" width="100%" alt="Fungal world"><br><sub>Fungal</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/surface_skylands.png" width="100%" alt="Skylands world"><br><sub>Skylands</sub></td>
+    <td width="25%"><img src="docs/screenshots/en/surface_ocean.png" width="100%" alt="Ocean world"><br><sub>Ocean</sub></td>
+    <td width="25%"></td>
+  </tr>
 </table>
 
 <sub>Generated from the live game — see [docs/screenshots/](docs/screenshots/README.md).</sub>
