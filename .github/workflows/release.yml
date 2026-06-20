@@ -7,8 +7,10 @@
 # One-time setup (Unity Personal):
 #   1. Get your license file: run the GameCI activation flow
 #      (https://game.ci/docs/github/activation) to obtain a Unity_v6.x.ulf.
-#   2. Repo -> Settings -> Secrets and variables -> Actions -> New repository secret:
-#        UNITY_LICENSE = the full contents of that .ulf file
+#   2. Repo -> Settings -> Secrets and variables -> Actions -> add three repository secrets:
+#        UNITY_LICENSE  = the full contents of that .ulf file
+#        UNITY_EMAIL    = your Unity account email
+#        UNITY_PASSWORD = your Unity account password
 #   3. Push a tag:  git tag v1.0.0 && git push origin v1.0.0
 #
 # Why two jobs: the Unity build runs in GameCI's Linux Docker image (Windows player cross-built
@@ -58,7 +60,10 @@ jobs:
       - name: Build Windows player
         uses: game-ci/unity-builder@v4
         env:
+          # Unity Personal needs all three: the .ulf contents + the account email & password.
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: client
           unityVersion: 6000.4.9f1
