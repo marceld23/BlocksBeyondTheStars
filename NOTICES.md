@@ -89,6 +89,34 @@ Client (Unity, bundled in `client/Assets/Plugins` — vendored by `scripts/sync-
 - **Velopack** — MIT — in-app installer/auto-update runtime (`ClientUpdater`); the `vpk` CLI
   (also MIT) builds the Setup.exe + update feed in `scripts/publish-client-installer.ps1`.
 - **Newtonsoft.Json** — MIT — pulled in as a Velopack runtime dependency (client only).
+- **.NET BCL polyfills** — MIT (.NET Foundation) — the `System.*` and `Microsoft.Bcl.*` support
+  DLLs alongside the libraries above (e.g. `System.Memory`, `System.Buffers`,
+  `System.Text.Json`, `System.Runtime.CompilerServices.Unsafe`, `Microsoft.Bcl.AsyncInterfaces`),
+  shipped so the netstandard2.1 libs run under the Unity Mono runtime.
 
-The Unity client additionally uses the Unity engine and its packages under the Unity
-Companion / Unity software licence; those are not redistributed by this repository.
+Client (Unity, UPM packages compiled into / shipped with the player — see `client/Packages/manifest.json`):
+
+- **Unity Web Browser (UWB)** — MIT — Voltstro-Studios — the in-game Wiki + data-cube Arcade
+  browser (`dev.voltstro.unitywebbrowser`), with its **VoltRpc** (MIT) and
+  **NativeArraySpanExtensions** (MIT) dependencies. https://github.com/Voltstro-Studios/UnityWebBrowser
+- **Chromium Embedded Framework (CEF)** — BSD-3-Clause (Marshall A. Greenblatt; portions
+  © Google Inc.) — the browser engine UWB drives (`dev.voltstro.unitywebbrowser.engine.cef`
+  + `.win.x64`). The CEF binaries are redistributed inside the player build; their full
+  notices ship next to the executable as `BlocksBeyondTheStars_Data/UWB/LICENSE.CEF.txt`
+  (CEF + the bundled Chromium third-party notices) and `LICENSE.UWB.txt`, copied there
+  automatically by the UWB engine package. https://bitbucket.org/chromiumembedded/cef
+- **UniTask** — MIT — Cysharp — zero-allocation async/await for Unity (`com.cysharp.unitask`).
+  https://github.com/Cysharp/UniTask
+
+The Unity client additionally uses the Unity engine and its first-party packages (URP, Burst,
+Collections, Mathematics, ShaderGraph, TextMeshPro, the test framework, etc.) under the Unity
+Companion / Unity software licence; the engine runtime is redistributed as part of any Unity
+player, the editor-only packages are not.
+
+## Shipped with the build
+
+The Windows installer (`scripts/publish-client-installer.ps1`) copies this `NOTICES.md` (as
+`THIRD-PARTY-NOTICES.txt`) and the project `LICENSE` (as `LICENSE.txt`) into the player folder
+before packing, so every distribution — Setup.exe, the portable zip **and** the MSI — carries the
+full attribution alongside the per-engine `UWB/LICENSE.CEF.txt` / `LICENSE.UWB.txt`. The in-game
+**Credits** screen also names the key third-party software and points players at these files.

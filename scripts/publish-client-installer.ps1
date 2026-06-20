@@ -134,6 +134,19 @@ if ($Msi) {
     Write-Host "MSI will be built (version $msiVersion, MIT license page, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
 }
 
+# Attribution: copy the project LICENSE + the third-party NOTICES into the player folder so every pack
+# output (Setup.exe, the portable zip AND the MSI — they all come from this one `vpk pack --packDir $build`)
+# ships them next to the executable. The CEF/UWB engine notices are already placed under
+# BlocksBeyondTheStars_Data/UWB by the UWB package; these two add the top-level project + full third-party
+# list (THIRD-PARTY-NOTICES.txt is the name the in-game Credits screen points players at).
+$licenseRoot = Join-Path $repo 'LICENSE'
+$noticesRoot = Join-Path $repo 'NOTICES.md'
+if (-not (Test-Path $licenseRoot)) { Write-Error "LICENSE not found at '$licenseRoot' (needed for the build attribution)." }
+if (-not (Test-Path $noticesRoot)) { Write-Error "NOTICES.md not found at '$noticesRoot' (needed for the build attribution)." }
+Copy-Item $licenseRoot (Join-Path $build 'LICENSE.txt') -Force
+Copy-Item $noticesRoot (Join-Path $build 'THIRD-PARTY-NOTICES.txt') -Force
+Write-Host 'Copied LICENSE.txt + THIRD-PARTY-NOTICES.txt into the player folder for the installer.' -ForegroundColor DarkGray
+
 Write-Host "Packaging Blocks Beyond the Stars $Version (channel '$Channel') from $build ..." -ForegroundColor Cyan
 $packArgs = @(
     'pack',

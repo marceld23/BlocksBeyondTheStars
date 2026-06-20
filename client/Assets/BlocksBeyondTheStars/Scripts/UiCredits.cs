@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(root, px, py, pw, ph, UiKit.Panel);
 
             UiKit.AddLogo(root, px + 40, py + 36, pw - 80, 44, shell.L("ui.credits.title"), 30);
-            var body = UiKit.AddText(root, px + 40, py + 110, pw - 80, ph - 220, shell.L("ui.credits.body"), 22, UiKit.TextCol, TextAnchor.UpperLeft);
+            var body = UiKit.AddText(root, px + 40, py + 110, pw - 80, ph - 220, shell.L("ui.credits.body"), 18, UiKit.TextCol, TextAnchor.UpperLeft);
             body.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             UiKit.AddButton(root, px + 40, py + ph - 76, 220, 52, shell.L("ui.menu.back"), () => shell.CloseCredits());

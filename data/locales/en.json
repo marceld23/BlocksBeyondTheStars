@@ -862,7 +862,7 @@
   "ui.loading.tip": "Upgrade your ship's modules to survive harsher planets.",
   "ui.loading.status": "Generating star systems     ·     Preparing planet chunks     ·     Syncing mission data",
   "ui.credits.title": "Credits",
-  "ui.credits.body": "Blocks Beyond the Stars — JuMaVe Games\n\nA family project:\nJustus Dütscher (son) — ideas, game design, playtesting\nMarcel Dütscher (father) — technical lead and AI prompting\nVerena Dütscher (mother) — game balancing and playtesting\n\nWe're hoping for community support! Get involved and join in — your name could soon be here too!",
+  "ui.credits.body": "Blocks Beyond the Stars — JuMaVe Games\n\nA family project:\nJustus Dütscher (son) — ideas, game design, playtesting\nMarcel Dütscher (father) — technical lead and AI prompting\nVerena Dütscher (mother) — game balancing and playtesting\n\nWe're hoping for community support! Get involved and join in — your name could soon be here too!\n\nOpen-source software used: Unity engine, Unity Web Browser & CEF (Chromium), UniTask, LiteNetLib, MessagePack, Velopack and others.\nFull license notices: THIRD-PARTY-NOTICES.txt in the game folder.",
   "ui.hud.location": "Location",
   "ui.hud.aboard": "aboard ship",
   "ui.hud.station": "station",
