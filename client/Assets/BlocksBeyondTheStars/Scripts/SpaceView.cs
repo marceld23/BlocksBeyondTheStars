@@ -135,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _combatSubscribed;
         private bool _hyperjumpSubscribed;
         private bool _hyperjumping; // a hyperspace jump is tearing down the view (warp covers it, no landing)
+        private bool _shipDestroyed; // the ship blew up in space — tear down at once (explosion stays, no landing descent)
 
         private readonly HashSet<string> _dropIds = new HashSet<string>(); // tracked ResourceDrop entities
         private readonly List<TractorBeam> _beams = new List<TractorBeam>();
@@ -242,12 +243,12 @@ namespace BlocksBeyondTheStars.Client
             // station board tears down immediately — no surface-landing descent. Otherwise fly the
             // landing sequence back down to the body we launched from, then tear down.
             // When the ship was destroyed, hold here (explosion + hidden hull stay on screen) until the
-            // player clicks "Weiter" on the destruction prompt — only then fly the recovery descent.
+            // player clicks "Weiter" on the destruction prompt — then tear down at once (no recovery descent).
             if (!Game.InSpace && !Game.AwaitingRespawnConfirm)
             {
-                if (_hyperjumping || _phase == Phase.Boarding || _enteringInterior)
+                if (_hyperjumping || _phase == Phase.Boarding || _enteringInterior || _shipDestroyed)
                 {
-                    Exit(); // jump / station dock / stepping inside the ship: no landing descent
+                    Exit(); // jump / station dock / stepping inside the ship / ship blown up: no landing descent
                     return;
                 }
 
@@ -2103,6 +2104,7 @@ namespace BlocksBeyondTheStars.Client
             HideLandMap();
             _boardSent = false;
             _hyperjumping = false;
+            _shipDestroyed = false;
             _eva = false;
             _enteringInterior = false;
             _landTargetId = null;
@@ -2209,6 +2211,7 @@ namespace BlocksBeyondTheStars.Client
             _active = false;
             _eva = false;
             _enteringInterior = false;
+            _shipDestroyed = false;
             _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
             _shake = 0f;
             _hitFlash = 0f;
@@ -2254,6 +2257,7 @@ namespace BlocksBeyondTheStars.Client
             SpawnShipExplosion(at); // the boom + screen flash are already played by ClientAudio / DeathFx
             _hitFlash = Mathf.Max(_hitFlash, 0.9f);
             _shake = Mathf.Max(_shake, 0.7f);
+            _shipDestroyed = true; // once the player confirms the death screen, tear down at once (no recovery descent)
 
             // Hide the doomed hull so the player sees the debris, not an intact ship flying the recovery descent.
             if (_ship != null)
