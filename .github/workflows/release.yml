@@ -220,3 +220,14 @@ jobs:
             artifacts/installer/*.msi
             artifacts/installer/*Portable.zip
           generate_release_notes: true
+
+      # Mirror the same three installers to itch.io (jumavegames/blocks-beyond-the-stars) via butler — each
+      # artifact to its own channel (windows-setup / windows-msi / windows-portable), stamped with the release
+      # version. Runs after the GitHub Release so a butler hiccup never blocks the GitHub publish. The itch.io
+      # API key is the BUTLER_API_KEY repo secret; the script auto-downloads butler.
+      - name: Publish to itch.io (butler)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: ./scripts/publish-itch.ps1 -Version ${{ needs.build-player.outputs.version }}

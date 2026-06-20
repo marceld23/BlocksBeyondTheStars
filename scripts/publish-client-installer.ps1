@@ -71,6 +71,17 @@ if (-not (Test-Path (Join-Path $build 'BlocksBeyondTheStars.Launcher.exe'))) {
     Write-Error "Launcher not found at '$build'. Re-run ./scripts/build-client.ps1 (it now builds the launcher)."
 }
 
+# Strip Unity's developer-only debug folders before packing. Their names literally end in "_DoNotShip"
+# (Burst AOT debug symbols) / "_BackUpThisFolder_ButDontShipItWithYourGame" (IL2CPP backup): they are
+# debugging aids that must never reach players and only bloat the installer. Safe to delete — Unity
+# regenerates them on the next build. This guards every pack output (Setup.exe, MSI, Portable.zip).
+foreach ($pattern in @('*_DoNotShip', '*_BackUpThisFolder_ButDontShipItWithYourGame')) {
+    Get-ChildItem -Path $build -Directory -Filter $pattern -ErrorAction SilentlyContinue | ForEach-Object {
+        Write-Host "Removing non-shippable folder: $($_.Name)" -ForegroundColor DarkGray
+        Remove-Item $_.FullName -Recurse -Force
+    }
+}
+
 # The installer icon (.ico). Regenerate from the game PNG via ./scripts/make-launcher-icon.ps1 if missing.
 $iconPath = Join-Path $repo 'src/BlocksBeyondTheStars.Launcher/app_icon.ico'
 if (-not (Test-Path $iconPath)) {
