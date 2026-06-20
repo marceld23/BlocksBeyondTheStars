@@ -108,6 +108,12 @@ namespace BlocksBeyondTheStars.Client
             var chat = root.AddComponent<ChatUi>();
             chat.Game = boot;
 
+            // Player feedback (F1 or the small HUD button): bug reports + feature wishes from any player →
+            // website API + the existing /bump server snapshot.
+            var feedback = root.AddComponent<FeedbackUi>();
+            feedback.Game = boot;
+            feedback.Settings = shell.Settings;
+
             // Beacon name/rename overlay (item 37): opens when placing or renaming a radio beacon.
             var beaconLabel = root.AddComponent<BeaconLabelUi>();
             beaconLabel.Game = boot;

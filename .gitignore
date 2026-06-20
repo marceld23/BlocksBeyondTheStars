@@ -83,3 +83,11 @@ tests/BlocksBeyondTheStars.Tests/obj/
 client/build-console.log
 client/schtask-build.log
 .roo/mcp.json
+
+# Player-feedback API key injected at release-build time (never committed)
+client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs.meta
+
+# Build/capture run logs (client)
+client/build-run.log
+client/capture-run.log

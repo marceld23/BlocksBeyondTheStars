@@ -98,6 +98,29 @@ jobs:
           sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
+      - name: Inject player-feedback API key
+        # Writes the git-ignored BugReportBuildSecrets.Generated.cs so the player can POST feedback to the
+        # website. Guarded: without the secret the build still works (feedback just stays disabled). The key
+        # is only a spam gate, not a real secret; GitHub masks it in logs.
+        env:
+          WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$WIX_BUGREPORT_API_KEY" ]; then
+            echo "WIX_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the WIX_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$WIX_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
       - name: Build Windows player
         uses: game-ci/unity-builder@v4
         env:

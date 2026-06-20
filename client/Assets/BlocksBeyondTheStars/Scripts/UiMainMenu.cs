@@ -109,22 +109,24 @@ namespace BlocksBeyondTheStars.Client
             // --- Participate / "Join in" overlay (added last so it draws on top; hidden until "Mach mit") ---
             var pdim = UiKit.AddModalDim(root);
             participate = pdim.gameObject;
-            var pdlg = UiKit.AddPanel(participate.transform, 560f, 290f, 800f, 500f, UiKit.Panel).transform;
-            UiKit.AddText(pdlg, 40f, 28f, 720f, 36f, shell.L("ui.contribute.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var pdlg = UiKit.AddPanel(participate.transform, 560f, 250f, 800f, 580f, UiKit.Panel).transform;
+            UiKit.AddText(pdlg, 40f, 26f, 720f, 36f, shell.L("ui.contribute.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
-            Text Para(float y, string text, int size, Color col)
+            Text Para(float y, float h, string text, int size, Color col)
             {
-                var t = UiKit.AddText(pdlg, 40f, y, 720f, 64f, text, size, col, TextAnchor.UpperLeft);
+                var t = UiKit.AddText(pdlg, 40f, y, 720f, h, text, size, col, TextAnchor.UpperLeft);
                 t.horizontalOverflow = HorizontalWrapMode.Wrap;
                 return t;
             }
 
-            Para(92f, shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
-            Para(168f, "1.  " + shell.L("ui.contribute.play"), 17, UiKit.TextCol);
-            Para(232f, "2.  " + shell.L("ui.contribute.bugs"), 17, UiKit.TextCol);
-            Para(326f, "3.  " + shell.L("ui.contribute.dev"), 17, UiKit.TextCol);
-            UiKit.AddText(pdlg, 40f, 400f, 720f, 26f, shell.L("ui.contribute.github"), 17, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(pdlg, 270f, 436f, 260f, 52f, shell.L("ui.menu.back"), () => participate.SetActive(false), "btn_exit");
+            Para(82f, 44f, shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
+            // Player feedback first (for everyone, in-game) — highlighted; then play, then the GitHub paths.
+            Para(138f, 70f, "1.  " + shell.L("ui.contribute.feedback"), 17, UiKit.Ok);
+            Para(212f, 50f, "2.  " + shell.L("ui.contribute.play"), 17, UiKit.TextCol);
+            Para(266f, 70f, "3.  " + shell.L("ui.contribute.bugs"), 17, UiKit.TextCol);
+            Para(340f, 50f, "4.  " + shell.L("ui.contribute.dev"), 17, UiKit.TextCol);
+            UiKit.AddText(pdlg, 40f, 424f, 720f, 26f, shell.L("ui.contribute.github"), 17, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(pdlg, 270f, 500f, 260f, 52f, shell.L("ui.menu.back"), () => participate.SetActive(false), "btn_exit");
             participate.SetActive(false);
 
             return canvas.gameObject;
