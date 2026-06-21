@@ -268,7 +268,7 @@ fallback text everywhere. Setup details: [SELF_HOSTING.md](SELF_HOSTING.md) §8;
 ## Self-hosting / dedicated server packages
 
 ```powershell
-./scripts/publish-server.ps1     # win-x64, linux-x64, linux-arm64 (Raspberry Pi 5)
+./scripts/publish-server.ps1     # win-x64, linux-x64, linux-arm64
 ```
 
 Produces self-contained single-file packages under `artifacts/` (no .NET runtime needed on

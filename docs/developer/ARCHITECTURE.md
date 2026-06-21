@@ -188,7 +188,7 @@ One binary serves every topology:
 - **Singleplayer** — client spawns the bundled server on `127.0.0.1` via
   `LocalServerLauncher`; stops it on exit.
 - **LAN / dedicated** — run `BlocksBeyondTheStars.GameServer` directly (Windows, Linux x64,
-  Linux ARM64 / Raspberry Pi 5 — no rendering/physics on the server). Optional WebSocket
+  Linux ARM64 — no rendering/physics on the server). Optional WebSocket
   gateway on the gameplay port for browser clients. `BlocksBeyondTheStars.Api` provides admin +
   the client download/update feed.
 
