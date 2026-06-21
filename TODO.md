@@ -27,7 +27,7 @@ Extends the PR gate beyond build+test (C# is already syntax/static-analysis-chec
 ### ★ Codebase reformat + activate `Format (dotnet format)` gate (2026-06-21) — ✅ done (follow-up to #22)
 - Ran `dotnet format BlocksBeyondTheStars.CI.slnf` over the tree: **60 files, formatting-only** (indentation + object-initializer/argument line breaks; `git diff -w` confirms zero logic change). Resolved the ~1873 pre-existing whitespace violations.
 - Re-added the **`Format (dotnet format)`** job to [ci.yml](.github/workflows/ci.yml) (gated by the `changes` job like build-test). Now green because the tree is clean.
-- **Follow-up (optional):** mark `Format (dotnet format)` / lint / CodeQL as required checks too (today only `Build + test (.NET, headless)` is required).
+- **All six checks now required** on `main` (2026-06-21): `Build + test (.NET, headless)`, `Format (dotnet format)`, `ruff (Python ai-backend)`, `web JS syntax (node --check)`, `actionlint (workflows)`, `CodeQL`. `strict` off, `enforce_admins` off (owner can `--admin`-override), 1 approval kept. Docs reflect this in [DEVELOPER.md](docs/developer/DEVELOPER.md) §CI + [AGENTS.md](AGENTS.md) §Git workflow.
 
 ### ★ Pull-request CI gate: build + headless tests, warnings-as-errors (2026-06-21) — ✅ merged to main (PR #16 c86858e); required-check guard added
 New [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every `pull_request` + push to `main` (separate
