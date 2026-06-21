@@ -17,16 +17,16 @@ world-gen; SQLite persistence.
 
 ---
 
-### ★ Pull-request CI gate: build + headless tests, warnings-as-errors (2026-06-21) — ✅ workflow added, NOT yet committed
+### ★ Pull-request CI gate: build + headless tests, warnings-as-errors (2026-06-21) — ✅ merged to main (PR #16 c86858e); required-check guard added
 New [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every `pull_request` + push to `main` (separate
 from the tag-only `release.yml`). On `ubuntu-latest`, **no Unity / no license**: restores, builds and tests the
 two headless suites directly — `tests/BlocksBeyondTheStars.Tests` (Dotnet) + `tests/BlocksBeyondTheStars.Client.Tests`
 (ClientCore) — the same default set as `run-tests.ps1`.
 - **Targets the test projects, not the `.sln`** — the solution's WinForms launcher (`net8.0-windows`) can't build on Linux.
 - **Warnings fail the PR** via `-warnaserror` (local build keeps `TreatWarningsAsErrors=false`; tree is currently 0-warning). `.trx` results uploaded as an artifact.
-- **Docs-only PRs skip CI** via `paths-ignore` (`**/*.md`, `docs/**`, licences, issue/PR templates); `data/**`/`web/**` stay un-ignored (they feed tests). Caveat: a skipped run reports no status, so if this becomes a *required* check, add an always-green guard job so docs-only PRs aren't blocked.
+- **Docs-only PRs skip the build but stay green** — a `changes` job (`dorny/paths-filter`) gates the `build-test` job; on a docs-only PR (`**/*.md`, `docs/**`, licences, issue/PR templates) `build-test` is skipped and a skipped *required* job counts as a pass, so it never blocks. `data/**`/`web/**` count as code (they feed tests). This makes the check **safe to mark required** (unlike a plain `paths-ignore` skip, which would stall a required check).
 - **Unity tiers (`UnityEdit`/`UnityPlay`) stay local** (need the Editor) — run `./scripts/run-tests.ps1 -Suites All` before client-affecting changes.
-- **Follow-up:** add the `Build + test (.NET, headless)` check as a required status check in `main` branch protection. Docs updated: [DEVELOPER.md](docs/developer/DEVELOPER.md) §Continuous integration, [CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md), [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Follow-up (manual, repo settings):** mark **`Build + test (.NET, headless)`** as a required status check in `main` branch protection (the `Detect code changes` helper does NOT need to be required). Docs: [DEVELOPER.md](docs/developer/DEVELOPER.md) §Continuous integration, [CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### ★ Multi-planet marketing screenshots (planet-type variety) (2026-06-20) — ✅ code + .NET test green, NEEDS Unity client build + GPU capture run
 Extends the screenshot automation to shoot one **surface shot per planet type** (`surface_<key>.png`) so the gallery shows the world variety, not just the home world.

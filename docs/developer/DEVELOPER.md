@@ -60,14 +60,18 @@ These are the same two suites `run-tests.ps1` runs by default. Two deliberate ch
   ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
   builds clean (0 warnings), so this only guards against regressions. The `.trx` results are uploaded as a
   run artifact for inspection.
-- **Docs-only changes skip CI.** A `paths-ignore` list (Markdown, `docs/**`, licences, issue/PR templates)
-  means the workflow does **not** run when *every* changed file is documentation — no point burning a runner
-  on a typo fix. Any code/content file in the diff makes it run as normal; `data/**` and `web/**` are
-  deliberately **not** ignored because they feed tests (e.g. the en/de locale-parity test).
+- **Docs-only changes skip the build — without blocking the PR.** A small `changes` job
+  ([`dorny/paths-filter`](https://github.com/dorny/paths-filter)) decides whether the diff touches anything
+  other than docs (Markdown, `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy
+  `build-test` job is skipped via its `if:`. The workflow still **runs** (so the check always reports), and a
+  *skipped* required job counts as a pass — so the gate stays green on a docs PR instead of stalling. Any
+  code/content file makes it build for real; `data/**` and `web/**` count as code (they feed tests, e.g. the
+  en/de locale-parity test), so they are **not** in the doc-only exclusions.
 
-> **Caveat for a required check:** GitHub reports *no* status for a skipped run, so if you make this a
-> required status check, a docs-only PR will wait forever on it. The standard fix is a tiny always-running
-> guard job that reports success — wire that up at the same time you mark the check required.
+This is **safe to mark as a required status check** in the `main` branch-protection rule: require
+**`Build + test (.NET, headless)`** (not the `Detect code changes` helper). Because the workflow always runs
+and the build-test check always reports (green/red/skipped-as-pass), a docs-only PR is never left waiting on a
+missing status — the usual failure mode of a plain `paths-ignore` skip.
 
 The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need the Editor and stay local/opt-in
 (run them with `./scripts/run-tests.ps1 -Suites All` before a client-affecting change). The release build
