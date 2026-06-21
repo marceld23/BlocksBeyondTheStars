@@ -81,3 +81,4 @@ ones are marked, not deleted.
 - [0008 — Optional, offline-safe LLM backend](adr/0008-optional-offline-safe-llm-backend.md)
 - [0009 — Embedded browser for the in-game Wiki + Arcade](adr/0009-embedded-browser-wiki-arcade.md)
 - [0010 — Velopack distribution + self-host portal](adr/0010-velopack-distribution-and-self-host-portal.md)
+- [0011 — CodeQL code scanning strategy](adr/0011-codeql-security-scanning-strategy.md)
