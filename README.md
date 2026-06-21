@@ -1,6 +1,22 @@
 # Blocks Beyond the Stars
 
-### 🌐 [www.blocksbeyondthestars.com](https://www.blocksbeyondthestars.com/en) &nbsp;·&nbsp; [Play / report a bug](CONTRIBUTING.md) &nbsp;·&nbsp; [Contribute](CONTRIBUTING.md)
+### 🌐 [Website](https://www.blocksbeyondthestars.com/en) &nbsp;·&nbsp; ⭐ [Rate on Itch.io](https://jumavegames.itch.io/blocks-beyond-the-stars) &nbsp;·&nbsp; ⬇️ [Releases](https://github.com/marceld23/BlocksBeyondTheStars/releases) &nbsp;·&nbsp; [Contribute / report a bug](CONTRIBUTING.md)
+
+**Contents:**
+[What is it?](#what-is-it-the-short-pitch) ·
+[Screenshots](#screenshots) ·
+[About this project](#about-this-project) ·
+[Project Status](#project-status) ·
+[Guiding principle](#guiding-principle) ·
+[Tech stack](#tech-stack) ·
+[Repository layout](#repository-layout) ·
+[Build, test, run](#build-test-run) ·
+[Adding content](#adding-content-data-driven) ·
+[Status](#status)
+
+> 🎮 **Blocks Beyond the Stars is also available on itch.io** — get the game at
+> **[jumavegames.itch.io/blocks-beyond-the-stars](https://jumavegames.itch.io/blocks-beyond-the-stars)**.
+> The home page with all the details lives at [www.blocksbeyondthestars.com/en](https://www.blocksbeyondthestars.com/en).
 
 A block-based 3D space crafting game for Windows. You start with a small spaceship,
 explore procedurally generated planets, mine resources, craft gear, research blueprints,
