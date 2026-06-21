@@ -43,7 +43,7 @@
   var blockByKey = {}; D.blocks.forEach(function (b) { blockByKey[b.key] = b; });
   function itemName(key) { var i = itemByKey[key]; return i ? L(i.nameKey) : key; }
 
-  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function link(go, label) { return '<span class="link" data-go="' + esc(go) + '">' + esc(label) + '</span>'; }
   function itemLink(key, count) {
     var label = itemName(key) + (count ? ' ×' + count : '');
