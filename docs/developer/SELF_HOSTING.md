@@ -287,6 +287,34 @@ onto the .NET 8 ASP.NET runtime image and runs them through
 drain-and-save path listens for, so the world is always saved on shutdown (give it time with a
 `stop_grace_period`/`--stop-timeout` of ~60 s).
 
+### Try it locally (Docker Desktop)
+
+A quick end-to-end test on your own machine (Docker Desktop on Windows/macOS/Linux):
+
+1. **Run it** (throwaway — no volumes, so the world is discarded on `rm`):
+
+   ```bash
+   docker run -d --name bbts -p 31415:31415/udp -p 31416:31416/tcp \
+     -e BBS_ADMIN_PASSWORD=test123 -e BBS_SERVER_NAME="Local Test" \
+     ghcr.io/marceld23/blocks-beyond-the-stars-server:latest
+   ```
+
+   Docker pulls the image automatically. Add `-e BBS_FETCH_CLIENT=0` to skip the GitHub
+   client-installer download for a pure offline server test.
+
+2. **Check it's up** — open the admin dashboard at <http://localhost:31416/> and the public portal at
+   <http://localhost:31416/portal>. `BBS_ADMIN_PASSWORD` gates the `/api/*` calls (the dashboard
+   prompts for it); the dashboard/portal pages themselves are public.
+
+3. **Connect the game** — launch the Windows client → **Join** → host **`127.0.0.1`**, port **`31415`**.
+
+4. **Watch it** — `docker logs -f bbts`, or in **Docker Desktop → Containers → `bbts`** use the
+   **Logs / Inspect / Exec** tabs.
+
+5. **Stop cleanly** — `docker stop bbts` (SIGTERM → the world is saved), then `docker rm bbts`.
+
+For a test that survives restarts, add the named volumes shown under [Volumes](#volumes-what-to-persist).
+
 ### Quick start (Compose)
 
 ```bash

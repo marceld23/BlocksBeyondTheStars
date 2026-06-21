@@ -279,8 +279,10 @@ Produces self-contained, single-file packages (no .NET install needed on the hos
 You can also run the server (game server + admin/portal/download UI, plus the optional bundled AI text
 backend) as a **Docker container** on any OS. Each tagged release publishes a multi-arch image to GHCR,
 so you can just pull it — `docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:latest` — or
-build it locally with `docker compose up -d`. See
-[docs/developer/SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker).
+build it locally with `docker compose up -d`. The self-hosting guide has the full setup plus a
+step-by-step **local test in Docker Desktop**:
+[docs/developer/SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker)
+([try it locally](docs/developer/SELF_HOSTING.md#try-it-locally-docker-desktop)).
 
 Players can also download and install the Windows client **from the running server's own web page**:
 `scripts/publish-client-installer.ps1` builds a [Velopack](https://velopack.io) installer + auto-update
