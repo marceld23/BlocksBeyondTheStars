@@ -7,6 +7,7 @@
 [Screenshots](#screenshots) ·
 [About this project](#about-this-project) ·
 [Project Status](#project-status) ·
+[System requirements](#system-requirements) ·
 [Guiding principle](#guiding-principle) ·
 [Tech stack](#tech-stack) ·
 [Repository layout](#repository-layout) ·
@@ -130,6 +131,29 @@ Blocks Beyond the Stars is a free in-development game. Bugs, missing content and
 
 The software is provided as-is under the terms of the license included in this repository.
 
+## System requirements
+
+The **game client is Windows-only**, but the **server is cross-platform** — so a Linux/macOS machine,
+a NAS or a VPS (including via Docker) can host a world that Windows players join.
+
+**Game client (to play)**
+
+- **Windows 10/11 (64-bit).**
+- A GPU with DirectX 11+ support (Unity 6 / URP) and a few GB of free disk for the client + worlds.
+- The client always talks to a server: a local one started automatically in singleplayer / "Host
+  Game", or a remote dedicated server.
+
+**Dedicated server (to host)**
+
+- **OS-independent.** Self-contained packages (no .NET install needed) ship for **Windows x64,
+  Linux x64 and Linux ARM64**; build them with `scripts/publish-server.ps1` / `.sh`.
+- Or run the **Docker image** on any Docker host — Linux, macOS, Windows (Docker Desktop / WSL2), a
+  NAS or a VPS. Pull it from GHCR (`ghcr.io/marceld23/blocks-beyond-the-stars-server`) or build it
+  locally. See [SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker).
+- Lightweight: **no GPU**, modest CPU/RAM. On low-power ARM64 boards prefer an SSD over a
+  microSD/eMMC for the world database.
+- From source you only need the **.NET 8 SDK** (see [Build, test, run](#build-test-run)).
+
 ## Guiding principle
 
 > **The Unity client is presentation and input. The .NET server is the truth of the game world.**
@@ -217,8 +241,10 @@ dotnet run --project src/BlocksBeyondTheStars.Tools -- backup saves world_001
 provider-agnostic via the OpenAI-compatible chat API — LM Studio / OpenAI / Claude, chosen by env)
 that writes mission texts and NPC/ship-AI dialogue. The game is fully playable without it — every
 AI text has a scripted, localized fallback, and the C# server validates everything the service
-returns. See [ai-backend/README.md](ai-backend/README.md) and
-[docs/developer/AI_MISSION_BACKEND.md](docs/developer/AI_MISSION_BACKEND.md).
+returns. It is also **bundled into the Docker image** and starts automatically when you mount its
+`.env` (otherwise no Python process runs). See [ai-backend/README.md](ai-backend/README.md),
+[docs/developer/AI_MISSION_BACKEND.md](docs/developer/AI_MISSION_BACKEND.md) and
+[SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker).
 
 ### Self-hosting packages
 
@@ -227,6 +253,12 @@ returns. See [ai-backend/README.md](ai-backend/README.md) and
 ```
 Produces self-contained, single-file packages (no .NET install needed on the host) under
 `artifacts/`. On Linux/macOS use `scripts/publish-server.sh`.
+
+You can also run the server (game server + admin/portal/download UI, plus the optional bundled AI text
+backend) as a **Docker container** on any OS. Each tagged release publishes a multi-arch image to GHCR,
+so you can just pull it — `docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:latest` — or
+build it locally with `docker compose up -d`. See
+[docs/developer/SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker).
 
 Players can also download and install the Windows client **from the running server's own web page**:
 `scripts/publish-client-installer.ps1` builds a [Velopack](https://velopack.io) installer + auto-update

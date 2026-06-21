@@ -12,6 +12,10 @@ string configPath = Path.Combine(installDir, "config", "server.json");
 
 var config = ServerConfig.Load(configPath);
 
+// Configuration precedence: server.json < BBS_* environment variables < command line. The env layer
+// is the container channel (Docker/Compose), the CLI is what the in-game singleplayer host passes.
+var appliedEnv = config.ApplyEnvironment();
+
 // Command-line overrides (e.g. the client's local singleplayer host passes --port/--saves/--data).
 var appliedOverrides = config.ApplyCommandLine(args);
 
@@ -22,6 +26,11 @@ string? userContentDir = string.IsNullOrEmpty(config.UserContentDir)
     : (Path.IsPathRooted(config.UserContentDir) ? config.UserContentDir : Path.Combine(installDir, config.UserContentDir));
 
 var logger = new ConsoleGameLogger(Path.Combine(savesRoot, config.WorldName, "logs", "server.log"));
+
+if (appliedEnv.Count > 0)
+{
+    logger.Info($"Applied environment overrides: {string.Join(", ", appliedEnv)}.");
+}
 
 if (appliedOverrides.Count > 0)
 {

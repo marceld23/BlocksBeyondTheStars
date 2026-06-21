@@ -13,9 +13,10 @@
 #        UNITY_PASSWORD = your Unity account password
 #   3. Push a tag:  git tag v1.0.0 && git push origin v1.0.0
 #
-# Why two jobs: the Unity build runs in GameCI's Linux Docker image (Windows player cross-built
+# Why split jobs: the Unity build runs in GameCI's Linux Docker image (Windows player cross-built
 # with the Mono backend). The WinForms launcher needs the Windows Desktop SDK, so it is built on
-# a windows-latest runner and merged into the player afterwards.
+# a windows-latest runner and merged into the player afterwards. A third job builds the optional
+# dedicated-server Docker image (reusable docker.yml) and pushes it to GHCR on a tag.
 
 name: Release
 
@@ -161,6 +162,24 @@ jobs:
         with:
           name: player-windows
           path: player
+
+  # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only
+  # needs the resolved version from build-player, NOT the Unity player, so it runs in parallel with package.
+  # The image is PUSHED to GHCR only on a real tag (multi-arch, tagged with the version + `latest`); a manual
+  # workflow_dispatch run just build-validates it — same publish gating as the GitHub Release / itch.io steps.
+  docker:
+    name: Dedicated-server image
+    needs: build-player
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      push: ${{ startsWith(github.ref, 'refs/tags/') }}
+      latest: ${{ startsWith(github.ref, 'refs/tags/') }}
+      tag: ${{ needs.build-player.outputs.version }}
+      platforms: linux/amd64,linux/arm64
+    secrets: inherit
 
   package:
     name: Package + release (Windows)

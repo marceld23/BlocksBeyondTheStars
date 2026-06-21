@@ -134,12 +134,17 @@ build a release locally for distribution. Cut one by pushing a SemVer tag:
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
-That triggers two jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
+That triggers three jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
 backend), then a `windows-latest` job builds the launcher and runs `scripts/publish-client-installer.ps1 -Msi`
 to attach **Setup.exe** (per-user, no admin), the **WiX MSI** (machine-wide/IT) and **Portable.zip** to a
-published GitHub Release. The workflow runs *only* on tags / manual dispatch (never `pull_request`), so the
-Unity license secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are safe in a public repo. A manual
-*Run workflow* dispatch builds + packages a `0.1.0-dev` test artifact but does not publish.
+published GitHub Release. In parallel, a third job reuses [.github/workflows/docker.yml](.github/workflows/docker.yml)
+to build the optional **dedicated-server Docker image** and push it multi-arch (amd64+arm64) to **GHCR**
+(`ghcr.io/<owner>/blocks-beyond-the-stars-server:<version>` + `:latest`) — see
+[docs/developer/SELF_HOSTING.md](docs/developer/SELF_HOSTING.md) §10. The workflow runs *only* on tags / manual
+dispatch (never `pull_request`), so the Unity license secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`)
+are safe in a public repo. A manual *Run workflow* dispatch builds + packages a `0.1.0-dev` test artifact and
+build-validates the image, but publishes nothing (no Release, no itch.io push, no GHCR push). `docker.yml` can
+also be run on its own from the Actions tab to build/push the image ad-hoc.
 
 **The git tag is the single source of truth for the version.** It flows into GameCI `versioning: Custom` →
 `PlayerSettings.bundleVersion`, so the in-game UI (`AppShell.Version` is a property `=> Application.version`,

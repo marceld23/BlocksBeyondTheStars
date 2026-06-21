@@ -62,6 +62,25 @@ Created on first run; editable directly or through the admin UI.
 | `aiLevel` | Optional AI text backend: `Off`, `Suggest` (AI missions land as drafts), `Auto` (published) — see §8 | `Off` |
 | `aiBackendUrl` | Base URL of the optional AI backend | `http://127.0.0.1:8077` |
 
+### Environment-variable overrides (containers)
+
+Every key above can also be set with a `BBS_*` environment variable, which is the natural way to
+configure the [Docker image](#10-running-in-docker). Precedence is **`server.json` < environment <
+command line**, so env vars override the file but the in-game host's CLI flags still win.
+
+| Variable | Maps to | Variable | Maps to |
+|---|---|---|---|
+| `BBS_SERVER_NAME` | `serverName` | `BBS_ADMIN_PASSWORD` | `adminPassword` |
+| `BBS_WORLD` | `worldName` | `BBS_ADMIN_BIND` | `adminBindAddress` |
+| `BBS_PORT` (`BBS_GAMEPLAY_PORT`) | `gameplayPort` | `BBS_ENABLE_WEBSOCKET` | `enableWebSocket` |
+| `BBS_ADMIN_PORT` | `adminPort` | `BBS_WEBSOCKET_BIND` | `webSocketBindAddress` |
+| `BBS_MAX_PLAYERS` | `maxPlayers` | `BBS_SAVES` | `savesRoot` |
+| `BBS_PASSWORD` (`BBS_SERVER_PASSWORD`) | `serverPassword` | `BBS_DATA` | `dataDir` |
+| `BBS_ADMINS` | `adminPlayers` (comma-separated) | `BBS_USERCONTENT` | `userContentDir` |
+| `BBS_SEED` | `seed` | `BBS_TICK_RATE` | `tickRate` |
+| `BBS_START_PLANET` | `startPlanet` | `BBS_VIEW_DISTANCE` | `viewDistanceChunks` |
+| `BBS_AI_LEVEL` | `aiLevel` | `BBS_AI_BACKEND_URL` | `aiBackendUrl` |
+
 ### Player names & name verification
 
 A player's name keys their server-side state (inventory, position, role). Two protections
@@ -157,6 +176,9 @@ admin-generated missions (`/ai <prompt>` in chat). The game is fully playable wi
 every AI text has a localized scripted fallback (DE+EN), and with `aiLevel = Off` (the
 default) the server never contacts the backend.
 
+> **Running in Docker?** The image bundles this backend and starts it automatically when you mount its
+> `.env` — you don't run the steps below by hand. See [§10 → Optional AI text backend](#optional-ai-text-backend-in-the-container).
+
 1. **Start the backend** (from a repo checkout; needs [uv](https://docs.astral.sh/uv/)):
 
    ```bash
@@ -233,3 +255,110 @@ is password-gated; `/portal`, `/download` and `/updates` stay public so players 
 
 Updates only apply to an *installed* client (not a dev/Editor or portable-zip run). Each published
 version must be higher than the last.
+
+## 10. Running in Docker
+
+The dedicated server (game server **and** admin/portal/download UI, plus the optional AI text backend)
+can run as a single Linux container. This is **optional**, but a tagged release **does** build and
+publish the image to the GitHub Container Registry (GHCR), so you can just pull it:
+
+```bash
+docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:latest   # or a :X.Y.Z version tag
+```
+
+You can also build it yourself (`docker compose build` / `docker build`) or trigger the standalone
+[`Docker`](../../.github/workflows/docker.yml) workflow from the Actions tab. The server is
+Linux x64+ARM64 native, so the container runs on Linux, macOS, Windows (Docker Desktop / WSL2), a NAS
+or a VPS. The **game client stays Windows-only** — the container hosts the server and hands the Windows
+installer out via `/download`.
+
+**One image, asymmetric processes.** [`Dockerfile`](../../Dockerfile) publishes the headless projects
+onto the .NET 8 ASP.NET runtime image and runs them through
+[`docker/entrypoint.sh`](../../docker/entrypoint.sh) under `tini` (PID 1). The split is deliberate:
+
+- the **game server** is the critical foreground process — it receives the shutdown signal and saves
+  the world before exiting;
+- the **admin API** is a best-effort sidecar — it auto-restarts and never takes the game server (and
+  the players on it) down with it;
+- the **AI text backend** (Python) is baked in but only started when you provide its `.env` (below) —
+  also a best-effort, auto-restarting sidecar.
+
+`docker stop` sends `SIGTERM`; the entrypoint translates that into the `SIGINT` the server's clean
+drain-and-save path listens for, so the world is always saved on shutdown (give it time with a
+`stop_grace_period`/`--stop-timeout` of ~60 s).
+
+### Quick start (Compose)
+
+```bash
+docker compose up -d        # build + run (see docker-compose.yml)
+docker compose logs -f      # follow the server log
+docker compose down         # SIGTERM -> clean world save, then stop
+```
+
+Configure with the `BBS_*` environment variables (see §3). At minimum set `BBS_ADMIN_PASSWORD` before
+exposing the admin port. Ports: **31415/udp** (native client), **31415/tcp** (browser WebSocket, only
+when `BBS_ENABLE_WEBSOCKET=true`), **31416/tcp** (admin + portal + download).
+
+### Or plain `docker run`
+
+```bash
+docker build -t bbts-server .
+docker run -d --name bbts \
+  -p 31415:31415/udp -p 31415:31415/tcp -p 127.0.0.1:31416:31416/tcp \
+  -e BBS_ADMIN_PASSWORD=change-me -e BBS_MAX_PLAYERS=12 \
+  -v bbts-saves:/app/saves -v bbts-config:/app/config -v bbts-clients:/app/clients \
+  --stop-timeout 60 bbts-server
+```
+
+### Volumes (what to persist)
+
+| Volume | Holds |
+|---|---|
+| `/app/saves` | SQLite world + `backups/` + `logs/` **and `/bump` bug reports** (`<world>/bumps/`) |
+| `/app/config` | `server.json` (created on first run; env vars override it) |
+| `/app/clients` | the published Windows installer the portal serves at `/download` |
+
+### Client download from the container
+
+A Linux container can't *build* the Windows installer, so on start the entrypoint pulls the newest
+`*Setup.exe` from the latest GitHub Release into `/app/clients` (best-effort; controlled by
+`BBS_FETCH_CLIENT=1`/`0` and `BBS_CLIENT_REPO`). The portal (`/portal`) and one-click `/download` then
+work as in §9. Without it the portal still runs and `/download` reports "no installer published yet";
+you can instead drop a `Setup.exe` into the `clients` volume yourself.
+
+### Bug reports (`/bump`) in a container
+
+The in-game **bug report / `/bump`** feature works unchanged from a container: the client sends the
+report (with its screenshot) over the network and the server writes a JSON snapshot (+ the JPG) to
+`saves/<world>/bumps/`. Because that lives on the **`saves` volume**, reports survive restarts and are
+retrievable from the host — browse the volume, or `docker cp bbts:/app/saves/<world>/bumps ./bumps`.
+(Reports only divert to a repo's `bugreports/server/` when the server runs from inside a git checkout,
+which a normal container is not.)
+
+### Optional AI text backend in the container
+
+The Python AI backend from §8 is **bundled into the image** (its own venv) but **only starts when you
+configure it** — otherwise no Python process runs. It is enabled when either:
+
+- an **`ai-backend/.env`** file is mounted into the container at `/app/ai-backend/.env` (the normal
+  way — copy [`ai-backend/.env.example`](../../ai-backend/.env.example) and fill in one provider), or
+- a **`BBTS_AI_BASE_URL`** environment variable is set on the container.
+
+Set `BBS_AI_BACKEND=1`/`0` to force it on/off explicitly. When it starts it listens on the in-container
+`127.0.0.1:8077`, which is the game server's default `aiBackendUrl` — so you only need to turn the
+server's usage on with **`BBS_AI_LEVEL=Suggest`** (AI missions as drafts) or **`Auto`** (published);
+any non-`Off` value also enables NPC greetings / board flavour / VEGA banter (see §8). With no `.env`
+and `BBS_AI_LEVEL=Off` (the defaults), the game is fully AI-free and no backend runs.
+
+```yaml
+# docker-compose.yml — enable the bundled AI backend
+services:
+  server:
+    environment:
+      BBS_AI_LEVEL: "Suggest"
+    volumes:
+      - ./ai-backend/.env:/app/ai-backend/.env:ro
+```
+
+> Bundling LangChain/LangGraph makes the image noticeably larger. The AI backend is still entirely
+> optional and the game runs identically without it; only the image size grows.

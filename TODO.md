@@ -17,6 +17,29 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Optional Docker image for the dedicated server (2026-06-21) — ✅ done (built + pushed to GHCR on each release)
+Ship the headless server **and** the admin/portal/download UI (and the optional AI backend) as one optional Linux
+container — runs on any OS (Linux/macOS/Windows-WSL2/NAS/VPS); the game client stays Windows-only.
+- **One image, asymmetric processes** under `tini` (PID 1): [`Dockerfile`](Dockerfile) + [`docker/entrypoint.sh`](docker/entrypoint.sh) +
+  [`docker-compose.yml`](docker-compose.yml). Game server = critical foreground process (gets the signal, saves the world);
+  admin API = best-effort auto-restarting sidecar. `docker stop` (SIGTERM) is translated to the **SIGINT** the server's
+  clean drain+save path listens for.
+- **AI backend bundled, opt-in start:** the Python `ai-backend` is baked into the image (own venv) but only **starts when
+  configured** — an `ai-backend/.env` mounted at `/app/ai-backend/.env` or `BBTS_AI_BASE_URL` set (override `BBS_AI_BACKEND=1/0`).
+  Listens on in-container `127.0.0.1:8077` (= server's default `aiBackendUrl`); enable use with `BBS_AI_LEVEL`. `.dockerignore`
+  excludes `**/.env` so local keys never bake into the image. (Adds LangChain/LangGraph → larger image.)
+- **Env-var config** (container channel): new `ServerConfig.ApplyEnvironment()` reads `BBS_*` vars; precedence
+  `server.json` < env < CLI. Wired into both the GameServer and the Api (`AdminService.LoadConfig`). 3 new tests (689 green).
+- **Client download** (`/download`): a Linux container can't build the Windows installer, so the entrypoint pulls the
+  latest `*Setup.exe` from GitHub Releases into `clients/` (best-effort, `BBS_FETCH_CLIENT`/`BBS_CLIENT_REPO`).
+- **`/bump` bug reports work from the container** unchanged: they fall back to `saves/<world>/bumps/`, which is on the
+  persisted `saves` volume (retrievable via the volume or `docker cp`).
+- **CI:** [`docker.yml`](.github/workflows/docker.yml) is a reusable workflow (`workflow_call`) invoked by
+  [`release.yml`](.github/workflows/release.yml) → tag builds + pushes multi-arch (amd64+arm64) to **GHCR**
+  (`ghcr.io/marceld23/blocks-beyond-the-stars-server:<version>`+`:latest`); also `workflow_dispatch` for ad-hoc builds.
+  Docs: [SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md) + `BBS_*` env-var table, README **System requirements**,
+  [DEVELOPER.md §CI](docs/developer/DEVELOPER.md), [AGENTS.md §Releases](AGENTS.md).
+
 ### ★ Syntax/lint + CodeQL checks across all languages (2026-06-21) — ✅ lint+CodeQL added & green (PR #22); dotnet format DEFERRED
 Extends the PR gate beyond build+test (C# is already syntax/static-analysis-checked by the `-warnaserror` build):
 - **[lint.yml](.github/workflows/lint.yml)**: ruff (Python ai-backend, already clean), `node --check` (web JS parse), actionlint 1.7.12 (workflows, ShellCheck off). All verified green in CI.
