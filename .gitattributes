@@ -1,6 +1,6 @@
 # Line-ending policy: normalize all text to LF in the repo AND keep LF in the
 # working tree (eol=lf overrides core.autocrlf). The repository is already
-# LF-only and the .NET server also runs on Linux / Raspberry Pi, so LF
+# LF-only and the .NET server also runs on Linux / ARM64, so LF
 # everywhere — including on Windows — is the consistent, drift-free choice.
 # Windows (Unity, .NET, Visual Studio, modern editors) handles LF fine.
 * text=auto eol=lf

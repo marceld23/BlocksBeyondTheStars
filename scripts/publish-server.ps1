@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Produces self-contained, single-file builds (no .NET install needed on the host) for
-  Windows x64, Linux x64 and Linux ARM64 (Raspberry Pi 5), bundles the data/ content and
+  Windows x64, Linux x64 and Linux ARM64, bundles the data/ content and
   a default config, then zips each package into artifacts/.
 
 .EXAMPLE

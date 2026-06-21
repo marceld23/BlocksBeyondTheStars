@@ -21,7 +21,7 @@ client to its players.
    (ASP.NET Core minimal API) exposes `/portal` (a landing page with the one-click download and
    the update-feed URL), `/download` (the latest Velopack `Setup.exe`) and `/updates` (the static
    update feed under `<install>/clients`).
-4. **Self-contained, no .NET install required** on the host (Windows / Linux / Raspberry Pi 5).
+4. **Self-contained, no .NET install required** on the host (Windows / Linux x64 / Linux ARM64).
 
 ## Consequences
 

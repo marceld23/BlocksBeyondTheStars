@@ -7,7 +7,7 @@
 ## Context
 
 Blocks Beyond the Stars must be a 3D Windows game that becomes multiplayer-capable and self-hostable
-(including on a Raspberry Pi 5) without a painful rewrite. We must decide where game truth
+(including on low-power Linux ARM64 hardware) without a painful rewrite. We must decide where game truth
 lives, what runs the server, and how data is stored and exchanged.
 
 ## Decision
@@ -15,7 +15,7 @@ lives, what runs the server, and how data is stored and exchanged.
 1. **The server is authoritative; the client is presentation + input.** The Unity client
    sends *intents*; the .NET server validates them and broadcasts authoritative *state*.
 2. **The server is a standalone .NET 8 process — no Unity runtime.** This keeps it
-   lightweight enough for ARM64 / Raspberry Pi 5 and free of rendering/physics-engine
+   lightweight enough for Linux ARM64 and free of rendering/physics-engine
    dependencies.
 3. **Singleplayer = the same server in-process** (loopback transport), so there is a
    single game-logic code path.
