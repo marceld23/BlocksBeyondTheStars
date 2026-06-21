@@ -426,10 +426,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Launching into space now lives at the top of the Map tab (the travel hub), so there is no
             // separate Space tab — its combat status is on the HUD and firing is done in the flight view.
-            // Tighten the tab metrics once there are many tabs so the whole bar + the Codex/Arcade buttons still
-            // fit the 1920-wide reference canvas.
-            float tw = Tabs.Length > 9 ? 132f : 150f;
-            float step = Tabs.Length > 9 ? 140f : 158f;
+            //
+            // The bar is split across two rows so the Close button can no longer overlap the right-most tabs:
+            //   • a top utility strip (next to the "Ship Interface" logo) carries Codex / Arcade / Close, and
+            //   • the main row below carries the content tabs only.
+            // Freeing the right side of the tab row also lets the tabs stay full-width/readable instead of being
+            // tightened to squeeze the Codex/Arcade/Close buttons onto the same line.
+            float tw = 150f;
+            float step = 158f;
             float x = 40f;
             for (int i = 0; i < Tabs.Length; i++)
             {
@@ -476,15 +480,18 @@ namespace BlocksBeyondTheStars.Client
                 x += step;
             }
 
-            // Always-available browser screens (separate full-screen overlays): the Codex (wiki) + the Arcade.
-            UiKit.AddButton(p, x, 64, 140, 46, L("ui.tab.wiki"), () => Menu?.OpenWiki());
-            var arcadeBtn = UiKit.AddButton(p, x + 148f, 64, 140, 46, L("ui.tab.arcade"), () => Menu?.OpenArcade());
+            // Utility strip on the top row (right of the "Ship Interface" logo, at the logo's y): the
+            // always-available browser screens (Codex/wiki + Arcade, separate full-screen overlays) and Close.
+            // Kept off the tab row so Close can sit in the top-right corner without overlapping the tabs.
+            const float topY = 14f;     // matches the logo's y so the strip aligns with the heading
+            const float topH = 40f;
+            UiKit.AddButton(p, W - 150, topY, 110, topH, L("ui.action.close"), () => Menu?.CloseFromUi());
+            UiKit.AddButton(p, W - 298, topY, 140, topH, L("ui.tab.wiki"), () => Menu?.OpenWiki());
+            var arcadeBtn = UiKit.AddButton(p, W - 446, topY, 140, topH, L("ui.tab.arcade"), () => Menu?.OpenArcade());
             if (Game?.NewArcadeUnseen ?? false)
             {
                 UiKit.AddBadge(arcadeBtn, 140f); // a freshly downloaded data-cube game is waiting in the Arcade
             }
-
-            UiKit.AddButton(p, W - 150, 64, 110, 46, L("ui.action.close"), () => Menu?.CloseFromUi());
 
             // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
             if (_mode == Mode.Crafting || _mode == Mode.Ship)
