@@ -76,8 +76,12 @@ namespace BlocksBeyondTheStars.Client
                 vel.y = 0f;
                 Vector3 toPlayer = Game.PlayerPosition - scenePos;
                 toPlayer.y = 0f;
+                // A player who has fled into their ship is off-limits: the server already drops them as a
+                // target (no hunt, no proximity damage), so mirror that here — the machine stops stalking and
+                // holds its fire instead of staring at / shooting the hull.
+                bool playerAboard = Game.Aboard;
                 bool nearPlayer = toPlayer.sqrMagnitude < 64f;
-                Vector3 face = e.Hostile && nearPlayer ? toPlayer : vel;
+                Vector3 face = e.Hostile && nearPlayer && !playerAboard ? toPlayer : vel;
                 if (face.sqrMagnitude > 0.01f)
                 {
                     en.Root.transform.rotation = Quaternion.Slerp(
@@ -105,8 +109,9 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     // Hostile attack (throttled). Hovering drones snipe with a red laser from afar; ground
-                    // robots only claw in melee range.
-                    if (e.Hostile && Time.time >= en.NextAttack)
+                    // robots only claw in melee range. Suppressed entirely once the player is aboard the ship —
+                    // they've broken off pursuit, so no laser bolts or claw swipes follow them inside.
+                    if (e.Hostile && !playerAboard && Time.time >= en.NextAttack)
                     {
                         if (en.IsDrone)
                         {
