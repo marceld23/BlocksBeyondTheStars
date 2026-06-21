@@ -26,10 +26,19 @@ public sealed partial class GameServer
     private static readonly LocomotionProfile NpcProfile = new()
     {
         Style = LocomotionStyle.Grazer,
-        CruiseSpeed = 0.7f, BurstSpeed = 0.9f, Accel = 2.5f, TurnRate = 3.0f,
-        HoldMin = 1.2f, HoldMax = 3.0f,
-        PauseChance = 0.6f, PauseMin = 2.0f, PauseMax = 5.0f,
-        WeaveAmp = 0.15f, WeaveFreq = 1.0f, VertAmp = 0f, VertFreq = 0f,
+        CruiseSpeed = 0.7f,
+        BurstSpeed = 0.9f,
+        Accel = 2.5f,
+        TurnRate = 3.0f,
+        HoldMin = 1.2f,
+        HoldMax = 3.0f,
+        PauseChance = 0.6f,
+        PauseMin = 2.0f,
+        PauseMax = 5.0f,
+        WeaveAmp = 0.15f,
+        WeaveFreq = 1.0f,
+        VertAmp = 0f,
+        VertFreq = 0f,
     };
 
     /// <summary>A settlement inhabitant. Lives only on the server; the client sees a <c>NetNpc</c>.</summary>

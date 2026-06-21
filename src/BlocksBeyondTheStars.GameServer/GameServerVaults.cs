@@ -83,23 +83,23 @@ public sealed partial class GameServer
 
         // Chamber: a 9×9 outer shell (7×7 inside), 4 air-high, deepslate walls/floor/ceiling.
         for (int dx = -4; dx <= 4; dx++)
-        for (int dz = -4; dz <= 4; dz++)
-        for (int dy = -1; dy <= 4; dy++)
-        {
-            var p = new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY + dy, az + dz);
-            bool isShell = dx is -4 or 4 || dz is -4 or 4 || dy is -1 or 4;
-            _world.SetBlock(p, isShell ? shell : BlockId.Air);
-        }
+            for (int dz = -4; dz <= 4; dz++)
+                for (int dy = -1; dy <= 4; dy++)
+                {
+                    var p = new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY + dy, az + dz);
+                    bool isShell = dx is -4 or 4 || dz is -4 or 4 || dy is -1 or 4;
+                    _world.SetBlock(p, isShell ? shell : BlockId.Air);
+                }
 
         // Shaft: a 2×2 drop from the surface into the chamber's ceiling corner (the way in — bring a jetpack
         // or dig steps back out).
         for (int dy = floorY + 4; dy <= surfaceY + 1; dy++)
         {
             for (int dx = -1; dx <= 0; dx++)
-            for (int dz = -1; dz <= 0; dz++)
-            {
-                _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
-            }
+                for (int dz = -1; dz <= 0; dz++)
+                {
+                    _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
+                }
         }
 
         // Surface hint: a broken ring of weathered pillars (1–2 tall, some missing) around the shaft mouth.

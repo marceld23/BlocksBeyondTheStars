@@ -37,8 +37,14 @@ public sealed class EnemyMovementTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = world, Seed = 9, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999,
-            PlaceStarterShip = false, PlaceSettlements = false, PlaceWrecks = false, ViewDistanceChunks = 1,
+            WorldName = world,
+            Seed = 9,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            ViewDistanceChunks = 1,
         };
         config.Rules.FreeSpaceFlight = true;
         config.Rules.SpaceCombat = SpaceCombatMode.PvE; // hostile NPCs only spawn with combat enabled

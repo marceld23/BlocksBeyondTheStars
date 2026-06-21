@@ -181,27 +181,27 @@ namespace BlocksBeyondTheStars.Client
             var origin = WorldConstants.ChunkOrigin(coord);
             int nsz = WorldConstants.ChunkSize;
             for (int x = 0; x < nsz; x++)
-            for (int y = 0; y < nsz; y++)
-            for (int z = 0; z < nsz; z++)
-            {
-                var id = chunk.Get(x, y, z);
-                var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
-                int rgb = 0;
-                if (!id.IsAir)
-                {
-                    var (_, glow) = chunk.GetModifier(x, y, z);
-                    rgb = glow != 0 ? glow : (_blockLightColor != null ? _blockLightColor(id.Value) : 0);
-                }
+                for (int y = 0; y < nsz; y++)
+                    for (int z = 0; z < nsz; z++)
+                    {
+                        var id = chunk.Get(x, y, z);
+                        var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
+                        int rgb = 0;
+                        if (!id.IsAir)
+                        {
+                            var (_, glow) = chunk.GetModifier(x, y, z);
+                            rgb = glow != 0 ? glow : (_blockLightColor != null ? _blockLightColor(id.Value) : 0);
+                        }
 
-                if (rgb != 0)
-                {
-                    _lightSources[pos] = rgb;
-                }
-                else
-                {
-                    _lightSources.Remove(pos);
-                }
-            }
+                        if (rgb != 0)
+                        {
+                            _lightSources[pos] = rgb;
+                        }
+                        else
+                        {
+                            _lightSources.Remove(pos);
+                        }
+                    }
         }
     }
 }

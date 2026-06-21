@@ -30,8 +30,11 @@ public sealed class GameServerFinaleTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "rocky", Seed = 4242, StartPlanet = "rocky",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            WorldName = "rocky",
+            Seed = 4242,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

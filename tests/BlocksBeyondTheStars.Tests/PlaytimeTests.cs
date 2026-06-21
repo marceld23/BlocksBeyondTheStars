@@ -29,9 +29,13 @@ public sealed class PlaytimeTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = world, Seed = 7, StartPlanet = "rocky",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
-            PlaceSettlements = false, PlaceWrecks = false,
+            WorldName = world,
+            Seed = 7,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

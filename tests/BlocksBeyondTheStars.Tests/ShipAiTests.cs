@@ -100,27 +100,27 @@ public sealed class ShipAiTests : IDisposable
         int topY = (int)Math.Ceiling(session.State.Position.Y);
         int mined = 0;
         for (int dx = -2; dx <= 2 && mined < 3; dx++)
-        for (int dz = -2; dz <= 2 && mined < 3; dz++)
-        for (int y = topY; y > topY - 7 && mined < 3; y--)
-        {
-            var pos = new Vector3i(px + dx, y, pz + dz);
-            if (server.World.GetBlock(pos).IsAir)
-            {
-                continue;
-            }
+            for (int dz = -2; dz <= 2 && mined < 3; dz++)
+                for (int y = topY; y > topY - 7 && mined < 3; y--)
+                {
+                    var pos = new Vector3i(px + dx, y, pz + dz);
+                    if (server.World.GetBlock(pos).IsAir)
+                    {
+                        continue;
+                    }
 
-            for (int hit = 0; hit < 12 && !server.World.GetBlock(pos).IsAir; hit++)
-            {
-                client.Send(NetCodec.Encode(new MineBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z }),
-                    DeliveryMode.ReliableOrdered);
-                server.Tick(0.1);
-            }
+                    for (int hit = 0; hit < 12 && !server.World.GetBlock(pos).IsAir; hit++)
+                    {
+                        client.Send(NetCodec.Encode(new MineBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z }),
+                            DeliveryMode.ReliableOrdered);
+                        server.Tick(0.1);
+                    }
 
-            if (server.World.GetBlock(pos).IsAir)
-            {
-                mined++;
-            }
-        }
+                    if (server.World.GetBlock(pos).IsAir)
+                    {
+                        mined++;
+                    }
+                }
 
         Assert.Equal(3, mined);
         client.Poll();

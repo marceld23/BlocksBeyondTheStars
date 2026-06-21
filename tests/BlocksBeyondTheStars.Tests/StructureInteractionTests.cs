@@ -31,9 +31,13 @@ public sealed class StructureInteractionTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = planet + "_" + seed, Seed = seed, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = settlements, PlaceWrecks = wrecks,
+            WorldName = planet + "_" + seed,
+            Seed = seed,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = settlements,
+            PlaceWrecks = wrecks,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

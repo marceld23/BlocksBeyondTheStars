@@ -48,35 +48,35 @@ public class WorldGenerationTests
         int minH = int.MaxValue, flat = 0, total = 0, metalCols = 0, surfaceCols = 0;
 
         for (int cx = 0; cx < 16; cx++)
-        for (int cz = 0; cz < 16; cz++)
-        {
-            var col = new ChunkData[5];
-            for (int cy = 0; cy < col.Length; cy++)
+            for (int cz = 0; cz < 16; cz++)
             {
-                col[cy] = gen.Generate(asteroid, new ChunkCoord(cx, cy, cz));
-            }
-
-            var origin = WorldConstants.ChunkOrigin(new ChunkCoord(cx, 0, cz));
-            for (int lx = 0; lx < cs; lx++)
-            for (int lz = 0; lz < cs; lz++)
-            {
-                int h = gen.SurfaceHeight(asteroid, origin.X + lx, origin.Z + lz);
-                minH = System.Math.Min(minH, h);
-                if (System.Math.Abs(h - baseH) <= 3) flat++;
-                total++;
-
-                for (int gy = col.Length * cs - 1; gy >= 0; gy--) // top solid cell = the exposed surface
+                var col = new ChunkData[5];
+                for (int cy = 0; cy < col.Length; cy++)
                 {
-                    var b = col[gy / cs].Get(lx, gy % cs, lz);
-                    if (!b.IsAir)
-                    {
-                        surfaceCols++;
-                        if (metals.Contains(b)) metalCols++;
-                        break;
-                    }
+                    col[cy] = gen.Generate(asteroid, new ChunkCoord(cx, cy, cz));
                 }
+
+                var origin = WorldConstants.ChunkOrigin(new ChunkCoord(cx, 0, cz));
+                for (int lx = 0; lx < cs; lx++)
+                    for (int lz = 0; lz < cs; lz++)
+                    {
+                        int h = gen.SurfaceHeight(asteroid, origin.X + lx, origin.Z + lz);
+                        minH = System.Math.Min(minH, h);
+                        if (System.Math.Abs(h - baseH) <= 3) flat++;
+                        total++;
+
+                        for (int gy = col.Length * cs - 1; gy >= 0; gy--) // top solid cell = the exposed surface
+                        {
+                            var b = col[gy / cs].Get(lx, gy % cs, lz);
+                            if (!b.IsAir)
+                            {
+                                surfaceCols++;
+                                if (metals.Contains(b)) metalCols++;
+                                break;
+                            }
+                        }
+                    }
             }
-        }
 
         Assert.True(baseH - minH >= 4, "craters dig pits below the flat regolith");
         Assert.True(flat > total / 4, "much of the surface is flat regolith between craters");
@@ -100,22 +100,22 @@ public class WorldGenerationTests
 
         int pondCells = 0;
         for (int cx = 0; cx < 16 && pondCells == 0; cx++)
-        for (int cz = 0; cz < 16 && pondCells == 0; cz++)
-        for (int cy = 0; cy <= 4; cy++)
-        {
-            var coord = new ChunkCoord(cx, cy, cz);
-            var chunk = gen.Generate(planet, coord);
-            var origin = WorldConstants.ChunkOrigin(coord);
-            for (int lx = 0; lx < cs; lx++)
-            for (int ly = 0; ly < cs; ly++)
-            for (int lz = 0; lz < cs; lz++)
-            {
-                if (origin.Y + ly > sea && chunk.Get(lx, ly, lz) == waterId)
+            for (int cz = 0; cz < 16 && pondCells == 0; cz++)
+                for (int cy = 0; cy <= 4; cy++)
                 {
-                    pondCells++;
+                    var coord = new ChunkCoord(cx, cy, cz);
+                    var chunk = gen.Generate(planet, coord);
+                    var origin = WorldConstants.ChunkOrigin(coord);
+                    for (int lx = 0; lx < cs; lx++)
+                        for (int ly = 0; ly < cs; ly++)
+                            for (int lz = 0; lz < cs; lz++)
+                            {
+                                if (origin.Y + ly > sea && chunk.Get(lx, ly, lz) == waterId)
+                                {
+                                    pondCells++;
+                                }
+                            }
                 }
-            }
-        }
 
         Assert.True(pondCells > 0, $"expected upland ponds (water above sea level {sea}) on a watery world");
     }
@@ -135,36 +135,36 @@ public class WorldGenerationTests
 
         int logs = 0, logsInWater = 0;
         for (int cx = 0; cx < 16; cx++)
-        for (int cz = 0; cz < 16; cz++)
-        {
-            // Generate the vertical column of chunks once so a trunk base at a chunk boundary can see the cell
-            // below it (in the chunk underneath).
-            var col = new ChunkData[6];
-            for (int cy = 0; cy < col.Length; cy++)
+            for (int cz = 0; cz < 16; cz++)
             {
-                col[cy] = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
-            }
-
-            for (int cy = 0; cy < col.Length; cy++)
-            for (int lx = 0; lx < cs; lx++)
-            for (int ly = 0; ly < cs; ly++)
-            for (int lz = 0; lz < cs; lz++)
-            {
-                if (col[cy].Get(lx, ly, lz) != logId)
+                // Generate the vertical column of chunks once so a trunk base at a chunk boundary can see the cell
+                // below it (in the chunk underneath).
+                var col = new ChunkData[6];
+                for (int cy = 0; cy < col.Length; cy++)
                 {
-                    continue;
+                    col[cy] = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
                 }
 
-                logs++;
-                var below = ly > 0 ? col[cy].Get(lx, ly - 1, lz)
-                          : cy > 0 ? col[cy - 1].Get(lx, cs - 1, lz)
-                          : BlockId.Air;
-                if (below == waterId)
-                {
-                    logsInWater++;
-                }
+                for (int cy = 0; cy < col.Length; cy++)
+                    for (int lx = 0; lx < cs; lx++)
+                        for (int ly = 0; ly < cs; ly++)
+                            for (int lz = 0; lz < cs; lz++)
+                            {
+                                if (col[cy].Get(lx, ly, lz) != logId)
+                                {
+                                    continue;
+                                }
+
+                                logs++;
+                                var below = ly > 0 ? col[cy].Get(lx, ly - 1, lz)
+                                          : cy > 0 ? col[cy - 1].Get(lx, cs - 1, lz)
+                                          : BlockId.Air;
+                                if (below == waterId)
+                                {
+                                    logsInWater++;
+                                }
+                            }
             }
-        }
 
         Assert.True(logs > 0, "expected the jungle world to grow trees (the test would be meaningless otherwise)");
         Assert.Equal(0, logsInWater);
@@ -182,17 +182,17 @@ public class WorldGenerationTests
 
         bool anyWet = false, anyDry = false;
         for (int x = 0; x < 400 && !(anyWet && anyDry); x += 3)
-        for (int z = -200; z < 200 && !(anyWet && anyDry); z += 7)
-        {
-            if (gen.IsSurfaceWater(planet, x, z))
+            for (int z = -200; z < 200 && !(anyWet && anyDry); z += 7)
             {
-                anyWet = true;
+                if (gen.IsSurfaceWater(planet, x, z))
+                {
+                    anyWet = true;
+                }
+                else
+                {
+                    anyDry = true;
+                }
             }
-            else
-            {
-                anyDry = true;
-            }
-        }
 
         Assert.True(anyWet, "expected some surface water (sea/pond) on a watery world");
         Assert.True(anyDry, "expected some dry land on a watery world (else ships could never land dry)");
@@ -344,15 +344,15 @@ public class WorldGenerationTests
     {
         int n = 0;
         for (int cx = 0; cx < 8; cx++)
-        for (int cz = 0; cz < 8; cz++)
-        for (int cy = 3; cy <= 5; cy++) // a wide span around typical sea levels (Y ≈ 48..95)
-        {
-            var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
-            foreach (var b in chunk.RawBlocks)
-            {
-                if (b == block) n++;
-            }
-        }
+            for (int cz = 0; cz < 8; cz++)
+                for (int cy = 3; cy <= 5; cy++) // a wide span around typical sea levels (Y ≈ 48..95)
+                {
+                    var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
+                    foreach (var b in chunk.RawBlocks)
+                    {
+                        if (b == block) n++;
+                    }
+                }
 
         return n;
     }
@@ -437,28 +437,28 @@ public class WorldGenerationTests
 
         int verified = 0;
         for (int wx = 0; wx < 512 && verified < 25; wx++)
-        for (int wz = 0; wz < 512 && verified < 25; wz++)
-        {
-            if (!gen.TryGetWaterSurface(planet, wx, wz, out int top, out int bed))
+            for (int wz = 0; wz < 512 && verified < 25; wz++)
             {
-                continue;
+                if (!gen.TryGetWaterSurface(planet, wx, wz, out int top, out int bed))
+                {
+                    continue;
+                }
+
+                Assert.True(top > bed, "a water column must have at least one water cell above the seabed");
+
+                // Every cell of the reported [seabed+1 .. top] span must be water or aquatic flora in the generated
+                // world — i.e. the helper points a swimmer at a genuine, fully-filled water body (the old surface+1
+                // probe sat in the air above flush ponds, which is what kept water creatures from ever spawning).
+                for (int y = bed + 1; y <= top; y++)
+                {
+                    var coord = new ChunkCoord(wx / cs, y / cs, wz / cs);
+                    var chunk = gen.Generate(planet, coord);
+                    ushort cell = chunk.Get(wx % cs, y % cs, wz % cs).Value;
+                    Assert.True(aquatic.Contains(cell), $"cell ({wx},{y},{wz}) in the reported water column should be water/aquatic flora");
+                }
+
+                verified++;
             }
-
-            Assert.True(top > bed, "a water column must have at least one water cell above the seabed");
-
-            // Every cell of the reported [seabed+1 .. top] span must be water or aquatic flora in the generated
-            // world — i.e. the helper points a swimmer at a genuine, fully-filled water body (the old surface+1
-            // probe sat in the air above flush ponds, which is what kept water creatures from ever spawning).
-            for (int y = bed + 1; y <= top; y++)
-            {
-                var coord = new ChunkCoord(wx / cs, y / cs, wz / cs);
-                var chunk = gen.Generate(planet, coord);
-                ushort cell = chunk.Get(wx % cs, y % cs, wz % cs).Value;
-                Assert.True(aquatic.Contains(cell), $"cell ({wx},{y},{wz}) in the reported water column should be water/aquatic flora");
-            }
-
-            verified++;
-        }
 
         Assert.True(verified > 0, "expected to find water columns on a watery world.");
     }
@@ -486,24 +486,24 @@ public class WorldGenerationTests
 
         int rivers = 0;
         for (int wx = 0; wx < 512 && rivers < 10; wx++)
-        for (int wz = 0; wz < 512 && rivers < 10; wz++)
-        {
-            int depth = gen.SurfaceRiverDepth(planet, wx, wz);
-            if (depth <= 0)
+            for (int wz = 0; wz < 512 && rivers < 10; wz++)
             {
-                continue;
+                int depth = gen.SurfaceRiverDepth(planet, wx, wz);
+                if (depth <= 0)
+                {
+                    continue;
+                }
+
+                int surfaceY = gen.SurfaceHeight(planet, wx, wz);
+                Assert.True(surfaceY > sea, "a river is carved above the global sea level");
+
+                // The channel is filled flush to the surface; the surface water cell must be water/aquatic flora.
+                var coord = new ChunkCoord(wx / cs, surfaceY / cs, wz / cs);
+                var chunk = gen.Generate(planet, coord);
+                ushort cell = chunk.Get(wx % cs, surfaceY % cs, wz % cs).Value;
+                Assert.True(aquatic.Contains(cell), $"river surface cell ({wx},{surfaceY},{wz}) should be water/aquatic flora");
+                rivers++;
             }
-
-            int surfaceY = gen.SurfaceHeight(planet, wx, wz);
-            Assert.True(surfaceY > sea, "a river is carved above the global sea level");
-
-            // The channel is filled flush to the surface; the surface water cell must be water/aquatic flora.
-            var coord = new ChunkCoord(wx / cs, surfaceY / cs, wz / cs);
-            var chunk = gen.Generate(planet, coord);
-            ushort cell = chunk.Get(wx % cs, surfaceY % cs, wz % cs).Value;
-            Assert.True(aquatic.Contains(cell), $"river surface cell ({wx},{surfaceY},{wz}) should be water/aquatic flora");
-            rivers++;
-        }
 
         Assert.True(rivers > 0, "a wet world should carve river channels.");
     }
@@ -522,19 +522,19 @@ public class WorldGenerationTests
 
         int rivers = 0;
         for (int wx = 0; wx < 512; wx++)
-        for (int wz = 0; wz < 512; wz++)
-        {
-            if (gen.SurfaceRiverDepth(planet, wx, wz) <= 0)
+            for (int wz = 0; wz < 512; wz++)
             {
-                continue;
-            }
+                if (gen.SurfaceRiverDepth(planet, wx, wz) <= 0)
+                {
+                    continue;
+                }
 
-            int slope = System.Math.Abs(gen.SurfaceHeight(planet, wx + 2, wz) - gen.SurfaceHeight(planet, wx - 2, wz))
-                      + System.Math.Abs(gen.SurfaceHeight(planet, wx, wz + 2) - gen.SurfaceHeight(planet, wx, wz - 2));
-            Assert.True(slope <= riverMaxSlope,
-                $"river column ({wx},{wz}) sits on a slope of {slope} (> {riverMaxSlope}) — it would leave a floating water wall");
-            rivers++;
-        }
+                int slope = System.Math.Abs(gen.SurfaceHeight(planet, wx + 2, wz) - gen.SurfaceHeight(planet, wx - 2, wz))
+                          + System.Math.Abs(gen.SurfaceHeight(planet, wx, wz + 2) - gen.SurfaceHeight(planet, wx, wz - 2));
+                Assert.True(slope <= riverMaxSlope,
+                    $"river column ({wx},{wz}) sits on a slope of {slope} (> {riverMaxSlope}) — it would leave a floating water wall");
+                rivers++;
+            }
 
         Assert.True(rivers > 0, "expected to find river columns on a watery world (else the gate erased all rivers).");
     }

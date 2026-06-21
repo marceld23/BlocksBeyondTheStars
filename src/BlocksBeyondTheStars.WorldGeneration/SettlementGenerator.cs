@@ -218,65 +218,65 @@ public static class SettlementGenerator
         int buildings = 0;
         int plotIndex = 0;
         for (int cxp = 0; cxp < cols; cxp++)
-        for (int czp = 0; czp < rows; czp++)
-        {
-            // A village occasionally leaves a plot as an open square; a town fills them densely. The
-            // first plot is always built (so it carries the vendor / a guaranteed ruin loot cache).
-            bool skip = !town && plotIndex > 0 && rng.NextDouble() < 0.18;
-            if (skip)
+            for (int czp = 0; czp < rows; czp++)
             {
+                // A village occasionally leaves a plot as an open square; a town fills them densely. The
+                // first plot is always built (so it carries the vendor / a guaranteed ruin loot cache).
+                bool skip = !town && plotIndex > 0 && rng.NextDouble() < 0.18;
+                if (skip)
+                {
+                    plotIndex++;
+                    continue;
+                }
+
+                // Per-building variety: footprint, storeys, roof, door side, accent band.
+                int fp = Building - rng.Next(0, 3);                     // 4..6
+                int storeys = town ? (plotIndex == 0 ? floors : 1 + rng.Next(0, floors)) : 1;
+                int doorSide = rng.Next(0, 4);
+                // Desert settlements favour flat (adobe) roofs; elsewhere alien + half of houses are pitched.
+                int roofStyle = (!desert && (alien || rng.NextDouble() < 0.5)) ? 1 : 0;
+                int off = (Building - fp) / 2;
+                int ox = cxp * Plot + 1 + off;
+                int oz = czp * Plot + 1 + off;
+
+                StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined);
+                buildings++;
+
+                // A lamp post + a small garden beside the door, so streets feel inhabited.
+                DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng);
+
+                // Interaction / spawn marker at the building's interior floor centre.
+                var centre = new Vector3i(ox + fp / 2, 1, oz + fp / 2);
+                if (!ruined)
+                {
+                    string role = plotIndex switch
+                    {
+                        0 => "vendor",
+                        1 => "mission_board",
+                        _ => "npc",
+                    };
+                    markers.Add(new SettlementMarker(role, centre));
+
+                    // A real door fills this building's doorway: a sci-fi slider for towns/cities, a hinged
+                    // door for villages/hamlets. Placed on the lower door column; the server probes the gap to
+                    // centre + size the door. (Ruins are abandoned — their doorways stay open.)
+                    int mid = fp / 2, w0 = System.Math.Max(1, mid - 1);
+                    var doorCell = doorSide switch
+                    {
+                        0 => new Vector3i(ox + w0, 1, oz),
+                        1 => new Vector3i(ox + w0, 1, oz + fp - 1),
+                        2 => new Vector3i(ox, 1, oz + w0),
+                        _ => new Vector3i(ox + fp - 1, 1, oz + w0),
+                    };
+                    markers.Add(new SettlementMarker(town ? "door_slide" : "door_hinge", doorCell));
+                }
+                else if (plotIndex == 0 || rng.NextDouble() < 0.6)
+                {
+                    markers.Add(new SettlementMarker("loot", centre)); // ruins: scavenge instead of services
+                }
+
                 plotIndex++;
-                continue;
             }
-
-            // Per-building variety: footprint, storeys, roof, door side, accent band.
-            int fp = Building - rng.Next(0, 3);                     // 4..6
-            int storeys = town ? (plotIndex == 0 ? floors : 1 + rng.Next(0, floors)) : 1;
-            int doorSide = rng.Next(0, 4);
-            // Desert settlements favour flat (adobe) roofs; elsewhere alien + half of houses are pitched.
-            int roofStyle = (!desert && (alien || rng.NextDouble() < 0.5)) ? 1 : 0;
-            int off = (Building - fp) / 2;
-            int ox = cxp * Plot + 1 + off;
-            int oz = czp * Plot + 1 + off;
-
-            StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined);
-            buildings++;
-
-            // A lamp post + a small garden beside the door, so streets feel inhabited.
-            DecorateAround(Set, ox, oz, fp, doorSide, lamp, flora, alien, rng);
-
-            // Interaction / spawn marker at the building's interior floor centre.
-            var centre = new Vector3i(ox + fp / 2, 1, oz + fp / 2);
-            if (!ruined)
-            {
-                string role = plotIndex switch
-                {
-                    0 => "vendor",
-                    1 => "mission_board",
-                    _ => "npc",
-                };
-                markers.Add(new SettlementMarker(role, centre));
-
-                // A real door fills this building's doorway: a sci-fi slider for towns/cities, a hinged
-                // door for villages/hamlets. Placed on the lower door column; the server probes the gap to
-                // centre + size the door. (Ruins are abandoned — their doorways stay open.)
-                int mid = fp / 2, w0 = System.Math.Max(1, mid - 1);
-                var doorCell = doorSide switch
-                {
-                    0 => new Vector3i(ox + w0, 1, oz),
-                    1 => new Vector3i(ox + w0, 1, oz + fp - 1),
-                    2 => new Vector3i(ox, 1, oz + w0),
-                    _ => new Vector3i(ox + fp - 1, 1, oz + w0),
-                };
-                markers.Add(new SettlementMarker(town ? "door_slide" : "door_hinge", doorCell));
-            }
-            else if (plotIndex == 0 || rng.NextDouble() < 0.6)
-            {
-                markers.Add(new SettlementMarker("loot", centre)); // ruins: scavenge instead of services
-            }
-
-            plotIndex++;
-        }
 
         // A central feature (well / plaza / monument) on the middle lane.
         if (!ruined)
@@ -294,25 +294,25 @@ public static class SettlementGenerator
         if (ruined)
         {
             for (int x = 0; x < w; x++)
-            for (int y = 0; y < h; y++)
-            for (int z = 0; z < l; z++)
-            {
-                if (blocks[(x * h + y) * l + z] != 0 && rng.NextDouble() < 0.35)
-                {
-                    Set(x, y, z, 0); // collapsed / missing
-                }
-            }
+                for (int y = 0; y < h; y++)
+                    for (int z = 0; z < l; z++)
+                    {
+                        if (blocks[(x * h + y) * l + z] != 0 && rng.NextDouble() < 0.35)
+                        {
+                            Set(x, y, z, 0); // collapsed / missing
+                        }
+                    }
 
             if (flora != 0)
             {
                 for (int x = 1; x < w - 1; x++)
-                for (int z = 1; z < l - 1; z++)
-                {
-                    if (blocks[(x * h + 0) * l + z] != 0 && rng.NextDouble() < 0.08)
+                    for (int z = 1; z < l - 1; z++)
                     {
-                        Set(x, 1, z, flora); // overgrowth on intact ground
+                        if (blocks[(x * h + 0) * l + z] != 0 && rng.NextDouble() < 0.08)
+                        {
+                            Set(x, 1, z, flora); // overgrowth on intact ground
+                        }
                     }
-                }
             }
         }
 
@@ -326,29 +326,29 @@ public static class SettlementGenerator
     {
         int height = storeys * FloorH;
         for (int x = 0; x < fp; x++)
-        for (int y = 0; y <= height; y++)
-        for (int z = 0; z < fp; z++)
-        {
-            bool shell = x == 0 || x == fp - 1 || z == 0 || z == fp - 1 || y == 0 || y == height;
-            bool interFloor = y > 0 && y < height && (y % FloorH == 0); // storey decks
+            for (int y = 0; y <= height; y++)
+                for (int z = 0; z < fp; z++)
+                {
+                    bool shell = x == 0 || x == fp - 1 || z == 0 || z == fp - 1 || y == 0 || y == height;
+                    bool interFloor = y > 0 && y < height && (y % FloorH == 0); // storey decks
 
-            if (shell)
-            {
-                bool sideWall = x == 0 || x == fp - 1 || z == 0 || z == fp - 1;
-                bool window = sideWall && (y % FloorH == 2) && x > 0 && x < fp - 1 && z > 0 && z < fp - 1;
-                bool band = sideWall && (y % FloorH == 1); // accent stripe at each storey base
-                ushort b = window ? glass : (band && accent != 0 ? accent : wall);
-                set(ox + x, y, oz + z, b);
-            }
-            else if (interFloor)
-            {
-                set(ox + x, y, oz + z, wall); // floor between storeys
-            }
-            else
-            {
-                set(ox + x, y, oz + z, 0); // hollow room
-            }
-        }
+                    if (shell)
+                    {
+                        bool sideWall = x == 0 || x == fp - 1 || z == 0 || z == fp - 1;
+                        bool window = sideWall && (y % FloorH == 2) && x > 0 && x < fp - 1 && z > 0 && z < fp - 1;
+                        bool band = sideWall && (y % FloorH == 1); // accent stripe at each storey base
+                        ushort b = window ? glass : (band && accent != 0 ? accent : wall);
+                        set(ox + x, y, oz + z, b);
+                    }
+                    else if (interFloor)
+                    {
+                        set(ox + x, y, oz + z, wall); // floor between storeys
+                    }
+                    else
+                    {
+                        set(ox + x, y, oz + z, 0); // hollow room
+                    }
+                }
 
         // Door: a 2-wide, 3-tall gap on the chosen wall at ground level so the player fits through
         // comfortably (a 1-wide / 2-tall opening was too tight to walk through).
@@ -356,16 +356,16 @@ public static class SettlementGenerator
         int w0 = System.Math.Max(1, mid - 1), w1 = mid; // two columns, kept inside the corners
         int dy1 = 1, dy2 = System.Math.Min(height - 1, 3); // up to 3 tall, never into the ceiling
         for (int w = w0; w <= w1; w++)
-        for (int y = dy1; y <= dy2; y++)
-        {
-            switch (doorSide)
+            for (int y = dy1; y <= dy2; y++)
             {
-                case 0: set(ox + w, y, oz, 0); break;             // -Z
-                case 1: set(ox + w, y, oz + fp - 1, 0); break;    // +Z
-                case 2: set(ox, y, oz + w, 0); break;             // -X
-                default: set(ox + fp - 1, y, oz + w, 0); break;   // +X
+                switch (doorSide)
+                {
+                    case 0: set(ox + w, y, oz, 0); break;             // -Z
+                    case 1: set(ox + w, y, oz + fp - 1, 0); break;    // +Z
+                    case 2: set(ox, y, oz + w, 0); break;             // -X
+                    default: set(ox + fp - 1, y, oz + w, 0); break;   // +X
+                }
             }
-        }
 
         // Vertical access between storeys: a hole through each deck + a full-height ladder in a corner.
         if (storeys > 1)
@@ -420,14 +420,14 @@ public static class SettlementGenerator
             }
 
             for (int x = x0; x <= x1; x++)
-            for (int z = z0; z <= z1; z++)
-            {
-                bool edge = x == x0 || x == x1 || z == z0 || z == z1;
-                if (edge || r == levels)
+                for (int z = z0; z <= z1; z++)
                 {
-                    set(x, y, z, wall);
+                    bool edge = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (edge || r == levels)
+                    {
+                        set(x, y, z, wall);
+                    }
                 }
-            }
         }
     }
 
@@ -496,22 +496,22 @@ public static class SettlementGenerator
 
         // A 3×3 paved plaza.
         for (int dx = -1; dx <= 1; dx++)
-        for (int dz = -1; dz <= 1; dz++)
-        {
-            set(cx + dx, 0, cz + dz, floor);
-        }
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                set(cx + dx, 0, cz + dz, floor);
+            }
 
         switch (kind)
         {
             case 0: // Well: a ring of accent with water in the middle.
                 for (int dx = -1; dx <= 1; dx++)
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    if (dx != 0 || dz != 0)
+                    for (int dz = -1; dz <= 1; dz++)
                     {
-                        set(cx + dx, 1, cz + dz, accent);
+                        if (dx != 0 || dz != 0)
+                        {
+                            set(cx + dx, 1, cz + dz, accent);
+                        }
                     }
-                }
 
                 if (water != 0)
                 {

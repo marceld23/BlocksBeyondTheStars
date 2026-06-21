@@ -201,8 +201,14 @@ public sealed partial class GameServer
             string name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
             placed.Add(new PlacedSettlement
             {
-                Structure = structure, Origin = origin, GroundY = groundY,
-                Tier = tier, Ruined = ruined, OnIsland = onIsland, Name = name, Rng = ir,
+                Structure = structure,
+                Origin = origin,
+                GroundY = groundY,
+                Tier = tier,
+                Ruined = ruined,
+                OnIsland = onIsland,
+                Name = name,
+                Rng = ir,
             });
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
@@ -283,35 +289,35 @@ public sealed partial class GameServer
         // 1) Clear any terrain occupying the build volume above the foundation, so a hill never buries the
         //    buildings (the structure's own air cells are otherwise left as whatever was there).
         for (int x = 0; x < s.Width; x++)
-        for (int z = 0; z < s.Length; z++)
-        for (int y = 1; y < s.Height; y++)
-        {
-            _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
-        }
+            for (int z = 0; z < s.Length; z++)
+                for (int y = 1; y < s.Height; y++)
+                {
+                    _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
+                }
 
         // 2) Flatten a foundation slab at ground level across the footprint (so it sits flush).
         if (!foundationId.IsAir)
         {
             for (int x = 0; x < s.Width; x++)
-            for (int z = 0; z < s.Length; z++)
-            {
-                _world.SetBlock(new Vector3i(origin.X + x, gy, origin.Z + z), foundationId);
-            }
+                for (int z = 0; z < s.Length; z++)
+                {
+                    _world.SetBlock(new Vector3i(origin.X + x, gy, origin.Z + z), foundationId);
+                }
         }
 
         // 3) Stamp the structure above the foundation (y=0 of the structure is the foundation row).
         for (int x = 0; x < s.Width; x++)
-        for (int y = 0; y < s.Height; y++)
-        for (int z = 0; z < s.Length; z++)
-        {
-            ushort b = s.Get(x, y, z);
-            if (b != 0)
-            {
-                var (tint, glow) = s.GetModifier(x, y, z);
-                _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z),
-                    new BlockId(b), tint, glow, s.GetShape(x, y, z));
-            }
-        }
+            for (int y = 0; y < s.Height; y++)
+                for (int z = 0; z < s.Length; z++)
+                {
+                    ushort b = s.Get(x, y, z);
+                    if (b != 0)
+                    {
+                        var (tint, glow) = s.GetModifier(x, y, z);
+                        _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z),
+                            new BlockId(b), tint, glow, s.GetShape(x, y, z));
+                    }
+                }
     }
 
     // --- placement allocator -------------------------------------------------------------------------------
@@ -584,7 +590,14 @@ public sealed partial class GameServer
 
     private static string Roman(int n) => n switch
     {
-        2 => "II", 3 => "III", 4 => "IV", 5 => "V", 6 => "VI", 7 => "VII", 8 => "VIII", 9 => "IX",
+        2 => "II",
+        3 => "III",
+        4 => "IV",
+        5 => "V",
+        6 => "VI",
+        7 => "VII",
+        8 => "VIII",
+        9 => "IX",
         _ => n.ToString(),
     };
 

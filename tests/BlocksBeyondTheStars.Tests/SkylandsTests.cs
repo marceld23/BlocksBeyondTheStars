@@ -27,44 +27,44 @@ public sealed class SkylandsTests
         // SOLID island band higher up. Sample full chunk columns over the island altitude window.
         bool foundIsland = false;
         for (int cx = 0; cx < 12 && !foundIsland; cx++)
-        for (int cz = 0; cz < 12 && !foundIsland; cz++)
-        {
-            // The island band lives around BaseHeight+28 (±12 altitude jitter, ±~16 thickness) — chunk
-            // Y=5 covers world Y 80..95 for BaseHeight 56; chunk Y=4 covers 64..79.
-            foreach (int cy in new[] { 4, 5, 6 })
+            for (int cz = 0; cz < 12 && !foundIsland; cz++)
             {
-                var coord = new ChunkCoord(cx, cy, cz);
-                var chunk = gen.Generate(planet, coord);
-                var origin = WorldConstants.ChunkOrigin(coord);
-
-                for (int lx = 0; lx < WorldConstants.ChunkSize && !foundIsland; lx++)
-                for (int lz = 0; lz < WorldConstants.ChunkSize && !foundIsland; lz++)
+                // The island band lives around BaseHeight+28 (±12 altitude jitter, ±~16 thickness) — chunk
+                // Y=5 covers world Y 80..95 for BaseHeight 56; chunk Y=4 covers 64..79.
+                foreach (int cy in new[] { 4, 5, 6 })
                 {
-                    int wx = origin.X + lx, wz = origin.Z + lz;
-                    int surface = gen.SurfaceHeight(planet, wx, wz);
+                    var coord = new ChunkCoord(cx, cy, cz);
+                    var chunk = gen.Generate(planet, coord);
+                    var origin = WorldConstants.ChunkOrigin(coord);
 
-                    // Find a solid cell in this chunk column clearly ABOVE the terrain surface…
-                    for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
-                    {
-                        int wy = origin.Y + ly;
-                        if (wy <= surface + 6 || chunk.Get(lx, ly, lz).IsAir)
+                    for (int lx = 0; lx < WorldConstants.ChunkSize && !foundIsland; lx++)
+                        for (int lz = 0; lz < WorldConstants.ChunkSize && !foundIsland; lz++)
                         {
-                            continue;
-                        }
+                            int wx = origin.X + lx, wz = origin.Z + lz;
+                            int surface = gen.SurfaceHeight(planet, wx, wz);
 
-                        // …and verify there is an air gap between the ground and this island cell.
-                        var below = gen.Generate(planet, WorldConstants.WorldToChunk(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(wx, surface + 2, wz)));
-                        var bo = WorldConstants.ChunkOrigin(WorldConstants.WorldToChunk(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(wx, surface + 2, wz)));
-                        if (below.Get(wx - bo.X, surface + 2 - bo.Y, wz - bo.Z).IsAir)
-                        {
-                            foundIsland = true;
-                        }
+                            // Find a solid cell in this chunk column clearly ABOVE the terrain surface…
+                            for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
+                            {
+                                int wy = origin.Y + ly;
+                                if (wy <= surface + 6 || chunk.Get(lx, ly, lz).IsAir)
+                                {
+                                    continue;
+                                }
 
-                        break;
-                    }
+                                // …and verify there is an air gap between the ground and this island cell.
+                                var below = gen.Generate(planet, WorldConstants.WorldToChunk(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(wx, surface + 2, wz)));
+                                var bo = WorldConstants.ChunkOrigin(WorldConstants.WorldToChunk(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(wx, surface + 2, wz)));
+                                if (below.Get(wx - bo.X, surface + 2 - bo.Y, wz - bo.Z).IsAir)
+                                {
+                                    foundIsland = true;
+                                }
+
+                                break;
+                            }
+                        }
                 }
             }
-        }
 
         Assert.True(foundIsland, "expected at least one floating island (solid band above the surface with air below) in the scanned region");
     }
@@ -81,28 +81,28 @@ public sealed class SkylandsTests
         // a grove (many trunks), others are nearly bare. A uniform sprinkle would spread them evenly.
         int total = 0, maxPerChunk = 0, emptyChunks = 0, chunks = 0;
         for (int cx = 0; cx < 10; cx++)
-        for (int cz = 0; cz < 10; cz++)
-        {
-            int trunks = 0;
-            foreach (int cy in new[] { 3, 4, 5 }) // surface band for jungle BaseHeight 66
+            for (int cz = 0; cz < 10; cz++)
             {
-                var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
-                for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
-                for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
-                for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
+                int trunks = 0;
+                foreach (int cy in new[] { 3, 4, 5 }) // surface band for jungle BaseHeight 66
                 {
-                    if (chunk.Get(lx, ly, lz) == logId)
-                    {
-                        trunks++;
-                    }
+                    var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
+                    for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
+                        for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
+                            for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
+                            {
+                                if (chunk.Get(lx, ly, lz) == logId)
+                                {
+                                    trunks++;
+                                }
+                            }
                 }
-            }
 
-            chunks++;
-            total += trunks;
-            if (trunks == 0) emptyChunks++;
-            if (trunks > maxPerChunk) maxPerChunk = trunks;
-        }
+                chunks++;
+                total += trunks;
+                if (trunks == 0) emptyChunks++;
+                if (trunks > maxPerChunk) maxPerChunk = trunks;
+            }
 
         Assert.True(total > 60, $"a jungle region should hold plenty of trees (found {total} trunk cells in {chunks} chunk columns)");
         Assert.True(maxPerChunk >= 20, $"forests should form dense groves somewhere (densest chunk column: {maxPerChunk} trunk cells)");

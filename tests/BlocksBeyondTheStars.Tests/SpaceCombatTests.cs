@@ -102,11 +102,11 @@ public sealed class SpaceCombatTests : IDisposable
             // Find a solid hull cell in the player's ship structure.
             int sx = -1, sy = -1, sz = -1;
             for (int x = 0; x < 24 && sx < 0; x++)
-            for (int y = 0; y < 24 && sx < 0; y++)
-            for (int z = 0; z < 24 && sx < 0; z++)
-            {
-                if (server.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
-            }
+                for (int y = 0; y < 24 && sx < 0; y++)
+                    for (int z = 0; z < 24 && sx < 0; z++)
+                    {
+                        if (server.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
+                    }
 
             Assert.True(sx >= 0, "the ship structure should have at least one solid cell");
 
@@ -134,11 +134,11 @@ public sealed class SpaceCombatTests : IDisposable
 
             int sx = -1, sy = -1, sz = -1;
             for (int x = 0; x < 24 && sx < 0; x++)
-            for (int y = 0; y < 24 && sx < 0; y++)
-            for (int z = 0; z < 24 && sx < 0; z++)
-            {
-                if (server.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
-            }
+                for (int y = 0; y < 24 && sx < 0; y++)
+                    for (int z = 0; z < 24 && sx < 0; z++)
+                    {
+                        if (server.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
+                    }
 
             server.HandleStructureEditForTest("Pilot",
                 new StructureEditIntent { StructureId = "ship:Pilot", X = sx, Y = sy, Z = sz, Mine = true });
@@ -257,11 +257,11 @@ public sealed class SpaceCombatTests : IDisposable
 
                 // Find a solid hull cell to mine and an adjacent air cell to build into.
                 for (int x = 0; x < 24 && sx < 0; x++)
-                for (int y = 0; y < 24 && sx < 0; y++)
-                for (int z = 0; z < 24 && sx < 0; z++)
-                {
-                    if (s1.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
-                }
+                    for (int y = 0; y < 24 && sx < 0; y++)
+                        for (int z = 0; z < 24 && sx < 0; z++)
+                        {
+                            if (s1.StructureBlockForTest("Pilot", x, y, z) != 0) { sx = x; sy = y; sz = z; }
+                        }
 
                 Assert.True(sx >= 0, "the ship structure should have at least one solid cell");
 
@@ -311,15 +311,15 @@ public sealed class SpaceCombatTests : IDisposable
 
                 // Find an air cell adjacent to a solid hull cell (a buildable spot just outside the hull).
                 for (int x = 0; x < 24 && bx < 0; x++)
-                for (int y = 0; y < 24 && bx < 0; y++)
-                for (int z = 0; z < 24 && bx < 0; z++)
-                {
-                    if (s1.StructureBlockForTest("Pilot", x, y, z) != 0
-                        && s1.StructureBlockForTest("Pilot", x, y + 1, z) == 0)
-                    {
-                        bx = x; by = y + 1; bz = z;
-                    }
-                }
+                    for (int y = 0; y < 24 && bx < 0; y++)
+                        for (int z = 0; z < 24 && bx < 0; z++)
+                        {
+                            if (s1.StructureBlockForTest("Pilot", x, y, z) != 0
+                                && s1.StructureBlockForTest("Pilot", x, y + 1, z) == 0)
+                            {
+                                bx = x; by = y + 1; bz = z;
+                            }
+                        }
 
                 Assert.True(bx >= 0, "expected an empty cell above a hull cell");
                 s1.HandleStructureEditForTest("Pilot",
@@ -375,11 +375,11 @@ public sealed class SpaceCombatTests : IDisposable
 
             int sx = -1, sy = -1, sz = -1;
             for (int x = 0; x < 24 && sx < 0; x++)
-            for (int y = 0; y < 24 && sx < 0; y++)
-            for (int z = 0; z < 24 && sx < 0; z++)
-            {
-                if (server.StructureBlockForTest("Alice", x, y, z) != 0) { sx = x; sy = y; sz = z; }
-            }
+                for (int y = 0; y < 24 && sx < 0; y++)
+                    for (int z = 0; z < 24 && sx < 0; z++)
+                    {
+                        if (server.StructureBlockForTest("Alice", x, y, z) != 0) { sx = x; sy = y; sz = z; }
+                    }
 
             Assert.True(sx >= 0);
             server.HandleStructureEditForTest("Bob",

@@ -132,8 +132,12 @@ public sealed class WorldOptionsTests : IDisposable
         using var client = new LoopbackClientTransport(link);
         var config = new ServerConfig
         {
-            WorldName = "dead", Seed = 123456, StartPlanet = "jungle",
-            AutoSaveIntervalMinutes = 9999, ViewDistanceChunks = 1, PlaceStarterShip = false,
+            WorldName = "dead",
+            Seed = 123456,
+            StartPlanet = "jungle",
+            AutoSaveIntervalMinutes = 9999,
+            ViewDistanceChunks = 1,
+            PlaceStarterShip = false,
         };
         config.Rules.CreatureAbundance = AlienActivity.Off;
         var server = new SvGameServer(config, _content, serverTransport, repo);
@@ -223,19 +227,19 @@ public sealed class WorldOptionsTests : IDisposable
         bool HasFlora(WorldGenerator gen)
         {
             for (int cx = 0; cx < 3; cx++)
-            for (int cz = 0; cz < 3; cz++)
-            for (int cy = 3; cy <= 5; cy++)
-            {
-                var chunk = gen.Generate(planet, new BlocksBeyondTheStars.Shared.World.ChunkCoord(cx, cy, cz));
-                for (int i = 0; i < chunk.RawBlocks.Length; i++)
-                {
-                    var key = _content.BlockById(new BlocksBeyondTheStars.Shared.Primitives.BlockId(chunk.RawBlocks[i]))?.Key;
-                    if (key != null && (key.StartsWith("flora_", StringComparison.Ordinal) || key == "wood_log"))
+                for (int cz = 0; cz < 3; cz++)
+                    for (int cy = 3; cy <= 5; cy++)
                     {
-                        return true;
+                        var chunk = gen.Generate(planet, new BlocksBeyondTheStars.Shared.World.ChunkCoord(cx, cy, cz));
+                        for (int i = 0; i < chunk.RawBlocks.Length; i++)
+                        {
+                            var key = _content.BlockById(new BlocksBeyondTheStars.Shared.Primitives.BlockId(chunk.RawBlocks[i]))?.Key;
+                            if (key != null && (key.StartsWith("flora_", StringComparison.Ordinal) || key == "wood_log"))
+                            {
+                                return true;
+                            }
+                        }
                     }
-                }
-            }
 
             return false;
         }
@@ -256,8 +260,12 @@ public sealed class WorldOptionsTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = $"s_{seed}", Seed = seed, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, PlaceWrecks = false,
+                WorldName = $"s_{seed}",
+                Seed = seed,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceWrecks = false,
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
@@ -273,8 +281,12 @@ public sealed class WorldOptionsTests : IDisposable
             var st2 = new LoopbackServerTransport(new LoopbackLink());
             var offConfig = new ServerConfig
             {
-                WorldName = $"s_{seed}_off", Seed = seed, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, PlaceWrecks = false,
+                WorldName = $"s_{seed}_off",
+                Seed = seed,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceWrecks = false,
             };
             offConfig.World.Settlements = Frequency.Off;
             var server2 = new SvGameServer(offConfig, _content, st2, repo2);

@@ -28,8 +28,11 @@ public sealed class GadgetTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "gadget", Seed = 3, StartPlanet = "rocky",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            WorldName = "gadget",
+            Seed = 3,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -79,11 +82,11 @@ public sealed class GadgetTests : IDisposable
             var stone = _content.GetBlock("stone")!.NumericId;
             var center = new Vector3i(12, 40, 12);
             for (int dx = -2; dx <= 2; dx++)
-            for (int dy = -2; dy <= 2; dy++)
-            for (int dz = -2; dz <= 2; dz++)
-            {
-                server.World.SetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), stone);
-            }
+                for (int dy = -2; dy <= 2; dy++)
+                    for (int dz = -2; dz <= 2; dz++)
+                    {
+                        server.World.SetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), stone);
+                    }
 
             int stoneBefore = p.State.Inventory.CountOf("stone");
 

@@ -27,11 +27,11 @@ public sealed class SettlementGenerationTests
         Assert.Equal(a.Length, b.Length);
         Assert.Equal(a.BuildingCount, b.BuildingCount);
         for (int x = 0; x < a.Width; x++)
-        for (int y = 0; y < a.Height; y++)
-        for (int z = 0; z < a.Length; z++)
-        {
-            Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
-        }
+            for (int y = 0; y < a.Height; y++)
+                for (int z = 0; z < a.Length; z++)
+                {
+                    Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
+                }
     }
 
     [Fact]
@@ -49,11 +49,11 @@ public sealed class SettlementGenerationTests
         // Built from the biome material (mud), not iron.
         bool usesMud = false;
         for (int x = 0; x < s.Width && !usesMud; x++)
-        for (int y = 0; y < s.Height; y++)
-        for (int z = 0; z < s.Length; z++)
-        {
-            if (s.Get(x, y, z) == mud) { usesMud = true; break; }
-        }
+            for (int y = 0; y < s.Height; y++)
+                for (int z = 0; z < s.Length; z++)
+                {
+                    if (s.Get(x, y, z) == mud) { usesMud = true; break; }
+                }
 
         Assert.True(usesMud, "A village should be built from its biome surface block.");
     }
@@ -68,11 +68,11 @@ public sealed class SettlementGenerationTests
         Assert.Equal("town", s.Tier);
         bool hasLadder = false;
         for (int x = 0; x < s.Width && !hasLadder; x++)
-        for (int y = 0; y < s.Height; y++)
-        for (int z = 0; z < s.Length; z++)
-        {
-            if (s.Get(x, y, z) == ladder) { hasLadder = true; break; }
-        }
+            for (int y = 0; y < s.Height; y++)
+                for (int z = 0; z < s.Length; z++)
+                {
+                    if (s.Get(x, y, z) == ladder) { hasLadder = true; break; }
+                }
 
         Assert.True(hasLadder, "A multi-storey town building must have a ladder between floors.");
     }
@@ -111,11 +111,11 @@ public sealed class SettlementGenerationTests
 
         int interiorAir = 0;
         for (int x = 1; x < s.Width - 1; x++)
-        for (int y = 1; y < s.Height - 1; y++)
-        for (int z = 1; z < s.Length - 1; z++)
-        {
-            if (s.Get(x, y, z) == air) interiorAir++;
-        }
+            for (int y = 1; y < s.Height - 1; y++)
+                for (int z = 1; z < s.Length - 1; z++)
+                {
+                    if (s.Get(x, y, z) == air) interiorAir++;
+                }
 
         Assert.True(interiorAir > 0, "Buildings must be hollow (enterable rooms).");
         Assert.True(s.BuildingCount >= 1);

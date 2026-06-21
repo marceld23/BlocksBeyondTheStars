@@ -83,14 +83,14 @@ public sealed class FluidTests : IDisposable
 
             // A stone basin (floor at y0) filled with a 9x9x3 body of static "sea" water (y0+1..y0+3).
             for (int x = -4; x <= 4; x++)
-            for (int z = -4; z <= 4; z++)
-            {
-                server.World.SetBlock(new Vector3i(x, y0, z), stone);
-                for (int y = y0 + 1; y <= y0 + 3; y++)
+                for (int z = -4; z <= 4; z++)
                 {
-                    server.World.SetBlock(new Vector3i(x, y, z), water);
+                    server.World.SetBlock(new Vector3i(x, y0, z), stone);
+                    for (int y = y0 + 1; y <= y0 + 3; y++)
+                    {
+                        server.World.SetBlock(new Vector3i(x, y, z), water);
+                    }
                 }
-            }
 
             var p = server.AddLocalPlayer("Miner");
             p.State.Position = new Vector3f(0.5f, y0 + 5f, 0.5f);
@@ -182,10 +182,10 @@ public sealed class FluidTests : IDisposable
             var stone = _content.GetBlock("stone")!.NumericId;
             int y = 130;
             for (int x = -3; x <= 3; x++)
-            for (int z = -3; z <= 3; z++)
-            {
-                server.World.SetBlock(new Vector3i(x, y - 1, z), stone);
-            }
+                for (int z = -3; z <= 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y - 1, z), stone);
+                }
 
             server.PlaceFluidSource("water", 0, y, 0);
             for (int i = 0; i < 6; i++)

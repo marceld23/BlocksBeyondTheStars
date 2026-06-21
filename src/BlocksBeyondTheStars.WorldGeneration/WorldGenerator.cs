@@ -90,36 +90,36 @@ public sealed class WorldGenerator
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
         for (int lx = 0; lx < cs; lx++)
-        for (int lz = 0; lz < cs; lz++)
-        {
-            int worldX = origin.X + lx;
-            int worldZ = origin.Z + lz;
-            if (PadSurfaceAt(worldX, worldZ) is not int padY)
+            for (int lz = 0; lz < cs; lz++)
             {
-                continue;
-            }
+                int worldX = origin.X + lx;
+                int worldZ = origin.Z + lz;
+                if (PadSurfaceAt(worldX, worldZ) is not int padY)
+                {
+                    continue;
+                }
 
-            int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
-            var surfaceId = biomes[biomeIndex].Surface;
-            var subSurfaceId = biomes[biomeIndex].Sub;
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
+                var surfaceId = biomes[biomeIndex].Surface;
+                var subSurfaceId = biomes[biomeIndex].Sub;
 
-            for (int ly = 0; ly < cs; ly++)
-            {
-                int worldY = origin.Y + ly;
-                if (worldY > padY)
+                for (int ly = 0; ly < cs; ly++)
                 {
-                    chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
-                }
-                else if (worldY == padY)
-                {
-                    chunk.Set(lx, ly, lz, surfaceId); // a natural, level pad surface
-                }
-                else if (worldY >= padY - PadFoundationDepth && chunk.Get(lx, ly, lz).IsAir)
-                {
-                    chunk.Set(lx, ly, lz, subSurfaceId); // plug caves directly under the pad
+                    int worldY = origin.Y + ly;
+                    if (worldY > padY)
+                    {
+                        chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
+                    }
+                    else if (worldY == padY)
+                    {
+                        chunk.Set(lx, ly, lz, surfaceId); // a natural, level pad surface
+                    }
+                    else if (worldY >= padY - PadFoundationDepth && chunk.Get(lx, ly, lz).IsAir)
+                    {
+                        chunk.Set(lx, ly, lz, subSurfaceId); // plug caves directly under the pad
+                    }
                 }
             }
-        }
     }
 
     // World options (creation-time, from the save's WorldDescription): global factors on top of the
@@ -274,59 +274,59 @@ public sealed class WorldGenerator
                 return h * amp * 0.75; // gentle rolling hills
 
             case "mountains":
-            {
-                double r = h * 0.25 + Ridge(h) * 0.75; // sharp, rugged
-                if (r > 0)
                 {
-                    r = System.Math.Pow(r, 1.35); // W-R1 crest sharpening: flatter mid-slopes, prouder peaks
-                }
+                    double r = h * 0.25 + Ridge(h) * 0.75; // sharp, rugged
+                    if (r > 0)
+                    {
+                        r = System.Math.Pow(r, 1.35); // W-R1 crest sharpening: flatter mid-slopes, prouder peaks
+                    }
 
-                return r * amp * 1.9;
-            }
+                    return r * amp * 1.9;
+                }
 
             case "canyons":
-            {
-                double r = h * 0.35 + Ridge(h) * 0.65;
-                if (r < 0)
                 {
-                    r = -System.Math.Pow(-r, 0.8); // W-R1: broader, deeper canyon floors below the mesatops
-                }
+                    double r = h * 0.35 + Ridge(h) * 0.65;
+                    if (r < 0)
+                    {
+                        r = -System.Math.Pow(-r, 0.8); // W-R1: broader, deeper canyon floors below the mesatops
+                    }
 
-                return r * amp * 1.4; // deep ridged canyons + mesatops
-            }
+                    return r * amp * 1.4; // deep ridged canyons + mesatops
+                }
 
             case "mesa":
-            {
-                // Terraced plateaus: quantise the height into flat decks separated by sharp cliffs, with a little
-                // roll on each deck so the tops aren't dead flat.
-                double raw = h * amp * 1.15;
-                double step = System.Math.Max(3.0, amp * 0.30);
-                double deck = System.Math.Floor(raw / step) * step;
-                double roll = FbmT(seed + 0x3E5A, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
-                return deck + (roll - 0.5) * 2.0; // ±2-block texture on each deck
-            }
-
-            case "dunes":
-            {
-                // Parallel wind-blown ridges: a ridged mid-frequency field laid over a gentle base.
-                double d = FbmT(seed + 0x0D0E, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
-                double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0); // 0..1 dune crests
-                return h * amp * 0.25 + ridged * amp * 0.85;
-            }
-
-            case "spires":
-            {
-                // Mostly flat ground studded with sparse tall thin spikes (crystal needles / alien towers).
-                double basep = h * amp * 0.22;
-                double mask = FbmT(seed + 0x591E, worldX, worldZ, planet.TerrainScale * 0.4, octaves: 2);
-                if (mask > 0.72)
                 {
-                    double t = (mask - 0.72) / 0.28; // 0..1 toward the spike centre
-                    return basep + t * t * amp * 2.6;
+                    // Terraced plateaus: quantise the height into flat decks separated by sharp cliffs, with a little
+                    // roll on each deck so the tops aren't dead flat.
+                    double raw = h * amp * 1.15;
+                    double step = System.Math.Max(3.0, amp * 0.30);
+                    double deck = System.Math.Floor(raw / step) * step;
+                    double roll = FbmT(seed + 0x3E5A, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    return deck + (roll - 0.5) * 2.0; // ±2-block texture on each deck
                 }
 
-                return basep;
-            }
+            case "dunes":
+                {
+                    // Parallel wind-blown ridges: a ridged mid-frequency field laid over a gentle base.
+                    double d = FbmT(seed + 0x0D0E, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
+                    double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0); // 0..1 dune crests
+                    return h * amp * 0.25 + ridged * amp * 0.85;
+                }
+
+            case "spires":
+                {
+                    // Mostly flat ground studded with sparse tall thin spikes (crystal needles / alien towers).
+                    double basep = h * amp * 0.22;
+                    double mask = FbmT(seed + 0x591E, worldX, worldZ, planet.TerrainScale * 0.4, octaves: 2);
+                    if (mask > 0.72)
+                    {
+                        double t = (mask - 0.72) / 0.28; // 0..1 toward the spike centre
+                        return basep + t * t * amp * 2.6;
+                    }
+
+                    return basep;
+                }
 
             default:
                 return h * amp; // unknown style → plain base swell
@@ -761,180 +761,180 @@ public sealed class WorldGenerator
         var origin = WorldConstants.ChunkOrigin(coord);
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
-        for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
-        {
-            int worldX = origin.X + lx;
-            int worldZ = origin.Z + lz;
-            int surfaceY = SurfaceHeight(planet, worldX, worldZ);
-
-            // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
-            // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
-            // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
-            int seabedY = surfaceY;
-            int waterTop = fluidLevel;
-            var columnFluid = fluidId;
-            bool pondHere = false;
-            if (ponds && surfaceY > fluidLevel)
+            for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
             {
-                int pondDepth = PondDepthAt(planet, seed, worldX, worldZ, pondThreshold);
-                if (pondDepth > 0)
+                int worldX = origin.X + lx;
+                int worldZ = origin.Z + lz;
+                int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+
+                // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
+                // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
+                // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
+                int seabedY = surfaceY;
+                int waterTop = fluidLevel;
+                var columnFluid = fluidId;
+                bool pondHere = false;
+                if (ponds && surfaceY > fluidLevel)
                 {
-                    seabedY = surfaceY - pondDepth;
-                    waterTop = surfaceY;
-                    columnFluid = seaWaterId;
-                    pondHere = true;
-                }
-            }
-
-            // Rivers: a winding river-line noise band carves a channel (deepest at the centre, tapering to the
-            // banks) and fills it with water flush to the surface — a meandering river across low/mid terrain.
-            // (Skipped where a pond already claimed the column. The old guard compared columnFluid to the sea
-            // fluid, which on a water world equals the column's default fluid — so rivers never carved.)
-            if (rivers && !pondHere && surfaceY > fluidLevel && surfaceY <= riverMaxY)
-            {
-                int depth = RiverDepthAt(planet, seed, worldX, worldZ);
-                if (depth >= 1)
-                {
-                    seabedY = surfaceY - depth;
-                    waterTop = surfaceY;
-                    columnFluid = seaWaterId;
-                }
-            }
-
-            // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
-            int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
-            var biome = biomes[biomeIndex];
-            var surfaceId = biome.Surface;
-            var subSurfaceId = biome.Sub;
-
-            // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
-            // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air. The band is
-            // resolved by the shared helper so settlement placement can query the same island tops.
-            int islandTop = int.MinValue, islandBottom = int.MaxValue;
-            if (floatingIslands)
-            {
-                FloatingIslandBand(planet, worldX, worldZ, out islandTop, out islandBottom);
-            }
-
-            // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
-            // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
-            BlockId? craterMetal = (planet.Cratered || _crateredWorld)
-                ? CraterFloorMetal(planet, seed, worldX, worldZ) : (BlockId?)null;
-
-            for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
-            {
-                int worldY = origin.Y + ly;
-                if (worldY > seabedY)
-                {
-                    if (worldY <= waterTop)
+                    int pondDepth = PondDepthAt(planet, seed, worldX, worldZ, pondThreshold);
+                    if (pondDepth > 0)
                     {
-                        chunk.Set(lx, ly, lz, columnFluid); // sea fill in a basin, or an upland pond above it
-                    }
-                    else if (floatingIslands && worldY >= islandBottom && worldY <= islandTop)
-                    {
-                        // A sky island: grass-topped deck, sub-surface just under it, stone underbelly below.
-                        var ib = worldY == islandTop ? surfaceId : (worldY >= islandTop - 2 ? subSurfaceId : deepId);
-                        chunk.Set(lx, ly, lz, ib);
-                    }
-
-                    continue; // else air above the surface
-                }
-
-                int depth = seabedY - worldY;
-
-                // Unmineable world floor (B46/B?): solid bedrock at the very bottom of this world's deep
-                // foundation (no caves carved through it), with a boundary band just above — molten lava on real
-                // planets, basalt on airless moons/asteroids — so digging all the way down ends in lava/rock,
-                // never a void you can fall out of.
-                if (depth >= floorDepth)
-                {
-                    chunk.Set(lx, ly, lz, bedrockId);
-                    continue;
-                }
-
-                if (depth >= floorDepth - FloorBandThickness)
-                {
-                    chunk.Set(lx, ly, lz, floorBandId);
-                    continue;
-                }
-
-                // Carve caves below the surface layer (per-world cave frequency, item 21).
-                if (caveThreshold > 0.0 && depth > 1)
-                {
-                    double cave = ValueT(seed + 7777, worldX, worldY, worldZ, 22.0, 16.0, 22.0);
-                    if (cave > caveThreshold)
-                    {
-                        continue; // cave => air
+                        seabedY = surfaceY - pondDepth;
+                        waterTop = surfaceY;
+                        columnFluid = seaWaterId;
+                        pondHere = true;
                     }
                 }
 
-                BlockId block;
-                if (craterMetal.HasValue && depth <= 1)
+                // Rivers: a winding river-line noise band carves a channel (deepest at the centre, tapering to the
+                // banks) and fills it with water flush to the surface — a meandering river across low/mid terrain.
+                // (Skipped where a pond already claimed the column. The old guard compared columnFluid to the sea
+                // fluid, which on a water world equals the column's default fluid — so rivers never carved.)
+                if (rivers && !pondHere && surfaceY > fluidLevel && surfaceY <= riverMaxY)
                 {
-                    block = craterMetal.Value; // a rare-metal clump on the crater floor (top two cells)
-                }
-                else if (depth < planet.SurfaceDepth)
-                {
-                    block = depth == 0 ? surfaceId : subSurfaceId;
-                }
-                else
-                {
-                    // Deep crust turns to a dark basalt mantle below this world's mantle depth (item 21), so the
-                    // interior isn't one uniform stone column on every world. Ores still vein through it.
-                    var rock = depth >= mantleDepth ? mantleId : deepId;
-                    block = SelectOre(planet, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
-
-                    if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
+                    int depth = RiverDepthAt(planet, seed, worldX, worldZ);
+                    if (depth >= 1)
                     {
-                        double r = Noise.Value01(seed + 4242, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ));
-                        if (r < planet.DataCacheRarity)
+                        seabedY = surfaceY - depth;
+                        waterTop = surfaceY;
+                        columnFluid = seaWaterId;
+                    }
+                }
+
+                // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
+                var biome = biomes[biomeIndex];
+                var surfaceId = biome.Surface;
+                var subSurfaceId = biome.Sub;
+
+                // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
+                // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air. The band is
+                // resolved by the shared helper so settlement placement can query the same island tops.
+                int islandTop = int.MinValue, islandBottom = int.MaxValue;
+                if (floatingIslands)
+                {
+                    FloatingIslandBand(planet, worldX, worldZ, out islandTop, out islandBottom);
+                }
+
+                // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
+                // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
+                BlockId? craterMetal = (planet.Cratered || _crateredWorld)
+                    ? CraterFloorMetal(planet, seed, worldX, worldZ) : (BlockId?)null;
+
+                for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
+                {
+                    int worldY = origin.Y + ly;
+                    if (worldY > seabedY)
+                    {
+                        if (worldY <= waterTop)
                         {
-                            block = dataCacheId;
+                            chunk.Set(lx, ly, lz, columnFluid); // sea fill in a basin, or an upland pond above it
+                        }
+                        else if (floatingIslands && worldY >= islandBottom && worldY <= islandTop)
+                        {
+                            // A sky island: grass-topped deck, sub-surface just under it, stone underbelly below.
+                            var ib = worldY == islandTop ? surfaceId : (worldY >= islandTop - 2 ? subSurfaceId : deepId);
+                            chunk.Set(lx, ly, lz, ib);
+                        }
+
+                        continue; // else air above the surface
+                    }
+
+                    int depth = seabedY - worldY;
+
+                    // Unmineable world floor (B46/B?): solid bedrock at the very bottom of this world's deep
+                    // foundation (no caves carved through it), with a boundary band just above — molten lava on real
+                    // planets, basalt on airless moons/asteroids — so digging all the way down ends in lava/rock,
+                    // never a void you can fall out of.
+                    if (depth >= floorDepth)
+                    {
+                        chunk.Set(lx, ly, lz, bedrockId);
+                        continue;
+                    }
+
+                    if (depth >= floorDepth - FloorBandThickness)
+                    {
+                        chunk.Set(lx, ly, lz, floorBandId);
+                        continue;
+                    }
+
+                    // Carve caves below the surface layer (per-world cave frequency, item 21).
+                    if (caveThreshold > 0.0 && depth > 1)
+                    {
+                        double cave = ValueT(seed + 7777, worldX, worldY, worldZ, 22.0, 16.0, 22.0);
+                        if (cave > caveThreshold)
+                        {
+                            continue; // cave => air
                         }
                     }
+
+                    BlockId block;
+                    if (craterMetal.HasValue && depth <= 1)
+                    {
+                        block = craterMetal.Value; // a rare-metal clump on the crater floor (top two cells)
+                    }
+                    else if (depth < planet.SurfaceDepth)
+                    {
+                        block = depth == 0 ? surfaceId : subSurfaceId;
+                    }
+                    else
+                    {
+                        // Deep crust turns to a dark basalt mantle below this world's mantle depth (item 21), so the
+                        // interior isn't one uniform stone column on every world. Ores still vein through it.
+                        var rock = depth >= mantleDepth ? mantleId : deepId;
+                        block = SelectOre(planet, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
+
+                        if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
+                        {
+                            double r = Noise.Value01(seed + 4242, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ));
+                            if (r < planet.DataCacheRarity)
+                            {
+                                block = dataCacheId;
+                            }
+                        }
+                    }
+
+                    chunk.Set(lx, ly, lz, block);
                 }
 
-                chunk.Set(lx, ly, lz, block);
-            }
-
-            // Surface flora: one plant in the air cell directly above the surface (bounded — one per column,
-            // no spreading), chosen by biome surface + a density roll. Columns that lie under the sea grow
-            // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
-            if (flora && seabedY + 1 > waterTop)
-            {
-                var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ);
-                int fy = seabedY + 1;
-                int fly = fy - origin.Y;
-                // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
-                // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
-                // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
-                double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
-                if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < localFloraDensity)
+                // Surface flora: one plant in the air cell directly above the surface (bounded — one per column,
+                // no spreading), chosen by biome surface + a density roll. Columns that lie under the sea grow
+                // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
+                if (flora && seabedY + 1 > waterTop)
                 {
-                    chunk.Set(lx, fly, lz, floraId);
+                    var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ);
+                    int fy = seabedY + 1;
+                    int fly = fy - origin.Y;
+                    // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
+                    // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
+                    // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
+                    double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
+                    if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
+                        && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < localFloraDensity)
+                    {
+                        chunk.Set(lx, fly, lz, floraId);
+                    }
                 }
-            }
-            else if (waterFlora && seabedY + 1 <= waterTop)
-            {
-                // Submerged column — the sea or an upland pond grows seabed plants / lily pads, not land flora.
-                StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
-                    kelpId, lilyId, coralId, seagrassId, floraDensity);
-            }
-
-            // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
-            if (flora && islandTop != int.MinValue)
-            {
-                var isleFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
-                int ify = islandTop + 1 - origin.Y;
-                double isleDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
-                if (!isleFlora.IsAir && ify >= 0 && ify < WorldConstants.ChunkSize
-                    && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < isleDensity)
+                else if (waterFlora && seabedY + 1 <= waterTop)
                 {
-                    chunk.Set(lx, ify, lz, isleFlora);
+                    // Submerged column — the sea or an upland pond grows seabed plants / lily pads, not land flora.
+                    StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
+                        kelpId, lilyId, coralId, seagrassId, floraDensity);
+                }
+
+                // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
+                if (flora && islandTop != int.MinValue)
+                {
+                    var isleFlora = FloraForSurface(planet, biome, seed, worldX, worldZ);
+                    int ify = islandTop + 1 - origin.Y;
+                    double isleDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
+                    if (!isleFlora.IsAir && ify >= 0 && ify < WorldConstants.ChunkSize
+                        && Noise.Value01(seed + 9002, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < isleDensity)
+                    {
+                        chunk.Set(lx, ify, lz, isleFlora);
+                    }
                 }
             }
-        }
 
         if (trees)
         {
@@ -999,102 +999,102 @@ public sealed class WorldGenerator
         // Margin 6 so the widest feature (a stone circle, radius ~4) generates identically from either side
         // of a chunk edge.
         for (int wx = origin.X - 6; wx < origin.X + cs + 6; wx++)
-        for (int wz = origin.Z - 6; wz < origin.Z + cs + 6; wz++)
-        {
-            int cx = WorldConstants.WrapX(wx, _circumference);
-
-            // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
-            bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, Wz(wz)) < 0.0012;
-            bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, Wz(wz)) < 0.0008;
-            bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, Wz(wz)) < 0.0009;
-            // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
-            // landmark finds with a data cache at the base/centre worth detouring for.
-            bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, Wz(wz)) < 0.00018;
-            bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, Wz(wz)) < 0.00007;
-            if (!boulder && !shard && !deadTree && !monolith && !circle)
+            for (int wz = origin.Z - 6; wz < origin.Z + cs + 6; wz++)
             {
-                continue;
-            }
+                int cx = WorldConstants.WrapX(wx, _circumference);
 
-            int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
-            {
-                continue; // dry ground only
-            }
-
-            int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, Wz(wz)) * 997); // per-column shape hash
-            var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
-
-            if (monolith)
-            {
-                // A lone weathered monolith, 5–7 tall, with a data cache leaning at its base.
-                int height = 5 + h1 % 3;
-                for (int dy = 1; dy <= height; dy++)
+                // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
+                bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, Wz(wz)) < 0.0012;
+                bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, Wz(wz)) < 0.0008;
+                bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, Wz(wz)) < 0.0009;
+                // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
+                // landmark finds with a data cache at the base/centre worth detouring for.
+                bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, Wz(wz)) < 0.00018;
+                bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, Wz(wz)) < 0.00007;
+                if (!boulder && !shard && !deadTree && !monolith && !circle)
                 {
-                    SetCell(wx, sy + dy, wz, boulderId);
+                    continue;
                 }
 
-                if (!cacheId.IsAir)
+                int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
                 {
-                    SetCell(wx + 1, sy + 1, wz, cacheId);
+                    continue; // dry ground only
                 }
-            }
-            else if (circle)
-            {
-                // A broken stone circle: pillars on a radius-4 ring (some collapsed), a data cache at the
-                // centre. Each pillar grounds on its own column so the ring follows the terrain.
-                (int X, int Z)[] ring = { (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3), (0, -4), (3, -3) };
-                for (int r = 0; r < ring.Length; r++)
+
+                int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, Wz(wz)) * 997); // per-column shape hash
+                var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
+
+                if (monolith)
                 {
-                    if (((h1 >> r) & 1) == 0 && r % 3 == 2)
+                    // A lone weathered monolith, 5–7 tall, with a data cache leaning at its base.
+                    int height = 5 + h1 % 3;
+                    for (int dy = 1; dy <= height; dy++)
                     {
-                        continue; // the odd collapsed pillar
+                        SetCell(wx, sy + dy, wz, boulderId);
                     }
 
-                    int px = wx + ring[r].X, pz = wz + ring[r].Z;
-                    int py = SurfaceHeight(planet, px, pz);
-                    int ph = 2 + ((h1 >> r) & 1);
-                    for (int dy = 1; dy <= ph; dy++)
+                    if (!cacheId.IsAir)
                     {
-                        SetCell(px, py + dy, pz, boulderId);
+                        SetCell(wx + 1, sy + 1, wz, cacheId);
                     }
                 }
+                else if (circle)
+                {
+                    // A broken stone circle: pillars on a radius-4 ring (some collapsed), a data cache at the
+                    // centre. Each pillar grounds on its own column so the ring follows the terrain.
+                    (int X, int Z)[] ring = { (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3), (0, -4), (3, -3) };
+                    for (int r = 0; r < ring.Length; r++)
+                    {
+                        if (((h1 >> r) & 1) == 0 && r % 3 == 2)
+                        {
+                            continue; // the odd collapsed pillar
+                        }
 
-                if (!cacheId.IsAir)
-                {
-                    SetCell(wx, sy + 1, wz, cacheId);
-                }
-            }
-            else if (boulder)
-            {
-                // An irregular 2–4 block boulder cluster of the world's own rock.
-                SetCell(wx, sy + 1, wz, boulderId);
-                if ((h1 & 1) == 0) SetCell(wx + 1, sy + 1, wz, boulderId);
-                if ((h1 & 2) == 0) SetCell(wx, sy + 1, wz + 1, boulderId);
-                if ((h1 & 12) == 0) SetCell(wx, sy + 2, wz, boulderId); // the odd two-tall rock
-            }
-            else if (shard)
-            {
-                // A jutting crystal shard, 1–3 blocks tall (taller ones rarer).
-                int height = 1 + h1 % 3;
-                for (int dy = 1; dy <= height; dy++)
-                {
-                    SetCell(wx, sy + dy, wz, crystalId);
-                }
-            }
-            else if (deadTree)
-            {
-                // A bare dead trunk (3–5 tall) with a single stub branch near the top — no leaves.
-                int height = 3 + h1 % 3;
-                for (int dy = 1; dy <= height; dy++)
-                {
-                    SetCell(wx, sy + dy, wz, deadLogId);
-                }
+                        int px = wx + ring[r].X, pz = wz + ring[r].Z;
+                        int py = SurfaceHeight(planet, px, pz);
+                        int ph = 2 + ((h1 >> r) & 1);
+                        for (int dy = 1; dy <= ph; dy++)
+                        {
+                            SetCell(px, py + dy, pz, boulderId);
+                        }
+                    }
 
-                int bx = (h1 & 4) == 0 ? 1 : -1;
-                SetCell(wx + bx, sy + height - 1, wz, deadLogId);
+                    if (!cacheId.IsAir)
+                    {
+                        SetCell(wx, sy + 1, wz, cacheId);
+                    }
+                }
+                else if (boulder)
+                {
+                    // An irregular 2–4 block boulder cluster of the world's own rock.
+                    SetCell(wx, sy + 1, wz, boulderId);
+                    if ((h1 & 1) == 0) SetCell(wx + 1, sy + 1, wz, boulderId);
+                    if ((h1 & 2) == 0) SetCell(wx, sy + 1, wz + 1, boulderId);
+                    if ((h1 & 12) == 0) SetCell(wx, sy + 2, wz, boulderId); // the odd two-tall rock
+                }
+                else if (shard)
+                {
+                    // A jutting crystal shard, 1–3 blocks tall (taller ones rarer).
+                    int height = 1 + h1 % 3;
+                    for (int dy = 1; dy <= height; dy++)
+                    {
+                        SetCell(wx, sy + dy, wz, crystalId);
+                    }
+                }
+                else if (deadTree)
+                {
+                    // A bare dead trunk (3–5 tall) with a single stub branch near the top — no leaves.
+                    int height = 3 + h1 % 3;
+                    for (int dy = 1; dy <= height; dy++)
+                    {
+                        SetCell(wx, sy + dy, wz, deadLogId);
+                    }
+
+                    int bx = (h1 & 4) == 0 ? 1 : -1;
+                    SetCell(wx + bx, sy + height - 1, wz, deadLogId);
+                }
             }
-        }
     }
 
     /// <summary>Stamps sparse geyser/vent marker blocks on the surface (item 21 follow-up): the topmost ground
@@ -1107,25 +1107,25 @@ public sealed class WorldGenerator
         const double density = 0.0015; // per-column chance (rare — geysers are scattered landmarks)
 
         for (int wx = origin.X; wx < origin.X + cs; wx++)
-        for (int wz = origin.Z; wz < origin.Z + cs; wz++)
-        {
-            if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, Wz(wz)) >= density)
+            for (int wz = origin.Z; wz < origin.Z + cs; wz++)
             {
-                continue;
-            }
+                if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, Wz(wz)) >= density)
+                {
+                    continue;
+                }
 
-            int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
-            {
-                continue; // a vent needs open ground (not a sea/pond column)
-            }
+                int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                {
+                    continue; // a vent needs open ground (not a sea/pond column)
+                }
 
-            int ly = sy - origin.Y;
-            if (ly >= 0 && ly < cs)
-            {
-                chunk.Set(wx - origin.X, ly, wz - origin.Z, ventId); // the surface cell becomes a vent
+                int ly = sy - origin.Y;
+                if (ly >= 0 && ly < cs)
+                {
+                    chunk.Set(wx - origin.X, ly, wz - origin.Z, ventId); // the surface cell becomes a vent
+                }
             }
-        }
     }
 
     /// <summary>Stamps towering giant mushrooms (a fibrous stem + a domed cap) on a fungal world's mycelium
@@ -1156,53 +1156,53 @@ public sealed class WorldGenerator
         }
 
         for (int wx = origin.X - maxCapR; wx < origin.X + cs + maxCapR; wx++)
-        for (int wz = origin.Z - maxCapR; wz < origin.Z + cs + maxCapR; wz++)
-        {
-            if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, Wz(wz)) >= density)
+            for (int wz = origin.Z - maxCapR; wz < origin.Z + cs + maxCapR; wz++)
             {
-                continue;
-            }
-
-            var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)].Surface;
-            if (surf != myceliumId)
-            {
-                continue; // only on mycelium ground
-            }
-
-            int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
-            {
-                continue; // not in water
-            }
-
-            // Per-mushroom size (loosely-coupled stem height + cap): a shared bell factor with independent
-            // jitter on each, so a fungal grove reads as a mix of small and towering capped fungi.
-            double sizeF = SizeFactor(seed + 0x53410, wx, wz, 0.30);  // overall size, ±30% (bell)
-            double hJit = SizeFactor(seed + 0x53411, wx, wz, 0.12);  // independent stem-height jitter
-            double cJit = SizeFactor(seed + 0x53412, wx, wz, 0.12);  // independent cap jitter
-            int height = System.Math.Clamp((int)System.Math.Round(7.0 * sizeF * hJit), 4, 12);   // ~5..9 before
-            int capR = System.Math.Clamp((int)System.Math.Round(3.0 * sizeF * cJit), 2, maxCapR); // 2..4
-            int topY = sy + height;
-            for (int ty = sy + 1; ty <= topY; ty++)
-            {
-                SetCell(wx, ty, wz, stemId, overwrite: true);
-            }
-
-            // A domed cap: shrinking discs stacked above the stem top (taller dome for bigger caps).
-            int capLayers = capR - 1;
-            for (int dy = 0; dy <= capLayers; dy++)
-            {
-                int rr = capR - dy;
-                for (int dx = -rr; dx <= rr; dx++)
-                for (int dz = -rr; dz <= rr; dz++)
+                if (Noise.Value01(seed + 0x5340, WorldConstants.WrapX(wx, _circumference), 17, Wz(wz)) >= density)
                 {
-                    if (dx * dx + dz * dz <= rr * rr + 1)
-                    {
-                        SetCell(wx + dx, topY + dy, wz + dz, capId, overwrite: false);
-                    }
+                    continue;
+                }
+
+                var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)].Surface;
+                if (surf != myceliumId)
+                {
+                    continue; // only on mycelium ground
+                }
+
+                int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                {
+                    continue; // not in water
+                }
+
+                // Per-mushroom size (loosely-coupled stem height + cap): a shared bell factor with independent
+                // jitter on each, so a fungal grove reads as a mix of small and towering capped fungi.
+                double sizeF = SizeFactor(seed + 0x53410, wx, wz, 0.30);  // overall size, ±30% (bell)
+                double hJit = SizeFactor(seed + 0x53411, wx, wz, 0.12);  // independent stem-height jitter
+                double cJit = SizeFactor(seed + 0x53412, wx, wz, 0.12);  // independent cap jitter
+                int height = System.Math.Clamp((int)System.Math.Round(7.0 * sizeF * hJit), 4, 12);   // ~5..9 before
+                int capR = System.Math.Clamp((int)System.Math.Round(3.0 * sizeF * cJit), 2, maxCapR); // 2..4
+                int topY = sy + height;
+                for (int ty = sy + 1; ty <= topY; ty++)
+                {
+                    SetCell(wx, ty, wz, stemId, overwrite: true);
+                }
+
+                // A domed cap: shrinking discs stacked above the stem top (taller dome for bigger caps).
+                int capLayers = capR - 1;
+                for (int dy = 0; dy <= capLayers; dy++)
+                {
+                    int rr = capR - dy;
+                    for (int dx = -rr; dx <= rr; dx++)
+                        for (int dz = -rr; dz <= rr; dz++)
+                        {
+                            if (dx * dx + dz * dz <= rr * rr + 1)
+                            {
+                                SetCell(wx + dx, topY + dy, wz + dz, capId, overwrite: false);
+                            }
+                        }
                 }
             }
-        }
     }
 
     /// <summary>A deterministic per-instance size factor centred on 1.0 (a "bell" — the average of two
@@ -1253,63 +1253,63 @@ public sealed class WorldGenerator
         }
 
         for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
-        for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
-        {
-            var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)];
-
-            // FORESTS: a low-frequency mask gathers trees into real groves/woods. Inside a forest patch the
-            // density is ~9x, on the fringe ~2x, the open land between almost bare — scaled by the biome's
-            // (and its theme's) tree density so savanna stays sparse, jungle dense, fungal/crystal treeless.
-            double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
-            double localDensity = density * biome.TreeMul * biome.Theme.TreeMul
-                * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
-            if (localDensity <= 0.0
-                || Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
+            for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
             {
-                continue;
-            }
+                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)];
 
-            // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
-            var kind = PickTreeKind(biome.Theme.Trees, seed, wx, wz, planet.TerrainScale);
-            if (kind == TreeKind.None)
-            {
-                continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
-            }
+                // FORESTS: a low-frequency mask gathers trees into real groves/woods. Inside a forest patch the
+                // density is ~9x, on the fringe ~2x, the open land between almost bare — scaled by the biome's
+                // (and its theme's) tree density so savanna stays sparse, jungle dense, fungal/crystal treeless.
+                double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
+                double localDensity = density * biome.TreeMul * biome.Theme.TreeMul
+                    * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
+                if (localDensity <= 0.0
+                    || Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
+                {
+                    continue;
+                }
 
-            var surf = biome.Surface;
-            bool earthy = surf == grassId || surf == dirtId || surf == mudId;
-            bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
-            if (!earthy && !sandyOk)
-            {
-                continue;
-            }
+                // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
+                var kind = PickTreeKind(biome.Theme.Trees, seed, wx, wz, planet.TerrainScale);
+                if (kind == TreeKind.None)
+                {
+                    continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
+                }
 
-            int sy = SurfaceHeight(planet, wx, wz);
-            if (sy + 1 <= fluidLevel)
-            {
-                continue; // not in the sea
-            }
+                var surf = biome.Surface;
+                bool earthy = surf == grassId || surf == dirtId || surf == mudId;
+                bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
+                if (!earthy && !sandyOk)
+                {
+                    continue;
+                }
 
-            if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
-            {
-                continue; // B35: an upland pond/lake or a river here — a tree would stand in the water
-            }
+                int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 <= fluidLevel)
+                {
+                    continue; // not in the sea
+                }
 
-            // Per-tree size (loosely-coupled height + crown): a shared bell factor sets the overall scale,
-            // with a smaller independent jitter on each so trunk height and crown width still vary apart.
-            double sizeF = SizeFactor(seed + 0x71EE5, wx, wz, 0.30);              // overall tree size, ±30% (bell)
-            double hJit = SizeFactor(seed + 0x71EE6, wx, wz, 0.12);              // independent height jitter
-            double cJit = SizeFactor(seed + 0x71EE7, wx, wz, 0.12);              // independent crown jitter
+                if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                {
+                    continue; // B35: an upland pond/lake or a river here — a tree would stand in the water
+                }
 
-            switch (kind)
-            {
-                case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, SetCell); break;
-                case TreeKind.Palm:    BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, SetCell); break;
-                case TreeKind.Jungle:  BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
-                case TreeKind.Dead:    BuildDead(wx, sy, wz, sizeF, hJit, logId, SetCell); break;
-                default:               BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                // Per-tree size (loosely-coupled height + crown): a shared bell factor sets the overall scale,
+                // with a smaller independent jitter on each so trunk height and crown width still vary apart.
+                double sizeF = SizeFactor(seed + 0x71EE5, wx, wz, 0.30);              // overall tree size, ±30% (bell)
+                double hJit = SizeFactor(seed + 0x71EE6, wx, wz, 0.12);              // independent height jitter
+                double cJit = SizeFactor(seed + 0x71EE7, wx, wz, 0.12);              // independent crown jitter
+
+                switch (kind)
+                {
+                    case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, logId, pineId, SetCell); break;
+                    case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, SetCell); break;
+                    case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                    case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, logId, SetCell); break;
+                    default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                }
             }
-        }
     }
 
     /// <summary>Picks one tree archetype for this column from the theme's palette. A low-frequency grove mask
@@ -1378,14 +1378,14 @@ public sealed class WorldGenerator
         }
 
         for (int dy = -1; dy <= crownR; dy++)
-        for (int dx = -crownR; dx <= crownR; dx++)
-        for (int dz = -crownR; dz <= crownR; dz++)
-        {
-            if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 1)
-            {
-                set(wx + dx, topY + dy, wz + dz, leafId, false);
-            }
-        }
+            for (int dx = -crownR; dx <= crownR; dx++)
+                for (int dz = -crownR; dz <= crownR; dz++)
+                {
+                    if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 1)
+                    {
+                        set(wx + dx, topY + dy, wz + dz, leafId, false);
+                    }
+                }
     }
 
     /// <summary>A rainforest giant: very tall trunk under a broad, deep canopy.</summary>
@@ -1401,14 +1401,14 @@ public sealed class WorldGenerator
         }
 
         for (int dy = -2; dy <= crownR; dy++)
-        for (int dx = -crownR; dx <= crownR; dx++)
-        for (int dz = -crownR; dz <= crownR; dz++)
-        {
-            if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 2)
-            {
-                set(wx + dx, topY + dy, wz + dz, leafId, false);
-            }
-        }
+            for (int dx = -crownR; dx <= crownR; dx++)
+                for (int dz = -crownR; dz <= crownR; dz++)
+                {
+                    if (dx * dx + dz * dz + dy * dy <= crownR * crownR + 2)
+                    {
+                        set(wx + dx, topY + dy, wz + dz, leafId, false);
+                    }
+                }
     }
 
     /// <summary>A boreal conifer: tall narrow trunk under a layered conical needle crown tapering to a tip.</summary>
@@ -1430,13 +1430,13 @@ public sealed class WorldGenerator
             double f = (double)(tip - y) / (tip - crownStart); // wide at the base, ~0 near the tip
             int r = System.Math.Clamp((int)System.Math.Round(baseR * f), 0, baseR);
             for (int dx = -r; dx <= r; dx++)
-            for (int dz = -r; dz <= r; dz++)
-            {
-                if (dx * dx + dz * dz <= r * r + 1)
+                for (int dz = -r; dz <= r; dz++)
                 {
-                    set(wx + dx, y, wz + dz, leafId, false);
+                    if (dx * dx + dz * dz <= r * r + 1)
+                    {
+                        set(wx + dx, y, wz + dz, leafId, false);
+                    }
                 }
-            }
         }
 
         set(wx, tip, wz, leafId, false); // pointed tip

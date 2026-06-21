@@ -31,9 +31,13 @@ public sealed class MissionBoardTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "board_" + seed, Seed = seed, StartPlanet = "jungle",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = true, PlaceWrecks = false,
+            WorldName = "board_" + seed,
+            Seed = seed,
+            StartPlanet = "jungle",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = true,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

@@ -51,7 +51,9 @@ public sealed partial class GameServer
         _repo.SaveBeacon(new StoredBeacon
         {
             Planet = _world.LocationId,
-            X = pos.X, Y = pos.Y, Z = pos.Z,
+            X = pos.X,
+            Y = pos.Y,
+            Z = pos.Z,
             Label = clean,
             OwnerId = session.State.PlayerId,
         });
@@ -105,7 +107,9 @@ public sealed partial class GameServer
         _repo.SaveBeacon(new StoredBeacon
         {
             Planet = _world.LocationId,
-            X = pos.X, Y = pos.Y, Z = pos.Z,
+            X = pos.X,
+            Y = pos.Y,
+            Z = pos.Z,
             Label = beacon.Label,
             OwnerId = beacon.OwnerId,
         });

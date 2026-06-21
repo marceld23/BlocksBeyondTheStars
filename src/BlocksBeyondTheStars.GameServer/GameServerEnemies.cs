@@ -150,25 +150,55 @@ public sealed partial class GameServer
     private static readonly LocomotionProfile RobotProfile = new()
     {
         Style = LocomotionStyle.Prowler,
-        CruiseSpeed = EnemyWanderSpeed, BurstSpeed = EnemyHuntSpeed, Accel = 3.0f, TurnRate = 1.8f,
-        HoldMin = 3.0f, HoldMax = 7.0f, PauseChance = 0.5f, PauseMin = 1.0f, PauseMax = 2.5f,
-        WeaveAmp = 0.12f, WeaveFreq = 0.8f, VertAmp = 0f, VertFreq = 0f,
+        CruiseSpeed = EnemyWanderSpeed,
+        BurstSpeed = EnemyHuntSpeed,
+        Accel = 3.0f,
+        TurnRate = 1.8f,
+        HoldMin = 3.0f,
+        HoldMax = 7.0f,
+        PauseChance = 0.5f,
+        PauseMin = 1.0f,
+        PauseMax = 2.5f,
+        WeaveAmp = 0.12f,
+        WeaveFreq = 0.8f,
+        VertAmp = 0f,
+        VertFreq = 0f,
     };
 
     private static readonly LocomotionProfile ToughRobotProfile = new()
     {
         Style = LocomotionStyle.Prowler,
-        CruiseSpeed = EnemyWanderSpeed, BurstSpeed = EnemyToughHuntSpeed, Accel = 3.4f, TurnRate = 2.0f,
-        HoldMin = 3.0f, HoldMax = 7.0f, PauseChance = 0.45f, PauseMin = 0.8f, PauseMax = 2.0f,
-        WeaveAmp = 0.12f, WeaveFreq = 0.8f, VertAmp = 0f, VertFreq = 0f,
+        CruiseSpeed = EnemyWanderSpeed,
+        BurstSpeed = EnemyToughHuntSpeed,
+        Accel = 3.4f,
+        TurnRate = 2.0f,
+        HoldMin = 3.0f,
+        HoldMax = 7.0f,
+        PauseChance = 0.45f,
+        PauseMin = 0.8f,
+        PauseMax = 2.0f,
+        WeaveAmp = 0.12f,
+        WeaveFreq = 0.8f,
+        VertAmp = 0f,
+        VertFreq = 0f,
     };
 
     private static readonly LocomotionProfile DroneProfile = new()
     {
         Style = LocomotionStyle.Glider,
-        CruiseSpeed = EnemyWanderSpeed * 1.3f, BurstSpeed = EnemyHuntSpeed, Accel = 5.0f, TurnRate = 3.5f,
-        HoldMin = 2.0f, HoldMax = 4.5f, PauseChance = 0.25f, PauseMin = 0.6f, PauseMax = 1.5f,
-        WeaveAmp = 0.25f, WeaveFreq = 1.1f, VertAmp = 0.6f, VertFreq = 1.4f, // hover bob
+        CruiseSpeed = EnemyWanderSpeed * 1.3f,
+        BurstSpeed = EnemyHuntSpeed,
+        Accel = 5.0f,
+        TurnRate = 3.5f,
+        HoldMin = 2.0f,
+        HoldMax = 4.5f,
+        PauseChance = 0.25f,
+        PauseMin = 0.6f,
+        PauseMax = 1.5f,
+        WeaveAmp = 0.25f,
+        WeaveFreq = 1.1f,
+        VertAmp = 0.6f,
+        VertFreq = 1.4f, // hover bob
     };
 
     private const float DroneStandoff = 7f;     // a hunting drone hovers this far from the player rather than ramming

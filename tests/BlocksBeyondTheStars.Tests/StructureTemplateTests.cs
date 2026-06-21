@@ -24,8 +24,13 @@ public sealed class StructureTemplateTests
 
         var t = new StructureTemplate
         {
-            Key = "test_station", Name = "Test", Tier = "small", Kind = "station",
-            Width = 6, Height = 4, Length = 6,
+            Key = "test_station",
+            Name = "Test",
+            Tier = "small",
+            Kind = "station",
+            Width = 6,
+            Height = 4,
+            Length = 6,
             Cells = new List<TemplateCell>
             {
                 new() { X = 1, Y = 0, Z = 1, Kind = "block", Id = "iron_wall" },
@@ -52,8 +57,13 @@ public sealed class StructureTemplateTests
 
         var t = new StructureTemplate
         {
-            Key = "test_town", Name = "Test", Tier = "village", Kind = "settlement",
-            Width = 5, Height = 4, Length = 5,
+            Key = "test_town",
+            Name = "Test",
+            Tier = "village",
+            Kind = "settlement",
+            Width = 5,
+            Height = 4,
+            Length = 5,
             Cells = new List<TemplateCell>
             {
                 new() { X = 0, Y = 0, Z = 0, Kind = "block", Id = "stone" },
@@ -77,7 +87,12 @@ public sealed class StructureTemplateTests
         var c = Content();
         var t = new StructureTemplate
         {
-            Key = "tinted", Tier = "small", Kind = "station", Width = 3, Height = 2, Length = 3,
+            Key = "tinted",
+            Tier = "small",
+            Kind = "station",
+            Width = 3,
+            Height = 2,
+            Length = 3,
             Cells = new List<TemplateCell>
             {
                 new() { X = 1, Y = 0, Z = 1, Kind = "block", Id = "iron_wall", Tint = 0x3F6FB0, Glow = 0x00FFFF, Shape = 0x15 },
@@ -99,7 +114,12 @@ public sealed class StructureTemplateTests
         var c = Content();
         var t = new StructureTemplate
         {
-            Key = "tinted_town", Tier = "village", Kind = "settlement", Width = 3, Height = 2, Length = 3,
+            Key = "tinted_town",
+            Tier = "village",
+            Kind = "settlement",
+            Width = 3,
+            Height = 2,
+            Length = 3,
             Cells = new List<TemplateCell>
             {
                 new() { X = 2, Y = 1, Z = 2, Kind = "block", Id = "wood_log", Tint = 0xAA5500, Shape = 0x06 },

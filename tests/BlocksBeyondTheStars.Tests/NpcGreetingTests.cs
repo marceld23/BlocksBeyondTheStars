@@ -94,9 +94,14 @@ public sealed class NpcGreetingTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = $"g_{seed}", Seed = seed, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-                PlaceSettlements = true, PlaceWrecks = false, AiLevel = level,
+                WorldName = $"g_{seed}",
+                Seed = seed,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceSettlements = true,
+                PlaceWrecks = false,
+                AiLevel = level,
             };
             var server = new SvGameServer(config, _content, st, repo, logger: null, aiProvider: provider);
             server.Start();

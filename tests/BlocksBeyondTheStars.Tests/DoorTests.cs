@@ -33,9 +33,13 @@ public sealed class DoorTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "door_" + seed, Seed = seed, StartPlanet = "jungle",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = true, PlaceWrecks = false,
+            WorldName = "door_" + seed,
+            Seed = seed,
+            StartPlanet = "jungle",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = true,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

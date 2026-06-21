@@ -689,14 +689,14 @@ public sealed partial class GameServer
 
         int x = (int)System.Math.Floor(at.X), y = (int)System.Math.Floor(at.Y), z = (int)System.Math.Floor(at.Z);
         for (int dx = -r; dx <= r; dx++)
-        for (int dz = -r; dz <= r; dz++)
-        for (int dy = -1; dy <= 1; dy++)
-        {
-            if (_world.GetBlock(new Vector3i(x + dx, y + dy, z + dz)).Value == _creatureWaterId)
-            {
-                return true;
-            }
-        }
+            for (int dz = -r; dz <= r; dz++)
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    if (_world.GetBlock(new Vector3i(x + dx, y + dy, z + dz)).Value == _creatureWaterId)
+                    {
+                        return true;
+                    }
+                }
 
         return false;
     }

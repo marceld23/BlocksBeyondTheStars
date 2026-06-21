@@ -30,8 +30,11 @@ public sealed class GameServerStoryCombatTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = planet, Seed = 4242, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            WorldName = planet,
+            Seed = 4242,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start(); // default rules: Survival + PlanetEnemies Normal

@@ -440,17 +440,17 @@ public sealed partial class GameServer
         _repo.RunInTransaction(() =>
         {
             for (int x = 0; x < structure.Width; x++)
-            for (int y = 0; y < structure.Height; y++)
-            for (int z = 0; z < structure.Length; z++)
-            {
-                ushort b = structure.Get(x, y, z);
-                if (b != 0)
-                {
-                    var (tint, glow) = structure.GetModifier(x, y, z);
-                    _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
-                        new BlockId(b), tint, glow, structure.GetShape(x, y, z));
-                }
-            }
+                for (int y = 0; y < structure.Height; y++)
+                    for (int z = 0; z < structure.Length; z++)
+                    {
+                        ushort b = structure.Get(x, y, z);
+                        if (b != 0)
+                        {
+                            var (tint, glow) = structure.GetModifier(x, y, z);
+                            _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
+                                new BlockId(b), tint, glow, structure.GetShape(x, y, z));
+                        }
+                    }
         });
 
         station.Markers.Clear();
@@ -481,10 +481,10 @@ public sealed partial class GameServer
         {
             var sp = station.Spawn.ToBlock();
             for (int dx = -1; dx <= 1; dx++)
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                _world.SetBlock(new Vector3i(sp.X + dx, sp.Y - 1, sp.Z + dz), hull); // floor pad
-            }
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    _world.SetBlock(new Vector3i(sp.X + dx, sp.Y - 1, sp.Z + dz), hull); // floor pad
+                }
 
             _world.SetBlock(sp, BlockId.Air);                                   // stand-in space
             _world.SetBlock(new Vector3i(sp.X, sp.Y + 1, sp.Z), BlockId.Air);   // headroom

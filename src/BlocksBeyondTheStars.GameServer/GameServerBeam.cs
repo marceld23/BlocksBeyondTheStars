@@ -57,7 +57,9 @@ public sealed partial class GameServer
         _repo.SaveBeam(new StoredBeam
         {
             Planet = _world.LocationId,
-            X = pos.X, Y = pos.Y, Z = pos.Z,
+            X = pos.X,
+            Y = pos.Y,
+            Z = pos.Z,
             Name = clean,
             OwnerId = session.State.PlayerId,
         });
@@ -104,7 +106,9 @@ public sealed partial class GameServer
         _repo.SaveBeam(new StoredBeam
         {
             Planet = _world.LocationId,
-            X = beam.Cell.X, Y = beam.Cell.Y, Z = beam.Cell.Z,
+            X = beam.Cell.X,
+            Y = beam.Cell.Y,
+            Z = beam.Cell.Z,
             Name = beam.Name,
             OwnerId = beam.OwnerId,
         });
@@ -161,8 +165,12 @@ public sealed partial class GameServer
         Send(session, new BeamTeleported { X = to.X, Y = to.Y, Z = to.Z }); // snap the body + arrival effect
         BroadcastToWorld(new BeamFx
         {
-            FromX = from.X, FromY = from.Y, FromZ = from.Z,
-            ToX = to.X, ToY = to.Y, ToZ = to.Z,
+            FromX = from.X,
+            FromY = from.Y,
+            FromZ = from.Z,
+            ToX = to.X,
+            ToY = to.Y,
+            ToZ = to.Z,
         });
 
         string label = string.IsNullOrEmpty(target.Name) ? "beam block" : target.Name;

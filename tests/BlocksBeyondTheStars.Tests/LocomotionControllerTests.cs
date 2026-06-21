@@ -14,9 +14,19 @@ public sealed class LocomotionControllerTests
     private static LocomotionProfile Roamer(float cruise = 2f, float accel = 4f, float turn = 3f) => new()
     {
         Style = LocomotionStyle.Strider,
-        CruiseSpeed = cruise, BurstSpeed = cruise, Accel = accel, TurnRate = turn,
-        HoldMin = 2f, HoldMax = 2f, PauseChance = 0f, PauseMin = 1f, PauseMax = 1f,
-        WeaveAmp = 0f, WeaveFreq = 0f, VertAmp = 0f, VertFreq = 0f,
+        CruiseSpeed = cruise,
+        BurstSpeed = cruise,
+        Accel = accel,
+        TurnRate = turn,
+        HoldMin = 2f,
+        HoldMax = 2f,
+        PauseChance = 0f,
+        PauseMin = 1f,
+        PauseMax = 1f,
+        WeaveAmp = 0f,
+        WeaveFreq = 0f,
+        VertAmp = 0f,
+        VertFreq = 0f,
     };
 
     [Fact]

@@ -87,25 +87,25 @@ public sealed class MiningTests : IDisposable
             var stone = _content.GetBlock("stone")!.NumericId;
             var center = new Vector3i(0, 64, 0);
             for (int dx = -1; dx <= 1; dx++)
-            for (int dy = -1; dy <= 1; dy++)
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                server.World.SetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), stone);
-            }
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        server.World.SetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), stone);
+                    }
 
             server.MineBlock("Miner", center.X, center.Y, center.Z);
 
             // The centre + its whole 3x3x3 neighbourhood are cleared in one go.
             int solid = 0;
             for (int dx = -1; dx <= 1; dx++)
-            for (int dy = -1; dy <= 1; dy++)
-            for (int dz = -1; dz <= 1; dz++)
-            {
-                if (!server.World.GetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz)).IsAir)
-                {
-                    solid++;
-                }
-            }
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        if (!server.World.GetBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz)).IsAir)
+                        {
+                            solid++;
+                        }
+                    }
 
             Assert.Equal(0, solid);
         }

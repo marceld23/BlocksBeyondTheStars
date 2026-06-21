@@ -26,11 +26,11 @@ public sealed class WreckGenerationTests
         Assert.Equal(a.Origin, b.Origin);
         Assert.Equal(a.BreachCount(), b.BreachCount());
         for (int x = 0; x < a.Width; x++)
-        for (int y = 0; y < a.Height; y++)
-        for (int z = 0; z < a.Length; z++)
-        {
-            Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
-        }
+            for (int y = 0; y < a.Height; y++)
+                for (int z = 0; z < a.Length; z++)
+                {
+                    Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
+                }
     }
 
     [Fact]
@@ -53,15 +53,15 @@ public sealed class WreckGenerationTests
 
         // Every breach is a cell the intact hull fills but the current blocks don't.
         for (int x = 0; x < w.Width; x++)
-        for (int y = 0; y < w.Height; y++)
-        for (int z = 0; z < w.Length; z++)
-        {
-            if (w.IsBreach(x, y, z))
-            {
-                Assert.NotEqual((ushort)0, w.IntactAt(x, y, z));
-                Assert.Equal((ushort)0, w.Get(x, y, z));
-            }
-        }
+            for (int y = 0; y < w.Height; y++)
+                for (int z = 0; z < w.Length; z++)
+                {
+                    if (w.IsBreach(x, y, z))
+                    {
+                        Assert.NotEqual((ushort)0, w.IntactAt(x, y, z));
+                        Assert.Equal((ushort)0, w.Get(x, y, z));
+                    }
+                }
     }
 
     [Fact]
@@ -94,10 +94,10 @@ public sealed class WreckGenerationTests
         // The -Z wall (z = 0) must have an opening near the centre (the crash gash).
         bool open = false;
         for (int x = 0; x < w.Width && !open; x++)
-        for (int y = 1; y < w.Height; y++)
-        {
-            if (w.IntactAt(x, y, 0) != 0 && w.Get(x, y, 0) == air) { open = true; break; }
-        }
+            for (int y = 1; y < w.Height; y++)
+            {
+                if (w.IntactAt(x, y, 0) != 0 && w.Get(x, y, 0) == air) { open = true; break; }
+            }
 
         Assert.True(open, "A wreck should be open enough to enter.");
     }

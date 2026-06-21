@@ -29,11 +29,11 @@ public sealed class StationGenerationTests
         Assert.Equal(a.Length, b.Length);
         Assert.Equal(a.Modules.Count, b.Modules.Count);
         for (int x = 0; x < a.Width; x++)
-        for (int y = 0; y < a.Height; y++)
-        for (int z = 0; z < a.Length; z++)
-        {
-            Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
-        }
+            for (int y = 0; y < a.Height; y++)
+                for (int z = 0; z < a.Length; z++)
+                {
+                    Assert.Equal(a.Get(x, y, z), b.Get(x, y, z));
+                }
     }
 
     [Fact]
@@ -67,11 +67,11 @@ public sealed class StationGenerationTests
         // There is plenty of solid hull overall.
         int solid = 0;
         for (int x = 0; x < s.Width; x++)
-        for (int y = 0; y < s.Height; y++)
-        for (int z = 0; z < s.Length; z++)
-        {
-            if (s.Get(x, y, z) != air) solid++;
-        }
+            for (int y = 0; y < s.Height; y++)
+                for (int z = 0; z < s.Length; z++)
+                {
+                    if (s.Get(x, y, z) != air) solid++;
+                }
 
         Assert.True(solid > 0, "A station must be built from solid blocks.");
     }
@@ -121,12 +121,12 @@ public sealed class StationGenerationTests
 
             int glazed = 0, holes = 0;
             for (int x = o.X + 1; x <= o.X + s.RoomW - 2; x++)
-            for (int y = o.Y + 1; y <= o.Y + mouthTop; y++)
-            {
-                ushort b = s.Get(x, y, o.Z);
-                if (b == field) glazed++;
-                else if (b == air) holes++;
-            }
+                for (int y = o.Y + 1; y <= o.Y + mouthTop; y++)
+                {
+                    ushort b = s.Get(x, y, o.Z);
+                    if (b == field) glazed++;
+                    else if (b == air) holes++;
+                }
 
             Assert.True(glazed > 0, $"Seed {seed}: hangar mouth should be glazed with a force field.");
             Assert.Equal(0, holes); // no open gap to the void anywhere in the mouth
@@ -276,11 +276,11 @@ public sealed class StationGenerationTests
 
             // Seed the flood from every cell on the bounding-box surface, then expand through air/plants.
             for (int x = 0; x < W; x++)
-            for (int y = 0; y < H; y++) { Visit(x, y, 0); Visit(x, y, L - 1); }
+                for (int y = 0; y < H; y++) { Visit(x, y, 0); Visit(x, y, L - 1); }
             for (int x = 0; x < W; x++)
-            for (int z = 0; z < L; z++) { Visit(x, 0, z); Visit(x, H - 1, z); }
+                for (int z = 0; z < L; z++) { Visit(x, 0, z); Visit(x, H - 1, z); }
             for (int y = 0; y < H; y++)
-            for (int z = 0; z < L; z++) { Visit(0, y, z); Visit(W - 1, y, z); }
+                for (int z = 0; z < L; z++) { Visit(0, y, z); Visit(W - 1, y, z); }
 
             int[] dx = { 1, -1, 0, 0, 0, 0 }, dy = { 0, 0, 1, -1, 0, 0 }, dz = { 0, 0, 0, 0, 1, -1 };
             while (stack.Count > 0)
@@ -290,16 +290,16 @@ public sealed class StationGenerationTests
             }
 
             for (int x = 0; x < W; x++)
-            for (int y = 0; y < H; y++)
-            for (int z = 0; z < L; z++)
-            {
-                if (s.Get(x, y, z) != plant) continue;
-                totalPlants++;
-                Assert.False(reached[Idx(x, y, z)],
-                    $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) is open to the void (see-through / walk-through).");
-                Assert.True(y > 0 && s.Get(x, y - 1, z) != 0,
-                    $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) does not stand on a solid block.");
-            }
+                for (int y = 0; y < H; y++)
+                    for (int z = 0; z < L; z++)
+                    {
+                        if (s.Get(x, y, z) != plant) continue;
+                        totalPlants++;
+                        Assert.False(reached[Idx(x, y, z)],
+                            $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) is open to the void (see-through / walk-through).");
+                        Assert.True(y > 0 && s.Get(x, y - 1, z) != 0,
+                            $"{tier} seed {seed * 1009 + 7}: plant at ({x},{y},{z}) does not stand on a solid block.");
+                    }
         }
 
         Assert.True(totalPlants > 0, $"Stations of tier '{tier}' should still be furnished with decorative plants.");
