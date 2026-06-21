@@ -1,0 +1,93 @@
+# Fast pull-request gate: builds the .NET projects and runs the headless xUnit suites.
+#
+# Triggered on every pull request and on direct pushes to main — NOT by tags (that is release.yml).
+# This never touches Unity: it builds and tests only the two headless suites that run on Linux —
+#   tests/BlocksBeyondTheStars.Tests        (.NET server/shared xUnit, no Unity)
+#   tests/BlocksBeyondTheStars.Client.Tests (real NetworkClient vs in-process GameServer, no Unity/sockets)
+# The Unity Edit/PlayMode suites need the editor and stay opt-in/local (see scripts/run-tests.ps1).
+#
+# We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
+# WinForms launcher (net8.0-windows), which cannot build on the Linux runner. Building the test
+# projects pulls in exactly their dependencies (server/shared/client.core) and nothing Windows-only.
+#
+# Warnings ARE enforced here: the build runs with -warnaserror so any analyzer/compiler warning fails
+# the PR, even though the local build keeps TreatWarningsAsErrors=false (Directory.Build.props) for a
+# friction-free dev loop. The tree currently builds clean (0 warnings), so this only guards regressions.
+#
+# Docs-only changes don't run this: paths-ignore skips the workflow when EVERY changed file matches a
+# doc pattern below (any code/content/workflow file in the diff makes it run as normal). Note: `data/**`
+# and `web/**` are intentionally NOT ignored — they feed tests (e.g. the en/de locale-parity test).
+#
+# CAVEAT if you make this a REQUIRED status check in branch protection: a skipped run reports no status,
+# so a docs-only PR would sit forever "Expected — Waiting for status". The standard fix is a tiny always-
+# running guard job that reports success; ask before wiring that up so we don't add noise prematurely.
+
+name: CI
+
+# NOTE: GitHub Actions does not support YAML anchors, so the doc paths are duplicated below — keep both
+# lists in sync if you edit them.
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - 'NOTICES*'
+      - 'THIRD-PARTY*'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - 'NOTICES*'
+      - 'THIRD-PARTY*'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+
+permissions:
+  contents: read
+
+# A newer push to the same PR/branch cancels the older still-running check.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build + test (.NET, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: |
+          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
+          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+
+      # -warnaserror promotes every compiler/analyzer warning to a build error for the PR gate.
+      - name: Build (treat warnings as errors)
+        run: |
+          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -warnaserror
+          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -warnaserror
+
+      - name: Test
+        run: |
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+
+      # Keep the .trx results even when a suite fails, so failures are inspectable from the run page.
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore

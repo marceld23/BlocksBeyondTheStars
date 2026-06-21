@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Publishes the BlocksBeyondTheStars dedicated server + admin UI as self-hosting packages
-# (self-contained, single-file) for Windows x64, Linux x64 and Linux ARM64 (Pi 5).
+# (self-contained, single-file) for Windows x64, Linux x64 and Linux ARM64.
 #
 # Usage:
 #   ./scripts/publish-server.sh                 # all three runtimes

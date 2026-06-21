@@ -1,7 +1,7 @@
 # Self-Hosting a Blocks Beyond the Stars Server
 
 Blocks Beyond the Stars is designed so players can host their own server on a Windows PC, a Linux box,
-a VPS, or a Raspberry Pi 5 — without installing .NET (the packages are self-contained).
+or a VPS — without installing .NET (the packages are self-contained).
 
 ## 1. Get a server package
 
@@ -11,7 +11,7 @@ Download or build a package for your platform:
 |---|---|
 | Windows x64 | `blocks-beyond-the-stars-server-win-x64.zip` |
 | Linux x64 | `blocks-beyond-the-stars-server-linux-x64.zip` |
-| Linux ARM64 / Raspberry Pi 5 | `blocks-beyond-the-stars-server-linux-arm64.zip` |
+| Linux ARM64 | `blocks-beyond-the-stars-server-linux-arm64.zip` |
 
 Build them yourself from a checkout with the .NET 8 SDK:
 
@@ -34,8 +34,8 @@ Build them yourself from a checkout with the .NET 8 SDK:
 5. Friends connect to your IP on the gameplay port.
 ```
 
-On a Raspberry Pi 5, prefer an SSD over a microSD for the world database to reduce wear
-and improve autosave performance.
+On low-power ARM64 boards, prefer an SSD over a microSD/eMMC for the world database to
+reduce wear and improve autosave performance.
 
 ## 3. Configuration (`config/server.json`)
 

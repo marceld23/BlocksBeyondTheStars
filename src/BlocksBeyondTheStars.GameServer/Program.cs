@@ -5,7 +5,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 
 // BlocksBeyondTheStars dedicated game server — standalone .NET host (no Unity runtime), so it runs
-// on Windows, Linux x64 and Linux ARM64 / Raspberry Pi 5 (technical requirements §3.2, §9).
+// on Windows, Linux x64 and Linux ARM64 (technical requirements §3.2, §9).
 
 string installDir = AppContext.BaseDirectory;
 string configPath = Path.Combine(installDir, "config", "server.json");

@@ -102,5 +102,8 @@ You can still run a single suite directly: `dotnet test tests/BlocksBeyondTheSta
   player build.
 - `com.unity.test-framework` is pinned in `client/Packages/manifest.json`; adjust the version if your Editor
   resolves a different one.
-- CI is intentionally **not** wired up yet — these run locally. Tier 1 (`Dotnet` + `ClientCore`) is the part
-  that would drop straight into a `dotnet test` CI job with no Unity license needed.
+- **CI runs Tier 1 on every pull request.** [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
+  builds and runs the two headless suites (`Dotnet` + `ClientCore`) on `ubuntu-latest` with **no Unity
+  license needed**, and fails the build on any warning (`-warnaserror`). The Unity tiers (`UnityEdit` /
+  `UnityPlay`) stay **local-only** — they need the Editor — so run `./scripts/run-tests.ps1 -Suites All`
+  yourself before a client-affecting change. See [DEVELOPER.md](DEVELOPER.md#continuous-integration-pull-requests).

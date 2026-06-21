@@ -45,6 +45,11 @@ If you are a developer, we welcome pull requests.
 3. **Open a pull request** against `main` with a short description of the change and why.
    Small, focused PRs are easier to review and merge.
 
+Once the PR is open, [CI](.github/workflows/ci.yml) automatically builds and runs the headless
+.NET test suites on every push — and **treats warnings as errors**, so keep the build warning-clean.
+The Unity tiers aren't in CI; run `./scripts/run-tests.ps1 -Suites All` locally before a
+client-affecting change.
+
 ### A few rules that keep the project consistent
 
 These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please skim it):

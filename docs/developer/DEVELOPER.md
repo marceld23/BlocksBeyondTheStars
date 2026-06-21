@@ -39,6 +39,44 @@ the default `6000.4.9f1` path). The client is tested against the **real** server
 the `Client.Core` split, and the per-tier prerequisites are documented in
 [CLIENT_TESTING.md](CLIENT_TESTING.md).
 
+## Continuous integration (pull requests)
+
+Every pull request (and every direct push to `main`) is gated by
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). It runs on `ubuntu-latest` and is fast and
+free — **no Unity, no license** — because it only exercises the two headless .NET suites:
+
+```
+tests/BlocksBeyondTheStars.Tests        # Dotnet  — server/shared xUnit
+tests/BlocksBeyondTheStars.Client.Tests # ClientCore — real NetworkClient ↔ in-process GameServer
+```
+
+These are the same two suites `run-tests.ps1` runs by default. Two deliberate choices:
+
+- **It targets the test projects directly, not `BlocksBeyondTheStars.sln`.** The solution also contains the
+  WinForms launcher (`net8.0-windows`), which cannot build on the Linux runner; building the test projects
+  pulls in exactly their dependencies (server/shared/`Client.Core`) and nothing Windows-only.
+- **Warnings fail the PR.** The build step runs with **`-warnaserror`**, so any compiler or analyzer warning
+  breaks the check — even though the local build keeps `TreatWarningsAsErrors=false`
+  ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
+  builds clean (0 warnings), so this only guards against regressions. The `.trx` results are uploaded as a
+  run artifact for inspection.
+- **Docs-only changes skip CI.** A `paths-ignore` list (Markdown, `docs/**`, licences, issue/PR templates)
+  means the workflow does **not** run when *every* changed file is documentation — no point burning a runner
+  on a typo fix. Any code/content file in the diff makes it run as normal; `data/**` and `web/**` are
+  deliberately **not** ignored because they feed tests (e.g. the en/de locale-parity test).
+
+> **Caveat for a required check:** GitHub reports *no* status for a skipped run, so if you make this a
+> required status check, a docs-only PR will wait forever on it. The standard fix is a tiny always-running
+> guard job that reports success — wire that up at the same time you mark the check required.
+
+The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need the Editor and stay local/opt-in
+(run them with `./scripts/run-tests.ps1 -Suites All` before a client-affecting change). The release build
+([`release.yml`](../../.github/workflows/release.yml)) is a **separate** workflow that triggers only on tags;
+it does not run tests, so the PR gate is where correctness is checked before merge.
+
+> To make CI a hard merge requirement, add the **`Build + test (.NET, headless)`** check as a required status
+> check in the `main` branch-protection rule (Settings → Branches).
+
 ## Building the Windows client
 
 One command produces a fully self-contained singleplayer/multiplayer client:
@@ -268,7 +306,7 @@ fallback text everywhere. Setup details: [SELF_HOSTING.md](SELF_HOSTING.md) §8;
 ## Self-hosting / dedicated server packages
 
 ```powershell
-./scripts/publish-server.ps1     # win-x64, linux-x64, linux-arm64 (Raspberry Pi 5)
+./scripts/publish-server.ps1     # win-x64, linux-x64, linux-arm64
 ```
 
 Produces self-contained single-file packages under `artifacts/` (no .NET runtime needed on
