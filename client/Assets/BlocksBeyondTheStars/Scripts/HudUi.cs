@@ -702,6 +702,21 @@ namespace BlocksBeyondTheStars.Client
 
         private void RefreshCompass()
         {
+            // The round compass is on-foot/EVA navigation (north arrow, ship + waypoint + beacon blips). While
+            // piloting the ship you ARE the ship and the flight view draws its own radar, so hide it then; on an
+            // EVA it stays — the ship blip + distance is how you float your way back to the hull.
+            bool piloting = Game.SpaceViewActive && !Game.InEva;
+            var compassGo = _compassParent != null ? _compassParent.gameObject : null;
+            if (compassGo != null && compassGo.activeSelf == piloting)
+            {
+                compassGo.SetActive(!piloting);
+            }
+
+            if (piloting)
+            {
+                return;
+            }
+
             const float radius = 44f;
             PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
@@ -745,7 +760,10 @@ namespace BlocksBeyondTheStars.Client
         private void RefreshTimeOfDay(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             var env = Game.Environment;
-            if (env == null)
+            // Day/night clock, temperature and gravity are planet-surface readings — meaningless in space, both
+            // while piloting and on an EVA (no day/night cycle out there), so drop the whole panel there as well
+            // as when there's no environment yet.
+            if (env == null || Game.SpaceViewActive || Game.OnFootInSpace)
             {
                 _todText.transform.parent.gameObject.SetActive(false);
                 return;
