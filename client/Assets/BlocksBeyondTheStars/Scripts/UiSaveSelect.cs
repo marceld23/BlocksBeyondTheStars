@@ -29,7 +29,7 @@ namespace BlocksBeyondTheStars.Client
             // Host mode ("Host Game" on the main menu): the same picker — any singleplayer save can be
             // hosted, "open to LAN" style — plus a host bar (max players + optional join password).
             bool host = shell.HostMode;
-            int[] maxPlayers = { 4 };
+            int[] maxPlayers = { 12 };
             string[] hostPass = { "" };
             void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, WorldCreationOptions options = null)
             {

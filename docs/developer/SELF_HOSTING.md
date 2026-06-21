@@ -47,7 +47,7 @@ Created on first run; editable directly or through the admin UI.
 | `worldName` | Save folder under `saves/` | `world_001` |
 | `gameplayPort` | UDP port for the game (open/forward this) | `31415` |
 | `adminPort` | HTTP port for the admin UI | `31416` |
-| `maxPlayers` | Connection cap | `4` |
+| `maxPlayers` | Connection cap | `12` |
 | `serverPassword` | Required to join (empty = none) | `""` |
 | `whitelistEnabled` / `whitelist` | Restrict who may join | `false` / `[]` |
 | `adminPlayers` | Player names granted the Admin role on join (CLI: `--admins "a,b"`) | `[]` |

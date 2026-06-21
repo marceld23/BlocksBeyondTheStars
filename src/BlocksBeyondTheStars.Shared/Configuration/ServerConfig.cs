@@ -25,7 +25,7 @@ public sealed class ServerConfig
     /// <summary>WebSocket bind host ("localhost"/LAN ip for safety, "+" for all interfaces).</summary>
     public string WebSocketBindAddress { get; set; } = "localhost";
 
-    public int MaxPlayers { get; set; } = 4;
+    public int MaxPlayers { get; set; } = 12;
     public string ServerPassword { get; set; } = string.Empty;
     public bool WhitelistEnabled { get; set; }
     public List<string> Whitelist { get; set; } = new();
