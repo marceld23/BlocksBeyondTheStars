@@ -68,6 +68,7 @@ Last updated: 2026-06-19.
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character) |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
 | **Enter** | Open the chat box (Esc cancels) |
+| **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
 | **Esc** | Pause / close the current screen |
 
 Interaction reach is ~6 m (extended by reach equipment).
@@ -376,6 +377,27 @@ planets get the ore: any / airless / with-atmosphere / single-biome / multi-biom
 ### Chat
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
   radio** in your inventory; messages are rate-limited and length-capped.
+
+### Radio reach (tiered) — text **and** voice
+Your radio determines **how far** your comms carry — text chat and voice both follow the same reach:
+- **Comm Radio** — players on the **same planet/world**.
+- **System Radio** (upgrade) — everyone in the **same star system**.
+- **Galaxy Radio** (upgrade) — **everyone**, anywhere in the galaxy.
+
+Craft the upgrades at the workshop (each tier builds on the previous one and unlocks via the tech tree).
+The **widest** radio you carry sets your reach. Without any radio you can't transmit (you'll get a
+"need a comm radio" notice).
+
+### Voice chat (push-to-talk)
+- Hold the **push-to-talk key** (default **V**, configurable in Settings → Voice chat) to talk to your
+  radio audience; a "● Talking…" indicator shows while you transmit. Release to stop.
+- Voice is **on by default**. When you **host a world for friends** it works out of the box; it needs the
+  same **radio** as text chat and carries to the same tiered reach (planet / system / galaxy).
+- Settings → Voice chat: a master **on/off** switch, **Voice volume**, **Transmit mic** (turn your own mic
+  off while still hearing others), and the **push-to-talk key**.
+- Audio is relayed **live through the server and never recorded**. Use a **headset** to avoid echo.
+- *On a standalone **dedicated** server, the admin must enable voice (`voiceChatEnabled` / `--voice true` /
+  `BBS_VOICE=true`); local hosting enables it automatically.*
 
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump <description of the problem>`

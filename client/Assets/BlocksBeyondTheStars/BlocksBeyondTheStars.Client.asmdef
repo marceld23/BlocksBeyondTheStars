@@ -18,7 +18,8 @@
     "MessagePack.dll",
     "LiteNetLib.dll",
     "Velopack.dll",
-    "Newtonsoft.Json.dll"
+    "Newtonsoft.Json.dll",
+    "Concentus.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

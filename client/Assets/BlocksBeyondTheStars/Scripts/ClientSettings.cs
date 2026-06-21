@@ -82,6 +82,19 @@ namespace BlocksBeyondTheStars.Client
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
 
+        // Voice chat. Shipped on by default; this master switch turns the whole feature off (no capture, no
+        // playback). The server must also have voice enabled, and you still need a radio. Push-to-talk by
+        // default — hold the key to transmit. VoiceInputEnabled keeps playback while never transmitting.
+        public bool VoiceEnabled = true;
+        public float VoiceVolume = 1f;
+        public bool VoiceInputEnabled = true;
+        /// <summary>Push-to-talk key, stored as a <see cref="UnityEngine.KeyCode"/> name (default "V").</summary>
+        public string PushToTalkKey = "V";
+        /// <summary>Optional named microphone device ("" = the system default).</summary>
+        public string MicrophoneDevice = "";
+        /// <summary>Player names the local player has muted (voice playback suppressed). Runtime-toggleable.</summary>
+        public System.Collections.Generic.List<string> MutedVoicePlayers = new System.Collections.Generic.List<string>();
+
         /// <summary>Language code that drives the localizer: "en" or "de".</summary>
         public string Language = "en";
 

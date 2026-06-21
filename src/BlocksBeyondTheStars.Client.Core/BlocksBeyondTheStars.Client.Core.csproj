@@ -16,6 +16,10 @@
   <ItemGroup>
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
     <ProjectReference Include="..\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj" />
+    <!-- Concentus: pure-C# Opus codec for live voice chat. Referenced here (not used by Client.Core itself)
+         so it flows through `dotnet publish` → scripts/sync-client-libs.ps1 → client/Assets/Plugins, where
+         the Unity VoiceChat component (gated by the BBS_VOICE define) compiles against it. BSD-3-Clause. -->
+    <PackageReference Include="Concentus" Version="2.2.2" />
   </ItemGroup>
 
 </Project>

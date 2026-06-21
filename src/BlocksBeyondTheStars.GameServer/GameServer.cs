@@ -1438,6 +1438,7 @@ public sealed partial class GameServer
             case ShapeCraftIntent shapeIntent: HandleShapeCraft(session, shapeIntent); break;
             case UnlockBlueprintIntent unlock: HandleUnlock(session, unlock); break;
             case ChatIntent chat: HandleChat(session, chat); break;
+            case VoiceFrame voice: HandleVoice(session, voice); break;
             case BumpReport bump: HandleBumpReport(session, bump); break;
             case RequestStarMap: SendStarMap(session); break;
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
@@ -1876,6 +1877,25 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } session)
         {
             HandleUnlock(session, new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
+        }
+    }
+
+    /// <summary>Sends a chat line as a player through the real handler (used by local play / tests): exercises
+    /// the radio gate, rate limit and tiered reach.</summary>
+    public void Chat(string playerId, string text)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleChat(session, new ChatIntent { Text = text });
+        }
+    }
+
+    /// <summary>Relays a voice frame as a player through the real handler (used by local play / tests).</summary>
+    public void SendVoice(string playerId, byte[] opus, int sequence)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleVoice(session, new VoiceFrame { Opus = opus, Sequence = sequence });
         }
     }
 
@@ -3023,7 +3043,8 @@ public sealed partial class GameServer
         _log.Info($"Checkpoint save ({reason}).");
     }
 
-    /// <summary>Player chat (requires a comm radio; length-capped + rate-limited). Broadcast to all.</summary>
+    /// <summary>Player chat (requires a radio; length-capped + rate-limited). Reach depends on the best radio
+    /// tier held: comm_radio = same world, system_radio = same star system, galaxy_radio = the whole game.</summary>
     private void HandleChat(PlayerSession session, ChatIntent chat)
     {
         string text = (chat.Text ?? string.Empty).Trim();
@@ -3052,7 +3073,7 @@ public sealed partial class GameServer
             text = text.Substring(0, 200);
         }
 
-        if (!session.State.Inventory.Has("comm_radio", 1))
+        if (!HasAnyRadio(session))
         {
             Reject(session, "chat", "You need a comm radio to use comms.");
             return;
@@ -3066,7 +3087,31 @@ public sealed partial class GameServer
 
         session.LastChatTick = now;
         string sender = string.IsNullOrEmpty(session.State.Name) ? "Pilot" : session.State.Name;
-        Broadcast(new ChatMessage { Sender = sender, Text = text });
+        // Reach follows the sender's best radio tier (world / system / galaxy), not a flat game-wide broadcast.
+        SendToRadioAudience(session, new ChatMessage { Sender = sender, Text = text }, DeliveryMode.ReliableOrdered);
+    }
+
+    /// <summary>Live voice relay (opt-in). A thin, opaque forwarder: the server never decodes the Opus payload —
+    /// it stamps the speaker's id and relays the frame to the same tiered radio audience as text chat (world /
+    /// system / galaxy by the best radio held), sent Unreliable for lowest latency. Gated on the same radio
+    /// requirement as chat; silently dropped when voice is disabled or the player holds no radio (the client is
+    /// told voice is available via <see cref="ServerRules.VoiceChatEnabled"/>, so it should not be sending).</summary>
+    private void HandleVoice(PlayerSession session, VoiceFrame frame)
+    {
+        if (!_config.VoiceChatEnabled || frame.Opus is not { Length: > 0 } || !HasAnyRadio(session))
+        {
+            return;
+        }
+
+        // Cap a single frame so a malicious client can't relay huge payloads to the whole audience. ~20 ms of
+        // Opus is well under 1 KB even at high bitrate; 4 KB is a generous ceiling.
+        if (frame.Opus.Length > 4096)
+        {
+            return;
+        }
+
+        frame.FromPlayerId = session.State.PlayerId; // authoritative sender id (don't trust the client's field)
+        SendToRadioAudienceExcept(session, frame, DeliveryMode.Unreliable);
     }
 
     private void Reject(PlayerSession session, string action, string reason)
@@ -3238,6 +3283,7 @@ public sealed partial class GameServer
             SpaceNpcEnemies = r.SpaceNpcEnemies.ToString(),
             AlienUfos = r.AlienUfos.ToString(),
             InstantTravel = r.InstantTravel,
+            VoiceChatEnabled = _config.VoiceChatEnabled,
         });
     }
 
@@ -3376,6 +3422,71 @@ public sealed partial class GameServer
 
     private void Broadcast(object message)
         => _transport.Broadcast(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+
+    // ---------------- Radio reach (tiered comms: text chat + voice) ----------------
+
+    /// <summary>Whether a player can transmit on comms at all (holds any radio tier).</summary>
+    private static bool HasAnyRadio(PlayerSession s)
+        => s.State.Inventory.Has("comm_radio", 1)
+        || s.State.Inventory.Has("system_radio", 1)
+        || s.State.Inventory.Has("galaxy_radio", 1);
+
+    /// <summary>The players who can hear <paramref name="sender"/>'s comms, by the widest radio tier they hold
+    /// (the tiers stack as upgrades). <c>galaxy_radio</c> = everyone joined; <c>system_radio</c> = everyone on a
+    /// body in the same star system; <c>comm_radio</c> = everyone on the same world. The sender is included (so
+    /// text chat echoes locally, exactly as the prior game-wide broadcast did). When a player's location has no
+    /// resolvable star system (station/void worlds), the system tier falls back to same-world reach.</summary>
+    private IEnumerable<PlayerSession> RadioAudience(PlayerSession sender)
+    {
+        var inv = sender.State.Inventory;
+
+        if (inv.Has("galaxy_radio", 1))
+        {
+            return _sessions.Values.Where(s => s.Joined);
+        }
+
+        if (inv.Has("system_radio", 1))
+        {
+            string sysId = _galaxy?.FindBody(sender.CurrentLocationId)?.SystemId ?? string.Empty;
+            if (!string.IsNullOrEmpty(sysId))
+            {
+                return _sessions.Values.Where(s => s.Joined
+                    && (_galaxy?.FindBody(s.CurrentLocationId)?.SystemId ?? string.Empty) == sysId);
+            }
+            // No star system here (e.g. a station interior) → behave like a local radio.
+        }
+
+        string loc = sender.CurrentLocationId;
+        return _sessions.Values.Where(s => s.Joined && s.CurrentLocationId == loc);
+    }
+
+    /// <summary>Sends a comms message to the sender's tiered radio audience, encoding once and reusing the bytes
+    /// for every recipient. Text chat uses <see cref="DeliveryMode.ReliableOrdered"/>; voice frames use
+    /// <see cref="DeliveryMode.Unreliable"/> (latency over delivery — a dropped 20 ms frame is inaudible).</summary>
+    private void SendToRadioAudience(PlayerSession sender, object message, DeliveryMode mode)
+    {
+        var payload = NetCodec.Encode(message);
+        foreach (var s in RadioAudience(sender))
+        {
+            _transport.Send(s.ConnectionId, payload, mode);
+        }
+    }
+
+    /// <summary>As <see cref="SendToRadioAudience"/> but skips the sender — used for voice, where a speaker must
+    /// not hear their own relayed frames (text chat, by contrast, echoes the sender's own line into their log).</summary>
+    private void SendToRadioAudienceExcept(PlayerSession sender, object message, DeliveryMode mode)
+    {
+        var payload = NetCodec.Encode(message);
+        foreach (var s in RadioAudience(sender))
+        {
+            if (s.ConnectionId == sender.ConnectionId)
+            {
+                continue;
+            }
+
+            _transport.Send(s.ConnectionId, payload, mode);
+        }
+    }
 
     // ---------------- Multi-world routing (Active cursor) ----------------
 

@@ -59,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<LandingPadList>? LandingPadsReceived;
         public event Action<ShipTransitFx>? ShipTransitReceived;
         public event Action<ChatMessage>? ChatReceived;
+        public event Action<VoiceFrame>? VoiceReceived; // a relayed voice frame from another player (Opus bytes)
 
         // Navigation, missions & feedback (M23).
         public event Action<StarMapData>? StarMapReceived;
@@ -206,6 +207,12 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });
         public void SendChat(string text) => Send(new ChatIntent { Text = text });
+
+        /// <summary>Uploads one Opus-encoded voice frame (~20 ms of microphone) to the server, which relays it
+        /// opaquely to the player's radio audience. Sent <see cref="DeliveryMode.Unreliable"/> — a dropped frame
+        /// is inaudible and beats a resend. The server stamps the sender id, so it is left empty here.</summary>
+        public void SendVoice(byte[] opus, int sequence)
+            => Send(new VoiceFrame { Opus = opus ?? Array.Empty<byte>(), Sequence = sequence }, DeliveryMode.Unreliable);
 
         /// <summary>Sends a <c>/bump</c> bug report with an optional in-game screenshot (JPG bytes). The server
         /// persists a rich snapshot of the reporter's situation and writes the image alongside it.</summary>
@@ -473,6 +480,7 @@ namespace BlocksBeyondTheStars.Client
                 case LandingPadList m: LandingPadsReceived?.Invoke(m); break;
                 case ShipTransitFx m: ShipTransitReceived?.Invoke(m); break;
                 case ChatMessage m: ChatReceived?.Invoke(m); break;
+                case VoiceFrame m: VoiceReceived?.Invoke(m); break;
                 case StarMapData m: StarMapReceived?.Invoke(m); break;
                 case MissionList m: MissionsReceived?.Invoke(m); break;
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;

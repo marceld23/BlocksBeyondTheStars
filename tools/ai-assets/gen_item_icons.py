@@ -79,6 +79,8 @@ ITEMS = [
     ("jetpack", "a rocket jetpack backpack with twin thrusters"),
     ("radar_scanner", "a handheld radar scanner with a small dish"),
     ("comm_radio", "a handheld communications radio with an antenna"),
+    ("system_radio", "an upgraded handheld communications radio with a taller dual antenna and a small glowing cyan signal display, brushed metal casing"),
+    ("galaxy_radio", "a high-end handheld communications radio with a folding satellite dish antenna and bright glowing magenta-and-cyan signal rings, sleek dark metal casing"),
     # Tools
     ("advanced_scanner", "a sleek handheld scanner with a glowing blue screen"),
     ("mining_beam", "a high-tech handheld mining laser beam emitter"),

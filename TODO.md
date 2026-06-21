@@ -17,6 +17,25 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Tiered radio reach + live voice chat (2026-06-21) — ✅ server+tests done (8 new, suite green); voice SHIPPED ON by default; NEEDS Unity build
+- **Tiered radio reach** (text **and** voice): `comm_radio` = same world, new `system_radio` = same star system, new
+  `galaxy_radio` = whole game. New items/recipes/blueprints (`data/items.json`/`recipes.json`/`blueprints.json`, de+en
+  locale) + 2 OpenAI item icons. Server `RadioAudience()`/`HasAnyRadio()` pick recipients by the widest tier held;
+  `HandleChat` rewired from flat `Broadcast` to the tiered audience. Tests: `RadioTierTests.cs`.
+- **Live voice chat** (opt-in, push-to-talk): thin **opaque server relay** — `VoiceFrame` (NetCodec 169, Unreliable),
+  `GameServer.HandleVoice` stamps the sender + relays Opus bytes to the same tiered audience (except self), never decodes.
+  Gated on `ServerConfig.VoiceChatEnabled` (default **off**; `--voice`/`BBS_VOICE`) + a radio, surfaced via
+  `ServerRules.VoiceChatEnabled`. Audio relayed live, **never recorded**.
+- **Client:** `NetworkClient.SendVoice`/`VoiceReceived` (Client.Core, always compiled) + `VoiceChat.cs` (mic capture →
+  Opus 20 ms frames → per-speaker jitter buffer → streaming `AudioSource`, flat 2D) + PTT/voice settings (master on/off +
+  volume + transmit + key) + WorldRig wiring + "● Talking…" HUD. Native client only (no WebGL mic); no echo cancellation
+  (headset + PTT in v1).
+- **Shipped ON by default:** Opus codec via **Concentus** (2.2.2, BSD-3-Clause, pure C#) referenced by `Client.Core` so it
+  vendors through sync→Plugins→Unity→installer (`Concentus.dll` = only new DLL); `BBS_VOICE` define on + asmdef ref added.
+  The bundled host launcher passes `--voice true` (local hosting just works); dedicated servers stay opt-in
+  (`voiceChatEnabled`). Players can switch voice off in Settings. Docs: [VOICE_CHAT.md](docs/developer/VOICE_CHAT.md),
+  USER_MANUAL, NOTICES (Concentus license). Follow-ups: per-player mute UI, spatial/positional voice.
+
 ### ★ Optional Docker image for the dedicated server (2026-06-21) — ✅ done (built + pushed to GHCR on each release)
 Ship the headless server **and** the admin/portal/download UI (and the optional AI backend) as one optional Linux
 container — runs on any OS (Linux/macOS/Windows-WSL2/NAS/VPS); the game client stays Windows-only.
