@@ -149,7 +149,9 @@ namespace BlocksBeyondTheStars.Client
                         audio.At(entry.Bank + "_alert", entry.Root.transform.position, entry.Pitch, 0.9f, entry.Echo);
                     }
 
-                    if (c.Hostile && Time.time >= entry.NextAttack
+                    // No bite-lunge once the player has fled into their ship: the server stops targeting a
+                    // boarded player (no proximity damage), so the render side must not keep mauling the hull.
+                    if (c.Hostile && !Game.Aboard && Time.time >= entry.NextAttack
                         && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
                     {
                         entry.NextAttack = Time.time + Random.Range(1.5f, 3.5f);

@@ -119,6 +119,42 @@ public sealed class EnemyMovementTests : IDisposable
     }
 
     [Fact]
+    public void PlanetEnemies_IgnoreAPlayerWhoFledAboardTheShip()
+    {
+        // Regression: fleeing into the ship must break off the hunt entirely — the machine neither chases
+        // nor harms a boarded player (the client mirrors this by holding its laser/claw FX). Boarded players
+        // are filtered out of the enemy target list, so even point-blank they take no damage.
+        var server = Started("aboardsafe", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Refugee");
+            pilot.State.AboardShip = false; // spawn on foot so an enemy actually spawns and turns hostile
+
+            for (int i = 0; i < 40 && server.PlanetEnemies.Count == 0; i++)
+            {
+                server.Tick(0.5);
+            }
+
+            Assert.NotEmpty(server.PlanetEnemies);
+            var enemy = server.PlanetEnemies[0];
+
+            // Park the enemy on top of the player, then board: well inside both hunt and proximity range.
+            pilot.State.Position = enemy.Position;
+            pilot.State.AboardShip = true;
+            pilot.State.Health = 100f;
+
+            var start = enemy.Position;
+            for (int i = 0; i < 15; i++)
+            {
+                server.Tick(0.2); // 3 s sitting on top of a boarded player
+            }
+
+            Assert.Equal(100f, pilot.State.Health); // no proximity damage while aboard
+            Assert.True(enemy.Position.Equals(start), "a boarded player is no target — the machine must not chase them");
+        }
+    }
+
+    [Fact]
     public void SpaceHostiles_PatrolInsteadOfHangingStill()
     {
         var server = Started("patrol", out var repo);
