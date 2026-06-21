@@ -14,38 +14,20 @@
 # the PR, even though the local build keeps TreatWarningsAsErrors=false (Directory.Build.props) for a
 # friction-free dev loop. The tree currently builds clean (0 warnings), so this only guards regressions.
 #
-# Docs-only changes don't run this: paths-ignore skips the workflow when EVERY changed file matches a
-# doc pattern below (any code/content/workflow file in the diff makes it run as normal). Note: `data/**`
-# and `web/**` are intentionally NOT ignored — they feed tests (e.g. the en/de locale-parity test).
-#
-# CAVEAT if you make this a REQUIRED status check in branch protection: a skipped run reports no status,
-# so a docs-only PR would sit forever "Expected — Waiting for status". The standard fix is a tiny always-
-# running guard job that reports success; ask before wiring that up so we don't add noise prematurely.
+# REQUIRED-CHECK SAFE docs-only skip: rather than skipping the whole workflow with paths-ignore (which
+# would leave a *required* check stuck on "Expected — Waiting for status" for a docs-only PR), the
+# workflow always runs and a `changes` job decides whether the heavy `build-test` job runs. On a
+# docs-only PR `build-test` is skipped via its `if:`, and GitHub counts a skipped required job as a pass —
+# so the `Build + test (.NET, headless)` check still reports green and never blocks a docs PR. Any
+# code/content file in the diff makes it run for real. `data/**` and `web/**` count as code (they feed
+# tests, e.g. the en/de locale-parity test), so they are NOT in the doc-only exclusions below.
 
 name: CI
 
-# NOTE: GitHub Actions does not support YAML anchors, so the doc paths are duplicated below — keep both
-# lists in sync if you edit them.
 on:
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICES*'
-      - 'THIRD-PARTY*'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
   push:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICES*'
-      - 'THIRD-PARTY*'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
 
 permissions:
   contents: read
@@ -56,8 +38,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides whether the diff contains anything other than documentation. Only meaningful for PRs;
+  # direct pushes to main always build (see build-test's `if:`), so the filter step is PR-only.
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      nondocs: ${{ steps.filter.outputs.nondocs }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          # picomatch array semantics: the positive `**/*` matches every changed file, the `!` lines
+          # subtract the doc paths — so `nondocs` is true iff at least one NON-doc file changed.
+          filters: |
+            nondocs:
+              - '**/*'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!LICENSE*'
+              - '!NOTICES*'
+              - '!THIRD-PARTY*'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!.github/pull_request_template.md'
+
   build-test:
     name: Build + test (.NET, headless)
+    needs: changes
+    # Run for any push to main, or for a PR that touched at least one non-doc file. A docs-only PR
+    # skips this job; a skipped required check counts as passing, so docs PRs are never blocked.
+    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
