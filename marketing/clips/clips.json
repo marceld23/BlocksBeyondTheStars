@@ -1,0 +1,62 @@
+{
+  "clips": [
+    {
+      "name": "intro",
+      "scene": "intro",
+      "lengthSeconds": 20,
+      "fps": 30,
+      "hud": true
+    },
+    {
+      "name": "space_cruise",
+      "scene": "space",
+      "lengthSeconds": 8,
+      "fps": 30,
+      "hud": true,
+      "camera": "yaw_sweep",
+      "shipThrottle": 0.8,
+      "yawStart": -10,
+      "yawEnd": 10
+    },
+    {
+      "name": "space_turn",
+      "scene": "space",
+      "lengthSeconds": 8,
+      "fps": 30,
+      "hud": true,
+      "camera": "yaw_sweep",
+      "shipThrottle": 0.6,
+      "yawStart": -45,
+      "yawEnd": 45
+    },
+    {
+      "name": "approach_land",
+      "scene": "land",
+      "lengthSeconds": 12,
+      "fps": 30,
+      "hud": true
+    },
+    {
+      "name": "cockpit_hud",
+      "scene": "cockpit",
+      "lengthSeconds": 6,
+      "fps": 30,
+      "hud": true,
+      "openMenu": true,
+      "menuTabs": [1, 2, 4]
+    },
+    {
+      "name": "surface_walk",
+      "scene": "surface",
+      "planet": "jungle",
+      "lengthSeconds": 7,
+      "fps": 30,
+      "hud": false,
+      "camera": "static",
+      "walkForward": 1,
+      "lookYawStart": -25,
+      "lookYawEnd": 25,
+      "lookPitch": 2
+    }
+  ]
+}

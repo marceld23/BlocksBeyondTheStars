@@ -25,6 +25,128 @@ namespace BlocksBeyondTheStars.Client
         /// input, which is absent during an unattended capture run.</summary>
         public void SetFlightYaw(float yawDeg) => _yaw = yawDeg;
 
+        /// <summary>Cinematic-capture hooks (<see cref="ClipDirector"/>): force forward thrust + pitch without
+        /// keyboard input so a recorded clip shows the ship actually cruising. <see cref="_captureThrottle"/> is
+        /// &lt; 0 when disabled, so the normal input-driven flight path is untouched in regular play.</summary>
+        private float _captureThrottle = -1f;
+        public void SetFlightThrottle(float throttle) => _captureThrottle = throttle < 0f ? -1f : Mathf.Clamp01(throttle);
+        public void SetFlightPitch(float pitchDeg) => _pitch = Mathf.Clamp(pitchDeg, -80f, 80f);
+        private float CaptureForward() => _captureThrottle >= 0f ? _captureThrottle : Input.GetAxis("Vertical");
+
+        // --- Cinematic landing hooks (ClipDirector): a hands-off version of the player's fly-in → pick-pad → land. ---
+        public bool CaptureLandMapShowing => _landMapGo != null;
+        public void CaptureLandOnPad(int padIndex) => LandOnPad(padIndex);
+
+        /// <summary>Steer + cruise toward the nearest landable body (planets/moons; stations skipped). Returns the
+        /// distance to it as a MULTIPLE of its landing range (1 = at landing range, larger = farther), or -1 if
+        /// there's none. The caller throttles down before it reaches ~1 so the ship doesn't dive into the surface
+        /// (a full-speed dive auto-leaves space, which is why the descent never played before).</summary>
+        public float CaptureSteerToNearestBody(float throttle)
+        {
+            if (_ship == null || _landables == null)
+            {
+                return -1f;
+            }
+
+            Vector3 pos = _ship.transform.localPosition;
+            Vector3 target = Vector3.zero;
+            float bestSq = float.MaxValue;
+            float landRange = 1f;
+            foreach (var b in _landables)
+            {
+                float sq = (b.Pos - pos).sqrMagnitude;
+                if (sq < bestSq)
+                {
+                    bestSq = sq;
+                    target = b.Pos;
+                    landRange = b.Radius + KeepOutMargin + LandBand;
+                }
+            }
+
+            if (bestSq == float.MaxValue)
+            {
+                return -1f;
+            }
+
+            Vector3 to = (target - pos).normalized;
+            float wantYaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+            float wantPitch = -Mathf.Asin(Mathf.Clamp(to.y, -1f, 1f)) * Mathf.Rad2Deg;
+            _yaw = Mathf.MoveTowardsAngle(_yaw, wantYaw, 60f * Time.deltaTime);
+            _pitch = Mathf.MoveTowards(_pitch, Mathf.Clamp(wantPitch, -80f, 80f), 45f * Time.deltaTime);
+            _captureThrottle = Mathf.Clamp01(throttle);
+            return Mathf.Sqrt(bestSq) / Mathf.Max(1f, landRange);
+        }
+
+        /// <summary>Open the planet/pad map for the body the server already has pads for (it auto-sends them for
+        /// the current body). Returns false if no pads are known yet. ShowLandMap renders next frame because the
+        /// chooser's body id now matches the server's.</summary>
+        public bool CaptureOpenLandMap()
+        {
+            if (Game == null || Game.LandingPads == null || Game.LandingPads.Length == 0)
+            {
+                return false;
+            }
+
+            OpenPadChooser(Game.LandingPadsBody ?? string.Empty);
+            return true;
+        }
+
+        // Synthetic pad-click cursor — the OS cursor isn't in a ScreenCapture, so we draw + animate our own onto
+        // the pad map and "press" a free pad. Populated by ShowLandMap (free-pad centres in the panel's space).
+        private readonly System.Collections.Generic.List<(Vector2 center, int index)> _captureFreePads
+            = new System.Collections.Generic.List<(Vector2, int)>();
+        private RectTransform _captureCursor;
+        private Vector2 _cursorStart, _cursorTarget;
+        private int _capturePadIndex = -1;
+
+        /// <summary>Spawn the cursor and aim it at the first free pad. Returns false if the map/free pad isn't ready.</summary>
+        public bool CaptureBeginPadClick()
+        {
+            if (_landMapGo == null || _captureFreePads.Count == 0)
+            {
+                return false;
+            }
+
+            var first = _captureFreePads[0];
+            _capturePadIndex = first.index;
+            _cursorTarget = first.center;
+            _cursorStart = new Vector2(first.center.x, 60f); // glide down from the top of the panel
+
+            var go = new GameObject("CaptureCursor", typeof(RectTransform));
+            go.transform.SetParent(_landMapGo.transform, false);
+            var img = go.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(1f, 1f, 1f, 0.95f);
+            img.raycastTarget = false;
+            _captureCursor = go.GetComponent<RectTransform>();
+            CaptureCursorProgress(0f);
+            return true;
+        }
+
+        /// <summary>Move the cursor from its start toward the pad (t 0..1), shrinking a touch as it "presses".</summary>
+        public void CaptureCursorProgress(float t)
+        {
+            if (_captureCursor == null)
+            {
+                return;
+            }
+
+            Vector2 p = Vector2.Lerp(_cursorStart, _cursorTarget, Mathf.Clamp01(t));
+            float s = Mathf.Lerp(26f, 18f, Mathf.Clamp01(t));
+            UiKit.Place(_captureCursor.gameObject, p.x - s * 0.5f, p.y - s * 0.5f, s, s);
+        }
+
+        /// <summary>Commit the click: land on the chosen pad (HideLandMap tears down the cursor with the panel).</summary>
+        public void CaptureCommitPadClick()
+        {
+            if (_capturePadIndex >= 0)
+            {
+                LandOnPad(_capturePadIndex);
+            }
+
+            _capturePadIndex = -1;
+            _captureCursor = null;
+        }
+
         private static readonly Vector3 SceneOrigin = new Vector3(0f, 6000f, 0f);
         private const float SeqDuration = 1.6f;
         private const float LandDuration = 2.2f;  // landing flies the ship away toward the planet — a touch longer so the shrink reads
@@ -316,13 +438,13 @@ namespace BlocksBeyondTheStars.Client
             if (_engine != null)
             {
                 _engine.volume = Mathf.MoveTowards(_engine.volume, (_phase == Phase.Cruise && !_eva) ? 0.25f : 0.08f, Time.deltaTime * 0.5f);
-                _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(Input.GetAxis("Vertical")));
+                _engine.pitch = 1f + 0.2f * Mathf.Clamp01(Mathf.Abs(CaptureForward()));
             }
 
             // Engine flame: a real ParticleSystem thruster (BuildThruster) whose emission + jet speed track the
             // throttle. The small Unlit nozzle core (_exhaust) just glows at the vent; the old stretching flame +
             // cube exhaust bits are retired in favour of the particle jet.
-            float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(Input.GetAxis("Vertical")) : 0f;
+            float throttle = _phase == Phase.Cruise ? Mathf.Clamp01(CaptureForward()) : 0f;
             if (_exhaust != null)
             {
                 _exhaust.localScale = new Vector3(0.5f, 0.5f, 0.55f + throttle * 0.5f); // steady nozzle glow core
@@ -932,7 +1054,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _yaw += Input.GetAxis("Mouse X") * LookSpeed * _shipTurnMul;
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * LookSpeed * _shipTurnMul, -80f, 80f);
-                fwd = Input.GetAxis("Vertical");
+                fwd = CaptureForward();
                 strafe = Input.GetAxis("Horizontal");
             }
 
@@ -1138,6 +1260,7 @@ namespace BlocksBeyondTheStars.Client
 
             HideLandMap();
             _landMapBody = _choosePadBody;
+            _captureFreePads.Clear(); // re-collected below for the synthetic capture cursor
             EnsureUi();
 
             var loc = Game.Localizer;
@@ -1211,6 +1334,7 @@ namespace BlocksBeyondTheStars.Client
                 if (free)
                 {
                     UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
+                    _captureFreePads.Add((new Vector2(mx + marker * 0.5f, my + marker * 0.5f), padIndex));
                 }
                 else
                 {
