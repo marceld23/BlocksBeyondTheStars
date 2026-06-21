@@ -123,7 +123,7 @@ jobs:
           echo "Injected feedback API key into the build."
 
       - name: Build Windows player
-        uses: game-ci/unity-builder@1d4ee0697f193f54668e98961d79907911f4b4f2 # v4
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
         env:
           # Unity Personal needs all three: the .ulf contents + the account email & password.
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
