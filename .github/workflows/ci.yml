@@ -38,30 +38,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Decides whether the diff contains anything other than documentation. Only meaningful for PRs;
-  # direct pushes to main always build (see build-test's `if:`), so the filter step is PR-only.
+  # Decides whether the PR diff contains anything other than documentation. Only meaningful for PRs;
+  # direct pushes to main always build (see build-test's `if:`), so the detection step is PR-only.
   changes:
     name: Detect code changes
     runs-on: ubuntu-latest
     outputs:
-      nondocs: ${{ steps.filter.outputs.nondocs }}
+      nondocs: ${{ steps.detect.outputs.nondocs }}
     steps:
-      - uses: dorny/paths-filter@v3
-        id: filter
+      # Lists the PR's changed files via the API (no checkout needed) and sets nondocs=true if ANY file is
+      # not documentation. Doc-only PRs (Markdown, docs/**, licences, issue/PR templates) leave it false, so
+      # build-test/format skip and — a skipped required job counting as a pass — never block a docs PR.
+      # data/** and web/** are treated as code (they feed tests, e.g. the en/de locale-parity test).
+      # (Done with an explicit case match rather than dorny/paths-filter, whose `some` glob semantics made a
+      # `**/*` + `!doc` list always true.)
+      - name: Detect non-doc changes
+        id: detect
         if: github.event_name == 'pull_request'
-        with:
-          # picomatch array semantics: the positive `**/*` matches every changed file, the `!` lines
-          # subtract the doc paths — so `nondocs` is true iff at least one NON-doc file changed.
-          filters: |
-            nondocs:
-              - '**/*'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!LICENSE*'
-              - '!NOTICES*'
-              - '!THIRD-PARTY*'
-              - '!.github/ISSUE_TEMPLATE/**'
-              - '!.github/pull_request_template.md'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')"
+          nondocs=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              *.md|docs/*|LICENSE*|NOTICES*|THIRD-PARTY*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+              *) nondocs=true; break ;;
+            esac
+          done <<< "$files"
+          echo "nondocs=$nondocs" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs"
 
   build-test:
     name: Build + test (.NET, headless)

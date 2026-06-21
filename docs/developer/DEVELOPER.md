@@ -60,13 +60,14 @@ These are the same two suites `run-tests.ps1` runs by default. Two deliberate ch
   ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
   builds clean (0 warnings), so this only guards against regressions. The `.trx` results are uploaded as a
   run artifact for inspection.
-- **Docs-only changes skip the build — without blocking the PR.** A small `changes` job
-  ([`dorny/paths-filter`](https://github.com/dorny/paths-filter)) decides whether the diff touches anything
-  other than docs (Markdown, `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy
-  `build-test` job is skipped via its `if:`. The workflow still **runs** (so the check always reports), and a
-  *skipped* required job counts as a pass — so the gate stays green on a docs PR instead of stalling. Any
-  code/content file makes it build for real; `data/**` and `web/**` count as code (they feed tests, e.g. the
-  en/de locale-parity test), so they are **not** in the doc-only exclusions.
+- **Docs-only changes skip the build — without blocking the PR.** A small `changes` job lists the PR's
+  changed files (via the GitHub API) and sets `nondocs=true` if any file is not documentation (Markdown,
+  `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy `build-test` and `format` jobs are
+  skipped via their `if:`. The workflow still **runs** (so the checks always report), and a *skipped* required
+  job counts as a pass — so the gates stay green on a docs PR instead of stalling. Any code/content file makes
+  it build for real; `data/**` and `web/**` count as code (they feed tests, e.g. the en/de locale-parity test).
+  (The detection is an explicit `case` match, not `dorny/paths-filter` — that action's `some`-glob semantics
+  made a `**/*` + `!doc` list evaluate true for every diff, so docs PRs never actually skipped.)
 
 It is **safe as a required status check** — and is one: because the workflow always runs and the build-test
 check always reports (green/red/skipped-as-pass), a docs-only PR is never left waiting on a missing status, the
