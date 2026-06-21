@@ -112,11 +112,11 @@ problems are caught locally instead of at release time:
 2. **Warning check** — a clean rebuild (`dotnet build --no-incremental`) and confirm **0 warnings / 0 errors**.
    The Roslyn analyzers are on and CI builds with `-warnaserror`, so a warning fails CI. Don't rely on the
    `dotnet test -v minimal` output — it hides warnings.
-3. **Format + lint** — match the PR checks so they don't fail in CI:
-   - `dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes` (C# style/whitespace/using-order; the
-     `.slnf` excludes the Windows-only launcher so it also works on the Linux runner).
-   - If you touched `ai-backend/`: `uvx ruff check ai-backend`. If you touched `web/`: `node --check` the
-     changed `.js`. If you touched `.github/workflows/`: `actionlint -shellcheck=`.
+3. **Lint (non-.NET)** — match the PR checks so they don't fail in CI: if you touched `ai-backend/`,
+   `uvx ruff check ai-backend`; if you touched `web/`, `node --check` the changed `.js`; if you touched
+   `.github/workflows/`, `actionlint -shellcheck=`. (The C# side is covered by the `-warnaserror` build in
+   step 2. `dotnet format` is **not** a CI gate yet — see TODO.md — but if you add new C# keep it tidy;
+   `dotnet format BlocksBeyondTheStars.CI.slnf` excludes the Windows-only launcher so it runs on any OS.)
 4. **Local Unity build when client (Unity) code changed** — **PR CI never builds Unity** (it is .NET-only);
    the Unity player is only built on a release tag / manual dispatch by
    [.github/workflows/release.yml](.github/workflows/release.yml). So whenever a `client/Assets/**` file
@@ -162,9 +162,10 @@ built (blocked by the Windows-only UnityWebBrowser/CEF engine).
   fresh checkout. Don't reintroduce CRLF; modern Windows tooling handles LF fine.
 - The author is JAM Software; follow sensible, consistent C# conventions.
 - **Automated checks on every PR** (see [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) §CI):
-  `ci.yml` builds + tests with `-warnaserror` and runs `dotnet format --verify-no-changes`; `lint.yml` runs
-  ruff (Python), `node --check` (web JS) and actionlint (workflows); `codeql.yml` does security/quality
-  scanning. Keep them green — run the equivalents locally before pushing (next section).
+  `ci.yml` builds + tests with `-warnaserror` (Roslyn/Meziantou/VS.Threading analyzers as errors = the C#
+  syntax/static-analysis gate); `lint.yml` runs ruff (Python), `node --check` (web JS) and actionlint
+  (workflows); `codeql.yml` does security/quality scanning. Keep them green. (A `dotnet format` gate is not
+  enforced yet — the tree needs a one-off reformat first; see TODO.md.)
 
 ## Git workflow (mandatory)
 
