@@ -1,7 +1,7 @@
-using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -77,11 +77,11 @@ public class WorldMathTests
     {
         var seen = new HashSet<int>();
         for (int y = 0; y < WorldConstants.ChunkSize; y++)
-        for (int z = 0; z < WorldConstants.ChunkSize; z++)
-        for (int x = 0; x < WorldConstants.ChunkSize; x++)
-        {
-            Assert.True(seen.Add(WorldConstants.LocalIndex(x, y, z)));
-        }
+            for (int z = 0; z < WorldConstants.ChunkSize; z++)
+                for (int x = 0; x < WorldConstants.ChunkSize; x++)
+                {
+                    Assert.True(seen.Add(WorldConstants.LocalIndex(x, y, z)));
+                }
 
         Assert.Equal(WorldConstants.BlocksPerChunk, seen.Count);
     }

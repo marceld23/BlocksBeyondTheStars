@@ -1,6 +1,6 @@
+using BlocksBeyondTheStars.Networking.Messages;
 using MessagePack;
 using MessagePack.Resolvers;
-using BlocksBeyondTheStars.Networking.Messages;
 
 namespace BlocksBeyondTheStars.Networking;
 

@@ -1,0 +1,17 @@
+{
+  "solution": {
+    "path": "BlocksBeyondTheStars.sln",
+    "projects": [
+      "src\\BlocksBeyondTheStars.Api\\BlocksBeyondTheStars.Api.csproj",
+      "src\\BlocksBeyondTheStars.Client.Core\\BlocksBeyondTheStars.Client.Core.csproj",
+      "src\\BlocksBeyondTheStars.GameServer\\BlocksBeyondTheStars.GameServer.csproj",
+      "src\\BlocksBeyondTheStars.Networking\\BlocksBeyondTheStars.Networking.csproj",
+      "src\\BlocksBeyondTheStars.Persistence\\BlocksBeyondTheStars.Persistence.csproj",
+      "src\\BlocksBeyondTheStars.Shared\\BlocksBeyondTheStars.Shared.csproj",
+      "src\\BlocksBeyondTheStars.Tools\\BlocksBeyondTheStars.Tools.csproj",
+      "src\\BlocksBeyondTheStars.WorldGeneration\\BlocksBeyondTheStars.WorldGeneration.csproj",
+      "tests\\BlocksBeyondTheStars.Tests\\BlocksBeyondTheStars.Tests.csproj",
+      "tests\\BlocksBeyondTheStars.Client.Tests\\BlocksBeyondTheStars.Client.Tests.csproj"
+    ]
+  }
+}

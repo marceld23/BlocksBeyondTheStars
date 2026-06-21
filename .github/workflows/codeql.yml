@@ -1,0 +1,58 @@
+# CodeQL security + quality scanning (GitHub "advanced setup" as a committed workflow).
+#
+# We use a workflow rather than the API "default setup" on purpose: the default-setup PUT needs a PAT with
+# security_events scope, while the workflow's built-in GITHUB_TOKEN already has `security-events: write` — no
+# extra credentials. Findings land in the repo's Security → Code scanning tab (and enable Copilot Autofix).
+#
+# C# is analysed with build-mode: none (buildless) — it scans source without compiling, so it needs neither
+# the Unity editor nor the Windows-only Launcher, and it also covers the Unity client C# under client/Assets/
+# that the .NET build in ci.yml never touches. JS/TS, Python and Actions are buildless too.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly catch-all so new CodeQL queries run against the default branch even without a push.
+    - cron: '27 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

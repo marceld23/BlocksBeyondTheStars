@@ -78,8 +78,39 @@ The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need
 ([`release.yml`](../../.github/workflows/release.yml)) is a **separate** workflow that triggers only on tags;
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
-> To make CI a hard merge requirement, add the **`Build + test (.NET, headless)`** check as a required status
-> check in the `main` branch-protection rule (Settings → Branches).
+> **`Build + test (.NET, headless)` is a required status check** on `main` (configured in branch protection).
+> The `Detect code changes` helper is intentionally **not** required. If you add another always-skippable
+> gate, only require the job that always reports.
+
+### Other PR checks: format, lint, CodeQL
+
+Beyond build+test, three more gates run on PRs:
+
+- **`Format (dotnet format)`** — a second job in [`ci.yml`](../../.github/workflows/ci.yml) runs
+  `dotnet format --verify-no-changes` against [`BlocksBeyondTheStars.CI.slnf`](../../BlocksBeyondTheStars.CI.slnf),
+  a solution filter that lists every project **except** the Windows-only launcher (so the set loads on Linux).
+  It enforces `.editorconfig` style: whitespace, `using` ordering, etc. **Line endings must be LF** — this only
+  works because `.gitattributes` (`eol=lf`) and `.editorconfig` (`end_of_line = lf`) agree; a CRLF setting
+  would make this fail on every fresh checkout. Gated by the same `changes` job, so docs-only PRs skip it.
+- **[`lint.yml`](../../.github/workflows/lint.yml)** — the non-.NET languages: **ruff** for the Python
+  `ai-backend`, **`node --check`** (parse-only, zero-config) for the browser JS under `web/`, and
+  **actionlint** (ShellCheck disabled → pure workflow-syntax) for the workflow YAML.
+- **[`codeql.yml`](../../.github/workflows/codeql.yml)** — GitHub CodeQL security + quality scanning for
+  C#, JavaScript/TypeScript, Python and Actions. C# uses `build-mode: none` (buildless), so it needs no Unity
+  and also covers the Unity client C# under `client/Assets/` that the .NET build never sees. Findings appear in
+  **Security → Code scanning**. This is the *advanced setup* (a committed workflow) rather than the API default
+  setup, because the workflow's `GITHUB_TOKEN` already has `security-events: write` (the API PUT needs a PAT).
+
+Run the equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md) §Local verification):
+
+```powershell
+dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes   # C# style/format
+uvx ruff check ai-backend                                        # Python (uv is already a project dep)
+Get-ChildItem web -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }   # web JS syntax
+```
+
+Only `Build + test (.NET, headless)` is *required* to merge today; format/lint/CodeQL are advisory until you
+add them to branch protection too.
 
 ## Local verification after changes (mandatory)
 

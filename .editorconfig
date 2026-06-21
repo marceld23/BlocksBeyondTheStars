@@ -2,7 +2,10 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = crlf
+# LF to match the repo's .gitattributes policy (`* text=auto eol=lf`); both server and CI run on Linux,
+# and Git checks out LF even on Windows — so CRLF here would make `dotnet format --verify-no-changes`
+# fail on every fresh (LF) checkout.
+end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space

@@ -17,6 +17,15 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Syntax/format/lint + CodeQL checks across all languages (2026-06-21) — ✅ workflows added (NOT yet merged)
+Extends the PR gate beyond build+test:
+- **`Format (dotnet format)`** job in ci.yml runs `dotnet format --verify-no-changes` on new [BlocksBeyondTheStars.CI.slnf](BlocksBeyondTheStars.CI.slnf) (all projects except the Windows-only launcher → loads on Linux). Gated by the same `changes` job (docs-only skips).
+- **Fixed a latent config bug:** `.editorconfig` had `end_of_line = crlf` while `.gitattributes` enforces `eol=lf` → format would fail on every fresh checkout. Set `.editorconfig` to `lf`. Also fixed 3 using-order violations (NetCodec.cs, SqliteWorldRepository.cs, InventoryTests.cs). Full format scan now: only ENDOFLINE (gone on LF) + those imports → clean.
+- **[lint.yml](.github/workflows/lint.yml)**: ruff (Python ai-backend, already clean), `node --check` (web JS parse), actionlint 1.7.12 (workflows, ShellCheck off). All verified green locally.
+- **[codeql.yml](.github/workflows/codeql.yml)**: CodeQL security+quality for csharp (build-mode none → also covers Unity client C#), javascript-typescript, python, actions. Advanced-setup workflow (GITHUB_TOKEN has security-events:write; API default-setup PUT 404'd on token scope).
+- Docs: [DEVELOPER.md](docs/developer/DEVELOPER.md) §CI (format/lint/CodeQL + local commands), [AGENTS.md](AGENTS.md) (LF policy + verification chain).
+- **Follow-up:** optionally mark `Format (dotnet format)` / lint / CodeQL as required checks too (today only `Build + test (.NET, headless)` is required).
+
 ### ★ Pull-request CI gate: build + headless tests, warnings-as-errors (2026-06-21) — ✅ merged to main (PR #16 c86858e); required-check guard added
 New [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every `pull_request` + push to `main` (separate
 from the tag-only `release.yml`). On `ubuntu-latest`, **no Unity / no license**: restores, builds and tests the
