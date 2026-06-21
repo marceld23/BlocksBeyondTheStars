@@ -78,8 +78,43 @@ The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need
 ([`release.yml`](../../.github/workflows/release.yml)) is a **separate** workflow that triggers only on tags;
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
-> To make CI a hard merge requirement, add the **`Build + test (.NET, headless)`** check as a required status
-> check in the `main` branch-protection rule (Settings → Branches).
+> **`Build + test (.NET, headless)` is a required status check** on `main` (configured in branch protection).
+> The `Detect code changes` helper is intentionally **not** required. If you add another always-skippable
+> gate, only require the job that always reports.
+
+### Other PR checks: lint + CodeQL
+
+Beyond build+test, two more workflows run on PRs:
+
+- **[`lint.yml`](../../.github/workflows/lint.yml)** — the non-.NET languages: **ruff** for the Python
+  `ai-backend`, **`node --check`** (parse-only, zero-config) for the browser JS under `web/`, and
+  **actionlint** (ShellCheck disabled → pure workflow-syntax) for the workflow YAML.
+- **[`codeql.yml`](../../.github/workflows/codeql.yml)** — GitHub CodeQL security + quality scanning for
+  C#, JavaScript/TypeScript, Python and Actions. C# uses `build-mode: none` (buildless), so it needs no Unity
+  and also covers the Unity client C# under `client/Assets/` that the .NET build never sees. Findings appear in
+  **Security → Code scanning**. This is the *advanced setup* (a committed workflow) rather than the API default
+  setup, because the workflow's `GITHUB_TOKEN` already has `security-events: write` (the API PUT needs a PAT).
+
+The C# side itself is already syntax/static-analysis-checked by the build (`-warnaserror` runs the Roslyn +
+Meziantou + VS.Threading analyzers as errors), so it needs no extra linter.
+
+Run the lint equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md) §Local verification):
+
+```powershell
+uvx ruff check ai-backend                                                                # Python (uv is a project dep)
+Get-ChildItem web -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }     # web JS syntax
+```
+
+Only `Build + test (.NET, headless)` is *required* to merge today; lint/CodeQL are advisory until you add
+them to branch protection too.
+
+> **Not enforced yet — `dotnet format`.** A `dotnet format --verify-no-changes` gate would be the natural C#
+> style check, and [`BlocksBeyondTheStars.CI.slnf`](../../BlocksBeyondTheStars.CI.slnf) (every project except
+> the Windows-only launcher, so it loads on Linux) exists for it. But the tree currently has ~1873 pre-existing
+> whitespace/indentation violations across ~65 files, so the check would fail immediately. Enforcing it needs a
+> one-off tree-wide `dotnet format` reformat commit first — run when no other work is in flight, since it
+> touches hot files (GameServer.cs, WorldGeneration.cs). The LF line-ending fix that makes the check viable is
+> already in place (`.gitattributes eol=lf` + `.editorconfig end_of_line = lf` now agree). Tracked in TODO.md.
 
 ## Local verification after changes (mandatory)
 

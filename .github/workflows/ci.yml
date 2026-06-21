@@ -102,3 +102,10 @@ jobs:
           name: test-results
           path: TestResults/*.trx
           if-no-files-found: ignore
+
+  # NOTE: a `dotnet format --verify-no-changes` gate is intentionally NOT here yet. The tree currently has
+  # ~1873 pre-existing WHITESPACE (indentation) violations across ~65 files, so the check would fail on day
+  # one. Enforcing it needs a separate, tree-wide reformat commit first (done when no other work is in
+  # flight, since it touches hot files like GameServer.cs / WorldGeneration.cs). BlocksBeyondTheStars.CI.slnf
+  # is kept for that: `dotnet format BlocksBeyondTheStars.CI.slnf` (it excludes the Windows-only launcher so
+  # it also runs on Linux). See TODO.md.

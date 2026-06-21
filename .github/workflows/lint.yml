@@ -1,0 +1,61 @@
+# Lightweight per-language syntax/lint checks for the non-.NET parts of the repo. The C# side is covered by
+# ci.yml (build with -warnaserror + dotnet format) and codeql.yml; this fills the gaps: Python, web JS, and
+# the workflow YAML itself. Each job is independent and fast (seconds), so they all run on every PR/push.
+
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Python AI backend — ruff is both the linter and the syntax checker. Config (if any) is read from
+  # ai-backend/pyproject.toml; today it runs ruff's default rule set, which the tree already passes.
+  ruff:
+    name: ruff (Python ai-backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "check"
+          src: "ai-backend"
+
+  # Browser JavaScript for the in-game wiki + minigames. No bundler/module setup, so a zero-config
+  # `node --check` (parse-only) is the right "syntax check" — it catches parse errors without needing
+  # an ESLint config or browser-global allowlist. (Inline <script> in the minigame HTML is not covered.)
+  web-js:
+    name: web JS syntax (node --check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node --check every web/*.js
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            if node --check "$f"; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"; fail=1
+            fi
+          done < <(find web -name '*.js' -print0)
+          exit $fail
+
+  # Workflow YAML correctness. ShellCheck is disabled (-shellcheck=) so this stays a workflow-syntax check
+  # and does not flag shell style in the existing run: scripts. Pinned for reproducibility.
+  actionlint:
+    name: actionlint (workflows)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download + run actionlint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.12
+          ./actionlint -shellcheck= -color

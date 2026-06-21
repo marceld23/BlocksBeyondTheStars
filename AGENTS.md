@@ -112,7 +112,12 @@ problems are caught locally instead of at release time:
 2. **Warning check** — a clean rebuild (`dotnet build --no-incremental`) and confirm **0 warnings / 0 errors**.
    The Roslyn analyzers are on and CI builds with `-warnaserror`, so a warning fails CI. Don't rely on the
    `dotnet test -v minimal` output — it hides warnings.
-3. **Local Unity build when client (Unity) code changed** — **PR CI never builds Unity** (it is .NET-only);
+3. **Lint (non-.NET)** — match the PR checks so they don't fail in CI: if you touched `ai-backend/`,
+   `uvx ruff check ai-backend`; if you touched `web/`, `node --check` the changed `.js`; if you touched
+   `.github/workflows/`, `actionlint -shellcheck=`. (The C# side is covered by the `-warnaserror` build in
+   step 2. `dotnet format` is **not** a CI gate yet — see TODO.md — but if you add new C# keep it tidy;
+   `dotnet format BlocksBeyondTheStars.CI.slnf` excludes the Windows-only launcher so it runs on any OS.)
+4. **Local Unity build when client (Unity) code changed** — **PR CI never builds Unity** (it is .NET-only);
    the Unity player is only built on a release tag / manual dispatch by
    [.github/workflows/release.yml](.github/workflows/release.yml). So whenever a `client/Assets/**` file
    changed, run `./scripts/build-client.ps1` locally. This catches Unity-only compile failures (e.g. the
@@ -152,7 +157,15 @@ built (blocked by the Windows-only UnityWebBrowser/CEF engine).
 - C#: `LangVersion=latest`, nullable enabled, 4-space indent, Allman braces
   (see `.editorconfig`). Records/`init` work on netstandard2.1 via the
   `IsExternalInit` polyfill in `BlocksBeyondTheStars.Shared/Compatibility`.
+- **Line endings are LF** everywhere — even on Windows. `.gitattributes` (`* text=auto eol=lf`) checks out
+  LF on all platforms and `.editorconfig` (`end_of_line = lf`) must match it, or `dotnet format` fails on a
+  fresh checkout. Don't reintroduce CRLF; modern Windows tooling handles LF fine.
 - The author is JAM Software; follow sensible, consistent C# conventions.
+- **Automated checks on every PR** (see [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) §CI):
+  `ci.yml` builds + tests with `-warnaserror` (Roslyn/Meziantou/VS.Threading analyzers as errors = the C#
+  syntax/static-analysis gate); `lint.yml` runs ruff (Python), `node --check` (web JS) and actionlint
+  (workflows); `codeql.yml` does security/quality scanning. Keep them green. (A `dotnet format` gate is not
+  enforced yet — the tree needs a one-off reformat first; see TODO.md.)
 
 ## Git workflow (mandatory)
 
