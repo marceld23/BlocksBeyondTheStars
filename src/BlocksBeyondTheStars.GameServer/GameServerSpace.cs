@@ -61,7 +61,16 @@ public sealed partial class GameServer
             _ => (4, 8),
         };
         int baseCount = lo + PadRng(locationId).Next(hi - lo + 1);
-        return baseCount * 2; // double the landing spots per world (kept consistent across both consumers)
+        int count = baseCount * 2; // double the landing spots per world (kept consistent across both consumers)
+
+        // Full-size planets must offer at least one pad per player, so a busy server with PersonalLandingZones
+        // doesn't run out of free pads and cluster everyone onto pad 0 (spawn fallback). Moons/asteroids keep
+        // their deliberately small set — players don't start there and en-masse landings on tiny bodies are rare.
+        if (cls != WorldConstants.WorldSizeClass.Asteroid && cls != WorldConstants.WorldSizeClass.Moon)
+        {
+            count = System.Math.Max(count, _config.MaxPlayers);
+        }
+        return count;
     }
 
     /// <summary>(Re)builds the active world's deterministic pad set and hands it to worldgen for terrain
