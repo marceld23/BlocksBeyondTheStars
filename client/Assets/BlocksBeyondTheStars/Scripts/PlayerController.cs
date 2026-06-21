@@ -1063,6 +1063,32 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Cinematic-capture hooks (<see cref="ClipDirector"/>): drive the on-foot player's walk + look
+        /// without keyboard input so a recorded clip shows the character actually moving. <see cref="_captureWalk"/>
+        /// gates this — when false the normal <c>Input.GetAxis</c> path is untouched in regular play.</summary>
+        private bool _captureWalk;
+        private float _captureH, _captureV;
+        public void SetWalkInput(float horizontal, float vertical)
+        {
+            _captureH = horizontal;
+            _captureV = vertical;
+            _captureWalk = true;
+        }
+
+        public void ClearWalkInput() => _captureWalk = false;
+
+        /// <summary>Set the body yaw + look pitch directly (same as the rotation half of <see cref="SetCapturePose"/>),
+        /// for a cinematic look-around while walking.</summary>
+        public void SetLookAngles(float yaw, float pitch)
+        {
+            transform.eulerAngles = new Vector3(0f, yaw, 0f);
+            _pitch = Mathf.Clamp(pitch, -89f, 89f);
+            if (Camera != null)
+            {
+                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
+            }
+        }
+
         /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): place the on-foot player on REAL terrain near
         /// an anchor (the landed ship) and face back toward it, for a per-planet surface shot. Unlike the blind
         /// <see cref="SetCapturePose"/>, this is terrain-aware. It probes a ring of spots around the ship (radii
@@ -1384,8 +1410,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Move()
         {
-            float h = Input.GetAxis("Horizontal");
-            float v = Input.GetAxis("Vertical");
+            float h = _captureWalk ? _captureH : Input.GetAxis("Horizontal");
+            float v = _captureWalk ? _captureV : Input.GetAxis("Vertical");
             Vector3 move = (transform.right * h + transform.forward * v) * _effMoveSpeed;
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
