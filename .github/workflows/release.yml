@@ -123,7 +123,7 @@ jobs:
           echo "Injected feedback API key into the build."
 
       - name: Build Windows player
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-builder@1d4ee0697f193f54668e98961d79907911f4b4f2 # v4
         env:
           # Unity Personal needs all three: the .ulf contents + the account email & password.
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -232,7 +232,7 @@ jobs:
       # (verifiable from the run logs) but skips publishing.
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             artifacts/installer/*Setup.exe
