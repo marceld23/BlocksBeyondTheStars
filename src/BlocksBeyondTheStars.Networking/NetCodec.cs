@@ -265,6 +265,11 @@ public static class NetCodec
         // /bump bug report carrying a screenshot (client -> server). The text-only /bump still arrives as a
         // ChatIntent the server intercepts; this variant additionally ships a JPG screenshot.
         Register(168, typeof(BumpReport));               // Client -> Server (bug report + optional screenshot)
+
+        // Live voice chat: one Opus frame per ~20 ms. Same class both ways — client uploads the speaker's
+        // microphone; the server stamps FromPlayerId and relays the opaque bytes to the sender's tiered radio
+        // audience (same world / system / galaxy, like text chat). Sent Unreliable.
+        Register(169, typeof(VoiceFrame));               // Client <-> Server
     }
 
     private static void Register(byte tag, Type type)

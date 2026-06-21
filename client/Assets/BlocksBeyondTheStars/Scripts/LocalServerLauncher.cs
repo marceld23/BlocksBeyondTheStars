@@ -160,6 +160,10 @@ namespace BlocksBeyondTheStars.Client
             string seedArg = seed != 0 ? $" --seed {seed}" : string.Empty;
             // Singleplayer enables free space flight + PvE space combat so it's reachable solo.
             const string spaceArgs = " --free-flight true --space-combat PvE --space-npcs Normal";
+            // Voice chat on by default for the bundled host (so hosting a world for friends has working voice
+            // out of the box); harmless solo. Players can still mute/disable it client-side. Dedicated servers
+            // keep the opt-in default (admins set voiceChatEnabled), so this only affects the local host.
+            const string voiceArg = " --voice true";
             // Solo/host convenience: guarantee a data cube next to the start landing pad (only this bundled
             // launcher sets it; dedicated/shared servers use the normal random scatter).
             const string startCubeArg = " --guarantee-start-cube true";
@@ -185,7 +189,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + startCubeArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,

@@ -61,6 +61,7 @@ is shared, persistent, and self-hostable.
 - 🐾 **Tame wild creatures** into named, loyal companions that travel with you
 - 🛻 Craft a **hover speeder** to race across planet surfaces
 - 🤝 In multiplayer, **form alliances** and share bases and structures with your allies
+- 📻 **Talk to other players** by text **and live voice** over your radio — upgrade it from planet-wide to system-wide to galaxy-wide reach
 - 🎨 Make it yours: design your avatar's face, **dye any material**, paint with light
 - 🕹️ Collect **DataQubes** — arcade minigames — and read the in-game **Codex** wiki
 - 📖 Follow the exciting **VEGA Protocol** story (optional, narrated by your ship AI) to its finale

@@ -59,6 +59,8 @@
   { "key": "jetpack",         "nameKey": "item.jetpack.name",         "category": "component",  "maxStack": 1,  "descriptionKey": "item.jetpack.desc" },
   { "key": "radar_scanner",   "nameKey": "item.radar_scanner.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.radar_scanner.desc" },
   { "key": "comm_radio",      "nameKey": "item.comm_radio.name",      "category": "component",  "maxStack": 1,  "descriptionKey": "item.comm_radio.desc" },
+  { "key": "system_radio",    "nameKey": "item.system_radio.name",    "category": "component",  "maxStack": 1,  "descriptionKey": "item.system_radio.desc" },
+  { "key": "galaxy_radio",    "nameKey": "item.galaxy_radio.name",    "category": "component",  "maxStack": 1,  "descriptionKey": "item.galaxy_radio.desc" },
   { "key": "ladder",          "nameKey": "item.ladder.name",          "category": "block",      "maxStack": 99, "placesBlock": "ladder" },
   { "key": "stairs",          "nameKey": "item.stairs.name",          "category": "block",      "maxStack": 99, "placesBlock": "stairs" },
 

@@ -665,6 +665,10 @@ public sealed class ServerRules
     /// <summary>Instant Travel world option: when true the travel screen may quick-travel anywhere; when
     /// false it is limited to bodies the player has already landed on (default).</summary>
     public bool InstantTravel { get; set; }
+
+    /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
+    /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
+    public bool VoiceChatEnabled { get; set; }
 }
 
 /// <summary>Client → server (world admin only): live-edits the gameplay world options — creature
@@ -1367,6 +1371,24 @@ public sealed class ChatMessage
 {
     public string Sender { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
+}
+
+/// <summary>One compressed voice frame, used both ways: client→server (the speaker's microphone, ~20 ms of
+/// Opus) and server→clients (the server relays the opaque bytes to the speaker's tiered radio audience and
+/// stamps <see cref="FromPlayerId"/>). The server never decodes the payload — it is a thin relay. Sent
+/// <see cref="Transport.DeliveryMode.Unreliable"/>: a dropped frame is inaudible and beats waiting for a resend.</summary>
+public sealed class VoiceFrame
+{
+    /// <summary>The speaking player's id. Left empty by the client; the server fills it in on relay so the
+    /// recipient knows which avatar/voice the frame belongs to (and so a client can't spoof another sender).</summary>
+    public string FromPlayerId { get; set; } = string.Empty;
+
+    /// <summary>Opus-encoded mono audio (one frame). Opaque to the server.</summary>
+    public byte[] Opus { get; set; } = System.Array.Empty<byte>();
+
+    /// <summary>Monotonic per-speaker frame counter, so the receiver's jitter buffer can order frames and
+    /// detect gaps without decoding the payload.</summary>
+    public int Sequence { get; set; }
 }
 
 /// <summary>Authoritative state of another player, for rendering them (avatar + nameplate).</summary>

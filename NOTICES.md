@@ -107,6 +107,11 @@ Client (Unity, UPM packages compiled into / shipped with the player — see `cli
   automatically by the UWB engine package. https://bitbucket.org/chromiumembedded/cef
 - **UniTask** — MIT — Cysharp — zero-allocation async/await for Unity (`com.cysharp.unitask`).
   https://github.com/Cysharp/UniTask
+- **Concentus** — BSD-3-Clause (© Xiph.Org Foundation, Skype Ltd., Microsoft, Jean-Marc Valin,
+  Logan Stromberg and others; a pure-C# port of the Opus codec) — the **live voice-chat** codec, shipped
+  in the standard build (the `BBS_VOICE` define is on by default). Pulled in as a `Client.Core` NuGet
+  reference and vendored into `client/Assets/Plugins` by `scripts/sync-client-libs.ps1`. Players can turn
+  voice off in Settings. See `docs/developer/VOICE_CHAT.md`. https://github.com/lostromb/concentus
 
 The Unity client additionally uses the Unity engine and its first-party packages (URP, Burst,
 Collections, Mathematics, ShaderGraph, TextMeshPro, the test framework, etc.) under the Unity

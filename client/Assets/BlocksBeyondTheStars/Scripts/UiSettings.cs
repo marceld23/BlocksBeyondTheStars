@@ -83,6 +83,16 @@ namespace BlocksBeyondTheStars.Client
                 L(S.MusicMode == MusicMode.Tracks ? "ui.settings.music_style.tracks" : "ui.settings.music_style.synth"),
                 () => { S.MusicMode = S.MusicMode == MusicMode.Tracks ? MusicMode.Synth : MusicMode.Tracks; Rebuild(); });
 
+            // Voice chat (on by default; only carries on a server that also enabled voice). The master toggle
+            // turns the whole feature off; the rows below tune it.
+            Toggle(ref y, L("ui.settings.voice"), S.VoiceEnabled, () => { S.VoiceEnabled = !S.VoiceEnabled; Rebuild(); });
+            if (S.VoiceEnabled)
+            {
+                VolRow(ref y, L("ui.settings.voice_volume"), () => S.VoiceVolume, v => S.VoiceVolume = v);
+                Toggle(ref y, L("ui.settings.voice_input"), S.VoiceInputEnabled, () => { S.VoiceInputEnabled = !S.VoiceInputEnabled; Rebuild(); });
+                Cycle(ref y, L("ui.settings.push_to_talk"), S.PushToTalkKey, () => { S.PushToTalkKey = NextPttKey(S.PushToTalkKey); Rebuild(); });
+            }
+
             Head(ref y, L("ui.settings.controls"));
             Stepper(ref y, L("ui.settings.mouse_sensitivity"), (S.MouseSensitivity - 0.5f) / 5.5f, 0, 1,
                 () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); Rebuild(); },
@@ -240,6 +250,15 @@ namespace BlocksBeyondTheStars.Client
             WindowMode.Exclusive => "ui.settings.window_mode.exclusive",
             _ => "ui.settings.window_mode.windowed",
         };
+
+        // A small curated set of comfortable push-to-talk keys to cycle through.
+        private static readonly string[] PttKeys = { "V", "B", "T", "F", "CapsLock", "LeftAlt", "LeftControl", "Mouse2" };
+
+        private static string NextPttKey(string current)
+        {
+            int idx = System.Array.IndexOf(PttKeys, current);
+            return PttKeys[(idx + 1) % PttKeys.Length];
+        }
 
         private static Color Next(Color current)
         {

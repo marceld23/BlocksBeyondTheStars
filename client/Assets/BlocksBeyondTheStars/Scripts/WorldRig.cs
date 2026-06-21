@@ -108,6 +108,12 @@ namespace BlocksBeyondTheStars.Client
             var chat = root.AddComponent<ChatUi>();
             chat.Game = boot;
 
+            // Live push-to-talk voice chat (opt-in: server flag + the Concentus plugin via the BBS_VOICE define).
+            // Inert otherwise; shares the radio gate + tiered reach with text chat.
+            var voice = root.AddComponent<VoiceChat>();
+            voice.Game = boot;
+            voice.Settings = shell.Settings;
+
             // Player feedback (F1 or the small HUD button): bug reports + feature wishes from any player →
             // website API + the existing /bump server snapshot.
             var feedback = root.AddComponent<FeedbackUi>();

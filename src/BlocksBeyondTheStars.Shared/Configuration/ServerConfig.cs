@@ -67,6 +67,11 @@ public sealed class ServerConfig
     /// <summary>Base URL of the optional Python AI backend (used when <see cref="AiLevel"/> is not Off).</summary>
     public string AiBackendUrl { get; set; } = "http://127.0.0.1:8077";
 
+    /// <summary>Opt-in live voice chat. When false (the default on dedicated servers) the server rejects/ignores
+    /// voice frames and tells clients voice is unavailable; text chat is unaffected. Voice is relayed live and
+    /// never recorded. The bundled singleplayer/host launcher may turn this on for local co-op.</summary>
+    public bool VoiceChatEnabled { get; set; }
+
     // --- Filesystem locations (resolved relative to the server install dir) ---
 
     public string SavesRoot { get; set; } = "saves";
@@ -251,6 +256,10 @@ public sealed class ServerConfig
                 case "admin-bind":
                     AdminBindAddress = value; applied.Add("admin-bind");
                     break;
+                case "voice":
+                case "voice-chat":
+                    if (bool.TryParse(value, out var vc)) { VoiceChatEnabled = vc; applied.Add("voice"); }
+                    break;
                 case "unlock-all-blueprints":
                     if (bool.TryParse(value, out var uab)) { CreativeUnlockAllBlueprints = uab; applied.Add("unlock-all-blueprints"); }
                     break;
@@ -412,6 +421,7 @@ public sealed class ServerConfig
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
         if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
         if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
+        if (Env("BBS_VOICE") is { } voiceStr && bool.TryParse(voiceStr, out var voice)) { VoiceChatEnabled = voice; applied.Add("BBS_VOICE"); }
 
         return applied;
     }
