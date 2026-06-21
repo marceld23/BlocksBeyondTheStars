@@ -121,4 +121,99 @@ public sealed class ServerConfigTests
         Assert.Empty(applied);
         Assert.Equal(defaultPort, config.GameplayPort);
     }
+
+    [Fact]
+    public void ApplyEnvironment_OverridesKnownKeys()
+    {
+        var vars = new Dictionary<string, string?>
+        {
+            ["BBS_PORT"] = "32000",
+            ["BBS_ADMIN_PORT"] = "32001",
+            ["BBS_MAX_PLAYERS"] = "8",
+            ["BBS_ADMIN_BIND"] = "0.0.0.0",
+            ["BBS_ADMIN_PASSWORD"] = "secret",
+            ["BBS_ENABLE_WEBSOCKET"] = "true",
+            ["BBS_ADMINS"] = "Alice, Bob",
+            ["BBS_WORLD"] = "dockerworld",
+            ["BBS_AI_LEVEL"] = "Suggest",
+        };
+
+        WithEnvironment(vars, () =>
+        {
+            var config = new ServerConfig();
+            var applied = config.ApplyEnvironment();
+
+            Assert.Equal(32000, config.GameplayPort);
+            Assert.Equal(32001, config.AdminPort);
+            Assert.Equal(8, config.MaxPlayers);
+            Assert.Equal("0.0.0.0", config.AdminBindAddress);
+            Assert.Equal("secret", config.AdminPassword);
+            Assert.True(config.EnableWebSocket);
+            Assert.Equal(new[] { "Alice", "Bob" }, config.AdminPlayers);
+            Assert.Equal("dockerworld", config.WorldName);
+            Assert.Equal(AiLevel.Suggest, config.AiLevel);
+            Assert.Contains("BBS_PORT", applied);
+            Assert.Contains("BBS_ADMIN_BIND", applied);
+            Assert.Contains("BBS_AI_LEVEL", applied);
+        });
+    }
+
+    [Fact]
+    public void ApplyEnvironment_IgnoresUnsetAndUnparseableValues()
+    {
+        var vars = new Dictionary<string, string?>
+        {
+            ["BBS_PORT"] = "notaport",
+            ["BBS_MAX_PLAYERS"] = "",
+        };
+
+        WithEnvironment(vars, () =>
+        {
+            var config = new ServerConfig();
+            int defaultPort = config.GameplayPort;
+            int defaultMax = config.MaxPlayers;
+
+            var applied = config.ApplyEnvironment();
+
+            Assert.Empty(applied);
+            Assert.Equal(defaultPort, config.GameplayPort);
+            Assert.Equal(defaultMax, config.MaxPlayers);
+        });
+    }
+
+    [Fact]
+    public void CommandLine_TakesPrecedenceOverEnvironment()
+    {
+        WithEnvironment(new Dictionary<string, string?> { ["BBS_PORT"] = "32000" }, () =>
+        {
+            var config = new ServerConfig();
+            config.ApplyEnvironment();          // env layer: 32000
+            config.ApplyCommandLine(new[] { "--port", "33000" }); // CLI layer wins
+
+            Assert.Equal(33000, config.GameplayPort);
+        });
+    }
+
+    /// <summary>Sets the given environment variables for the duration of <paramref name="body"/>, then restores them.</summary>
+    private static void WithEnvironment(Dictionary<string, string?> vars, Action body)
+    {
+        var previous = new Dictionary<string, string?>();
+        foreach (var (key, value) in vars)
+        {
+            previous[key] = Environment.GetEnvironmentVariable(key);
+            Environment.SetEnvironmentVariable(key, value);
+        }
+
+        try
+        {
+            body();
+        }
+        finally
+        {
+            foreach (var (key, value) in previous)
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+        }
+    }
 }

@@ -374,6 +374,48 @@ public sealed class ServerConfig
         return applied;
     }
 
+    /// <summary>
+    /// Applies <c>BBS_*</c> environment-variable overrides onto this config — the configuration
+    /// channel used when running in a container (Docker/Compose/Kubernetes), where mounting a
+    /// <c>server.json</c> is awkward. Precedence is <c>server.json</c> &lt; environment &lt;
+    /// command-line, so call this after <see cref="Load"/> and before <see cref="ApplyCommandLine"/>.
+    /// Empty/unset variables are ignored; unparseable values are skipped. Returns the canonical
+    /// names of the keys that were applied.
+    /// </summary>
+    public IReadOnlyList<string> ApplyEnvironment()
+    {
+        var applied = new List<string>();
+
+        static string? Env(string name)
+        {
+            var v = Environment.GetEnvironmentVariable(name);
+            return string.IsNullOrEmpty(v) ? null : v;
+        }
+
+        if (Env("BBS_SERVER_NAME") is { } serverName) { ServerName = serverName; applied.Add("BBS_SERVER_NAME"); }
+        if (Env("BBS_WORLD") is { } world) { WorldName = world; applied.Add("BBS_WORLD"); }
+        if ((Env("BBS_PORT") ?? Env("BBS_GAMEPLAY_PORT")) is { } portStr && int.TryParse(portStr, out var port)) { GameplayPort = port; applied.Add("BBS_PORT"); }
+        if (Env("BBS_ADMIN_PORT") is { } adminPortStr && int.TryParse(adminPortStr, out var adminPort)) { AdminPort = adminPort; applied.Add("BBS_ADMIN_PORT"); }
+        if (Env("BBS_MAX_PLAYERS") is { } maxStr && int.TryParse(maxStr, out var max)) { MaxPlayers = max; applied.Add("BBS_MAX_PLAYERS"); }
+        if ((Env("BBS_PASSWORD") ?? Env("BBS_SERVER_PASSWORD")) is { } pw) { ServerPassword = pw; applied.Add("BBS_PASSWORD"); }
+        if (Env("BBS_ADMINS") is { } admins) { AdminPlayers = SplitNames(admins); applied.Add("BBS_ADMINS"); }
+        if (Env("BBS_ADMIN_PASSWORD") is { } adminPw) { AdminPassword = adminPw; applied.Add("BBS_ADMIN_PASSWORD"); }
+        if (Env("BBS_ADMIN_BIND") is { } adminBind) { AdminBindAddress = adminBind; applied.Add("BBS_ADMIN_BIND"); }
+        if (Env("BBS_ENABLE_WEBSOCKET") is { } wsStr && bool.TryParse(wsStr, out var ws)) { EnableWebSocket = ws; applied.Add("BBS_ENABLE_WEBSOCKET"); }
+        if (Env("BBS_WEBSOCKET_BIND") is { } wsBind) { WebSocketBindAddress = wsBind; applied.Add("BBS_WEBSOCKET_BIND"); }
+        if (Env("BBS_SAVES") is { } saves) { SavesRoot = saves; applied.Add("BBS_SAVES"); }
+        if (Env("BBS_DATA") is { } data) { DataDir = data; applied.Add("BBS_DATA"); }
+        if (Env("BBS_USERCONTENT") is { } userContent) { UserContentDir = userContent; applied.Add("BBS_USERCONTENT"); }
+        if (Env("BBS_SEED") is { } seedStr && long.TryParse(seedStr, out var seed)) { Seed = seed; applied.Add("BBS_SEED"); }
+        if (Env("BBS_START_PLANET") is { } startPlanet) { StartPlanet = startPlanet.Trim(); applied.Add("BBS_START_PLANET"); }
+        if (Env("BBS_TICK_RATE") is { } tickStr && int.TryParse(tickStr, out var tick)) { TickRate = tick; applied.Add("BBS_TICK_RATE"); }
+        if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
+        if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
+        if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
+
+        return applied;
+    }
+
     /// <summary>Splits a comma-separated name list, trimming entries and dropping empties.</summary>
     private static List<string> SplitNames(string value)
         => value.Split(',').Select(n => n.Trim()).Where(n => n.Length > 0).ToList();

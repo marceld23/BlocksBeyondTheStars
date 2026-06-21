@@ -108,6 +108,13 @@ Beyond build+test, three more gates run on PRs:
 The C# *compile/static-analysis* gate is the `-warnaserror` build (Roslyn + Meziantou + VS.Threading analyzers
 as errors); `Format` adds pure style on top.
 
+- **[`docker.yml`](../../.github/workflows/docker.yml)** — builds the optional dedicated-server Docker image
+  (game server + admin/portal/download + the bundled, opt-in AI backend). It is a **reusable workflow**
+  (`workflow_call`) that `release.yml` invokes so a tagged release also builds and pushes the image multi-arch
+  (amd64+arm64) to **GHCR** (`:<version>` + `:latest`). It can also be run standalone from the Actions tab
+  (`workflow_dispatch`) — build-validate by default, opt-in `push` to GHCR. Not triggered by `pull_request`.
+  See [SELF_HOSTING.md §10](SELF_HOSTING.md#10-running-in-docker).
+
 Run the equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md) §Local verification):
 
 ```powershell

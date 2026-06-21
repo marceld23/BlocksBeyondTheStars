@@ -55,7 +55,15 @@ public sealed class AdminService
         _configPath = Path.Combine(installDir, "config", "server.json");
     }
 
-    public ServerConfig LoadConfig() => ServerConfig.Load(_configPath);
+    public ServerConfig LoadConfig()
+    {
+        // Same precedence as the game server: server.json overlaid by BBS_* environment variables, so a
+        // containerised admin UI honours BBS_ADMIN_BIND / BBS_ADMIN_PORT / BBS_ADMIN_PASSWORD. Saving config
+        // (PUT /api/config) deserialises the request body instead, so env values are never written to disk.
+        var config = ServerConfig.Load(_configPath);
+        config.ApplyEnvironment();
+        return config;
+    }
 
     public void SaveConfig(ServerConfig config) => config.Save(_configPath);
 

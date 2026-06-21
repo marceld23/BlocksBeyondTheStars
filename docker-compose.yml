@@ -1,0 +1,47 @@
+# Blocks Beyond the Stars — dedicated server (OPTIONAL Docker setup; not part of the GitHub release).
+# One image, both processes (game server + admin/portal/download). See docs/developer/SELF_HOSTING.md §10.
+#
+#   docker compose up -d          # build + run in the background
+#   docker compose logs -f        # follow the server log
+#   docker compose down           # stop (sends SIGTERM -> clean world save)
+#
+# Config precedence is server.json < BBS_* env vars < CLI; in a container you normally use the env vars
+# below. ALWAYS set BBS_ADMIN_PASSWORD before exposing the admin port (31416) beyond your LAN.
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blocks-beyond-the-stars-server:local
+    restart: unless-stopped
+    stop_grace_period: 60s        # give the world time to drain + save on SIGTERM
+    ports:
+      - "31415:31415/udp"          # native client (UDP)
+      - "31415:31415/tcp"          # browser client over WebSocket (only when BBS_ENABLE_WEBSOCKET=true)
+      - "127.0.0.1:31416:31416/tcp" # admin + portal + download — bound to localhost on the HOST by default
+    environment:
+      BBS_SERVER_NAME: "Blocks Beyond the Stars Server"
+      BBS_WORLD: "world_001"
+      BBS_MAX_PLAYERS: "12"
+      # BBS_PASSWORD: "join-secret"        # required to join the game (optional)
+      BBS_ADMIN_BIND: "0.0.0.0"            # inside the container; reach it via the host port mapping above
+      # BBS_ADMIN_PASSWORD: "change-me"    # REQUIRED before exposing 31416 publicly
+      # BBS_ENABLE_WEBSOCKET: "true"       # also accept browser clients on the gameplay port
+      BBS_FETCH_CLIENT: "1"                # pull the latest Windows installer from GitHub Releases for /download
+      # BBS_CLIENT_REPO: "marceld23/BlocksBeyondTheStars"
+      # --- Optional AI text backend (NPC greetings / mission flavour / VEGA banter) ---
+      # It is baked into the image but only STARTS when an ai-backend/.env is mounted (see volumes below)
+      # or BBTS_AI_BASE_URL is set here. Set BBS_AI_LEVEL so the game server actually uses it:
+      # BBS_AI_LEVEL: "Suggest"            # Off (default) | Suggest (AI missions as drafts) | Auto (published)
+    volumes:
+      - saves:/app/saves            # SQLite world + backups + logs + /bump bug reports (<world>/bumps)
+      - config:/app/config          # server.json (created on first run)
+      - clients:/app/clients        # published Windows installer the portal hands out
+      # Mount your AI config to enable the in-container LLM backend (copy ai-backend/.env.example -> .env):
+      # - ./ai-backend/.env:/app/ai-backend/.env:ro
+
+volumes:
+  saves:
+  config:
+  clients:

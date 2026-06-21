@@ -1,0 +1,46 @@
+# Keep the Docker build context small and the image clean. The build only needs src/, data/ and the
+# Directory.Build.props / nuget config — everything below is irrelevant to a Linux server build.
+
+# The Unity client project is huge and Windows-only — never needed for the server image.
+client/
+
+# Build outputs / restore caches (the image restores + publishes fresh inside the SDK stage).
+**/bin/
+**/obj/
+artifacts/
+publish/
+TestResults/
+
+# Git + CI + editor/agent metadata.
+.git/
+.github/
+.idea/
+.vs/
+.claude/
+
+# Runtime data that must never bleed into an image layer.
+saves/
+backups/
+logs/
+*.db
+*.db-shm
+*.db-wal
+bugreports/
+
+# Python tooling + AI backend venvs (the image installs the AI backend deps fresh in its own venv).
+**/__pycache__/
+**/.venv/
+.ruff_cache/
+
+# Never bake a local .env (real LLM API keys etc.) into the image — it is mounted at runtime instead.
+# (.env.example keeps a different filename, so it is not matched here.)
+**/.env
+
+# Local scratch / logs.
+*.log
+marketing/
+plans/
+
+# Docs are not needed to build the binaries (kept out to shrink the context).
+docs/
+*.md
