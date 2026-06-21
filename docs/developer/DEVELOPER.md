@@ -68,19 +68,21 @@ These are the same two suites `run-tests.ps1` runs by default. Two deliberate ch
   code/content file makes it build for real; `data/**` and `web/**` count as code (they feed tests, e.g. the
   en/de locale-parity test), so they are **not** in the doc-only exclusions.
 
-This is **safe to mark as a required status check** in the `main` branch-protection rule: require
-**`Build + test (.NET, headless)`** (not the `Detect code changes` helper). Because the workflow always runs
-and the build-test check always reports (green/red/skipped-as-pass), a docs-only PR is never left waiting on a
-missing status — the usual failure mode of a plain `paths-ignore` skip.
+It is **safe as a required status check** — and is one: because the workflow always runs and the build-test
+check always reports (green/red/skipped-as-pass), a docs-only PR is never left waiting on a missing status, the
+usual failure mode of a plain `paths-ignore` skip. (Require the `Build + test (.NET, headless)` job, **not** the
+`Detect code changes` helper.)
 
 The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need the Editor and stay local/opt-in
 (run them with `./scripts/run-tests.ps1 -Suites All` before a client-affecting change). The release build
 ([`release.yml`](../../.github/workflows/release.yml)) is a **separate** workflow that triggers only on tags;
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
-> **`Build + test (.NET, headless)` is a required status check** on `main` (configured in branch protection).
-> The `Detect code changes` helper is intentionally **not** required. If you add another always-skippable
-> gate, only require the job that always reports.
+> **Required status checks on `main`** (branch protection): `Build + test (.NET, headless)`,
+> `Format (dotnet format)`, `ruff (Python ai-backend)`, `web JS syntax (node --check)`, `actionlint (workflows)`
+> and `CodeQL` — all six must pass before merge. The `Detect code changes` helper is intentionally **not**
+> required (it's an always-skippable gate; only require jobs that always report). `strict` is off (no forced
+> rebase) and `enforce_admins` is off (an owner can still `gh pr merge --admin` in an emergency).
 
 ### Other PR checks: format, lint, CodeQL
 
@@ -113,8 +115,8 @@ uvx ruff check ai-backend                                                       
 Get-ChildItem web -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }     # web JS syntax
 ```
 
-Only `Build + test (.NET, headless)` is *required* to merge today; format/lint/CodeQL are advisory until you
-add them to branch protection too.
+**All of these are required status checks** on `main` (see the list above), so every PR must pass build+test,
+format, the three lint jobs and CodeQL before it can merge.
 
 > **Heads-up for Windows devs:** `dotnet format --verify-no-changes` reads the working-tree bytes, so if an
 > old checkout still has CRLF in some files (from before `.gitattributes eol=lf` landed) it can report

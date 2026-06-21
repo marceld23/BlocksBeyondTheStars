@@ -165,7 +165,8 @@ built (blocked by the Windows-only UnityWebBrowser/CEF engine).
   `ci.yml` builds + tests with `-warnaserror` (Roslyn/Meziantou/VS.Threading analyzers as errors = the C#
   syntax/static-analysis gate) **and** runs `dotnet format --verify-no-changes` (C# style); `lint.yml` runs
   ruff (Python), `node --check` (web JS) and actionlint (workflows); `codeql.yml` does security/quality
-  scanning. Keep them green — run the equivalents locally before pushing (next section).
+  scanning. **All six are *required* status checks on `main`** — a PR can't merge until they pass — so run
+  the equivalents locally before pushing (next section).
 
 ## Git workflow (mandatory)
 
@@ -176,7 +177,9 @@ Every change ships through a **pull request**:
 2. **Commit on the branch** with a conventional-commit message, ending each message with the
    `Co-Authored-By: Claude …` trailer.
 3. **Push the branch and open a PR** (`gh pr create` with a clear title + body). Never push to `main` directly.
-4. **Merge via the PR** once checks pass (`gh pr merge`). Do not force-push or rewrite shared history on `main`.
+4. **Merge via the PR** once the required checks pass (`gh pr merge`). `main` requires 1 approval **and** the
+   six status checks (build+test, format, ruff, web-js, actionlint, CodeQL); an owner can `--admin`-override in
+   an emergency. Do not force-push or rewrite shared history on `main`.
 
 Other agents may share this clone, so **stage only your own files** (`git add <paths>` — never `git add -A`),
 and never sweep another worker's in-progress changes into your commit.
