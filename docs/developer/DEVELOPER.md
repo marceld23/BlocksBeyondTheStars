@@ -81,6 +81,36 @@ it does not run tests, so the PR gate is where correctness is checked before mer
 > To make CI a hard merge requirement, add the **`Build + test (.NET, headless)`** check as a required status
 > check in the `main` branch-protection rule (Settings → Branches).
 
+## Local verification after changes (mandatory)
+
+Because the PR gate is **.NET-only** (see above), some classes of breakage are invisible to CI until a release
+tag is cut. Run this chain locally after finishing a set of changes — before committing — so they are caught
+early:
+
+1. **Tests** — `dotnet test` for the affected suite(s) (`BlocksBeyondTheStars.Tests` for server/shared,
+   `BlocksBeyondTheStars.Client.Tests` for client-core), all green.
+2. **Warning check** — a clean rebuild and confirm **0 warnings / 0 errors**:
+
+   ```powershell
+   dotnet build src/BlocksBeyondTheStars.GameServer/BlocksBeyondTheStars.GameServer.csproj --no-incremental
+   ```
+
+   The analyzers are on and CI builds with `-warnaserror`, so a warning fails the PR even though the local
+   build keeps `TreatWarningsAsErrors=false`. Don't trust `dotnet test -v minimal` — it hides warnings.
+3. **Local Unity build when client code changed** — the Unity player is **never** built by PR CI; only
+   [`release.yml`](../../.github/workflows/release.yml) builds it (on a tag / manual dispatch). So whenever a
+   `client/Assets/**` file changed, run:
+
+   ```powershell
+   ./scripts/build-client.ps1
+   ```
+
+   This catches Unity-only compile failures (the `CS0246` "works in the Editor, broken in the build" trap —
+   see [Troubleshooting](#troubleshooting-works-in-the-editor-silently-broken-in-the-build)) **and** surfaces
+   generated/synced files that must be committed (synced libs, `.meta` files). Confirm freshness via the
+   `BlocksBeyondTheStars.Client.dll` timestamp (see [Verifying a build is actually fresh](#verifying-a-build-is-actually-fresh)).
+   Pure server/shared/docs changes don't need this step.
+
 ## Building the Windows client
 
 One command produces a fully self-contained singleplayer/multiplayer client:
