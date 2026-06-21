@@ -55,7 +55,7 @@ jobs:
     name: Build dedicated-server image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Build the image tag list. The owner is lowercased — GHCR repository names must be lowercase, but
       # github.repository_owner can contain uppercase letters.
