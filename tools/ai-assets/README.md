@@ -10,6 +10,34 @@ game asset with AI:
 These produce real assets to replace the game's procedural placeholders (block textures, UI icons,
 SFX). Every bundled asset must be recorded in the repo's `NOTICES.md`.
 
+## ⚠️ Generation is non-deterministic — never blindly rebuild existing assets
+
+Generating an image or sound **from a prompt is not reproducible**. The same prompt produces a
+**different** result on every run: the OpenAI image API (`client.images.generate`) and the
+ElevenLabs sound API take **no seed** — re-running does not recreate an approved asset, it invents
+a new one.
+
+**Consequence:** the committed files under `client/Assets/…` (and `data/…`) are the **only** source
+of truth. They cannot be "regenerated if missing" — a regenerated file looks/sounds different.
+
+**The trap with the batch generators** (`gen_textures.py`, `gen_icons.py`, `gen_item_icons.py`,
+`gen_batch.py`, `gen_creatures.py`, …): they iterate over a built-in list and write into `out/`,
+then an `--install` step copies that whole folder into the client. They are *resumable* — they skip
+files that already exist **in `out/`** — but `out/` is git-ignored, so it is **empty on a fresh
+clone**. Running a batch there regenerates **everything from scratch**, and `--install` would then
+**overwrite every already-approved asset** with brand-new random versions.
+
+**Rule when adding ONE new resource:**
+
+1. Generate **only** the new file — prefer the single-file tools (`gen_image.py` / `gen_sound.py`)
+   with an explicit `--out`, which touch nothing else.
+2. If you must use a batch script, first make sure the existing approved assets are present in `out/`
+   (so the resumable skip protects them), or restrict the run to the new key only.
+3. `--install` / copy **only the new file** into the client — never blanket-copy `out/` over the
+   committed assets.
+4. Verify `git status` / `git diff` afterwards: the only changed binaries should be the new
+   resource. Any unexpected modified texture/icon/sound means an old asset was regenerated — revert it.
+
 ## Cost discipline (important)
 
 - Each tool generates **one file per run** — never a batch. This keeps every paid request visible.
