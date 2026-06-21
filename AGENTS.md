@@ -102,6 +102,24 @@ build output (the `.exe` timestamp is not reliable). The full build guide — pi
 freshness verification and the known "works in the Editor, broken in the build" pitfalls — is in
 [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md).
 
+## Local verification after changes (mandatory)
+
+After finishing a set of local changes — before reporting done and before committing — run this chain so
+problems are caught locally instead of at release time:
+
+1. **Tests** — `dotnet test` for the affected suite(s) (`BlocksBeyondTheStars.Tests` for server/shared,
+   `BlocksBeyondTheStars.Client.Tests` for client-core). They must be green.
+2. **Warning check** — a clean rebuild (`dotnet build --no-incremental`) and confirm **0 warnings / 0 errors**.
+   The Roslyn analyzers are on and CI builds with `-warnaserror`, so a warning fails CI. Don't rely on the
+   `dotnet test -v minimal` output — it hides warnings.
+3. **Local Unity build when client (Unity) code changed** — **PR CI never builds Unity** (it is .NET-only);
+   the Unity player is only built on a release tag / manual dispatch by
+   [.github/workflows/release.yml](.github/workflows/release.yml). So whenever a `client/Assets/**` file
+   changed, run `./scripts/build-client.ps1` locally. This catches Unity-only compile failures (e.g. the
+   `CS0246` "works in the Editor, broken in the build" trap) **and** surfaces generated/synced files that
+   must be committed (synced libs under `client/Assets/.../Plugins`, `.meta` files, etc.). Pure
+   server/shared/docs changes don't need it.
+
 ## Releases & versioning
 
 Releases are built in the cloud by [.github/workflows/release.yml](.github/workflows/release.yml) — never
