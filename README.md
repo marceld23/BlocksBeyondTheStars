@@ -8,6 +8,7 @@
 [About this project](#about-this-project) ·
 [Project Status](#project-status) ·
 [System requirements](#system-requirements) ·
+[Windows security notice](#windows-security-notice) ·
 [Guiding principle](#guiding-principle) ·
 [Tech stack](#tech-stack) ·
 [Repository layout](#repository-layout) ·
@@ -153,6 +154,26 @@ a NAS or a VPS (including via Docker) can host a world that Windows players join
 - Lightweight: **no GPU**, modest CPU/RAM. On low-power ARM64 boards prefer an SSD over a
   microSD/eMMC for the world database.
 - From source you only need the **.NET 8 SDK** (see [Build, test, run](#build-test-run)).
+
+## Windows security notice
+
+This Windows build is **currently not digitally signed**. Because of that, Windows 11 /
+Microsoft Defender SmartScreen may show a warning such as *"Windows protected your PC"* the
+first time you start the game.
+
+If you downloaded the game from this GitHub page (or from the
+[official releases](https://github.com/marceld23/BlocksBeyondTheStars/releases)) and trust the
+source, you can choose **"More info"** and then **"Run anyway"** to start it. If you do not trust
+the download source, do not run the game.
+
+Blocks Beyond the Stars uses a local/server-based multiplayer architecture. On first launch,
+**Windows Defender Firewall** may ask for permission more than once — for example for the game
+client and for the local/server component. To play, host, or connect to multiplayer sessions, you
+may need to allow these components through the firewall.
+
+- **Recommended:** allow access for **private networks only**, unless you know you need public
+  network access.
+- Please **do not disable your firewall**.
 
 ## Guiding principle
 
