@@ -33,9 +33,13 @@ public sealed class SettlementOverhaulTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = planet + seed, Seed = seed, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = true, PlaceWrecks = false,
+            WorldName = planet + seed,
+            Seed = seed,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = true,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -102,11 +106,11 @@ public sealed class SettlementOverhaulTests : IDisposable
                 checkedAMultiWorld = true;
                 int circ = server.World.Circumference;
                 for (int a = 0; a < list.Count; a++)
-                for (int b = a + 1; b < list.Count; b++)
-                {
-                    Assert.False(RectsOverlap(list[a], list[b], circ),
-                        $"seed {seed}: two settlement footprints overlap.");
-                }
+                    for (int b = a + 1; b < list.Count; b++)
+                    {
+                        Assert.False(RectsOverlap(list[a], list[b], circ),
+                            $"seed {seed}: two settlement footprints overlap.");
+                    }
             }
         }
 

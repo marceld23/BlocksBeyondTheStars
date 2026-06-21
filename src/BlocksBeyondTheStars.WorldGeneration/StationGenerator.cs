@@ -476,20 +476,20 @@ public static class StationGenerator
     {
         int viewTop = rh >= 8 ? 4 : 3; // a taller glazed band on the big rooms
         for (int x = 0; x < rw; x++)
-        for (int y = 0; y < rh; y++)
-        for (int z = 0; z < rl; z++)
-        {
-            bool shell = x == 0 || x == rw - 1 || y == 0 || y == rh - 1 || z == 0 || z == rl - 1;
-            if (!shell)
-            {
-                set(o.X + x, o.Y + y, o.Z + z, 0); // hollow interior
-                continue;
-            }
+            for (int y = 0; y < rh; y++)
+                for (int z = 0; z < rl; z++)
+                {
+                    bool shell = x == 0 || x == rw - 1 || y == 0 || y == rh - 1 || z == 0 || z == rl - 1;
+                    if (!shell)
+                    {
+                        set(o.X + x, o.Y + y, o.Z + z, 0); // hollow interior
+                        continue;
+                    }
 
-            bool sideWall = x == 0 || x == rw - 1 || z == 0 || z == rl - 1;
-            bool viewport = sideWall && y >= 2 && y <= viewTop && x > 0 && x < rw - 1 && z > 0 && z < rl - 1;
-            set(o.X + x, o.Y + y, o.Z + z, viewport ? glass : hull);
-        }
+                    bool sideWall = x == 0 || x == rw - 1 || z == 0 || z == rl - 1;
+                    bool viewport = sideWall && y >= 2 && y <= viewTop && x > 0 && x < rw - 1 && z > 0 && z < rl - 1;
+                    set(o.X + x, o.Y + y, o.Z + z, viewport ? glass : hull);
+                }
 
         if (round)
         {
@@ -497,14 +497,14 @@ public static class StationGenerator
             // rounding still reads at scale; the diagonal fill (i + j ≤ depth + 1) leaves no dead pockets.
             int depth = rw >= 10 ? 2 : 1;
             for (int i = 1; i <= depth; i++)
-            for (int j = 1; j <= depth + 1 - i; j++)
-            for (int y = 1; y <= rh - 2; y++)
-            {
-                set(o.X + i, o.Y + y, o.Z + j, hull);
-                set(o.X + i, o.Y + y, o.Z + rl - 1 - j, hull);
-                set(o.X + rw - 1 - i, o.Y + y, o.Z + j, hull);
-                set(o.X + rw - 1 - i, o.Y + y, o.Z + rl - 1 - j, hull);
-            }
+                for (int j = 1; j <= depth + 1 - i; j++)
+                    for (int y = 1; y <= rh - 2; y++)
+                    {
+                        set(o.X + i, o.Y + y, o.Z + j, hull);
+                        set(o.X + i, o.Y + y, o.Z + rl - 1 - j, hull);
+                        set(o.X + rw - 1 - i, o.Y + y, o.Z + j, hull);
+                        set(o.X + rw - 1 - i, o.Y + y, o.Z + rl - 1 - j, hull);
+                    }
         }
     }
 
@@ -525,21 +525,21 @@ public static class StationGenerator
 
         int cx = rw / 2, cz = rl / 2; // door/shaft centre columns to keep clear
         for (int lx = 2; lx <= rw - 3; lx++)
-        for (int lz = 2; lz <= rl - 3; lz++)
-        {
-            if (lx == cx || lz == cz)
+            for (int lz = 2; lz <= rl - 3; lz++)
             {
-                continue; // never the door/shaft line
-            }
+                if (lx == cx || lz == cz)
+                {
+                    continue; // never the door/shaft line
+                }
 
-            int wx = o.X + lx, wy = o.Y + 1, wz = o.Z + lz;
-            // Empty cell (no furniture) standing on a hull floor block → a clean interior spot for a plant.
-            if (get(wx, wy, wz) == 0 && get(wx, wy - 1, wz) == hull)
-            {
-                set(wx, wy, wz, plant);
-                return;
+                int wx = o.X + lx, wy = o.Y + 1, wz = o.Z + lz;
+                // Empty cell (no furniture) standing on a hull floor block → a clean interior spot for a plant.
+                if (get(wx, wy, wz) == 0 && get(wx, wy - 1, wz) == hull)
+                {
+                    set(wx, wy, wz, plant);
+                    return;
+                }
             }
-        }
     }
 
     /// <summary>
@@ -736,23 +736,23 @@ public static class StationGenerator
     {
         int span = (dirX != 0 ? rl : rw) - 2;
         for (int step = 1; step <= 2; step++)
-        for (int s = 1; s <= span; s++)
-        for (int y = o.Y + 2; y <= o.Y + 3; y++)
-        {
-            int x, z;
-            if (dirX != 0)
-            {
-                x = (dirX > 0 ? o.X + rw - 1 : o.X) + dirX * step;
-                z = o.Z + s;
-            }
-            else
-            {
-                z = (dirZ > 0 ? o.Z + rl - 1 : o.Z) + dirZ * step;
-                x = o.X + s;
-            }
+            for (int s = 1; s <= span; s++)
+                for (int y = o.Y + 2; y <= o.Y + 3; y++)
+                {
+                    int x, z;
+                    if (dirX != 0)
+                    {
+                        x = (dirX > 0 ? o.X + rw - 1 : o.X) + dirX * step;
+                        z = o.Z + s;
+                    }
+                    else
+                    {
+                        z = (dirZ > 0 ? o.Z + rl - 1 : o.Z) + dirZ * step;
+                        x = o.X + s;
+                    }
 
-            set(x, y, z, (s + step) % 2 == 0 ? glass : dark);
-        }
+                    set(x, y, z, (s + step) % 2 == 0 ? glass : dark);
+                }
     }
 
     /// <summary>A short antenna mast with a beacon tip on a module roof.</summary>
@@ -782,14 +782,14 @@ public static class StationGenerator
             }
 
             for (int x = x0; x <= x1; x++)
-            for (int z = z0; z <= z1; z++)
-            {
-                bool edge = x == x0 || x == x1 || z == z0 || z == z1;
-                if (edge || r == MarginTop - 1)
+                for (int z = z0; z <= z1; z++)
                 {
-                    set(x, y, z, r == MarginTop - 1 ? light : shell); // glowing apex
+                    bool edge = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (edge || r == MarginTop - 1)
+                    {
+                        set(x, y, z, r == MarginTop - 1 ? light : shell); // glowing apex
+                    }
                 }
-            }
         }
     }
 
@@ -802,13 +802,13 @@ public static class StationGenerator
         {
             int x = o.X + rw - 1, zc = o.Z + rl / 2;
             for (int y = o.Y + 1; y <= top; y++)
-            for (int dz = -1; dz <= 0; dz++) set(x, y, zc + dz, 0);
+                for (int dz = -1; dz <= 0; dz++) set(x, y, zc + dz, 0);
         }
         else if (dir.Z > 0)
         {
             int z = o.Z + rl - 1, xc = o.X + rw / 2;
             for (int y = o.Y + 1; y <= top; y++)
-            for (int dx = -1; dx <= 0; dx++) set(xc + dx, y, z, 0);
+                for (int dx = -1; dx <= 0; dx++) set(xc + dx, y, z, 0);
         }
     }
 
@@ -820,19 +820,19 @@ public static class StationGenerator
         {
             int x = o.X + rw - 1;
             for (int y = o.Y + 1; y <= o.Y + rh - 2; y++)
-            for (int z = o.Z + 1; z <= o.Z + rl - 2; z++)
-            {
-                set(x, y, z, 0);
-            }
+                for (int z = o.Z + 1; z <= o.Z + rl - 2; z++)
+                {
+                    set(x, y, z, 0);
+                }
         }
         else if (dir.Z > 0)
         {
             int z = o.Z + rl - 1;
             for (int y = o.Y + 1; y <= o.Y + rh - 2; y++)
-            for (int x = o.X + 1; x <= o.X + rw - 2; x++)
-            {
-                set(x, y, z, 0);
-            }
+                for (int x = o.X + 1; x <= o.X + rw - 2; x++)
+                {
+                    set(x, y, z, 0);
+                }
         }
     }
 
@@ -842,10 +842,10 @@ public static class StationGenerator
         int size = rw >= 9 ? 3 : 2;
         int y = o.Y + rh - 1;
         for (int dx = 0; dx < size; dx++)
-        for (int dz = 0; dz < size; dz++)
-        {
-            set(o.X + rw / 2 + dx - (size - 2), y, o.Z + rl / 2 + dz - (size - 2), 0);
-        }
+            for (int dz = 0; dz < size; dz++)
+            {
+                set(o.X + rw / 2 + dx - (size - 2), y, o.Z + rl / 2 + dz - (size - 2), 0);
+            }
     }
 
     /// <summary>Glazes the outer -Z wall of a hangar room with an energy field (the docking mouth):
@@ -855,9 +855,9 @@ public static class StationGenerator
     {
         int top = System.Math.Min(o.Y + (rh >= 8 ? 5 : 3), o.Y + rh - 2);
         for (int x = o.X + 1; x < o.X + rw - 1; x++)
-        for (int y = o.Y + 1; y <= top; y++)
-        {
-            set(x, y, o.Z, field);
-        }
+            for (int y = o.Y + 1; y <= top; y++)
+            {
+                set(x, y, o.Z, field);
+            }
     }
 }

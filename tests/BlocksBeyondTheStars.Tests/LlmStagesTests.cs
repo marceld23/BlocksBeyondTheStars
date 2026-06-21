@@ -67,9 +67,14 @@ public sealed class LlmStagesTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = $"l_{seed}", Seed = seed, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-                PlaceSettlements = true, PlaceWrecks = false, AiLevel = level,
+                WorldName = $"l_{seed}",
+                Seed = seed,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceSettlements = true,
+                PlaceWrecks = false,
+                AiLevel = level,
             };
             var server = new SvGameServer(config, _content, st, repo, logger: null, aiProvider: provider);
             server.Start();
@@ -125,7 +130,9 @@ public sealed class LlmStagesTests : IDisposable
             string npcKey = $"settle_{(uint)WorldGenerator.StableHash(server.SettlementName) % 100000u}:vendor";
             p.State.NpcMemory[npcKey] = new NpcRelationship
             {
-                Name = "Old Mira", Role = "vendor", Value = 25,
+                Name = "Old Mira",
+                Role = "vendor",
+                Value = 25,
                 Log =
                 {
                     new NpcInteraction { Kind = NpcInteractionKind.Trade },

@@ -82,10 +82,17 @@ it does not run tests, so the PR gate is where correctness is checked before mer
 > The `Detect code changes` helper is intentionally **not** required. If you add another always-skippable
 > gate, only require the job that always reports.
 
-### Other PR checks: lint + CodeQL
+### Other PR checks: format, lint, CodeQL
 
-Beyond build+test, two more workflows run on PRs:
+Beyond build+test, three more gates run on PRs:
 
+- **`Format (dotnet format)`** — a second job in [`ci.yml`](../../.github/workflows/ci.yml) runs
+  `dotnet format --verify-no-changes` against [`BlocksBeyondTheStars.CI.slnf`](../../BlocksBeyondTheStars.CI.slnf),
+  a solution filter listing every project **except** the Windows-only launcher (so the set loads on Linux). It
+  enforces `.editorconfig` style: indentation, `using` ordering, object-initializer line breaks, etc. **Line
+  endings must be LF** — this only works because `.gitattributes` (`eol=lf`) and `.editorconfig`
+  (`end_of_line = lf`) agree; a CRLF setting would fail it on every fresh checkout. Gated by the same `changes`
+  job, so docs-only PRs skip it. Run `dotnet format BlocksBeyondTheStars.CI.slnf` to auto-fix before pushing.
 - **[`lint.yml`](../../.github/workflows/lint.yml)** — the non-.NET languages: **ruff** for the Python
   `ai-backend`, **`node --check`** (parse-only, zero-config) for the browser JS under `web/`, and
   **actionlint** (ShellCheck disabled → pure workflow-syntax) for the workflow YAML.
@@ -95,26 +102,24 @@ Beyond build+test, two more workflows run on PRs:
   **Security → Code scanning**. This is the *advanced setup* (a committed workflow) rather than the API default
   setup, because the workflow's `GITHUB_TOKEN` already has `security-events: write` (the API PUT needs a PAT).
 
-The C# side itself is already syntax/static-analysis-checked by the build (`-warnaserror` runs the Roslyn +
-Meziantou + VS.Threading analyzers as errors), so it needs no extra linter.
+The C# *compile/static-analysis* gate is the `-warnaserror` build (Roslyn + Meziantou + VS.Threading analyzers
+as errors); `Format` adds pure style on top.
 
-Run the lint equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md) §Local verification):
+Run the equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md) §Local verification):
 
 ```powershell
+dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes                            # C# style/format
 uvx ruff check ai-backend                                                                # Python (uv is a project dep)
 Get-ChildItem web -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }     # web JS syntax
 ```
 
-Only `Build + test (.NET, headless)` is *required* to merge today; lint/CodeQL are advisory until you add
-them to branch protection too.
+Only `Build + test (.NET, headless)` is *required* to merge today; format/lint/CodeQL are advisory until you
+add them to branch protection too.
 
-> **Not enforced yet — `dotnet format`.** A `dotnet format --verify-no-changes` gate would be the natural C#
-> style check, and [`BlocksBeyondTheStars.CI.slnf`](../../BlocksBeyondTheStars.CI.slnf) (every project except
-> the Windows-only launcher, so it loads on Linux) exists for it. But the tree currently has ~1873 pre-existing
-> whitespace/indentation violations across ~65 files, so the check would fail immediately. Enforcing it needs a
-> one-off tree-wide `dotnet format` reformat commit first — run when no other work is in flight, since it
-> touches hot files (GameServer.cs, WorldGeneration.cs). The LF line-ending fix that makes the check viable is
-> already in place (`.gitattributes eol=lf` + `.editorconfig end_of_line = lf` now agree). Tracked in TODO.md.
+> **Heads-up for Windows devs:** `dotnet format --verify-no-changes` reads the working-tree bytes, so if an
+> old checkout still has CRLF in some files (from before `.gitattributes eol=lf` landed) it can report
+> line-ending diffs locally that CI (a fresh LF checkout) never sees. Re-normalize once with
+> `git add --renormalize . ; git checkout -- .` if that happens.
 
 ## Local verification after changes (mandatory)
 

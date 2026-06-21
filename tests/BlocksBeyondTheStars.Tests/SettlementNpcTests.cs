@@ -32,9 +32,13 @@ public sealed class SettlementNpcTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "npc_" + seed, Seed = seed, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = true, PlaceWrecks = false,
+            WorldName = "npc_" + seed,
+            Seed = seed,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = true,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

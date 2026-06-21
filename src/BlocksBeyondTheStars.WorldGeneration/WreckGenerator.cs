@@ -119,54 +119,54 @@ public static class WreckGenerator
 
         // 1) Intact hull: a hollow shell with a viewport band (the repair target).
         for (int x = 0; x < w; x++)
-        for (int y = 0; y < h; y++)
-        for (int z = 0; z < l; z++)
-        {
-            bool shell = x == 0 || x == w - 1 || y == 0 || y == h - 1 || z == 0 || z == l - 1;
-            if (!shell)
-            {
-                continue;
-            }
+            for (int y = 0; y < h; y++)
+                for (int z = 0; z < l; z++)
+                {
+                    bool shell = x == 0 || x == w - 1 || y == 0 || y == h - 1 || z == 0 || z == l - 1;
+                    if (!shell)
+                    {
+                        continue;
+                    }
 
-            bool sideWall = x == 0 || x == w - 1 || z == 0 || z == l - 1;
-            bool viewport = sideWall && y == 2 && x > 0 && x < w - 1 && z > 0 && z < l - 1;
-            intact[(x * h + y) * l + z] = viewport ? glass : hull;
-        }
+                    bool sideWall = x == 0 || x == w - 1 || z == 0 || z == l - 1;
+                    bool viewport = sideWall && y == 2 && x > 0 && x < w - 1 && z > 0 && z < l - 1;
+                    intact[(x * h + y) * l + z] = viewport ? glass : hull;
+                }
 
         // 2) Decay: copy the intact hull, then punch breaches + scorch.
         var blocks = (ushort[])intact.Clone();
         for (int x = 0; x < w; x++)
-        for (int y = 0; y < h; y++)
-        for (int z = 0; z < l; z++)
-        {
-            int i = (x * h + y) * l + z;
-            if (intact[i] == 0)
-            {
-                continue;
-            }
+            for (int y = 0; y < h; y++)
+                for (int z = 0; z < l; z++)
+                {
+                    int i = (x * h + y) * l + z;
+                    if (intact[i] == 0)
+                    {
+                        continue;
+                    }
 
-            double r = rng.NextDouble();
-            if (r < 0.30)
-            {
-                blocks[i] = 0;               // breach
-            }
-            else if (r < 0.38 && scorch != 0)
-            {
-                blocks[i] = scorch;          // scorched plating
-            }
-        }
+                    double r = rng.NextDouble();
+                    if (r < 0.30)
+                    {
+                        blocks[i] = 0;               // breach
+                    }
+                    else if (r < 0.38 && scorch != 0)
+                    {
+                        blocks[i] = scorch;          // scorched plating
+                    }
+                }
 
         // Always tear a big gash in one wall (the crash impact) so the wreck is open to enter.
         int gx = w / 2;
         for (int y = 1; y <= System.Math.Min(3, h - 2); y++)
-        for (int dx = -1; dx <= 1; dx++)
-        {
-            int x = gx + dx;
-            if (x > 0 && x < w - 1)
+            for (int dx = -1; dx <= 1; dx++)
             {
-                blocks[(x * h + y) * l + 0] = 0;
+                int x = gx + dx;
+                if (x > 0 && x < w - 1)
+                {
+                    blocks[(x * h + y) * l + 0] = 0;
+                }
             }
-        }
 
         // 3) Markers inside: loot caches, a recoverable module, and (sometimes) a data terminal.
         var markers = new List<WreckMarker>();

@@ -31,8 +31,12 @@ public sealed class SettlementStampTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = planet + seed, Seed = seed, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, PlaceSettlements = true,
+            WorldName = planet + seed,
+            Seed = seed,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = true,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -111,14 +115,14 @@ public sealed class SettlementStampTests : IDisposable
 
             bool solidNearby = false;
             for (int dx = -4; dx <= 4 && !solidNearby; dx++)
-            for (int dy = -1; dy <= 4 && !solidNearby; dy++)
-            for (int dz = -4; dz <= 4 && !solidNearby; dz++)
-            {
-                if (!server.World.GetBlock(new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz)).IsAir)
-                {
-                    solidNearby = true;
-                }
-            }
+                for (int dy = -1; dy <= 4 && !solidNearby; dy++)
+                    for (int dz = -4; dz <= 4 && !solidNearby; dz++)
+                    {
+                        if (!server.World.GetBlock(new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz)).IsAir)
+                        {
+                            solidNearby = true;
+                        }
+                    }
 
             Assert.True(solidNearby, "A stamped settlement should place solid blocks in the world.");
         }

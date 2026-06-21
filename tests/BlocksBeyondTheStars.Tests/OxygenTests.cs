@@ -31,9 +31,13 @@ public sealed class OxygenTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "oxy", Seed = 7, StartPlanet = "rocky", // rocky = toxic atmosphere → oxygen matters
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
-            PlaceSettlements = false, PlaceWrecks = false,
+            WorldName = "oxy",
+            Seed = 7,
+            StartPlanet = "rocky", // rocky = toxic atmosphere → oxygen matters
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -49,9 +53,13 @@ public sealed class OxygenTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = "oxyswim", Seed = 7, StartPlanet = "jungle", // breathable atmosphere
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true, // a ship so AboardShip is tracked
-                PlaceSettlements = false, PlaceWrecks = false,
+                WorldName = "oxyswim",
+                Seed = 7,
+                StartPlanet = "jungle", // breathable atmosphere
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = true, // a ship so AboardShip is tracked
+                PlaceSettlements = false,
+                PlaceWrecks = false,
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
@@ -66,11 +74,11 @@ public sealed class OxygenTests : IDisposable
             var stone = _content.GetBlock("stone")!.NumericId;
             int cx = 240, cz = 240, floorY = 100;
             for (int x = cx - 3; x <= cx + 3; x++)
-            for (int z = cz - 3; z <= cz + 3; z++)
-            {
-                server.World.SetBlock(new Vector3i(x, floorY, z), stone);
-                for (int y = floorY + 1; y <= floorY + 8; y++) server.World.SetBlock(new Vector3i(x, y, z), water);
-            }
+                for (int z = cz - 3; z <= cz + 3; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, floorY, z), stone);
+                    for (int y = floorY + 1; y <= floorY + 8; y++) server.World.SetBlock(new Vector3i(x, y, z), water);
+                }
 
             var abovePool = new Vector3f(cx + 0.5f, floorY + 14f, cz + 0.5f); // dry air above the pool
             var dive = new Vector3f(cx + 0.5f, floorY + 3f, cz + 0.5f);       // chest-deep in the pool

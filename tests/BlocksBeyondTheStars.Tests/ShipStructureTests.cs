@@ -57,8 +57,11 @@ public sealed class ShipStructureTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = "padflat", Seed = 1, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+                WorldName = "padflat",
+                Seed = 1,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = true,
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
@@ -90,8 +93,11 @@ public sealed class ShipStructureTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = "wet_world", Seed = 1, StartPlanet = "jungle",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+                WorldName = "wet_world",
+                Seed = 1,
+                StartPlanet = "jungle",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = true,
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();

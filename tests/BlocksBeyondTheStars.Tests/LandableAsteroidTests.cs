@@ -48,22 +48,22 @@ public sealed class LandableAsteroidTests : IDisposable
 
         int crystalSurface = 0;
         for (int x = 0; x < 24; x++)
-        for (int z = 0; z < 24; z++)
-        {
-            int y = gen.SurfaceHeight(ast, x, z);
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            var origin = WorldConstants.ChunkOrigin(coord);
-            var chunk = gen.Generate(ast, coord);
-            if (chunk.Get(x - origin.X, y - origin.Y, z - origin.Z).Value == crystal) crystalSurface++;
-
-            int ay = y + 1;
-            if (ay - origin.Y is >= 0 and < WorldConstants.ChunkSize)
+            for (int z = 0; z < 24; z++)
             {
-                ushort above = chunk.Get(x - origin.X, ay - origin.Y, z - origin.Z).Value;
-                Assert.NotEqual(floraPlant, above);   // no flora on a barren asteroid
-                Assert.NotEqual(floraCrystal, above);
+                int y = gen.SurfaceHeight(ast, x, z);
+                var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
+                var origin = WorldConstants.ChunkOrigin(coord);
+                var chunk = gen.Generate(ast, coord);
+                if (chunk.Get(x - origin.X, y - origin.Y, z - origin.Z).Value == crystal) crystalSurface++;
+
+                int ay = y + 1;
+                if (ay - origin.Y is >= 0 and < WorldConstants.ChunkSize)
+                {
+                    ushort above = chunk.Get(x - origin.X, ay - origin.Y, z - origin.Z).Value;
+                    Assert.NotEqual(floraPlant, above);   // no flora on a barren asteroid
+                    Assert.NotEqual(floraCrystal, above);
+                }
             }
-        }
 
         Assert.True(crystalSurface > 0, "Expected a crystalline asteroid surface.");
     }
@@ -119,8 +119,11 @@ public sealed class LandableAsteroidTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "ast", Seed = 7, StartPlanet = "asteroid",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            WorldName = "ast",
+            Seed = 7,
+            StartPlanet = "asteroid",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -152,8 +155,11 @@ public sealed class LandableAsteroidTests : IDisposable
             var st1 = new LoopbackServerTransport(new LoopbackLink());
             var config1 = new ServerConfig
             {
-                WorldName = "ast_persist", Seed = 11, StartPlanet = "asteroid",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+                WorldName = "ast_persist",
+                Seed = 11,
+                StartPlanet = "asteroid",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
             };
             var s1 = new SvGameServer(config1, _content, st1, repo1);
             s1.Start();
@@ -188,8 +194,11 @@ public sealed class LandableAsteroidTests : IDisposable
         var st2 = new LoopbackServerTransport(new LoopbackLink());
         var config2 = new ServerConfig
         {
-            WorldName = "ast_persist", Seed = 11, StartPlanet = "asteroid",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            WorldName = "ast_persist",
+            Seed = 11,
+            StartPlanet = "asteroid",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
         };
         var s2 = new SvGameServer(config2, _content, st2, repo2);
         s2.Start();

@@ -1246,19 +1246,19 @@ public sealed partial class GameServer
             // taller vertical span (esp. below) is still covered so digging down never outruns the terrain.
             var pending = new List<(ChunkCoord Coord, int DistSq)>();
             for (int dy = -3; dy <= 2; dy++)
-            for (int dx = -radius; dx <= radius; dx++)
-            for (int dz = -radius; dz <= radius; dz++)
-            {
-                // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
-                // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
-                var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
-                if (session.SentChunks.Contains(coord))
-                {
-                    continue;
-                }
+                for (int dx = -radius; dx <= radius; dx++)
+                    for (int dz = -radius; dz <= radius; dz++)
+                    {
+                        // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
+                        // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
+                        var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
+                        if (session.SentChunks.Contains(coord))
+                        {
+                            continue;
+                        }
 
-                pending.Add((coord, dx * dx + dy * dy + dz * dz));
-            }
+                        pending.Add((coord, dx * dx + dy * dy + dz * dz));
+                    }
 
             pending.Sort((a, b) => a.DistSq.CompareTo(b.DistSq));
 
@@ -2116,30 +2116,30 @@ public sealed partial class GameServer
     private void BreakArea(PlayerSession session, Vector3i center, int radius, MaterialPool pool)
     {
         for (int dx = -radius; dx <= radius; dx++)
-        for (int dy = -radius; dy <= radius; dy++)
-        for (int dz = -radius; dz <= radius; dz++)
-        {
-            if (dx == 0 && dy == 0 && dz == 0)
-            {
-                continue;
-            }
+            for (int dy = -radius; dy <= radius; dy++)
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    if (dx == 0 && dy == 0 && dz == 0)
+                    {
+                        continue;
+                    }
 
-            var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
-            var b = _world.GetBlock(p);
-            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
-                || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
-            {
-                continue;
-            }
+                    var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
+                    var b = _world.GetBlock(p);
+                    if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
+                    {
+                        continue;
+                    }
 
-            var d = _world.Definition(b);
-            if (d is null || !d.Mineable)
-            {
-                continue;
-            }
+                    var d = _world.Definition(b);
+                    if (d is null || !d.Mineable)
+                    {
+                        continue;
+                    }
 
-            BreakBlockAt(session, p, d, pool);
-        }
+                    BreakBlockAt(session, p, d, pool);
+                }
     }
 
     private void HandlePlace(PlayerSession session, PlaceBlockIntent place)
@@ -2682,20 +2682,20 @@ public sealed partial class GameServer
         switch (cmd.Command?.ToLowerInvariant())
         {
             case "give_item":
-            {
-                if (_content.GetItem(cmd.StringArg ?? string.Empty) is null)
                 {
-                    Reject(session, "admin", "Unknown item.");
-                    return;
-                }
+                    if (_content.GetItem(cmd.StringArg ?? string.Empty) is null)
+                    {
+                        Reject(session, "admin", "Unknown item.");
+                        return;
+                    }
 
-                var target = FindSessionByName(cmd.TargetPlayer) ?? session;
-                int amount = System.Math.Max(1, cmd.IntArg);
-                new MaterialPool(_content, target.State, _ship).Add(cmd.StringArg!, amount);
-                SendInventory(target);
-                CheatLog(p, $"gave {amount} {cmd.StringArg} to {target.State.Name}");
-                break;
-            }
+                    var target = FindSessionByName(cmd.TargetPlayer) ?? session;
+                    int amount = System.Math.Max(1, cmd.IntArg);
+                    new MaterialPool(_content, target.State, _ship).Add(cmd.StringArg!, amount);
+                    SendInventory(target);
+                    CheatLog(p, $"gave {amount} {cmd.StringArg} to {target.State.Name}");
+                    break;
+                }
 
             case "teleport_to_location":
                 p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
@@ -2704,19 +2704,19 @@ public sealed partial class GameServer
                 break;
 
             case "teleport_to_player":
-            {
-                var target = FindSessionByName(cmd.TargetPlayer);
-                if (target is null)
                 {
-                    Reject(session, "admin", "Target player not found.");
-                    return;
-                }
+                    var target = FindSessionByName(cmd.TargetPlayer);
+                    if (target is null)
+                    {
+                        Reject(session, "admin", "Target player not found.");
+                        return;
+                    }
 
-                p.Position = target.State.Position;
-                SendPlayerState(session);
-                CheatLog(p, $"teleported to player {target.State.Name}");
-                break;
-            }
+                    p.Position = target.State.Position;
+                    SendPlayerState(session);
+                    CheatLog(p, $"teleported to player {target.State.Name}");
+                    break;
+                }
 
             case "set_time":
                 _timeOfDay = cmd.StringArg ?? _timeOfDay;
@@ -2750,12 +2750,12 @@ public sealed partial class GameServer
 
             // ---- Story QA (P8 telemetry): jump around the arc for testing ----
             case "advance_story":
-            {
-                int beats = AdminAdvanceStory(cmd.IntArg);
-                Send(session, new ServerMessage { Text = $"Story advanced — beats revealed: {beats}." });
-                CheatLog(p, $"advanced story by {System.Math.Max(1, cmd.IntArg)} (beats {beats})");
-                break;
-            }
+                {
+                    int beats = AdminAdvanceStory(cmd.IntArg);
+                    Send(session, new ServerMessage { Text = $"Story advanced — beats revealed: {beats}." });
+                    CheatLog(p, $"advanced story by {System.Math.Max(1, cmd.IntArg)} (beats {beats})");
+                    break;
+                }
 
             case "reveal_finale":
                 AdminRevealFinale();
@@ -2769,55 +2769,55 @@ public sealed partial class GameServer
                 break;
 
             case "story_status":
-            {
-                var snap = StorySnapshot;
-                Send(session, new ServerMessage
                 {
-                    Text = $"Story '{snap.StoryId}': fragments={snap.Fragments}, kills={snap.Kills}, " +
-                           $"milestones={snap.Milestones}, beats={snap.BeatsRevealed}/{(_story?.Beats.Count ?? 0)}, " +
-                           $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}",
-                });
-                break;
-            }
+                    var snap = StorySnapshot;
+                    Send(session, new ServerMessage
+                    {
+                        Text = $"Story '{snap.StoryId}': fragments={snap.Fragments}, kills={snap.Kills}, " +
+                               $"milestones={snap.Milestones}, beats={snap.BeatsRevealed}/{(_story?.Beats.Count ?? 0)}, " +
+                               $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}",
+                    });
+                    break;
+                }
 
             // ---- Finale QA: fit a ship module (e.g. the jump generator), reveal all lore, or drop into the core ----
             case "grant_module":
-            {
-                var key = cmd.StringArg ?? string.Empty;
-                if (_ship is null)
                 {
-                    Reject(session, "admin", "You have no active ship to fit a module to.");
-                    return;
-                }
+                    var key = cmd.StringArg ?? string.Empty;
+                    if (_ship is null)
+                    {
+                        Reject(session, "admin", "You have no active ship to fit a module to.");
+                        return;
+                    }
 
-                if (_content.GetShipModule(key) is null)
-                {
-                    Reject(session, "admin", "Unknown ship module.");
-                    return;
-                }
+                    if (_content.GetShipModule(key) is null)
+                    {
+                        Reject(session, "admin", "Unknown ship module.");
+                        return;
+                    }
 
-                if (!_ship.HasModule(key))
-                {
-                    _ship.Modules.Add(key);
-                    ResizeCargo(_ship);
-                    RecomputeShipCombatStats();
-                    _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship);
-                    SendShipCombatStatus(session);
-                    SendPlayerState(session);
-                }
+                    if (!_ship.HasModule(key))
+                    {
+                        _ship.Modules.Add(key);
+                        ResizeCargo(_ship);
+                        RecomputeShipCombatStats();
+                        _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship);
+                        SendShipCombatStatus(session);
+                        SendPlayerState(session);
+                    }
 
-                Send(session, new ServerMessage { Text = $"Ship module fitted: {key}" });
-                CheatLog(p, $"fitted ship module {key}");
-                break;
-            }
+                    Send(session, new ServerMessage { Text = $"Ship module fitted: {key}" });
+                    CheatLog(p, $"fitted ship module {key}");
+                    break;
+                }
 
             case "reveal_lore":
-            {
-                int n = AdminRevealAllLore(session);
-                Send(session, new ServerMessage { Text = $"Revealed all story lore ({n} fragments + every memory)." });
-                CheatLog(p, "revealed all story lore");
-                break;
-            }
+                {
+                    int n = AdminRevealAllLore(session);
+                    Send(session, new ServerMessage { Text = $"Revealed all story lore ({n} fragments + every memory)." });
+                    CheatLog(p, "revealed all story lore");
+                    break;
+                }
 
             case "goto_core":
                 AdminGotoCore(session);

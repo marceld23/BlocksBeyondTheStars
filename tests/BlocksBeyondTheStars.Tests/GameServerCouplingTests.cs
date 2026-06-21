@@ -35,8 +35,12 @@ public sealed class GameServerCouplingTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = name, Seed = seed, StartPlanet = "rocky",
-                AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false, PlaceWrecks = true,
+                WorldName = name,
+                Seed = seed,
+                StartPlanet = "rocky",
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                PlaceWrecks = true,
             };
             config.Rules.MachineWreckCoupling = coupling;
             var server = new SvGameServer(config, _content, st, repo);

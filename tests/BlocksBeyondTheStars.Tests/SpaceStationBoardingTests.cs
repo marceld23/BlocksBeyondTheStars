@@ -92,14 +92,14 @@ public sealed class SpaceStationBoardingTests : IDisposable
             bool solidNearby = false;
             var pos = pilot.State.Position.ToBlock();
             for (int dx = -6; dx <= 6 && !solidNearby; dx++)
-            for (int dy = -2; dy <= 6 && !solidNearby; dy++)
-            for (int dz = -6; dz <= 6 && !solidNearby; dz++)
-            {
-                if (!server.World.GetBlock(new Vector3i(pos.X + dx, pos.Y + dy, pos.Z + dz)).IsAir)
-                {
-                    solidNearby = true;
-                }
-            }
+                for (int dy = -2; dy <= 6 && !solidNearby; dy++)
+                    for (int dz = -6; dz <= 6 && !solidNearby; dz++)
+                    {
+                        if (!server.World.GetBlock(new Vector3i(pos.X + dx, pos.Y + dy, pos.Z + dz)).IsAir)
+                        {
+                            solidNearby = true;
+                        }
+                    }
 
             Assert.True(solidNearby, $"Boarding {station.Name} should stamp real station blocks.");
         }

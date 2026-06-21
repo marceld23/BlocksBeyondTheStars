@@ -27,7 +27,10 @@ public sealed class CreativeModeTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+            WorldName = name,
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true,
             CreativeUnlockAllBlueprints = creative,
             CreativeStartAllShips = creative,
             CreativeStarterKit = creative,

@@ -193,14 +193,14 @@ public sealed partial class GameServer
             // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never
             // falls out of the walkable interior — mirrors the old stamped-ship floor guarantee.
             for (int fx = 0; fx < layout.Width; fx++)
-            for (int fz = 0; fz < layout.Length; fz++)
-            {
-                var fp = new Vector3i(fx, 0, fz);
-                if (s.Get(fp).IsAir)
+                for (int fz = 0; fz < layout.Length; fz++)
                 {
-                    s.Set(fp, wall);
+                    var fp = new Vector3i(fx, 0, fz);
+                    if (s.Get(fp).IsAir)
+                    {
+                        s.Set(fp, wall);
+                    }
                 }
-            }
 
             FinishShipStructure(s, persistEdits);
             return s;
@@ -215,27 +215,27 @@ public sealed partial class GameServer
         s.Height = height + 1;
         s.Length = halfZ * 2 + 1;
         for (int x = 0; x <= halfX * 2; x++)
-        for (int y = 0; y <= height; y++)
-        for (int z = 0; z <= halfZ * 2; z++)
-        {
-            bool shell = x == 0 || x == halfX * 2 || y == 0 || y == height || z == 0 || z == halfZ * 2;
-            if (!shell)
-            {
-                continue; // hollow interior
-            }
+            for (int y = 0; y <= height; y++)
+                for (int z = 0; z <= halfZ * 2; z++)
+                {
+                    bool shell = x == 0 || x == halfX * 2 || y == 0 || y == height || z == 0 || z == halfZ * 2;
+                    if (!shell)
+                    {
+                        continue; // hollow interior
+                    }
 
-            bool door = z == 0 && (x == halfX - 1 || x == halfX || x == halfX + 1) && (y == 1 || y == 2);
-            if (door)
-            {
-                continue; // rear hatch opening (a slide door fills it, see DoorCells below)
-            }
+                    bool door = z == 0 && (x == halfX - 1 || x == halfX || x == halfX + 1) && (y == 1 || y == 2);
+                    if (door)
+                    {
+                        continue; // rear hatch opening (a slide door fills it, see DoorCells below)
+                    }
 
-            // Window panes at eye height: a band along the front (+Z) and both side walls (matching the
-            // old stamped box ship), so the cabin has proper windows to see out of.
-            bool frontWin = z == halfZ * 2 && y == 2 && x > 0 && x < halfX * 2;
-            bool sideWin = (x == 0 || x == halfX * 2) && y == 2 && z > 0 && z < halfZ * 2;
-            s.Set(new Vector3i(x, y, z), frontWin || sideWin ? glass : wall);
-        }
+                    // Window panes at eye height: a band along the front (+Z) and both side walls (matching the
+                    // old stamped box ship), so the cabin has proper windows to see out of.
+                    bool frontWin = z == halfZ * 2 && y == 2 && x > 0 && x < halfX * 2;
+                    bool sideWin = (x == 0 || x == halfX * 2) && y == 2 && z > 0 && z < halfZ * 2;
+                    s.Set(new Vector3i(x, y, z), frontWin || sideWin ? glass : wall);
+                }
 
         // The rear hatch gets a real door (server-authoritative slide door at the opening's centre column).
         s.DoorCells.Add(new Vector3i(halfX, 1, 0));
@@ -345,14 +345,14 @@ public sealed partial class GameServer
             }
 
             for (int x = cell.X - 1; x <= cell.X + 1; x++)
-            for (int z = cell.Z - 1; z <= cell.Z + 1; z++)
-            {
-                var p = new Vector3i(x, cell.Y - 1, z);
-                if (!s.Get(p).IsAir)
+                for (int z = cell.Z - 1; z <= cell.Z + 1; z++)
                 {
-                    s.Set(p, accent.NumericId);
+                    var p = new Vector3i(x, cell.Y - 1, z);
+                    if (!s.Get(p).IsAir)
+                    {
+                        s.Set(p, accent.NumericId);
+                    }
                 }
-            }
         }
     }
 
@@ -462,7 +462,11 @@ public sealed partial class GameServer
 
             BroadcastToInstance(instance, new StructureBlockChanged
             {
-                StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue,
+                StructureId = s.Id,
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Block = BlockId.AirValue,
             });
 
             // A fully mined-out asteroid is gone — remove its body + paired entity (the field respawns later).
@@ -531,7 +535,11 @@ public sealed partial class GameServer
 
         BroadcastToInstance(instance, new StructureBlockChanged
         {
-            StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value,
+            StructureId = s.Id,
+            X = pos.X,
+            Y = pos.Y,
+            Z = pos.Z,
+            Block = blockDef.NumericId.Value,
         });
 
         // item 20 S4: building a hull + airlock around a station core commissions it (boardable + on the map);
@@ -610,7 +618,11 @@ public sealed partial class GameServer
 
             BroadcastToWorld(new StructureBlockChanged
             {
-                StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue,
+                StructureId = s.Id,
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Block = BlockId.AirValue,
             });
             return;
         }
@@ -672,7 +684,11 @@ public sealed partial class GameServer
         _repo.SetStructureBlock(s.Id, pos, blockDef.NumericId.Value);
         BroadcastToWorld(new StructureBlockChanged
         {
-            StructureId = s.Id, X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value,
+            StructureId = s.Id,
+            X = pos.X,
+            Y = pos.Y,
+            Z = pos.Z,
+            Block = blockDef.NumericId.Value,
         });
     }
 
@@ -792,24 +808,24 @@ public sealed partial class GameServer
         int r = AsteroidVoxelRadius;
         int rSq = r * r;
         for (int x = -r; x <= r; x++)
-        for (int y = -r; y <= r; y++)
-        for (int z = -r; z <= r; z++)
-        {
-            int dSq = x * x + y * y + z * z;
-            if (dSq > rSq)
-            {
-                continue; // carve to a rough sphere
-            }
+            for (int y = -r; y <= r; y++)
+                for (int z = -r; z <= r; z++)
+                {
+                    int dSq = x * x + y * y + z * z;
+                    if (dSq > rSq)
+                    {
+                        continue; // carve to a rough sphere
+                    }
 
-            // A titanium core, an iron/copper shell, a little stone — a deterministic veined mix.
-            BlockId block;
-            if (dSq <= 1) { block = titanium; }
-            else if (((x + y + z) & 3) == 0) { block = copper; }
-            else if (((x + y + z) & 1) == 0) { block = stone; }
-            else { block = iron; }
+                    // A titanium core, an iron/copper shell, a little stone — a deterministic veined mix.
+                    BlockId block;
+                    if (dSq <= 1) { block = titanium; }
+                    else if (((x + y + z) & 3) == 0) { block = copper; }
+                    else if (((x + y + z) & 1) == 0) { block = stone; }
+                    else { block = iron; }
 
-            s.Set(new Vector3i(x, y, z), block);
-        }
+                    s.Set(new Vector3i(x, y, z), block);
+                }
 
         s.Width = s.Height = s.Length = r * 2 + 1;
         return s;
@@ -878,7 +894,11 @@ public sealed partial class GameServer
             s.Set(c, BlockId.Air);
             BroadcastToInstance(instance, new StructureBlockChanged
             {
-                StructureId = s.Id, X = c.X, Y = c.Y, Z = c.Z, Block = BlockId.AirValue,
+                StructureId = s.Id,
+                X = c.X,
+                Y = c.Y,
+                Z = c.Z,
+                Block = BlockId.AirValue,
             });
         }
     }

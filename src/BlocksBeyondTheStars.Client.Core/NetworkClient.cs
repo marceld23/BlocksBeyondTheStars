@@ -217,8 +217,13 @@ namespace BlocksBeyondTheStars.Client
             string? targetPlayer = null, float x = 0f, float y = 0f, float z = 0f)
             => Send(new AdminCommandIntent
             {
-                Command = command, StringArg = stringArg, IntArg = intArg,
-                TargetPlayer = targetPlayer, X = x, Y = y, Z = z,
+                Command = command,
+                StringArg = stringArg,
+                IntArg = intArg,
+                TargetPlayer = targetPlayer,
+                X = x,
+                Y = y,
+                Z = z,
             });
 
         public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });

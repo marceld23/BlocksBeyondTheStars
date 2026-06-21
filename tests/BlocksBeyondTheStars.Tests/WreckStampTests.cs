@@ -30,9 +30,13 @@ public sealed class WreckStampTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = planet + "_" + seed, Seed = seed, StartPlanet = planet,
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = false, PlaceWrecks = true,
+            WorldName = planet + "_" + seed,
+            Seed = seed,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = true,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -79,14 +83,14 @@ public sealed class WreckStampTests : IDisposable
 
             bool solidNearby = false;
             for (int dx = -5; dx <= 5 && !solidNearby; dx++)
-            for (int dy = -1; dy <= 5 && !solidNearby; dy++)
-            for (int dz = -5; dz <= 5 && !solidNearby; dz++)
-            {
-                if (!server.World.GetBlock(new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz)).IsAir)
-                {
-                    solidNearby = true;
-                }
-            }
+                for (int dy = -1; dy <= 5 && !solidNearby; dy++)
+                    for (int dz = -5; dz <= 5 && !solidNearby; dz++)
+                    {
+                        if (!server.World.GetBlock(new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz)).IsAir)
+                        {
+                            solidNearby = true;
+                        }
+                    }
 
             Assert.True(solidNearby, "A stamped wreck should place solid blocks in the world.");
         }
@@ -105,15 +109,15 @@ public sealed class WreckStampTests : IDisposable
 
             Vector3i? solid = null;
             for (int dx = -5; dx <= 5 && solid is null; dx++)
-            for (int dy = -1; dy <= 5 && solid is null; dy++)
-            for (int dz = -5; dz <= 5 && solid is null; dz++)
-            {
-                var c = new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz);
-                if (!server.World.GetBlock(c).IsAir)
-                {
-                    solid = c;
-                }
-            }
+                for (int dy = -1; dy <= 5 && solid is null; dy++)
+                    for (int dz = -5; dz <= 5 && solid is null; dz++)
+                    {
+                        var c = new Vector3i(basePos.X + dx, basePos.Y + dy, basePos.Z + dz);
+                        if (!server.World.GetBlock(c).IsAir)
+                        {
+                            solid = c;
+                        }
+                    }
 
             Assert.NotNull(solid);
             Assert.False(server.IsSettlementBlock(solid!.Value)); // wrecks aren't settlement-protected

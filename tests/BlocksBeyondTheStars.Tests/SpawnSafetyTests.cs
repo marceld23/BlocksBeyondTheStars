@@ -34,9 +34,13 @@ public sealed class SpawnSafetyTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "spawn", Seed = 12345, StartPlanet = "jungle",
-            AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
-            PlaceSettlements = false, PlaceWrecks = false,
+            WorldName = "spawn",
+            Seed = 12345,
+            StartPlanet = "jungle",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

@@ -129,12 +129,16 @@ public sealed partial class GameServer
             PlayerId = ownerId,
             StructureId = s.Id,
             Removed = removed,
-            OriginX = rec.Origin.X, OriginY = rec.Origin.Y, OriginZ = rec.Origin.Z,
+            OriginX = rec.Origin.X,
+            OriginY = rec.Origin.Y,
+            OriginZ = rec.Origin.Z,
             // A landed NPC trader has no session; resolve its hull tint from the trader registry instead.
             Hull = ownerId.StartsWith("npc:", System.StringComparison.Ordinal)
                 ? NpcLandedHull(ownerId)
                 : FindSessionByPlayerId(ownerId)?.HullColor ?? 0,
-            Width = s.Width, Height = s.Height, Length = s.Length,
+            Width = s.Width,
+            Height = s.Height,
+            Length = s.Length,
         };
 
         if (!removed)
@@ -176,11 +180,11 @@ public sealed partial class GameServer
         // Re-stream the affected chunks to everyone on this world so stale hull blocks vanish client-side.
         var seen = new HashSet<ChunkCoord>();
         for (int x = min.X; x <= max.X; x += WorldConstants.ChunkSize)
-        for (int y = min.Y; y <= max.Y; y += WorldConstants.ChunkSize)
-        for (int z = min.Z; z <= max.Z; z += WorldConstants.ChunkSize)
-        {
-            seen.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(new Vector3i(x, y, z)), _world.Circumference));
-        }
+            for (int y = min.Y; y <= max.Y; y += WorldConstants.ChunkSize)
+                for (int z = min.Z; z <= max.Z; z += WorldConstants.ChunkSize)
+                {
+                    seen.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(new Vector3i(x, y, z)), _world.Circumference));
+                }
 
         seen.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(max), _world.Circumference));
         foreach (var session in JoinedInActiveWorld())
@@ -231,7 +235,10 @@ public sealed partial class GameServer
         {
             Stations = _stations.Select(s => new NetShipStation
             {
-                Type = s.Type, X = s.Pos.X, Y = s.Pos.Y, Z = s.Pos.Z,
+                Type = s.Type,
+                X = s.Pos.X,
+                Y = s.Pos.Y,
+                Z = s.Pos.Z,
             }).ToArray(),
         });
     }

@@ -30,7 +30,10 @@ public sealed class ShipRepairTests : IDisposable
         var st = new LoopbackServerTransport(new LoopbackLink());
         var config = new ServerConfig
         {
-            WorldName = "shiprepair", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = true,
+            WorldName = "shiprepair",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

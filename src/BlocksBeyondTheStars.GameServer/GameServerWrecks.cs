@@ -105,15 +105,15 @@ public sealed partial class GameServer
 
         // Stamp only the wreck's solid blocks (breaches stay as the existing terrain/air).
         for (int x = 0; x < structure.Width; x++)
-        for (int y = 0; y < structure.Height; y++)
-        for (int z = 0; z < structure.Length; z++)
-        {
-            ushort b = structure.Get(x, y, z);
-            if (b != 0)
-            {
-                _world.SetBlock(new Vector3i(ax + x, baseY + y, az + z), new BlockId(b));
-            }
-        }
+            for (int y = 0; y < structure.Height; y++)
+                for (int z = 0; z < structure.Length; z++)
+                {
+                    ushort b = structure.Get(x, y, z);
+                    if (b != 0)
+                    {
+                        _world.SetBlock(new Vector3i(ax + x, baseY + y, az + z), new BlockId(b));
+                    }
+                }
 
         _wreck = structure;
         _wreckName = WreckDisplayName(structure.Origin, design, rng);
@@ -275,28 +275,28 @@ public sealed partial class GameServer
         }
 
         for (int x = 0; x < _wreck.Width; x++)
-        for (int y = 0; y < _wreck.Height; y++)
-        for (int z = 0; z < _wreck.Length; z++)
-        {
-            ushort intact = _wreck.IntactAt(x, y, z);
-            if (intact == 0)
-            {
-                continue;
-            }
+            for (int y = 0; y < _wreck.Height; y++)
+                for (int z = 0; z < _wreck.Length; z++)
+                {
+                    ushort intact = _wreck.IntactAt(x, y, z);
+                    if (intact == 0)
+                    {
+                        continue;
+                    }
 
-            // The wreck anchor sits at a raw offset that can be negative; the actual blocks live in the
-            // canonical longitude space, so emit canonical breach positions (matches what the client renders).
-            var world = WorldConstants.CanonicalBlock(new Vector3i(_wreckOrigin.X + x, _wreckOrigin.Y + y, _wreckOrigin.Z + z), _world.Circumference);
-            if (_world.GetBlock(world).Value == intact)
-            {
-                continue;
-            }
+                    // The wreck anchor sits at a raw offset that can be negative; the actual blocks live in the
+                    // canonical longitude space, so emit canonical breach positions (matches what the client renders).
+                    var world = WorldConstants.CanonicalBlock(new Vector3i(_wreckOrigin.X + x, _wreckOrigin.Y + y, _wreckOrigin.Z + z), _world.Circumference);
+                    if (_world.GetBlock(world).Value == intact)
+                    {
+                        continue;
+                    }
 
-            if (_content.BlockById(new BlockId(intact)) is { } required)
-            {
-                yield return (world, required);
-            }
-        }
+                    if (_content.BlockById(new BlockId(intact)) is { } required)
+                    {
+                        yield return (world, required);
+                    }
+                }
     }
 
     private bool TryGetWreckRepairTarget(Vector3i world, out BlockDefinition required)

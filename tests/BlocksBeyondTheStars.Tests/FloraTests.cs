@@ -162,8 +162,11 @@ public sealed class FloraTests : IDisposable
             var st = new LoopbackServerTransport(new LoopbackLink());
             var config = new ServerConfig
             {
-                WorldName = "floratox", Seed = 7, AutoSaveIntervalMinutes = 9999,
-                PlaceStarterShip = false, StartPlanet = "jungle", // a flora world
+                WorldName = "floratox",
+                Seed = 7,
+                AutoSaveIntervalMinutes = 9999,
+                PlaceStarterShip = false,
+                StartPlanet = "jungle", // a flora world
             };
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
@@ -202,13 +205,13 @@ public sealed class FloraTests : IDisposable
 
         int found = 0;
         for (int x = 0; x < 48; x++)
-        for (int z = 0; z < 48; z++)
-        {
-            if (floraIds.Contains(BlockAboveSurface(gen, planet, x, z)))
+            for (int z = 0; z < 48; z++)
             {
-                found++;
+                if (floraIds.Contains(BlockAboveSurface(gen, planet, x, z)))
+                {
+                    found++;
+                }
             }
-        }
 
         Assert.True(found > 0, "Expected a flora planet to seed at least one flora block across a 48x48 area.");
     }
@@ -221,10 +224,10 @@ public sealed class FloraTests : IDisposable
         var floraIds = FloraIds();
 
         for (int x = 0; x < 24; x++)
-        for (int z = 0; z < 24; z++)
-        {
-            Assert.DoesNotContain(BlockAboveSurface(gen, planet, x, z), floraIds);
-        }
+            for (int z = 0; z < 24; z++)
+            {
+                Assert.DoesNotContain(BlockAboveSurface(gen, planet, x, z), floraIds);
+            }
     }
 
     [Fact]

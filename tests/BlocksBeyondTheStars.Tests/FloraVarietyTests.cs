@@ -96,22 +96,22 @@ public sealed class FloraVarietyTests
 
         var counts = new Dictionary<ushort, int>();
         for (int cx = 0; cx < chunksXZ; cx++)
-        for (int cz = 0; cz < chunksXZ; cz++)
-        for (int cy = cyLo; cy <= cyHi; cy++)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(cx * cs, cy * cs, cz * cs));
-            var chunk = gen.Generate(planet, coord);
-            for (int lx = 0; lx < cs; lx++)
-            for (int ly = 0; ly < cs; ly++)
-            for (int lz = 0; lz < cs; lz++)
-            {
-                ushort id = chunk.Get(lx, ly, lz).Value;
-                if (id != 0)
+            for (int cz = 0; cz < chunksXZ; cz++)
+                for (int cy = cyLo; cy <= cyHi; cy++)
                 {
-                    counts[id] = counts.TryGetValue(id, out var c) ? c + 1 : 1;
+                    var coord = WorldConstants.WorldToChunk(new Vector3i(cx * cs, cy * cs, cz * cs));
+                    var chunk = gen.Generate(planet, coord);
+                    for (int lx = 0; lx < cs; lx++)
+                        for (int ly = 0; ly < cs; ly++)
+                            for (int lz = 0; lz < cs; lz++)
+                            {
+                                ushort id = chunk.Get(lx, ly, lz).Value;
+                                if (id != 0)
+                                {
+                                    counts[id] = counts.TryGetValue(id, out var c) ? c + 1 : 1;
+                                }
+                            }
                 }
-            }
-        }
 
         return counts;
     }

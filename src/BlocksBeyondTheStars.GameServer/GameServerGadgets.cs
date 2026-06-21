@@ -173,48 +173,48 @@ public sealed partial class GameServer
             (int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z)), _world.Circumference);
 
         for (int dx = -BlasterRadius; dx <= BlasterRadius; dx++)
-        for (int dy = -BlasterRadius; dy <= BlasterRadius; dy++)
-        for (int dz = -BlasterRadius; dz <= BlasterRadius; dz++)
-        {
-            if (dx * dx + dy * dy + dz * dz > BlasterRadius * BlasterRadius)
-            {
-                continue; // carve a sphere, not a cube
-            }
+            for (int dy = -BlasterRadius; dy <= BlasterRadius; dy++)
+                for (int dz = -BlasterRadius; dz <= BlasterRadius; dz++)
+                {
+                    if (dx * dx + dy * dy + dz * dz > BlasterRadius * BlasterRadius)
+                    {
+                        continue; // carve a sphere, not a cube
+                    }
 
-            var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
-            var b = _world.GetBlock(p);
-            if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
-                || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
-            {
-                continue;
-            }
+                    var p = WorldConstants.CanonicalBlock(new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
+                    var b = _world.GetBlock(p);
+                    if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
+                    {
+                        continue;
+                    }
 
-            var d = _world.Definition(b);
-            if (d is null || !d.Mineable)
-            {
-                continue; // leave bedrock / indestructible blocks intact
-            }
+                    var d = _world.Definition(b);
+                    if (d is null || !d.Mineable)
+                    {
+                        continue; // leave bedrock / indestructible blocks intact
+                    }
 
-            _world.SetBlock(p, BlockId.Air);
-            _miningProgress.Remove(p);
-            BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
-            if (d.Key == "radio_beacon")
-            {
-                RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
-            }
-            if (d.Key == "base_core")
-            {
-                RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
-            }
-            if (d.Key == "beam_block")
-            {
-                RemoveBeamAt(p); // don't orphan a blasted beam block's name/marker (teleporter pad)
-            }
-            if (IsFluid(b.Value) || HasFluidNeighbor(p))
-            {
-                OnFluidRemoved(p); // a hole opened in/under water or lava refills
-            }
-        }
+                    _world.SetBlock(p, BlockId.Air);
+                    _miningProgress.Remove(p);
+                    BroadcastToWorld(new BlockChanged { X = p.X, Y = p.Y, Z = p.Z, Block = BlockId.AirValue });
+                    if (d.Key == "radio_beacon")
+                    {
+                        RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
+                    }
+                    if (d.Key == "base_core")
+                    {
+                        RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
+                    }
+                    if (d.Key == "beam_block")
+                    {
+                        RemoveBeamAt(p); // don't orphan a blasted beam block's name/marker (teleporter pad)
+                    }
+                    if (IsFluid(b.Value) || HasFluidNeighbor(p))
+                    {
+                        OnFluidRemoved(p); // a hole opened in/under water or lava refills
+                    }
+                }
     }
 
     /// <summary>Terrain scanner (Feature 40): scans a sphere around the player for valuable blocks (ores,
@@ -238,34 +238,37 @@ public sealed partial class GameServer
 
         var hits = new List<(Vector3i Pos, ushort Block, int DistSq)>();
         for (int dx = -radius; dx <= radius; dx++)
-        for (int dy = -radius; dy <= radius; dy++)
-        for (int dz = -radius; dz <= radius; dz++)
-        {
-            int distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq > radius * radius)
-            {
-                continue; // a pulse sphere, not a cube
-            }
+            for (int dy = -radius; dy <= radius; dy++)
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int distSq = dx * dx + dy * dy + dz * dz;
+                    if (distSq > radius * radius)
+                    {
+                        continue; // a pulse sphere, not a cube
+                    }
 
-            var cell = WorldConstants.CanonicalBlock(new Vector3i(centre.X + dx, centre.Y + dy, centre.Z + dz), _world.Circumference);
-            var b = _world.GetBlock(cell);
-            if (b.IsAir)
-            {
-                continue;
-            }
+                    var cell = WorldConstants.CanonicalBlock(new Vector3i(centre.X + dx, centre.Y + dy, centre.Z + dz), _world.Circumference);
+                    var b = _world.GetBlock(cell);
+                    if (b.IsAir)
+                    {
+                        continue;
+                    }
 
-            if (IsValuableBlock(_world.Definition(b)?.Key))
-            {
-                hits.Add((cell, b.Value, distSq));
-            }
-        }
+                    if (IsValuableBlock(_world.Definition(b)?.Key))
+                    {
+                        hits.Add((cell, b.Value, distSq));
+                    }
+                }
 
         // Nearest finds first; cap so an ore-rich world doesn't flood the message.
         hits.Sort((a, b2) => a.DistSq.CompareTo(b2.DistSq));
         int n = System.Math.Min(hits.Count, ScannerMaxHits);
         var result = new OreScanResult
         {
-            X = new int[n], Y = new int[n], Z = new int[n], Block = new ushort[n],
+            X = new int[n],
+            Y = new int[n],
+            Z = new int[n],
+            Block = new ushort[n],
             Seconds = ScannerSeconds,
         };
         for (int i = 0; i < n; i++)

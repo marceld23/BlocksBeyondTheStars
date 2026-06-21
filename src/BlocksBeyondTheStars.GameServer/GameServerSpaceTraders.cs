@@ -732,7 +732,13 @@ public sealed partial class GameServer
 
             msg ??= new ShipTransitFx
             {
-                PlayerId = lt.OwnerId, Name = lt.Name, X = at.X, Y = at.Y, Z = at.Z, Landing = landing, Hull = lt.HullRgb,
+                PlayerId = lt.OwnerId,
+                Name = lt.Name,
+                X = at.X,
+                Y = at.Y,
+                Z = at.Z,
+                Landing = landing,
+                Hull = lt.HullRgb,
             };
             design ??= BuildNpcShipStructure(lt.StructureId, lt.ShipType);
             SendShipDesign(session, design, "ship_remote");

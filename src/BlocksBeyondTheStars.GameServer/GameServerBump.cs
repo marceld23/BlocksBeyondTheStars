@@ -56,8 +56,13 @@ public sealed partial class GameServer
                 s.History.Add(new BumpSample
                 {
                     T = Math.Round(_uptime, 1),
-                    X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z,
-                    Health = p.Health, Oxygen = p.Oxygen, Energy = p.SuitEnergy, Hunger = p.Hunger,
+                    X = p.Position.X,
+                    Y = p.Position.Y,
+                    Z = p.Position.Z,
+                    Health = p.Health,
+                    Oxygen = p.Oxygen,
+                    Energy = p.SuitEnergy,
+                    Hunger = p.Hunger,
                     Aboard = p.AboardShip,
                 });
 
@@ -126,16 +131,27 @@ public sealed partial class GameServer
             {
                 instanceId = instance.Id,
                 kind = instance.Kind,
-                shipX = sp.X, shipY = sp.Y, shipZ = sp.Z, yaw = pose.Yaw, eva = pose.Eva,
+                shipX = sp.X,
+                shipY = sp.Y,
+                shipZ = sp.Z,
+                yaw = pose.Yaw,
+                eva = pose.Eva,
                 entities = instance.Entities
                     .OrderBy(e => e.Position.DistanceSquared(sp))
                     .Take(40)
                     .Select(e => new
                     {
-                        e.Id, kind = e.Kind.ToString(), e.Name, e.Hostile, species = e.SpeciesId,
-                        e.Hull, e.HullMax,
+                        e.Id,
+                        kind = e.Kind.ToString(),
+                        e.Name,
+                        e.Hostile,
+                        species = e.SpeciesId,
+                        e.Hull,
+                        e.HullMax,
                         dist = (float)Math.Sqrt(e.Position.DistanceSquared(sp)),
-                        x = e.Position.X, y = e.Position.Y, z = e.Position.Z,
+                        x = e.Position.X,
+                        y = e.Position.Y,
+                        z = e.Position.Z,
                     }).ToList(),
             };
         }
@@ -144,35 +160,35 @@ public sealed partial class GameServer
             // Detailed non-air blocks in a tight box...
             int px = (int)Math.Floor(p.Position.X), py = (int)Math.Floor(p.Position.Y), pz = (int)Math.Floor(p.Position.Z);
             for (int dx = -4; dx <= 4; dx++)
-            for (int dy = -2; dy <= 4; dy++)
-            for (int dz = -4; dz <= 4; dz++)
-            {
-                var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
-                if (id.IsAir)
-                {
-                    continue;
-                }
+                for (int dy = -2; dy <= 4; dy++)
+                    for (int dz = -4; dz <= 4; dz++)
+                    {
+                        var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
+                        if (id.IsAir)
+                        {
+                            continue;
+                        }
 
-                blocks.Add(new { x = px + dx, y = py + dy, z = pz + dz, block = _content.BlockById(id)?.Key ?? id.Value.ToString() });
-            }
+                        blocks.Add(new { x = px + dx, y = py + dy, z = pz + dz, block = _content.BlockById(id)?.Key ?? id.Value.ToString() });
+                    }
 
             // ...plus a wider, compact census (block-type → count) so terrain + voxel flora composition
             // (trees/leaves/planted crops) is captured without listing every cell. NB: small client-side
             // billboard undergrowth is procedural and not server voxel data, so it can't appear here.
             var tally = new Dictionary<string, int>();
             for (int dx = -12; dx <= 12; dx++)
-            for (int dz = -12; dz <= 12; dz++)
-            for (int dy = -4; dy <= 8; dy++)
-            {
-                var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
-                if (id.IsAir)
-                {
-                    continue;
-                }
+                for (int dz = -12; dz <= 12; dz++)
+                    for (int dy = -4; dy <= 8; dy++)
+                    {
+                        var id = _world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz));
+                        if (id.IsAir)
+                        {
+                            continue;
+                        }
 
-                string key = _content.BlockById(id)?.Key ?? id.Value.ToString();
-                tally[key] = tally.TryGetValue(key, out var n) ? n + 1 : 1;
-            }
+                        string key = _content.BlockById(id)?.Key ?? id.Value.ToString();
+                        tally[key] = tally.TryGetValue(key, out var n) ? n + 1 : 1;
+                    }
 
             census = tally.OrderByDescending(kv => kv.Value)
                 .Select(kv => (object)new { block = kv.Key, count = kv.Value }).ToList();
@@ -210,13 +226,30 @@ public sealed partial class GameServer
                 location = new { system = systemName, planet = planetName, activeLocationId = _meta.ActiveLocationId, planetType = _meta.DefaultPlanetType },
                 player = new
                 {
-                    p.PlayerId, p.Name,
-                    x = p.Position.X, y = p.Position.Y, z = p.Position.Z, p.Yaw, p.Pitch,
-                    p.Health, p.Oxygen, energy = p.SuitEnergy, p.Hunger,
-                    aboardShip = p.AboardShip, station = CurrentStationName(p.PlayerId),
-                    currentLocation = p.CurrentLocationId, inEva = p.InEva, aboveAtmosphere = p.AboveAtmosphere, inSpace,
-                    role = p.Role.ToString(), p.GodMode, p.Fly, p.Stealthed,
-                    selectedHotbarSlot = p.SelectedHotbarSlot, inventory, rations,
+                    p.PlayerId,
+                    p.Name,
+                    x = p.Position.X,
+                    y = p.Position.Y,
+                    z = p.Position.Z,
+                    p.Yaw,
+                    p.Pitch,
+                    p.Health,
+                    p.Oxygen,
+                    energy = p.SuitEnergy,
+                    p.Hunger,
+                    aboardShip = p.AboardShip,
+                    station = CurrentStationName(p.PlayerId),
+                    currentLocation = p.CurrentLocationId,
+                    inEva = p.InEva,
+                    aboveAtmosphere = p.AboveAtmosphere,
+                    inSpace,
+                    role = p.Role.ToString(),
+                    p.GodMode,
+                    p.Fly,
+                    p.Stealthed,
+                    selectedHotbarSlot = p.SelectedHotbarSlot,
+                    inventory,
+                    rations,
                 },
                 environment = BuildEnvironment(p.Position), // the player's local biome weather
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },

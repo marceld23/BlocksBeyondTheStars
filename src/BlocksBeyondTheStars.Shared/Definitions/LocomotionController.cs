@@ -206,15 +206,15 @@ public static class LocomotionController
         // base table per style: (cruiseFrac, burstFrac, turn, holdMin, holdMax, pauseChance, pauseMin, pauseMax, weaveAmp, weaveFreq, vertAmp, vertFreq)
         var b = sp.LocoStyle switch
         {
-            LocomotionStyle.Grazer    => (0.55f, 1.2f, 2.2f, 1.2f, 2.5f, 0.65f, 1.5f, 4.0f, 0.25f, 1.4f, 0f,    0f),
-            LocomotionStyle.Darter    => (1.00f, 1.6f, 4.5f, 0.5f, 1.4f, 0.55f, 0.4f, 1.2f, 0.35f, 2.6f, 0f,    0f),
-            LocomotionStyle.Prowler   => (0.60f, 1.4f, 2.4f, 2.0f, 4.0f, 0.45f, 1.0f, 2.5f, 0.15f, 1.0f, 0f,    0f),
-            LocomotionStyle.Hopper    => (0.90f, 1.3f, 3.0f, 0.5f, 1.0f, 0.55f, 0.5f, 1.2f, 0.10f, 1.0f, 0.55f, 3.0f),
-            LocomotionStyle.Drifter   => (0.50f, 1.0f, 1.2f, 2.5f, 5.0f, 0.25f, 1.5f, 3.5f, 0.40f, 0.6f, 0.25f, 0.8f),
-            LocomotionStyle.Slitherer => (0.80f, 1.2f, 2.6f, 2.0f, 4.5f, 0.15f, 0.8f, 2.0f, 0.60f, 2.2f, 0f,    0f),
-            LocomotionStyle.Glider    => (0.90f, 1.3f, 1.4f, 3.0f, 6.0f, 0.10f, 1.0f, 2.5f, 0.30f, 0.7f, 1.0f,  0.5f),
-            LocomotionStyle.Schooler  => (0.85f, 1.3f, 2.8f, 1.5f, 3.5f, 0.20f, 0.5f, 1.5f, 0.20f, 1.4f, 0.3f,  0.9f),
-            _                         => (0.85f, 1.3f, 2.0f, 2.5f, 5.0f, 0.20f, 0.6f, 1.5f, 0.18f, 1.2f, 0f,    0f), // Strider
+            LocomotionStyle.Grazer => (0.55f, 1.2f, 2.2f, 1.2f, 2.5f, 0.65f, 1.5f, 4.0f, 0.25f, 1.4f, 0f, 0f),
+            LocomotionStyle.Darter => (1.00f, 1.6f, 4.5f, 0.5f, 1.4f, 0.55f, 0.4f, 1.2f, 0.35f, 2.6f, 0f, 0f),
+            LocomotionStyle.Prowler => (0.60f, 1.4f, 2.4f, 2.0f, 4.0f, 0.45f, 1.0f, 2.5f, 0.15f, 1.0f, 0f, 0f),
+            LocomotionStyle.Hopper => (0.90f, 1.3f, 3.0f, 0.5f, 1.0f, 0.55f, 0.5f, 1.2f, 0.10f, 1.0f, 0.55f, 3.0f),
+            LocomotionStyle.Drifter => (0.50f, 1.0f, 1.2f, 2.5f, 5.0f, 0.25f, 1.5f, 3.5f, 0.40f, 0.6f, 0.25f, 0.8f),
+            LocomotionStyle.Slitherer => (0.80f, 1.2f, 2.6f, 2.0f, 4.5f, 0.15f, 0.8f, 2.0f, 0.60f, 2.2f, 0f, 0f),
+            LocomotionStyle.Glider => (0.90f, 1.3f, 1.4f, 3.0f, 6.0f, 0.10f, 1.0f, 2.5f, 0.30f, 0.7f, 1.0f, 0.5f),
+            LocomotionStyle.Schooler => (0.85f, 1.3f, 2.8f, 1.5f, 3.5f, 0.20f, 0.5f, 1.5f, 0.20f, 1.4f, 0.3f, 0.9f),
+            _ => (0.85f, 1.3f, 2.0f, 2.5f, 5.0f, 0.20f, 0.6f, 1.5f, 0.18f, 1.2f, 0f, 0f), // Strider
         };
 
         uint h = (uint)StableHash(sp.Id);
