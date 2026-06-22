@@ -85,6 +85,8 @@ public sealed partial class GameServer
         rec.Placed = true;
         _log.Info($"Ship parked at ({rec.Origin.X}, {rec.Origin.Y}, {rec.Origin.Z}) — {s.Cells.Count} cells, {rec.Stations.Count} stations.");
 
+        EvictWildlifeFromShips(); // a creature the ship just parked on/over is pushed back out, not sealed in
+
         BroadcastToWorld(LandedShipMessage(playerId, rec, removed: false));
         RegisterDoors(); // pick up the ship's doors (+ keep settlement/other-ship doors in sync)
     }
@@ -428,6 +430,68 @@ public sealed partial class GameServer
             }
         }
 
+        return false;
+    }
+
+    /// <summary>
+    /// If the position sits inside (or against) a parked ship's hull bounds — the same volume
+    /// <see cref="EntityBlockedByShip"/> guards — returns a point just beyond the NEAREST horizontal hull face
+    /// (keeping the original height). Lets an entity that got enclosed — e.g. the ship was parked or grown
+    /// over a wandering creature — be pushed back out of the cabin instead of staying stuck inside. Returns
+    /// false (and leaves <paramref name="outside"/> = <paramref name="p"/>) when the position is clear of
+    /// every parked ship.
+    /// </summary>
+    private bool TryPushOutsideShip(Vector3f p, out Vector3f outside)
+    {
+        const float m = 0.5f;
+        const float clear = 0.05f; // step a hair past the margin so the result is unambiguously outside
+        foreach (var rec in _worlds.Active.LandedShips.Values)
+        {
+            if (!rec.Placed)
+            {
+                continue;
+            }
+
+            var s = rec.Structure;
+            double dx = WorldConstants.WrapDeltaX(p.X - rec.Origin.X, _world.Circumference);
+            double dz = p.Z - rec.Origin.Z;
+            if (dx < -m || dx > s.Width + m
+                || p.Y < rec.Origin.Y - 1 - m || p.Y > rec.Origin.Y + s.Height + m
+                || dz < -m || dz > s.Length + m)
+            {
+                continue; // not inside this ship
+            }
+
+            // Exit via the closest of the four horizontal faces (distance to step to clear each one).
+            double toMinX = dx + m + clear;              // step toward -X
+            double toMaxX = (s.Width + m + clear) - dx;  // step toward +X
+            double toMinZ = dz + m + clear;              // step toward -Z
+            double toMaxZ = (s.Length + m + clear) - dz; // step toward +Z
+            double best = System.Math.Min(System.Math.Min(toMinX, toMaxX), System.Math.Min(toMinZ, toMaxZ));
+
+            float ox = p.X, oz = p.Z;
+            if (best == toMinX)
+            {
+                ox = (float)(p.X - toMinX);
+            }
+            else if (best == toMaxX)
+            {
+                ox = (float)(p.X + toMaxX);
+            }
+            else if (best == toMinZ)
+            {
+                oz = (float)(p.Z - toMinZ);
+            }
+            else
+            {
+                oz = (float)(p.Z + toMaxZ);
+            }
+
+            outside = new Vector3f(ox, p.Y, oz);
+            return true;
+        }
+
+        outside = p;
         return false;
     }
 

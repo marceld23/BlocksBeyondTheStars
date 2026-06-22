@@ -17,6 +17,19 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Keep wildlife (and planet enemies) out of the parked ship (2026-06-22) — ✅ server-only done (700 green, 0 warns; NO Unity build needed)
+A wild creature could end up **inside** the landed ship. The ship is an object with AABB checks (no voxel collision),
+and movement can't enter (it freezes at the hull) — so the cause was **placement**: `PlaceLandedShip` never evicted a
+creature the ship parked on/over (or that a ship redesign grew over), leaving it sealed in the cabin.
+- New `TryPushOutsideShip(p, out outside)` helper (`GameServerShipStructure.cs`) — same bounds as `EntityBlockedByShip`,
+  pushes a point just past the nearest horizontal hull face (keeps height).
+- **P1** `EvictWildlifeFromShips()` runs at the end of `PlaceLandedShip` (companions are left alone — they may follow
+  their owner aboard). **P2** `MoveCreatures` ejects any wild creature whose current position is inside, every tick.
+- **P3** creature spawn-reject now tests `EntityBlockedByShip` (the movement barrier) instead of the tighter interior box,
+  closing the shell where a spawn was allowed but immediately frozen against the hull.
+- **P5** planet enemies (`MovePlanetEnemy`) get the same eject-if-inside + block-the-move-into-the-hull guard.
+- **P4** 2 new tests in `CreatureTests.cs` (park-over-creature sweep + per-tick eject). Suite **700 passing**.
+
 ### ★ Tiered radio reach + live voice chat (2026-06-21) — ✅ server+tests done (8 new, suite green); voice SHIPPED ON by default; NEEDS Unity build
 - **Tiered radio reach** (text **and** voice): `comm_radio` = same world, new `system_radio` = same star system, new
   `galaxy_radio` = whole game. New items/recipes/blueprints (`data/items.json`/`recipes.json`/`blueprints.json`, de+en

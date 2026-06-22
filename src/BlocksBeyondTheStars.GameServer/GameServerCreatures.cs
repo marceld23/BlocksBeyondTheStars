@@ -377,8 +377,10 @@ public sealed partial class GameServer
                 }
 
                 var pos = new Vector3f(px + 0.5f, y, pz + 0.5f);
-                if (!HabitatSuitable(sp, pos) || ShipInteriorContains(pos))
+                if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos))
                 {
+                    // Reject the SAME volume the movement barrier guards (not just the tight interior box), so a
+                    // creature never spawns in the thin shell where it would immediately be frozen against the hull.
                     continue; // never spawn inside (or clipping into) a landed ship
                 }
 
@@ -491,6 +493,14 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // Safety net: a wild creature that somehow ended up inside a parked ship (ship placed/grown over it,
+            // an old save, a numeric edge) is pushed back out of the hull this tick instead of being stuck inside.
+            if (TryPushOutsideShip(creature.Position, out var ejected))
+            {
+                creature.Position = ejected;
+                continue;
+            }
+
             if (creature.FrozenTimer > 0)
             {
                 creature.FrozenTimer = System.Math.Max(0, creature.FrozenTimer - dt);
@@ -590,6 +600,32 @@ public sealed partial class GameServer
             creature.Position = EntityBlockedByShip(next) ? creature.Position : next;
         }
     }
+
+    /// <summary>Pushes any WILD creature standing inside a parked ship's hull back outside (companions are left
+    /// alone — they may legitimately follow their owner aboard). Called when a ship is (re-)placed so a creature
+    /// the ship parks on/over isn't sealed into the cabin; <see cref="MoveCreatures"/> is the continuous net.</summary>
+    private void EvictWildlifeFromShips()
+    {
+        foreach (var creature in _creatures)
+        {
+            if (!creature.IsCompanion && TryPushOutsideShip(creature.Position, out var outside))
+            {
+                creature.Position = outside;
+            }
+        }
+    }
+
+    /// <summary>Spawns a wild creature of the first roster species at an exact position, bypassing the spawn
+    /// habitat/ship checks. Test-only — lets a test plant a creature inside a parked ship to prove it is
+    /// evicted. Returns the new creature's id.</summary>
+    public string SpawnCreatureAtForTest(Vector3f at)
+    {
+        SpawnCreature(_speciesRoster[0], at);
+        return _creatures[^1].Id;
+    }
+
+    /// <summary>Runs the placement-time eviction sweep directly (no tick) so a test can isolate it.</summary>
+    public void EvictWildlifeFromShipsForTest() => EvictWildlifeFromShips();
 
     /// <summary>2D (x,z) distance check matching <see cref="CreatureBehaviour"/>'s aggro test.</summary>
     private static bool WithinAggro(Vector3f from, Vector3f to)

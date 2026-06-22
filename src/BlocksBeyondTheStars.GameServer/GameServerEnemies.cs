@@ -233,6 +233,14 @@ public sealed partial class GameServer
     /// the move and re-rolls the heading. Returns true when the enemy actually moved.</summary>
     private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, HashSet<string> warded, double dt)
     {
+        // Safety net: a machine that ended up inside a parked ship (ship placed/grown over it) is pushed back
+        // out of the hull rather than left stalking from inside the cabin.
+        if (TryPushOutsideShip(enemy.Position, out var ejected))
+        {
+            enemy.Position = ejected;
+            return false;
+        }
+
         // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
         // the machine never paths toward them.
         PlayerSession? nearest = null;
@@ -305,7 +313,14 @@ public sealed partial class GameServer
 
         int hover = drone ? ScanDroneHover : 0;          // scan-drones float above the ground
         float bob = drone ? DroneBob * res.VertWave : 0f; // ...and hover-bob; robots stay grounded
-        enemy.Position = new Vector3f(nx, groundY + hover + bob, nz);
+        var candidate = new Vector3f(nx, groundY + hover + bob, nz);
+        if (EntityBlockedByShip(candidate))
+        {
+            enemy.Loco.ModeTimer = 0f; // ship hull in the way — re-roll the heading next tick instead of entering
+            return false;
+        }
+
+        enemy.Position = candidate;
         return res.Moving;
     }
 

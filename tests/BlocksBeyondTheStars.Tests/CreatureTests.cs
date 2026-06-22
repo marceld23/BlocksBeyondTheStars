@@ -259,6 +259,85 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    // ---------------- Keeping wildlife out of the parked ship ----------------
+
+    private SvGameServer StartedWithShip(out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, "creatureship"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "creatureship",
+            Seed = 4242,
+            StartPlanet = "jungle",  // "many" fauna → a non-empty species roster
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true, // park the player's ship so there is a hull to test against
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        return server;
+    }
+
+    /// <summary>A world point a couple of blocks up from the centre-bottom of Host's parked ship — i.e. inside
+    /// the cabin — plus its floored cell, for the <c>ShipInteriorContainsCellForTest</c> assertions.</summary>
+    private static (Vector3f Point, int Cx, int Cy, int Cz) ShipInteriorSpot(SvGameServer server)
+    {
+        var a = server.ShipAnchorOf("Host");
+        var p = new Vector3f(a.X + 0.5f, a.Y + 2f, a.Z + 0.5f);
+        return (p, (int)Math.Floor(p.X), (int)Math.Floor(p.Y), (int)Math.Floor(p.Z));
+    }
+
+    private static bool CreatureCellInsideShip(SvGameServer server, string id)
+    {
+        var c = server.Creatures.First(x => x.Id == id);
+        return server.ShipInteriorContainsCellForTest(
+            (int)Math.Floor(c.Position.X), (int)Math.Floor(c.Position.Y), (int)Math.Floor(c.Position.Z));
+    }
+
+    [Fact]
+    public void ParkingTheShipOverACreature_PushesItOutOfTheHull()
+    {
+        var server = StartedWithShip(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Host"); // parks the ship on its pad
+
+            var (spot, cx, cy, cz) = ShipInteriorSpot(server);
+            string id = server.SpawnCreatureAtForTest(spot);
+            Assert.True(server.ShipInteriorContainsCellForTest(cx, cy, cz), "the creature was planted inside the hull");
+
+            server.EvictWildlifeFromShipsForTest(); // the sweep PlaceLandedShip runs right after parking
+
+            Assert.False(CreatureCellInsideShip(server, id),
+                "a creature the ship parked over must be pushed outside, not sealed in the cabin");
+        }
+    }
+
+    [Fact]
+    public void ACreatureInsideTheShip_IsEjected_OnTheNextTick()
+    {
+        var server = StartedWithShip(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Host"); // parks the ship
+            var anchor = server.ShipAnchorOf("Host");
+
+            // Stand just outside the hull (and not aboard) so the player stays a live creature target and the
+            // planted creature is kept in range rather than pruned for being far from everyone.
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(anchor.X + 12f, anchor.Y + 1f, anchor.Z);
+
+            var (spot, cx, cy, cz) = ShipInteriorSpot(server);
+            string id = server.SpawnCreatureAtForTest(spot);
+            Assert.True(server.ShipInteriorContainsCellForTest(cx, cy, cz));
+
+            server.TickForTest(0.2);
+
+            Assert.False(CreatureCellInsideShip(server, id),
+                "MoveCreatures must eject a creature that ended up inside the ship");
+        }
+    }
+
     // ---------------- Eating (food heals, poison harms) ----------------
 
     [Fact]
