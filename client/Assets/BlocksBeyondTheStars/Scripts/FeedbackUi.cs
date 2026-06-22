@@ -10,9 +10,9 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Player feedback ("Spieler Feedback"): a small, unobtrusive HUD button (and the F1 hotkey) that opens a
-    /// modal dialog where any player can send a bug report OR a feature wish — one form, no type distinction:
-    /// a title, a description, an optional e-mail and a short note that game data + a screenshot are attached.
+    /// Player feedback ("Spieler Feedback"): the F1 hotkey opens a modal dialog where any player can send a bug
+    /// report OR a feature wish — one form, no type distinction: a title, a description, an optional e-mail and a
+    /// short note that game data + a screenshot are attached. (F1 is advertised in the on-foot HUD controls hint.)
     ///
     /// On send we grab a full-frame screenshot WITH the HUD but WITHOUT this dialog (captured at the moment the
     /// dialog opens, while the live HUD is still on screen), gather a small client-side diagnostic snapshot,
@@ -34,9 +34,6 @@ namespace BlocksBeyondTheStars.Client
         private FeedbackUploader _uploader;
         private string _sessionId = string.Empty;
 
-        // Launcher button (its own thin canvas, hidden while any menu/the dialog is open).
-        private GameObject _buttonCanvas;
-
         // Dialog (built lazily on first open).
         private Canvas _dialogCanvas;
         private GameObject _dialog;
@@ -56,7 +53,6 @@ namespace BlocksBeyondTheStars.Client
             // A random id groups several reports from one sitting (varies per session; no Unity-restricted Date use).
             _sessionId = Guid.NewGuid().ToString("N");
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
-            BuildLauncherButton();
         }
 
         private void Update()
@@ -66,13 +62,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // The launcher button shows only during normal on-foot play (not in menus, flight, chat or the
-            // death prompt) — matching when the HUD itself is up.
+            // F1 opens feedback only during normal on-foot play (not in menus, flight, chat or the death prompt)
+            // — matching when the HUD (and its controls hint) is up.
             bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm && !Game.SpaceViewActive;
-            if (_buttonCanvas != null)
-            {
-                _buttonCanvas.SetActive(canLaunch); // hidden in menus, flight, chat, the death prompt and while the dialog is open
-            }
 
             if (!_open && canLaunch && Input.GetKeyDown(KeyCode.F1))
             {
@@ -96,23 +88,10 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // --- Launcher button -------------------------------------------------------------------------------
-
-        private void BuildLauncherButton()
-        {
-            var canvas = UiKit.CreateCanvas("FeedbackButton");
-            canvas.sortingOrder = 8; // below the HUD (10) and any menu/dialog
-            _buttonCanvas = canvas.gameObject;
-
-            const float size = 48f;
-            // Bottom-right corner (Place uses top-left anchored space, so a large y sits near the bottom).
-            UiKit.AddButton(canvas.transform, W - size - 18f, H - size - 18f, size, size, string.Empty, Open, "btn_feedback");
-        }
-
         // --- Open / close ----------------------------------------------------------------------------------
 
-        /// <summary>Opens the feedback dialog (also the launcher button's click target). Captures the gameplay
-        /// frame first — HUD visible, dialog not yet shown — then dims the screen and shows the form.</summary>
+        /// <summary>Opens the feedback dialog (the F1 hotkey's target). Captures the gameplay frame first — HUD
+        /// visible, dialog not yet shown — then dims the screen and shows the form.</summary>
         public void Open()
         {
             if (_open || Game == null)
@@ -128,7 +107,6 @@ namespace BlocksBeyondTheStars.Client
         {
             // Capture at end of frame, before the dialog is shown and before MenuOpen hides the HUD: the shot
             // is the full frame WITH the HUD but WITHOUT this dialog (the requested look).
-            if (_buttonCanvas != null) _buttonCanvas.SetActive(false);
             yield return new WaitForEndOfFrame();
             _shotJpg = TryCaptureJpg();
 
