@@ -1710,8 +1710,8 @@ public sealed partial class GameServer
         state.Inventory.SetSlot(3, new ItemStack("suit_lamp", 1));
         state.Inventory.SetSlot(4, new ItemStack("machete", 1));       // a simple starter melee weapon
         state.Inventory.SetSlot(5, new ItemStack("scrap_pistol", 1));   // ...and a weak ranged sidearm so a fresh
-                                                                       // player can fight back from a distance, not
-                                                                       // only by walking into a hostile's bite range
+                                                                        // player can fight back from a distance, not
+                                                                        // only by walking into a hostile's bite range
         _repo.SavePlayer(state);
         return state;
     }
