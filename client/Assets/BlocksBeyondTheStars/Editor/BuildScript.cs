@@ -16,11 +16,12 @@ namespace BlocksBeyondTheStars.Client.EditorTools
     /// Builds the standalone player (Windows or Linux). The launcher scene is normally created at runtime, so
     /// this first generates and saves a minimal scene containing a single <see cref="AppShell"/>
     /// GameObject, registers it in the build settings, then builds. Run from the editor menu
-    /// (BlocksBeyondTheStars → Build Windows Player) or headless via <c>scripts/build-client.ps1</c>.
+    /// (BlocksBeyondTheStars → Build Windows/Linux Player) or headless via <c>scripts/build-client.ps1</c> /
+    /// <c>scripts/build-client.sh</c>.
     ///
     /// The build automatically includes everything under <c>StreamingAssets/</c> (the synced
-    /// data and, if published, the bundled local server), so run sync-client-libs.ps1 and
-    /// publish-local-server.ps1 first for a self-contained singleplayer build.
+    /// data and, if published, the bundled local server), so run sync-client-libs and
+    /// publish-local-server first for a self-contained singleplayer build.
     /// </summary>
     public static class BuildScript
     {
@@ -49,7 +50,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
 
         [MenuItem("BlocksBeyondTheStars/Build Windows Player")]
         public static void BuildWindows()
-            => BuildPlayerFor(BuildTarget.StandaloneWindows64, "BlocksBeyondTheStars.exe", "Build/Windows");
+            => BuildPlayer(BuildTarget.StandaloneWindows64, "BlocksBeyondTheStars.exe", "Build/Windows");
 
         /// <summary>Builds the Linux player (StandaloneLinux64). Now that UWB/CEF (Windows-only) is gone the client
         /// builds on Linux too; the remaining piece is the CI/packaging side (a linux-x64 bundled server, no
@@ -57,18 +58,15 @@ namespace BlocksBeyondTheStars.Client.EditorTools
         /// <c>-buildMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildLinux -buildOut &lt;dir&gt;</c>.</summary>
         [MenuItem("BlocksBeyondTheStars/Build Linux Player")]
         public static void BuildLinux()
-            => BuildPlayerFor(BuildTarget.StandaloneLinux64, "BlocksBeyondTheStars.x86_64", "Build/Linux");
+            => BuildPlayer(BuildTarget.StandaloneLinux64, "BlocksBeyondTheStars.x86_64", "Build/Linux");
 
-        private static void BuildPlayerFor(BuildTarget target, string exeName, string defaultOutDir)
+        private static void BuildPlayer(BuildTarget target, string exeName, string defaultOutDir)
         {
             EnsureLauncherScene();
             EnsureShadersIncluded();
             EnsureRendererFeatures();
             EnsureAppIcon();
 
-            // Single source of truth for the version: the release CI passes the git tag (e.g. "0.3.0") here, so
-            // the in-game UI (AppShell.Version → Application.version), the installer and the launcher all match.
-            // No arg = a local/dev build, which keeps the committed bundleVersion (0.0.0-dev).
             string version = GetArg("-buildVersion");
             if (!string.IsNullOrEmpty(version))
             {
@@ -98,8 +96,6 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 EditorApplication.Exit(1);
             }
 
-            // Record the version baked into the player so the release CI can assert it equals the git tag
-            // (the version single-source-of-truth guard).
             File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
         }
 
