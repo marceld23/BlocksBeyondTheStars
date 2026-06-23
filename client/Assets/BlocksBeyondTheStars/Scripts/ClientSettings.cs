@@ -57,6 +57,20 @@ namespace BlocksBeyondTheStars.Client
         public int ViewDistanceChunks = 2;
         public float UiScale = 1f;
 
+        // Frame pacing. Exposed as its own switch instead of being baked into the quality preset: with VSync
+        // on, the frame rate syncs to the display and tearing is gone, but on some setups — notably the
+        // Windows client run through Proton/Wine on Linux — a GPU that just misses the refresh gets locked
+        // to a hard 30 fps and the game feels sluggish. Turning VSync off lets those players run uncapped (or
+        // at a chosen cap) for smoother frame times. Applied in Apply() AFTER SetQualityLevel, which would
+        // otherwise stamp the preset's own vSyncCount.
+        /// <summary>Sync frames to the display refresh (no tearing). Off lets the frame rate run free, capped
+        /// only by <see cref="FrameRateCap"/> — the recommended setting for the Linux/Proton client.</summary>
+        public bool VSync = true;
+
+        /// <summary>Frame-rate cap in fps applied when <see cref="VSync"/> is off; 0 = unlimited. One of the
+        /// values in <see cref="UiSettings"/>'s cap cycle (30/60/72/90/120/144/240).</summary>
+        public int FrameRateCap = 0;
+
         // Look effects (the "professional / sci-fi look" layer). Each is also preset-gated at runtime — these
         // toggles only matter from Medium upward; Potato/Low force the expensive ones off regardless.
         /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
@@ -258,6 +272,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 QualitySettings.SetQualityLevel(Mathf.Clamp((int)Preset, 0, levels - 1), applyExpensiveChanges: true);
             }
+
+            // Frame pacing — the player's own switch, applied AFTER SetQualityLevel (which stamps the preset's
+            // baked vSyncCount). VSync on = sync to the display; off = uncapped unless FrameRateCap limits it.
+            // Application.targetFrameRate only takes effect when vSyncCount == 0, so clear it (−1) under VSync.
+            QualitySettings.vSyncCount = VSync ? 1 : 0;
+            Application.targetFrameRate = (!VSync && FrameRateCap > 0) ? FrameRateCap : -1;
 
             // URP: one pipeline asset serves every quality level, so scale the expensive part — shadow reach —
             // by preset here (Potato: shadows off entirely; High: the full tuned distance).

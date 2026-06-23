@@ -70,6 +70,15 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
                 S.ViewDistanceChunks.ToString());
+            // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
+            // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
+            Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; Rebuild(); });
+            if (!S.VSync)
+            {
+                Cycle(ref y, L("ui.settings.fps_cap"), FpsCapLabel(S.FrameRateCap),
+                    () => { S.FrameRateCap = NextFpsCap(S.FrameRateCap); Rebuild(); });
+            }
+
             Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; Rebuild(); });
             Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; Rebuild(); });
             Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; Rebuild(); });
@@ -250,6 +259,18 @@ namespace BlocksBeyondTheStars.Client
             WindowMode.Exclusive => "ui.settings.window_mode.exclusive",
             _ => "ui.settings.window_mode.windowed",
         };
+
+        // Frame-rate caps the player can cycle through when VSync is off (0 = unlimited). Common refresh
+        // rates plus a couple of in-between targets for laptops that want to cap for heat / battery.
+        private static readonly int[] FpsCaps = { 0, 30, 60, 72, 90, 120, 144, 240 };
+
+        private string FpsCapLabel(int cap) => cap <= 0 ? L("ui.settings.fps_cap.unlimited") : cap + " fps";
+
+        private static int NextFpsCap(int current)
+        {
+            int idx = System.Array.IndexOf(FpsCaps, current);
+            return FpsCaps[(idx + 1) % FpsCaps.Length];
+        }
 
         // A small curated set of comfortable push-to-talk keys to cycle through.
         private static readonly string[] PttKeys = { "V", "B", "T", "F", "CapsLock", "LeftAlt", "LeftControl", "Mouse2" };
