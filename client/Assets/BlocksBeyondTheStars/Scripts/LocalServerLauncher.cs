@@ -140,7 +140,9 @@ namespace BlocksBeyondTheStars.Client
 
             bool windows = Application.platform == RuntimePlatform.WindowsPlayer
                            || Application.platform == RuntimePlatform.WindowsEditor;
-            string exeName = windows ? "BlocksBeyondTheStars.GameServer.exe" : "BlocksBeyondTheStars.GameServer";
+            string exeName = windows
+                ? "BlocksBeyondTheStars.GameServer.exe"
+                : "BlocksBeyondTheStars.GameServer";
             string exe = Path.Combine(Application.streamingAssetsPath, "server", exeName);
 
             if (!File.Exists(exe))

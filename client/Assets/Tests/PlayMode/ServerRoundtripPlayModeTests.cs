@@ -25,7 +25,7 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
         [UnityTest]
         public IEnumerator Join_AgainstRealServer_AcceptsAndStreamsChunks()
         {
-            string exeName = Application.platform == RuntimePlatform.WindowsEditor
+            string exeName = Application.platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor
                 ? "BlocksBeyondTheStars.GameServer.exe"
                 : "BlocksBeyondTheStars.GameServer";
             string exe = Path.Combine(Application.streamingAssetsPath, "server", exeName);
