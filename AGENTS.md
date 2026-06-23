@@ -5,7 +5,7 @@ Read it before making changes.
 
 ## What Blocks Beyond the Stars is
 
-A block-based 3D space crafting game for Windows. The player starts with a small
+A block-based 3D space crafting game for Windows and Linux. The player starts with a small
 spaceship, explores procedurally generated planets, mines resources, crafts gear,
 researches blueprints, and grows the ship. The current status (Done/Open) lives in
 [TODO.md](TODO.md); player-facing operation in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md).
@@ -23,7 +23,7 @@ LAN/self-hosting and anti-cheat correct by construction.
 
 ## Tech stack (decided)
 
-- **Client:** Unity 6 LTS (6000.4.x), C#. Lives in `client/` (open in the Unity Editor).
+- **Client:** Unity 6 LTS (6000.4.x), C#. Lives in `client/` (open in the Unity Editor). Builds for Windows (WinForms launcher) and Linux (console launcher).
 - **Server:** .NET 8, standalone console host. **No Unity runtime on the server.**
 - **Admin/API:** ASP.NET Core 8 (Minimal API).
 - **DB:** SQLite by default (portable); PostgreSQL later.
@@ -42,6 +42,8 @@ src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
+src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net8.0-windows)
+src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net8.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration (real NetworkClient vs real GameServer)
 client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites)
@@ -85,11 +87,17 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
 ## Build & test
 
 ```powershell
-dotnet build BlocksBeyondTheStars.sln      # build everything
+dotnet build BlocksBeyondTheStars.sln      # build everything (Windows)
 dotnet test                      # run all xUnit tests (server/shared + headless client<->server)
 ./scripts/run-tests.ps1          # selectable suites: Dotnet, ClientCore, UnityEdit, UnityPlay, All
 dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local server
 ./scripts/build-client.ps1       # full Windows client (shared libs + bundled server + Unity batch build)
+```
+
+```bash
+dotnet build BlocksBeyondTheStars.sln      # build everything (Linux)
+./scripts/run-tests.sh           # .NET suites (Dotnet + ClientCore)
+./scripts/build-client.sh        # full Linux client (shared libs + bundled server + Unity batch build)
 ```
 
 `run-tests.ps1` defaults to the fast .NET suites (`Dotnet` + `ClientCore`); the Unity Editor suites
@@ -156,7 +164,7 @@ compatibility) separate — it is not the game version. Gotchas if you touch thi
 `bundleVersion` (drive it via `versioning: Custom`, don't fight it with `-buildVersion`); Velopack needs
 `packVersion >= 0.0.1` (so dev is `0.1.0-dev`, not `0.0.0-*`); after `git push` wait ~20 s before
 `gh workflow run` or it dispatches the previous commit. Linux/macOS *client* installers are intentionally not
-built (blocked by the Windows-only UnityWebBrowser/CEF engine).
+built (blocked by the Windows-only UnityWebBrowser/CEF engine on macOS; Linux now ships with the linux.x64 CEF engine).
 
 ## Project conventions
 

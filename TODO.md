@@ -5,7 +5,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 (controls, mechanics, editors, commands) is documented in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md) —
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
-**Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
+**Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
 **Test:** `dotnet test` — currently **683 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -292,6 +292,18 @@ creature the ship parked on/over (or that a ship redesign grew over), leaving it
   closing the shell where a spawn was allowed but immediately frozen against the hull.
 - **P5** planet enemies (`MovePlanetEnemy`) get the same eject-if-inside + block-the-move-into-the-hull guard.
 - **P4** 2 new tests in `CreatureTests.cs` (park-over-creature sweep + per-tick eject). Suite **700 passing**.
+
+### ★ Full Linux support (2026-06-23) — ✅ .NET build+scripts done; NEEDS Unity build+release CI
+- **Cross-platform fixes:** `LocalServerLauncher.cs` + `ServerRoundtripPlayModeTests.cs` use `.exe` only on Windows;
+  CEF linux.x64 engine added to package manifest; `BuildScript.cs` got `BuildLinux()` targeting `StandaloneLinux64`.
+- **Linux console launcher:** `src/BlocksBeyondTheStars.Launcher.Console/` — SkiaSharp-based splash renderer,
+  Velopack lifecycle hooks, starts Unity player as child process (replaces WinForms launcher on Linux).
+- **Bash build scripts:** `sync-client-libs.sh`, `sync-velopack-libs.sh`, `publish-local-server.sh`,
+  `build-client.sh`, `run-tests.sh` — critical-path ports from PowerShell.
+- **CI/CD:** `release.yml` now has `build-player-linux` + `package-linux` jobs (GameCI `StandaloneLinux64`,
+  Velopack AppImage + portable zip).
+- **Docs:** `AGENTS.md`, `DEVELOPER.md`, `USER_MANUAL.md` updated for Linux workflows.
+- Verified: full CI filter build 0 warnings / 0 errors (11 projects, including Launcher.Console).
 
 ### ★ Tiered radio reach + live voice chat (2026-06-21) — ✅ server+tests done (8 new, suite green); voice SHIPPED ON by default; NEEDS Unity build
 - **Tiered radio reach** (text **and** voice): `comm_radio` = same world, new `system_radio` = same star system, new

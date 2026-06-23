@@ -8,11 +8,13 @@ built player. Contributor rules (language, architecture, conventions) live in
 ## Prerequisites
 
 | Tool | Version | Notes |
-|---|---|---|
+|---|---|---|---|
 | .NET SDK | 8.x | builds the server, shared libs, tests and tools |
-| Unity Editor | 6 LTS (6000.4.x) | required only for the Windows client build; default path used by the build script: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` |
-| Windows | 10/11 | the client is a Windows player; the dedicated server also publishes for Linux |
-| PowerShell | 7+ | for the `scripts/*.ps1` build scripts |
+| Unity Editor | 6 LTS (6000.4.x) | required only for the client build; default paths: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` (Windows) or `/opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity` (Linux) |
+| Windows | 10/11 | for the Windows client build; the dedicated server also publishes for Linux |
+| Linux | any modern distro | for the Linux client build and/or server hosting |
+| PowerShell | 7+ | for the Windows `scripts/*.ps1` build scripts |
+| Bash | 4+ | for the Linux `scripts/*.sh` build scripts |
 
 ## Server, tests, tools (.NET)
 
@@ -27,10 +29,16 @@ dotnet run --project src/BlocksBeyondTheStars.Api           # admin UI (http://1
 
 ```powershell
 dotnet test                                # all .NET xUnit suites (server/shared + headless client<->server)
-./scripts/run-tests.ps1                     # selectable runner — default: fast .NET suites only
+./scripts/run-tests.ps1                     # selectable runner — default: fast .NET suites only (Windows)
 ./scripts/run-tests.ps1 -Suites All         # + the Unity Editor suites (EditMode + PlayMode-vs-real-server)
 ./scripts/run-tests.ps1 -Suites ClientCore  # just the headless client<->server integration tests
 ./scripts/run-tests.ps1 -Coverage           # .NET suites with a coverage report (TestResults/)
+```
+
+```bash
+./scripts/run-tests.sh                      # selectable runner — .NET suites only (Linux)
+./scripts/run-tests.sh --suites All         # both .NET suites (Dotnet + ClientCore)
+./scripts/run-tests.sh --suites ClientCore  # just the headless client<->server integration tests
 ```
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
@@ -50,11 +58,11 @@ tests/BlocksBeyondTheStars.Tests        # Dotnet  — server/shared xUnit
 tests/BlocksBeyondTheStars.Client.Tests # ClientCore — real NetworkClient ↔ in-process GameServer
 ```
 
-These are the same two suites `run-tests.ps1` runs by default. Two deliberate choices:
+These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. Two deliberate choices:
 
 - **It targets the test projects directly, not `BlocksBeyondTheStars.sln`.** The solution also contains the
   WinForms launcher (`net8.0-windows`), which cannot build on the Linux runner; building the test projects
-  pulls in exactly their dependencies (server/shared/`Client.Core`) and nothing Windows-only.
+  pulls in exactly their dependencies (server/shared/`Client.Core`/`Launcher.Console`) and nothing Windows-only.
 - **Warnings fail the PR.** The build step runs with **`-warnaserror`**, so any compiler or analyzer warning
   breaks the check — even though the local build keeps `TreatWarningsAsErrors=false`
   ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
@@ -152,7 +160,10 @@ early:
    `client/Assets/**` file changed, run:
 
    ```powershell
-   ./scripts/build-client.ps1
+   ./scripts/build-client.ps1        # Windows
+   ```
+   ```bash
+   ./scripts/build-client.sh         # Linux (pass --unity-path /path/to/Unity)
    ```
 
    This catches Unity-only compile failures (the `CS0246` "works in the Editor, broken in the build" trap —
@@ -211,6 +222,49 @@ To package the built player locally as a Velopack installer/update feed, run
 without it the version is read from `PlayerSettings.bundleVersion` in `ProjectSettings.asset` (the version
 source of truth — see [Releases & versioning](#releases-github-actions--versioning) below). For an actual
 shipped release you normally do **not** run this by hand — push a tag and let CI do it.
+
+## Building the Linux client
+
+The Linux build uses the same Unity project but targets `StandaloneLinux64`:
+
+```bash
+./scripts/build-client.sh
+```
+
+It runs these steps, equivalent to the Windows build:
+
+1. **Sync shared libs + content** (`scripts/sync-client-libs.sh`) — same as the .ps1 equivalent, publishes
+   the netstandard2.1 libraries and copies `data/` into StreamingAssets.
+2. **Bundle the singleplayer server** (`scripts/publish-local-server.sh`) — publishes the GameServer for
+   `linux-x64` (self-contained single-file) into `client/Assets/StreamingAssets/server/`.
+3. **Unity batch build** — runs the Unity Editor headless with
+   `BuildScript.BuildLinux` and writes the player to `client/Build/Linux/`.
+4. **Build the console launcher** — `dotnet publish`es
+   `src/BlocksBeyondTheStars.Launcher.Console` (a self-contained, single-file console app using SkiaSharp)
+   and copies it next to the player. It prints "Loading..." to the terminal, starts the Unity player as a
+   child process, and forwards its exit code. Like the Windows launcher, it also runs Velopack
+   lifecycle hooks for install/update/uninstall.
+
+Useful parameters:
+
+```bash
+./scripts/build-client.sh --skip-prereqs          # rebuild only the Unity player
+./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity
+./scripts/build-client.sh --out Build/Linux
+```
+
+> **Important:** after changing anything under `src/` (Shared, WorldGeneration, Networking)
+> or `data/`, run the **full** build *without* `--skip-prereqs`.
+
+For Velopack packaging on Linux (AppImage + portable zip), use `vpk` directly:
+
+```bash
+vpk pack --packId BlocksBeyondTheStars --packVersion <semver> \
+  --packDir client/Build/Linux \
+  --mainExe BlocksBeyondTheStars.Launcher.Console \
+  --channel linux \
+  --outputDir artifacts/installer-linux
+```
 
 ### Build log, exit codes and duration
 
