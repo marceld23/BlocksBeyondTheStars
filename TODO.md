@@ -17,6 +17,40 @@ world-gen; SQLite persistence.
 
 ---
 
+## 📦 Released versions
+
+Published GitHub Releases (tag = version single-source-of-truth; each tag push builds the Windows installer
+trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
+Per-item detail lives in the dated work log below.
+
+- **v0.4.2** — 2026-06-23 — *early-game survivability + Linux/Proton perf.* Starter food + VEGA "eat" lesson,
+  earlier/clearer hunger guidance (#46); `scrap_pistol` starter sidearm + weapon-range fix + 3D line-of-sight
+  hiding (#45); VSync decoupled from the quality preset + frame-rate cap (Linux/Proton 30 fps fix, #47);
+  README intro rework (#44). All three player issues reported by community tester **Bastian**.
+- **v0.4.1** — 2026-06-22 — *"Caught on Camera" fixes.* Keep wild creatures/planet enemies out of the parked
+  ship (#43); stop enemy attack FX following a player aboard (#41); hide surface-only compass + time-of-day
+  panel during space flight (#39); feedback is now F1-only, unclickable HUD button removed (#42); automated
+  in-game clip recorder tool (#40); Docker Desktop local-test walkthrough (#38).
+- **v0.4.0** — 2026-06-21 — *comms, scale + CI hardening.* Tiered radio reach + live voice chat (#30); default
+  player cap raised 4→12 (#19) with a 12-player smoke test (#21); optional dedicated-server Docker image (#26);
+  in-game menu top-bar split into two rows (#35); Windows security notice; CI hardening (CodeQL compile mode,
+  lint + format gates, Action SHA-pinning, Node 24 bumps); Docker pull line prepended to release notes (#37).
+- **v0.3.2** — 2026-06-21 — *space/landing polish + screenshots.* Ranged laser for scan-drones (#13);
+  terrain-aware screenshot placement (#14); descent flies to the chosen planet (#12); rear hatch shown as a
+  blue energy door in flight (#11); explosion stays / no landing animation after ship destruction (#10);
+  per-planet surface screenshot gallery (#8/#9); butler host fix (#5); README TOC + project-status (#6/#15).
+- **v0.3.1** — 2026-06-20 — *release-CI fix.* Strip the Burst `_DoNotShip` folder + mirror the installers to
+  itch.io via butler (#4).
+- **v0.3.0** — 2026-06-20 — *community + feedback.* In-game "Spieler Feedback" button → website API; open-source
+  "Mach mit" invite + sharper menu/splash backdrop; community health files (Code of Conduct, Security policy,
+  issue/PR templates); analyzer-warning cleanup (#3); ai-backend security bumps (#2); PR-workflow docs (#1).
+- **v0.2.0** — 2026-06-20 — *version SoT + installer trio.* Version single-source-of-truth from the tag +
+  Windows installer trio (Setup.exe / MSI / Portable); third-party NOTICES shipped with the installer.
+- **v0.1.0** — 2026-06-20 — *first automated release.* GitHub Actions release build + version
+  single-source-of-truth working end-to-end (validated: published the initial Windows zip).
+
+---
+
 ### ★ Linux/Proton performance: decouple VSync + frame-rate controls (2026-06-23) — ✅ done & merged (PR#47, d8f4ae4; Unity build green)
 A player reported the game feeling performance-heavy under **Linux**. Cause: the client ships **Windows-only** (Mono,
 `StandaloneWindows64`, **no native Linux build**), so Linux players run it via **Proton/Wine**; on top of that overhead,
