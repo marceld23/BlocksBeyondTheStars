@@ -18,7 +18,7 @@ Blocks Beyond the Stars is not a traditional indie game—it is an exploration o
 *   **Music & Sound Effects:** Synthesized using AI audio tools.
 *   **Dynamic Storytelling:** Powered by an optional integrated Python LLM backend (FastAPI + LangChain) for real-time NPC/ship-AI dialogue.
 
-We made this repository Open Source to share our workflow. If you are a developer, we invite you to look at the architecture to see how a fully AI-generated client/server game in Unity 6 and .NET 8 comes together.
+**We'd love your help making this game better!** We made this repository Open Source not just to share our AI workflow, but to build it together with you. Whether you're a developer who wants to dig into the Unity 6 / .NET 8 client/server architecture, an artist, a writer, or simply a player with ideas and bug reports — there's a place for you here. Big features, small fixes, balancing tweaks, fresh ideas: all are welcome. Have a look at **[CONTRIBUTING.md](CONTRIBUTING.md)** to get started, or just press **F1** in-game to send feedback. Let's make it great together. 🚀
 
 ## 🪐 What is it? (The Short Pitch)
 
