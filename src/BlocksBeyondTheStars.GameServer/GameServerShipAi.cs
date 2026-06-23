@@ -28,6 +28,7 @@ public sealed partial class GameServer
     {
         ("mine",   3), // mine a few blocks (the starter drill)
         ("craft",  1), // craft anything
+        ("eat",    1), // eat food (survival loop: harvest flora / hunt for food, suit dispenser auto-feeds)
         ("scan",   1), // scan something (knowledge loop)
         ("unlock", 1), // unlock a first blueprint
         ("launch", 1), // lift off into space
@@ -220,6 +221,7 @@ public sealed partial class GameServer
     }
 
     private void ShipAiOnCraft(PlayerSession session) => ShipAiComplete(session, "craft");
+    private void ShipAiOnEat(PlayerSession session) => ShipAiComplete(session, "eat");
     private void ShipAiOnScan(PlayerSession session) => ShipAiComplete(session, "scan");
     private void ShipAiOnBlueprint(PlayerSession session) => ShipAiComplete(session, "unlock");
     private void ShipAiOnEnterSpace(PlayerSession session) => ShipAiComplete(session, "launch");
@@ -303,9 +305,16 @@ public sealed partial class GameServer
                 ShipAiHintOnce(session, "energy");
             }
 
-            if (p.Hunger < 25f)
+            if (p.Hunger < 40f)
             {
-                ShipAiHintOnce(session, "hunger");
+                ShipAiHintOnce(session, "hunger"); // earlier nudge (40%) + the line now names where food comes from
+            }
+
+            // Aboard with a less-than-full belly: teach that life support tops hunger up — but only slowly, so
+            // eating is still the fast route. Fires once, and only while actually aboard/docked and noticeably hungry.
+            if ((p.AboardShip || InStation(p.PlayerId)) && p.Hunger < 70f)
+            {
+                ShipAiHintOnce(session, "shipfood");
             }
 
             if (p.Inventory.FirstEmptySlot() < 0)

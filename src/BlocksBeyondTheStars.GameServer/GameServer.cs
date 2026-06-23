@@ -1712,6 +1712,11 @@ public sealed partial class GameServer
         state.Inventory.SetSlot(5, new ItemStack("scrap_pistol", 1));   // ...and a weak ranged sidearm so a fresh
                                                                         // player can fight back from a distance, not
                                                                         // only by walking into a hostile's bite range
+        // Starter food so a fresh pilot can't starve before discovering the food loop: a few berries to eat by
+        // hand straight away (VEGA's "eat" lesson points here), plus emergency rations pre-loaded into the suit
+        // dispenser so the low-hunger auto-feed safety net works from the first minute, not only once they craft one.
+        state.Inventory.SetSlot(6, new ItemStack("berries", 5));
+        state.RationStore.SetSlot(0, new ItemStack("emergency_ration", 2));
         _repo.SavePlayer(state);
         return state;
     }
