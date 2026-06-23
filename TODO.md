@@ -17,6 +17,22 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Linux/Proton performance: decouple VSync + frame-rate controls (2026-06-23) — ✅ done & merged (PR#47, d8f4ae4; Unity build green)
+A player reported the game feeling performance-heavy under **Linux**. Cause: the client ships **Windows-only** (Mono,
+`StandaloneWindows64`, **no native Linux build**), so Linux players run it via **Proton/Wine**; on top of that overhead,
+**VSync was implicitly coupled to the quality preset** (Medium+ forced `vSyncCount=1`), which on Proton commonly **locks
+to a hard 30 fps** when the GPU just misses the display refresh — the "sluggish" symptom. Shipped the low-risk P0+P1 slice.
+- **P1 — frame pacing as its own setting**: [ClientSettings.cs](client/Assets/BlocksBeyondTheStars/Scripts/ClientSettings.cs)
+  new `VSync` (default **true** = unchanged) + `FrameRateCap` (0 = unlimited), applied in `Apply()` **after**
+  `SetQualityLevel` (which would otherwise stamp the preset's `vSyncCount`): sets `QualitySettings.vSyncCount` +
+  `Application.targetFrameRate` (only bites when VSync off). [UiSettings.cs](client/Assets/BlocksBeyondTheStars/Scripts/UiSettings.cs)
+  VSync toggle + a **Frame-rate limit** cycle (Unlimited/30/60/72/90/120/144/240, shown when VSync off), applied on close
+  like the preset row. de/en locale `ui.settings.vsync` / `ui.settings.fps_cap` / `…unlimited`.
+- **P0 — docs**: README **System requirements** now documents the client runs on Linux via Proton/Wine (no native build)
+  with a concrete perf tip (VSync off, lower preset/view distance, recent Proton).
+- Existing players unaffected (VSync defaults on); Linux fix is an opt-out in the menu. Heavier follow-ups (hot-path mesh/
+  collider opts, IL2CPP, native Linux build) remain separate.
+
 ### ★ Early-game starvation: starter food + VEGA teaches eating (2026-06-23) — ✅ done (705 green; client content-sync only, NO Unity code build)
 New players starved fast: the start kit held **no food**, the food loop (smash green flora → berries; hunt creatures →
 meat) was never taught, and "couldn't find seeds" was a misconception — seeds are *crafted* (plant fibre → plant_seed),
