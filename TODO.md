@@ -17,6 +17,21 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Early-game starvation: starter food + VEGA teaches eating (2026-06-23) — ✅ done (705 green; client content-sync only, NO Unity code build)
+New players starved fast: the start kit held **no food**, the food loop (smash green flora → berries; hunt creatures →
+meat) was never taught, and "couldn't find seeds" was a misconception — seeds are *crafted* (plant fibre → plant_seed),
+never dropped, and aren't needed to eat at all. The ship already sates hunger aboard (+10/s, kept slow on purpose).
+- **Startvorrat (A)**: `CreateNewPlayer` now seeds 5 berries in the pack + 2 `emergency_ration` pre-loaded into the
+  suit ration dispenser, so the low-hunger auto-feed safety net works from minute one.
+- **VEGA teaches eating (B)**: new onboarding stage **"eat"** (after mine→craft), completed the first time the player
+  eats real food (`ConsumeItem` with `ConsumeHunger>0` → `ShipAiOnEat`). The `hunger` advisor hint fires earlier (40%
+  vs 25%) and now names where food comes from; a new **`shipfood`** hint explains the ship refills hunger *slowly*, so
+  eating is the fast route. de/en locale for `vega.s.eat.*`, `vega.obj.eat`, `vega.hint.shipfood`.
+- **Seed clarity (C)**: sharpened `berries`/`creature_meat` descriptions (food comes straight from harvesting/hunting,
+  no seeds needed) and added `plant_seed`/`crystal_seed` descriptions (crafted, only for re-planting a food garden).
+- Tests: new `ShipAiTests.NewPlayer_StartsWithFood_AndEatingAdvancesTheEatStage_ToScan`; the 4 bare-hunger tests now
+  reset the starter food to keep testing the raw mechanic. Suite **705** green.
+
 ### ★ Early-game defence: starter sidearm + line-of-sight hiding (2026-06-23) — ✅ done (708 green; NEEDS Unity build)
 New players were attacked with only a melee machete (whose 3.5 reach is *shorter* than an enemy's 4-block bite aura) and
 no way to break off an attack — enemies tracked through walls/earth (no line-of-sight anywhere). Option C: give a weak

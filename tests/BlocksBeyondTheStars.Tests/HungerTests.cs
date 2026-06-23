@@ -40,6 +40,20 @@ public sealed class HungerTests : IDisposable
         return server;
     }
 
+    /// <summary>Resets a fresh player's starter food to empty so a test can establish its own precondition.
+    /// The starter kit now seeds berries + pre-loaded dispenser rations (option A of the starvation fix), which
+    /// would otherwise auto-feed and mask the bare hunger mechanics these tests exercise.</summary>
+    private static void ClearStarterFood(BlocksBeyondTheStars.Shared.State.PlayerState s)
+    {
+        for (int i = 0; i < s.RationStore.SlotCount; i++)
+        {
+            s.RationStore.SetSlot(i, null);
+        }
+
+        s.Inventory.Remove("berries", s.Inventory.CountOf("berries"));
+        s.Inventory.Remove("emergency_ration", s.Inventory.CountOf("emergency_ration"));
+    }
+
     [Fact]
     public void Rule_HungerEnabled_OnlyInSurvival()
     {
@@ -84,6 +98,7 @@ public sealed class HungerTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Starving");
+            ClearStarterFood(p.State); // no fallback rations — we want the empty-hunger health drain itself
             p.State.AboardShip = false;
             p.State.Position = new Vector3f(0, 64, 0);
             p.State.Hunger = 0f;
@@ -131,6 +146,7 @@ public sealed class HungerTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Starver");
+            ClearStarterFood(p.State); // start empty so the loose inventory ration is the only food
             p.State.AboardShip = false;
             p.State.Position = new Vector3f(0, 64, 0);
             p.State.Hunger = 10f; // below the auto-feed threshold
@@ -150,6 +166,7 @@ public sealed class HungerTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Starver");
+            ClearStarterFood(p.State); // genuinely nothing to eat — neither dispenser nor loose ration
             p.State.AboardShip = false;
             p.State.Position = new Vector3f(0, 64, 0);
             p.State.Hunger = 10f;
@@ -183,6 +200,7 @@ public sealed class HungerTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Spacer");
+            ClearStarterFood(p.State); // empty dispenser + no starter berries, so we control exactly what's stocked
             p.State.AboardShip = false;
             p.State.Position = new Vector3f(0, 64, 0);
             p.State.Inventory.Add("berries", 3, 20);

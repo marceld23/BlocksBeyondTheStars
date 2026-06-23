@@ -132,6 +132,36 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
+    public void NewPlayer_StartsWithFood_AndEatingAdvancesTheEatStage_ToScan()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Eater");
+
+        // Startvorrat (option A): a fresh pilot can eat from minute one — berries to hand, rations pre-loaded
+        // into the suit dispenser so the low-hunger auto-feed safety net works before any are crafted.
+        var p = server.Sessions[1].State;
+        Assert.True(p.Inventory.CountOf("berries") > 0, "new players start with berries to eat");
+        Assert.True(p.RationStore.CountOf("emergency_ration") > 0, "suit dispenser is pre-loaded with rations");
+
+        // Fast-forward the chain to the new "eat" lesson (after mine + craft), then eat one berry.
+        p.Milestones.Add("vega:stage:mine");
+        p.Milestones.Add("vega:stage:craft");
+        client.Send(NetCodec.Encode(new ConsumeItemIntent { ItemKey = "berries" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.Contains("vega:stage:eat", server.MilestonesForTest("Eater"));
+        Assert.Contains(lines, l => l.LineKey == "vega.s.eat.done");
+        Assert.Contains(lines, l => l.LineKey == "vega.s.scan.start"); // the chain moves on to scanning
+        Assert.Equal("vega.obj.scan", lines.Last().ObjectiveKey);
+    }
+
+    [Fact]
     public void VeteranSave_AutoSkipsOnboarding_WithOneLine()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));

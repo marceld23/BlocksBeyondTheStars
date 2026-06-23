@@ -884,6 +884,11 @@ public sealed partial class GameServer
             p.Hunger = System.Math.Min(100f, System.Math.Max(0f, p.Hunger + item.ConsumeHunger));
         }
 
+        if (item.ConsumeHunger > 0f)
+        {
+            ShipAiOnEat(session); // VEGA's survival lesson: actually eating real food (not just biting a poison gland)
+        }
+
         SendInventory(session);
         SendPlayerState(session);
         if (p.Health <= 0f)
