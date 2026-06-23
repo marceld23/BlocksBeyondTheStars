@@ -99,13 +99,20 @@ The software is provided as-is under the terms of the license included in this r
 
 ## System requirements
 
-The **game client is Windows-only**, but the **server is cross-platform** — so a Linux/macOS machine,
-a NAS or a VPS (including via Docker) can host a world that Windows players join.
+The **game client ships as a Windows build** (there is no native Linux/macOS client yet), but the
+**server is cross-platform** — so a Linux/macOS machine, a NAS or a VPS (including via Docker) can
+host a world that Windows players join.
 
 **Game client (to play)**
 
 - **Windows 10/11 (64-bit).**
 - A GPU with DirectX 11+ support (Unity 6 / URP) and a few GB of free disk for the client + worlds.
+- **Linux:** the Windows client also runs on Linux through **[Proton](https://github.com/ValveSoftware/Proton)**
+  (Steam Play) or **Wine** — there is no native Linux build, so it goes through that translation layer.
+  It works, but expect a higher performance cost than on Windows. If it feels sluggish, open
+  **Settings → Graphics** and **turn VSync off** (optionally set a frame-rate limit), lower the
+  **quality preset** (Potato/Low also disables the costlier screen-space effects) and the **view
+  distance**. A recent Proton (e.g. Proton GE) generally gives the smoothest result.
 - The client always talks to a server: a local one started automatically in singleplayer / "Host
   Game", or a remote dedicated server.
 
