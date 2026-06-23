@@ -171,6 +171,8 @@
   "item.vibro_knife.desc": "A humming blade that cuts deeper.",
   "item.plasma_sword.name": "Plasma Sword",
   "item.plasma_sword.desc": "A searing plasma blade — devastating in melee.",
+  "item.scrap_pistol.name": "Scrap Pistol",
+  "item.scrap_pistol.desc": "A cobbled-together emergency sidearm — weak, but it fires at range. Your first line of defence until you craft something better.",
   "item.gauss_pistol.name": "Gauss Pistol",
   "item.gauss_pistol.desc": "Fires kinetic slugs at range.",
   "item.laser_pistol.name": "Laser Pistol",

@@ -115,7 +115,8 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (WrapDistSq(p.Position, enemy.Position) <= EnemyProximityRange * EnemyProximityRange)
+                if (WrapDistSq(p.Position, enemy.Position) <= EnemyProximityRange * EnemyProximityRange
+                    && HasLineOfSight(enemy.Position, p.Position)) // can't bite a target it can't see — duck behind cover/into a cave to break it
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
                     SendPlayerState(session);
@@ -141,9 +142,11 @@ public sealed partial class GameServer
     private const float EnemyHuntSpeed = 3.1f;  // blocks/s while hunting (slightly slower than a running player)
     private const float EnemyToughHuntSpeed = 3.7f;
     private const float EnemyWanderSpeed = 1.1f;
+    private const double EnemySightGiveUpSeconds = 6.0; // out of sight this long → give up the hunt and resume roaming
 
     private double _enemySyncTimer;
     private readonly Dictionary<string, (double Heading, double Until)> _enemyWander = new();
+    private readonly Dictionary<string, double> _enemySightSeenAt = new(); // enemy id → uptime it last had line-of-sight to its prey
 
     // Uniform per-kind gaits (NO per-individual variation). Walking robots are heavy + deliberate (slow accel,
     // slow pivots, pause-and-scan between patrol legs); the flying scan-drone is nimble and hover-bobs.
@@ -257,6 +260,23 @@ public sealed partial class GameServer
             {
                 bestSq = sq;
                 nearest = s;
+            }
+        }
+
+        // Line-of-sight gate: a machine only locks on to a target it can actually see. Once it has seen the
+        // player it keeps pressing toward the last-known spot for a short grace (so ducking behind a pillar
+        // doesn't instantly shake it), but if it stays blind past the grace it gives up and roams again. A
+        // target it has never had a clear line to (already hidden in a cave / behind terrain) reads as no
+        // target at all. Damage is separately sight-gated, so a blind chaser does no harm while it closes in.
+        if (nearest != null)
+        {
+            if (HasLineOfSight(enemy.Position, nearest.State.Position))
+            {
+                _enemySightSeenAt[enemy.Id] = _uptime;
+            }
+            else if (!_enemySightSeenAt.TryGetValue(enemy.Id, out var seenAt) || _uptime - seenAt > EnemySightGiveUpSeconds)
+            {
+                nearest = null;
             }
         }
 

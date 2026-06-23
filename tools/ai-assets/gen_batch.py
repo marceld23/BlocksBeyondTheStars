@@ -45,6 +45,7 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
     s += [
         ("drill_loop",    "looping handheld mining drill motor whirring", 5.0, True),
         ("drill_impact",  "short drill bit grinding burst into hard rock", 1.0, False),
+        ("weapon_scrap",  "short crude makeshift scrap pistol shot, rattly metallic pop with a small mechanical clack, low-tech and weak", 1.0, False),
         ("weapon_gauss",  "short kinetic gauss coilgun shot, sharp metallic snap", 1.0, False),
         ("weapon_laser",  "short sci-fi laser pistol zap shot", 1.0, False),
         ("weapon_plasma", "short heavy plasma blaster discharge, deep energy boom", 1.0, False),

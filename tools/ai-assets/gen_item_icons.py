@@ -90,6 +90,7 @@ ITEMS = [
     ("hand_scanner", "a small handheld scanner device"),
     # Weapons
     ("machete", "a steel machete blade with a grip handle"),
+    ("scrap_pistol", "a crude makeshift sci-fi scrap pistol cobbled together from salvaged metal pipes, a taped grip, exposed wires and a short barrel, worn and improvised"),
     ("vibro_knife", "a glowing high-tech vibro combat knife"),
     ("plasma_sword", "a glowing energy plasma sword"),
     ("gauss_pistol", "a sci-fi gauss pistol"),
