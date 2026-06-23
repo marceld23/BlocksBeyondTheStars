@@ -273,6 +273,39 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>True when nothing solid stands between <paramref name="from"/> and <paramref name="to"/> (both
+    /// lifted to roughly eye height). Unlike <see cref="PathBlockedByWorld"/> this samples the segment in 3D —
+    /// the Y axis included — so a player who drops into a cave or puts a wall/ridge between themselves and a
+    /// hunter genuinely breaks the sightline. Used to gate aggression/damage on line-of-sight: an enemy can't
+    /// bite (or keep chasing) a target it can't see. Sampled in the target's unwrapped frame so it stays correct
+    /// across the longitude seam; <see cref="IsSolidCell"/> canonicalises each cell, so raw coords are fine.</summary>
+    private bool HasLineOfSight(Vector3f from, Vector3f to)
+    {
+        const float eye = 1.5f; // sight originates near the head, not the feet, on both ends
+        var dst = Unwrapped(from, to);
+        float ax = from.X, ay = from.Y + eye, az = from.Z;
+        float dx = dst.X - ax, dy = (dst.Y + eye) - ay, dz = dst.Z - az;
+        float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
+        for (int s = 1; s < steps; s++) // skip both endpoints — the bodies themselves aren't occluders
+        {
+            float f = s / (float)steps;
+            int x = (int)System.Math.Floor(ax + dx * f);
+            int y = (int)System.Math.Floor(ay + dy * f);
+            int z = (int)System.Math.Floor(az + dz * f);
+            if (IsSolidCell(x, y, z))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Test/util: expose the sightline check so the line-of-sight gating can be verified directly,
+    /// without fighting the enemy/creature ground-snapping that would move a hand-placed combatant.</summary>
+    public bool HasLineOfSightForTest(Vector3f from, Vector3f to) => HasLineOfSight(from, to);
+
     /// <summary>True if an NPC's body (feet + head) would sit inside a solid block at this position — a wall,
     /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.</summary>
     private bool BlockedByWorld(Vector3f pos)

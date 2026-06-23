@@ -175,6 +175,8 @@
   "item.vibro_knife.desc": "Eine surrende Klinge, die tiefer schneidet.",
   "item.plasma_sword.name": "Plasmaschwert",
   "item.plasma_sword.desc": "Eine glühende Plasmaklinge — verheerend im Nahkampf.",
+  "item.scrap_pistol.name": "Schrott-Pistole",
+  "item.scrap_pistol.desc": "Eine zusammengeschusterte Notwaffe — schwach, aber feuert auf Distanz. Dein erster Schutz, bis du eine bessere baust.",
   "item.gauss_pistol.name": "Gauss-Pistole",
   "item.gauss_pistol.desc": "Verschießt kinetische Geschosse auf Distanz.",
   "item.laser_pistol.name": "Laserpistole",

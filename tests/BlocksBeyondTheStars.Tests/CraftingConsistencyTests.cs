@@ -163,7 +163,7 @@ public sealed class CraftingConsistencyTests
         // Items handed out by code rather than a recipe/drop (so legitimately not in Obtainable()):
         var granted = new HashSet<string>
         {
-            "basic_drill", "block_placer", "hand_scanner", // starter hotbar kit
+            "basic_drill", "block_placer", "hand_scanner", "scrap_pistol", // starter hotbar kit
             "ai_memory_fragment",                          // VEGA data-terminal structure loot
             "toxic_berries",                               // runtime poison variant of a toxic flora's berries
         };

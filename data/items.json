@@ -81,6 +81,7 @@
   { "key": "nectar_lure", "nameKey": "item.nectar_lure.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.nectar_lure.desc" },
 
   { "key": "machete",        "nameKey": "item.machete.name",        "category": "tool", "maxStack": 1, "descriptionKey": "item.machete.desc",        "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 7, "range": 3.5, "cooldownSeconds": 1.5 } },
+  { "key": "scrap_pistol",   "nameKey": "item.scrap_pistol.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.scrap_pistol.desc",   "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 10, "range": 16, "cooldownSeconds": 0.8 } },
   { "key": "vibro_knife",    "nameKey": "item.vibro_knife.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.vibro_knife.desc",    "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 0.3, "damage": 45, "range": 3.5, "cooldownSeconds": 1.0 } },
   { "key": "plasma_sword",   "nameKey": "item.plasma_sword.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.plasma_sword.desc",   "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 0.6, "damage": 70, "range": 4.0, "cooldownSeconds": 0.8 } },
   { "key": "gauss_pistol",   "nameKey": "item.gauss_pistol.name",   "category": "tool", "maxStack": 1, "descriptionKey": "item.gauss_pistol.desc",   "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 25, "range": 26 } },

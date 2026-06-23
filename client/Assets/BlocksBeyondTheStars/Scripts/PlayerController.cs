@@ -338,7 +338,15 @@ namespace BlocksBeyondTheStars.Client
             PlayWeaponSound();
             string nearest = null;
             Vector3 nearestPos = default;
-            float bestSq = 6f * 6f; // attack reach
+
+            // Reach follows the equipped weapon: a ranged weapon must let you hit at its full range, not the bare
+            // melee reach — otherwise a "gun" only ever fires point-blank (where the enemy's own bite already
+            // reaches you). Melee weapons / fists stay at the default 6-block reach.
+            var heldTool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            float reach = heldTool != null && heldTool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon
+                ? Mathf.Max(6f, heldTool.Range)
+                : 6f;
+            float bestSq = reach * reach;
             foreach (var e in Game.PlanetEnemies)
             {
                 var ep = Game.ScenePos(e.X, e.Y, e.Z); // seam-aware (longitude wraps)
@@ -402,9 +410,9 @@ namespace BlocksBeyondTheStars.Client
         private WeaponFxKind HeldWeaponFx()
         {
             string key = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
-            if (key.Contains("gauss") || key.Contains("rail") || key.Contains("slug"))
+            if (key.Contains("gauss") || key.Contains("rail") || key.Contains("slug") || key.Contains("scrap"))
             {
-                return WeaponFxKind.Projectile;
+                return WeaponFxKind.Projectile; // kinetic slug-throwers fire a flying bolt (the scrap pistol included)
             }
 
             if (key.Contains("laser") || key.Contains("blaster") || key.Contains("beam"))
@@ -423,6 +431,7 @@ namespace BlocksBeyondTheStars.Client
             if (held.Contains("plasma")) return new Color(0.92f, 0.45f, 1f);
             if (held.Contains("laser")) return new Color(1f, 0.42f, 0.36f);
             if (held.Contains("gauss")) return new Color(0.5f, 0.9f, 1f);
+            if (held.Contains("scrap")) return new Color(0.95f, 0.82f, 0.5f); // dull brass muzzle spark — a cheap kinetic round
             return new Color(1f, 0.95f, 0.8f); // melee / default
         }
 
@@ -1584,6 +1593,7 @@ namespace BlocksBeyondTheStars.Client
 
             switch (Game.ItemInSlot(Game.SelectedHotbarSlot))
             {
+                case "scrap_pistol": audio.Cue("weapon_scrap"); break;
                 case "gauss_pistol": audio.Cue("weapon_gauss"); break;
                 case "laser_pistol": audio.Cue("weapon_laser"); break;
                 case "plasma_blaster": audio.Cue("weapon_plasma"); break;

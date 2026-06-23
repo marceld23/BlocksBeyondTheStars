@@ -36,6 +36,7 @@ public sealed partial class GameServer
     private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this
     private const double CreatureChaseGiveUpSeconds = 7.0;     // an aggressor gives up after chasing this long
     private const double CreatureGiveUpCooldownSeconds = 15.0; // ...then leaves you alone (no chase/attack) for this
+    private const double CreatureBlindChaseGiveUpRate = 2.0;   // ...tiring twice as fast while it can't see you (hide to shake it ~halve the time)
     private const float CreatureWakeDistance = 4f;             // a sleeping creature stirs awake when a player comes this close
     private const double CreatureWakeSeconds = 9.0;            // ...and then stays roused (alert/active) for this long
 
@@ -247,7 +248,8 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (WrapDistSq(p.Position, creature.Position) <= CreatureProximityRange * CreatureProximityRange)
+                if (WrapDistSq(p.Position, creature.Position) <= CreatureProximityRange * CreatureProximityRange
+                    && HasLineOfSight(creature.Position, p.Position)) // no bite through a wall — break sight (cover/cave) to stop it
                 {
                     float bite = (float)(creature.DamagePerSecond * dt);
 
@@ -535,7 +537,11 @@ public sealed partial class GameServer
             }
             else if (aggressor && nearest is { } np && WithinAggro(creature.Position, np))
             {
-                creature.ChaseTimer += dt;
+                // While it can see the prey the chase clock ticks normally; once the player breaks line-of-sight
+                // (behind cover, into a cave) the creature tires of the hunt faster, so hiding actually shakes it
+                // off rather than only stopping the bite.
+                bool sees = HasLineOfSight(creature.Position, np);
+                creature.ChaseTimer += dt * (sees ? 1.0 : CreatureBlindChaseGiveUpRate);
                 if (creature.ChaseTimer >= CreatureChaseGiveUpSeconds)
                 {
                     creature.GiveUpTimer = CreatureGiveUpCooldownSeconds;

@@ -17,6 +17,20 @@ world-gen; SQLite persistence.
 
 ---
 
+### ★ Early-game defence: starter sidearm + line-of-sight hiding (2026-06-23) — ✅ done (708 green; NEEDS Unity build)
+New players were attacked with only a melee machete (whose 3.5 reach is *shorter* than an enemy's 4-block bite aura) and
+no way to break off an attack — enemies tracked through walls/earth (no line-of-sight anywhere). Option C: give a weak
+ranged sidearm **and** make cover/caves actually work.
+- **Starter sidearm** `scrap_pistol` (10 dmg, range 16, 0.8s cd, no energy) added to the start kit (`CreateNewPlayer`
+  slot 5) + de/en locale + OpenAI icon + ElevenLabs `weapon_scrap` shot sound + kinetic-bolt fire FX/recoil.
+- **Ranged weapons actually fire at range**: the client hard-capped attack reach at 6 blocks, ignoring the weapon —
+  so every gun (gauss/laser/plasma too) only fired point-blank. `PlayerController.AttackNearestEnemy` now uses the
+  held weapon's `Tool.Range`.
+- **Line-of-sight gate** (server): new 3D `HasLineOfSight` sampler. A hostile can't bite a target it can't see, so
+  ducking behind cover or into a cave **stops the damage** (creatures + planet machines). Machines also drop the hunt
+  after ~6s blind; creatures tire of the chase ~2× faster while they can't see you.
+- Tests: new `LineOfSightTests.cs` (clear / horizontal wall / vertical cave / end-to-end damage gate). Suite **708**.
+
 ### ★ Keep wildlife (and planet enemies) out of the parked ship (2026-06-22) — ✅ server-only done (700 green, 0 warns; NO Unity build needed)
 A wild creature could end up **inside** the landed ship. The ship is an object with AABB checks (no voxel collision),
 and movement can't enter (it freezes at the hull) — so the cause was **placement**: `PlaceLandedShip` never evicted a
