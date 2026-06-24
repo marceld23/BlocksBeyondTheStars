@@ -844,6 +844,7 @@
   "ui.settings.vsync": "VSync",
   "ui.settings.fps_cap": "Bildraten-Begrenzung",
   "ui.settings.fps_cap.unlimited": "Unbegrenzt",
+  "ui.settings.smaa": "Kantenglättung (SMAA)",
   "ui.settings.lens_flare": "Lens-Flare",
   "ui.settings.motion_blur": "Bewegungsunschärfe (Flug)",
   "ui.settings.volumetric_fog": "Volumetrischer Nebel / Lichtstrahlen",

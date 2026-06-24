@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -73,6 +74,10 @@ namespace BlocksBeyondTheStars.Client
 
         // Look effects (the "professional / sci-fi look" layer). Each is also preset-gated at runtime — these
         // toggles only matter from Medium upward; Potato/Low force the expensive ones off regardless.
+        /// <summary>Subpixel-morphological anti-aliasing (SMAA) on top of MSAA — smooths the shader/specular
+        /// edges MSAA can't (voxel highlights, normal-map relief). A post-pass, so it needs camera post-processing
+        /// on; gated to Medium+ (Potato/Low skip it for the frame-time budget). Applied in <see cref="ApplyCameraLook"/>.</summary>
+        public bool Smaa = true;
         /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
         public bool LensFlare = true;
         /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>
@@ -304,6 +309,32 @@ namespace BlocksBeyondTheStars.Client
                 // would sample unbound textures and render wrong/black).
                 UnityEngine.Shader.SetGlobalFloat("_Sc_ScreenFx", wantsScreenSpace ? 1f : 0f);
             }
+
+            ApplyCameraLook();
+        }
+
+        /// <summary>The active gameplay camera's URP data, set by <see cref="WorldRig"/> so graphics changes made in
+        /// the pause menu push live (SMAA + the SSAO-renderer choice). Null in the main menu (no world camera yet);
+        /// the camera reads the settings on creation, so menu changes still apply on entry. Static (not serialized).</summary>
+        public static UniversalAdditionalCameraData ActiveCameraData;
+
+        /// <summary>Pushes the per-camera look settings to the gameplay camera: post-processing on (the global
+        /// Volume — bloom/tonemap/grade — and SMAA both need it), SMAA from <see cref="Smaa"/> (Medium+), and the
+        /// renderer choice — index 0 carries SSAO, index 1 (Potato/Low) drops it for the frame-time budget.</summary>
+        public void ApplyCameraLook()
+        {
+            var cd = ActiveCameraData;
+            if (cd == null)
+            {
+                return;
+            }
+
+            cd.renderPostProcessing = true;
+            cd.SetRenderer(Preset >= QualityPreset.Medium ? 0 : 1);
+
+            bool smaa = Smaa && Preset >= QualityPreset.Medium;
+            cd.antialiasing = smaa ? AntialiasingMode.SubpixelMorphologicalAntiAliasing : AntialiasingMode.None;
+            cd.antialiasingQuality = AntialiasingQuality.High;
         }
 
         /// <summary>Applies the chosen <see cref="Window"/> mode. Windowed uses the persisted

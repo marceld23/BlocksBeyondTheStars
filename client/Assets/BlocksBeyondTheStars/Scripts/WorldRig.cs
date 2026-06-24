@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -68,7 +69,18 @@ namespace BlocksBeyondTheStars.Client
             camGo.AddComponent<AudioListener>(); // hear procedural SFX (M26)
             camGo.tag = "MainCamera";
 
-            // Post-processing stack: bloom + ACES tonemap + vignette (+ SSAO on High), preset-gated.
+            // URP look wiring: a code-created URP camera has post-processing OFF by default, so the global
+            // UrpScenePost Volume (bloom/tonemap/vignette/teal-orange grade/lens flare) and SMAA would never run
+            // in-game. Turn it on here and push the per-camera look (SMAA + SSAO-renderer choice) from settings;
+            // ActiveCameraData lets the pause-menu graphics toggles re-apply live. No-op under Built-in RP.
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
+            {
+                ClientSettings.ActiveCameraData = cam.GetUniversalAdditionalCameraData();
+                shell.Settings.ApplyCameraLook();
+            }
+
+            // Built-in-RP post-processing stack (OnRenderImage): bloom + ACES tonemap + vignette (+ SSAO on High),
+            // preset-gated. Disables itself under URP (the Volume above takes over).
             var postFx = camGo.AddComponent<PostFx>();
             postFx.ApplyPreset(shell.Settings.Preset, shell.Settings.ReducedEffects);
 

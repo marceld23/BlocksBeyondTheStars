@@ -51,6 +51,27 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Graphics pro-look quick-win: in-game post + SMAA + SSAO + emissive glow (2026-06-24) — ✅ code done, NEEDS local Unity build verify
+Quick-win block from the [shader/graphics-engine utilization analysis](#) (no PBR/architecture changes). Surfaced a latent
+bug while wiring it: the **gameplay camera never enabled `renderPostProcessing`** (only the menu camera did, see
+[MenuBackground.cs](client/Assets/BlocksBeyondTheStars/Scripts/MenuBackground.cs)), so under URP the whole in-game
+[UrpScenePost.cs](client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs) Volume (bloom, ACES tonemap, vignette,
+teal-orange grade, lens flare) **was dormant** — fixing it lights up the intended cinematic look in-game for the first time.
+- **Camera/post wiring** — [WorldRig.cs](client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs): on the gameplay camera set
+  `renderPostProcessing = true`, store `ClientSettings.ActiveCameraData`, call `ApplyCameraLook()` (URP-only; no-op under Built-in).
+- **WS1 SMAA** — [ClientSettings.cs](client/Assets/BlocksBeyondTheStars/Scripts/ClientSettings.cs) new `Smaa` (default on) +
+  `ApplyCameraLook()` sets `AntialiasingMode.SubpixelMorphologicalAntiAliasing` (High quality), gated Medium+; live toggle in
+  [UiSettings.cs](client/Assets/BlocksBeyondTheStars/Scripts/UiSettings.cs) (`ui.settings.smaa`, de/en). Smooths the shader/specular
+  edges MSAA can't.
+- **WS2 SSAO** — enabled the existing SSAO renderer feature ([BlocksBeyondTheStarsURP_Renderer.asset](client/Assets/Settings/BlocksBeyondTheStarsURP_Renderer.asset)
+  `m_Active 0→1`, Intensity 0.5 / Radius 0.3 for the blocky surfaces). Preset-gated via a **second renderer without SSAO**
+  (`BlocksBeyondTheStarsURP_Renderer_Low.asset`, added to the pipeline's renderer list); `ApplyCameraLook()` picks renderer 0
+  (SSAO, Medium+) vs 1 (no SSAO, Potato/Low) per preset. Contact shadows in voxel corners / cave mouths.
+- **WS3 emissive glow** — [BlockAtlas.shader](client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlas.shader) emission term
+  `×2 → ×3` (both URP + Built-in passes): lamps/lava/crystals overdrive past white so ACES + bloom give a real glow.
+- Deferred to later tracks (separate analysis): LUT color-grading, stripping the dead Built-in post-stack, PBR / real point
+  lights / greedy-mesh / GPU-instancing.
+
 ### ★ Linux/Proton performance: decouple VSync + frame-rate controls (2026-06-23) — ✅ done & merged (PR#47, d8f4ae4; Unity build green)
 A player reported the game feeling performance-heavy under **Linux**. Cause: the client ships **Windows-only** (Mono,
 `StandaloneWindows64`, **no native Linux build**), so Linux players run it via **Proton/Wine**; on top of that overhead,
