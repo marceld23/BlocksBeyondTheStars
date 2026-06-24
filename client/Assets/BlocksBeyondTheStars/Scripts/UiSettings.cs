@@ -70,6 +70,10 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
                 S.ViewDistanceChunks.ToString());
+            Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
+                () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
+                () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
+                Mathf.RoundToInt(S.Brightness * 100f) + "%");
             // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
             // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
             Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; Rebuild(); });

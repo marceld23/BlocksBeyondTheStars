@@ -37,6 +37,10 @@ namespace BlocksBeyondTheStars.Client
         public bool LensFlareEnabled = true;
         public bool MotionBlurEnabled = true;
 
+        /// <summary>Global scene brightness (1.0 = neutral). Drives the colour grade's post-exposure so every world
+        /// brightens/darkens uniformly. Wired from WorldRig; the settings slider pushes it live via <see cref="SetBrightness"/>.</summary>
+        public float Brightness = 1.15f;
+
         private ColorAdjustments _grade;
         private ColorLookup _lut;
         private DepthOfField _menuBlur;
@@ -100,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
             _grain.intensity.Override(0f);
 
             _grade = profile.Add<ColorAdjustments>(true);
-            _grade.postExposure.Override(0.08f);
+            _grade.postExposure.Override(ExposureFor(Brightness));
             _grade.contrast.Override(6f);
             _grade.saturation.Override(6f);
             _grade.colorFilter.Override(Color.white);
@@ -267,6 +271,20 @@ namespace BlocksBeyondTheStars.Client
             _grade.colorFilter.Override(Color.Lerp(Color.white, blendedTint, 0.7f));
             _grade.saturation.Override(Mathf.Clamp((saturation - 1f) * 100f + 6f, -100f, 100f));
             _grade.contrast.Override(Mathf.Clamp((contrast - 1f) * 100f + 6f, -100f, 100f));
+        }
+
+        /// <summary>Maps the 1.0-neutral brightness setting to a post-exposure stop offset. 1.0 keeps the tuned
+        /// neutral (+0.08 EV); above/below lifts/drops the whole graded frame uniformly.</summary>
+        private static float ExposureFor(float brightness) => 0.08f + (brightness - 1f) * 1.2f;
+
+        /// <summary>Live brightness update from the settings slider — re-exposes the colour grade for every world.</summary>
+        public void SetBrightness(float brightness)
+        {
+            Brightness = brightness;
+            if (_grade != null)
+            {
+                _grade.postExposure.Override(ExposureFor(brightness));
+            }
         }
 
         /// <summary>Selects the cinematic mood LUT for the current biome (WS4): a teal-orange tonal split + contrast/
