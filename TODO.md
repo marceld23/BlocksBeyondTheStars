@@ -51,7 +51,16 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics WS6 (slice): PBR-ish specular + reflection on voxels (2026-06-24) — ✅ code done + local Unity build green (shader clean), NOT committed
+### ★ Graphics: global Brightness control (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+Follow-up to the look quick-wins: enabling the full in-game post stack (ACES tonemap + vignette + SSAO + cool LUTs)
+made worlds read darker than the old un-graded image; a tester saw a (correctly) blue daytime planet as too dark.
+- Added a **global Brightness setting** (default **1.15** = a touch above neutral, so every world is a bit brighter out
+  of the box) driving the colour grade's `postExposure` in [UrpScenePost.cs](client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs)
+  (`ExposureFor`, `SetBrightness`). Wired from [WorldRig.cs](client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs);
+  live slider in [UiSettings.cs](client/Assets/BlocksBeyondTheStars/Scripts/UiSettings.cs) (`ui.settings.brightness`, de/en, 70–150%).
+- Global + per-display tunable; diffuse/ambient + LUTs untouched (cleanest "overall brighter" lever).
+
+### ★ Graphics WS6 (slice): PBR-ish specular + reflection on voxels (2026-06-24) — ✅ done &amp; merged (PR#52, 4dfd123; CI + local Unity build green, shader clean)
 Scoped slice of the deferred WS6 track. WS6 as a whole was re-assessed: real point lights (rejected before, custom-lit
 shader bypasses the light loop) and GPU instancing (N/A — chunk meshes are unique geometry) are dropped; greedy meshing
 is a separate perf track. The one safe, visual, shader-only slice = upgrade the voxel BRDF.

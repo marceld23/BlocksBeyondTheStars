@@ -334,6 +334,7 @@ namespace BlocksBeyondTheStars.Client
             urpPost.Preset = shell.Settings.Preset;                 // gates lens flare (Medium+) / motion blur (High+)
             urpPost.LensFlareEnabled = shell.Settings.LensFlare;
             urpPost.MotionBlurEnabled = shell.Settings.MotionBlur;
+            urpPost.Brightness = shell.Settings.Brightness; // global scene brightness (post-exposure)
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();

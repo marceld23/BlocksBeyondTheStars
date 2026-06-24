@@ -78,6 +78,10 @@ namespace BlocksBeyondTheStars.Client
         /// edges MSAA can't (voxel highlights, normal-map relief). A post-pass, so it needs camera post-processing
         /// on; gated to Medium+ (Potato/Low skip it for the frame-time budget). Applied in <see cref="ApplyCameraLook"/>.</summary>
         public bool Smaa = true;
+        /// <summary>Global scene brightness, applied as a post-exposure lift on the colour grade so it affects every
+        /// world uniformly (and is tunable per display). 1.0 = neutral; the default sits a touch above neutral so the
+        /// ACES-tonemapped scene isn't too dark. Driven into <see cref="UrpScenePost"/>.</summary>
+        public float Brightness = 1.15f;
         /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
         public bool LensFlare = true;
         /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>
