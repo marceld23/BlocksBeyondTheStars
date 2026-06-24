@@ -79,6 +79,7 @@ namespace BlocksBeyondTheStars.Client
                     () => { S.FrameRateCap = NextFpsCap(S.FrameRateCap); Rebuild(); });
             }
 
+            Toggle(ref y, L("ui.settings.smaa"), S.Smaa, () => { S.Smaa = !S.Smaa; S.ApplyCameraLook(); Rebuild(); });
             Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; Rebuild(); });
             Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; Rebuild(); });
             Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; Rebuild(); });

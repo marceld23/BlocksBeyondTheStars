@@ -839,6 +839,7 @@
   "ui.settings.vsync": "VSync",
   "ui.settings.fps_cap": "Frame-rate limit",
   "ui.settings.fps_cap.unlimited": "Unlimited",
+  "ui.settings.smaa": "Smooth edges (SMAA)",
   "ui.settings.lens_flare": "Lens flare",
   "ui.settings.motion_blur": "Motion blur (flight)",
   "ui.settings.volumetric_fog": "Volumetric fog / god-rays",

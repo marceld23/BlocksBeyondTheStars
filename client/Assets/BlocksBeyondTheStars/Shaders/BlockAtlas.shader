@@ -182,7 +182,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres * sky;
                 col = lerp(col, reflTint, reflK);
 
-                col += albedo * i.mat.a * 2.0;
+                col += albedo * i.mat.a * 3.0; // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked
@@ -441,7 +441,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they
                 // shine at night and the bloom pass picks them up. Alpha carries the emission strength.
-                col += albedo * i.mat.a * 2.0;
+                col += albedo * i.mat.a * 3.0; // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked
