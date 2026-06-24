@@ -257,7 +257,7 @@ namespace BlocksBeyondTheStars.Client
             // transparent block shader keys off this tile alpha to render water clear-blue (vs frosted glass).
             if (key == "water")
             {
-                FadeTileAlpha(ox, oy, 0.62f);
+                FadeTileAlpha(ox, oy, 0.28f); // clear water → the bed reads through, only a light blue wash (depth tint adds blue with depth)
             }
         }
 

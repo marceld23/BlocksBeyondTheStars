@@ -51,7 +51,13 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics bugfixes: soft water reflections + visible sky bodies (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+### ★ Water clarity tuning (2026-06-24) — ✅ tester-approved + local Unity build green, NOT committed
+Follow-up to the water-reflection fix: the tester still couldn't see into the water. Root cause (analysed):
+deep water was opaque by ~6 m + a high base tile alpha (0.62), so the bed never read through. Tuned to clear water:
+- [BlockTextureAtlas.cs](client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs): water tile base alpha 0.62 → **0.28** (the bed reads through with only a light blue wash).
+- [BlockAtlasTransparent.shader](client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlasTransparent.shader): depth opacity ramp 6 m → **16 m**, deep-water opacity add 0.4 → 0.16, depth darkening ×0.85 → ×0.45 (lighter, gentler deep tint); reflection strength down (base Fresnel 0.16 → 0.08, grazing cap 1.0 → 0.7, blend 0.55 → 0.45). The green "dapple" the tester saw is the underwater bed showing through — confirmed (water tile is pure blue).
+
+### ★ Graphics bugfixes: soft water reflections + visible sky bodies (2026-06-24) — ✅ done &amp; merged (PR#55, 75657a7; CI + local Unity build green)
 Two tester-reported render bugs:
 - **Water reflections too hard** — [BlockAtlasTransparent.shader](client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlasTransparent.shader)
   water SSR was a pixel-sharp mirror. Stronger wave-normal jitter on the reflection ray, a 5-tap blur of the reflected

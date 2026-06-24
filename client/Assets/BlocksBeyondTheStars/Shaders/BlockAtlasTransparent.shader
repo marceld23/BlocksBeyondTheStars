@@ -188,9 +188,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float sceneEye = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
                     float fragEye = -TransformWorldToView(i.wp).z;
                     float column = max(0.0, sceneEye - fragEye); // metres of water column at this pixel
-                    float depth01 = saturate(column / 6.0);
-                    col = lerp(col, col * 0.45 + light * float3(0.015, 0.07, 0.13), depth01 * 0.85);
-                    alpha = lerp(alpha, saturate(alpha + 0.4), depth01); // deep water turns opaque, hides the bed
+                    float depth01 = saturate(column / 16.0); // see far deeper before it reads "deep" (was 6 m)
+                    col = lerp(col, col * 0.6 + light * float3(0.03, 0.10, 0.16), depth01 * 0.45); // gentler, lighter deep tint
+                    alpha = lerp(alpha, saturate(alpha + 0.16), depth01); // deep water stays much more see-through
                     float edge = 1.0 - saturate(column / 0.55);          // ~1 right at the waterline / around objects
                     if (edge > 0.01)
                     {
@@ -219,9 +219,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // reflection instead of a hard pixel-perfect one.
                     float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12);
                     float3 Rw = reflect(Vw, rn);
-                    // Lower base sheen so head-on water reflects little (full mirror only at grazing angles) and
-                    // the depth/bed colour shows through more — the old 0.35 made calm water read like glass.
-                    float fres = lerp(0.16, 1.0, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
+                    // Keep the reflection a sheen, not a mirror, so you can see INTO the water: low base sheen and
+                    // a capped grazing maximum (0.7, not full mirror) let the depth/bed colour read through.
+                    float fres = lerp(0.08, 0.7, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
                     float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
                     float3 sp = i.wp;
                     float stepLen = 0.5;
@@ -251,7 +251,7 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     }
                     float sunSpec = pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 4.0;
                     reflCol += light * sunSpec;
-                    col = lerp(col, reflCol, saturate(fres) * 0.55);
+                    col = lerp(col, reflCol, saturate(fres) * 0.45);
 
                     alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend
                     } // _Sc_ScreenFx (depth/opaque available)
