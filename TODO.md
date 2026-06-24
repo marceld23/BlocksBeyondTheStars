@@ -51,7 +51,19 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics WS5: remove the dead Built-in-RP post stack (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+### ★ Graphics bugfixes: soft water reflections + visible sky bodies (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+Two tester-reported render bugs:
+- **Water reflections too hard** — [BlockAtlasTransparent.shader](client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlasTransparent.shader)
+  water SSR was a pixel-sharp mirror. Stronger wave-normal jitter on the reflection ray, a 5-tap blur of the reflected
+  scene colour, base Fresnel 0.35→0.16 (calm water reflects less head-on), blend 0.7→0.55 → soft, watery reflection.
+- **Sky bodies always black** — at day they were dimmed hard (×0.45) and showed only a 0.04 earthshine floor, so against
+  the bright ACES-tonemapped sky they crushed to black; the limb-darkening term was also inverted (dark centre).
+  [SkyBodyPhase.shader](client/Assets/BlocksBeyondTheStars/Shaders/SkyBodyPhase.shader): fixed limb darkening (world-space
+  view dir, bright centre), added a soft wrap floor over the crisp terminator, `_Earthshine` 0.04→0.12;
+  [SkyBodiesView.cs](client/Assets/BlocksBeyondTheStars/Scripts/SkyBodiesView.cs) day-time brightness floor 0.45→0.7.
+  (If the phase still reads off after testing, the next step is verifying the `_PhaseSunDir` sign vs the terrain sun.)
+
+### ★ Graphics WS5: remove the dead Built-in-RP post stack (2026-06-24) — ✅ done &amp; merged (PR#54, eb0d2b3; CI + local Unity build green)
 The project always runs URP (every quality level assigns it), so the Built-in-RP post path never executed. Re-scoped
 WS5 from the analysis (it is NOT all dead — `VisorGlass` is used by `VisorMenuGlass`, `VisorComposite` is the Built-in
 visor path) down to the genuinely-orphaned **post stack**, and removed it:

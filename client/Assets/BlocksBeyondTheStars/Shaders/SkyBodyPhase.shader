@@ -13,7 +13,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
         _MainTex ("Texture", 2D) = "white" {}
         // xyz = world-space direction TO the sun (set per-material each frame). w unused.
         _PhaseSunDir ("Sun Direction", Vector) = (0, 0, 1, 0)
-        _Earthshine ("Night-side floor", Range(0, 0.4)) = 0.04
+        _Earthshine ("Night-side floor", Range(0, 0.4)) = 0.12
         _TermSoft ("Terminator softness", Range(0.001, 0.4)) = 0.07
         _LimbDark ("Limb darkening", Range(0, 1)) = 0.35
     }
@@ -42,7 +42,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _LimbDark;
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
-            struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 vn : TEXCOORD2; };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
 
             Varyings vert(Attributes v)
             {
@@ -50,7 +50,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 o.positionCS = TransformWorldToHClip(wp);
                 o.wn = TransformObjectToWorldNormal(v.normal);
-                o.vn = TransformWorldToViewDir(o.wn); // view-space normal for limb darkening
+                o.wp = wp; // world position → world-space view dir for limb darkening
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
@@ -60,13 +60,18 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float3 N = normalize(i.wn);
                 float3 L = normalize(_PhaseSunDir.xyz);
                 float ndl = dot(N, L);
-                // Soft day/night boundary → a smooth terminator (the lit fraction of the visible disc IS the phase).
+                // Crisp terminator (the lit fraction of the visible disc IS the phase) over a soft wrap floor so
+                // the night side / day-time bodies read as a faint disc instead of a pure-black silhouette.
                 float lit = smoothstep(-_TermSoft, _TermSoft, ndl);
+                float wrap = saturate(ndl * 0.5 + 0.5);
+                float shade = max(lit, wrap * wrap * 0.35);
                 float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
-                float3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * lit);
-                // Limb darkening: dim the disc edge (normal facing away from the viewer) for a rounder, less flat read.
-                float facing = saturate(normalize(i.vn).z * -1.0 + 1.0); // ~1 at centre, ~0 at the rim
-                col *= lerp(1.0 - _LimbDark, 1.0, saturate(facing));
+                float3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * shade);
+                // Limb darkening via the world-space view direction: bright at the disc centre (normal toward the
+                // camera), dimmer at the rim — a rounder read. (The old view-space-z form was inverted.)
+                float3 Vw = normalize(_WorldSpaceCameraPos - i.wp);
+                float facing = saturate(dot(N, Vw)); // ~1 at centre, ~0 at the rim
+                col *= lerp(1.0 - _LimbDark, 1.0, facing);
                 return half4(col, 1);
             }
             ENDHLSL
@@ -96,14 +101,14 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _LimbDark;
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
-            struct v2f { float4 pos : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 vn : TEXCOORD2; };
+            struct v2f { float4 pos : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
 
             v2f vert(appdata v)
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.wn = UnityObjectToWorldNormal(v.normal);
-                o.vn = mul((float3x3)UNITY_MATRIX_V, o.wn);
+                o.wp = mul(unity_ObjectToWorld, v.vertex).xyz; // world pos for world-space view dir limb darkening
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
@@ -114,10 +119,13 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float3 L = normalize(_PhaseSunDir.xyz);
                 float ndl = dot(N, L);
                 float lit = smoothstep(-_TermSoft, _TermSoft, ndl);
+                float wrap = saturate(ndl * 0.5 + 0.5);
+                float shade = max(lit, wrap * wrap * 0.35);
                 fixed3 tex = tex2D(_MainTex, i.uv).rgb;
-                fixed3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * lit);
-                float facing = saturate(normalize(i.vn).z * -1.0 + 1.0);
-                col *= lerp(1.0 - _LimbDark, 1.0, saturate(facing));
+                fixed3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * shade);
+                float3 Vw = normalize(_WorldSpaceCameraPos - i.wp);
+                float facing = saturate(dot(N, Vw)); // ~1 at centre, ~0 at the rim
+                col *= lerp(1.0 - _LimbDark, 1.0, facing);
                 return fixed4(col, 1);
             }
             ENDCG
