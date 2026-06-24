@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -37,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
         public bool MotionBlurEnabled = true;
 
         private ColorAdjustments _grade;
+        private ColorLookup _lut;
         private DepthOfField _menuBlur;
         private Vignette _vignette;
         private ChromaticAberration _chroma;
@@ -49,6 +51,14 @@ namespace BlocksBeyondTheStars.Client
         private float _damagePulse;   // decaying 0..1 → a red-tinted vignette kick on damage
         private float _oxygenAlarm;   // 0..1 low-O₂ alarm level (driven by HudUi each frame)
         private float _burstTimer, _burstDuration, _burstChroma, _burstGrain;
+
+        // Per-biome cinematic mood LUTs (WS4): procedural 2D strip LUTs baked once per biome and cached. The
+        // ColorLookup volume folds the chosen one into the Uber post pass for ~free — a teal-orange tonal split +
+        // contrast/saturation shaping the per-component ColourAdjustments grade can't express. Driven by Sky.
+        private const float MoodContribution = 0.6f; // how strongly the mood LUT blends in (0..1)
+        private const int LutSize = 32;              // MUST match the URP asset's m_ColorGradingLutSize
+        private readonly Dictionary<string, Texture2D> _moodLuts = new Dictionary<string, Texture2D>();
+        private string _activeMood;
 
         private void Start()
         {
@@ -102,6 +112,11 @@ namespace BlocksBeyondTheStars.Client
             smh.shadows.Override(new Vector4(0.92f, 0.97f, 1.06f, 0f));    // shadows lean cool/blue
             smh.midtones.Override(new Vector4(1f, 1f, 1f, 0f));
             smh.highlights.Override(new Vector4(1.05f, 1.0f, 0.93f, 0f));  // highlights lean warm
+
+            // Per-biome cinematic mood LUT (WS4): inactive until Sky picks a biome via SetMoodLut. The menu/attract
+            // scene never calls it, so its backdrop stays ungraded by the LUT.
+            _lut = profile.Add<ColorLookup>(false);
+            _lut.contribution.Override(0f);
 
             // Screen-space lens flare: streaks/ghosts off the HDR-bright pixels (sun, engines, glow blocks,
             // force fields). Pure sci-fi flavour, ~free. Gated to Medium+ and the player toggle in Update.
@@ -254,8 +269,157 @@ namespace BlocksBeyondTheStars.Client
             _grade.contrast.Override(Mathf.Clamp((contrast - 1f) * 100f + 6f, -100f, 100f));
         }
 
+        /// <summary>Selects the cinematic mood LUT for the current biome (WS4): a teal-orange tonal split + contrast/
+        /// saturation shaping layered on top of <see cref="ApplyGrade"/>. Bakes the LUT lazily (cached per biome) and
+        /// folds it into the post pass. A null/empty biome (space view, menu) turns the LUT off. Called by <see cref="Sky"/>.</summary>
+        public void SetMoodLut(string biome)
+        {
+            if (_lut == null)
+            {
+                return;
+            }
+
+            string key = MoodKey(biome);
+            if (string.IsNullOrEmpty(key))
+            {
+                if (_lut.active) { _lut.active = false; }
+                _lut.contribution.Override(0f);
+                _activeMood = null;
+                return;
+            }
+
+            if (key != _activeMood)
+            {
+                _activeMood = key;
+                if (!_moodLuts.TryGetValue(key, out var tex) || tex == null)
+                {
+                    tex = BakeMoodLut(MoodFor(key));
+                    _moodLuts[key] = tex;
+                }
+
+                _lut.texture.Override(tex);
+            }
+
+            _lut.contribution.Override(MoodContribution);
+            if (!_lut.active) { _lut.active = true; }
+        }
+
+        /// <summary>A biome's grade character: contrast + saturation around grey, an overall gain, and a shadow→highlight
+        /// tint split (the cinematic lever the per-channel grade can't do). All values centre on 1.0 (= neutral).</summary>
+        private readonly struct Mood
+        {
+            public readonly float Contrast, Saturation, Gain;
+            public readonly Vector3 ShadowTint, HighlightTint;
+
+            public Mood(float contrast, float saturation, float gain, Vector3 shadowTint, Vector3 highlightTint)
+            {
+                Contrast = contrast;
+                Saturation = saturation;
+                Gain = gain;
+                ShadowTint = shadowTint;
+                HighlightTint = highlightTint;
+            }
+        }
+
+        /// <summary>Maps a biome string to a mood key (mirrors Sky.GradeFor's grouping). Null/empty → "" (LUT off);
+        /// any other unmatched biome → the gentle "default" film look.</summary>
+        private static string MoodKey(string biome)
+        {
+            switch ((biome ?? string.Empty).ToLowerInvariant())
+            {
+                case "": return "";
+                case "jungle": case "forest": return "jungle";
+                case "desert": return "desert";
+                case "ice": case "frozen": return "ice";
+                case "lava": case "volcanic": return "lava";
+                case "swamp": return "swamp";
+                case "crystal": return "crystal";
+                default: return "default";
+            }
+        }
+
+        private static Mood MoodFor(string key)
+        {
+            switch (key)
+            {
+                case "jungle":  return new Mood(1.05f, 1.12f, 1.00f, new Vector3(0.95f, 1.00f, 1.00f), new Vector3(1.02f, 1.05f, 0.95f));
+                case "desert":  return new Mood(1.12f, 0.98f, 1.01f, new Vector3(1.00f, 0.98f, 0.92f), new Vector3(1.08f, 1.02f, 0.88f));
+                case "ice":     return new Mood(1.10f, 0.94f, 1.00f, new Vector3(0.92f, 0.99f, 1.10f), new Vector3(0.98f, 1.01f, 1.06f));
+                case "lava":    return new Mood(1.16f, 1.08f, 1.00f, new Vector3(0.88f, 0.92f, 1.02f), new Vector3(1.12f, 0.98f, 0.86f));
+                case "swamp":   return new Mood(1.02f, 0.85f, 0.99f, new Vector3(0.97f, 1.00f, 0.95f), new Vector3(1.00f, 1.02f, 0.93f));
+                case "crystal": return new Mood(1.06f, 1.14f, 1.00f, new Vector3(1.00f, 0.95f, 1.08f), new Vector3(1.05f, 0.98f, 1.08f));
+                default:        return new Mood(1.06f, 1.04f, 1.00f, new Vector3(0.96f, 0.99f, 1.06f), new Vector3(1.05f, 1.00f, 0.94f));
+            }
+        }
+
+        /// <summary>Bakes a mood into a URP 2D strip LUT: a (size²×size) linear texture whose neutral identity is
+        /// <c>(x%size, y, x/size)/(size-1)</c> — the exact layout URP's GetLutStripValue samples. URP looks the user
+        /// LUT up in sRGB, so the grade is authored directly in display space; identity reproduces the frame.</summary>
+        private static Texture2D BakeMoodLut(in Mood m)
+        {
+            int w = LutSize * LutSize; // 1024
+            int h = LutSize;           // 32
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: false, linear: true)
+            {
+                name = "MoodLut",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear, // ApplyLut2D relies on bilinear for the r/g interpolation
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+
+            var px = new Color32[w * h];
+            float inv = 1f / (LutSize - 1);
+            for (int y = 0; y < h; y++)
+            {
+                float g = y * inv;
+                for (int x = 0; x < w; x++)
+                {
+                    float r = (x % LutSize) * inv;
+                    float b = (x / LutSize) * inv;
+                    Vector3 c = Grade(new Vector3(r, g, b), m);
+                    px[y * w + x] = new Color32(
+                        (byte)(Mathf.Clamp01(c.x) * 255f + 0.5f),
+                        (byte)(Mathf.Clamp01(c.y) * 255f + 0.5f),
+                        (byte)(Mathf.Clamp01(c.z) * 255f + 0.5f),
+                        255);
+                }
+            }
+
+            tex.SetPixels32(px);
+            tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+            return tex;
+        }
+
+        /// <summary>The film grade applied to one neutral LUT entry, in sRGB/display space: contrast and saturation
+        /// around mid-grey, then a smooth shadow→highlight tint split, then gain. Caller clamps to [0,1].</summary>
+        private static Vector3 Grade(Vector3 c, in Mood m)
+        {
+            c.x = (c.x - 0.5f) * m.Contrast + 0.5f;
+            c.y = (c.y - 0.5f) * m.Contrast + 0.5f;
+            c.z = (c.z - 0.5f) * m.Contrast + 0.5f;
+
+            float luma = c.x * 0.2126f + c.y * 0.7152f + c.z * 0.0722f;
+            c.x = Mathf.Lerp(luma, c.x, m.Saturation);
+            c.y = Mathf.Lerp(luma, c.y, m.Saturation);
+            c.z = Mathf.Lerp(luma, c.z, m.Saturation);
+
+            float t = Mathf.Clamp01(luma);
+            t = t * t * (3f - 2f * t); // smoothstep: weight toward highlights
+            c.x *= Mathf.Lerp(m.ShadowTint.x, m.HighlightTint.x, t) * m.Gain;
+            c.y *= Mathf.Lerp(m.ShadowTint.y, m.HighlightTint.y, t) * m.Gain;
+            c.z *= Mathf.Lerp(m.ShadowTint.z, m.HighlightTint.z, t) * m.Gain;
+            return c;
+        }
+
         private void OnDestroy()
         {
+            foreach (var tex in _moodLuts.Values)
+            {
+                if (tex != null) { Destroy(tex); }
+            }
+
+            _moodLuts.Clear();
+
             if (Instance == this)
             {
                 Instance = null;
