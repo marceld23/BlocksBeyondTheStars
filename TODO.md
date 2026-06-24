@@ -51,7 +51,20 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics WS4: per-biome cinematic mood LUTs (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+### ★ Graphics WS6 (slice): PBR-ish specular + reflection on voxels (2026-06-24) — ✅ code done + local Unity build green (shader clean), NOT committed
+Scoped slice of the deferred WS6 track. WS6 as a whole was re-assessed: real point lights (rejected before, custom-lit
+shader bypasses the light loop) and GPU instancing (N/A — chunk meshes are unique geometry) are dropped; greedy meshing
+is a separate perf track. The one safe, visual, shader-only slice = upgrade the voxel BRDF.
+- [BlockAtlas.shader](client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlas.shader): replaced the Blinn-Phong sun
+  highlight with Unity's **stable GGX** specular (no NaN at low roughness), tinted by a metallic **F0** (0.04 dielectric →
+  albedo for metals); driven by the existing per-block gloss/metal vertex attributes. Environment reflection is now
+  **roughness-aware** (metals reflect head-on in their own colour, dielectrics at grazing via Fresnel). Applied to both
+  the URP and Built-in passes, including the placed-coloured-light glint. Matte blocks unchanged; metal/crystal/ice/water
+  gain sharper, brighter highlights + believable reflections. Diffuse deliberately left untouched (no darkening regressions).
+- Caught + fixed a shader-compile error mid-build (the lamp glint still referenced the removed `specPow`/`specCol`).
+- Deferred WS6 sub-tracks: greedy meshing (perf), per-texel metallic/smoothness maps. WS5 (Built-in fallback) to revisit.
+
+### ★ Graphics WS4: per-biome cinematic mood LUTs (2026-06-24) — ✅ done &amp; merged (PR#51, 5349f27; CI + local Unity build green)
 Follow-up to the quick-win block (WS1–3). Adds a procedural **per-biome colour-grade LUT** that the per-channel
 `ColorAdjustments` grade can't express — a teal-orange shadow→highlight tonal split + per-mood contrast/saturation.
 - [UrpScenePost.cs](client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs): a `ColorLookup` volume override fed a
