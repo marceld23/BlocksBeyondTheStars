@@ -179,7 +179,9 @@ namespace BlocksBeyondTheStars.Client
                 // the horizon. (The lit/unlit split across the disc is the phase, handled in the shader.)
                 b.Mat.SetVector(PhaseSunDirId, sunDir);
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
-                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.15f, 0.45f, day) * horizon);
+                // Overall dim: bodies dominate the night sky and fade toward day — but keep a higher day-time floor
+                // so they don't wash to black against the bright ACES-tonemapped daytime sky (they're a feature).
+                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 0.7f, day) * horizon);
             }
         }
 

@@ -215,9 +215,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // is SSR localised to WATER — no full-screen pass, so no darkening risk, and it only reflects
                     // the surface that should (the sea), never matte walls.
                     float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
-                    float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.06);
+                    // Stronger wave perturbation on the reflection ray breaks the mirror into a soft, watery
+                    // reflection instead of a hard pixel-perfect one.
+                    float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12);
                     float3 Rw = reflect(Vw, rn);
-                    float fres = lerp(0.35, 1.0, pow(1.0 - saturate(dot(-Vw, rn)), 4.0)); // base sheen + full mirror at grazing angles
+                    // Lower base sheen so head-on water reflects little (full mirror only at grazing angles) and
+                    // the depth/bed colour shows through more — the old 0.35 made calm water read like glass.
+                    float fres = lerp(0.16, 1.0, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
                     float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
                     float3 sp = i.wp;
                     float stepLen = 0.5;
@@ -234,13 +238,20 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                         float rayEye = -TransformWorldToView(sp).z;
                         if (rayEye > hitEye + 0.1 && rayEye < hitEye + 4.0)
                         {
-                            reflCol = SampleSceneColor(ruv);
+                            // Soft 5-tap blur of the reflected scene colour so the mirror is gently diffused
+                            // (water is never a perfect mirror) — kills the "too hard" sharp reflection.
+                            float2 br = 0.0035;
+                            reflCol = (SampleSceneColor(ruv)
+                                     + SampleSceneColor(ruv + float2(br.x, 0.0))
+                                     + SampleSceneColor(ruv - float2(br.x, 0.0))
+                                     + SampleSceneColor(ruv + float2(0.0, br.y))
+                                     + SampleSceneColor(ruv - float2(0.0, br.y))) * 0.2;
                             break;
                         }
                     }
                     float sunSpec = pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 4.0;
                     reflCol += light * sunSpec;
-                    col = lerp(col, reflCol, saturate(fres) * 0.7);
+                    col = lerp(col, reflCol, saturate(fres) * 0.55);
 
                     alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend
                     } // _Sc_ScreenFx (depth/opaque available)
