@@ -140,6 +140,7 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 1f));   // neutral, full-bright
                 Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // …and off on the URP volume too
+                UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
                 Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
@@ -305,6 +306,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector(GradeParamsId, new Vector4(sat, contrast, 0f, 0f));
             // ApplyGrade keeps the sRGB value: URP's ColorAdjustments colorFilter converts internally.
             UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP path (PostComposite is Built-in-only)
+            UrpScenePost.Instance?.SetMoodLut(biome); // WS4: layer the per-biome cinematic mood LUT on top
         }
 
         /// <summary>Per-biome colour-grade mood: (tint multiply, saturation, contrast).</summary>
@@ -452,6 +454,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
             Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
+            UrpScenePost.Instance?.SetMoodLut(null); // drop the biome mood LUT (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)
             Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // flora tint off (menu/space)
             Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off (menu/space)

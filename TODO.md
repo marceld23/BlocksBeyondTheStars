@@ -51,7 +51,20 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics pro-look quick-win: in-game post + SMAA + SSAO + emissive glow (2026-06-24) — ✅ code done, NEEDS local Unity build verify
+### ★ Graphics WS4: per-biome cinematic mood LUTs (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+Follow-up to the quick-win block (WS1–3). Adds a procedural **per-biome colour-grade LUT** that the per-channel
+`ColorAdjustments` grade can't express — a teal-orange shadow→highlight tonal split + per-mood contrast/saturation.
+- [UrpScenePost.cs](client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs): a `ColorLookup` volume override fed a
+  **procedurally baked 2D strip LUT** (1024×32, linear, no external assets — like the block atlas). The neutral identity
+  matches URP's `GetLutStripValue` layout exactly and the grade is authored in sRGB (URP samples the user LUT in sRGB),
+  so identity = no-op. LUTs are baked once per biome and cached; folded into the existing Uber post pass → **no extra
+  render pass**. Moods: jungle/desert/ice/lava/swamp/crystal/default; contribution 0.6.
+- [Sky.cs](client/Assets/BlocksBeyondTheStars/Scripts/Sky.cs): `SetMoodLut(biome)` alongside `ApplyGrade` in `SetGrade`;
+  turned off in the space view + on disable (menu/space ungraded).
+- Layered *on top of* the existing `ApplyGrade` tint/sat/contrast (kept mild to avoid compounding). Deferred still:
+  WS5 strip dead Built-in post stack, WS6 PBR / real point lights / greedy meshing / GPU instancing.
+
+### ★ Graphics pro-look quick-win: in-game post + SMAA + SSAO + emissive glow (2026-06-24) — ✅ done &amp; merged (PR#50, cc07435; CI + local Unity build green)
 Quick-win block from the [shader/graphics-engine utilization analysis](#) (no PBR/architecture changes). Surfaced a latent
 bug while wiring it: the **gameplay camera never enabled `renderPostProcessing`** (only the menu camera did, see
 [MenuBackground.cs](client/Assets/BlocksBeyondTheStars/Scripts/MenuBackground.cs)), so under URP the whole in-game
