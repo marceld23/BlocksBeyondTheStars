@@ -234,8 +234,6 @@
   "item.basic_drill.desc": "A simple drill for soft and common blocks.",
   "item.titanium_drill.name": "Titanium Drill",
   "item.titanium_drill.desc": "Mines harder ores such as titanium.",
-  "item.block_placer.name": "Block Placer",
-  "item.block_placer.desc": "Places blocks from your inventory.",
   "item.hand_scanner.name": "Hand Scanner",
   "item.hand_scanner.desc": "Detects nearby resources.",
   "item.field_medkit.name": "Field Medkit",

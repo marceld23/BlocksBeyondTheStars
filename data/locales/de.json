@@ -238,8 +238,6 @@
   "item.basic_drill.desc": "Ein einfacher Bohrer für weiche und häufige Blöcke.",
   "item.titanium_drill.name": "Titanbohrer",
   "item.titanium_drill.desc": "Baut härtere Erze wie Titan ab.",
-  "item.block_placer.name": "Blockplatzierer",
-  "item.block_placer.desc": "Setzt Blöcke aus deinem Inventar.",
   "item.hand_scanner.name": "Handscanner",
   "item.hand_scanner.desc": "Erkennt nahe Rohstoffe.",
   "item.field_medkit.name": "Feld-Medkit",

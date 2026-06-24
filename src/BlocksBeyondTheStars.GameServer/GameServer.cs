@@ -1702,14 +1702,14 @@ public sealed partial class GameServer
                 : (_config.AdminPlayers.Contains(name) ? PlayerRole.Admin : PlayerRole.Player),
         };
 
-        // Starter kit: a basic drill, a block placer and a hand scanner in the first hotbar slots,
-        // plus a suit lamp so the player can light up caves / the ship at night (toggle with L).
+        // Starter kit: a basic drill and a hand scanner in the first hotbar slots, plus a suit lamp so the
+        // player can light up caves / the ship at night (toggle with L). Blocks are placed directly — select
+        // a block item and right-click — so there is no separate "block placer" tool.
         state.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
-        state.Inventory.SetSlot(1, new ItemStack("block_placer", 1));
-        state.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
-        state.Inventory.SetSlot(3, new ItemStack("suit_lamp", 1));
-        state.Inventory.SetSlot(4, new ItemStack("machete", 1));       // a simple starter melee weapon
-        state.Inventory.SetSlot(5, new ItemStack("scrap_pistol", 1));   // ...and a weak ranged sidearm so a fresh
+        state.Inventory.SetSlot(1, new ItemStack("hand_scanner", 1));
+        state.Inventory.SetSlot(2, new ItemStack("suit_lamp", 1));
+        state.Inventory.SetSlot(3, new ItemStack("machete", 1));       // a simple starter melee weapon
+        state.Inventory.SetSlot(4, new ItemStack("scrap_pistol", 1));   // ...and a weak ranged sidearm so a fresh
                                                                         // player can fight back from a distance, not
                                                                         // only by walking into a hostile's bite range
 
