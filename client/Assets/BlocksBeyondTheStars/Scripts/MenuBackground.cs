@@ -95,8 +95,8 @@ namespace BlocksBeyondTheStars.Client
                 _asteroids[i] = a.transform;
             }
 
-            // Cinematic post (bloom + ACES tonemap + vignette + lens flare) — the same look the game uses. URP path
-            // self-disables under Built-in RP, where PostFx on the camera does the equivalent OnRenderImage stack.
+            // Cinematic post (bloom + ACES tonemap + vignette + lens flare) — the same look the game uses, via the
+            // URP Volume. The project always runs URP (every quality level assigns it), so there's no Built-in path.
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
             {
                 var post = gameObject.AddComponent<UrpScenePost>();
@@ -112,13 +112,6 @@ namespace BlocksBeyondTheStars.Client
                 {
                     camData.renderPostProcessing = true;
                 }
-            }
-            else
-            {
-                var pfx = _cam.gameObject.AddComponent<PostFx>();
-                pfx.Bloom = true;
-                pfx.Tonemap = true;
-                pfx.Vignette = 0.22f;
             }
         }
 

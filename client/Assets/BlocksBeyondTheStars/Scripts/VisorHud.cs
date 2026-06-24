@@ -257,9 +257,10 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
-    /// Fullscreen composite (after <see cref="PostFx"/> on the main camera): overlays the separately
+    /// Fullscreen composite (after the camera's post-processing): overlays the separately
     /// rendered HUD render texture onto the post-processed world through the <c>BlocksBeyondTheStars/Visor</c>
-    /// shader. Falls back to a straight copy if the material/RT is missing.
+    /// shader. Falls back to a straight copy if the material/RT is missing. Built-in-RP path (the project runs
+    /// URP, where <see cref="VisorUrpCompositor"/> does this instead) — kept as a fallback.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public sealed class VisorComposite : MonoBehaviour

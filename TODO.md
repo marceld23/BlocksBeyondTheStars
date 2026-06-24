@@ -51,7 +51,20 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Graphics: global Brightness control (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+### ★ Graphics WS5: remove the dead Built-in-RP post stack (2026-06-24) — ✅ code done + local Unity build green, NOT committed
+The project always runs URP (every quality level assigns it), so the Built-in-RP post path never executed. Re-scoped
+WS5 from the analysis (it is NOT all dead — `VisorGlass` is used by `VisorMenuGlass`, `VisorComposite` is the Built-in
+visor path) down to the genuinely-orphaned **post stack**, and removed it:
+- Deleted `PostFx.cs` (OnRenderImage stack, self-disabled under URP) + the shaders `PostAO` / `PostBloom` /
+  `PostComposite` (+ metas) — only `PostFx` ever referenced them — and dropped their 3 entries from
+  `m_AlwaysIncludedShaders` ([GraphicsSettings.asset](client/ProjectSettings/GraphicsSettings.asset)).
+- Removed the dead `PostFx` wiring: the unconditional add in [WorldRig.cs](client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs)
+  and the Built-in `else`-branch in [MenuBackground.cs](client/Assets/BlocksBeyondTheStars/Scripts/MenuBackground.cs).
+- Fixed the now-dangling doc crefs (UrpScenePost, VisorHud) + stale comments (Sky) so nothing points at the deleted types.
+- **Kept** `VisorGlass` (used) and `VisorComposite` (Built-in visor fallback) — removing the visor Built-in path is a
+  separate optional step. Net: one less post pipeline to keep in sync, 3 fewer always-included shaders.
+
+### ★ Graphics: global Brightness control (2026-06-24) — ✅ done &amp; merged (PR#53, a37f5f1; CI + local Unity build green)
 Follow-up to the look quick-wins: enabling the full in-game post stack (ACES tonemap + vignette + SSAO + cool LUTs)
 made worlds read darker than the old un-graded image; a tester saw a (correctly) blue daytime planet as too dark.
 - Added a **global Brightness setting** (default **1.15** = a touch above neutral, so every world is a bit brighter out

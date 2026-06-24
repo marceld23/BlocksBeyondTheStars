@@ -79,11 +79,6 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.ApplyCameraLook();
             }
 
-            // Built-in-RP post-processing stack (OnRenderImage): bloom + ACES tonemap + vignette (+ SSAO on High),
-            // preset-gated. Disables itself under URP (the Volume above takes over).
-            var postFx = camGo.AddComponent<PostFx>();
-            postFx.ApplyPreset(shell.Settings.Preset, shell.Settings.ReducedEffects);
-
             // Holographic visor HUD: render the diegetic HUD through a UI camera + a BlocksBeyondTheStars/Visor pass.
             // Created before the HUD components so UiKit.HudCamera is set when they build their canvases.
             var visor = root.AddComponent<VisorHud>();
