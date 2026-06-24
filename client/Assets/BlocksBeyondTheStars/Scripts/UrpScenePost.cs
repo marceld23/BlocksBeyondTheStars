@@ -7,14 +7,13 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Builds a global URP post-processing Volume at runtime (ACES tonemapping + bloom + vignette + a gentle
-    /// colour grade) when URP is active — restoring (and improving) the cinematic look the old Built-in-RP
-    /// <see cref="PostFx"/> gave via OnRenderImage, which URP's render graph can't run. No-op under Built-in RP
-    /// (PostFx handles that). Wired up in WorldRig. The camera + URP asset have post-processing on by default.
+    /// colour grade + per-biome mood LUT) — the cinematic look the game uses. The project always runs URP (every
+    /// quality level assigns it). Wired up in WorldRig. The camera + URP asset have post-processing on by default.
     /// </summary>
     public sealed class UrpScenePost : MonoBehaviour
     {
         /// <summary>Set while active under URP so <see cref="Sky"/> can drive the per-system/biome grade
-        /// (the URP replacement for the old PostComposite `_Sc_GradeTint` path).</summary>
+        /// (the colour-grade + mood-LUT path).</summary>
         public static UrpScenePost Instance { get; private set; }
 
         /// <summary>For the menu-blur quick-win: while the in-game menu is open, a gaussian depth-of-field
@@ -68,14 +67,14 @@ namespace BlocksBeyondTheStars.Client
         {
             if (GraphicsSettings.currentRenderPipeline == null)
             {
-                enabled = false; // Built-in RP → the OnRenderImage PostFx stack is in charge
+                enabled = false; // defensive: the project always runs URP, but bail cleanly if it somehow isn't
                 return;
             }
 
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
 
             var tonemap = profile.Add<Tonemapping>(true);
-            tonemap.mode.Override(TonemappingMode.ACES); // filmic, matches the old PostComposite ACES curve
+            tonemap.mode.Override(TonemappingMode.ACES); // filmic ACES tonemap
 
             var bloom = profile.Add<Bloom>(true);
             if (ShellMode)

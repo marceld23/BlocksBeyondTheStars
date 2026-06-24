@@ -291,8 +291,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Drives the post-FX colour grade (the per-system/biome "mood LUT"): a biome tint +
-        /// saturation/contrast, folded with the star system's sun colour as a subtle hue shift. Read by
-        /// <c>BlocksBeyondTheStars/PostComposite</c>; only visible when tonemapping/post is on.</summary>
+        /// saturation/contrast, folded with the star system's sun colour as a subtle hue shift. Applied via the
+        /// URP <c>UrpScenePost</c> volume (ColorAdjustments + mood LUT); only visible when tonemapping/post is on.</summary>
         private void SetGrade(string biome, Color sunColor)
         {
             var (tint, sat, contrast) = GradeFor(biome);
@@ -305,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalColor(GradeTintId, ShaderColor.Srgb(blended));
             Shader.SetGlobalVector(GradeParamsId, new Vector4(sat, contrast, 0f, 0f));
             // ApplyGrade keeps the sRGB value: URP's ColorAdjustments colorFilter converts internally.
-            UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP path (PostComposite is Built-in-only)
+            UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP colour grade (ColorAdjustments)
             UrpScenePost.Instance?.SetMoodLut(biome); // WS4: layer the per-biome cinematic mood LUT on top
         }
 
