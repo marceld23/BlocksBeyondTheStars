@@ -66,7 +66,6 @@
 
   { "key": "basic_drill",     "nameKey": "item.basic_drill.name",     "category": "tool", "maxStack": 1, "descriptionKey": "item.basic_drill.desc", "tool": { "kind": "drill", "tier": 1, "miningPower": 1.0, "energyPerUse": 0.0 } },
   { "key": "titanium_drill",  "nameKey": "item.titanium_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.titanium_drill.desc", "tool": { "kind": "drill", "tier": 2, "miningPower": 2.0, "energyPerUse": 0.5 } },
-  { "key": "block_placer",    "nameKey": "item.block_placer.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.block_placer.desc", "tool": { "kind": "blockPlacer", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "hand_scanner",    "nameKey": "item.hand_scanner.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.hand_scanner.desc", "tool": { "kind": "scanner", "tier": 1, "energyPerUse": 0.2 } },
   { "key": "field_medkit",    "nameKey": "item.field_medkit.name",    "category": "tool", "maxStack": 1, "descriptionKey": "item.field_medkit.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 18.0 } },
   { "key": "stasis_projector","nameKey": "item.stasis_projector.name","category": "tool", "maxStack": 1, "descriptionKey": "item.stasis_projector.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 4.0 } },

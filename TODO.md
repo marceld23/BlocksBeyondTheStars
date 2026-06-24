@@ -51,7 +51,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Water clarity tuning (2026-06-24) — ✅ tester-approved + local Unity build green, NOT committed
+### ★ Remove vestigial "block placer" item (2026-06-25) — ✅ code done + 717 tests green, NOT committed
+Tester asked why the Block Placer exists when blocks are placed directly (select a block item → right-click). It's
+dead: `ToolKind.BlockPlacer` is never branched on anywhere, and the item has no `placesBlock`, so holding it does
+nothing — a leftover from an earlier "hold one placer tool" design. Removed it everywhere:
+- Starter inventory ([GameServer.cs](src/BlocksBeyondTheStars.GameServer/GameServer.cs)) — dropped the grant and
+  closed the gap (drill / scanner / lamp / machete / pistol now fill slots 0-4); item def ([items.json](data/items.json));
+  de/en locale keys; the granted-set entry in CraftingConsistencyTests; the icon-gen script entry.
+- Kept the generic `ToolKind.BlockPlacer` enum + ContentEditor option (harmless content-authoring facility).
+- Old saves keep an "unknown" block_placer in inventory (null-checked, harmless); new worlds start clean.
+
+### ★ Water clarity tuning (2026-06-24) — ✅ done &amp; merged (PR#56, cac8bb9; CI + local Unity build green)
 Follow-up to the water-reflection fix: the tester still couldn't see into the water. Root cause (analysed):
 deep water was opaque by ~6 m + a high base tile alpha (0.62), so the bed never read through. Tuned to clear water:
 - [BlockTextureAtlas.cs](client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs): water tile base alpha 0.62 → **0.28** (the bed reads through with only a light blue wash).

@@ -86,7 +86,6 @@ ITEMS = [
     ("mining_beam", "a high-tech handheld mining laser beam emitter"),
     ("basic_drill", "a handheld mining power drill"),
     ("titanium_drill", "a heavy-duty titanium mining drill"),
-    ("block_placer", "a construction tool projecting a glowing cube"),
     ("hand_scanner", "a small handheld scanner device"),
     # Weapons
     ("machete", "a steel machete blade with a grip handle"),
