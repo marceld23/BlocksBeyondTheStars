@@ -168,26 +168,36 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 col = albedo * (light * (amb + 0.5 * ndl * sky * shadow) + 0.05) * faceAo;
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
-                float gloss = i.mat.r;
-                float metal = i.mat.g;
-                float3 H = normalize(L + V);
-                float specPow = lerp(8.0, 200.0, gloss);
-                float spec = pow(saturate(dot(N, H)), specPow) * gloss * ndl * sky * shadow;
-                float3 specCol = lerp(float3(1, 1, 1), albedo, metal);
-                col += light * specCol * spec * 1.2;
+                float gloss = i.mat.r;            // perceptual smoothness (0 = matte .. 1 = mirror)
+                float metal = i.mat.g;            // metallic (0 = dielectric .. 1 = metal)
+                float rough = clamp(1.0 - gloss, 0.045, 1.0);
 
+                // Specular: Unity's stable GGX form (no NaN at low roughness), tinted by the metallic F0
+                // (0.04 dielectric → albedo for metals). Tight, bright glints on smooth/metal faces feed the bloom.
+                float3 H = normalize(L + V);
+                float nh = saturate(dot(N, H));
+                float lh = saturate(dot(L, H));
+                float r2 = rough * rough;
+                float dterm = nh * nh * (r2 - 1.0) + 1.00001;
+                float specTerm = r2 / ((dterm * dterm) * max(0.1, lh * lh) * (rough * 4.0 + 2.0));
+                float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metal);
+                col += light * F0 * (specTerm * ndl * sky * shadow);
+
+                // Environment reflection of the sky colour, roughness-aware: metals reflect strongly (tinted by
+                // F0) even head-on, dielectrics mostly at grazing angles (Fresnel). Additive, faded by skylight.
                 float3 envCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
-                float3 reflTint = lerp(envCol, envCol * albedo, metal);
-                float fres = pow(1.0 - saturate(dot(N, V)), 4.0);
-                float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres * sky;
-                col = lerp(col, reflTint, reflK);
+                float nv = saturate(dot(N, V));
+                float fres = pow(1.0 - nv, 5.0);
+                float gr = 1.0 - rough;
+                float3 Fr = F0 + (max(float3(gr, gr, gr), F0) - F0) * fres;
+                col += envCol * Fr * (saturate(gloss) * sky * 0.5);
 
                 col += albedo * i.mat.a * 3.0; // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked
                 // dominant direction (TEXCOORD4) lets us shade them like the sun — N·L diffuse shaping + a
-                // Blinn-Phong glint + normal-map relief — so lamps sculpt the surface instead of flat-washing
+                // GGX glint + normal-map relief — so lamps sculpt the surface instead of flat-washing
                 // it. A fill floor keeps faces the light wrapped around lit; bright enough to feed the bloom.
                 float blLen = length(i.blDir);
                 if (blLen > 0.01)
@@ -195,8 +205,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float3 blL = i.blDir / blLen;
                     float blNdl = saturate(dot(N, blL));
                     col += albedo * i.bl * (0.5 + 0.5 * blNdl) * 2.0;
-                    float blSpec = pow(saturate(dot(N, normalize(blL + V))), specPow) * gloss * blNdl;
-                    col += i.bl * specCol * blSpec * 1.2;
+                    float3 blH = normalize(blL + V);
+                    float blNh = saturate(dot(N, blH));
+                    float blLh = saturate(dot(blL, blH));
+                    float blDterm = blNh * blNh * (r2 - 1.0) + 1.00001;
+                    float blSpec = r2 / ((blDterm * blDterm) * max(0.1, blLh * blLh) * (rough * 4.0 + 2.0));
+                    col += i.bl * F0 * (blSpec * blNdl);
                 }
                 else
                 {
@@ -420,24 +434,29 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
-                float gloss = i.mat.r;
-                float metal = i.mat.g;
+                float gloss = i.mat.r;            // perceptual smoothness
+                float metal = i.mat.g;            // metallic
+                float rough = clamp(1.0 - gloss, 0.045, 1.0);
 
-                // Specular sun highlight (Blinn-Phong). Tighter + brighter as gloss rises; metals
-                // tint the highlight with the albedo. Gated by ndl + skylight (no sun glint in caves).
+                // Specular sun highlight: Unity's stable GGX form, tinted by the metallic F0 (0.04 dielectric →
+                // albedo for metals). Tight, bright glints on smooth/metal faces; gated by ndl + skylight.
                 float3 H = normalize(L + V);
-                float specPow = lerp(8.0, 200.0, gloss);
-                float spec = pow(saturate(dot(N, H)), specPow) * gloss * ndl * sky;
-                fixed3 specCol = lerp(fixed3(1, 1, 1), albedo, metal);
-                col += light * specCol * spec * 1.2;
+                float nh = saturate(dot(N, H));
+                float lh = saturate(dot(L, H));
+                float r2 = rough * rough;
+                float dterm = nh * nh * (r2 - 1.0) + 1.00001;
+                float specTerm = r2 / ((dterm * dterm) * max(0.1, lh * lh) * (rough * 4.0 + 2.0));
+                fixed3 F0 = lerp(fixed3(0.04, 0.04, 0.04), albedo, metal);
+                col += light * F0 * (specTerm * ndl * sky);
 
-                // Grazing-angle environment reflection (sky colour); metals tint it. No sky to reflect
-                // underground, so it fades with skylight too.
+                // Roughness-aware environment reflection of the sky colour: metals reflect strongly (tinted by
+                // F0) even head-on, dielectrics mostly at grazing angles (Fresnel). Additive, faded by skylight.
                 fixed3 envCol = (_Sc_Sky.a < 0.5) ? light : _Sc_Sky.rgb;
-                fixed3 reflTint = lerp(envCol, envCol * albedo, metal);
-                float fres = pow(1.0 - saturate(dot(N, V)), 4.0);
-                float reflK = saturate(gloss * (0.25 + 0.6 * metal)) * fres * sky;
-                col = lerp(col, reflTint, reflK);
+                float nv = saturate(dot(N, V));
+                float fres = pow(1.0 - nv, 5.0);
+                float gr = 1.0 - rough;
+                fixed3 Fr = F0 + (max(float3(gr, gr, gr), F0) - F0) * fres;
+                col += envCol * Fr * (saturate(gloss) * sky * 0.5);
 
                 // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they
                 // shine at night and the bloom pass picks them up. Alpha carries the emission strength.
@@ -445,7 +464,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked
-                // dominant direction (TEXCOORD4) shades them like the sun — N·L diffuse + a Blinn-Phong glint
+                // dominant direction (TEXCOORD4) shades them like the sun — N·L diffuse + a GGX glint
                 // + normal-map relief — so lamps sculpt the surface; a fill floor keeps wrapped-around faces lit.
                 float blLen = length(i.blDir);
                 if (blLen > 0.01)
@@ -453,8 +472,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float3 blL = i.blDir / blLen;
                     float blNdl = saturate(dot(N, blL));
                     col += albedo * i.bl * (0.5 + 0.5 * blNdl) * 2.0;
-                    float blSpec = pow(saturate(dot(N, normalize(blL + V))), specPow) * gloss * blNdl;
-                    col += i.bl * specCol * blSpec * 1.2;
+                    float3 blH = normalize(blL + V);
+                    float blNh = saturate(dot(N, blH));
+                    float blLh = saturate(dot(blL, blH));
+                    float blDterm = blNh * blNh * (r2 - 1.0) + 1.00001;
+                    float blSpec = r2 / ((blDterm * blDterm) * max(0.1, blLh * blLh) * (rough * 4.0 + 2.0));
+                    col += i.bl * F0 * (blSpec * blNdl);
                 }
                 else
                 {
