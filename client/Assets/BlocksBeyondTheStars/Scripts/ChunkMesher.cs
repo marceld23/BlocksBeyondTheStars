@@ -395,6 +395,16 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Flat per-face normals + bounds computed analytically here (every face owns its own
+            // unwelded vertices, so each vertex normal is just its triangle's geometric normal — this
+            // reproduces what Mesh.RecalculateNormals did for this mesh). Doing it as pure data, instead
+            // of the main-thread-only Mesh.RecalculateNormals/RecalculateBounds, both saves that work and
+            // lets the whole build move onto a worker thread later (A2).
+            var normals = new Vector3[verts.Count];
+            AccumulateFlatNormals(verts, tris, normals);
+            AccumulateFlatNormals(verts, trisT, normals);
+            var bounds = ComputeBounds(verts, n);
+
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.SetVertices(verts);
             // Two submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
@@ -410,8 +420,8 @@ namespace BlocksBeyondTheStars.Client
             mesh.SetUVs(3, blockLight); // TEXCOORD3.xyz: propagated coloured block-light (placed lights illuminate)
             mesh.SetUVs(4, blockLightDir); // TEXCOORD4.xyz: dominant block-light direction (N·L shaping + glint)
             mesh.SetTangents(tangents);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+            mesh.SetNormals(normals);
+            mesh.bounds = bounds;
 
             // Collision mesh: same vertices, but only the solid (non-fluid) faces, so water/lava are passable.
             Mesh collider = null;
@@ -420,10 +430,45 @@ namespace BlocksBeyondTheStars.Client
                 collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
                 collider.SetVertices(verts);
                 collider.SetTriangles(colliderTris, 0);
-                collider.RecalculateBounds();
+                collider.bounds = bounds;
             }
 
             return (mesh, collider);
+        }
+
+        /// <summary>Writes flat per-face normals into <paramref name="normals"/>: every face emitted by the
+        /// mesher owns its own (unwelded) vertices, so a vertex's normal is simply its triangle's geometric
+        /// normal. This reproduces Mesh.RecalculateNormals for this mesh exactly, but as plain data so the
+        /// build can run off the main thread (no Mesh API calls).</summary>
+        private static void AccumulateFlatNormals(List<Vector3> verts, List<int> tris, Vector3[] normals)
+        {
+            for (int t = 0; t + 2 < tris.Count; t += 3)
+            {
+                int i0 = tris[t], i1 = tris[t + 1], i2 = tris[t + 2];
+                Vector3 nrm = Vector3.Cross(verts[i1] - verts[i0], verts[i2] - verts[i0]).normalized;
+                normals[i0] = nrm;
+                normals[i1] = nrm;
+                normals[i2] = nrm;
+            }
+        }
+
+        /// <summary>Exact AABB over the chunk's vertices (replaces the main-thread-only
+        /// Mesh.RecalculateBounds). Falls back to the full cube extent for an empty mesh.</summary>
+        private static Bounds ComputeBounds(List<Vector3> verts, int n)
+        {
+            if (verts.Count == 0)
+            {
+                return new Bounds(new Vector3(n, n, n) * 0.5f, new Vector3(n, n, n));
+            }
+
+            Vector3 min = verts[0], max = verts[0];
+            for (int i = 1; i < verts.Count; i++)
+            {
+                min = Vector3.Min(min, verts[i]);
+                max = Vector3.Max(max, verts[i]);
+            }
+
+            return new Bounds((min + max) * 0.5f, max - min);
         }
 
         /// <summary>A deterministic per-cell "bell" size factor centred on 1.0 (average of two pseudo-randoms
@@ -497,7 +542,7 @@ namespace BlocksBeyondTheStars.Client
         /// geometry into the opaque submesh AND the collider (shape-matched collision), carrying the same
         /// per-vertex streams as a cube face so it textures, tints + lights identically. Per-face shade
         /// (vertex colour .b) comes from the face normal — top-bright/bottom-dark like cube faces — while the
-        /// lit atlas shader does the main directional shading from the recalculated normals.</summary>
+        /// lit atlas shader does the main directional shading from the per-face normals.</summary>
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
             List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, Vector3 cell, Rect uv, float matR, float matG,
