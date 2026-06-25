@@ -1138,10 +1138,34 @@ namespace BlocksBeyondTheStars.Client
         {
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
             float y = 0f;
+
+            // Cargo transfer controls. The hold only exists while aboard the ship (in flight or in the landed
+            // cabin), so the bulk move buttons + capacity readout show only then; on foot the cargo tab explains
+            // why it's empty instead of looking dead.
+            if (AboardShipNow() && _category == "cargo")
+            {
+                int used = items?.Length ?? 0;
+                UiKit.AddText(_listContent, 8, y, 400, 44, $"{L("ui.cargo.capacity")}: {used}/{Game.CargoSlots}", 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.AddButton(_listContent, 412, y, 348, 44, L("ui.cargo.take_all"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: false, item: string.Empty, bulkAll: true));
+                y += 56f;
+            }
+            else if (_category == "cargo")
+            {
+                UiKit.AddText(_listContent, 8, y, 752, 30, L("ui.cargo.not_aboard"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 40f;
+            }
+            else if (AboardShipNow() && _category == "personal")
+            {
+                UiKit.AddButton(_listContent, 8, y, 752, 44, L("ui.cargo.stow_all"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true));
+                y += 56f;
+            }
+
             if (items == null || items.Length == 0)
             {
-                UiKit.AddText(_listContent, 8, 8, 700, 30, "—", 22, UiKit.CyanDim, TextAnchor.UpperLeft);
-                return 40f;
+                UiKit.AddText(_listContent, 8, y + 8, 700, 30, "—", 22, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return y + 40f;
             }
 
             foreach (var s in items)
@@ -2489,6 +2513,16 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;
+
+            // Cargo transfer: move this one item between the personal inventory and the ship's hold (aboard only).
+            // Direction follows the tab you're viewing it from — cargo view pulls it out, personal view stows it.
+            if (AboardShipNow())
+            {
+                bool fromCargo = _category == "cargo";
+                UiKit.AddButton(_detail, 8, y, 320, 46, L(fromCargo ? "ui.cargo.to_inventory" : "ui.cargo.to_cargo"),
+                    () => Game.Network?.SendMoveCargoItem(toCargo: !fromCargo, item: item, bulkAll: false));
+                y += 54f;
+            }
 
             // Quick-bar assignment (B58): for a personal-inventory item, let the player drop it onto a quick-slot
             // (the quick-bar = inventory slots 0..8). Click a slot to assign/swap; the ✕ stows it to the backpack.

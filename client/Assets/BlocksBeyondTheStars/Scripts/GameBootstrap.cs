@@ -571,6 +571,17 @@ namespace BlocksBeyondTheStars.Client
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
+        /// <summary>Total slots in the ship's cargo hold (capacity), so the cargo tab can show "used/total". 0
+        /// when not aboard (the cargo list is empty then).</summary>
+        public int CargoSlots { get; private set; }
+
+        /// <summary>Local client settings (wired by <see cref="WorldRig"/>) — read live for the auto-stow comfort
+        /// option. Never authoritative; the server decides what actually moves.</summary>
+        public ClientSettings Settings;
+
+        // Tracks the aboard edge so auto-stow fires once per boarding (not every state packet while aboard).
+        private bool _wasAboard;
+
         /// <summary>Blueprint keys the player has unlocked (synced from the server) — drives craftable/locked UI.</summary>
         public System.Collections.Generic.HashSet<string> UnlockedBlueprints { get; private set; } = new();
 
@@ -815,6 +826,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Personal = m.Personal;
                 Cargo = m.Cargo;
+                CargoSlots = m.CargoSlotCount;
                 UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
                 Knowledge = m.KnowledgePoints;
             };
@@ -1356,6 +1368,15 @@ namespace BlocksBeyondTheStars.Client
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
+            // Comfort: auto-stow loose materials into the cargo hold the moment you board the ship (off by
+            // default — opt in via Settings). Fires only on the not-aboard → aboard edge, and reuses the same
+            // server-authoritative bulk "stow all" intent the cargo tab's button sends.
+            if (m.AboardShip && !_wasAboard && Settings != null && Settings.AutoStowOnBoard)
+            {
+                Network?.SendMoveCargoItem(toCargo: true, item: string.Empty, bulkAll: true);
+            }
+
+            _wasAboard = m.AboardShip;
             Aboard = m.AboardShip;
             InEva = m.InEva;
             InSpeeder = m.InSpeeder ?? string.Empty;

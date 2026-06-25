@@ -1490,6 +1490,7 @@ public sealed partial class GameServer
             case RequestLandingPadsIntent reqPads: HandleRequestLandingPads(session, reqPads); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
+            case MoveCargoItemIntent moveCargo: HandleMoveCargoItem(session, moveCargo); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
             case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;
             case TradeRequestIntent tradeReq: HandleTradeRequest(session, tradeReq); break;
@@ -3402,6 +3403,7 @@ public sealed partial class GameServer
         {
             Personal = DumpInventory(session.State.Inventory),
             Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
+            CargoSlotCount = session.State.AboardShip ? _ship.Cargo.SlotCount : 0,
             UnlockedBlueprints = session.State.UnlockedBlueprints.ToArray(),
             KnowledgePoints = session.State.KnowledgePoints,
         });

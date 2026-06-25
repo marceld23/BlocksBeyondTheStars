@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
             boot.LegRgb = Rgb(shell.Settings.LegColor);
             boot.HullRgb = Rgb(shell.Settings.HullColor); // ship hull tint (item 32)
             boot.FacePixels = shell.Settings.FacePixels ?? ""; // custom pixel face, sent on join
+            boot.Settings = shell.Settings; // live read for the auto-stow comfort option
 
             // Only our camera should render in-game; disable any pre-existing scene cameras.
             foreach (var existing in Camera.allCameras)

@@ -143,6 +143,7 @@ namespace BlocksBeyondTheStars.Client
             y += 52f;
 
             Head(ref y, L("ui.settings.comfort"));
+            Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
             Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });
             // Reminder interval: 15-minute steps from 15 min up to 4 hours; greyed in effect when the toggle is off.

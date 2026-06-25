@@ -103,7 +103,8 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   UI tells you when you must go to the right station.
 - **Tab availability dimming** — tabs whose context isn't met are **greyed out** (but still clickable to peek):
   **Map** needs you aboard, **Crafting** a workshop, **Tech** a lab, **Ship** the ship console. While not aboard,
-  the Map's travel buttons are also disabled (the world is shown but you can't quick-travel from on foot).
+  the Map's travel buttons are also disabled (the world is shown but you can't quick-travel from on foot), and
+  the Inventory's **Cargo Hold** transfer controls are hidden (the hold is only reachable from aboard the ship).
 - **World map (M)** — top-down view of explored terrain (fog-of-war), with player/ship/station markers and
   click-to-set waypoints.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
@@ -141,6 +142,22 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
   modules (medbay, cockpit, …) cannot be removed. Step or hop up through the hatch to enter.
 
+### Inventory & cargo hold
+- Your **inventory** is your personal backpack (24 slots) — it travels with you everywhere, and its first
+  nine slots are the **quick-bar** (the on-screen hotbar).
+- Your ship's **cargo hold** is bulk storage that belongs to the ship (48 slots, growing with cargo-hold
+  modules) and is shared by everyone aboard that ship.
+- **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold
+  once it's full (and only while you're aboard). Salvage you scoop up while flying in space goes straight
+  into the cargo hold. While you're aboard the ship, crafting draws from **both** at once.
+- **Moving things by hand:** open the **Tab menu → Inventory**. The **Inventory** tab has a **"Stow all
+  materials in cargo"** button (loose materials/components only — your tools, weapons and quick-bar items
+  stay put), and selecting any item offers **"Move to cargo hold"**. The **Cargo Hold** tab shows the hold's
+  **used/total** capacity, a **"Take all out"** button, and per-item **"Move to inventory"**. These only work
+  while you're aboard (in flight or standing in the landed cabin); on foot the cargo tab says so.
+- **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
+  materials moved into the hold automatically each time you board. Off by default.
+
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, lab, machine room, detoxifier, market
   (barter). Inputs are consumed, outputs produced (free in Creative).
@@ -152,6 +169,8 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 ### Ship, modules, building
 - A ship is a set of fitted **modules** (cockpit, reactor, life support, workshop, medbay, cargo holds,
   lab, refinery, …). Modules enable on-board stations and cargo capacity. Build/expand from the Ship tab.
+  Each cargo-hold module adds slots to the shared **cargo hold** (see *Inventory & cargo hold* above); the
+  Cargo tab shows the current used/total capacity.
 
 ### Repairing your own ship
 - Combat dents your ship's **hull** (it never regenerates on its own), and EVA-carved hull cells stay missing

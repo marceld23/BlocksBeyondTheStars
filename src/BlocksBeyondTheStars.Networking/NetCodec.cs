@@ -273,6 +273,9 @@ public static class NetCodec
         // microphone; the server stamps FromPlayerId and relays the opaque bytes to the sender's tiered radio
         // audience (same world / system / galaxy, like text chat). Sent Unreliable.
         Register(169, typeof(VoiceFrame));               // Client <-> Server
+
+        // Cargo hold: move items between the personal inventory and the ship's cargo hold (per-item or bulk).
+        Register(170, typeof(MoveCargoItemIntent));      // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

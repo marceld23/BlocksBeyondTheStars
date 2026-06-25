@@ -58,6 +58,15 @@ components, a category sidebar and blueprint state.
   tabs migrated into the same screen over time.
 - **Material source is the pool** of inventory + ship cargo, shown explicitly, so have/need reflects
   what you can actually use.
+- **Inventory ↔ cargo transfer** lives in the Inventory mode tabs. The *Inventory* tab offers a
+  bulk **"Stow all materials in cargo"** button (loose materials/components only — the server filters
+  by item category, like a storage crate) and a per-item **"Move to cargo hold"** in the detail pane;
+  the *Cargo Hold* tab shows a **used/total** capacity readout, **"Take all out"**, and per-item
+  **"Move to inventory"**. All of it is gated on `AboardShipNow()` client-side and re-validated by the
+  server (`MoveCargoItemIntent` → `GameServerCargo.MoveCargo`, which requires `AboardShip`). On foot the
+  cargo tab shows a "step aboard" hint instead of dead controls. Capacity comes from
+  `InventoryUpdate.CargoSlotCount`. The optional *auto-stow on boarding* comfort toggle is purely
+  client-side: `GameBootstrap` watches the not-aboard→aboard edge and fires the same bulk intent.
 - **Tech-tree layout** is a simple per-category column/tier layout (no physics) — deliberately chosen
   to stay legible as blueprint count grows.
 

@@ -200,6 +200,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Minutes of continuous session play between break reminders (also the first reminder's delay).</summary>
         public int ReminderMinutes = 60;
 
+        /// <summary>Auto-stow loose materials/components into the ship's cargo hold the moment you board (tools
+        /// and weapons stay on you). Off by default so boarding never silently empties your inventory; opt in to
+        /// keep your personal pack clear for exploring on foot.</summary>
+        public bool AutoStowOnBoard = false;
+
         /// <summary>Local personal-best scores for the bundled arcade minigames, keyed by game key. Local only —
         /// no server leaderboard. Stored as a flat list so JsonUtility can persist it.</summary>
         public List<MinigameScore> MinigameScores = new List<MinigameScore>();

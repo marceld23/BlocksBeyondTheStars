@@ -51,6 +51,23 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Cargo hold made actively usable: manual transfer + capacity + auto-stow (2026-06-25) — ✅ server+tests green (710), NEEDS Unity build
+Before this the ship's cargo hold was functional but invisible in play: items only spilled into it when the 24-slot
+inventory was full, space salvage was the only thing that filled it, and the Cargo tab was read-only. Now you can move
+items between inventory and hold by hand, see capacity, and optionally auto-stow on boarding. Crafting already pooled
+cargo while aboard (incl. the landed cabin, via `UpdateAboard`), so no routing/`MaterialPool` change was needed.
+- **Server:** new [`MoveCargoItemIntent`](src/BlocksBeyondTheStars.Networking/Messages.cs) (tag 170) →
+  [`GameServerCargo.MoveCargo`](src/BlocksBeyondTheStars.GameServer/GameServerCargo.cs): per-item both ways + bulk
+  "stow all" (materials/components only, like a storage crate) / "take all"; gated on `AboardShip`. `InventoryUpdate`
+  gained `CargoSlotCount`. **4 new tests** (`CargoTransferTests`), full suite green.
+- **Client:** Cargo tab now shows used/total + "Take all out"; Inventory tab has "Stow all materials in cargo"; item
+  detail pane has per-item "Move to cargo hold" / "Move to inventory" (all `AboardShipNow()`-gated, "step aboard" hint
+  on foot). New `ClientSettings.AutoStowOnBoard` (off by default) + Comfort toggle; `GameBootstrap` fires the bulk
+  intent on the not-aboard→aboard edge. Locale keys `ui.cargo.*` + `ui.settings.auto_stow` (EN+DE).
+- **Docs:** USER_MANUAL "Inventory & cargo hold" section + dimming/ship notes; `CRAFTING_TECH_SHIP_UI.md` design note.
+- **Note:** the "stow all" deliberately does NOT spare the quick-bar (early-game materials live there); the category
+  filter (tools/weapons stay) is the protection, matching the existing storage-crate behaviour.
+
 ### ★ Relicense MIT → AGPL-3.0-or-later + Contributor License Agreement (2026-06-25) — ✅ MERGED to main (PR #59)
 Stops third parties from commercializing the project (AGPL copyleft makes proprietary/console reuse worthless for them)
 while keeping the founders free to ship a proprietary Steam/Xbox build later (dual-licensing via an asymmetric CLA +

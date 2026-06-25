@@ -306,6 +306,11 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendDepositContainer(string containerId) => Send(new DepositContainerIntent { ContainerId = containerId });
 
+        /// <summary>Move items between the personal inventory and the ship's cargo hold. <paramref name="item"/> = ""
+        /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.</summary>
+        public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false)
+            => Send(new MoveCargoItemIntent { ToCargo = toCargo, Item = item ?? string.Empty, BulkAll = bulkAll });
+
         // --- Crashed-ship wreck repair / claim ---
         public void SendRepairWreck(int x, int y, int z, string itemKey)
             => Send(new RepairWreckIntent { X = x, Y = y, Z = z, ItemKey = itemKey });
