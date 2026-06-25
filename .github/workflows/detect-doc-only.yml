@@ -1,0 +1,59 @@
+# Reusable doc/asset-only change detector, shared by ci.yml, lint.yml and codeql.yml.
+#
+# Output `nondocs` is "true" when the PR diff contains ANY file that is not documentation or an
+# image (marketing screenshot, texture, icon, …). Callers gate their heavy jobs on it, so a PR that
+# only touches Markdown/docs/licences or image files skips build, tests, format, lint and CodeQL.
+# Because each of those is a job-name required check, a *skipped* required job still counts as a pass,
+# so doc/screenshot-only PRs stay green and are never blocked. (CodeQL is handled separately: its
+# required check is posted by the code-scanning service, not the job, so it is gated here AND removed
+# from main's required checks — see codeql.yml.)
+#
+# Only meaningful for pull_request events. On push/schedule the detection step is skipped and
+# `nondocs` stays empty; callers run unconditionally via `github.event_name != 'pull_request'`.
+#
+# IMPORTANT: this is the SINGLE SOURCE OF TRUTH for the doc/image skip list. To change what counts as
+# doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` and `web/**` are
+# deliberately NOT skipped: they feed the headless tests (e.g. the en/de locale-parity test).
+name: Detect doc-only changes
+
+on:
+  workflow_call:
+    outputs:
+      nondocs:
+        description: "true if the PR diff contains any non-doc, non-image file"
+        value: ${{ jobs.detect.outputs.nondocs }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      nondocs: ${{ steps.detect.outputs.nondocs }}
+    steps:
+      # Lists the PR's changed files via the API (no checkout needed) and sets nondocs=true if ANY file
+      # is neither documentation nor an image. (Explicit case match rather than dorny/paths-filter, whose
+      # `some` glob semantics made a `**/*` + `!doc` list always true.)
+      - name: Detect non-doc changes
+        id: detect
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')"
+          nondocs=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              # Documentation
+              *.md|docs/*|LICENSE*|NOTICES*|THIRD-PARTY*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
+              # Images (screenshots, textures, icons) — none affect the .NET tests, ruff, web-js,
+              # actionlint or CodeQL analysis, so an image-only change is safe to skip everywhere.
+              *.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.svg|*.ico) ;;
+              *) nondocs=true; break ;;
+            esac
+          done <<< "$files"
+          echo "nondocs=$nondocs" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs"

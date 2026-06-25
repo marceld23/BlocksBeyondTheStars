@@ -14,13 +14,13 @@
 # the PR, even though the local build keeps TreatWarningsAsErrors=false (Directory.Build.props) for a
 # friction-free dev loop. The tree currently builds clean (0 warnings), so this only guards regressions.
 #
-# REQUIRED-CHECK SAFE docs-only skip: rather than skipping the whole workflow with paths-ignore (which
-# would leave a *required* check stuck on "Expected — Waiting for status" for a docs-only PR), the
-# workflow always runs and a `changes` job decides whether the heavy `build-test` job runs. On a
-# docs-only PR `build-test` is skipped via its `if:`, and GitHub counts a skipped required job as a pass —
-# so the `Build + test (.NET, headless)` check still reports green and never blocks a docs PR. Any
-# code/content file in the diff makes it run for real. `data/**` and `web/**` count as code (they feed
-# tests, e.g. the en/de locale-parity test), so they are NOT in the doc-only exclusions below.
+# REQUIRED-CHECK SAFE doc/screenshot-only skip: rather than skipping the whole workflow with paths-ignore
+# (which would leave a *required* check stuck on "Expected — Waiting for status" for a docs-only PR), the
+# workflow always runs and a `changes` job decides whether the heavy `build-test`/`format` jobs run. On a
+# doc- or image-only PR they are skipped via their `if:`, and GitHub counts a skipped required job as a
+# pass — so the `Build + test (.NET, headless)` check still reports green and never blocks the PR. Any
+# code/content file in the diff makes them run for real. The doc/image skip list lives in the shared
+# reusable workflow .github/workflows/detect-doc-only.yml (also used by lint.yml and codeql.yml).
 
 name: CI
 
@@ -38,37 +38,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Decides whether the PR diff contains anything other than documentation. Only meaningful for PRs;
-  # direct pushes to main always build (see build-test's `if:`), so the detection step is PR-only.
+  # Decides whether the PR diff contains anything other than documentation or images. Always runs (no
+  # job-level `if:`) so that on a push to main it succeeds and the downstream `needs: changes` is met;
+  # the detection itself is PR-only (see the reusable workflow). `nondocs` is consumed by build-test/format.
   changes:
-    name: Detect code changes
-    runs-on: ubuntu-latest
-    outputs:
-      nondocs: ${{ steps.detect.outputs.nondocs }}
-    steps:
-      # Lists the PR's changed files via the API (no checkout needed) and sets nondocs=true if ANY file is
-      # not documentation. Doc-only PRs (Markdown, docs/**, licences, issue/PR templates) leave it false, so
-      # build-test/format skip and — a skipped required job counting as a pass — never block a docs PR.
-      # data/** and web/** are treated as code (they feed tests, e.g. the en/de locale-parity test).
-      # (Done with an explicit case match rather than dorny/paths-filter, whose `some` glob semantics made a
-      # `**/*` + `!doc` list always true.)
-      - name: Detect non-doc changes
-        id: detect
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')"
-          nondocs=false
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            case "$f" in
-              *.md|docs/*|LICENSE*|NOTICES*|THIRD-PARTY*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
-              *) nondocs=true; break ;;
-            esac
-          done <<< "$files"
-          echo "nondocs=$nondocs" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs"
+    uses: ./.github/workflows/detect-doc-only.yml
 
   build-test:
     name: Build + test (.NET, headless)

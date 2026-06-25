@@ -4,6 +4,14 @@
 # security_events scope, while the workflow's built-in GITHUB_TOKEN already has `security-events: write` — no
 # extra credentials. Findings land in the repo's Security → Code scanning tab (and enable Copilot Autofix).
 #
+# Doc/screenshot-only PRs skip the whole analysis via the shared detect-doc-only reusable workflow. Unlike
+# ci.yml/lint.yml — whose required checks are job names, where a skipped job counts as a pass — the required
+# "CodeQL" check is posted by the code-scanning service after SARIF upload, NOT by this job. So skipping the
+# job would leave a *required* "CodeQL" check stuck on "Expected — Waiting for status". For that reason
+# "CodeQL" has been REMOVED from main's required status checks; it still runs on every push to main and on
+# the weekly schedule, so the default branch stays fully scanned. (Re-add it as required only if this gate
+# is reverted.)
+#
 # C# is analysed in MANUAL build mode: it compiles BlocksBeyondTheStars.CI.slnf (every .NET project except the
 # Windows-only Launcher) so CodeQL gets full type/call resolution. Manual mode extracts only what the compiler
 # compiles, so the Unity client C# under client/Assets/ — which needs the Unity editor and isn't in any .csproj
@@ -29,8 +37,17 @@ permissions:
   contents: read
 
 jobs:
+  # Shared doc/image detection (see .github/workflows/detect-doc-only.yml). Always runs so pushes/schedule
+  # succeed; `nondocs` gates analyze so a doc- or image-only PR skips scanning entirely.
+  changes:
+    uses: ./.github/workflows/detect-doc-only.yml
+
   analyze:
     name: CodeQL (${{ matrix.language }})
+    needs: changes
+    # Run on every push to main and on the weekly schedule; for a PR, only when a non-doc/non-image file
+    # changed. Doc/screenshot-only PRs skip — safe because "CodeQL" is no longer a required check (see header).
+    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
     permissions:
       security-events: write
