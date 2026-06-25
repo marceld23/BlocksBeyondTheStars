@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Merge an item+recipe export bundle (from the in-game Item & Recipe editor) into the game data.
 
 The editor writes a bundle to <persistentDataPath>/content_exports/<key>/content.json. This tool folds

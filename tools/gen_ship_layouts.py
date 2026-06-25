@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate real voxel ship layouts (data/ship_layouts/<key>.json) for each ship type.
 
 Each layout is a complete design: a hollow hull box (floor + walls + roof), a rear airlock door, front

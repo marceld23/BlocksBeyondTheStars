@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Bake an alpha-cutout mask into the bundled foliage block tiles (B6 — transparent leaves).
 
 The block atlas is already RGBA32 and preserves a tile's alpha, but the foliage tiles ship fully

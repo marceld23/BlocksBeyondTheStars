@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate avatar / gear textures via the OpenAI image API — seamless 64px pixel-art tiles that are
 mostly **grayscale so they tint** (the avatar multiplies them by each part's colour, so the player's
 chosen / NPC colours still come through). Mirrors gen_textures.py: one API call per texture, resumable

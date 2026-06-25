@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Bundle the fire + ash block tiles (item 30). Fire gets a brightness-derived ALPHA so the flames show
 on transparent gaps (the black background → fully transparent) — it renders in the see-through, emissive
 submesh. Ash is a solid charred tile. Writes the raw 64x64 RGBA .bytes the client atlas loads."""

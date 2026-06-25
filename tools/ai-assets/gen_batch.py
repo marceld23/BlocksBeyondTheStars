@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate the full M26 sound-effect set from ElevenLabs in one approved batch.
 
 This is the *batch* counterpart to gen_sound.py (which stays one-file-per-run). It only runs when
