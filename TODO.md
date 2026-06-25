@@ -51,7 +51,7 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Relicense MIT → AGPL-3.0-or-later + Contributor License Agreement (2026-06-25) — ⏳ on branch `license/agpl-relicense-and-cla`, NOT merged
+### ★ Relicense MIT → AGPL-3.0-or-later + Contributor License Agreement (2026-06-25) — ✅ MERGED to main (PR #59)
 Stops third parties from commercializing the project (AGPL copyleft makes proprietary/console reuse worthless for them)
 while keeping the founders free to ship a proprietary Steam/Xbox build later (dual-licensing via an asymmetric CLA +
 deliberately permissive bundled assets/deps). **Forward-only** — earlier MIT releases stay MIT. Changes:
@@ -59,10 +59,22 @@ deliberately permissive bundled assets/deps). **Forward-only** — earlier MIT r
 - **Per-file SPDX headers** stamped on **423** source files (`src` 157, `tests` 113, `client/Assets` 131, `ai-backend` 2, `tools` 20)
   via an idempotent stamper (`SPDX-License-Identifier: AGPL-3.0-or-later`); third-party/vendored/generated files excluded.
 - **CLA** (`docs/legal/CLA.md`, Harmony HA-CLA-I with relicense grant) + a rewritten `CONTRIBUTING.md` licensing section that
-  states the asymmetry openly (the Steam/Xbox "why") and the public guarantee; signed one-click via **CLAassistant.io** (GitHub-side setup still TODO by owner).
+  states the asymmetry openly (the Steam/Xbox "why") and the public guarantee; signed one-click via **CLAassistant.io** (active + owner signed; gates all PRs).
 - Wording updates: `README.md` (new License section + guarantee), `NOTICES.md` (now AGPL; asset policy kept permissive on purpose),
   `CLIENT_SHELL_AND_ASSETS.md`, installer labels (`publish-client-installer.ps1`), in-game Credits (`ui.credits.body` EN+DE: AGPL + source link).
 - **Open:** lawyer review of the AGPL header + Harmony CLA options before the first AGPL release; trademark of name/logo is a separate lever.
+
+### ★ Runtime-quality roadmap: client perf (A) + netcode (B) + input remapping (C) (2026-06-25) — ✅ MERGED to main (PR #60)
+The remaining independent streams from the 2026-06-24 "modern game dev" gap analysis, bundled into one PR:
+- **A — Client performance** (`perf/client-meshing`): A1 analytic face normals + fixed chunk bounds (drops
+  `RecalculateNormals`/`RecalculateBounds`), A2 off-thread chunk geometry, A3 chunk-mesh reuse, A4 distance culling.
+- **B — Netcode** (`netcode/presence-aoi` + `netcode/remote-interpolation`): Tier1a server presence Area-of-Interest
+  (replaces the O(N²) broadcast); Tier1b client snapshot interpolation (`RemoteEntityInterpolator`). Both .NET-tested.
+- **C — Input** (`input/remapping`): `InputMap` service + rebind UI; all rebindable gameplay input migrated off
+  hardcoded `Input.GetKey` (on-foot / Flight·EVA / Vehicle·Trade), en/de locale.
+- **Deferred:** A5 greedy meshing (per-cell flood-fill light blocks it); B Tier2 reconciliation (would need server
+  physics — violates the lightweight-server rule); C "Weg B" (Input System / gamepad). A+C are Unity-side (a local
+  Unity build + playtest is the final check beyond the .NET CI).
 
 ### ★ Remove vestigial "block placer" item (2026-06-25) — ✅ code done + 717 tests green, NOT committed
 Tester asked why the Block Placer exists when blocks are placed directly (select a block item → right-click). It's
@@ -1292,7 +1304,7 @@ Q4 base core craftable from the start.
   Networking DLL types + the `base_core` texture/.meta, then verify in-game (found a base, rename via E + Map, board a
   visited station from the menu).
 
-### ★ In-game Wiki (Codex) + data-cube Arcade minigames (embedded browser) — ✅ IMPLEMENTED (2026-06-13, browser pending manual UWB install)
+### ★ In-game Wiki (Codex) + data-cube Arcade minigames — ✅ IMPLEMENTED (2026-06-13) → ✅ REWRITTEN NATIVE, UWB removed (PR #58, 2026-06-25)
 **Goal:** play small bundled HTML5/JS minigames in-game, and read an in-game wiki — both rendered by an
 embedded browser. Minigames are found as "data cubes" on planets (download → personal collection); the wiki
 shows general content always but gates Systems/Worlds to the player's discoveries. Highscores local-only,
@@ -1316,8 +1328,14 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
 - **Reward:** finishing a fragment grants knowledge points (server, rating-scaled, repeatable, NetCodec 121
   `MinigameResultIntent`). Menu point is **DataQubes** (framed as recovering data fragments, not "games").
   A Creative world's "unlock all" also recovers every fragment for testing.
-- **Pending manual step:** install UnityWebBrowser + set the `BBS_UWB` define (see the doc). Until then the
-  browser shows a placeholder; everything else (cubes, downloads, collection, highscores) already works.
+- **✅ Native rewrite (PR #58, 2026-06-25) — UWB/CEF removed (unblocks Linux/macOS):** the Wiki and Arcade no
+  longer use the embedded browser. Wiki = native uGUI (`WikiUI` + `WikiMarkup` HTML→uGUI converter). Arcade = a
+  pure C# engine in `Client.Core/Minigames` (`Canvas2D` raster + 5×7 `BitmapFont`, `MinigameHost`/`MinigameApi`
+  framework, all **20 games ported** to C#, `MinigameRegistry` in catalog order) hosted by `MinigameHostUI`
+  (RawImage ← Canvas2D). `EmbeddedBrowser.cs`/`LocalContentServer.cs` + the `dev.voltstro.unitywebbrowser*`
+  packages + the `BBS_UWB` define are gone; `BuildScript.BuildLinux` added. 80 headless tests; Windows build
+  green; playtested. **Remaining:** Linux/macOS CI packaging (release.yml jobs, linux-x64 server bundle,
+  non-launcher packaging, macOS runner + notarization).
 
 ## ▶ Open backlog — priority order (updated 2026-06-07)
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
