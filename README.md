@@ -95,7 +95,7 @@ and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to on
 
 Blocks Beyond the Stars is a free in-development game. Bugs, missing content and compatibility issues are expected. Multiplayer and server behavior may change between versions.
 
-The software is provided as-is under the terms of the license included in this repository.
+The software is provided as-is under the terms of the [license](#-license) included in this repository.
 
 ## System requirements
 
@@ -287,3 +287,19 @@ Currently 584 xUnit tests pass.
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
 for contributor rules.
+
+## 📜 License
+
+Blocks Beyond the Stars is **free and open-source software**, licensed under the
+**[GNU Affero General Public License v3.0 or later](LICENSE)** (AGPL-3.0-or-later).
+You may run, study, share and modify it; if you run a modified version for others over a
+network, the AGPL requires you to offer them its source code.
+
+Third-party libraries and bundled assets keep their own (permissive) licenses — see
+[NOTICES.md](NOTICES.md).
+
+**Our promise to the community:** we guarantee the GitHub version always stays free,
+AGPL-licensed and current. We (the founders) may additionally license the code commercially
+**only** for closed console networks (e.g. Steam / Xbox / console certification), which cannot
+ship a pure AGPL build — never to take the open version away. This is why code contributions are
+made under a Contributor License Agreement; see **[CONTRIBUTING.md](CONTRIBUTING.md)**.

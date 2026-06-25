@@ -66,9 +66,30 @@ These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please ski
 - **Update [TODO.md](TODO.md)** — it is the single Done/Open status doc — when your change
   affects it, and update any doc in `docs/` that your change makes stale.
 
+## Licensing & the Contributor License Agreement (CLA)
+
+**Why this exists — the honest version.** Blocks Beyond The Stars is a father-and-son
+project. Our dream is to one day see it on **Steam and consoles (Xbox)**. Closed platforms
+like Xbox **cannot ship a pure AGPL build**, so we need the right to also license the code
+commercially for those specific platforms. The CLA is what lets Justus's console dream come
+true — while the public version stays free and open forever.
+
+**Our promise to the community.** We guarantee the GitHub version always stays **free,
+AGPL-licensed and current**. The proprietary license is used **only** for the closed console
+networks (Xbox / console certification), **never** to take the open version away.
+
+**What that means for your contribution.** The project is licensed under the
+**[GNU AGPL-3.0-or-later](LICENSE)**, and your contributions are accepted under that license
+too (inbound = outbound). In addition, by contributing you agree to our
+**[Contributor License Agreement](docs/legal/CLA.md)**, which grants us the right to also
+relicense the code commercially for the closed platforms described above. This asymmetry is
+deliberate and stated openly — it is the only way a copyleft open-source game can also reach
+consoles.
+
+**How signing works.** It's one click. The first time you open a pull request, the
+**CLAassistant** bot comments with a link; you sign in with your GitHub account, accept, and
+your PR is unblocked. No paperwork, no email.
+
 ## Questions
 
 Not sure where to start, or whether an idea fits? Open an issue and ask — we are happy to help.
-
-By contributing, you agree that your contributions are licensed under the project's
-[MIT License](LICENSE).

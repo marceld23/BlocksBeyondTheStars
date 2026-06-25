@@ -1,6 +1,7 @@
 # NOTICES
 
-Blocks Beyond the Stars is licensed under the MIT License (see `LICENSE`). This file records attribution
+Blocks Beyond the Stars is licensed under the GNU Affero General Public License v3.0 or later
+(AGPL-3.0-or-later — see `LICENSE`). This file records attribution
 for third-party software and assets bundled with the project. Add every new dependency or
 asset here **with its licence** before bundling it.
 
@@ -70,9 +71,12 @@ When real assets are added, list each here as:
 - <asset path> — <source/author> — <licence> — <link>
 ```
 
-Only permissive licences compatible with MIT (e.g. CC0, CC-BY with attribution, OFL for
-fonts) are accepted. Copyleft (e.g. CC-BY-SA for code-coupled assets) and non-commercial
-(CC-*-NC) assets are **not** bundled.
+Only **permissive** licences (e.g. CC0, CC-BY with attribution, OFL for fonts) are accepted.
+Copyleft (e.g. CC-BY-SA for code-coupled assets) and non-commercial (CC-*-NC) assets are
+**not** bundled. Note this stays deliberately permissive even though the project code is now
+AGPL-3.0: every bundled asset and library must remain permissive or owned so the founders can
+also ship the closed-platform (console) build — see the licensing note in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Third-party libraries
 

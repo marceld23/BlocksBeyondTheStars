@@ -127,7 +127,8 @@ bundled no art/audio — runtime-generated placeholders only.) **Superseded:** `
 lists the bundled assets — AI-generated sound effects/music (ElevenLabs, Suno), AI-generated
 UI/item/block/avatar textures (OpenAI image API), and the Rajdhani UI font (SIL OFL 1.1).
 Every new asset must be added there with its licence before bundling; copyleft/NC-only assets
-are rejected for this MIT-licensed project (consistent with the licence choice).
+are rejected. The project code is AGPL-3.0-or-later, but bundled assets are kept deliberately
+permissive (or owned) so the founders can also ship the closed-platform console build.
 
 ## What ships in M20
 

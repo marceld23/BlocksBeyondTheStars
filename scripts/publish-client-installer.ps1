@@ -17,7 +17,7 @@
   BlocksBeyondTheStars.Api at /updates. Use -ServeDir to copy the feed straight into a server install so
   the API serves it (its /download button hands out the Setup.exe; /updates is the feed).
 
-  -Msi additionally builds a machine-wide MSI: a classic Windows Installer wizard (Welcome → MIT license
+  -Msi additionally builds a machine-wide MSI: a classic Windows Installer wizard (Welcome → AGPL license
   → install scope → progress → finish) with clean default WiX dialogs and the game icon as the only
   branding. It installs per-user without admin by default but also offers a machine-wide scope (UAC).
   The MSI adds the WiX toolset acquisition + ~2-3 min to the pack; leave it off for routine dev builds.
@@ -40,7 +40,7 @@
   Optional server install dir; the installer + feed are copied to <ServeDir>/clients so the API serves them.
 
 .PARAMETER Msi
-  Also build a machine-wide MSI (full WiX wizard) alongside the Setup.exe. Shows the MIT LICENSE on the
+  Also build a machine-wide MSI (full WiX wizard) alongside the Setup.exe. Shows the AGPL LICENSE on the
   license page and uses game-art banner/dialog bitmaps + the game icon.
 
 .EXAMPLE
@@ -54,7 +54,7 @@ param(
     [string] $OutputDir = 'artifacts/installer',
     [string] $ServeDir = '',
     [string] $Channel = 'win',
-    [switch] $Msi      # also build a machine-wide MSI (full WiX wizard with the MIT license + game art)
+    [switch] $Msi      # also build a machine-wide MSI (full WiX wizard with the AGPL license + game art)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,9 +132,9 @@ if ($Msi) {
     # like "-dev" so a dev build still produces a valid MSI.
     $msiVersion = ($Version -split '-')[0]
 
-    # The MIT license shown on the wizard's License page. Velopack requires the file to end in .txt/.md/.rtf,
+    # The AGPL license shown on the wizard's License page. Velopack requires the file to end in .txt/.md/.rtf,
     # but the repo LICENSE has no extension — copy it to a .txt next to the other build artifacts (.txt keeps
-    # the MIT text verbatim; .md would reflow it).
+    # the AGPL text verbatim; .md would reflow it).
     $licenseSrc = Join-Path $repo 'LICENSE'
     if (-not (Test-Path $licenseSrc)) { Write-Error "LICENSE not found at '$licenseSrc' (needed for the MSI license page)." }
     $licensePath = Join-Path $repo 'artifacts/LICENSE.txt'
@@ -145,7 +145,7 @@ if ($Msi) {
         '--msiVersion', $msiVersion,
         '--instLicense', $licensePath
     )
-    Write-Host "MSI will be built (version $msiVersion, MIT license page, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
+    Write-Host "MSI will be built (version $msiVersion, AGPL license page, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
 }
 
 # Attribution: copy the project LICENSE + the third-party NOTICES into the player folder so every pack

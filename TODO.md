@@ -51,6 +51,19 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Relicense MIT → AGPL-3.0-or-later + Contributor License Agreement (2026-06-25) — ⏳ on branch `license/agpl-relicense-and-cla`, NOT merged
+Stops third parties from commercializing the project (AGPL copyleft makes proprietary/console reuse worthless for them)
+while keeping the founders free to ship a proprietary Steam/Xbox build later (dual-licensing via an asymmetric CLA +
+deliberately permissive bundled assets/deps). **Forward-only** — earlier MIT releases stay MIT. Changes:
+- `LICENSE` → verbatim **GNU AGPL-3.0** (official FSF text); attribution lives in per-file headers + README, not in the license body.
+- **Per-file SPDX headers** stamped on **423** source files (`src` 157, `tests` 113, `client/Assets` 131, `ai-backend` 2, `tools` 20)
+  via an idempotent stamper (`SPDX-License-Identifier: AGPL-3.0-or-later`); third-party/vendored/generated files excluded.
+- **CLA** (`docs/legal/CLA.md`, Harmony HA-CLA-I with relicense grant) + a rewritten `CONTRIBUTING.md` licensing section that
+  states the asymmetry openly (the Steam/Xbox "why") and the public guarantee; signed one-click via **CLAassistant.io** (GitHub-side setup still TODO by owner).
+- Wording updates: `README.md` (new License section + guarantee), `NOTICES.md` (now AGPL; asset policy kept permissive on purpose),
+  `CLIENT_SHELL_AND_ASSETS.md`, installer labels (`publish-client-installer.ps1`), in-game Credits (`ui.credits.body` EN+DE: AGPL + source link).
+- **Open:** lawyer review of the AGPL header + Harmony CLA options before the first AGPL release; trademark of name/logo is a separate lever.
+
 ### ★ Remove vestigial "block placer" item (2026-06-25) — ✅ code done + 717 tests green, NOT committed
 Tester asked why the Block Placer exists when blocks are placed directly (select a block item → right-click). It's
 dead: `ToolKind.BlockPlacer` is never branched on anywhere, and the item has no `placesBlock`, so holding it does
