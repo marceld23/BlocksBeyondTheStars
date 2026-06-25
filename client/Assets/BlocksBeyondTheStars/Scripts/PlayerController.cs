@@ -1258,7 +1258,7 @@ namespace BlocksBeyondTheStars.Client
 
             float throttle = Input.GetAxis("Vertical");   // W = +1, S = -1 (brake / reverse)
             float steer = Input.GetAxis("Horizontal");    // A = -1, D = +1
-            bool boosting = Input.GetKey(KeyCode.LeftShift) && !outOfFuel && throttle > 0.1f;
+            bool boosting = InputMap.Held(InputAction.SpeederBoost) && !outOfFuel && throttle > 0.1f;
 
             // Steering scales with speed (no pirouetting while parked).
             float speedFrac = Mathf.Clamp01(Mathf.Abs(_speederSpeed) / SpeederMaxSpeed);
@@ -1305,11 +1305,11 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.SpeederTick(speedFrac, boosting);
             Game.SpeederSpeed = _speederSpeed; // publish for the vehicle HUD speed readout
 
-            if (Input.GetKeyDown(KeyCode.F))
+            if (InputMap.Down(InputAction.SpeederExit))
             {
                 Game.Network?.SendExitSpeeder();
             }
-            else if (Input.GetKeyDown(KeyCode.R))
+            else if (InputMap.Down(InputAction.SpeederRefuel))
             {
                 Game.Network?.SendRefuelSpeeder(Game.InSpeeder);
             }

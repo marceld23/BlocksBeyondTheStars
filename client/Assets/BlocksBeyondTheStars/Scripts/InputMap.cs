@@ -18,6 +18,21 @@ namespace BlocksBeyondTheStars.Client
         DepositToCrate,    // deposit into the nearest storage crate — default H
         RepairWreck,       // repair the nearest wreck cell (on foot) — default R
         ToggleLamp,        // toggle the suit lamp — default L
+
+        // Flight / EVA (cockpit + spacewalk). Interact (dock/land/board) and ToggleThirdPerson (view) are
+        // reused from the on-foot set so one binding works in both contexts.
+        FlightEnterInterior,  // leave the helm and walk the ship interior — default F
+        FlightPadChooser,     // open the landing-pad chooser for your launch body — default L
+        FlightAutopilot,      // toggle VEGA autopilot — default P
+        EvaDeployStation,     // deploy a station core during EVA — default B
+
+        // Vehicle (speeder) + multiplayer dock/trade
+        SpeederBoost,         // hold to boost the speeder — default LeftShift
+        SpeederExit,          // dismount the speeder — default F
+        SpeederRefuel,        // refuel the speeder — default R
+        Disembark,            // leave a boarded station / undock — default U
+        RequestTrade,         // request a trade with a nearby player — default T
+        RequestDock,          // request to dock with a nearby player — default K
     }
 
     /// <summary>
@@ -31,12 +46,26 @@ namespace BlocksBeyondTheStars.Client
     {
         private static ClientSettings _settings;
 
-        /// <summary>The actions exposed in the controls-rebinding UI, in display order.</summary>
+        /// <summary>On-foot actions exposed in the controls-rebinding UI, in display order.</summary>
         public static readonly InputAction[] Remappable =
         {
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp,
+        };
+
+        /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
+        public static readonly InputAction[] FlightRemappable =
+        {
+            InputAction.FlightEnterInterior, InputAction.FlightPadChooser,
+            InputAction.FlightAutopilot, InputAction.EvaDeployStation,
+        };
+
+        /// <summary>Vehicle (speeder) + dock/trade actions exposed as a third rebinding group.</summary>
+        public static readonly InputAction[] VehicleRemappable =
+        {
+            InputAction.SpeederBoost, InputAction.SpeederExit, InputAction.SpeederRefuel,
+            InputAction.Disembark, InputAction.RequestTrade, InputAction.RequestDock,
         };
 
         /// <summary>Points the map at the active settings (called once after <c>ClientSettings.Load()</c>).</summary>
@@ -53,6 +82,16 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => KeyCode.H,
             InputAction.RepairWreck => KeyCode.R,
             InputAction.ToggleLamp => KeyCode.L,
+            InputAction.FlightEnterInterior => KeyCode.F,
+            InputAction.FlightPadChooser => KeyCode.L,
+            InputAction.FlightAutopilot => KeyCode.P,
+            InputAction.EvaDeployStation => KeyCode.B,
+            InputAction.SpeederBoost => KeyCode.LeftShift,
+            InputAction.SpeederExit => KeyCode.F,
+            InputAction.SpeederRefuel => KeyCode.R,
+            InputAction.Disembark => KeyCode.U,
+            InputAction.RequestTrade => KeyCode.T,
+            InputAction.RequestDock => KeyCode.K,
             _ => KeyCode.None,
         };
 

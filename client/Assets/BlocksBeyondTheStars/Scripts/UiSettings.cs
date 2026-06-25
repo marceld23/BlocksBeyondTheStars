@@ -123,6 +123,18 @@ namespace BlocksBeyondTheStars.Client
                 KeyRow(ref y, action);
             }
 
+            Head(ref y, L("ui.settings.controls_flight"));
+            foreach (var action in InputMap.FlightRemappable)
+            {
+                KeyRow(ref y, action);
+            }
+
+            Head(ref y, L("ui.settings.controls_vehicle"));
+            foreach (var action in InputMap.VehicleRemappable)
+            {
+                KeyRow(ref y, action);
+            }
+
             UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
                 () => { S.KeyBindings.Clear(); S.Save(); _rebinding = null; Rebuild(); });
             y += 52f;
@@ -264,6 +276,16 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => "ui.key.deposit_to_crate",
             InputAction.RepairWreck => "ui.key.repair_wreck",
             InputAction.ToggleLamp => "ui.key.toggle_lamp",
+            InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
+            InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
+            InputAction.FlightAutopilot => "ui.key.flight_autopilot",
+            InputAction.EvaDeployStation => "ui.key.eva_deploy_station",
+            InputAction.SpeederBoost => "ui.key.speeder_boost",
+            InputAction.SpeederExit => "ui.key.speeder_exit",
+            InputAction.SpeederRefuel => "ui.key.speeder_refuel",
+            InputAction.Disembark => "ui.key.disembark",
+            InputAction.RequestTrade => "ui.key.request_trade",
+            InputAction.RequestDock => "ui.key.request_dock",
             _ => string.Empty,
         };
 
