@@ -56,12 +56,16 @@ client/Assets/Plugins.meta
 client/Assets/StreamingAssets/
 client/Assets/StreamingAssets.meta
 
-# Build-script scratch logs + markers (scripts/_*.log, scripts/_lastbuild.txt, ...)
-scripts/_*.log
+# Build-script scratch logs + markers (scripts/*.log, scripts/_lastbuild.txt, ...). Broad *.log
+# match: build scripts emit many ad-hoc logs here (build-*.log, _lookbuild_*.log, ...); none are tracked.
+scripts/*.log
 scripts/_*.txt
 
 # Local build/capture run logs at the repo root (build-run*.log, capture-run*.log, ...)
 /*.log
+
+# Unity client build/capture logs (build-*.log, capture-run*.log, ...) — generated, never tracked.
+client/*.log
 
 # Local-only marketing scratch (website copy drafts etc.); screenshots live under docs/screenshots/
 /marketing/
