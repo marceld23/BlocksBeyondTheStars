@@ -1,6 +1,9 @@
 # Lightweight per-language syntax/lint checks for the non-.NET parts of the repo. The C# side is covered by
 # ci.yml (build with -warnaserror + dotnet format) and codeql.yml; this fills the gaps: Python, web JS, and
-# the workflow YAML itself. Each job is independent and fast (seconds), so they all run on every PR/push.
+# the workflow YAML itself. Each job is independent and fast (seconds).
+#
+# Doc/screenshot-only PRs skip all three jobs via the shared detect-doc-only reusable workflow (same
+# required-check-safe pattern as ci.yml: a skipped required job counts as a pass). Pushes to main always run.
 
 name: Lint
 
@@ -13,10 +16,17 @@ permissions:
   contents: read
 
 jobs:
+  # Shared doc/image detection (see .github/workflows/detect-doc-only.yml). Always runs so pushes succeed;
+  # `nondocs` gates the lint jobs below so a doc- or image-only PR skips them.
+  changes:
+    uses: ./.github/workflows/detect-doc-only.yml
+
   # Python AI backend — ruff is both the linter and the syntax checker. Config (if any) is read from
   # ai-backend/pyproject.toml; today it runs ruff's default rule set, which the tree already passes.
   ruff:
     name: ruff (Python ai-backend)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -30,6 +40,8 @@ jobs:
   # an ESLint config or browser-global allowlist. (Inline <script> in the minigame HTML is not covered.)
   web-js:
     name: web JS syntax (node --check)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -52,6 +64,8 @@ jobs:
   # and does not flag shell style in the existing run: scripts. Pinned for reproducibility.
   actionlint:
     name: actionlint (workflows)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
