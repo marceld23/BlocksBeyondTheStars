@@ -23,6 +23,15 @@ Published GitHub Releases (tag = version single-source-of-truth; each tag push b
 trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
 Per-item detail lives in the dated work log below.
 
+- **v0.5.0** — 2026-06-26 — *visual overhaul, browser-free UI & runtime quality.* In-game post stack now live
+  (SMAA + SSAO + emissive glow), per-biome cinematic mood LUTs, GGX specular + roughness-aware reflections,
+  global brightness control, readable/reflective water + visible sky bodies (#50–#56); embedded browser
+  (UnityWebBrowser/CEF) removed — native Codex/Wiki + all 20 Arcade minigames on a native Canvas2D framework
+  (#58); remappable controls via InputMap across on-foot/UI/flight/EVA/vehicle/trade (#60); off-thread chunk
+  meshing + analytic normals + mesh reuse + far-chunk distance cull, plus presence-stream interest management
+  (AoI) + remote-player snapshot interpolation (#60); usable ship cargo hold — manual transfer, capacity,
+  stow/take-all, auto-stow-on-board toggle (#62); relicensed MIT → AGPL-3.0-or-later + Contributor License
+  Agreement (#59); regenerated marketing screenshots (#63); contributor invite + released-versions index (#48).
 - **v0.4.2** — 2026-06-23 — *early-game survivability + Linux/Proton perf.* Starter food + VEGA "eat" lesson,
   earlier/clearer hunger guidance (#46); `scrap_pistol` starter sidearm + weapon-range fix + 3D line-of-sight
   hiding (#45); VSync decoupled from the quality preset + frame-rate cap (Linux/Proton 30 fps fix, #47);
