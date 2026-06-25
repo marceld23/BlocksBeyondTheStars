@@ -126,6 +126,39 @@ public sealed class MultiplayerVisibilityTests : IDisposable
     }
 
     [Fact]
+    public void PlanetSurface_DistantPlayer_IsCulledFromPresence_ButNearPlayerIsNot()
+    {
+        // Interest management (AoI): a player far beyond the streamed view distance is not included in the
+        // presence stream (their avatar would be off in unloaded terrain anyway); once they come close, updates
+        // resume. Distance is measured straight UP (Y never wraps) so the assertion is independent of the
+        // world's circumference.
+        var transport = new RecordingTransport();
+        var server = NewServer("planet_aoi", transport);
+
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        alice.State.AboardShip = false;
+        bob.State.AboardShip = false;
+        alice.State.Position = new Vector3f(0, 64, 0);
+
+        // FAR: 400 blocks up is well past the area of interest → neither player is told about the other.
+        bob.State.Position = new Vector3f(0, 464, 0);
+        transport.Sent.Clear();
+        server.Tick(0.2);
+        Assert.DoesNotContain(transport.Sent,
+            x => x.Msg is PlayerPresence p && (p.PlayerId == "Bob" || p.PlayerId == "Alice"));
+
+        // NEAR: a few blocks apart → presence resumes both ways.
+        bob.State.Position = new Vector3f(3, 64, 2);
+        transport.Sent.Clear();
+        server.Tick(0.2);
+        Assert.Contains(transport.Sent,
+            x => x.Conn == alice.ConnectionId && x.Msg is PlayerPresence p && p.PlayerId == "Bob");
+        Assert.Contains(transport.Sent,
+            x => x.Conn == bob.ConnectionId && x.Msg is PlayerPresence p && p.PlayerId == "Alice");
+    }
+
+    [Fact]
     public void PlanetSurface_PlayersOnDifferentBodies_DoNotSeeEachOthersEdits()
     {
         // The flip side of world-scoped visibility: an edit on planet A must NOT reach a player on planet B.
