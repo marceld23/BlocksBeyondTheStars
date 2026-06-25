@@ -86,7 +86,9 @@ namespace BlocksBeyondTheStars.Client.EditorTools
 
             var report = BuildPipeline.BuildPlayer(options);
             var summary = report.summary;
-            Debug.Log($"BlocksBeyondTheStars build ({target}): {summary.result} → {summary.outputPath} ({summary.totalSize} bytes)");
+            // Keep the exact "BlocksBeyondTheStars build: <result>" prefix — scripts/build-client.ps1 greps for
+            // "build: Succeeded" as the authoritative success marker; the target goes in parens after it.
+            Debug.Log($"BlocksBeyondTheStars build: {summary.result} ({target}) → {summary.outputPath} ({summary.totalSize} bytes)");
 
             if (summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
             {
