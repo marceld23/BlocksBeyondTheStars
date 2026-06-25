@@ -19,6 +19,25 @@ namespace BlocksBeyondTheStars.Client.Minigames
 
         public static Rgba Rgb(int r, int g, int b) => new Rgba((byte)r, (byte)g, (byte)b);
 
+        /// <summary>An HSL colour (h in degrees 0..360, s/l in 0..1). Some web games coloured by <c>hsl(...)</c>
+        /// (e.g. the asteroid brick gradient) — this reproduces that without per-game maths.</summary>
+        public static Rgba Hsl(double h, double s, double l)
+        {
+            h = ((h % 360) + 360) % 360;
+            double c = (1 - System.Math.Abs(2 * l - 1)) * s;
+            double x = c * (1 - System.Math.Abs((h / 60.0 % 2) - 1));
+            double m = l - c / 2;
+            double r, g, b;
+            if (h < 60) { r = c; g = x; b = 0; }
+            else if (h < 120) { r = x; g = c; b = 0; }
+            else if (h < 180) { r = 0; g = c; b = x; }
+            else if (h < 240) { r = 0; g = x; b = c; }
+            else if (h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+
+            return new Rgba((byte)System.Math.Round((r + m) * 255), (byte)System.Math.Round((g + m) * 255), (byte)System.Math.Round((b + m) * 255));
+        }
+
         public static readonly Rgba Clear = new Rgba(0, 0, 0, 0);
         public static readonly Rgba Black = new Rgba(0, 0, 0);
         public static readonly Rgba White = new Rgba(255, 255, 255);
@@ -131,6 +150,127 @@ namespace BlocksBeyondTheStars.Client.Minigames
                 FillRect(cx - dx, cy + dy, dx * 2 + 1, 1, c);
             }
         }
+
+        /// <summary>Width in pixels that <see cref="DrawText"/> would occupy for <paramref name="text"/> at the
+        /// given scale (the trailing inter-char gap is included).</summary>
+        public static int TextWidth(string text, int scale = 1)
+            => string.IsNullOrEmpty(text) ? 0 : text.Length * BitmapFont.Advance * (scale < 1 ? 1 : scale);
+
+        /// <summary>Draw <paramref name="text"/> with the built-in 5×7 <see cref="BitmapFont"/>, top-left at
+        /// (<paramref name="x"/>,<paramref name="y"/>). The C# stand-in for the web games' <c>ctx.fillText</c>.</summary>
+        public void DrawText(int x, int y, string text, Rgba c, int scale = 1)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (scale < 1)
+            {
+                scale = 1;
+            }
+
+            int penX = x;
+            foreach (char ch in text)
+            {
+                if (BitmapFont.TryGet(ch, out var rows))
+                {
+                    for (int ry = 0; ry < BitmapFont.GlyphHeight; ry++)
+                    {
+                        byte bits = rows[ry];
+                        for (int rx = 0; rx < BitmapFont.GlyphWidth; rx++)
+                        {
+                            if ((bits & (1 << (BitmapFont.GlyphWidth - 1 - rx))) != 0)
+                            {
+                                FillRect(penX + rx * scale, y + ry * scale, scale, scale, c);
+                            }
+                        }
+                    }
+                }
+
+                penX += BitmapFont.Advance * scale;
+            }
+        }
+
+        /// <summary>Draw <paramref name="text"/> horizontally centred on <paramref name="cx"/> (top at
+        /// <paramref name="y"/>).</summary>
+        public void DrawTextCentered(int cx, int y, string text, Rgba c, int scale = 1)
+            => DrawText(cx - TextWidth(text, scale) / 2, y, text, c, scale);
+
+        /// <summary>A 1px circle outline (midpoint algorithm).</summary>
+        public void DrawCircle(int cx, int cy, int r, Rgba c)
+        {
+            if (r < 0)
+            {
+                return;
+            }
+
+            int x = r, y = 0, err = 1 - r;
+            while (x >= y)
+            {
+                SetPixel(cx + x, cy + y, c);
+                SetPixel(cx + y, cy + x, c);
+                SetPixel(cx - y, cy + x, c);
+                SetPixel(cx - x, cy + y, c);
+                SetPixel(cx - x, cy - y, c);
+                SetPixel(cx - y, cy - x, c);
+                SetPixel(cx + y, cy - x, c);
+                SetPixel(cx + x, cy - y, c);
+                y++;
+                if (err < 0)
+                {
+                    err += 2 * y + 1;
+                }
+                else
+                {
+                    x--;
+                    err += 2 * (y - x) + 1;
+                }
+            }
+        }
+
+        /// <summary>A filled triangle (scanline). Used for the ship/probe sprites the web games drew as a rotated
+        /// canvas path.</summary>
+        public void FillTriangle(int ax, int ay, int bx, int by, int cx, int cy, Rgba col)
+        {
+            int minY = System.Math.Max(0, Min3(ay, by, cy));
+            int maxY = System.Math.Min(Height - 1, Max3(ay, by, cy));
+            for (int y = minY; y <= maxY; y++)
+            {
+                // Intersect the scanline with each edge, collect crossing x's, fill between the extremes.
+                int? lo = null, hi = null;
+                EdgeX(ax, ay, bx, by, y, ref lo, ref hi);
+                EdgeX(bx, by, cx, cy, y, ref lo, ref hi);
+                EdgeX(cx, cy, ax, ay, y, ref lo, ref hi);
+                if (lo.HasValue && hi.HasValue)
+                {
+                    FillRect(lo.Value, y, hi.Value - lo.Value + 1, 1, col);
+                }
+            }
+        }
+
+        private static void EdgeX(int x0, int y0, int x1, int y1, int y, ref int? lo, ref int? hi)
+        {
+            if (y0 == y1 || y < System.Math.Min(y0, y1) || y > System.Math.Max(y0, y1))
+            {
+                return;
+            }
+
+            int x = x0 + (x1 - x0) * (y - y0) / (y1 - y0);
+            if (!lo.HasValue || x < lo.Value)
+            {
+                lo = x;
+            }
+
+            if (!hi.HasValue || x > hi.Value)
+            {
+                hi = x;
+            }
+        }
+
+        private static int Min3(int a, int b, int c) => System.Math.Min(a, System.Math.Min(b, c));
+
+        private static int Max3(int a, int b, int c) => System.Math.Max(a, System.Math.Max(b, c));
 
         /// <summary>A 1px line (Bresenham).</summary>
         public void DrawLine(int x0, int y0, int x1, int y1, Rgba c)
