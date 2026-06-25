@@ -18,6 +18,15 @@ namespace BlocksBeyondTheStars.Client
         public int Best;
     }
 
+    /// <summary>One remapped control, stored as a flat (action-name, KeyCode-name) pair so Unity's JsonUtility
+    /// can persist the bindings as a list (it can't serialize a Dictionary) — mirrors <see cref="MinigameScore"/>.</summary>
+    [Serializable]
+    public sealed class KeyBinding
+    {
+        public string Action = "";
+        public string Key = ""; // a UnityEngine.KeyCode name, e.g. "E"
+    }
+
     /// <summary>Graphics quality presets, including a Potato profile for weak / low-power machines.</summary>
     public enum QualityPreset { Potato, Low, Medium, High }
 
@@ -116,6 +125,11 @@ namespace BlocksBeyondTheStars.Client
         public bool VoiceInputEnabled = true;
         /// <summary>Push-to-talk key, stored as a <see cref="UnityEngine.KeyCode"/> name (default "V").</summary>
         public string PushToTalkKey = "V";
+
+        /// <summary>Remapped controls (Stream C): per-<see cref="InputAction"/> key overrides resolved by
+        /// <see cref="InputMap"/>. An action absent here uses its built-in default, so an empty list = stock
+        /// controls. Stored as a flat list so JsonUtility can persist it.</summary>
+        public List<KeyBinding> KeyBindings = new List<KeyBinding>();
         /// <summary>Optional named microphone device ("" = the system default).</summary>
         public string MicrophoneDevice = "";
         /// <summary>Player names the local player has muted (voice playback suppressed). Runtime-toggleable.</summary>
@@ -219,6 +233,41 @@ namespace BlocksBeyondTheStars.Client
             }
 
             MinigameScores.Add(new MinigameScore { Key = key, Best = score });
+            return true;
+        }
+
+        /// <summary>The bound KeyCode NAME for an input action (empty = the action uses its default key). String-
+        /// keyed so this stays decoupled from the <see cref="InputAction"/> enum; <see cref="InputMap"/> parses it.</summary>
+        public string BoundKeyName(string action)
+        {
+            if (string.IsNullOrEmpty(action) || KeyBindings == null) return "";
+            for (int i = 0; i < KeyBindings.Count; i++)
+            {
+                if (KeyBindings[i].Action == action) return KeyBindings[i].Key;
+            }
+
+            return "";
+        }
+
+        /// <summary>Sets (or, when <paramref name="keyName"/> is empty, clears) the binding for an action. Returns
+        /// true if anything changed (so the caller can Save).</summary>
+        public bool SetBoundKey(string action, string keyName)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            KeyBindings ??= new List<KeyBinding>();
+            for (int i = 0; i < KeyBindings.Count; i++)
+            {
+                if (KeyBindings[i].Action == action)
+                {
+                    if (KeyBindings[i].Key == keyName) return false;
+                    if (string.IsNullOrEmpty(keyName)) KeyBindings.RemoveAt(i);
+                    else KeyBindings[i].Key = keyName;
+                    return true;
+                }
+            }
+
+            if (string.IsNullOrEmpty(keyName)) return false;
+            KeyBindings.Add(new KeyBinding { Action = action, Key = keyName });
             return true;
         }
 

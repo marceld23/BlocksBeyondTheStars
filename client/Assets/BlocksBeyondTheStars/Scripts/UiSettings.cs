@@ -26,6 +26,7 @@ namespace BlocksBeyondTheStars.Client
         private Transform _root;        // the canvas (holds the dimmer + the fixed panel frame + the scroll area)
         private Transform _content;     // scroll content the rows live in (taller than the panel → it scrolls)
         private float _px, _pw, _x, _rowW;
+        private InputAction? _rebinding; // the control row currently capturing a new key (else null)
 
         public static GameObject Build(AppShell shell)
         {
@@ -117,6 +118,29 @@ namespace BlocksBeyondTheStars.Client
                 S.MouseSensitivity.ToString("0.0"));
             Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; Rebuild(); });
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; Rebuild(); });
+
+            // Rebindable key controls (Stream C): one row per remappable action; click to capture a new key.
+            Head(ref y, L("ui.settings.controls_keys"));
+            foreach (var action in InputMap.Remappable)
+            {
+                KeyRow(ref y, action);
+            }
+
+            Head(ref y, L("ui.settings.controls_flight"));
+            foreach (var action in InputMap.FlightRemappable)
+            {
+                KeyRow(ref y, action);
+            }
+
+            Head(ref y, L("ui.settings.controls_vehicle"));
+            foreach (var action in InputMap.VehicleRemappable)
+            {
+                KeyRow(ref y, action);
+            }
+
+            UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
+                () => { S.KeyBindings.Clear(); S.Save(); _rebinding = null; Rebuild(); });
+            y += 52f;
 
             Head(ref y, L("ui.settings.comfort"));
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
@@ -228,6 +252,79 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += 52f;
+        }
+
+        /// <summary>A control-rebind row: the action label + a button showing its current key. Clicking the
+        /// button arms capture (<see cref="Update"/> binds the next key pressed).</summary>
+        private void KeyRow(ref float y, InputAction action)
+        {
+            string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
+            UiKit.AddText(_content, _x, y, 240, 44, L(KeyLabel(action)), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var b = UiKit.AddButton(_content, _x + 250, y, _rowW - 250, 44, val, () => { _rebinding = action; Rebuild(); });
+            if (_rebinding == action)
+            {
+                b.GetComponent<Image>().color = UiKit.Cyan;
+            }
+
+            y += 52f;
+        }
+
+        private static string KeyLabel(InputAction action) => action switch
+        {
+            InputAction.Interact => "ui.key.interact",
+            InputAction.PrimaryFire => "ui.key.primary_fire",
+            InputAction.StowVehicle => "ui.key.stow_vehicle",
+            InputAction.ToggleThirdPerson => "ui.key.toggle_third_person",
+            InputAction.LootContainer => "ui.key.loot_container",
+            InputAction.DepositToCrate => "ui.key.deposit_to_crate",
+            InputAction.RepairWreck => "ui.key.repair_wreck",
+            InputAction.ToggleLamp => "ui.key.toggle_lamp",
+            InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
+            InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
+            InputAction.FlightAutopilot => "ui.key.flight_autopilot",
+            InputAction.EvaDeployStation => "ui.key.eva_deploy_station",
+            InputAction.SpeederBoost => "ui.key.speeder_boost",
+            InputAction.SpeederExit => "ui.key.speeder_exit",
+            InputAction.SpeederRefuel => "ui.key.speeder_refuel",
+            InputAction.Disembark => "ui.key.disembark",
+            InputAction.RequestTrade => "ui.key.request_trade",
+            InputAction.RequestDock => "ui.key.request_dock",
+            _ => string.Empty,
+        };
+
+        /// <summary>While a control row is capturing, bind the next key pressed (Escape cancels). Returns
+        /// immediately when not rebinding, so it costs nothing in normal use.</summary>
+        private void Update()
+        {
+            if (_rebinding is not { } action)
+            {
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                _rebinding = null;
+                Rebuild();
+                return;
+            }
+
+            foreach (KeyCode kc in System.Enum.GetValues(typeof(KeyCode)))
+            {
+                if (kc == KeyCode.None || kc == KeyCode.Escape || (kc >= KeyCode.Mouse0 && kc <= KeyCode.Mouse6))
+                {
+                    continue; // skip "no key", the cancel key and mouse buttons
+                }
+
+                if (Input.GetKeyDown(kc))
+                {
+                    // Store the override — or clear it when the chosen key is already this action's default.
+                    S.SetBoundKey(action.ToString(), kc == InputMap.DefaultKey(action) ? string.Empty : kc.ToString());
+                    S.Save();
+                    _rebinding = null;
+                    Rebuild();
+                    return;
+                }
+            }
         }
 
         private void Stepper(ref float y, string label, float frac01, float min, float max, System.Action minus, System.Action plus, string value)

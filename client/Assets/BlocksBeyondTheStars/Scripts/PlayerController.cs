@@ -267,17 +267,17 @@ namespace BlocksBeyondTheStars.Client
 
             // On foot: board a speeder you own that you're standing next to (E), or pack one up (X). Checked
             // before the generic E interact so boarding the speeder beside you wins.
-            if (Input.GetKeyDown(KeyCode.E) && TryBoardNearbySpeeder())
+            if (InputMap.Down(InputAction.Interact) && TryBoardNearbySpeeder())
             {
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.X) && TryStowNearbySpeeder())
+            if (InputMap.Down(InputAction.StowVehicle) && TryStowNearbySpeeder())
             {
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.V))
+            if (InputMap.Down(InputAction.ToggleThirdPerson))
             {
                 ThirdPerson = !ThirdPerson;
                 ApplyCameraMode();
@@ -285,28 +285,28 @@ namespace BlocksBeyondTheStars.Client
 
             RefreshHeldItem();
 
-            if (Input.GetKeyDown(KeyCode.F) && WeaponSwingReady())
+            if (InputMap.Down(InputAction.PrimaryFire) && WeaponSwingReady())
             {
                 AttackNearestEnemy();
                 TriggerSwing();
             }
 
-            if (Input.GetKeyDown(KeyCode.G))
+            if (InputMap.Down(InputAction.LootContainer))
             {
                 LootNearestContainer();
             }
 
-            if (Input.GetKeyDown(KeyCode.H))
+            if (InputMap.Down(InputAction.DepositToCrate))
             {
                 DepositToNearestCrate();
             }
 
-            if (Input.GetKeyDown(KeyCode.R))
+            if (InputMap.Down(InputAction.RepairWreck))
             {
                 RepairWreckCell();
             }
 
-            if (Input.GetKeyDown(KeyCode.L))
+            if (InputMap.Down(InputAction.ToggleLamp))
             {
                 _lampOn = !_lampOn;
                 ClientAudio.Instance?.Cue("lamp_toggle");
@@ -843,7 +843,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market
             }
 
-            if (!Input.GetKeyDown(KeyCode.E))
+            if (!InputMap.Down(InputAction.Interact))
             {
                 return;
             }
@@ -1261,7 +1261,7 @@ namespace BlocksBeyondTheStars.Client
 
             float throttle = Input.GetAxis("Vertical");   // W = +1, S = -1 (brake / reverse)
             float steer = Input.GetAxis("Horizontal");    // A = -1, D = +1
-            bool boosting = Input.GetKey(KeyCode.LeftShift) && !outOfFuel && throttle > 0.1f;
+            bool boosting = InputMap.Held(InputAction.SpeederBoost) && !outOfFuel && throttle > 0.1f;
 
             // Steering scales with speed (no pirouetting while parked).
             float speedFrac = Mathf.Clamp01(Mathf.Abs(_speederSpeed) / SpeederMaxSpeed);
@@ -1308,11 +1308,11 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.SpeederTick(speedFrac, boosting);
             Game.SpeederSpeed = _speederSpeed; // publish for the vehicle HUD speed readout
 
-            if (Input.GetKeyDown(KeyCode.F))
+            if (InputMap.Down(InputAction.SpeederExit))
             {
                 Game.Network?.SendExitSpeeder();
             }
-            else if (Input.GetKeyDown(KeyCode.R))
+            else if (InputMap.Down(InputAction.SpeederRefuel))
             {
                 Game.Network?.SendRefuelSpeeder(Game.InSpeeder);
             }
