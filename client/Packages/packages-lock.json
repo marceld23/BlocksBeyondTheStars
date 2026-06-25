@@ -49,13 +49,6 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
-    "com.unity.nuget.newtonsoft-json": {
-      "version": "3.2.2",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
     "com.unity.render-pipelines.core": {
       "version": "17.4.0",
       "depth": 1,
@@ -131,50 +124,6 @@
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
       }
-    },
-    "dev.voltstro.nativearrayspanextensions": {
-      "version": "1.0.1",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://upm-pkgs.voltstro.dev"
-    },
-    "dev.voltstro.unitywebbrowser": {
-      "version": "2.2.8",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "dev.voltstro.nativearrayspanextensions": "1.0.1",
-        "com.unity.nuget.newtonsoft-json": "3.2.1",
-        "com.cysharp.unitask": "2.5.10",
-        "org.nuget.voltrpc": "3.2.1"
-      },
-      "url": "https://upm-pkgs.voltstro.dev"
-    },
-    "dev.voltstro.unitywebbrowser.engine.cef": {
-      "version": "2.2.8",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "dev.voltstro.unitywebbrowser": "2.2.8"
-      },
-      "url": "https://upm-pkgs.voltstro.dev"
-    },
-    "dev.voltstro.unitywebbrowser.engine.cef.win.x64": {
-      "version": "2.2.8",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "dev.voltstro.unitywebbrowser.engine.cef": "2.2.8"
-      },
-      "url": "https://upm-pkgs.voltstro.dev"
-    },
-    "org.nuget.voltrpc": {
-      "version": "3.2.1",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://upm-pkgs.voltstro.dev"
     },
     "com.unity.modules.audio": {
       "version": "1.0.0",

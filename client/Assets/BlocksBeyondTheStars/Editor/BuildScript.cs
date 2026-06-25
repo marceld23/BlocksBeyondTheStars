@@ -13,7 +13,7 @@ using UnityEngine.Rendering.Universal;
 namespace BlocksBeyondTheStars.Client.EditorTools
 {
     /// <summary>
-    /// Builds the Windows player (M28). The launcher scene is normally created at runtime, so
+    /// Builds the standalone player (Windows or Linux). The launcher scene is normally created at runtime, so
     /// this first generates and saves a minimal scene containing a single <see cref="AppShell"/>
     /// GameObject, registers it in the build settings, then builds. Run from the editor menu
     /// (BlocksBeyondTheStars → Build Windows Player) or headless via <c>scripts/build-client.ps1</c>.
@@ -49,6 +49,17 @@ namespace BlocksBeyondTheStars.Client.EditorTools
 
         [MenuItem("BlocksBeyondTheStars/Build Windows Player")]
         public static void BuildWindows()
+            => BuildPlayerFor(BuildTarget.StandaloneWindows64, "BlocksBeyondTheStars.exe", "Build/Windows");
+
+        /// <summary>Builds the Linux player (StandaloneLinux64). Now that UWB/CEF (Windows-only) is gone the client
+        /// builds on Linux too; the remaining piece is the CI/packaging side (a linux-x64 bundled server, no
+        /// WinForms launcher, tar/AppImage packaging). Headless: same path with
+        /// <c>-buildMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildLinux -buildOut &lt;dir&gt;</c>.</summary>
+        [MenuItem("BlocksBeyondTheStars/Build Linux Player")]
+        public static void BuildLinux()
+            => BuildPlayerFor(BuildTarget.StandaloneLinux64, "BlocksBeyondTheStars.x86_64", "Build/Linux");
+
+        private static void BuildPlayerFor(BuildTarget target, string exeName, string defaultOutDir)
         {
             EnsureLauncherScene();
             EnsureShadersIncluded();
@@ -65,20 +76,22 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 Debug.Log($"BlocksBeyondTheStars version set from -buildVersion: {version}");
             }
 
-            string outDir = GetArg("-buildOut") ?? "Build/Windows";
+            string outDir = GetArg("-buildOut") ?? defaultOutDir;
             Directory.CreateDirectory(outDir);
 
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = Path.Combine(outDir, "BlocksBeyondTheStars.exe"),
-                target = BuildTarget.StandaloneWindows64,
+                locationPathName = Path.Combine(outDir, exeName),
+                target = target,
                 options = BuildOptions.None,
             };
 
             var report = BuildPipeline.BuildPlayer(options);
             var summary = report.summary;
-            Debug.Log($"BlocksBeyondTheStars build: {summary.result} → {summary.outputPath} ({summary.totalSize} bytes)");
+            // Keep the exact "BlocksBeyondTheStars build: <result>" prefix — scripts/build-client.ps1 greps for
+            // "build: Succeeded" as the authoritative success marker; the target goes in parens after it.
+            Debug.Log($"BlocksBeyondTheStars build: {summary.result} ({target}) → {summary.outputPath} ({summary.totalSize} bytes)");
 
             if (summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
             {

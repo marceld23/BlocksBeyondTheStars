@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Minigames;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,10 +10,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The in-game Arcade screen — the player's personal collection of minigames downloaded from data cubes.
-    /// A left rail lists the games they own (with the local personal best); picking one plays it in the shared
-    /// <see cref="EmbeddedBrowser"/> on the right, passing the language + best score through the URL. Locked
-    /// games aren't listed — you find them out in the world. Highscores are local-only (no leaderboard). On a
-    /// build without the UWB browser the collection still shows; the play area shows an "install" placeholder.
+    /// A left rail lists the games they own (with the local personal best); picking one runs it in the native
+    /// <see cref="MinigameHostUI"/> on the right. Locked games aren't listed — you find them out in the world.
+    /// Highscores are local-only (no leaderboard).
     /// </summary>
     public sealed class ArcadeUI : MonoBehaviour
     {
@@ -29,9 +29,8 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _placeholder;
         private GameObject _emptyState;
         private MinigameCatalog _catalog;
+        private MinigameHostUI _native;
         private bool _built;
-        private bool _open;
-        private string _currentGame = string.Empty;
 
         private void EnsureBuilt()
         {
@@ -77,7 +76,6 @@ namespace BlocksBeyondTheStars.Client
             if (!_canvas.enabled)
             {
                 _canvas.enabled = true;
-                _currentGame = string.Empty;
                 RebuildRail();
                 OnOpen();
                 UiKit.TransitionIn(_canvas.gameObject);
@@ -88,11 +86,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!_built || !_canvas.enabled) return;
             _canvas.enabled = false;
-            if (_open)
-            {
-                EmbeddedBrowser.Instance?.Park();
-                _open = false;
-            }
+            _native?.Stop();
         }
 
         private List<MinigameCatalog.Entry> Owned()
@@ -181,30 +175,41 @@ namespace BlocksBeyondTheStars.Client
             PlayGame(owned[0].key); // open the first owned game by default
         }
 
+        /// <summary>Creates (once) the native minigame host that runs the C# games in the play region, wiring its
+        /// result handler to the local-highscore + knowledge path (record best → grant knowledge on a new best).</summary>
+        private void EnsureNative()
+        {
+            if (_native != null) return;
+            var go = new GameObject("MinigameHost", typeof(RectTransform));
+            _native = go.AddComponent<MinigameHostUI>();
+            _native.Game = Game;
+            _native.OnReport = (k, score, rating, completed) =>
+            {
+                bool newBest = Settings != null && Settings.RecordMinigameScore(k, score);
+                if (newBest) Settings.Save();
+                if (completed && newBest) Game?.Network?.SendMinigameResult(k, score, rating, completed);
+                RebuildRail(); // refresh the rail's "★ best" line
+            };
+            _native.Mount(_root, RegionX, RegionY, RegionW, RegionH);
+        }
+
         private void PlayGame(string key)
         {
             var e = _catalog?.Find(key);
             if (e == null) return;
 
-            var host = Menu != null ? Menu.EnsureBrowserHost() : EmbeddedBrowser.Instance;
-            string lang = (Game != null && Game.German) ? "de" : "en";
-            int best = Settings != null ? Settings.GetMinigameBest(key) : 0;
-            string url = "minigames/" + e.entry + "?lang=" + lang + "&hi=" + best + "&game=" + key;
-
-            if (host != null && host.Available && host.Content != null && host.Content.Running
-                && host.MountInto(_root, RegionX, RegionY, RegionW, RegionH))
-            {
-                host.SetLoadingLabel(L("ui.browser.loading"));
-                host.Navigate(url);
-                _placeholder.SetActive(false);
-                _emptyState.SetActive(false);
-                _currentGame = key;
-                _open = true;
-            }
-            else
+            // Every catalogue game runs in the native C# host (no UWB). The placeholder remains only as a guard
+            // for the impossible case of a catalogue key missing from the registry.
+            if (!MinigameRegistry.Has(key))
             {
                 _placeholder.SetActive(true);
+                return;
             }
+
+            EnsureNative();
+            _placeholder.SetActive(false);
+            _emptyState.SetActive(false);
+            _native.Play(MinigameRegistry.Create(key), Settings != null ? Settings.GetMinigameBest(key) : 0, Game != null && Game.German);
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
