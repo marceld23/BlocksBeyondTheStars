@@ -176,8 +176,17 @@ namespace BlocksBeyondTheStars.Client
 
                 _dayLength = Mathf.Max(10f, env.DayLengthSeconds);
 
-                // Re-sync toward the local time (server broadcasts + the player's longitude); advance locally.
-                _time = Mathf.LerpAngle(_time * 360f, localTime * 360f, 0.02f) / 360f;
+                // Capture mode (marketing screenshots): snap straight to the pinned time so the shot is taken at
+                // exactly that time of day instead of drifting toward it over a couple of seconds.
+                if (Game.CaptureEnvActive)
+                {
+                    _time = localTime;
+                }
+                else
+                {
+                    // Re-sync toward the local time (server broadcasts + the player's longitude); advance locally.
+                    _time = Mathf.LerpAngle(_time * 360f, localTime * 360f, 0.02f) / 360f;
+                }
             }
 
             _time = Mathf.Repeat(_time + Time.deltaTime / _dayLength, 1f);
@@ -213,9 +222,14 @@ namespace BlocksBeyondTheStars.Client
             // Sun height: peaks at noon (0.5), lowest at midnight (0/1).
             float sunHeight = Mathf.Sin((time - 0.25f) * Mathf.PI * 2f);
             float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
+            // Brighten the day curve for the LIGHT level only: an ease-out bias (1-(1-day)^2) lifts the long
+            // dawn/dusk shoulders toward daylight while preserving true noon (1) and midnight (0), so the world
+            // spends less of the cycle reading as dark. The sky colour + fog below still use the raw `day` so the
+            // visible terminator stays tied to the real sun height.
+            float dayLit = day * (2f - day);
             // Inside an orbital station there is no day/night — it's lit by its own constant lighting.
-            float brightness = constantLight ? 1f : Mathf.Lerp(0.20f, 1f, day); // night floor → noon
-            float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.5f, weatherIntensity); // storms darken
+            float brightness = constantLight ? 1f : Mathf.Lerp(0.35f, 1f, dayLit); // night floor → noon
+            float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.65f, weatherIntensity); // storms darken
 
             // Stations use a clean neutral interior light (not the system sun's tint).
             Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : sunColor * (brightness * weatherDim);

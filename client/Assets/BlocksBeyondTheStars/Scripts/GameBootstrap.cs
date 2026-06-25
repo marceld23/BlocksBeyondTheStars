@@ -452,6 +452,35 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Latest day/night + weather + sun colour (World systems).</summary>
         public WorldEnvironment Environment { get; private set; }
 
+        /// <summary>Capture-only environment override (set by <see cref="ScreenshotDirector"/>): when active, the
+        /// current and every later <see cref="WorldEnvironment"/> broadcast is forced to clear-weather daylight at a
+        /// pinned local time-of-day, so marketing screenshots aren't gloomy regardless of the world's spawn
+        /// time-of-day or weather roll. No effect on normal play (the director never sets it).</summary>
+        public bool CaptureEnvActive { get; private set; }
+        private float _captureLocalTime = 0.5f;
+
+        /// <summary>Pin the visible environment to clear-weather daylight at <paramref name="localTimeOfDay"/>
+        /// (0.5 = noon) for screenshots. Applied to the current environment immediately and re-applied to every
+        /// later broadcast until the session ends. The pinned server <c>TimeOfDay</c> is offset by the player's
+        /// longitude so <see cref="LocalTimeOfDay"/> lands exactly on the requested value.</summary>
+        public void SetCaptureEnvironment(float localTimeOfDay = 0.5f)
+        {
+            CaptureEnvActive = true;
+            _captureLocalTime = localTimeOfDay;
+            if (Environment != null)
+            {
+                ApplyCaptureEnv(Environment);
+            }
+        }
+
+        private void ApplyCaptureEnv(WorldEnvironment env)
+        {
+            env.TimeOfDay = Mathf.Repeat(_captureLocalTime - PlayerPosition.x / Circumference, 1f);
+            env.Weather = "clear";
+            env.Precipitation = "none";
+            env.Intensity = 0f;
+        }
+
         /// <summary>World-X span over which the local time-of-day shifts a full cycle. This is the world
         /// circumference (X is a wrapping longitude), so one walk around the world is exactly one day and
         /// the planet has a real day/night terminator: a player far east can be in daylight while one far
@@ -986,6 +1015,10 @@ namespace BlocksBeyondTheStars.Client
                 Environment = m;
                 Circumference = m.Circumference > 0 ? m.Circumference : WorldConstants.Circumference;
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
+                if (CaptureEnvActive)
+                {
+                    ApplyCaptureEnv(Environment); // keep marketing shots clear-weather daylight across re-broadcasts
+                }
             };
             Network.WorldResetReceived += OnWorldReset;
             Network.ShipAiLineReceived += m =>

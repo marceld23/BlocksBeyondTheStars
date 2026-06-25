@@ -220,6 +220,9 @@ namespace BlocksBeyondTheStars.Client
                 pc.SetCapturePose(new Vector3(p.x + 16f, p.y + 1f, p.z + 16f), 225f, 4f);
             }
 
+            // Pin clear-weather noon so the on-foot shot is bright regardless of the home world's time/weather.
+            boot.SetCaptureEnvironment(0.5f);
+
             yield return new WaitForSecondsRealtime(ChunkSettle);
             yield return Capture(Path.Combine(dir, "planet_surface.png"));
 
@@ -294,6 +297,11 @@ namespace BlocksBeyondTheStars.Client
                 Debug.LogWarning($"[Capture] {_planet}: no safe dry footing near the ship (placed={placed}) — skipping shot.");
                 yield break;
             }
+
+            // Pin clear-weather noon so the gallery is consistently bright regardless of this world's spawn
+            // time-of-day (some land on the night side) or weather roll (rain/overcast). Capture-only; no effect
+            // on normal play. The player is already placed, so its longitude offset is final.
+            boot.SetCaptureEnvironment(0.5f);
 
             yield return new WaitForSecondsRealtime(PoseSettle);
             yield return Capture(Path.Combine(dir, "surface_" + _planet + ".png"));

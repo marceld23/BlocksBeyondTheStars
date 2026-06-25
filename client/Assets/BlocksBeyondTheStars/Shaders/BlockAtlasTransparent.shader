@@ -116,6 +116,11 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float3 col = albedo * light * (0.55 + 0.45 * ndl * shadow) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)
 
+                // Match the opaque night ambient floor so water/glass don't read darker than the terrain at
+                // night: a faint cool fill, strongest when the sun light is weak (night/storm), fading out by day.
+                float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
+                col += albedo * float3(0.10, 0.13, 0.20) * nightFloor * shade;
+
                 float alpha;
                 if (tex.a < 0.95)
                 {
@@ -358,6 +363,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
 
                 fixed3 col = albedo * light * (0.55 + 0.45 * ndl) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)
+
+                // Match the opaque night ambient floor so water/glass don't read darker than the terrain at night.
+                float nightFloor = saturate(0.6 - dot(light, fixed3(0.299, 0.587, 0.114)));
+                col += albedo * fixed3(0.10, 0.13, 0.20) * nightFloor * shade;
 
                 float alpha;
                 if (tex.a < 0.95)

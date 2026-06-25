@@ -168,6 +168,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 col = albedo * (light * (amb + 0.5 * ndl * sky * shadow) + 0.05) * faceAo;
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
+                // Night/atmosphere ambient floor: a faint cool fill on open-sky faces, strongest when the sun
+                // light is weak (night/storm) and fading out toward day, so worlds read as dim atmospheric blue
+                // at night instead of crushing to pure black. Independent of the (near-black) night sky colour
+                // and the sun tint; gated by skylight so caves/interiors stay dark and still need a lamp.
+                float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
+                col += albedo * float3(0.10, 0.13, 0.20) * (sky * nightFloor) * faceAo;
+
                 float gloss = i.mat.r;            // perceptual smoothness (0 = matte .. 1 = mirror)
                 float metal = i.mat.g;            // metallic (0 = dielectric .. 1 = metal)
                 float rough = clamp(1.0 - gloss, 0.045, 1.0);
@@ -433,6 +440,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
+
+                // Night/atmosphere ambient floor (mirrors the URP path): a faint cool fill on open-sky faces,
+                // strongest when the sun light is weak (night/storm) and fading out toward day, so worlds read as
+                // dim atmospheric blue at night instead of crushing to pure black. Gated by skylight (caves stay dark).
+                float nightFloor = saturate(0.6 - dot(light, fixed3(0.299, 0.587, 0.114)));
+                col += albedo * fixed3(0.10, 0.13, 0.20) * (sky * nightFloor) * faceAo;
 
                 float gloss = i.mat.r;            // perceptual smoothness
                 float metal = i.mat.g;            // metallic
