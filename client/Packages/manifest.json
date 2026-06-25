@@ -1,14 +1,6 @@
 {
   "scopedRegistries": [
     {
-      "name": "Voltstro UPM",
-      "url": "https://upm-pkgs.voltstro.dev",
-      "scopes": [
-        "dev.voltstro",
-        "org.nuget"
-      ]
-    },
-    {
       "name": "OpenUPM (UniTask)",
       "url": "https://package.openupm.com",
       "scopes": [
@@ -17,9 +9,6 @@
     }
   ],
   "dependencies": {
-    "dev.voltstro.unitywebbrowser": "2.2.8",
-    "dev.voltstro.unitywebbrowser.engine.cef": "2.2.8",
-    "dev.voltstro.unitywebbrowser.engine.cef.win.x64": "2.2.8",
     "com.cysharp.unitask": "2.5.11",
     "com.unity.render-pipelines.universal": "17.4.0",
     "com.unity.test-framework": "1.4.6",

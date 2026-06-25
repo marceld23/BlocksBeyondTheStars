@@ -98,11 +98,11 @@ namespace BlocksBeyondTheStars.Client
         /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
         public void SetMenuOpen(bool open) => SetOpen(open);
 
-        /// <summary>Opens the in-game Wiki ("Codex") browser screen — an always-available menu point.</summary>
-        public void OpenWiki() { EnsureBrowserHost(); _browser = BrowserScreen.Wiki; SetOpen(true); }
+        /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.</summary>
+        public void OpenWiki() { _browser = BrowserScreen.Wiki; SetOpen(true); }
 
-        /// <summary>Opens the Arcade collection browser screen — an always-available menu point.</summary>
-        public void OpenArcade() { Game?.MarkArcadeSeen(); EnsureBrowserHost(); _browser = BrowserScreen.Arcade; SetOpen(true); }
+        /// <summary>Opens the Arcade collection screen — an always-available menu point.</summary>
+        public void OpenArcade() { Game?.MarkArcadeSeen(); _browser = BrowserScreen.Arcade; SetOpen(true); }
 
         /// <summary>Returns from a browser sub-screen (Wiki/Arcade) to the normal menu tabs.</summary>
         public void CloseBrowser() => _browser = BrowserScreen.None;
@@ -194,33 +194,6 @@ namespace BlocksBeyondTheStars.Client
         private CraftingTechShipUI _ui;
         private WikiUI _wikiUi;
         private ArcadeUI _arcadeUi;
-        private EmbeddedBrowser _host;
-
-        /// <summary>Creates (once) the shared embedded-browser host that backs the Wiki + Arcade screens, wiring
-        /// its score handler (local highscores) and the wiki's live discovered-systems/worlds provider.</summary>
-        public EmbeddedBrowser EnsureBrowserHost()
-        {
-            if (_host == null)
-            {
-                var go = new GameObject("EmbeddedBrowser");
-                go.transform.SetParent(transform, false);
-                _host = go.AddComponent<EmbeddedBrowser>();
-                _host.SetResultHandler((key, score, rating, completed) =>
-                {
-                    // Knowledge is granted ONLY when the run beats the player's own previous best for this game
-                    // (RecordMinigameScore returns true exactly then — and on the very first play, since best == 0).
-                    bool newBest = Settings != null && Settings.RecordMinigameScore(key, score);
-                    if (newBest) Settings.Save();
-                    if (completed && newBest) Game?.Network?.SendMinigameResult(key, score, rating, completed);
-                });
-                if (_host.Content != null)
-                {
-                    _host.Content.WikiStateProvider = () => Game != null ? Game.WikiStateJson : "{}";
-                }
-            }
-
-            return _host;
-        }
 
         private void EnsureWikiUi()
         {
