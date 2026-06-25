@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate ONE image/texture from a text prompt via OpenAI's image API.
 
 Design: **one file per run**. This matches the project's cost discipline — assets are

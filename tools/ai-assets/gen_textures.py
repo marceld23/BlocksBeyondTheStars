@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate the block texture set (approved batch) via OpenAI images — seamless 64px pixel-art tiles.
 
 One API call per texture; resumable (existing out/textures/<key>.png skipped) and tolerant of single

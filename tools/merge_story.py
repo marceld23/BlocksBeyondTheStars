@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Validate a story pack under data/stories/<id>/ (implementation plan P1).
 
 A story pack is hand-authored JSON:

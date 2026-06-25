@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Bundle the block textures into the client as raw RGBA bytes (not PNG).
 
 The client decodes these with Texture2D.LoadRawTextureData (UnityEngine.CoreModule), avoiding

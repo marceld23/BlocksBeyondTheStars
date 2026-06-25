@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """Generate creature/fauna hide textures via the OpenAI image API — seamless 64px pixel-art tiles that
 are mostly **grayscale so they tint** (creatures are procedurally assembled from cubes and coloured per
 species, so the texture is multiplied by the species colour). Mirrors gen_avatar.py.

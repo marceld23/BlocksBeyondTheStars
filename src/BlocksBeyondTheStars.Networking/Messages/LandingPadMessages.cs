@@ -1,3 +1,6 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 namespace BlocksBeyondTheStars.Networking.Messages;
 
 /// <summary>Client asks for a body's fixed landing pads + their live occupancy, to show the pad chooser before

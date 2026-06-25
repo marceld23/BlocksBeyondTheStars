@@ -1,3 +1,6 @@
+# Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 """LLM layer for the BlocksBeyondTheStars AI backend (items 15 + L0/L2/L3).
 
 Generates NPC greeting lines, ship-AI (VEGA) banter, full mission plans and board-mission flavour

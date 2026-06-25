@@ -1,3 +1,6 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
 /// <summary>Where a creature lives — governs spawning, movement and survival.</summary>
