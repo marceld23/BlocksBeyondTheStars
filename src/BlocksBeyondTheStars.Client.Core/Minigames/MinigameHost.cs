@@ -35,7 +35,9 @@ namespace BlocksBeyondTheStars.Client.Minigames
         internal Action<PointerInput>? PointerCb;
         internal Canvas2D? Canvas;
         internal readonly List<(string key, string value)> Hud = new();
-        internal int Score;
+
+        /// <summary>The current "score" HUD value (0 until the game sets it). Exposed for the host's HUD bar.</summary>
+        public int Score { get; private set; }
 
         private readonly List<Timer> _timers = new();
         private int _nextTimerId = 1;

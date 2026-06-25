@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Minigames;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _placeholder;
         private GameObject _emptyState;
         private MinigameCatalog _catalog;
+        private MinigameHostUI _native;
         private bool _built;
         private bool _open;
         private string _currentGame = string.Empty;
@@ -85,6 +87,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!_built || !_canvas.enabled) return;
             _canvas.enabled = false;
+            _native?.Stop();
             if (_open)
             {
                 EmbeddedBrowser.Instance?.Park();
@@ -178,10 +181,41 @@ namespace BlocksBeyondTheStars.Client
             PlayGame(owned[0].key); // open the first owned game by default
         }
 
+        /// <summary>Creates (once) the native minigame host that runs the C# games in the play region, wiring its
+        /// result handler to the same local-highscore + knowledge path the embedded browser used.</summary>
+        private void EnsureNative()
+        {
+            if (_native != null) return;
+            var go = new GameObject("MinigameHost", typeof(RectTransform));
+            _native = go.AddComponent<MinigameHostUI>();
+            _native.Game = Game;
+            _native.OnReport = (k, score, rating, completed) =>
+            {
+                bool newBest = Settings != null && Settings.RecordMinigameScore(k, score);
+                if (newBest) Settings.Save();
+                if (completed && newBest) Game?.Network?.SendMinigameResult(k, score, rating, completed);
+                RebuildRail(); // refresh the rail's "★ best" line
+            };
+            _native.Mount(_root, RegionX, RegionY, RegionW, RegionH);
+        }
+
         private void PlayGame(string key)
         {
             var e = _catalog?.Find(key);
             if (e == null) return;
+
+            // Native C# host (no UWB) for every game in the registry — all 20 ship games.
+            if (MinigameRegistry.Has(key))
+            {
+                EnsureNative();
+                EmbeddedBrowser.Instance?.Park();
+                _placeholder.SetActive(false);
+                _emptyState.SetActive(false);
+                _native.Play(MinigameRegistry.Create(key), Settings != null ? Settings.GetMinigameBest(key) : 0, Game != null && Game.German);
+                _currentGame = key;
+                _open = false;
+                return;
+            }
 
             var host = Menu != null ? Menu.EnsureBrowserHost() : EmbeddedBrowser.Instance;
             string lang = (Game != null && Game.German) ? "de" : "en";
