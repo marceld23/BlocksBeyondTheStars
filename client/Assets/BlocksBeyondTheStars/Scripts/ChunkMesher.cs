@@ -30,8 +30,24 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
-        /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.</summary>
+        /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.
+        /// Convenience wrapper that builds the geometry and immediately uploads it to Unity meshes on the
+        /// CALLING (main) thread — used by the one-shot ship/speeder meshers.</summary>
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
+            System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
+            IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
+            System.Func<int, int, int, int> worldShape = null)
+            => BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape).ToMeshes();
+
+        /// <summary>Builds ONLY the chunk geometry (vertex/index/attribute lists + flat normals + bounds) as
+        /// plain data — NO Unity Mesh API calls, so it is safe to run on a worker thread; call
+        /// <see cref="ChunkMeshData.ToMeshes"/> on the main thread to upload it. The planet chunk streamer uses
+        /// this to move the heavy build off the main thread (A2). When called off-thread, every input it reads
+        /// (the <paramref name="chunk"/>, the <paramref name="worldBlock"/>/<paramref name="worldShape"/>
+        /// delegates, <paramref name="content"/>, <paramref name="atlas"/>, the tint resolvers and
+        /// <paramref name="lights"/>) MUST be a thread-safe snapshot — atomic value reads with no concurrent
+        /// dictionary mutation (see the planet streamer's neighbourhood snapshot in GameBootstrap).</summary>
+        public static ChunkMeshData BuildGeometry(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null)
@@ -398,35 +414,68 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-            mesh.SetVertices(verts);
-            // Two submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
-            // (BlockAtlasTransparent). The renderer is given both materials in the same order. Submesh 1
-            // is empty for chunks with no glass/fields — an empty submesh just draws nothing.
-            mesh.subMeshCount = 2;
-            mesh.SetTriangles(tris, 0);
-            mesh.SetTriangles(trisT, 1);
-            mesh.SetColors(colors);
-            mesh.SetUVs(0, uvs);
-            mesh.SetUVs(1, skyUv); // skylight in TEXCOORD1.x, tint mode in .y (1 flora, 2 hull paint, 3 player dye, 4 bark)
-            mesh.SetUVs(2, leafUv); // foliage cutout flag in TEXCOORD2.x, flora/hull/dye/bark tint in .yzw
-            mesh.SetUVs(3, blockLight); // TEXCOORD3.xyz: propagated coloured block-light (placed lights illuminate)
-            mesh.SetUVs(4, blockLightDir); // TEXCOORD4.xyz: dominant block-light direction (N·L shaping + glint)
-            mesh.SetTangents(tangents);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+            // Flat per-face normals + bounds computed analytically here (every face owns its own
+            // unwelded vertices, so each vertex normal is just its triangle's geometric normal — this
+            // reproduces what Mesh.RecalculateNormals did for this mesh). Doing it as pure data, instead
+            // of the main-thread-only Mesh.RecalculateNormals/RecalculateBounds, both saves that work and
+            // lets the whole build move onto a worker thread later (A2).
+            var normals = new Vector3[verts.Count];
+            AccumulateFlatNormals(verts, tris, normals);
+            AccumulateFlatNormals(verts, trisT, normals);
+            var bounds = ComputeBounds(verts, n);
 
-            // Collision mesh: same vertices, but only the solid (non-fluid) faces, so water/lava are passable.
-            Mesh collider = null;
-            if (colliderTris.Count > 0)
+            // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
+            return new ChunkMeshData
             {
-                collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-                collider.SetVertices(verts);
-                collider.SetTriangles(colliderTris, 0);
-                collider.RecalculateBounds();
+                Verts = verts,
+                OpaqueTris = tris,
+                TransparentTris = trisT,
+                ColliderTris = colliderTris,
+                Colors = colors,
+                Uvs = uvs,
+                SkyUv = skyUv,
+                LeafUv = leafUv,
+                BlockLight = blockLight,
+                BlockLightDir = blockLightDir,
+                Tangents = tangents,
+                Normals = normals,
+                Bounds = bounds,
+            };
+        }
+
+        /// <summary>Writes flat per-face normals into <paramref name="normals"/>: every face emitted by the
+        /// mesher owns its own (unwelded) vertices, so a vertex's normal is simply its triangle's geometric
+        /// normal. This reproduces Mesh.RecalculateNormals for this mesh exactly, but as plain data so the
+        /// build can run off the main thread (no Mesh API calls).</summary>
+        private static void AccumulateFlatNormals(List<Vector3> verts, List<int> tris, Vector3[] normals)
+        {
+            for (int t = 0; t + 2 < tris.Count; t += 3)
+            {
+                int i0 = tris[t], i1 = tris[t + 1], i2 = tris[t + 2];
+                Vector3 nrm = Vector3.Cross(verts[i1] - verts[i0], verts[i2] - verts[i0]).normalized;
+                normals[i0] = nrm;
+                normals[i1] = nrm;
+                normals[i2] = nrm;
+            }
+        }
+
+        /// <summary>Exact AABB over the chunk's vertices (replaces the main-thread-only
+        /// Mesh.RecalculateBounds). Falls back to the full cube extent for an empty mesh.</summary>
+        private static Bounds ComputeBounds(List<Vector3> verts, int n)
+        {
+            if (verts.Count == 0)
+            {
+                return new Bounds(new Vector3(n, n, n) * 0.5f, new Vector3(n, n, n));
             }
 
-            return (mesh, collider);
+            Vector3 min = verts[0], max = verts[0];
+            for (int i = 1; i < verts.Count; i++)
+            {
+                min = Vector3.Min(min, verts[i]);
+                max = Vector3.Max(max, verts[i]);
+            }
+
+            return new Bounds((min + max) * 0.5f, max - min);
         }
 
         /// <summary>A deterministic per-cell "bell" size factor centred on 1.0 (average of two pseudo-randoms
@@ -500,7 +549,7 @@ namespace BlocksBeyondTheStars.Client
         /// geometry into the opaque submesh AND the collider (shape-matched collision), carrying the same
         /// per-vertex streams as a cube face so it textures, tints + lights identically. Per-face shade
         /// (vertex colour .b) comes from the face normal — top-bright/bottom-dark like cube faces — while the
-        /// lit atlas shader does the main directional shading from the recalculated normals.</summary>
+        /// lit atlas shader does the main directional shading from the per-face normals.</summary>
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
             List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, Vector3 cell, Rect uv, float matR, float matG,
@@ -972,6 +1021,70 @@ namespace BlocksBeyondTheStars.Client
                 case 4: return new[] { p + new Vector3(1, 0, 1), p + new Vector3(1, 1, 1), p + new Vector3(0, 1, 1), p + new Vector3(0, 0, 1) }; // +Z
                 default: return new[] { p + new Vector3(0, 0, 0), p + new Vector3(0, 1, 0), p + new Vector3(1, 1, 0), p + new Vector3(1, 0, 0) }; // -Z
             }
+        }
+    }
+
+    /// <summary>The plain-data result of <see cref="ChunkMesher.BuildGeometry"/>: the vertex/index/attribute
+    /// lists plus precomputed flat normals and bounds, holding NO Unity Mesh objects — so it can be produced on
+    /// a worker thread and uploaded later. <see cref="ToMeshes"/> performs the (main-thread-only) Mesh API
+    /// calls to turn it into the render + collision meshes.</summary>
+    public sealed class ChunkMeshData
+    {
+        public List<Vector3> Verts;
+        public List<int> OpaqueTris;       // submesh 0 (BlockAtlas)
+        public List<int> TransparentTris;  // submesh 1 (BlockAtlasTransparent — glass / force fields)
+        public List<int> ColliderTris;     // solid faces only (fluids excluded) → the collision mesh
+        public List<Color> Colors;
+        public List<Vector2> Uvs;
+        public List<Vector2> SkyUv;        // TEXCOORD1: skylight in .x, tint mode in .y
+        public List<Vector4> LeafUv;       // TEXCOORD2: foliage cutout flag in .x, flora/hull/dye/bark tint in .yzw
+        public List<Vector3> BlockLight;   // TEXCOORD3: propagated coloured block-light
+        public List<Vector3> BlockLightDir;// TEXCOORD4: dominant block-light direction
+        public List<Vector4> Tangents;
+        public Vector3[] Normals;          // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
+        public Bounds Bounds;
+
+        /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
+        /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).</summary>
+        public (Mesh Render, Mesh Collider) ToMeshes(Mesh reuseRender = null)
+        {
+            // Reuse the chunk's existing render Mesh on a rebuild (A3): Clear()+refill avoids allocating a fresh
+            // Mesh — and leaking the old one — on every remesh. The collider mesh is always fresh, because it is
+            // cooked asynchronously by Physics.BakeMesh and reusing a mesh mid-bake would be unsafe.
+            var mesh = reuseRender != null ? reuseRender : new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            if (reuseRender != null)
+            {
+                mesh.Clear();
+            }
+
+            mesh.SetVertices(Verts);
+            // Two submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
+            // (BlockAtlasTransparent). The renderer is given both materials in the same order. Submesh 1
+            // is empty for chunks with no glass/fields — an empty submesh just draws nothing.
+            mesh.subMeshCount = 2;
+            mesh.SetTriangles(OpaqueTris, 0);
+            mesh.SetTriangles(TransparentTris, 1);
+            mesh.SetColors(Colors);
+            mesh.SetUVs(0, Uvs);
+            mesh.SetUVs(1, SkyUv);
+            mesh.SetUVs(2, LeafUv);
+            mesh.SetUVs(3, BlockLight);
+            mesh.SetUVs(4, BlockLightDir);
+            mesh.SetTangents(Tangents);
+            mesh.SetNormals(Normals);
+            mesh.bounds = Bounds;
+
+            // Collision mesh: same vertices, but only the solid (non-fluid) faces, so water/lava are passable.
+            Mesh collider = null;
+            if (ColliderTris.Count > 0)
+            {
+                collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                collider.SetVertices(Verts);
+                collider.SetTriangles(ColliderTris, 0);
+                collider.bounds = Bounds;
+            }
+
+            return (mesh, collider);
         }
     }
 }
