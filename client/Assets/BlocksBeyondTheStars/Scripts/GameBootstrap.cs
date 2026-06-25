@@ -715,6 +715,12 @@ namespace BlocksBeyondTheStars.Client
         public int MeshChunksPerFrame = 4;
         private readonly List<ChunkCoord> _dirtyScratch = new List<ChunkCoord>();
 
+        // Distance culling (A4): chunks farther than this (blocks, seam-aware 3D distance) have their renderer
+        // disabled — the client never unloads chunks, so without this the accumulated far chunks keep costing
+        // draw calls. Generous default so normally-visible chunks are never culled; lower it to trade view
+        // distance for fewer draw calls. Re-evaluated in RepositionChunks (throttled to once per block moved).
+        public float ChunkDrawDistanceBlocks = 256f;
+
         // Performance (P2): assigning MeshCollider.sharedMesh cooks the collision mesh synchronously on the
         // main thread — the single heaviest per-chunk op. Instead we run Physics.BakeMesh on a worker thread
         // and assign the (now-cached) cook back on the main thread in DrainBakedColliders. _colliderGen +
@@ -722,6 +728,16 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<ChunkCoord, int> _colliderGen = new Dictionary<ChunkCoord, int>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)> _bakedColliders
             = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)>();
+
+        // Performance (A2): build the chunk GEOMETRY off the main thread too (the heavy triple-loop + coloured
+        // light flood-fill). DispatchChunkBuild snapshots the chunk neighbourhood on the main thread, runs
+        // ChunkMesher.BuildGeometry on a worker, and enqueues the plain ChunkMeshData; DrainBuiltChunks uploads
+        // it to a Unity Mesh + assigns it on the main thread (only the cheap Mesh API copy stays on-thread).
+        // _meshGen + WorldEpoch discard a build superseded by a newer edit / world change (same pattern as the
+        // collider bake above).
+        private readonly Dictionary<ChunkCoord, int> _meshGen = new Dictionary<ChunkCoord, int>();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)> _builtChunks
+            = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)>();
 
         /// <summary>Bumped each time the world is rebuilt (travel); the player re-snaps to the new spawn.</summary>
         public int WorldEpoch { get; private set; }
@@ -1083,12 +1099,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Assign any collision meshes whose async bake finished (cheap now — the PhysX cook is cached).
+            // Upload + assign chunk geometry whose async build finished (A2), then assign collision meshes whose
+            // async bake finished (both cheap on the main thread — the heavy work ran on worker threads).
+            DrainBuiltChunks();
             DrainBakedColliders();
 
-            // Rebuild chunk meshes that changed, but cap how many per frame (P1) so a burst of chunks arriving
-            // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
-            // chunks past the budget stay queued for the next frames.
+            // Kick off off-thread (re)builds for chunks that changed, but cap how many we DISPATCH per frame (P1)
+            // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
+            // Nearest chunks build first; chunks past the budget stay queued for the next frames.
             if (_dirty.Count > 0)
             {
                 _dirtyScratch.Clear();
@@ -1108,7 +1126,7 @@ namespace BlocksBeyondTheStars.Client
                     // Neighbours not yet streamed are no-ops — flush them without spending budget; they
                     // re-mark themselves dirty once their own data arrives.
                     _dirty.Remove(coord);
-                    if (RebuildChunk(coord))
+                    if (DispatchChunkBuild(coord))
                     {
                         built++;
                     }
@@ -1133,9 +1151,12 @@ namespace BlocksBeyondTheStars.Client
         private int _lastReposZ = int.MinValue;
 
         /// <summary>Re-places every loaded chunk GameObject at the seam-aware scene position for the player's
-        /// current longitude AND latitude (see <see cref="SceneX"/>/<see cref="SceneZ"/>).</summary>
+        /// current longitude AND latitude (see <see cref="SceneX"/>/<see cref="SceneZ"/>), and distance-culls
+        /// far chunks' renderers (A4).</summary>
         private void RepositionChunks()
         {
+            var pp = PlayerPosition;
+            float cullSq = ChunkDrawDistanceBlocks * ChunkDrawDistanceBlocks;
             foreach (var kv in _chunkObjects)
             {
                 if (kv.Value == null)
@@ -1145,6 +1166,20 @@ namespace BlocksBeyondTheStars.Client
 
                 var origin = WorldConstants.ChunkOrigin(kv.Key);
                 kv.Value.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
+
+                // Distance culling (A4): disable the renderer of chunks well beyond the draw distance so the
+                // accumulated far chunks (never unloaded) stop costing draw calls; re-enabled when the player
+                // moves back into range. Colliders are left intact (cheap when untouched, and far physics still
+                // resolves). Frustum culling Unity does for free once the per-chunk bounds are correct (A1).
+                var mr = kv.Value.GetComponent<MeshRenderer>();
+                if (mr != null)
+                {
+                    bool visible = ChunkDistSqToPlayer(kv.Key, pp) <= cullSq;
+                    if (mr.enabled != visible)
+                    {
+                        mr.enabled = visible;
+                    }
+                }
             }
         }
 
@@ -1224,9 +1259,11 @@ namespace BlocksBeyondTheStars.Client
 
             _chunkObjects.Clear();
             _dirty.Clear();
-            // Bake bookkeeping for the old world is now stale; WorldEpoch (bumped below) fences any in-flight
-            // bakes so they're dropped in DrainBakedColliders instead of landing on the new world's chunks.
+            // Mesh/bake bookkeeping for the old world is now stale; WorldEpoch (bumped below) fences any
+            // in-flight off-thread builds + bakes so they're dropped in DrainBuiltChunks/DrainBakedColliders
+            // instead of landing on the new world's chunks.
             _colliderGen.Clear();
+            _meshGen.Clear();
             World.Clear();
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
@@ -1347,19 +1384,176 @@ namespace BlocksBeyondTheStars.Client
             ServerSpawn ??= new Vector3(m.X, m.Y, m.Z);
         }
 
-        /// <summary>(Re)builds one chunk's render + collision mesh. Returns false (no work) when the chunk
-        /// isn't streamed yet, so the per-frame mesh budget only counts real builds.</summary>
-        private bool RebuildChunk(ChunkCoord coord)
+        /// <summary>(A2) Kicks off an OFF-THREAD geometry build for one chunk; returns false (no work, no budget
+        /// spent) when the chunk isn't streamed yet. The chunk neighbourhood is SNAPSHOTTED on the main thread so
+        /// the worker never races a live edit: the centre chunk is deep-copied; neighbour BLOCK reads go through
+        /// ChunkData.Get (atomic ushort reads — a concurrent edit only yields stale data, and the chunk is
+        /// re-dirtied/rebuilt anyway), while the sparse SHAPE/modifier dictionaries (which a live edit would
+        /// structurally mutate) are deep-copied. _meshGen + WorldEpoch let DrainBuiltChunks discard a build
+        /// superseded by a newer edit or a world change. Content/Atlas/the flora-tint map are read-safe: set
+        /// once, or replaced wholesale by RebuildFloraTints, never mutated in place.
+        /// NEEDS RUNTIME STRESS VERIFICATION — threading correctness is not exercised by a plain build.</summary>
+        private bool DispatchChunkBuild(ChunkCoord coord)
         {
             if (!World.TryGetChunk(coord, out var chunk))
             {
                 return false;
             }
 
-            var (mesh, collider) = ChunkMesher.Build(chunk, Content, World.GetBlock, Atlas, FloraTintFor,
-                lights: World.LightSourcesNear(coord, ChunkMesher.LightRadius), worldShape: World.GetShape);
+            int circ = Circumference;
 
-            if (!_chunkObjects.TryGetValue(coord, out var go))
+            // Centre chunk: a private deep copy, so the worker reads its blocks/modifiers/shapes consistently.
+            var center = CopyChunk(chunk);
+
+            // Block reads reach up to ~±18 blocks (the coloured-light flood-fill) and a vertical band a few chunks
+            // tall (the skylight column scan) → capture chunk REFERENCES over a ±2 horizontal / -2..+4 vertical
+            // neighbourhood. Reads use ChunkData.Get (atomic, no dictionary), so a live reference is safe. Key by
+            // the chunk's own canonical Coord, exactly as ClientWorld stores + looks them up.
+            var blocks = new Dictionary<ChunkCoord, ChunkData> { [center.Coord] = center };
+            for (int dx = -2; dx <= 2; dx++)
+                for (int dy = -2; dy <= 4; dy++)
+                    for (int dz = -2; dz <= 2; dz++)
+                    {
+                        if (dx == 0 && dy == 0 && dz == 0)
+                        {
+                            continue;
+                        }
+
+                        var nc = new ChunkCoord(
+                            WorldConstants.CanonicalChunkX(coord.X + dx, circ), coord.Y + dy,
+                            WorldConstants.CanonicalChunkZ(coord.Z + dz, circ));
+                        if (World.TryGetChunk(nc, out var nch))
+                        {
+                            blocks[nch.Coord] = nch;
+                        }
+                    }
+
+            // Shape reads reach ±1 block (the neighbour-shape face test) → deep-copy the sparse shape dicts for the
+            // captured neighbourhood (the worker must NOT read a live ChunkData._shapes concurrently with an edit).
+            // Copied on the main thread, where edits don't run concurrently.
+            var shapes = new Dictionary<ChunkCoord, Dictionary<int, int>>();
+            foreach (var kv in blocks)
+            {
+                if (kv.Value.Shapes is { Count: > 0 } src)
+                {
+                    var copy = new Dictionary<int, int>(src.Count);
+                    foreach (var s in src)
+                    {
+                        copy[s.Key] = s.Value;
+                    }
+
+                    shapes[kv.Key] = copy;
+                }
+            }
+
+            var lights = World.LightSourcesNear(coord, ChunkMesher.LightRadius);
+            var floraDict = _floraTintByBlock; // RebuildFloraTints REPLACES this map, so the captured ref is immutable
+
+            System.Func<int, int, int, BlockId> worldBlock = (wx, wy, wz) =>
+            {
+                var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ);
+                if (!blocks.TryGetValue(WorldConstants.WorldToChunk(pos), out var ch))
+                {
+                    return BlockId.Air;
+                }
+
+                var local = WorldConstants.WorldToLocal(pos);
+                return ch.Get(local.X, local.Y, local.Z);
+            };
+            System.Func<int, int, int, int> worldShape = (wx, wy, wz) =>
+            {
+                var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ);
+                if (!shapes.TryGetValue(WorldConstants.WorldToChunk(pos), out var sh))
+                {
+                    return 0;
+                }
+
+                var local = WorldConstants.WorldToLocal(pos);
+                return sh.TryGetValue(WorldConstants.LocalIndex(local.X, local.Y, local.Z), out var s) ? s : 0;
+            };
+            System.Func<BlockId, Color> floraTint = id =>
+                floraDict != null && floraDict.TryGetValue(id.Value, out var c) ? c : Color.black;
+
+            int gen = (_meshGen.TryGetValue(coord, out var g) ? g : 0) + 1;
+            _meshGen[coord] = gen;
+            int epoch = WorldEpoch;
+            var content = Content;
+            var atlas = Atlas;
+            var capturedCoord = coord;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                ChunkMeshData data = null;
+                try
+                {
+                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape);
+                }
+                catch
+                {
+                    // A snapshot read could still race teardown; drop this build — the chunk stays/again dirty.
+                }
+
+                _builtChunks.Enqueue((capturedCoord, data, gen, epoch));
+            });
+            return true;
+        }
+
+        /// <summary>Deep-copies a chunk (block array + the sparse colour-modifier and shape dictionaries) so a
+        /// worker thread can read it without racing a live edit on the main thread.</summary>
+        private static ChunkData CopyChunk(ChunkData src)
+        {
+            var copy = ChunkData.FromRaw(src.Coord, src.ToArray());
+            if (src.Modifiers is { Count: > 0 } mods)
+            {
+                foreach (var kv in mods)
+                {
+                    copy.SetModifierLocal(kv.Key, kv.Value.Tint, kv.Value.Glow);
+                }
+            }
+
+            if (src.Shapes is { Count: > 0 } shapes)
+            {
+                foreach (var kv in shapes)
+                {
+                    copy.SetShapeLocal(kv.Key, kv.Value);
+                }
+            }
+
+            return copy;
+        }
+
+        /// <summary>Uploads + assigns finished off-thread chunk builds whose generation/world still match (drops
+        /// superseded or world-changed builds). Mirrors <see cref="DrainBakedColliders"/>.</summary>
+        private void DrainBuiltChunks()
+        {
+            while (_builtChunks.TryDequeue(out var built))
+            {
+                if (built.Data == null)
+                {
+                    continue; // build failed / was dropped on the worker
+                }
+
+                if (built.Epoch != WorldEpoch
+                    || !_meshGen.TryGetValue(built.Coord, out var gen) || gen != built.Gen)
+                {
+                    continue; // superseded by a newer edit / a world change
+                }
+
+                ApplyChunkMesh(built.Coord, built.Data);
+            }
+        }
+
+        /// <summary>Main-thread upload of a built chunk: turns the <see cref="ChunkMeshData"/> into the render
+        /// mesh, (re)creates the chunk GameObject if needed, assigns the mesh, and kicks off the off-thread
+        /// collider bake (P2). A null collider (only fluids/air) clears the collider immediately.</summary>
+        private void ApplyChunkMesh(ChunkCoord coord, ChunkMeshData data)
+        {
+            // Reuse this chunk's existing render mesh on a rebuild (A3) — avoids a per-remesh Mesh allocation and
+            // the leak of the previous one (A2 raises the rebuild rate, which would otherwise grow that leak).
+            bool exists = _chunkObjects.TryGetValue(coord, out var go) && go != null;
+            var reuse = exists ? go.GetComponent<MeshFilter>().sharedMesh : null;
+            var (mesh, collider) = data.ToMeshes(reuse);
+
+            if (!exists)
             {
                 go = new GameObject($"Chunk {coord.X},{coord.Y},{coord.Z}");
                 go.transform.SetParent(transform);
@@ -1381,9 +1575,9 @@ namespace BlocksBeyondTheStars.Client
             // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava.
             // Baking the collision mesh is the heaviest per-chunk step, so do it off the main thread (P2): bump
             // this chunk's bake generation, cook on a worker via Physics.BakeMesh, then assign the cached cook
-            // in DrainBakedColliders. A null collider (only fluids/air) clears the collider immediately.
-            int gen = (_colliderGen.TryGetValue(coord, out var g) ? g : 0) + 1;
-            _colliderGen[coord] = gen;
+            // in DrainBakedColliders.
+            int bakeGen = (_colliderGen.TryGetValue(coord, out var g) ? g : 0) + 1;
+            _colliderGen[coord] = bakeGen;
             var mcol = go.GetComponent<MeshCollider>();
             if (collider == null)
             {
@@ -1409,11 +1603,9 @@ namespace BlocksBeyondTheStars.Client
                         // Mesh may have been destroyed before the bake ran; DrainBakedColliders drops stale ones.
                     }
 
-                    _bakedColliders.Enqueue((capturedCoord, capturedCollider, gen, epoch));
+                    _bakedColliders.Enqueue((capturedCoord, capturedCollider, bakeGen, epoch));
                 });
             }
-
-            return true;
         }
 
         /// <summary>Assigns collision meshes whose off-thread <see cref="Physics.BakeMesh"/> has finished.

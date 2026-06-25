@@ -390,7 +390,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.V))
+            if (InputMap.Down(InputAction.ToggleThirdPerson))
             {
                 _viewMode = 1 - _viewMode;
             }
@@ -991,7 +991,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // L opens the pad chooser for the body you launched from (landing on a nearby body is E).
-            if (Input.GetKeyDown(KeyCode.L))
+            if (InputMap.Down(InputAction.FlightPadChooser))
             {
                 OpenPadChooser(Game.StarMap != null ? Game.StarMap.ActiveLocationId : string.Empty);
                 return;
@@ -999,7 +999,7 @@ namespace BlocksBeyondTheStars.Client
 
             // F: leave the helm and step inside the ship — walk around its interior while it floats here.
             // (From inside, the airlock starts an EVA — there is no direct cockpit→EVA any more.)
-            if (Input.GetKeyDown(KeyCode.F))
+            if (InputMap.Down(InputAction.FlightEnterInterior))
             {
                 _enteringInterior = true;
                 Game.BeginWorldTransition(); // veil immediately — stepping inside has no descent to mask (B34)
@@ -1009,7 +1009,7 @@ namespace BlocksBeyondTheStars.Client
 
             // P: VEGA autopilot (needs an AI Core Mk2 aboard) — flies toward the nearest station, else the
             // nearest landable body, and hands back control on arrival or any manual input.
-            if (Input.GetKeyDown(KeyCode.P))
+            if (InputMap.Down(InputAction.FlightAutopilot))
             {
                 if (_autopilot)
                 {
@@ -1163,7 +1163,7 @@ namespace BlocksBeyondTheStars.Client
             // E is the context action while flying: dock with a station you're next to, or — like docking —
             // land on a planet/moon you've flown up close to (the server flies the descent). L stays as the
             // "return to the body you launched from" shortcut.
-            if (Input.GetKeyDown(KeyCode.E))
+            if (InputMap.Down(InputAction.Interact))
             {
                 // Whichever you're closest to wins: dock the station or land on the body.
                 bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
@@ -1671,7 +1671,7 @@ namespace BlocksBeyondTheStars.Client
             UpdateEvaBuild();
 
             // item 20 S4: deploy a station core (B) to start a player-built station.
-            if (!Game.MenuOpen && Input.GetKeyDown(KeyCode.B))
+            if (!Game.MenuOpen && InputMap.Down(InputAction.EvaDeployStation))
             {
                 Game.Network?.SendDeployStationCore();
             }
@@ -1714,7 +1714,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.E))
+            if (InputMap.Down(InputAction.Interact))
             {
                 bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
                 if (stationCloser)

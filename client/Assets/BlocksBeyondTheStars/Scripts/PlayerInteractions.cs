@@ -57,7 +57,7 @@ namespace BlocksBeyondTheStars.Client
             // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.
             if (!string.IsNullOrEmpty(Game.StationName))
             {
-                if (Input.GetKeyDown(KeyCode.U))
+                if (InputMap.Down(InputAction.Disembark))
                 {
                     Game.Network.SendLeaveStation();
                 }
@@ -68,7 +68,7 @@ namespace BlocksBeyondTheStars.Client
             // Undock (when currently docked).
             if (Game.Dock != null && Game.Dock.Docked)
             {
-                if (Input.GetKeyDown(KeyCode.U))
+                if (InputMap.Down(InputAction.Disembark))
                 {
                     Game.Network.SendUndock();
                 }
@@ -83,11 +83,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.T))
+            if (InputMap.Down(InputAction.RequestTrade))
             {
                 Game.Network.SendTradeRequest(target);
             }
-            else if (Input.GetKeyDown(KeyCode.K))
+            else if (InputMap.Down(InputAction.RequestDock))
             {
                 Game.Network.SendDockRequest(target);
             }

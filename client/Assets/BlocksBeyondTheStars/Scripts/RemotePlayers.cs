@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Geometry;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -18,14 +19,17 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public WeaponFx Weapons; // shared VFX layer, for remote jetpack thrust flames
 
+        /// <summary>How far behind the newest presence packet remote avatars are rendered (B Tier1b). Must exceed
+        /// the ~0.1 s presence interval so two snapshots usually straddle the render time; 0.15 s absorbs one
+        /// late/dropped packet at the cost of seeing others ~150 ms in the past.</summary>
+        public float InterpolationDelay = 0.15f;
+
         private sealed class Remote
         {
             public GameObject Go;
             public PlayerAvatar Avatar;
             public string Name;
-            public Vector3 Target;       // latest reported position in canonical world space
-            public Vector3 SettledWorld;  // smoothed position in world space (converted to scene for display)
-            public float Yaw;
+            public RemoteEntityInterpolator Interp; // buffered snapshot interpolation of the reported pose (B Tier1b)
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
@@ -65,22 +69,18 @@ namespace BlocksBeyondTheStars.Client
                 _subscribed = true;
             }
 
-            // Smoothly move avatars toward their latest reported position/heading. Smoothing follows the
-            // SHORTEST wrap path on the torus (both seams): the canonical coordinate jumps a whole world
-            // when a player crosses a seam, and a plain lerp made their avatar sweep across the entire map.
+            // Render each remote avatar from its snapshot interpolation buffer (B Tier1b): the pose is sampled at
+            // a fixed delay behind the newest packet and interpolated along the SHORTEST wrap path on the torus
+            // (the canonical coordinate jumps a whole world at a seam, which a plain lerp would sweep across).
             int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
-            float k = Mathf.Clamp01(Time.deltaTime * 10f);
+            double now = Time.timeAsDouble;
             foreach (var r in _remotes.Values)
             {
-                float dx = (float)BlocksBeyondTheStars.Shared.World.WorldConstants.WrapDeltaX(r.Target.x - r.SettledWorld.x, circ);
-                float dz = (float)BlocksBeyondTheStars.Shared.World.WorldConstants.WrapDeltaZ(r.Target.z - r.SettledWorld.z, circ);
-                r.SettledWorld += new Vector3(dx, r.Target.y - r.SettledWorld.y, dz) * k;
-                r.SettledWorld = new Vector3(
-                    (float)BlocksBeyondTheStars.Shared.World.WorldConstants.WrapX(r.SettledWorld.x, circ),
-                    r.SettledWorld.y,
-                    (float)BlocksBeyondTheStars.Shared.World.WorldConstants.WrapZ(r.SettledWorld.z, circ));
-                r.Go.transform.position = Game != null ? Game.ScenePos(r.SettledWorld.x, r.SettledWorld.y, r.SettledWorld.z) : r.SettledWorld;
-                r.Go.transform.rotation = Quaternion.Euler(0f, r.Yaw, 0f);
+                if (r.Interp.Sample(now, circ, out var pos, out var yaw))
+                {
+                    r.Go.transform.position = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
+                    r.Go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+                }
 
                 if (r.Jetpacking && !r.Hidden && Weapons != null)
                 {
@@ -109,13 +109,12 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 avatar.SetVisible(true);
-                r = new Remote { Go = go, Avatar = avatar, Name = m.Name, SettledWorld = new Vector3(m.X, m.Y, m.Z) };
+                r = new Remote { Go = go, Avatar = avatar, Name = m.Name, Interp = new RemoteEntityInterpolator(InterpolationDelay) };
                 _remotes[m.PlayerId] = r;
             }
 
             r.Name = m.Name;
-            r.Target = new Vector3(m.X, m.Y, m.Z);
-            r.Yaw = m.Yaw;
+            r.Interp.Push(Time.timeAsDouble, new Vector3f(m.X, m.Y, m.Z), m.Yaw);
             r.Jetpacking = m.Jetpacking;
 
             // Stealth field active, or the player is up in SPACE (the server stealth-marks orbiters so

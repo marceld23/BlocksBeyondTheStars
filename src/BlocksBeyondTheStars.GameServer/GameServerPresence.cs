@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -185,17 +186,33 @@ public sealed partial class GameServer
             return; // nobody else to inform
         }
 
+        // Interest management (AoI): only update a viewer about subjects near enough for them to actually see.
+        // Beyond the streamed view distance (+ a margin) the remote avatar sits in unloaded/culled terrain, so
+        // skipping it saves bandwidth + CPU and lets the player count scale past the small-coop default without
+        // an O(players²) presence flood. Derived from the world's view distance so it auto-scales and can never
+        // be tighter than what clients render; a player straddling a world-wrap seam still counts as near.
+        double aoi = (_config.ViewDistanceChunks + 4) * WorldConstants.ChunkSize;
+        double aoiSq = aoi * aoi;
+
         foreach (var subject in joined)
         {
-            // Encode each subject's presence once, then fan it out to every other viewer — the old per-viewer
+            // Encode each subject's presence once, then fan it out to every nearby viewer — the old per-viewer
             // Send re-serialized it, making this O(players²) encodes per presence tick.
             var payload = NetCodec.Encode(PresenceOf(subject));
+            var subjectPos = subject.State.Position;
             foreach (var viewer in joined)
             {
-                if (viewer.ConnectionId != subject.ConnectionId)
+                if (viewer.ConnectionId == subject.ConnectionId)
                 {
-                    SendEncoded(viewer.ConnectionId, payload);
+                    continue;
                 }
+
+                if (WrapDistSq(subjectPos, viewer.State.Position) > aoiSq)
+                {
+                    continue; // out of this viewer's area of interest
+                }
+
+                SendEncoded(viewer.ConnectionId, payload);
             }
         }
     }
