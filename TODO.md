@@ -60,6 +60,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
+Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide
+needs tungsten+platinum, whose ore is Tier-2 — minable only with the titanium_drill. A perfect circle, so the entire Tier-2
+economy (carbide tools, power_cell via cobalt, reactor_fuel via uranium, magnet/radar via neodymium, diamond/mining drills)
+was unreachable without a basic drill ever escaping Tier-1. No market/asteroid/loot/mission yields carbide or tungsten/
+platinum; only the Creative kit grants a titanium_drill — which is why it slipped through (testing runs Creative). Fix
+(Option A, surgical): the titanium_drill recipe now uses `steel ×2` instead of `carbide ×1`. The Tier-2 "key" drill is
+reachable via market/asteroid titanium → refinery → titanium_plate; carbide stays the gate for the *advanced* tools
+(diamond_drill, mining_beam, terrain_blaster) you build AFTER the drill, when tungsten/platinum are minable. New
+`ToolTierProgressionTests` guards it (fixpoint: the first Tier-2 drill must be craftable without any Tier-2 mining). No
+wiki/manual change needed — the Codex Recipes/Tech chapters are data-driven and auto-reflect the new recipe.
+
 ### ★ Refinery does more: Tier-2 metallurgy + efficiency smelts (2026-06-26) — ✅ data+tests green, NOT committed to main, client content-sync only (no Unity code build)
 The Refinery held only 4 recipes while the always-available workshop held ~80, so the station felt pointless even though
 `titanium_plate` (refinery-only) is already the de-facto gate to the titanium age. Gave it a real role WITHOUT breaking

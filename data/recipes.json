@@ -25,7 +25,7 @@
   { "key": "refine_gold",   "station": "refinery", "inputs": [ { "item": "gold_ore", "count": 1 } ],   "outputs": [ { "item": "gold_ingot", "count": 1 } ] },
   { "key": "refine_silver", "station": "refinery", "inputs": [ { "item": "silver_ore", "count": 1 } ], "outputs": [ { "item": "silver_ingot", "count": 1 } ] },
 
-  { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "carbide", "count": 1 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
+  { "key": "titanium_drill",   "station": "workshop", "requiredBlueprint": "titanium_drill", "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 4 }, { "item": "energy_cell_1", "count": 2 }, { "item": "steel", "count": 2 } ], "outputs": [ { "item": "titanium_drill", "count": 1 } ] },
   { "key": "oxygen_tank_1",    "station": "workshop", "requiredBlueprint": "oxygen_tank_1",  "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ],          "outputs": [ { "item": "oxygen_tank_1", "count": 1 } ] },
 
   { "key": "machete",        "station": "workshop", "requiredBlueprint": "machete",        "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "carbon", "count": 2 } ],                                          "outputs": [ { "item": "machete", "count": 1 } ] },
