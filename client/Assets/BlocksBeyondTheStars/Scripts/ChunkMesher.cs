@@ -282,6 +282,14 @@ namespace BlocksBeyondTheStars.Client
                 // them and tag them mode 4 so the transparent shader streaks them downward.
                 bool isFallingWater = collKey == "water" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz);
 
+                // Lava SURFACE cell (air above): tag its faces as tint mode 5 so the opaque atlas shader animates
+                // a slow molten crust over the otherwise-static glow (L1). Lava is opaque, so unlike water this
+                // rides the opaque shader's skyl.y mode channel, not the transparent water layout.
+                bool isLavaSurface = collKey == "lava" && worldBlock(wx, wy + 1, wz).IsAir;
+                // Falling-lava column (a lavafall, L3): like falling water, but mode 6 → the opaque shader streaks
+                // a hot glow straight DOWN the vertical flanks. WaterfallDetect is fluid-agnostic (takes the id).
+                bool isFallingLava = collKey == "lava" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz);
+
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
                 // Tree crowns keep the cutout shell (a volume), solid flora (cactus/crystal/caps) stay cubes.
@@ -348,7 +356,7 @@ namespace BlocksBeyondTheStars.Client
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
                     // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
                     // Only the true top layer (air above) keeps its faces, so the real water surface still shows.
-                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater)
+                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater && !isFallingLava)
                     {
                         drawFace = false;
                     }
@@ -375,8 +383,10 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
-                    skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
-                    skyUv.Add(new Vector2(sky, floraFlag)); skyUv.Add(new Vector2(sky, floraFlag));
+                    // mode 5 = animated molten lava surface; mode 6 = falling-lava flank (vertical hot streak).
+                    float faceMode = isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
+                    skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
+                    skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
                     // Coloured block-light reaching the air cell this face looks into (same cell the skylight
                     // samples) — placed lights illuminate the wall regardless of sun/skylight.
                     Vector3 faceBl = BlockLightAt(nx, ny, nz);

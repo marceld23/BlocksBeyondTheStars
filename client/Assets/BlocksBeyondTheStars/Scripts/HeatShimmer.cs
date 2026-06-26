@@ -26,6 +26,11 @@ namespace BlocksBeyondTheStars.Client
         private Transform _quad;
         private float _amp; // smoothed 0..1 heat amount
 
+        // Localized heat (e.g. standing beside a lavafall, L3): fed per-frame from LavaFallView and OR-ed into the
+        // world-temperature shimmer, so even a cool world boils near molten lava. Decays if not refreshed.
+        private static float _proximityHeat;
+        public static void AddProximityHeat(float amp01) => _proximityHeat = Mathf.Max(_proximityHeat, Mathf.Clamp01(amp01));
+
         private void Start()
         {
             var shader = Shader.Find("BlocksBeyondTheStars/HeatHaze");
@@ -67,6 +72,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 target = Mathf.Clamp01(Mathf.InverseLerp(HotWarmC, HotMaxC, env.Temperature));
             }
+
+            // Localized lavafall heat OR-ed in (works even on a cool world / under cover, as long as we have a
+            // camera and aren't in the space view). Decays each frame unless LavaFallView keeps refreshing it.
+            if (_proximityHeat > 0f && cam != null && !Game.SpaceViewActive)
+            {
+                target = Mathf.Max(target, _proximityHeat);
+            }
+
+            _proximityHeat = Mathf.Max(0f, _proximityHeat - Time.deltaTime * 1.5f);
 
             _amp = Mathf.MoveTowards(_amp, target, Time.deltaTime * 0.5f); // shimmer eases in / out
             Shader.SetGlobalFloat(HeatAmpId, _amp);

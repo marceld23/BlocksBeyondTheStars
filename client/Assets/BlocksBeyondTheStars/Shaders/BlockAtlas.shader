@@ -112,7 +112,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 }
 
                 float3 albedo = texel.rgb;
-                if (i.skyl.y > 3.5)
+                if (i.skyl.y > 4.5)
+                {
+                    // Molten lava surface (mode 5): keep the lava tile untinted — the animated crust is applied
+                    // at the emissive step below, so it modulates the GLOW rather than the base colour.
+                }
+                else if (i.skyl.y > 3.5)
                 {
                     // Bark (mode 4): the tree trunk's per-world DARK bark hue (TEXCOORD2.yzw). Forced dark at
                     // the source so it always reads clearly darker than the bright leaf tint. A gentler blend
@@ -199,7 +204,27 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 Fr = F0 + (max(float3(gr, gr, gr), F0) - F0) * fres;
                 col += envCol * Fr * (saturate(gloss) * sky * 0.5);
 
-                col += albedo * i.mat.a * 3.0; // HDR overdrive: push emitters past white so ACES + bloom give a real glow
+                // Lava surface (mode 5) flows: a slow procedural crust redistributes the glow — dark cooled
+                // slabs drift over bright cracks (viscous, ~1/3 water speed; average brightness ≈ unchanged so
+                // bloom stays balanced). Procedural on world XZ + time because atlas UVs can't scroll.
+                float lavaGlow = 1.0;
+                if (i.skyl.y > 5.5)
+                {
+                    // Falling-lava flank (mode 6): a hot bright streak racing straight DOWN the face (faster than
+                    // the creeping surface crust — molten rock in free fall).
+                    float ph = i.wp.y * 2.5 + _Time.y * 5.0;
+                    float streak = 0.6 + 0.6 * sin(ph) + 0.5 * smoothstep(0.7, 1.0, sin(ph * 1.7 + (i.wp.x + i.wp.z) * 2.0));
+                    lavaGlow = clamp(streak, 0.4, 2.4);
+                }
+                else if (i.skyl.y > 4.5)
+                {
+                    float2 lw = i.wp.xz;
+                    float lt = _Time.y * 0.25;
+                    float slab = sin(lw.x * 0.16 + lt) * sin(lw.y * 0.19 - lt * 0.7);
+                    float veins = smoothstep(0.5, 1.0, 0.5 + 0.5 * sin((lw.x + lw.y) * 0.55 + lt * 1.1) + slab * 0.3);
+                    lavaGlow = clamp(1.0 + 0.7 * slab + 0.9 * veins, 0.2, 2.2);
+                }
+                col += albedo * i.mat.a * (3.0 * lavaGlow); // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked
@@ -385,9 +410,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 fixed3 albedo = texel.rgb;
 
+                if (i.skyl.y > 4.5)
+                {
+                    // Molten lava surface (mode 5): untinted; the animated crust modulates the glow below.
+                }
                 // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
                 // flora-tint global), so dyed building blocks read vividly on any world and in caves.
-                if (i.skyl.y > 2.5)
+                else if (i.skyl.y > 2.5)
                 {
                     float lum = dot(albedo, float3(0.299, 0.587, 0.114));
                     albedo = lerp(albedo, lum * i.leaf.yzw * 1.6, 0.85);
@@ -473,7 +502,27 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Emissive blocks glow independently of sun + fog (lights/lava/crystals/ores), so they
                 // shine at night and the bloom pass picks them up. Alpha carries the emission strength.
-                col += albedo * i.mat.a * 3.0; // HDR overdrive: push emitters past white so ACES + bloom give a real glow
+                // Lava surface (mode 5) flows: a slow procedural crust redistributes the glow — dark cooled
+                // slabs drift over bright cracks (viscous, ~1/3 water speed; average brightness ≈ unchanged so
+                // bloom stays balanced). Procedural on world XZ + time because atlas UVs can't scroll.
+                float lavaGlow = 1.0;
+                if (i.skyl.y > 5.5)
+                {
+                    // Falling-lava flank (mode 6): a hot bright streak racing straight DOWN the face (faster than
+                    // the creeping surface crust — molten rock in free fall).
+                    float ph = i.wp.y * 2.5 + _Time.y * 5.0;
+                    float streak = 0.6 + 0.6 * sin(ph) + 0.5 * smoothstep(0.7, 1.0, sin(ph * 1.7 + (i.wp.x + i.wp.z) * 2.0));
+                    lavaGlow = clamp(streak, 0.4, 2.4);
+                }
+                else if (i.skyl.y > 4.5)
+                {
+                    float2 lw = i.wp.xz;
+                    float lt = _Time.y * 0.25;
+                    float slab = sin(lw.x * 0.16 + lt) * sin(lw.y * 0.19 - lt * 0.7);
+                    float veins = smoothstep(0.5, 1.0, 0.5 + 0.5 * sin((lw.x + lw.y) * 0.55 + lt * 1.1) + slab * 0.3);
+                    lavaGlow = clamp(1.0 + 0.7 * slab + 0.9 * veins, 0.2, 2.2);
+                }
+                col += albedo * i.mat.a * (3.0 * lavaGlow); // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
                 // their colour, regardless of sun/skylight, so lamps light caves + night builds. The baked

@@ -312,6 +312,10 @@ namespace BlocksBeyondTheStars.Client
             var waterfalls = root.AddComponent<WaterfallMistView>();
             waterfalls.Game = boot;
 
+            // Lavafall embers + heat-haze: the molten counterpart, wherever lava falls more than three blocks.
+            var lavafalls = root.AddComponent<LavaFallView>();
+            lavafalls.Game = boot;
+
             // Ship-station decor (cockpit console + holo map, medbay tank, terminals, workshop sparks).
             var stationDecor = root.AddComponent<StationDecorView>();
             stationDecor.Game = boot;
