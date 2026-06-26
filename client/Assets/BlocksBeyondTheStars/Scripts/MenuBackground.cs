@@ -11,10 +11,11 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Animated space-scene backdrop for the shell screens — now rendered with the SAME systems the live game uses
     /// so the attract scene reflects the real look: the real twinkling <see cref="Starfield"/> + per-system
-    /// <see cref="NebulaField"/> gas dome, a glowing sun disc with god-ray shafts (<see cref="SkyVisuals"/>), the
-    /// player's REAL voxel ship meshed from the block atlas (<see cref="ShipMeshBuilder"/>, with the chosen hull
-    /// colour + engine glow), and the cinematic post stack (<see cref="UrpScenePost"/>: bloom, ACES tonemap,
-    /// vignette, lens flare). A lit planet + cloud shell + moon + drifting asteroids keep the original composition.
+    /// <see cref="NebulaField"/> gas dome, a layered glowing star (corona/core/centre, <see cref="SkyVisuals"/>) like
+    /// the in-game space sun, the player's REAL voxel ship meshed from the block atlas (<see cref="ShipMeshBuilder"/>,
+    /// with the chosen hull colour + engine glow), and the cinematic post stack (<see cref="UrpScenePost"/>: bloom,
+    /// ACES tonemap, vignette, lens flare). A sun-lit-phased planet (<c>SkyBodyPhase</c> terminator) + cloud shell +
+    /// atmosphere haze + moon + drifting phase-lit asteroids keep the original composition.
     /// Falls back to a hand-built cube ship only when the block atlas/content isn't available. Rendered by its own
     /// camera so the menu UI draws on top.
     /// </summary>
@@ -44,8 +45,10 @@ namespace BlocksBeyondTheStars.Client
         private Transform _thruster;
         private float _shipExtent = 6f, _shipScale = 1f;
 
-        // The visible sun direction (shared by the disc, the god-rays and the block-atlas sun shading).
+        // The visible sun direction (shared by the layered star, the body phase-lighting and the block-atlas sun
+        // shading) and its distance from the camera (so the bodies can be lit from the true sun position).
         private static readonly Vector3 SunDir = new Vector3(0.5f, 0.42f, 0.85f).normalized;
+        private const float SunDist = 260f;
 
         private void Start()
         {
@@ -68,8 +71,8 @@ namespace BlocksBeyondTheStars.Client
             stars.MenuBrightness = 1f;
             var nebula = gameObject.AddComponent<NebulaField>();
             nebula.Camera = _cam;
-            nebula.MenuBrightness = 0.6f; // a touch dimmer so the gas dome doesn't haze over the backdrop
-            nebula.MenuSeed = 73;
+            nebula.MenuBrightness = 0.9f; // near the in-game space brightness so the gas dome reads vivid, not washed out
+            nebula.MenuSeed = 142;        // curated seed (art-tunable in-build): a more colourful patch layout than the old 73
 
             BuildSun();
             BuildRenderContext();
@@ -77,11 +80,18 @@ namespace BlocksBeyondTheStars.Client
             var rock = LoadTex("stone");
             var iceTex = LoadTex("ice");
 
-            _planet = MakeSphere("Planet", new Vector3(11f, -3f, 34f), 26f,
-                Lit(new Color(0.30f, 0.50f, 0.70f), iceTex, new Vector2(4f, 2f))).transform;
+            // Bodies are sun-lit-phased from the true sun position (a day/night terminator), like the in-game orbit
+            // view — not flat key light. The phase direction is the world dir from each body toward the sun.
+            Vector3 sunPos = SunDir * SunDist;
+
+            var planetPos = new Vector3(11f, -3f, 34f);
+            _planet = MakeSphere("Planet", planetPos, 26f,
+                LitPhase(new Color(0.30f, 0.50f, 0.70f), sunPos - planetPos, iceTex, new Vector2(4f, 2f))).transform;
             _clouds = BuildCloudShell(_planet);
-            _moon = MakeSphere("Moon", new Vector3(-16f, 11f, 60f), 5f,
-                Lit(new Color(0.60f, 0.60f, 0.64f), rock, new Vector2(2f, 1f))).transform;
+            BuildAtmosphereHaze(_planet, new Color(0.55f, 0.75f, 1f)); // thin bluish rim glow, like the orbit view
+            var moonPos = new Vector3(-16f, 11f, 60f);
+            _moon = MakeSphere("Moon", moonPos, 5f,
+                LitPhase(new Color(0.60f, 0.60f, 0.64f), sunPos - moonPos, rock, new Vector2(2f, 1f))).transform;
 
             // Prefer the REAL voxel ship (block atlas, hull paint, engine glow); fall back to the cube silhouette.
             _ship = BuildVoxelShipModel() ?? BuildShip(LoadTex("iron_wall"));
@@ -91,10 +101,10 @@ namespace BlocksBeyondTheStars.Client
             var rng = new System.Random(99);
             for (int i = 0; i < _asteroids.Length; i++)
             {
-                var a = Cube("Asteroid", transform,
-                    new Vector3((float)(rng.NextDouble() * 28 - 14), (float)(rng.NextDouble() * 16 - 8), 14f + (float)rng.NextDouble() * 24f),
+                var apos = new Vector3((float)(rng.NextDouble() * 28 - 14), (float)(rng.NextDouble() * 16 - 8), 14f + (float)rng.NextDouble() * 24f);
+                var a = Cube("Asteroid", transform, apos,
                     Vector3.one * (0.6f + (float)rng.NextDouble() * 1.6f),
-                    Lit(new Color(0.45f, 0.40f, 0.34f), rock));
+                    LitPhase(new Color(0.45f, 0.40f, 0.34f), sunPos - apos, rock));
                 _asteroids[i] = a.transform;
             }
 
@@ -180,7 +190,7 @@ namespace BlocksBeyondTheStars.Client
         private static void ApplySpaceLighting()
         {
             Shader.SetGlobalColor("_Sc_Light", Color.white);
-            Shader.SetGlobalVector("_Sc_SunDir", new Vector3(0.4f, 0.7f, -0.55f).normalized); // matches LitColor's key light
+            Shader.SetGlobalVector("_Sc_SunDir", SunDir); // light the voxel ship from the VISIBLE sun, not a third direction
             Shader.SetGlobalColor("_Sc_GradeTint", new Color(0f, 0f, 0f, 0f));
             Shader.SetGlobalColor("_Sc_FloraTint", new Color(0f, 0f, 0f, 0f));
             Shader.SetGlobalColor("_Sc_LampColor", new Color(0f, 0f, 0f, 0f)); // suit headlamp off
@@ -210,27 +220,27 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A glowing sun disc + additive god-ray fan at <see cref="SunDir"/> (the shafts the real game shows
-        /// around the sun), billboarded toward the static menu camera. Both bloom via the post stack.</summary>
+        /// <summary>The system star as a LAYERED glow (coloured corona → near-white core → blazing white centre) at
+        /// <see cref="SunDir"/>, billboarded toward the static menu camera — the same build the in-game space view
+        /// uses (SpaceView.MakeSunLayer). No god-ray fan, to match what the game actually shows in space. Blooms via
+        /// the post stack.</summary>
         private void BuildSun()
         {
-            const float dist = 260f;
-            Vector3 pos = SunDir * dist;
+            Vector3 pos = SunDir * SunDist;
             Quaternion billboard = Quaternion.LookRotation(-pos);
-            Color sun = new Color(1f, 0.95f, 0.82f);
+            Color sun = new Color(1f, 0.96f, 0.88f);
 
-            var discShader = Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
-            var discMat = new Material(discShader) { mainTexture = SkyVisuals.GlowTexture() };
-            discMat.SetColor("_Color", ShaderColor.Srgb(new Color(sun.r, sun.g, sun.b, 1f)));
-            MakeQuad("SunDisc", pos, billboard, dist * 0.22f, discMat);
-
-            var rayShader = Shader.Find("BlocksBeyondTheStars/SunRays");
-            if (rayShader != null)
+            var glowShader = Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
+            Material Layer(Color c)
             {
-                var rayMat = new Material(rayShader) { mainTexture = SkyVisuals.RayTexture() };
-                rayMat.SetColor("_Color", ShaderColor.Srgb(new Color(sun.r, sun.g, sun.b, 0.55f)));
-                MakeQuad("SunRays", pos, billboard, dist * 0.8f, rayMat);
+                var m = new Material(glowShader) { mainTexture = SkyVisuals.GlowTexture() };
+                m.SetColor("_Color", ShaderColor.Srgb(c));
+                return m;
             }
+
+            MakeQuad("SunCorona", pos, billboard, SunDist * 0.34f, Layer(sun));                              // outer corona (star colour)
+            MakeQuad("SunCore", pos, billboard, SunDist * 0.18f, Layer(Color.Lerp(sun, Color.white, 0.85f))); // hot near-white core
+            MakeQuad("SunCenter", pos, billboard, SunDist * 0.085f, Layer(Color.white));                      // blazing white centre
 
             // A directional-ish point light far along the sun direction so the lit primitives catch a warm key.
             var lightGo = new GameObject("SunLight");
@@ -514,6 +524,26 @@ namespace BlocksBeyondTheStars.Client
             return shell.transform;
         }
 
+        /// <summary>A thin translucent atmosphere shell over a planet — a faint bluish rim glow like the in-game
+        /// orbit view, sitting just outside the cloud shell so the planet reads as having an atmosphere.</summary>
+        private void BuildAtmosphereHaze(Transform planet, Color tint)
+        {
+            var haze = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            haze.name = "Atmosphere";
+            StripCollider(haze);
+            haze.transform.SetParent(planet, false);
+            haze.transform.localPosition = Vector3.zero;
+            haze.transform.localScale = Vector3.one * 1.06f;
+
+            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+            var mat = new Material(shader) { mainTexture = Texture2D.whiteTexture, renderQueue = 2999 };
+            mat.SetColor(Shader.PropertyToID("_Color"), ShaderColor.Srgb(new Color(tint.r, tint.g, tint.b, 0.12f)));
+            var mr = haze.GetComponent<Renderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+        }
+
         private static Texture2D CloudTexture()
         {
             const int n = 128;
@@ -597,6 +627,31 @@ namespace BlocksBeyondTheStars.Client
         {
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var m = new Material(shader) { color = ShaderColor.Srgb(c) };
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+                if (tiling != default)
+                {
+                    m.mainTextureScale = tiling;
+                }
+            }
+
+            return m;
+        }
+
+        /// <summary>Sun-lit-phase material for a celestial body (the same <c>SkyBodyPhase</c> shader the in-game orbit
+        /// view uses), lit from the world direction <paramref name="sunDir"/> so a day/night terminator emerges
+        /// instead of flat key light. Falls back to <see cref="Lit"/> when the phase shader isn't available.</summary>
+        private static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
+        {
+            var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase");
+            if (shader == null)
+            {
+                return Lit(c, tex, tiling);
+            }
+
+            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
+            m.SetVector("_PhaseSunDir", sunDir.sqrMagnitude > 1e-6f ? (Vector4)sunDir.normalized : new Vector4(0f, 0f, 1f, 0f));
             if (tex != null)
             {
                 m.mainTexture = tex;
