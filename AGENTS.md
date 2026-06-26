@@ -164,7 +164,8 @@ compatibility) separate — it is not the game version. Gotchas if you touch thi
 `bundleVersion` (drive it via `versioning: Custom`, don't fight it with `-buildVersion`); Velopack needs
 `packVersion >= 0.0.1` (so dev is `0.1.0-dev`, not `0.0.0-*`); after `git push` wait ~20 s before
 `gh workflow run` or it dispatches the previous commit. macOS *client* installers are intentionally not
-built (blocked by the macOS UnityWebBrowser/CEF engine not being available).
+built (out of scope for now — a native macOS client would need its own graphics (Metal/Vulkan) and
+Apple code-signing/notarization work).
 
 ## Project conventions
 

@@ -388,9 +388,8 @@ When working on this pipeline, three non-obvious gotchas already cost a debuggin
 - **`gh workflow run` right after `git push`** can dispatch the *previous* commit (tag/branch HEAD hasn't
   propagated yet) — wait ~20 s and verify the run's `headSha`.
 
-macOS **client** installers are intentionally not built: the macOS Unity editor has no CEF engine for
-UnityWebBrowser, so a native macOS client would need the embedded browser removed first
-(see [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md)). Linux **client** installers (AppImage + portable zip)
+macOS **client** installers are intentionally not built: it is out of scope for now and would need its
+own work (Metal/Vulkan graphics, cross-compilation, and Apple code-signing/notarization). Linux **client** installers (AppImage + portable zip)
 are now produced alongside the Windows builds — see the release pipeline above.
 The .NET **server** also cross-builds (`publish-server.ps1` / `.sh`: win-x64/linux-x64/linux-arm64).
 

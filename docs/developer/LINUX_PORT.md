@@ -17,20 +17,7 @@ untouched, and add parallel Linux paths alongside it.
 only on `RuntimePlatform.WindowsPlayer` or `WindowsEditor`. On any other platform (Linux, macOS) the binary
 name has no extension — Unity's `System.Diagnostics.Process` handles this natively.
 
-### 2. Linux CEF engine for UnityWebBrowser
-
-The in-game embedded browser (Wiki + Arcade minigames) uses UnityWebBrowser with a CEF backend. The
-`client/Packages/manifest.json` already had `dev.voltstro.unitywebbrowser.engine.cef.win.x64`; the linux.x64
-engine was added alongside it:
-
-```json
-"dev.voltstro.unitywebbrowser.engine.cef.linux.x64": "2.2.8"
-```
-
-Unity's Package Manager only downloads the engine matching the build platform's architecture, so this does
-not bloat Windows builds.
-
-### 3. BuildScript.cs — BuildLinux()
+### 2. BuildScript.cs — BuildLinux()
 
 The Unity editor build script previously only had `BuildWindows()` (hardcoded `BuildTarget.StandaloneWindows64`,
 `.exe` output path). A new `BuildLinux()` method was added:
@@ -46,7 +33,7 @@ public static void BuildLinux()
 The shared `BuildPlayer()` method handles version injection, shader prewarming, scene generation, and icon
 embedding for both targets.
 
-### 4. Linux Console Launcher
+### 3. Linux Console Launcher
 
 **Problem:** Windows has a WinForms loading-splash launcher (`src/BlocksBeyondTheStars.Launcher/`) — it
 shows a graphical splash, runs Velopack hooks, then launches the Unity player. WinForms doesn't run on Linux.
@@ -59,7 +46,7 @@ on Linux:
 - **SplashRenderer.cs:** uses SkiaSharp (3.x) to render the splash art to a PNG for the Velopack installer.
   The procedural art (dark gradient, stars, title, progress bar) mirrors the Windows launcher's appearance.
 
-### 5. Bash Build Scripts
+### 4. Bash Build Scripts
 
 The critical-path Windows PowerShell scripts were ported to bash:
 
@@ -71,7 +58,7 @@ The critical-path Windows PowerShell scripts were ported to bash:
 | `build-client.sh` | Full Linux client build (prerequisites + Unity batch build + console launcher) |
 | `run-tests.sh` | Selectable .NET test runner (Dotnet + ClientCore suites) |
 
-### 6. CI/CD Pipeline
+### 5. CI/CD Pipeline
 
 The `release.yml` workflow gained two new jobs alongside the existing Windows jobs:
 
@@ -104,8 +91,6 @@ Quick start:
 
 ## Known limitations
 
-- **Unity WebBrowser on Linux** uses the CEF linux.x64 engine. This works but adds ~50 MB to the build.
-  The Voltstro UWB package supports it natively — no code changes were needed beyond adding the package.
 - **No graphical splash** on Linux — the console launcher is terminal-only. The pre-engine startup gap
   is just a "Loading..." text line. A future enhancement could use SDL2 or Avalonia for a graphical splash.
 - **No MSI installer** on Linux — Velopack produces AppImage and portable zip. Deb/rpm are possible but
