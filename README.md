@@ -83,6 +83,14 @@ and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to on
 
 *(This is the same credit shown in the game's Credits screen — `ui.credits.body`.)*
 
+### Contributors
+
+Community contributions we're grateful for:
+
+- **Cora de la Mouche** ([@corarona](https://github.com/corarona)) — Linux support: client build target, console launcher, bash build scripts and cross-platform release CI/CD ([#69](https://github.com/marceld23/BlocksBeyondTheStars/pull/69))
+
+Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
 > **Status & docs:** [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in
 > [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md); building and verifying builds is in
 > [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md); the system overview is in
