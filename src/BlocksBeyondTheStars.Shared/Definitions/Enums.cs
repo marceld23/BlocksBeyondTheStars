@@ -38,5 +38,6 @@ public enum CraftingStation
     Workshop,
     Refinery,
     Detoxifier,
+    Transmuter,
     Market,
 }

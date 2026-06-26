@@ -159,12 +159,22 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   materials moved into the hold automatically each time you board. Off by default.
 
 ### Crafting, blueprints, tech
-- Recipes are made at **stations**: hand (free), workshop, refinery, lab, machine room, detoxifier, market
+- Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market
   (barter). Inputs are consumed, outputs produced (free in Creative).
+- The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
+  ingots and fabricates parts, tools, weapons and building blocks.
+- The **refinery** (the *forge* block on a base, or the refinery ship module — both unlocked via Tech) is
+  the high-heat metallurgy station. It alone smelts the **rare Tier-2 metals** (titanium, cobalt, tungsten,
+  platinum, uranium, neodymium) and refines diamond, carbide and reactor fuel. It also offers **higher-yield
+  smelts** of the common ores (e.g. iron and copper) than the workshop — handy for bulk metalwork. You can
+  never need it before you can build it: its metals are also the ones that need a titanium-tier drill to mine.
+- The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
+  (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
 - **Blueprints** gate advanced recipes — unlock them with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
 - **Disassemble** (at a workshop): break a crafted item back into ~50 % of its recipe inputs. In the
-  Inventory detail pane, select the item and press **Disassemble** (shows what it recovers).
+  Inventory detail pane, select the item and press **Disassemble** (shows what it recovers). Raw resources
+  and refinery/transmuter-synthesised ore can't be disassembled.
 
 ### Ship, modules, building
 - A ship is a set of fitted **modules** (cockpit, reactor, life support, workshop, medbay, cargo holds,

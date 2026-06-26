@@ -234,6 +234,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The transmuter gets its own matter-synthesis sting over the generic craft feedback.
+            if (recipe.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Transmuter)
+            {
+                ClientAudio.Instance?.Cue("matter_synth", 0.8f);
+            }
+
             _celebrateKey = output.Item;
             _celebrateUntil = Time.unscaledTime + 2.5f;
             SpawnFloatLabel("+ " + ItemName(output.Item), UiKit.Ok);

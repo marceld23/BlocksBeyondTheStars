@@ -2586,13 +2586,14 @@ public sealed partial class GameServer
         }
 
         // Find the crafting recipe that produces this item (so we know what it's made of).
-        // Market (barter) recipes are trades, not construction — they must not make raw resources
-        // look "disassemblable".
+        // Market (barter) recipes are trades, not construction; transmuter recipes synthesise raw ore
+        // from matter dust — neither is a built item, so they must not make raw resources look
+        // "disassemblable" (else mined ore could be reversed into matter dust + an energy cell).
         RecipeDefinition? recipe = null;
         int perCraft = 1;
         foreach (var r in _content.Recipes.Values)
         {
-            if (r.Station == CraftingStation.Market)
+            if (r.Station is CraftingStation.Market or CraftingStation.Transmuter)
             {
                 continue;
             }
@@ -2970,6 +2971,7 @@ public sealed partial class GameServer
                 CraftingStation.Workshop => NearStationBlock(player, "workbench"),
                 CraftingStation.Refinery => NearStationBlock(player, "forge"),
                 CraftingStation.Detoxifier => NearStationBlock(player, "detoxifier"),
+                CraftingStation.Transmuter => NearStationBlock(player, "matter_forge"),
                 _ => false,
             };
         }
@@ -2979,6 +2981,7 @@ public sealed partial class GameServer
             CraftingStation.Workshop => "workshop",
             CraftingStation.Refinery => "refinery",
             CraftingStation.Detoxifier => "detoxifier",
+            CraftingStation.Transmuter => "transmuter",
             _ => string.Empty,
         };
 

@@ -132,6 +132,7 @@ ITEMS = [
     ("biofuel", "a small glass flask of glowing green-amber biofuel liquid with a cork stopper"),
     ("bronze_gear", "a single toothed bronze mechanical gear cog with a warm golden-brown sheen"),
     ("brass_fitting", "a small polished brass pipe fitting coupling with threads"),
+    ("matter_dust", "a small heap of softly glowing violet-grey crystalline matter dust, faint sci-fi energy sparkles rising from it"),
     ("camera", "a compact retro-futuristic handheld camera, dark rounded metal body with a large glassy cyan-tinted lens, a small shutter button on top and a glowing status light"),
 ]
 
@@ -147,6 +148,7 @@ MODULES = [
     ("cargo_hold_1", "a large ship cargo container module"),
     ("refinery", "a ship ore refinery smelter module"),
     ("detoxifier", "a ship chemical detoxifier purifier module"),
+    ("transmuter", "a ship matter transmuter module, a dark hexagonal reactor housing with a glowing violet matter-reassembly core and faint energy arcs"),
     ("tractor_beam", "a ship tractor-beam emitter dish projecting a beam"),
     ("oxygen_generator", "a ship oxygen generator with a tank"),
     ("docking_module", "a ship docking clamp port ring"),

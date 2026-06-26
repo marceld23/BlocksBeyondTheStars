@@ -60,6 +60,42 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
+Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide
+needs tungsten+platinum, whose ore is Tier-2 — minable only with the titanium_drill. A perfect circle, so the entire Tier-2
+economy (carbide tools, power_cell via cobalt, reactor_fuel via uranium, magnet/radar via neodymium, diamond/mining drills)
+was unreachable without a basic drill ever escaping Tier-1. No market/asteroid/loot/mission yields carbide or tungsten/
+platinum; only the Creative kit grants a titanium_drill — which is why it slipped through (testing runs Creative). Fix
+(Option A, surgical): the titanium_drill recipe now uses `steel ×2` instead of `carbide ×1`. The Tier-2 "key" drill is
+reachable via market/asteroid titanium → refinery → titanium_plate; carbide stays the gate for the *advanced* tools
+(diamond_drill, mining_beam, terrain_blaster) you build AFTER the drill, when tungsten/platinum are minable. New
+`ToolTierProgressionTests` guards it (fixpoint: the first Tier-2 drill must be craftable without any Tier-2 mining). No
+wiki/manual change needed — the Codex Recipes/Tech chapters are data-driven and auto-reflect the new recipe.
+
+### ★ Refinery does more: Tier-2 metallurgy + efficiency smelts (2026-06-26) — ✅ data+tests green, NOT committed to main, client content-sync only (no Unity code build)
+The Refinery held only 4 recipes while the always-available workshop held ~80, so the station felt pointless even though
+`titanium_plate` (refinery-only) is already the de-facto gate to the titanium age. Gave it a real role WITHOUT breaking
+crafting order: moved the smelting of the six metals whose ore needs a Tier-2 drill (cobalt, platinum, tungsten, uranium,
+neodymium + carbide sintering) to the refinery — provably safe because that ore is unreachable until the refinery exists.
+Added four **efficiency smelts** (refine_iron/copper/gold/silver) that out-yield the workshop but keep the workshop
+fallback, so nothing is gated. Everything that feeds pre-refinery gear (iron/copper/nickel→steel, gold/silver→circuit_board,
+tin→bronze, zinc→brass, sulfur→polymer) stays at the workshop. New `RefineryProgressionTests` adds an ordering guard: a
+fixpoint over Hand+Workshop recipes (basic-drill ore only) asserts no pre-refinery item is ever stranded behind the refinery
+— the generic obtainability tests don't check station order. User manual + in-game wiki (DE+EN) updated to describe the
+workshop/refinery split (+ the transmuter, which they previously omitted; dropped the dead "machine room").
+
+### ★ Matter converter ("Transmuter"): craft scarce ore from spare terrain (2026-06-26) — ✅ data+server+assets+tests green (730), local Unity build green, NOT committed to main
+A new gated crafting station (placeable `matter_forge` block + `transmuter` ship module, unlocked by the `matter_forge`
+blueprint, prereq `refinery`) gives the effectively-infinite trash terrain (sand/dirt/mud/stone/basalt/ash) a sink:
+compact it into `matter_dust`, then synthesise it back into Tier-1 ore (Stage 1) or, via `matter_resynth`, select Tier-2
+ore (Stage 2). Balance is held by three invariants pinned in `MatterConverterTests`: lossy `matter_dust` intermediate,
+energy-cell/power-cell costs that block a from-nothing bootstrap, and NO Tier-3 output. Reuses the Detoxifier station
+pattern, so the client needed almost no code (recipes list by output category; station label is a single locale key;
+block tile is procedural from `color`). Also closed a side-effect: synthesised ore must NOT be reverse-engineerable, so
+`Disassemble` now skips Transmuter recipes (as it already did Market). OpenAI icons (`matter_dust`, `transmuter`) +
+ElevenLabs `matter_synth` SFX generated. Lore kept purely functional (not in VEGA canon). Doc:
+`docs/developer/MATTER_CONVERTER_PLAN.md`.
+
 ### ★ Cargo hold made actively usable: manual transfer + capacity + auto-stow (2026-06-25) — ✅ server+tests green (710), NEEDS Unity build
 Before this the ship's cargo hold was functional but invisible in play: items only spilled into it when the 24-slot
 inventory was full, space salvage was the only thing that filled it, and the Cargo tab was read-only. Now you can move

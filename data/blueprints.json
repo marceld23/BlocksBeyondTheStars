@@ -70,6 +70,16 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 } ]
   },
   {
+    "key": "matter_forge", "nameKey": "blueprint.matter_forge.name", "descriptionKey": "blueprint.matter_forge.desc",
+    "category": "ShipExpansion", "prerequisites": [ "refinery" ], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "circuit_board", "count": 3 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "matter_resynth", "nameKey": "blueprint.matter_resynth.name", "descriptionKey": "blueprint.matter_resynth.desc",
+    "category": "ShipExpansion", "prerequisites": [ "matter_forge" ], "knowledgeCost": 18,
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "circuit_board", "count": 4 }, { "item": "power_cell", "count": 2 } ]
+  },
+  {
     "key": "tractor_beam", "nameKey": "blueprint.tractor_beam.name", "descriptionKey": "blueprint.tractor_beam.desc",
     "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 8,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
