@@ -42,7 +42,11 @@ run_dotnet_suite() {
     local name="$1"
     local project="$2"
     echo "==> $name ($project) =="
-    if dotnet test "$REPO/$project" -c Debug --nologo; then
+    if DOTNET_ROLL_FORWARD=LatestMajor \
+       dotnet test "$REPO/$project" -c Debug --nologo \
+           -- RunConfiguration.MaxCpuCount=1 \
+           xunit.parallelizeTestCollections=false \
+           xunit.maxParallelThreads=1; then
         SUMMARY+=("passed  $name")
     else
         FAILURES+=("$name")
