@@ -22,7 +22,7 @@ Blocks Beyond the Stars is not a traditional indie game—it is an exploration o
 
 ## 🪐 What is it? (The Short Pitch)
 
-A block-based 3D space crafting game for Windows, built from day one as a persistent client/server multiplayer experience.
+A block-based 3D space crafting game for Windows and Linux, built from day one as a persistent client/server multiplayer experience.
 
 You wake aboard your own spaceship. Out there are procedurally generated star systems—each with its own sun, planets, moons, and asteroid fields. Land on unique worlds (from airless rocks to lava fields and floating skylands), mine resources, craft gear, and unlock blueprints.
 
@@ -99,20 +99,21 @@ The software is provided as-is under the terms of the [license](#-license) inclu
 
 ## System requirements
 
-The **game client ships as a Windows build** (there is no native Linux/macOS client yet), but the
+The **game client ships as a Windows build** (with a **native Linux build** also available), but the
 **server is cross-platform** — so a Linux/macOS machine, a NAS or a VPS (including via Docker) can
-host a world that Windows players join.
+host a world that players join.
 
 **Game client (to play)**
 
-- **Windows 10/11 (64-bit).**
-- A GPU with DirectX 11+ support (Unity 6 / URP) and a few GB of free disk for the client + worlds.
-- **Linux:** the Windows client also runs on Linux through **[Proton](https://github.com/ValveSoftware/Proton)**
-  (Steam Play) or **Wine** — there is no native Linux build, so it goes through that translation layer.
-  It works, but expect a higher performance cost than on Windows. If it feels sluggish, open
-  **Settings → Graphics** and **turn VSync off** (optionally set a frame-rate limit), lower the
-  **quality preset** (Potato/Low also disables the costlier screen-space effects) and the **view
-  distance**. A recent Proton (e.g. Proton GE) generally gives the smoothest result.
+- **Windows 10/11 (64-bit).** A GPU with DirectX 11+ support (Unity 6 / URP) and a few GB of free
+  disk for the client + worlds.
+- **Linux (native):** a native `StandaloneLinux64` build is available. Launch it from the terminal
+  via `./BlocksBeyondTheStars.x86_64` or through the console launcher (`./BlocksBeyondTheStars.Launcher.Console`).
+- **Linux (Proton/Wine):** the Windows build also runs through **[Proton](https://github.com/ValveSoftware/Proton)**
+  (Steam Play) or **Wine**. If the native build has issues on your distro, try the Windows build via Proton.
+  If it feels sluggish, open **Settings → Graphics** and **turn VSync off** (optionally set a frame-rate
+  limit), lower the **quality preset** (Potato/Low also disables the costlier screen-space effects)
+  and the **view distance**. A recent Proton (e.g. Proton GE) generally gives the smoothest result.
 - The client always talks to a server: a local one started automatically in singleplayer / "Host
   Game", or a remote dedicated server.
 
@@ -159,7 +160,7 @@ oxygen, damage, blueprints or travel.
 
 | Area | Choice |
 |---|---|
-| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows) — see [`client/`](client/) |
+| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux) — see [`client/`](client/) |
 | Server | .NET 8, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
 | Database | SQLite (default, portable); PostgreSQL later |
@@ -177,6 +178,8 @@ src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           validate/info/backup CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
+src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net8.0-windows)
+src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net8.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration tests
 client/                         Unity project (scripts + scaffold + Assets/Tests; open in the Unity Editor)
@@ -186,7 +189,7 @@ data/                           data-driven content (blocks, items, recipes, blu
 data/locales/                   localization (en.json, de.json)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 architecture, design/how-it-works docs, ADRs (docs/developer/adr/) — see its README.md index
-scripts/                        build-client.ps1 + publish scripts for self-hosting packages
+scripts/                        build-client.ps1 (Windows) + build-client.sh (Linux) + publish scripts
 ```
 
 ## Build, test, run
@@ -194,18 +197,25 @@ scripts/                        build-client.ps1 + publish scripts for self-host
 Requires the **.NET 8 SDK**.
 
 ```powershell
-dotnet build BlocksBeyondTheStars.sln       # build everything
+dotnet build BlocksBeyondTheStars.CI.slnf  # build everything (Linux: use .slnf to skip WinForms launcher)
 dotnet test                       # run all .NET tests (server/shared + headless client<->server)
-./scripts/run-tests.ps1           # selectable test runner (adds the Unity Editor suites with -Suites All)
+./scripts/run-tests.ps1           # selectable test runner (Windows); ./scripts/run-tests.sh on Linux
 dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local dedicated server (UDP 31415)
 dotnet run --project src/BlocksBeyondTheStars.Api          # start the admin UI (http://127.0.0.1:31416)
 ```
 
-The playable Windows client is built with `scripts/build-client.ps1` (publishes the shared libs +
-the bundled server and runs a Unity batch build; requires the Unity Editor). See
-[docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) for the full build guide, how to verify a build is
-fresh, and known build pitfalls. The Unity client is tested against the **real** game server — the approach is
-documented in [docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
+```bash
+dotnet build BlocksBeyondTheStars.CI.slnf  # build everything (skips WinForms launcher)
+./scripts/run-tests.sh                     # selectable .NET test runner (suites: Dotnet, ClientCore, All)
+dotnet run --project src/BlocksBeyondTheStars.GameServer   # start a local dedicated server
+```
+
+The playable client is built with `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh`
+(Linux) — these publish the shared libs + bundled server and run a Unity batch build (requires the
+Unity Editor). See [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) for the full build guide,
+how to verify a build is fresh, and known build pitfalls. The Unity client is tested against the
+**real** game server — the approach is documented in
+[docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
 
 Server configuration lives in `config/server.json` (created on first run) and is editable
 via the admin UI. See [docs/developer/SELF_HOSTING.md](docs/developer/SELF_HOSTING.md).
@@ -282,7 +292,7 @@ colored-light building, in-game customization (avatar pixel-face editor, content
 editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**,
 the VEGA ship-AI onboarding/advisor companion, world-creation options, and an optional LLM backend
 for dynamic dialogue/mission text. Self-hostable dedicated server.
-Currently 584 xUnit tests pass.
+Currently **795 xUnit tests pass** (710 server/shared + 85 headless client<->server).
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)

@@ -8,11 +8,13 @@ built player. Contributor rules (language, architecture, conventions) live in
 ## Prerequisites
 
 | Tool | Version | Notes |
-|---|---|---|
+|---|---|---|---|
 | .NET SDK | 8.x | builds the server, shared libs, tests and tools |
-| Unity Editor | 6 LTS (6000.4.x) | required only for the Windows client build; default path used by the build script: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` |
-| Windows | 10/11 | the client is a Windows player; the dedicated server also publishes for Linux |
-| PowerShell | 7+ | for the `scripts/*.ps1` build scripts |
+| Unity Editor | 6 LTS (6000.4.x) | required only for the client build; default paths: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` (Windows) or `/opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity` (Linux) |
+| Windows | 10/11 | for the Windows client build; the dedicated server also publishes for Linux |
+| Linux | any modern distro | for the Linux client build and/or server hosting |
+| PowerShell | 7+ | for the Windows `scripts/*.ps1` build scripts |
+| Bash | 4+ | for the Linux `scripts/*.sh` build scripts |
 
 ## Server, tests, tools (.NET)
 
@@ -27,10 +29,16 @@ dotnet run --project src/BlocksBeyondTheStars.Api           # admin UI (http://1
 
 ```powershell
 dotnet test                                # all .NET xUnit suites (server/shared + headless client<->server)
-./scripts/run-tests.ps1                     # selectable runner — default: fast .NET suites only
+./scripts/run-tests.ps1                     # selectable runner — default: fast .NET suites only (Windows)
 ./scripts/run-tests.ps1 -Suites All         # + the Unity Editor suites (EditMode + PlayMode-vs-real-server)
 ./scripts/run-tests.ps1 -Suites ClientCore  # just the headless client<->server integration tests
 ./scripts/run-tests.ps1 -Coverage           # .NET suites with a coverage report (TestResults/)
+```
+
+```bash
+./scripts/run-tests.sh                      # selectable runner — .NET suites only (Linux)
+./scripts/run-tests.sh --suites All         # both .NET suites (Dotnet + ClientCore)
+./scripts/run-tests.sh --suites ClientCore  # just the headless client<->server integration tests
 ```
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
@@ -50,11 +58,11 @@ tests/BlocksBeyondTheStars.Tests        # Dotnet  — server/shared xUnit
 tests/BlocksBeyondTheStars.Client.Tests # ClientCore — real NetworkClient ↔ in-process GameServer
 ```
 
-These are the same two suites `run-tests.ps1` runs by default. Two deliberate choices:
+These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. Two deliberate choices:
 
 - **It targets the test projects directly, not `BlocksBeyondTheStars.sln`.** The solution also contains the
   WinForms launcher (`net8.0-windows`), which cannot build on the Linux runner; building the test projects
-  pulls in exactly their dependencies (server/shared/`Client.Core`) and nothing Windows-only.
+  pulls in exactly their dependencies (server/shared/`Client.Core`/`Launcher.Console`) and nothing Windows-only.
 - **Warnings fail the PR.** The build step runs with **`-warnaserror`**, so any compiler or analyzer warning
   breaks the check — even though the local build keeps `TreatWarningsAsErrors=false`
   ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
@@ -152,7 +160,10 @@ early:
    `client/Assets/**` file changed, run:
 
    ```powershell
-   ./scripts/build-client.ps1
+   ./scripts/build-client.ps1        # Windows
+   ```
+   ```bash
+   ./scripts/build-client.sh         # Linux (pass --unity-path /path/to/Unity)
    ```
 
    This catches Unity-only compile failures (the `CS0246` "works in the Editor, broken in the build" trap —
@@ -212,6 +223,49 @@ without it the version is read from `PlayerSettings.bundleVersion` in `ProjectSe
 source of truth — see [Releases & versioning](#releases-github-actions--versioning) below). For an actual
 shipped release you normally do **not** run this by hand — push a tag and let CI do it.
 
+## Building the Linux client
+
+The Linux build uses the same Unity project but targets `StandaloneLinux64`:
+
+```bash
+./scripts/build-client.sh
+```
+
+It runs these steps, equivalent to the Windows build:
+
+1. **Sync shared libs + content** (`scripts/sync-client-libs.sh`) — same as the .ps1 equivalent, publishes
+   the netstandard2.1 libraries and copies `data/` into StreamingAssets.
+2. **Bundle the singleplayer server** (`scripts/publish-local-server.sh`) — publishes the GameServer for
+   `linux-x64` (self-contained single-file) into `client/Assets/StreamingAssets/server/`.
+3. **Unity batch build** — runs the Unity Editor headless with
+   `BuildScript.BuildLinux` and writes the player to `client/Build/Linux/`.
+4. **Build the console launcher** — `dotnet publish`es
+   `src/BlocksBeyondTheStars.Launcher.Console` (a self-contained, single-file console app using SkiaSharp)
+   and copies it next to the player. It prints "Loading..." to the terminal, starts the Unity player as a
+   child process, and forwards its exit code. Like the Windows launcher, it also runs Velopack
+   lifecycle hooks for install/update/uninstall.
+
+Useful parameters:
+
+```bash
+./scripts/build-client.sh --skip-prereqs          # rebuild only the Unity player
+./scripts/build-client.sh --unity-path /opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity
+./scripts/build-client.sh --out Build/Linux
+```
+
+> **Important:** after changing anything under `src/` (Shared, WorldGeneration, Networking)
+> or `data/`, run the **full** build *without* `--skip-prereqs`.
+
+For Velopack packaging on Linux (AppImage + portable zip), use `vpk` directly:
+
+```bash
+vpk pack --packId BlocksBeyondTheStars --packVersion <semver> \
+  --packDir client/Build/Linux \
+  --mainExe BlocksBeyondTheStars.Launcher.Console \
+  --channel linux \
+  --outputDir artifacts/installer-linux
+```
+
 ### Build log, exit codes and duration
 
 - The Unity log is written to **`client/build.log`**.
@@ -265,17 +319,21 @@ not locally. Cut one by pushing a SemVer tag:
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
-The workflow has two jobs:
+The workflow has four parallel jobs, building for Windows **and** Linux:
 
-1. **Build Unity player (Linux)** — GameCI (`game-ci/unity-builder`) cross-builds the `StandaloneWindows64`
-   player from a Docker image (Mono backend). It first runs the same prereqs as `build-client.ps1`
-   (`sync-client-libs.ps1`, `sync-velopack-libs.ps1`, `publish-local-server.ps1 -Runtime win-x64`), caches
-   `client/Library`, and frees runner disk space before the ~6 GB editor image pull.
-2. **Package + release (Windows)** — builds the launcher, downloads the player, and runs
-   `publish-client-installer.ps1 -Msi` (with `vpk` pinned to the vendored Velopack version) to produce and
-   attach three assets to a published GitHub Release: **`…-win-Setup.exe`** (per-user, no admin),
-   **`…-win.msi`** (machine-wide, for IT/MDM) and **`…-win-Portable.zip`**. The same three assets are then
-   mirrored to **itch.io** (see below).
+1. **Build Unity player (Windows)** — GameCI (`game-ci/unity-builder`) in a Linux Docker image
+   cross-builds the `StandaloneWindows64` player (Mono backend). It first runs the same prereqs as
+   `build-client.ps1` (`sync-client-libs.ps1`, `sync-velopack-libs.ps1`, `publish-local-server.ps1 -Runtime win-x64`),
+   caches `client/Library`, and frees runner disk space before the ~6 GB editor image pull.
+2. **Build Unity player (Linux)** — same GameCI builder, targets `StandaloneLinux64`. Produces a
+   native `BlocksBeyondTheStars.x86_64` player.
+3. **Package + release (Windows)** — builds the WinForms launcher, downloads the Windows player from job 1,
+   and runs `publish-client-installer.ps1 -Msi` to produce three assets for the GitHub Release:
+   **`…-win-Setup.exe`** (per-user, no admin), **`…-win.msi`** (machine-wide, for IT/MDM) and
+   **`…-win-Portable.zip`**. The same three assets are mirrored to **itch.io** (see below).
+4. **Package + release (Linux)** — builds the console launcher, downloads the Linux player from job 2,
+   and packages it with Velopack (`vpk`) into an **AppImage** + **portable zip**, attached to the same
+   GitHub Release.
 
 The workflow triggers **only** on tag pushes and manual dispatch (never `pull_request`), so the Unity license
 secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are never exposed — safe even with a public repo. A
@@ -330,10 +388,10 @@ When working on this pipeline, three non-obvious gotchas already cost a debuggin
 - **`gh workflow run` right after `git push`** can dispatch the *previous* commit (tag/branch HEAD hasn't
   propagated yet) — wait ~20 s and verify the run's `headSha`.
 
-Linux/macOS **client** installers are intentionally not built: the client can't yet build for those platforms
-(the Windows-only UnityWebBrowser/CEF engine is the blocker — see
-[WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md)). The .NET **server** already cross-builds
-(`publish-server.ps1`: win-x64/linux-x64/linux-arm64) and could be attached separately.
+macOS **client** installers are intentionally not built: it is out of scope for now and would need its
+own work (Metal/Vulkan graphics, cross-compilation, and Apple code-signing/notarization). Linux **client** installers (AppImage + portable zip)
+are now produced alongside the Windows builds — see the release pipeline above.
+The .NET **server** also cross-builds (`publish-server.ps1` / `.sh`: win-x64/linux-x64/linux-arm64).
 
 ## Troubleshooting: works in the Editor, silently broken in the build
 

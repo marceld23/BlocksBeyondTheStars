@@ -163,6 +163,182 @@ jobs:
           name: player-windows
           path: player
 
+  build-player-linux:
+    name: Build Unity player (Linux)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve + validate version
+        id: ver
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+              echo "::error::Tag '$GITHUB_REF_NAME' is not SemVer — expected vX.Y.Z (e.g. v0.3.0)."
+              exit 1
+            fi
+          else
+            v="0.1.0-dev"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Resolved build version: $v"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      - name: Sync Velopack libs (bash)
+        run: ./scripts/sync-velopack-libs.sh
+
+      - name: Publish bundled local server (linux-x64)
+        run: ./scripts/publish-local-server.sh linux-x64
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5
+        with:
+          path: client/Library
+          key: Library-Linux-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-Linux-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
+      - name: Inject player-feedback API key
+        env:
+          WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$WIX_BUGREPORT_API_KEY" ]; then
+            echo "WIX_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the WIX_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$WIX_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
+      - name: Build Linux player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: StandaloneLinux64
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildLinux
+          versioning: Custom
+          version: ${{ steps.ver.outputs.version }}
+          customParameters: -buildOut /github/workspace/player-linux
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-linux
+
+      - name: Verify baked version matches the tag
+        shell: bash
+        run: |
+          baked="$(cat player-linux/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
+          test "$baked" = "${{ steps.ver.outputs.version }}"
+
+      - name: Build Linux console launcher
+        run: |
+          dotnet publish src/BlocksBeyondTheStars.Launcher.Console/BlocksBeyondTheStars.Launcher.Console.csproj \
+            -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.ver.outputs.version }} \
+            -o artifacts/launcher-linux
+          cp artifacts/launcher-linux/BlocksBeyondTheStars.Launcher.Console player-linux/
+
+      - name: Upload Linux player artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: player-linux
+          path: player-linux
+
+  # Linux packaging
+  package-linux:
+    name: Package + release (Linux)
+    needs: build-player-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Velopack CLI (pinned)
+        run: |
+          dotnet tool install -g vpk --version 1.2.0
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Download Linux player artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: player-linux
+          path: client/Build/Linux
+
+      # vpk can produce AppImage + portable zip for Linux.
+      - name: Package Linux AppImage + Portable
+        run: |
+          OUT="artifacts/installer-linux"
+          mkdir -p "$OUT"
+
+          # Render installer splash
+          dotnet run --project src/BlocksBeyondTheStars.Launcher.Console/BlocksBeyondTheStars.Launcher.Console.csproj \
+            -- --render-install-splash "$OUT/splash.png" 560 320
+
+          vpk pack \
+            --packId BlocksBeyondTheStars \
+            --packVersion ${{ needs.build-player-linux.outputs.version }} \
+            --packTitle 'Blocks Beyond the Stars' \
+            --packAuthors 'JuMaVe Games' \
+            --packDir client/Build/Linux \
+            --mainExe BlocksBeyondTheStars.Launcher.Console \
+            --splashImage "$OUT/splash.png" \
+            --splashProgressColor '#7DDEEC' \
+            --channel linux \
+            --outputDir "$OUT"
+
+      - name: Upload Linux installer artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-installers
+          path: artifacts/installer-linux
+
+      - name: Publish GitHub Release (Linux assets)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
+        with:
+          files: |
+            artifacts/installer-linux/*AppImage
+            artifacts/installer-linux/*Portable.zip
+          generate_release_notes: false
+
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only
   # needs the resolved version from build-player, NOT the Unity player, so it runs in parallel with package.
   # The image is PUSHED to GHCR only on a real tag (multi-arch, tagged with the version + `latest`); a manual

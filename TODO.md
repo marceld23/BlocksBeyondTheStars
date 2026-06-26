@@ -5,8 +5,8 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 (controls, mechanics, editors, commands) is documented in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md) —
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
-**Build:** `scripts/build-client.ps1` (publishes shared libs + bundled server + Unity Windows player).
-**Test:** `dotnet test` — currently **683 passing** (2026-06-19). Locale parity (en/de) is enforced by a test.
+**Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
+**Test:** `dotnet test` — currently **795 passing** (2026-06-26). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -291,7 +291,20 @@ creature the ship parked on/over (or that a ship redesign grew over), leaving it
 - **P3** creature spawn-reject now tests `EntityBlockedByShip` (the movement barrier) instead of the tighter interior box,
   closing the shell where a spawn was allowed but immediately frozen against the hull.
 - **P5** planet enemies (`MovePlanetEnemy`) get the same eject-if-inside + block-the-move-into-the-hull guard.
-- **P4** 2 new tests in `CreatureTests.cs` (park-over-creature sweep + per-tick eject). Suite **700 passing**.
+- **P4** 2 new tests in `CreatureTests.cs` (park-over-creature sweep + per-tick eject). Suite **795 passing** (710 Dotnet + 85 ClientCore).
+
+### ★ Full Linux support (2026-06-23) — ✅ .NET build+scripts done; NEEDS Unity build+release CI
+- **Cross-platform fixes:** `LocalServerLauncher.cs` + `ServerRoundtripPlayModeTests.cs` use `.exe` only on Windows;
+  `BuildScript.cs` got `BuildLinux()` targeting `StandaloneLinux64`.
+- **Linux console launcher:** `src/BlocksBeyondTheStars.Launcher.Console/` — SkiaSharp-based splash renderer,
+  Velopack lifecycle hooks, starts Unity player as child process (replaces WinForms launcher on Linux).
+- **Bash build scripts:** `sync-client-libs.sh`, `sync-velopack-libs.sh`, `publish-local-server.sh`,
+  `build-client.sh`, `run-tests.sh` — critical-path ports from PowerShell.
+- **CI/CD:** `release.yml` now has `build-player-linux` + `package-linux` jobs (GameCI `StandaloneLinux64`,
+  Velopack AppImage + portable zip).
+- **Docs:** `AGENTS.md`, `DEVELOPER.md`, `USER_MANUAL.md` updated for Linux workflows.
+- **run-tests.sh:** serialized test execution + `DOTNET_ROLL_FORWARD` for .NET 10+ compatibility.
+- Verified: full CI filter build 0 warnings / 0 errors (11 projects, including Launcher.Console). All **795 tests pass**.
 
 ### ★ Tiered radio reach + live voice chat (2026-06-21) — ✅ server+tests done (8 new, suite green); voice SHIPPED ON by default; NEEDS Unity build
 - **Tiered radio reach** (text **and** voice): `comm_radio` = same world, new `system_radio` = same star system, new
@@ -314,7 +327,7 @@ creature the ship parked on/over (or that a ship redesign grew over), leaving it
 
 ### ★ Optional Docker image for the dedicated server (2026-06-21) — ✅ done (built + pushed to GHCR on each release)
 Ship the headless server **and** the admin/portal/download UI (and the optional AI backend) as one optional Linux
-container — runs on any OS (Linux/macOS/Windows-WSL2/NAS/VPS); the game client stays Windows-only.
+container — runs on any OS (Linux/macOS/Windows-WSL2/NAS/VPS); the game client ships for Windows and Linux.
 - **One image, asymmetric processes** under `tini` (PID 1): [`Dockerfile`](Dockerfile) + [`docker/entrypoint.sh`](docker/entrypoint.sh) +
   [`docker-compose.yml`](docker-compose.yml). Game server = critical foreground process (gets the signal, saves the world);
   admin API = best-effort auto-restarting sidecar. `docker stop` (SIGTERM) is translated to the **SIGINT** the server's
@@ -398,8 +411,8 @@ secrets in all logs and never hands them to fork PRs, and the workflow runs **on
   baked version ≠ the tag. `Protocol.Version` stays separate.
 - **Windows installer trio (2026-06-20):** the release no longer ships a hand-rolled zip — the windows job runs
   `publish-client-installer.ps1 -Msi` (vpk pinned 1.2.0) and attaches **Setup.exe** (per-user, no admin),
-  the **WiX MSI** (machine-wide/IT) and **Portable.zip**. (Linux/macOS client installers intentionally skipped
-  — blocked by the UWB/CEF cross-platform wall; see the version-SoT memory.)
+the **WiX MSI** (machine-wide/IT) and **Portable.zip**. (macOS client installer intentionally skipped
+   — out of scope: needs Metal/Vulkan + Apple code-signing.)
 - **Gotchas hit + fixed during bring-up:** (1) GameCI v4 Personal license needs **three** secrets —
   `UNITY_LICENSE` (.ulf) + `UNITY_EMAIL` + `UNITY_PASSWORD` (a Google-SSO Unity account must set a password via
   "Forgot password" first). (2) `ClientUpdater.cs` references Velopack in the **player** build (`#if !UNITY_EDITOR`),
@@ -1396,8 +1409,8 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
   framework, all **20 games ported** to C#, `MinigameRegistry` in catalog order) hosted by `MinigameHostUI`
   (RawImage ← Canvas2D). `EmbeddedBrowser.cs`/`LocalContentServer.cs` + the `dev.voltstro.unitywebbrowser*`
   packages + the `BBS_UWB` define are gone; `BuildScript.BuildLinux` added. 80 headless tests; Windows build
-  green; playtested. **Remaining:** Linux/macOS CI packaging (release.yml jobs, linux-x64 server bundle,
-  non-launcher packaging, macOS runner + notarization).
+  green; playtested. **Remaining:** macOS runner + notarization (Linux CI packaging done in PR — linux-x64
+  server bundle, Velopack AppImage + portable zip, release.yml jobs).
 
 ## ▶ Open backlog — priority order (updated 2026-06-07)
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining

@@ -11,8 +11,10 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the system overview: client (presentation) vs server (truth), the
   solution & project graph, runtime, networking, persistence, and a where-to-find-what map. **Read this first.**
-- [DEVELOPER.md](DEVELOPER.md) — build, test and build-verification guide (the `build-client.ps1` pipeline,
-  freshness checks, "works in the Editor, broken in the build" pitfalls).
+- [DEVELOPER.md](DEVELOPER.md) — build, test and build-verification guide (the `build-client.ps1`/`build-client.sh`
+  pipeline, freshness checks, "works in the Editor, broken in the build" pitfalls).
+- [LINUX_PORT.md](LINUX_PORT.md) — how the Linux port works: cross-platform changes, the console launcher,
+  bash build scripts, CI/CD and known limitations.
 - [CLIENT_TESTING.md](CLIENT_TESTING.md) — how the Unity client is tested against the **real** game server
   (the `Client.Core` split, the three test tiers, the selectable `run-tests.ps1` runner).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
