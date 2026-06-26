@@ -100,15 +100,6 @@ Client (Unity, bundled in `client/Assets/Plugins` — vendored by `scripts/sync-
 
 Client (Unity, UPM packages compiled into / shipped with the player — see `client/Packages/manifest.json`):
 
-- **Unity Web Browser (UWB)** — MIT — Voltstro-Studios — the in-game Wiki + data-cube Arcade
-  browser (`dev.voltstro.unitywebbrowser`), with its **VoltRpc** (MIT) and
-  **NativeArraySpanExtensions** (MIT) dependencies. https://github.com/Voltstro-Studios/UnityWebBrowser
-- **Chromium Embedded Framework (CEF)** — BSD-3-Clause (Marshall A. Greenblatt; portions
-  © Google Inc.) — the browser engine UWB drives (`dev.voltstro.unitywebbrowser.engine.cef`
-  + `.win.x64`). The CEF binaries are redistributed inside the player build; their full
-  notices ship next to the executable as `BlocksBeyondTheStars_Data/UWB/LICENSE.CEF.txt`
-  (CEF + the bundled Chromium third-party notices) and `LICENSE.UWB.txt`, copied there
-  automatically by the UWB engine package. https://bitbucket.org/chromiumembedded/cef
 - **UniTask** — MIT — Cysharp — zero-allocation async/await for Unity (`com.cysharp.unitask`).
   https://github.com/Cysharp/UniTask
 - **Concentus** — BSD-3-Clause (© Xiph.Org Foundation, Skype Ltd., Microsoft, Jean-Marc Valin,
@@ -127,5 +118,5 @@ player, the editor-only packages are not.
 The Windows installer (`scripts/publish-client-installer.ps1`) copies this `NOTICES.md` (as
 `THIRD-PARTY-NOTICES.txt`) and the project `LICENSE` (as `LICENSE.txt`) into the player folder
 before packing, so every distribution — Setup.exe, the portable zip **and** the MSI — carries the
-full attribution alongside the per-engine `UWB/LICENSE.CEF.txt` / `LICENSE.UWB.txt`. The in-game
+full attribution. The in-game
 **Credits** screen also names the key third-party software and points players at these files.
