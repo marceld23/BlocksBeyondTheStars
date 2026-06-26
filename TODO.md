@@ -72,8 +72,11 @@ view distance fixed: at VD8 ~1700 active MeshColliders were shoved through the P
 RepositionChunks — now colliders are disabled beyond `ChunkColliderDistanceBlocks` (96 m, baked mesh kept for instant
 re-enable) and chunk components are cached (no per-move GetComponent); reposition also re-triggers on vertical movement so a
 straight-down fall re-enables ground colliders in time. New tests: `ChunkStreamingTests` (budget + far-sweep + client VD),
-client e2e `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire`. STILL OPEN: chunk LOD (A5) for VD8 to be fully smooth
-+ fill faster; client far-chunk unload; haze fine-tune. Plan: `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
+client e2e `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire`. **LOD step 1 (distance-based vertical detail):** far
+columns (Chebyshev > 3) stream only the band around their actual surface instead of the full -3..+2 span, roughly halving the
+chunk count at VD8 (~1734→~770) for faster fill + a lighter client — near columns keep the full span for caves/digging
+(`FarColumns_StreamOnlyTheSurfaceBand...`). STILL OPEN: visual far-mesh/greedy LOD (render kept chunks cheaper / see beyond
+VD8); client far-chunk unload; haze fine-tune. Plan: `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
 
 ### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
 Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide

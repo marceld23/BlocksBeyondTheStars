@@ -145,6 +145,50 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.False(server.World.IsChunkLoaded(beyondClientView), "nothing beyond the client's requested radius should stream");
     }
 
+    [Fact]
+    public void FarColumns_StreamOnlyTheSurfaceBand_WhileNearColumnsStreamTheFullVerticalSpan()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "lod"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "lod",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            ViewDistanceChunks = 5,   // radius 5 > the near-full-column radius (3), so there are "far" columns
+            ChunkStreamPerTick = 64,  // drain the whole view quickly
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        var p = server.AddLocalPlayer("Surveyor");
+        var center = WorldConstants.WorldToChunk(p.State.Position.ToBlock());
+
+        for (int i = 0; i < 30; i++)
+        {
+            server.TickForTest(0.1); // short dt so the 10 s far-chunk sweep never trips
+        }
+
+        // The player's own column (dx=0) keeps the full 6-layer vertical span (-3..+2) for caves/digging.
+        int nearLayers = 0;
+        for (int cy = center.Y - 3; cy <= center.Y + 2; cy++)
+        {
+            if (server.World.IsChunkLoaded(new ChunkCoord(center.X, cy, center.Z))) nearLayers++;
+        }
+
+        // A far column (dx=5, Chebyshev 5 > 3) streams only the band around its surface — count over a wide
+        // vertical window so we catch the band wherever the terrain there sits.
+        int farLayers = 0;
+        for (int cy = center.Y - 8; cy <= center.Y + 8; cy++)
+        {
+            if (server.World.IsChunkLoaded(new ChunkCoord(center.X + 5, cy, center.Z))) farLayers++;
+        }
+
+        Assert.Equal(6, nearLayers); // near column: full vertical span
+        Assert.InRange(farLayers, 1, 3); // far column: just the surface band (below+surface+above)
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
