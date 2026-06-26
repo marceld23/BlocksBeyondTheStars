@@ -88,6 +88,30 @@ public sealed class ScanningTests : IDisposable
     }
 
     [Fact]
+    public void ScanTree_ReportsNamedSpecies_AndTrunkLeavesShareOneDiscovery()
+    {
+        var server = Started("jungle", out var repo); // a treed world
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Scout");
+
+            // The trunk scans as this world's coined, edible/toxic tree species — not the raw block key.
+            var trunk = server.ScanSubject("Scout", "block", "wood_log");
+            Assert.True(trunk.FirstTime);
+            Assert.True(trunk.KnowledgeGained >= 1);
+            Assert.NotEqual("wood_log", trunk.Subject);
+            Assert.Contains(trunk.Threat, new[] { "Edible", "Toxic" });
+
+            // The leaves are the SAME tree → already discovered, so no further knowledge.
+            var leaves = server.ScanSubject("Scout", "block", "tree_leaves");
+            Assert.False(leaves.FirstTime);
+            Assert.Equal(0, leaves.KnowledgeGained);
+            Assert.Equal(trunk.Subject, leaves.Subject);          // same coined name
+            Assert.Equal(trunk.KnowledgeGained, p.State.KnowledgePoints); // unchanged
+        }
+    }
+
+    [Fact]
     public void ScanAsteroid_RevealsResources_AndGrantsKnowledge()
     {
         var server = Started("rocky", out var repo, r => r.FreeSpaceFlight = true);

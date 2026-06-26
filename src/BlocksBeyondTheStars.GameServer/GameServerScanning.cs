@@ -34,6 +34,9 @@ public sealed partial class GameServer
         string threat = "—";
         int value;
         string display = subjectKey;
+        // First-scan ledger key. Defaults to the species/block key; trees override it to a shared key so the
+        // trunk and the leaves count as one discovery.
+        string ledgerKey = $"{subjectType}:{subjectKey}";
 
         if (subjectType == "creature" && _speciesById.TryGetValue(subjectKey, out var sp))
         {
@@ -45,8 +48,17 @@ public sealed partial class GameServer
         else if (subjectType == "block" && _content.GetBlock(subjectKey) is { } block)
         {
             var drops = string.Join(", ", block.Drops.Select(d => $"{d.Item}×{d.Count}"));
-            // Flora reads as a named species with an edible/toxic classification; other blocks report yield.
-            if (FloraSpeciesForBlock(subjectKey) is { } flora)
+            // Trees and flora read as a named species with an edible/toxic classification; other blocks
+            // report yield. Trunk + leaves share the world's one tree species AND a single ledger key, so
+            // scanning either part counts as one discovery.
+            if (TreeSpeciesForBlock(subjectKey) is { } tree)
+            {
+                info = drops.Length > 0 ? $"Yields: {drops}" : "Foliage of the tree.";
+                threat = tree.Toxic ? "Toxic" : "Edible";
+                display = string.IsNullOrEmpty(tree.Name) ? subjectKey : tree.Name;
+                ledgerKey = $"tree:{tree.Id}";
+            }
+            else if (FloraSpeciesForBlock(subjectKey) is { } flora)
             {
                 info = drops.Length > 0 ? $"Yields: {drops}" : "Harvestable flora.";
                 threat = flora.Toxic ? "Toxic" : "Edible";
@@ -64,8 +76,8 @@ public sealed partial class GameServer
             return new ScanResult { Subject = subjectKey, Info = "Unknown subject.", Threat = "—" };
         }
 
-        // Ledger key stays the species/block key (stable first-scan tracking); the readout shows `display`.
-        return Award(session, $"{subjectType}:{subjectKey}", display, info, threat, value);
+        // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `display`.
+        return Award(session, ledgerKey, display, info, threat, value);
     }
 
     /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).</summary>

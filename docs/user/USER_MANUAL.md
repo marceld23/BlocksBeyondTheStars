@@ -284,6 +284,9 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**
   used to unlock blueprints; the readout shows subject/info/threat/knowledge (first-time scans highlight
   the "new discovery" bonus).
+- **Plants and trees scan as named species.** A scanned plant (flora) or tree reads as this world's coined
+  species name with an **edible/toxic** classification, not just a block. A tree's trunk and its leaves are
+  the same species, so scanning either one counts as a single discovery.
 - **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
   as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
