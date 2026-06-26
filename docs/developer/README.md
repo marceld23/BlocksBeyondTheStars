@@ -24,6 +24,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 - [STATION_AS_LOCATION.md](STATION_AS_LOCATION.md) — ships and space stations as first-class "void" worlds
   entered via real world transitions.
 - [WORLD_WRAP.md](WORLD_WRAP.md) — torus world topology (both axes wrap; periodic noise).
+- [FLUID_ROUTING.md](FLUID_ROUTING.md) — rivers, waterfalls and lava: one fluid-agnostic routing
+  network (downhill-into-sinks, animated surfaces, lavafalls + embers).
 
 ## Client & rendering
 
@@ -44,6 +46,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
+- [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
+  terrain (lossy `matter_dust` intermediate, no Tier-3 output).
 
 ## Story & content
 

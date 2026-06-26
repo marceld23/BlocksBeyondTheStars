@@ -1,7 +1,7 @@
 # Matter Converter ("Transmuter") — Design & Implementation
 
-Status: **IMPLEMENTED** (branch `feat/matter-converter`, local commits only). Needs a local Unity
-build to import the new assets and to confirm the client surfaces the station label.
+Status: **Implemented** (committed). The new icons/SFX import on the next local Unity build, which
+also confirms the client surfaces the station label.
 
 ## Goal
 
