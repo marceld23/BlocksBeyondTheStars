@@ -124,6 +124,7 @@
   { "key": "engine_nozzle",    "nameKey": "block.engine_nozzle.name",    "hardness": 4.8, "requiredTool": "drill", "minToolTier": 1, "emission": 0.25, "color": 3026483, "drops": [] },
 
   { "key": "detoxifier",   "nameKey": "block.detoxifier.name",   "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.2, "color": 4174699, "drops": [ { "item": "detoxifier", "count": 1 } ] },
+  { "key": "matter_forge", "nameKey": "block.matter_forge.name", "hardness": 4.6, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5, "color": 8413951, "drops": [ { "item": "matter_forge", "count": 1 } ] },
   { "key": "diamond_ore",  "nameKey": "block.diamond_ore.name",  "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "diamond_ore", "count": 1 } ] },
   { "key": "insulated_wall", "nameKey": "block.insulated_wall.name", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 1, "color": 3684408, "drops": [ { "item": "insulated_wall", "count": 1 } ] },
 

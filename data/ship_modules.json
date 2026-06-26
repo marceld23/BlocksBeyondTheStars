@@ -26,6 +26,12 @@
     "stats": {}
   },
   {
+    "key": "transmuter", "nameKey": "module.transmuter.name", "descriptionKey": "module.transmuter.desc",
+    "mandatory": false, "requiredBlueprint": "matter_forge",
+    "buildCost": [ { "item": "iron_plate", "count": 40 }, { "item": "cable", "count": 10 }, { "item": "circuit_board", "count": 3 }, { "item": "energy_cell_1", "count": 4 } ],
+    "stats": {}
+  },
+  {
     "key": "tractor_beam", "nameKey": "module.tractor_beam.name", "descriptionKey": "module.tractor_beam.desc",
     "mandatory": false, "requiredBlueprint": "tractor_beam",
     "buildCost": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 }, { "item": "magnet", "count": 2 } ],

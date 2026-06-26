@@ -758,6 +758,7 @@ namespace BlocksBeyondTheStars.Client
             "lab_panel" => new Color(0.75f, 0.85f, 0.91f),        // cool tech blue (lab/cockpit/console)
             "cargo_floor" => new Color(0.85f, 0.63f, 0.10f),      // hazard amber (cargo)
             "engine_panel" => new Color(0.23f, 0.23f, 0.25f),     // dark industrial (workshop/engine)
+            "matter_forge" => new Color(0.42f, 0.30f, 0.55f),     // violet sci-fi housing (transmuter; the core glows via emission)
             "engine_nozzle" => new Color(0.17f, 0.17f, 0.20f),    // dark housing; the throat ring glows (Decorate)
             "water" => new Color(0.20f, 0.42f, 0.85f),
             "lava" => new Color(0.90f, 0.35f, 0.10f),

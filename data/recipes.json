@@ -32,6 +32,25 @@
 
   { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] },
 
+  { "key": "matter_forge", "station": "workshop", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "metal_panel", "count": 6 }, { "item": "circuit_board", "count": 2 }, { "item": "glass", "count": 3 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "matter_forge", "count": 1 } ] },
+
+  { "key": "compact_sand",   "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "sand",   "count": 64 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+  { "key": "compact_dirt",   "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "dirt",   "count": 64 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+  { "key": "compact_mud",    "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "mud",    "count": 64 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+  { "key": "compact_ash",    "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "ash",    "count": 64 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+  { "key": "compact_stone",  "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "stone",  "count": 48 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+  { "key": "compact_basalt", "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "basalt", "count": 48 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
+
+  { "key": "synth_iron_ore",   "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "matter_dust", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "iron_ore",   "count": 2 } ] },
+  { "key": "synth_copper_ore", "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "matter_dust", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "copper_ore", "count": 2 } ] },
+  { "key": "synth_silicate",   "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "matter_dust", "count": 3 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "silicate",   "count": 2 } ] },
+  { "key": "synth_carbon",     "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "matter_dust", "count": 4 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "carbon",     "count": 2 } ] },
+
+  { "key": "resynth_titanium_ore", "station": "transmuter", "requiredBlueprint": "matter_resynth", "inputs": [ { "item": "matter_dust", "count": 12 }, { "item": "power_cell", "count": 1 } ], "outputs": [ { "item": "titanium_ore", "count": 1 } ] },
+  { "key": "resynth_silver_ore",   "station": "transmuter", "requiredBlueprint": "matter_resynth", "inputs": [ { "item": "matter_dust", "count": 12 }, { "item": "power_cell", "count": 1 } ], "outputs": [ { "item": "silver_ore",   "count": 1 } ] },
+  { "key": "resynth_lithium",      "station": "transmuter", "requiredBlueprint": "matter_resynth", "inputs": [ { "item": "matter_dust", "count": 10 }, { "item": "power_cell", "count": 1 } ], "outputs": [ { "item": "lithium",      "count": 1 } ] },
+  { "key": "resynth_cobalt_ore",   "station": "transmuter", "requiredBlueprint": "matter_resynth", "inputs": [ { "item": "matter_dust", "count": 12 }, { "item": "power_cell", "count": 1 } ], "outputs": [ { "item": "cobalt_ore",   "count": 1 } ] },
+
   { "key": "emergency_ration", "station": "hand", "inputs": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "emergency_ration", "count": 1 } ] },
 
   { "key": "forage_bait", "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "berries", "count": 1 } ], "outputs": [ { "item": "forage_bait", "count": 2 } ] },

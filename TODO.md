@@ -60,6 +60,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Matter converter ("Transmuter"): craft scarce ore from spare terrain (2026-06-26) — ✅ data+server+assets+tests green (730), local Unity build green, NOT committed to main
+A new gated crafting station (placeable `matter_forge` block + `transmuter` ship module, unlocked by the `matter_forge`
+blueprint, prereq `refinery`) gives the effectively-infinite trash terrain (sand/dirt/mud/stone/basalt/ash) a sink:
+compact it into `matter_dust`, then synthesise it back into Tier-1 ore (Stage 1) or, via `matter_resynth`, select Tier-2
+ore (Stage 2). Balance is held by three invariants pinned in `MatterConverterTests`: lossy `matter_dust` intermediate,
+energy-cell/power-cell costs that block a from-nothing bootstrap, and NO Tier-3 output. Reuses the Detoxifier station
+pattern, so the client needed almost no code (recipes list by output category; station label is a single locale key;
+block tile is procedural from `color`). Also closed a side-effect: synthesised ore must NOT be reverse-engineerable, so
+`Disassemble` now skips Transmuter recipes (as it already did Market). OpenAI icons (`matter_dust`, `transmuter`) +
+ElevenLabs `matter_synth` SFX generated. Lore kept purely functional (not in VEGA canon). Doc:
+`docs/developer/MATTER_CONVERTER_PLAN.md`.
+
 ### ★ Cargo hold made actively usable: manual transfer + capacity + auto-stow (2026-06-25) — ✅ server+tests green (710), NEEDS Unity build
 Before this the ship's cargo hold was functional but invisible in play: items only spilled into it when the 24-slot
 inventory was full, space salvage was the only thing that filled it, and the Cargo tab was read-only. Now you can move

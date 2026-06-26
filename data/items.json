@@ -157,6 +157,8 @@
   { "key": "diamond_drill",  "nameKey": "item.diamond_drill.name",  "category": "tool", "maxStack": 1, "descriptionKey": "item.diamond_drill.desc", "tool": { "kind": "drill", "tier": 3, "miningPower": 3.2, "energyPerUse": 0.0 } },
 
   { "key": "detoxifier",     "nameKey": "item.detoxifier.name",     "category": "block", "maxStack": 16, "placesBlock": "detoxifier", "descriptionKey": "item.detoxifier.desc" },
+  { "key": "matter_forge",   "nameKey": "item.matter_forge.name",   "category": "block", "maxStack": 16, "placesBlock": "matter_forge", "descriptionKey": "item.matter_forge.desc" },
+  { "key": "matter_dust",    "nameKey": "item.matter_dust.name",    "category": "material", "maxStack": 99, "descriptionKey": "item.matter_dust.desc" },
   { "key": "insulated_wall", "nameKey": "item.insulated_wall.name", "category": "block", "maxStack": 99, "placesBlock": "insulated_wall" },
 
   { "key": "iron_block",      "nameKey": "item.iron_block.name",      "category": "block", "maxStack": 99, "placesBlock": "iron_block" },
