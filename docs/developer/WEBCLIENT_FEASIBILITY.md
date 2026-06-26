@@ -1,6 +1,7 @@
 # Web client (Unity WebGL) — feasibility decision
 
-Status: feasibility decided — not built · 2026-06-19
+Status: feasibility decided — not built · 2026-06-19 (re-verified 2026-06-26: the Wiki/Arcade blocker
+is gone after the "Stream D" native-UI refactor — see Constraints/Blockers below)
 
 ## Decision
 
@@ -53,13 +54,19 @@ list.
 - A Unity WebGL build profile (Lite quality) + asset bundling.
 - MessagePack `ContractlessResolver` does not survive IL2CPP AOT — the wire serialization would need an
   AOT-safe path for the WebGL build.
-- The in-game UWB wiki/arcade browser content is lost under WebGL.
+- ~~The in-game UWB wiki/arcade browser content is lost under WebGL.~~ **Resolved (2026-06-26):** the
+  "Stream D" refactor replaced the embedded browser. The Wiki is now native uGUI (`WikiUI.cs`) and the
+  Arcade runs an engine-free C# `MinigameHost` (`Client.Core/Minigames`) rendering Canvas2D→Texture2D→
+  RawImage (`MinigameHostUI.cs`). No UWB/CEF plugin remains and `BBS_UWB` is undefined, so both screens
+  are already WebGL-compatible — this is no longer a blocker (and it also unblocked the Linux build).
 - ~177 MB of `Resources` would have to be downloaded/streamed — shrink + bundle first.
 - Serving the built WebGL files from `/play` + version negotiation so the served client matches the
   server.
 
 ## Bottom line
 
-Treat the browser client as a ~4–6 week Lite-only sub-project taken on after the native client is
-solid. Nothing on the server needs to change to start it; the work is entirely the Unity WebGL build
-and the constraints/blockers above.
+Treat the browser client as a **~3–5 week** Lite-only sub-project taken on after the native client is
+solid (down from 4–6 now that the Wiki/Arcade no longer need re-integration). Nothing on the server
+needs to change to start it; the work is entirely the Unity WebGL build and the constraints/blockers
+above. The two remaining hard risks are MessagePack-Contractless under IL2CPP/AOT and the absence of
+in-browser singleplayer (Lite is multiplayer-only) — validate both as spikes before investing.

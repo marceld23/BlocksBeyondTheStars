@@ -3,8 +3,7 @@
   "rootNamespace": "BlocksBeyondTheStars.Client",
   "references": [
     "Unity.RenderPipelines.Universal.Runtime",
-    "Unity.RenderPipelines.Core.Runtime",
-    "VoltstroStudios.UnityWebBrowser"
+    "Unity.RenderPipelines.Core.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
