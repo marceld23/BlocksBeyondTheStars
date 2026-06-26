@@ -26,6 +26,11 @@ public sealed partial class GameServer
     private readonly HashSet<ushort> _floraIds = new();
     private readonly Dictionary<ushort, HashSet<ushort>> _floraHostIds = new();
     private readonly Dictionary<ushort, BlocksBeyondTheStars.Shared.Definitions.FloraSpecies> _floraSpeciesByBlock = new();
+
+    // This world's single tree species + the block ids (trunk + leaves) it covers, so a scan of either
+    // reads as the same coined, edible/toxic tree (built in InitFlora; see TreeSpeciesForBlock).
+    private BlocksBeyondTheStars.Shared.Definitions.TreeSpecies? _treeSpecies;
+    private readonly HashSet<ushort> _treeBlockIds = new();
     private Dictionary<Vector3i, (ushort FloraId, double Timer)> _floraRegrow => _worlds.Active.FloraRegrow;
 
     private void InitFlora()
@@ -57,7 +62,29 @@ public sealed partial class GameServer
                 }
             }
         }
+
+        // Per-world tree species: the trunk (wood_log) and crown (tree_leaves) share this world's one coined
+        // name + edible/toxic trait (deterministic from seed + planet), surfaced when the player scans a tree.
+        _treeSpecies = null;
+        _treeBlockIds.Clear();
+        if (planet != null && BlocksBeyondTheStars.WorldGeneration.TreeGenerator.Generate(planet, _meta.Seed) is { } tree)
+        {
+            _treeSpecies = tree;
+            foreach (var key in new[] { "wood_log", "tree_leaves" })
+            {
+                if (_content.GetBlock(key) is { } b && b.NumericId.Value != 0)
+                {
+                    _treeBlockIds.Add(b.NumericId.Value);
+                }
+            }
+        }
     }
+
+    /// <summary>This world's tree species for a block key (name + toxic trait) if the block is a tree block
+    /// (trunk or leaves), else null. Trunk and leaves both map to the same species — one tree, one identity.
+    /// Used by the scanner to name + classify a scanned tree.</summary>
+    public BlocksBeyondTheStars.Shared.Definitions.TreeSpecies? TreeSpeciesForBlock(string blockKey)
+        => _treeSpecies != null && _content.GetBlock(blockKey) is { } b && _treeBlockIds.Contains(b.NumericId.Value) ? _treeSpecies : null;
 
     /// <summary>This world's generated flora species for a block key (name + toxic trait), or null if the
     /// block isn't flora here. Used by the scanner to name + classify a scanned plant.</summary>

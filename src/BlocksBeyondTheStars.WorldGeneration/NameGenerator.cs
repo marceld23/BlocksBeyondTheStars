@@ -41,12 +41,21 @@ public static class NameGenerator
     public static string Creature(Random rng)
         => Word(rng, 2, 3) + " " + Word(rng, 1, 2).ToLowerInvariant();
 
+    private static readonly string[] TreeSuffixes =
+    {
+        "wood", "bark", "oak", "pine", "timber", "trunk", "grove", "ash", "elm", "fir",
+    };
+
     /// <summary>A coined flora name, e.g. "Skarn weed" or "Threll" — a stem, usually with a botanical suffix.</summary>
     public static string Flora(Random rng)
     {
         string stem = Word(rng, 2, 3);
         return rng.NextDouble() < 0.75 ? stem + FloraSuffixes[rng.Next(FloraSuffixes.Length)] : stem;
     }
+
+    /// <summary>A coined tree name, e.g. "Skarnwood" or "Threlloak" — a stem with an arboreal suffix.</summary>
+    public static string Tree(Random rng)
+        => Word(rng, 2, 3) + TreeSuffixes[rng.Next(TreeSuffixes.Length)];
 
     /// <summary>A coined personal name for an NPC, e.g. "Kra Thraxon" — a short given name + a longer surname,
     /// both capitalised (so it reads as a person, not a lowercase-epithet creature). Thousands of combinations.</summary>
