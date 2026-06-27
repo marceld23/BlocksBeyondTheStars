@@ -25,31 +25,45 @@ log() { echo "[entrypoint] $*"; }
 # child processes regardless of how the container was started.
 export BBS_ADMIN_BIND="${BBS_ADMIN_BIND:-0.0.0.0}"
 
-# --- best-effort: fetch the latest Windows client installer from GitHub Releases so /download works ---
-# A Linux container cannot build the Windows installer (that needs Unity + Windows), so the portal's
-# one-click download is populated from the published GitHub Release instead. Non-fatal: without it the
-# portal still runs and /download simply reports "no installer published yet".
-fetch_client() {
-  local repo="${BBS_CLIENT_REPO:-marceld23/BlocksBeyondTheStars}"
-  local api="https://api.github.com/repos/${repo}/releases/latest"
-  log "fetching latest client installer from ${repo} ..."
+# --- best-effort: fetch the latest client downloads from GitHub Releases so the portal works ---
+# A Linux container cannot build the clients (Unity + Windows are needed), so the portal's one-click
+# downloads are populated from the published GitHub Release instead: the Windows Setup.exe (served at
+# /download) and the Linux AppImage (served at /download-linux). Non-fatal: without them the portal
+# still runs and the download routes simply report "nothing published yet".
 
+# Fetch a single release asset whose download URL matches the given suffix pattern into $CLIENTS_DIR.
+# $1 = release JSON, $2 = grep pattern for the asset filename, $3 = human label.
+fetch_asset() {
+  local json="$1" pattern="$2" label="$3"
   local url
-  url=$(curl -fsSL "$api" \
-        | grep -o '"browser_download_url":[ ]*"[^"]*Setup\.exe"' \
-        | head -n1 | sed 's/.*"\(https[^"]*\)"/\1/') || return 1
-  [ -n "$url" ] || { log "no *Setup.exe asset in the latest release"; return 1; }
+  url=$(printf '%s' "$json" \
+        | grep -o "\"browser_download_url\":[ ]*\"[^\"]*${pattern}\"" \
+        | head -n1 | sed 's/.*"\(https[^"]*\)"/\1/')
+  [ -n "$url" ] || { log "no ${label} asset in the latest release"; return 1; }
 
   local target="$CLIENTS_DIR/$(basename "$url")"
   curl -fsSL "$url" -o "$target.partial" || return 1
   mv -f "$target.partial" "$target"
-  log "client installer ready: $(basename "$target")"
+  log "${label} ready: $(basename "$target")"
+}
+
+fetch_client() {
+  local repo="${BBS_CLIENT_REPO:-marceld23/BlocksBeyondTheStars}"
+  local api="https://api.github.com/repos/${repo}/releases/latest"
+  log "fetching latest client downloads from ${repo} ..."
+
+  local json
+  json=$(curl -fsSL "$api") || return 1
+
+  # Each asset is independent: a missing Windows or Linux build must not skip the other.
+  fetch_asset "$json" 'Setup\.exe' 'Windows installer' || true
+  fetch_asset "$json" '\.AppImage' 'Linux AppImage'     || true
 }
 
 if [ "${BBS_FETCH_CLIENT:-1}" = "1" ]; then
   fetch_client || log "client download skipped (continuing without it)"
 else
-  log "BBS_FETCH_CLIENT=0 -> skipping client installer download"
+  log "BBS_FETCH_CLIENT=0 -> skipping client download"
 fi
 
 # --- admin API: best-effort sidecar, auto-restarted, never fatal to the container ---

@@ -22,8 +22,9 @@ RUN dotnet publish src/BlocksBeyondTheStars.GameServer/BlocksBeyondTheStars.Game
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 
 # tini = a proper PID 1 (reaps zombies + forwards signals to the entrypoint). curl = best-effort download
-# of the Windows client installer from GitHub Releases so the portal's /download works. python3 + venv =
-# the optional AI text backend (baked in, but only STARTED when a .env is provided — see the entrypoint).
+# of the client downloads from GitHub Releases so the portal's /download (Windows Setup.exe) and
+# /download-linux (Linux AppImage) work. python3 + venv = the optional AI text backend (baked in, but
+# only STARTED when a .env is provided — see the entrypoint).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tini curl ca-certificates python3 python3-venv \
  && rm -rf /var/lib/apt/lists/*
@@ -51,7 +52,7 @@ ENV BBS_ADMIN_BIND=0.0.0.0
 # 31415/udp native client · 31415/tcp browser WebSocket (when BBS_ENABLE_WEBSOCKET=true) · 31416/tcp admin+portal+download
 EXPOSE 31415/udp 31415/tcp 31416/tcp
 
-# saves/ = SQLite world + backups + logs + /bump bug reports (<world>/bumps) · config/ = server.json · clients/ = published installer
+# saves/ = SQLite world + backups + logs + /bump bug reports (<world>/bumps) · config/ = server.json · clients/ = published Windows Setup.exe + Linux AppImage
 VOLUME ["/app/saves", "/app/config", "/app/clients"]
 
 # Health = the public admin dashboard root (cheap static HTML, never password-gated unlike /api/*).
