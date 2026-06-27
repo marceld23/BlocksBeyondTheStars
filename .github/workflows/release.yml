@@ -303,6 +303,11 @@ jobs:
           dotnet tool install -g vpk --version 1.2.0
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
+      # libSkiaSharp.so (used by the splash render below) links against fontconfig; install it so
+      # SKTypeface.FromFamilyName can resolve a system font on the runner.
+      - name: Install fontconfig (for SkiaSharp text rendering)
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1 fontconfig fonts-dejavu-core
+
       - name: Download Linux player artifact
         uses: actions/download-artifact@v7
         with:
