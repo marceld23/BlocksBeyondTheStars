@@ -88,11 +88,12 @@ public sealed class ClientServerHarness : IDisposable
         };
     }
 
-    /// <summary>Connects + joins, then pumps until the server accepts the join (or a tick budget runs out).</summary>
-    public void Join(string playerName = "Tester", int maxTicks = 20)
+    /// <summary>Connects + joins, then pumps until the server accepts the join (or a tick budget runs out).
+    /// <paramref name="viewDistanceChunks"/> mirrors the in-game slider (0 = let the host decide).</summary>
+    public void Join(string playerName = "Tester", int maxTicks = 20, int viewDistanceChunks = 0)
     {
         Client.Connect("loopback", 0);
-        Client.Join(playerName);
+        Client.Join(playerName, viewDistanceChunks: viewDistanceChunks);
         PumpUntil(() => JoinAccepted != null || JoinRejected != null, maxTicks);
     }
 

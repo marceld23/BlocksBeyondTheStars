@@ -119,6 +119,10 @@ public sealed partial class GameServer
     private ServerWorld _world => _worlds.Active.World;
 
     private double _sinceAutoSave;
+    // Far-chunk unload throttle: sweeping every loaded chunk against every player each tick would be wasteful,
+    // so the server only evicts out-of-range cached chunks on this cadence (seconds). Bounds server memory on
+    // long exploration — without it _loaded grows unbounded as a player crosses the world (the cache never shrank).
+    private double _sinceChunkSweep;
     // Fractional playtime carry: whole seconds are flushed into _meta.CumulativePlaytimeSeconds, the
     // sub-second remainder lives here between ticks. Only advanced while a player is joined.
     private double _playtimeCarry;
@@ -745,6 +749,15 @@ public sealed partial class GameServer
             ticking.Add(_worlds.Active.LocationId);
         }
 
+        // Decide once per tick whether this is a chunk-sweep tick (throttled), then run the eviction per active
+        // world inside the loop so each world's anchors are its own players. See SweepFarChunks.
+        _sinceChunkSweep += deltaSeconds;
+        bool sweepDue = _sinceChunkSweep >= ChunkSweepIntervalSeconds;
+        if (sweepDue)
+        {
+            _sinceChunkSweep = 0;
+        }
+
         foreach (var locId in ticking)
         {
             if (!SetActiveWorld(locId))
@@ -766,6 +779,10 @@ public sealed partial class GameServer
             TickVoidRescue(deltaSeconds);
             TickShipAi(deltaSeconds); // VEGA advisor hints + memory-fragment redemption
             StreamChunks();
+            if (sweepDue)
+            {
+                SweepFarChunks();
+            }
         }
 
         SampleHistories(deltaSeconds);
@@ -1226,10 +1243,31 @@ public sealed partial class GameServer
         SendNpcs(session);
     }
 
+    /// <summary>Upper bound on a client-requested render distance (matches the in-game slider's max), so a
+    /// spoofed JoinRequest can't make the server stream/generate an enormous column (memory/CPU DoS).</summary>
+    private const int MaxClientViewDistanceChunks = 8;
+
+    /// <summary>Horizontal radius (chunks, Chebyshev) within which the FULL vertical span streams — so caves,
+    /// overhangs and digging straight down near the player are always covered. Beyond it, only the surface band
+    /// (below) streams. Small view distances (≤ this) are therefore unaffected by the vertical LOD.</summary>
+    private const int NearFullColumnRadius = 3;
+
+    /// <summary>For far columns, how many chunks below / above the column's surface chunk still stream — the
+    /// visible shell of distant terrain (cliffs just under the surface, trees/features just above). Kept small;
+    /// fog hides the far edge, so a tall distant cliff cropping a chunk low is acceptable for the perf win.</summary>
+    private const int FarSurfaceBandBelow = 1;
+    private const int FarSurfaceBandAbove = 1;
+
+    /// <summary>This player's streaming radius in chunks: their requested view distance (clamped to the slider
+    /// range) when they sent one, otherwise the host's configured default.</summary>
+    private int EffectiveViewRadius(PlayerSession session)
+        => session.ViewDistance > 0
+            ? System.Math.Clamp(session.ViewDistance, 1, MaxClientViewDistanceChunks)
+            : System.Math.Max(1, _config.ViewDistanceChunks);
+
     private void StreamChunks()
     {
-        int radius = System.Math.Max(1, _config.ViewDistanceChunks);
-        const int perTickBudget = 12;
+        int perTickBudget = System.Math.Max(1, _config.ChunkStreamPerTick);
 
         // Chunk band the build height maps to — the streamed column is clamped into it so a spoofed player
         // position can't make the server generate/cache chunks at arbitrary heights (memory DoS). See MinBuildY.
@@ -1238,6 +1276,7 @@ public sealed partial class GameServer
 
         foreach (var session in JoinedInActiveWorld())
         {
+            int radius = EffectiveViewRadius(session); // per-player: honour the client's View Distance slider
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
             center = new ChunkCoord(center.X, System.Math.Clamp(center.Y, minChunkY, maxChunkY), center.Z);
 
@@ -1245,16 +1284,46 @@ public sealed partial class GameServer
             // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
             // gets solid ground under them immediately instead of falling through while a fixed bottom-up
             // order slowly works up toward the surface (which, on a fresh world's slow first-gen + a large
-            // view distance, could outlast the client's settle-freeze and drop them below the terrain). A
-            // taller vertical span (esp. below) is still covered so digging down never outruns the terrain.
+            // view distance, could outlast the client's settle-freeze and drop them below the terrain).
+            //
+            // Distance-based vertical LOD: near the player (Chebyshev ≤ NearFullColumnRadius) the FULL vertical
+            // span streams so digging down / walking into caves never outruns the terrain. Beyond that, only the
+            // band around THAT column's actual surface streams — the deep underground + high air far away are
+            // never seen, so skipping them roughly halves the chunk count at a large view distance (faster fill,
+            // lighter client). Surface-relative (not player-relative) so a distant valley or peak well off the
+            // player's own altitude still streams its visible shell.
+            var planet = _world.Planet;
             var pending = new List<(ChunkCoord Coord, int DistSq)>();
-            for (int dy = -3; dy <= 2; dy++)
-                for (int dx = -radius; dx <= radius; dx++)
-                    for (int dz = -radius; dz <= radius; dz++)
+            for (int dx = -radius; dx <= radius; dx++)
+                for (int dz = -radius; dz <= radius; dz++)
+                {
+                    int loDy, hiDy;
+                    if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= NearFullColumnRadius)
                     {
+                        loDy = -3;
+                        hiDy = 2; // full near column (unchanged behaviour)
+                    }
+                    else
+                    {
+                        int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+                        int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+                        int surfCy = WorldConstants.WorldToChunk(
+                            new Vector3i(worldX, _generator.SurfaceHeight(planet, worldX, worldZ), worldZ)).Y;
+                        loDy = surfCy - FarSurfaceBandBelow - center.Y;
+                        hiDy = surfCy + FarSurfaceBandAbove - center.Y;
+                    }
+
+                    for (int dy = loDy; dy <= hiDy; dy++)
+                    {
+                        int cy = center.Y + dy;
+                        if (cy < minChunkY || cy > maxChunkY)
+                        {
+                            continue; // never stream/generate outside the build-height band
+                        }
+
                         // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
                         // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
-                        var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, center.Y + dy, center.Z + dz), _world.Circumference);
+                        var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, cy, center.Z + dz), _world.Circumference);
                         if (session.SentChunks.Contains(coord))
                         {
                             continue;
@@ -1262,6 +1331,7 @@ public sealed partial class GameServer
 
                         pending.Add((coord, dx * dx + dy * dy + dz * dz));
                     }
+                }
 
             pending.Sort((a, b) => a.DistSq.CompareTo(b.DistSq));
 
@@ -1290,6 +1360,53 @@ public sealed partial class GameServer
                 Send(session, msg);
                 session.SentChunks.Add(coord);
                 sent++;
+            }
+        }
+    }
+
+    /// <summary>How often (seconds) the server evicts cached chunks that drifted out of every player's keep-range.
+    /// Coarse on purpose: chunk caching is cheap and re-loading is on-demand, so a slow sweep is plenty to keep
+    /// memory bounded without scanning the whole cache every tick.</summary>
+    private const double ChunkSweepIntervalSeconds = 10.0;
+
+    /// <summary>Evicts cached chunks in the active world that fall outside the keep-range of every joined player,
+    /// bounding server memory on long exploration (the cache otherwise only ever grew). The keep radius sits a
+    /// few chunks beyond the streaming radius so a chunk the player can currently see is never dropped; chunks
+    /// regenerate on demand (with persisted edits re-applied) if the player returns, and the client keeps its own
+    /// copy regardless (it never unloads), so eviction is invisible. Honours <see cref="ServerConfig.MaxLoadedChunksPerPlayer"/>
+    /// in spirit by keeping the resident set proportional to the view, not the distance travelled.</summary>
+    private void SweepFarChunks()
+    {
+        var anchors = new List<ChunkCoord>();
+        int maxViewRadius = 1;
+        foreach (var session in JoinedInActiveWorld())
+        {
+            anchors.Add(WorldConstants.WorldToChunk(session.State.Position.ToBlock()));
+            maxViewRadius = System.Math.Max(maxViewRadius, EffectiveViewRadius(session));
+        }
+
+        if (anchors.Count == 0)
+        {
+            return; // nobody here — leave the cache as-is (an idle world isn't growing it)
+        }
+
+        // Keep a margin beyond the widest player's horizontal streaming radius so the diagonal/vertical fringe of
+        // the streamed column (dy -3..+2) is never evicted while still in view. A single shared keep radius (the
+        // max across players) is safe: it can only keep MORE than any one player needs, never less.
+        int keepRadius = maxViewRadius + 4;
+        var removed = _world.UnloadFarChunks(anchors, keepRadius);
+
+        // Also drop the evicted coords from every player's sent-set. A swept chunk is far from EVERY anchor (that
+        // is the sweep's condition), so this is safe for all sessions — and it lets the client unload the same far
+        // chunks (bounding its own memory) and still get them re-streamed fresh if it walks back into range.
+        if (removed.Count > 0)
+        {
+            foreach (var session in JoinedInActiveWorld())
+            {
+                foreach (var coord in removed)
+                {
+                    session.SentChunks.Remove(coord);
+                }
             }
         }
     }
@@ -1624,7 +1741,7 @@ public sealed partial class GameServer
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
-        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(join.Locale) };
+        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(join.Locale), ViewDistance = join.ViewDistanceChunks };
         _sessions[connectionId] = session;
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)

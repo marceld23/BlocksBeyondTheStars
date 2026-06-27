@@ -41,6 +41,12 @@ public sealed class PlayerSession
     /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
     public HashSet<ChunkCoord> SentChunks { get; } = new();
 
+    /// <summary>The client's requested render distance in chunks (from its JoinRequest), or 0 if it didn't say.
+    /// When set, it drives this player's streaming radius (clamped server-side) instead of the host's config —
+    /// so the in-game View Distance slider extends the actually-streamed terrain on dedicated servers too, not
+    /// only the local fog. 0 = fall back to <see cref="ServerConfig.ViewDistanceChunks"/>.</summary>
+    public int ViewDistance { get; set; }
+
     /// <summary>Short rolling history of the player's recent state (for /bump diagnostics).</summary>
     public List<BumpSample> History { get; } = new();
     public double SinceHistorySample;

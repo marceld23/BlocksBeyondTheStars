@@ -67,7 +67,12 @@ namespace BlocksBeyondTheStars.Client
         public int WindowedWidth = 1600;
         public int WindowedHeight = 900;
 
-        public int ViewDistanceChunks = 2;
+        // Default render distance in 16-block chunks (slider range 1–8 in the settings menu). Raised from the old
+        // default of 2 (≈32 m — a near, foggy horizon) to 4 (≈64 m) so the world reads farther out of the box; the
+        // per-planet/weather haze still scales off this (Sky.ApplyFog), so denser-atmosphere worlds stay hazier.
+        // Singleplayer forwards this to the bundled server as the streaming radius (AppShell → --view-distance),
+        // and the server now reclaims out-of-range chunks (far-chunk sweep), so the larger radius stays bounded.
+        public int ViewDistanceChunks = 4;
         public float UiScale = 1f;
 
         // Frame pacing. Exposed as its own switch instead of being baked into the quality preset: with VSync

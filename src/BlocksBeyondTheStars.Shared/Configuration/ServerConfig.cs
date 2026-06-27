@@ -43,6 +43,13 @@ public sealed class ServerConfig
     public int ViewDistanceChunks { get; set; } = 4;
     public int MaxLoadedChunksPerPlayer { get; set; } = 256;
 
+    /// <summary>How many chunks the server streams to each player per tick. Raised from the historical hard-coded
+    /// 12 to keep the (larger, default-4) view filling promptly — a wider view distance has quadratically more
+    /// chunks to send, so a too-small budget makes terrain "thaw in" slowly at the horizon. Each freshly streamed
+    /// chunk that isn't cached is generated synchronously in the tick, so this also bounds first-visit gen cost:
+    /// a host seeing tick overruns on weak hardware can lower it; a strong host can raise it for snappier fill.</summary>
+    public int ChunkStreamPerTick { get; set; } = 16;
+
     public string Difficulty { get; set; } = "normal";
     public bool AllowGuests { get; set; } = true;
 

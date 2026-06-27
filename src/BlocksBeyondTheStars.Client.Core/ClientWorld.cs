@@ -78,6 +78,35 @@ namespace BlocksBeyondTheStars.Client
             _lightSources.Clear();
         }
 
+        /// <summary>Drops a single chunk the client has travelled well out of view of, so the client-side chunk
+        /// cache (and its light-source index) stays bounded over a long exploration instead of growing for the
+        /// whole distance travelled. The server's far-chunk sweep forgets the same chunk, so it re-streams fresh
+        /// if the player returns. Returns whether a chunk was actually removed.</summary>
+        public bool RemoveChunk(ChunkCoord coord)
+        {
+            coord = WorldConstants.CanonicalChunk(coord, _circumference);
+            if (!_chunks.Remove(coord))
+            {
+                return false;
+            }
+
+            // Clear this chunk's glow-block light sources too (only if any exist — usually none, so skip the
+            // 16³ scan entirely on the common path).
+            if (_lightSources.Count > 0)
+            {
+                var origin = WorldConstants.ChunkOrigin(coord);
+                int nsz = WorldConstants.ChunkSize;
+                for (int x = 0; x < nsz; x++)
+                    for (int y = 0; y < nsz; y++)
+                        for (int z = 0; z < nsz; z++)
+                        {
+                            _lightSources.Remove(new Vector3i(origin.X + x, origin.Y + y, origin.Z + z));
+                        }
+            }
+
+            return true;
+        }
+
         public bool TryGetChunk(ChunkCoord coord, out ChunkData chunk)
             => _chunks.TryGetValue(WorldConstants.CanonicalChunk(coord, _circumference), out chunk);
 

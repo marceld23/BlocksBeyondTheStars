@@ -25,6 +25,11 @@ public sealed class JoinRequest
     /// <summary>The player's chosen UI language ("en"/"de"). The server remembers it so dynamic, server-authored
     /// text (item 15: LLM NPC greetings) is generated in the player's language. Defaults to English.</summary>
     public string Locale { get; set; } = "en";
+
+    /// <summary>The client's chosen render distance in chunks (the in-game View Distance slider). The server
+    /// streams this player's terrain at this radius (clamped server-side) instead of the host config, so a wider
+    /// slider extends the visible terrain on dedicated servers too. 0 (default) = let the server decide.</summary>
+    public int ViewDistanceChunks { get; set; }
 }
 
 public sealed class MoveIntent

@@ -29,6 +29,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Per-install name-verification secret (see <see cref="ClientSettings.PlayerToken"/>).</summary>
         public string Token = "";
 
+        /// <summary>The player's chosen render distance in chunks, forwarded to the server in the JoinRequest so a
+        /// remote/dedicated host streams terrain at this radius (not just the local fog). 0 = let the server decide.</summary>
+        public int ViewDistanceChunks = 0;
+
         /// <summary>While this client hosts the server in-game: the "ip:port" friends join over the LAN
         /// (announced in chat + as a toast). Empty when joining a remote server or in singleplayer.</summary>
         public string HostInfo = "";
@@ -746,7 +750,23 @@ namespace BlocksBeyondTheStars.Client
             return string.Empty;
         }
 
-        private readonly Dictionary<ChunkCoord, GameObject> _chunkObjects = new Dictionary<ChunkCoord, GameObject>();
+        /// <summary>A loaded chunk's GameObject plus its cached components, so the per-block-move reposition pass
+        /// (RepositionChunks) never calls GetComponent on every loaded chunk — at a large view distance that loop
+        /// runs over ~1700 chunks each time the player crosses a block, and GetComponent there was a real cost.
+        /// <see cref="ColliderEnabled"/>/<see cref="RendererEnabled"/> cache the current toggle state so we only
+        /// flip a component when it actually changes (toggling a MeshCollider adds/removes it from the PhysX
+        /// broadphase — doing that needlessly per move is exactly the hitch we're avoiding).</summary>
+        private sealed class ChunkView
+        {
+            public GameObject Go = null!;
+            public MeshFilter Filter = null!;
+            public MeshRenderer Renderer = null!;
+            public MeshCollider Collider = null!;
+            public bool ColliderEnabled = true;
+            public bool RendererEnabled = true;
+        }
+
+        private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
 
         // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
@@ -760,6 +780,21 @@ namespace BlocksBeyondTheStars.Client
         // draw calls. Generous default so normally-visible chunks are never culled; lower it to trade view
         // distance for fewer draw calls. Re-evaluated in RepositionChunks (throttled to once per block moved).
         public float ChunkDrawDistanceBlocks = 256f;
+
+        // Performance: collision is only needed where the player can actually walk/dig, so chunks farther than
+        // this (blocks, seam-aware 3D distance) keep their baked collision mesh but have the MeshCollider DISABLED.
+        // A disabled collider is out of the PhysX broadphase, so RepositionChunks moving its transform every
+        // block-moved is cheap — at a high view distance, leaving ~1700 colliders active and shoving them through
+        // the static broadphase each move was the main on-foot input-lag/stutter source. Re-enabling is instant
+        // (the sharedMesh stays assigned, no re-bake). Generous enough to cover footing, jumps, and digging.
+        public float ChunkColliderDistanceBlocks = 96f;
+
+        // Performance: the client otherwise NEVER unloads a chunk, so a long exploration grows _chunkObjects (and
+        // the per-block-move RepositionChunks loop over it) without bound. Chunks farther than this are destroyed —
+        // set well beyond the renderer-cull distance so a chunk that could still be visible is never dropped; the
+        // server's far-chunk sweep forgets the same chunks, so they re-stream fresh if the player walks back.
+        public float ChunkUnloadDistanceBlocks = 384f;
+        private readonly List<ChunkCoord> _unloadScratch = new List<ChunkCoord>();
 
         // Performance (P2): assigning MeshCollider.sharedMesh cooks the collision mesh synchronously on the
         // main thread — the single heaviest per-chunk op. Instead we run Physics.BakeMesh on a worker thread
@@ -1121,7 +1156,7 @@ namespace BlocksBeyondTheStars.Client
                 if (Network.Connected)
                 {
                     Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
-                        string.IsNullOrEmpty(Token) ? null : Token);
+                        string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks);
                     Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
                     if (!string.IsNullOrEmpty(FacePixels))
                     {
@@ -1181,18 +1216,23 @@ namespace BlocksBeyondTheStars.Client
             // Round worlds: keep every loaded chunk drawn at the copy nearest the player as it laps the world
             // in EITHER direction. Near chunks resolve to their canonical position (a no-op write); only
             // chunks across a seam shift by ±Circumference (X) / ±LatitudePeriod (Z). Throttled to once per
-            // block of movement on either axis.
+            // block of movement on any axis. Y is included because the renderer-cull and near-only-collider
+            // toggling in RepositionChunks are 3D distance-based: a straight-down jetpack descent must re-enable
+            // the ground colliders below before the player reaches them, or they'd fall through.
             int chunkAnchorX = Mathf.FloorToInt(PlayerPosition.x);
+            int chunkAnchorY = Mathf.FloorToInt(PlayerPosition.y);
             int chunkAnchorZ = Mathf.FloorToInt(PlayerPosition.z);
-            if (chunkAnchorX != _lastReposX || chunkAnchorZ != _lastReposZ)
+            if (chunkAnchorX != _lastReposX || chunkAnchorY != _lastReposY || chunkAnchorZ != _lastReposZ)
             {
                 _lastReposX = chunkAnchorX;
+                _lastReposY = chunkAnchorY;
                 _lastReposZ = chunkAnchorZ;
                 RepositionChunks();
             }
         }
 
         private int _lastReposX = int.MinValue;
+        private int _lastReposY = int.MinValue;
         private int _lastReposZ = int.MinValue;
 
         /// <summary>Re-places every loaded chunk GameObject at the seam-aware scene position for the player's
@@ -1202,29 +1242,68 @@ namespace BlocksBeyondTheStars.Client
         {
             var pp = PlayerPosition;
             float cullSq = ChunkDrawDistanceBlocks * ChunkDrawDistanceBlocks;
+            float colliderSq = ChunkColliderDistanceBlocks * ChunkColliderDistanceBlocks;
+            float unloadSq = ChunkUnloadDistanceBlocks * ChunkUnloadDistanceBlocks;
+            _unloadScratch.Clear();
             foreach (var kv in _chunkObjects)
             {
-                if (kv.Value == null)
+                var view = kv.Value;
+                if (view == null || view.Go == null)
                 {
                     continue;
                 }
 
                 var origin = WorldConstants.ChunkOrigin(kv.Key);
-                kv.Value.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
+                view.Go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
 
-                // Distance culling (A4): disable the renderer of chunks well beyond the draw distance so the
-                // accumulated far chunks (never unloaded) stop costing draw calls; re-enabled when the player
-                // moves back into range. Colliders are left intact (cheap when untouched, and far physics still
-                // resolves). Frustum culling Unity does for free once the per-chunk bounds are correct (A1).
-                var mr = kv.Value.GetComponent<MeshRenderer>();
-                if (mr != null)
+                float distSq = ChunkDistSqToPlayer(kv.Key, pp);
+
+                // Far-chunk unload: a chunk the player has travelled well past (beyond even the renderer cull) is
+                // destroyed so the resident set stays bounded. Collected here, removed after the loop (can't mutate
+                // the dictionary mid-iteration). The server forgets it too, so it re-streams if the player returns.
+                if (distSq > unloadSq)
                 {
-                    bool visible = ChunkDistSqToPlayer(kv.Key, pp) <= cullSq;
-                    if (mr.enabled != visible)
-                    {
-                        mr.enabled = visible;
-                    }
+                    _unloadScratch.Add(kv.Key);
+                    continue;
                 }
+
+                // Distance culling: disable the renderer of chunks well beyond the draw distance so the
+                // accumulated far chunks stop costing draw calls; re-enabled when the player moves back into
+                // range. Frustum culling Unity does for free once the per-chunk bounds are correct.
+                bool visible = distSq <= cullSq;
+                if (view.RendererEnabled != visible && view.Renderer != null)
+                {
+                    view.Renderer.enabled = visible;
+                    view.RendererEnabled = visible;
+                }
+
+                // Near-only colliders: only chunks within reach keep an ACTIVE collider; far ones are disabled so
+                // moving their transform each block costs nothing in PhysX (the broadphase ignores them). The
+                // baked sharedMesh stays assigned, so coming back into range re-enables collision instantly.
+                bool collide = distSq <= colliderSq;
+                if (view.ColliderEnabled != collide && view.Collider != null)
+                {
+                    view.Collider.enabled = collide;
+                    view.ColliderEnabled = collide;
+                }
+            }
+
+            // Process the far-chunk unloads collected above (after iterating, so the dictionary isn't mutated
+            // mid-loop). Drop every bit of per-chunk bookkeeping so nothing dangles, and the world data + its
+            // light sources, then destroy the GameObject. A re-stream rebuilds it from scratch.
+            for (int i = 0; i < _unloadScratch.Count; i++)
+            {
+                var coord = _unloadScratch[i];
+                if (_chunkObjects.TryGetValue(coord, out var view) && view?.Go != null)
+                {
+                    Destroy(view.Go);
+                }
+
+                _chunkObjects.Remove(coord);
+                _dirty.Remove(coord);
+                _colliderGen.Remove(coord);
+                _meshGen.Remove(coord);
+                World.RemoveChunk(coord);
             }
         }
 
@@ -1289,16 +1368,16 @@ namespace BlocksBeyondTheStars.Client
             LandedShips.Clear();
             LandedShipsChanged?.Invoke();
 
-            foreach (var go in _chunkObjects.Values)
+            foreach (var view in _chunkObjects.Values)
             {
-                if (go != null)
+                if (view?.Go != null)
                 {
                     // SetActive(false) takes effect immediately; Destroy is deferred to frame end. Without
                     // this the settle-freeze raycast (PlayerController) could still hit a stale collider from
                     // the *old* world this frame, "find ground", release early, and drop the player into the
                     // void before the new world's floor chunk has streamed in (the station-boarding fall).
-                    go.SetActive(false);
-                    Destroy(go);
+                    view.Go.SetActive(false);
+                    Destroy(view.Go);
                 }
             }
 
@@ -1603,28 +1682,29 @@ namespace BlocksBeyondTheStars.Client
         {
             // Reuse this chunk's existing render mesh on a rebuild (A3) — avoids a per-remesh Mesh allocation and
             // the leak of the previous one (A2 raises the rebuild rate, which would otherwise grow that leak).
-            bool exists = _chunkObjects.TryGetValue(coord, out var go) && go != null;
-            var reuse = exists ? go.GetComponent<MeshFilter>().sharedMesh : null;
+            bool exists = _chunkObjects.TryGetValue(coord, out var view) && view?.Go != null;
+            var reuse = exists ? view!.Filter.sharedMesh : null;
             var (mesh, collider) = data.ToMeshes(reuse);
 
             if (!exists)
             {
-                go = new GameObject($"Chunk {coord.X},{coord.Y},{coord.Z}");
+                var go = new GameObject($"Chunk {coord.X},{coord.Y},{coord.Z}");
                 go.transform.SetParent(transform);
                 var origin = WorldConstants.ChunkOrigin(coord);
                 go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z)); // seam-aware on both ground axes (torus)
-                go.AddComponent<MeshFilter>();
+                var filter = go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
                 // Submesh 0 → opaque atlas, submesh 1 → see-through atlas (glass/fields). Fall back to a
                 // single material if the transparent shader is missing (the spare submesh just won't draw).
                 mr.sharedMaterials = ChunkMaterialTransparent != null
                     ? new[] { ChunkMaterial, ChunkMaterialTransparent }
                     : new[] { ChunkMaterial };
-                go.AddComponent<MeshCollider>();
-                _chunkObjects[coord] = go;
+                var mc = go.AddComponent<MeshCollider>();
+                view = new ChunkView { Go = go, Filter = filter, Renderer = mr, Collider = mc };
+                _chunkObjects[coord] = view;
             }
 
-            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            view!.Filter.sharedMesh = mesh;
 
             // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava.
             // Baking the collision mesh is the heaviest per-chunk step, so do it off the main thread (P2): bump
@@ -1632,7 +1712,7 @@ namespace BlocksBeyondTheStars.Client
             // in DrainBakedColliders.
             int bakeGen = (_colliderGen.TryGetValue(coord, out var g) ? g : 0) + 1;
             _colliderGen[coord] = bakeGen;
-            var mcol = go.GetComponent<MeshCollider>();
+            var mcol = view!.Collider;
             if (collider == null)
             {
                 if (mcol != null)
@@ -1672,9 +1752,9 @@ namespace BlocksBeyondTheStars.Client
                 bool assigned = false;
                 if (baked.Epoch == WorldEpoch
                     && _colliderGen.TryGetValue(baked.Coord, out var gen) && gen == baked.Gen
-                    && _chunkObjects.TryGetValue(baked.Coord, out var go) && go != null)
+                    && _chunkObjects.TryGetValue(baked.Coord, out var view) && view?.Go != null)
                 {
-                    var mc = go.GetComponent<MeshCollider>();
+                    var mc = view.Collider;
                     if (mc != null)
                     {
                         mc.sharedMesh = baked.Collider; // cook cached by BakeMesh → cheap assign, no main-thread stall

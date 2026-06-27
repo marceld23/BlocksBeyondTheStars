@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             boot.Token = shell.Settings.PlayerToken ?? "";
             boot.HostInfo = shell.HostInfo ?? "";
             boot.German = shell.Settings.Language == "de";
+            boot.ViewDistanceChunks = shell.Settings.ViewDistanceChunks; // forward the slider so remote hosts stream this radius
             boot.ChunkMaterial = material;
             boot.SkinRgb = Rgb(shell.Settings.SkinColor);
             boot.TorsoRgb = Rgb(shell.Settings.TorsoColor);

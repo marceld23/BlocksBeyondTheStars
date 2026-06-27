@@ -65,4 +65,31 @@ public sealed class JoinAndStreamingTests
 
         Assert.True(checkedAny, "Expected the player's own chunk to be among those streamed to the client.");
     }
+
+    [Fact]
+    public void ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire()
+    {
+        // Host default is radius 1 (ClientServerHarness); the client asks for radius 3 via the JoinRequest.
+        using var h = new ClientServerHarness(LoadContent());
+        h.Join("FarSighted", maxTicks: 20, viewDistanceChunks: 3);
+        Assert.NotNull(h.JoinAccepted);
+
+        // Let the (now wider) view stream in fully.
+        h.PumpUntil(() => false, maxTicks: 80);
+
+        var center = Shared.World.WorldConstants.WorldToChunk(h.Server.Sessions[1].State.Position.ToBlock());
+
+        // A column 2 east is inside the client's radius-3 view but outside the host's radius-1 default — it only
+        // reaches the client because the slider value travelled in the JoinRequest and drove server streaming.
+        bool gotWithinClientView = false;
+        bool gotBeyondClientView = false;
+        foreach (var key in h.Chunks.Keys)
+        {
+            if (key.Item1 == center.X + 2) gotWithinClientView = true;
+            if (key.Item1 == center.X + 5) gotBeyondClientView = true; // beyond radius 3 — must never stream
+        }
+
+        Assert.True(gotWithinClientView, "client's radius-3 view should stream terrain past the host's radius-1 default");
+        Assert.False(gotBeyondClientView, "nothing beyond the client's requested radius should stream");
+    }
 }

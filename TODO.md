@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `dotnet test` — currently **795 passing** (2026-06-26). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **741 server + 86 client passing** (2026-06-27). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -59,6 +59,30 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Planet view distance + on-foot smoothness (2026-06-27) — ✅ server 741 + client 86 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT merged)
+Planet surface felt close-horizoned and slow. **A1** default render distance 2→4 (~32→64 m; per-planet/weather haze still
+scales off it). **A2** the hard-coded per-tick chunk-stream budget is now `ServerConfig.ChunkStreamPerTick` (default 16,
+host-tunable) so the wider view fills faster — the true off-thread worker-pool gen was judged too risky to land blind (the
+cratered-moon flag is ambient on the shared generator; SQLite threading). **A4** wired the previously-dead
+`ServerWorld.UnloadFarChunks` into a throttled tick sweep so the server chunk cache stops growing unbounded on exploration.
+**C** per-player view distance: the in-game slider now travels in `JoinRequest.ViewDistanceChunks` (clamped 1–8) and drives
+server streaming, so it extends actual terrain on dedicated servers too, not just local fog. **A3** on-foot input-lag at high
+view distance fixed: at VD8 ~1700 active MeshColliders were shoved through the PhysX broadphase every block-moved by
+RepositionChunks — now colliders are disabled beyond `ChunkColliderDistanceBlocks` (96 m, baked mesh kept for instant
+re-enable) and chunk components are cached (no per-move GetComponent); reposition also re-triggers on vertical movement so a
+straight-down fall re-enables ground colliders in time. New tests: `ChunkStreamingTests` (budget + far-sweep + client VD),
+client e2e `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire`. **LOD step 1 (distance-based vertical detail):** far
+columns (Chebyshev > 3) stream only the band around their actual surface instead of the full -3..+2 span, roughly halving the
+chunk count at VD8 (~1734→~770) for faster fill + a lighter client — near columns keep the full span for caves/digging
+(`FarColumns_StreamOnlyTheSurfaceBand...`). **Client far-chunk unload:** the client used to never unload (its chunk set + the
+per-block reposition loop grew unbounded over long travel); now chunks past `ChunkUnloadDistanceBlocks` (384, beyond the 256
+renderer cull) are destroyed, and the server's far-chunk sweep also drops the evicted coords from every player's sent-set so
+they re-stream fresh on return — no new protocol. **Haze fine-tune:** the fog start fraction + max haze are now tied to the
+world's atmosphere density (clear/thin worlds stay crisp across near+mid and only veil the far edge; soupy worlds + fog/sand
+weather stay near & dense), so a clear world shows the farther terrain the larger view distance streams. STILL OPEN: visual
+far-mesh/greedy LOD (render kept chunks cheaper / see beyond VD8) — high risk, in-editor iteration only. Plan:
+`plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
 
 ### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
 Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide
