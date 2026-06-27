@@ -70,6 +70,13 @@ The `release.yml` workflow gained two new jobs alongside the existing Windows jo
 The `BlocksBeyondTheStars.CI.slnf` solution filter now includes `Launcher.Console` (it targets plain net8.0
 and builds on Linux, unlike the WinForms launcher which is net8.0-windows).
 
+**Execute-bit fix:** GitHub's `upload-/download-artifact` strips the Unix execute bit, so after the player
+artifact round-trips into `package-linux` the bundled local server (and the player binary) lose `+x`.
+`package-linux` therefore `chmod +x`s `BlocksBeyondTheStars.x86_64` **and**
+`…_Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer` before `vpk pack`, otherwise Singleplayer's
+`Process.Start` on the server fails with `EACCES` inside the AppImage. The same fix applies to the macOS
+package job — see [MACOS_BUILD.md](MACOS_BUILD.md).
+
 ## How to build
 
 See [DEVELOPER.md](DEVELOPER.md) (§ Building the Linux client) for the full guide.

@@ -15,6 +15,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
   pipeline, freshness checks, "works in the Editor, broken in the build" pitfalls).
 - [LINUX_PORT.md](LINUX_PORT.md) — how the Linux port works: cross-platform changes, the console launcher,
   bash build scripts, CI/CD and known limitations.
+- [MACOS_BUILD.md](MACOS_BUILD.md) — the experimental macOS build: `StandaloneOSX` cross-built on Linux (Mono),
+  the CI job pair, the artifact execute-bit fix, and running an unsigned/un-notarized `.app`.
 - [CLIENT_TESTING.md](CLIENT_TESTING.md) — how the Unity client is tested against the **real** game server
   (the `Client.Core` split, the three test tiers, the selectable `run-tests.ps1` runner).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.

@@ -22,7 +22,7 @@ Blocks Beyond the Stars is not a traditional indie game—it is an exploration o
 
 ## 🪐 What is it? (The Short Pitch)
 
-A block-based 3D space crafting game for Windows and Linux, built from day one as a persistent client/server multiplayer experience.
+A block-based 3D space crafting game for Windows and Linux (with an experimental macOS build), built from day one as a persistent client/server multiplayer experience.
 
 You wake aboard your own spaceship. Out there are procedurally generated star systems—each with its own sun, planets, moons, and asteroid fields. Land on unique worlds (from airless rocks to lava fields and floating skylands), mine resources, craft gear, and unlock blueprints.
 
@@ -108,9 +108,9 @@ The software is provided as-is under the terms of the [license](#-license) inclu
 
 ## System requirements
 
-The **game client ships as a Windows build** (with a **native Linux build** also available), but the
-**server is cross-platform** — so a Linux/macOS machine, a NAS or a VPS (including via Docker) can
-host a world that players join.
+The **game client ships as a Windows build** (with a **native Linux build** and an **experimental
+macOS build** also available), but the **server is cross-platform** — so a Linux/macOS machine, a
+NAS or a VPS (including via Docker) can host a world that players join.
 
 **Game client (to play)**
 
@@ -123,6 +123,10 @@ host a world that players join.
   If it feels sluggish, open **Settings → Graphics** and **turn VSync off** (optionally set a frame-rate
   limit), lower the **quality preset** (Potato/Low also disables the costlier screen-space effects)
   and the **view distance**. A recent Proton (e.g. Proton GE) generally gives the smoothest result.
+- **macOS (experimental):** a `StandaloneOSX` `.app` bundle (Intel x64; runs on Apple Silicon via
+  Rosetta 2) is published as `…-osx-…-Portable.zip`. It is **unsigned and un-notarized**, so macOS
+  Gatekeeper quarantines it — see the [macOS security notice](#macos-security-notice) below. Consider
+  it a preview: it builds green in CI but has had limited hands-on testing.
 - The client always talks to a server: a local one started automatically in singleplayer / "Host
   Game", or a remote dedicated server.
 
@@ -157,6 +161,25 @@ may need to allow these components through the firewall.
   network access.
 - Please **do not disable your firewall**.
 
+## macOS security notice
+
+The macOS build is **experimental** and **not code-signed or notarized**. macOS Gatekeeper will
+therefore quarantine the downloaded `.app` and refuse to open it on a double-click. If you trust the
+[official releases](https://github.com/marceld23/BlocksBeyondTheStars/releases), there are two ways
+to run it after unzipping:
+
+- **Right-click the app → "Open"**, then confirm **"Open"** in the dialog (only needed once), or
+- clear the quarantine flag from a terminal:
+
+  ```bash
+  xattr -dr com.apple.quarantine "BlocksBeyondTheStars.app"
+  ```
+
+The bundle is **Intel x64**; on Apple Silicon (M-series) it runs through Rosetta 2. Singleplayer
+launches a bundled local server inside the app the same way the Windows/Linux builds do. As with the
+other platforms, macOS may ask you to allow the game/server through the firewall on first launch —
+allowing **private networks only** is recommended.
+
 ## Guiding principle
 
 > **The Unity client is presentation and input. The .NET server is the truth of the game world.**
@@ -169,7 +192,7 @@ oxygen, damage, blueprints or travel.
 
 | Area | Choice |
 |---|---|
-| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux) — see [`client/`](client/) |
+| Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux, experimental macOS) — see [`client/`](client/) |
 | Server | .NET 8, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
 | Database | SQLite (default, portable); PostgreSQL later |
