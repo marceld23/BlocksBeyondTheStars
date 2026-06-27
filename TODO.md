@@ -60,6 +60,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Experimental macOS client build (2026-06-27) — ⚠️ CI + docs done, NOT built/run yet, on branch `feat/macos-experimental-build` (NOT committed to main)
+Adds an unsigned/un-notarized macOS player (doc [docs/developer/MACOS_BUILD.md](docs/developer/MACOS_BUILD.md)). The Mono scripting backend
+cross-compiles `StandaloneOSX` on the Linux runner — no Mac hardware in CI; UWB/CEF is already gone and there are no native plugins, so
+there were no real blockers. Changes: `BuildScript.BuildMacOS()` (StandaloneOSX → `.app`); two `release.yml` jobs (`build-player-mac`
+mirrors `build-player-linux`; `package-mac` zips the bundle, no Velopack/launcher = Phase 1); `publish-local-server.sh osx-x64` for the
+bundled singleplayer server. Also fixed a latent bug: GitHub artifacts strip the Unix `+x` bit, so **both** package jobs now `chmod +x` the
+player **and** the bundled server before packing (Linux AppImage was likely affected too — see [LINUX_PORT.md](docs/developer/LINUX_PORT.md)).
+- **Open / next:** no Mac in CI, so this is verified to *compile + package* only. Smoke-test on a real Mac (Singleplayer + bundled-server
+  launch = the `+x` failure mode) before promoting past "experimental". Phase 2: signing/notarization, Velopack/auto-update, splash launcher,
+  native `osx-arm64`/Universal, itch.io osx channel.
+
 ### ★ Factories, ruins, treasure chests & access-code claiming (2026-06-27) — ✅ server 759 tests green + local Unity build green, on branch `feat/factories-ruins-claiming` (NOT committed)
 A four-part content feature, all deterministic from the world seed (doc [docs/developer/FACTORIES_RUINS_AND_CLAIMING.md](docs/developer/FACTORIES_RUINS_AND_CLAIMING.md)):
 - **Factories** — rare procedural industrial halls (`FactoryGenerator`) with **animated machines** (piston/rotor/conveyor via `FactoryView`, overlaid on the voxel housings) and a **production terminal**. Each factory offers only a seeded **roster** (1–4 of the factory recipes — never all). Factory recipes (`station: factory` in recipes.json) turn **cheaper/less-rare raw into the same output but more of it** in one step; excluded from disassembly. Protected until claimed. Stamper `StampFactories` (`PlaceFactories`), networking `FactoryList` (tag 172).

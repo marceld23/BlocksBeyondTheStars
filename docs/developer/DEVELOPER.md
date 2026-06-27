@@ -266,6 +266,25 @@ vpk pack --packId BlocksBeyondTheStars --packVersion <semver> \
   --outputDir artifacts/installer-linux
 ```
 
+## Building the macOS client (experimental)
+
+The macOS build uses the same Unity project, targets `StandaloneOSX`, and produces a `.app` bundle. The
+Mono backend cross-compiles it, so it builds on Linux/Windows/macOS Editors alike — no Mac hardware
+required. There is no one-command wrapper script yet; run the steps directly:
+
+```bash
+./scripts/sync-client-libs.sh
+./scripts/sync-velopack-libs.sh
+./scripts/publish-local-server.sh osx-x64     # bundles the osx-x64 singleplayer server
+# Unity batch build with the macOS build method:
+<Unity> -batchmode -quit -nographics -projectPath client \
+  -buildMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS \
+  -buildOut client/Build/macOS
+```
+
+The result is **unsigned and un-notarized** — for the full picture (the CI job pair, the artifact
+execute-bit fix, and how to run an unsigned `.app` past Gatekeeper) see [MACOS_BUILD.md](MACOS_BUILD.md).
+
 ### Build log, exit codes and duration
 
 - The Unity log is written to **`client/build.log`**.
@@ -319,7 +338,7 @@ not locally. Cut one by pushing a SemVer tag:
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
-The workflow has four parallel jobs, building for Windows **and** Linux:
+The workflow builds for Windows, Linux **and** (experimentally) macOS in parallel jobs:
 
 1. **Build Unity player (Windows)** — GameCI (`game-ci/unity-builder`) in a Linux Docker image
    cross-builds the `StandaloneWindows64` player (Mono backend). It first runs the same prereqs as
@@ -327,13 +346,19 @@ The workflow has four parallel jobs, building for Windows **and** Linux:
    caches `client/Library`, and frees runner disk space before the ~6 GB editor image pull.
 2. **Build Unity player (Linux)** — same GameCI builder, targets `StandaloneLinux64`. Produces a
    native `BlocksBeyondTheStars.x86_64` player.
-3. **Package + release (Windows)** — builds the WinForms launcher, downloads the Windows player from job 1,
+3. **Build Unity player (macOS, experimental)** — same GameCI builder, targets `StandaloneOSX` (the Mono
+   backend cross-builds it on the Linux runner — no Mac hardware). Publishes the `osx-x64` bundled server
+   first and produces a `.app` bundle. See [MACOS_BUILD.md](MACOS_BUILD.md).
+4. **Package + release (Windows)** — builds the WinForms launcher, downloads the Windows player from job 1,
    and runs `publish-client-installer.ps1 -Msi` to produce three assets for the GitHub Release:
    **`…-win-Setup.exe`** (per-user, no admin), **`…-win.msi`** (machine-wide, for IT/MDM) and
    **`…-win-Portable.zip`**. The same three assets are mirrored to **itch.io** (see below).
-4. **Package + release (Linux)** — builds the console launcher, downloads the Linux player from job 2,
+5. **Package + release (Linux)** — builds the console launcher, downloads the Linux player from job 2,
    and packages it with Velopack (`vpk`) into an **AppImage** + **portable zip**, attached to the same
    GitHub Release.
+6. **Package + release (macOS, experimental)** — downloads the `.app` from job 3, restores the artifact's
+   stripped execute bits (entry binary + bundled server), and `zip`s the bundle into a **portable zip**
+   (`…-osx-…-Portable.zip`). Unsigned/un-notarized; no Velopack. See [MACOS_BUILD.md](MACOS_BUILD.md).
 
 The workflow triggers **only** on tag pushes and manual dispatch (never `pull_request`), so the Unity license
 secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`) are never exposed — safe even with a public repo. A
@@ -388,9 +413,11 @@ When working on this pipeline, three non-obvious gotchas already cost a debuggin
 - **`gh workflow run` right after `git push`** can dispatch the *previous* commit (tag/branch HEAD hasn't
   propagated yet) — wait ~20 s and verify the run's `headSha`.
 
-macOS **client** installers are intentionally not built: it is out of scope for now and would need its
-own work (Metal/Vulkan graphics, cross-compilation, and Apple code-signing/notarization). Linux **client** installers (AppImage + portable zip)
-are now produced alongside the Windows builds — see the release pipeline above.
+An **experimental** macOS **client** build is now produced too — a `StandaloneOSX` `.app` bundle shipped as a
+portable zip. It is **unsigned and un-notarized** (a preview): no Apple code-signing/notarization, no
+Velopack, Intel x64 only (Apple Silicon via Rosetta 2), and it has had limited hands-on testing. See
+[MACOS_BUILD.md](MACOS_BUILD.md). Linux **client** installers (AppImage + portable zip) are produced
+alongside the Windows builds — see the release pipeline above.
 The .NET **server** also cross-builds (`publish-server.ps1` / `.sh`: win-x64/linux-x64/linux-arm64).
 
 ## Troubleshooting: works in the Editor, silently broken in the build

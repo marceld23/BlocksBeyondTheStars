@@ -1,4 +1,4 @@
-# Builds the Windows player + loading-splash launcher and publishes a GitHub Release.
+# Builds the Windows, Linux + (experimental) macOS players and publishes a GitHub Release.
 #
 # Triggered ONLY by pushing a version tag (or the manual "Run workflow" button), never by
 # pull_request — so forked PRs can never reach the Unity license secret. In a PUBLIC repo,
@@ -13,10 +13,15 @@
 #        UNITY_PASSWORD = your Unity account password
 #   3. Push a tag:  git tag v1.0.0 && git push origin v1.0.0
 #
-# Why split jobs: the Unity build runs in GameCI's Linux Docker image (Windows player cross-built
-# with the Mono backend). The WinForms launcher needs the Windows Desktop SDK, so it is built on
-# a windows-latest runner and merged into the player afterwards. A third job builds the optional
-# dedicated-server Docker image (reusable docker.yml) and pushes it to GHCR on a tag.
+# Why split jobs: the Unity build runs in GameCI's Linux Docker image (Windows, Linux and macOS
+# players are all cross-built with the Mono backend — macOS too, so no Mac runner is needed). The
+# WinForms launcher needs the Windows Desktop SDK, so it is built on a windows-latest runner and
+# merged into the Windows player afterwards. Per-platform package jobs publish the installers/zips,
+# and a final job builds the optional dedicated-server Docker image (reusable docker.yml) and
+# pushes it to GHCR on a tag.
+#
+# macOS is EXPERIMENTAL: the .app is unsigned and un-notarized (Phase 1 = plain zip, no Velopack,
+# no splash launcher). Users clear the Gatekeeper quarantine once — see README "Platforms".
 
 name: Release
 
@@ -285,6 +290,115 @@ jobs:
           name: player-linux
           path: player-linux
 
+  # macOS player (experimental). Built on a Linux runner: the project uses the Mono scripting backend, so
+  # GameCI cross-compiles StandaloneOSX without Mac hardware. The result is an unsigned/un-notarized .app
+  # bundle (Phase 1: zipped as-is, no Velopack, no splash launcher). Mirrors build-player-linux step-for-step.
+  build-player-mac:
+    name: Build Unity player (macOS)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve + validate version
+        id: ver
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+              echo "::error::Tag '$GITHUB_REF_NAME' is not SemVer — expected vX.Y.Z (e.g. v0.3.0)."
+              exit 1
+            fi
+          else
+            v="0.1.0-dev"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Resolved build version: $v"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      - name: Sync Velopack libs (bash)
+        run: ./scripts/sync-velopack-libs.sh
+
+      - name: Publish bundled local server (osx-x64)
+        run: ./scripts/publish-local-server.sh osx-x64
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5
+        with:
+          path: client/Library
+          key: Library-macOS-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-macOS-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
+      - name: Inject player-feedback API key
+        env:
+          WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$WIX_BUGREPORT_API_KEY" ]; then
+            echo "WIX_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the WIX_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$WIX_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
+      - name: Build macOS player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: StandaloneOSX
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS
+          versioning: Custom
+          version: ${{ steps.ver.outputs.version }}
+          customParameters: -buildOut /github/workspace/player-mac
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-mac
+
+      - name: Verify baked version matches the tag
+        shell: bash
+        run: |
+          baked="$(cat player-mac/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
+          test "$baked" = "${{ steps.ver.outputs.version }}"
+
+      - name: Upload macOS player artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: player-mac
+          path: player-mac
+
   # Linux packaging
   package-linux:
     name: Package + release (Linux)
@@ -308,6 +422,14 @@ jobs:
         with:
           name: player-linux
           path: client/Build/Linux
+
+      # GitHub artifacts drop the Unix execute bit. Restore it on the main player AND the bundled local
+      # server before packing, otherwise Singleplayer's Process.Start on the server fails with EACCES
+      # inside the AppImage (see LocalServerLauncher.cs — it runs StreamingAssets/server/...GameServer).
+      - name: Restore execute bits (player + bundled server)
+        run: |
+          chmod +x client/Build/Linux/BlocksBeyondTheStars.x86_64
+          chmod +x client/Build/Linux/BlocksBeyondTheStars_Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer
 
       # vpk can produce AppImage + portable zip for Linux. NOTE: the splash options
       # (--splashImage / --splashProgressColor) are Windows-installer only — the Linux `vpk pack`
@@ -340,6 +462,53 @@ jobs:
           files: |
             artifacts/installer-linux/*AppImage
             artifacts/installer-linux/*Portable.zip
+          generate_release_notes: false
+
+  # macOS packaging (experimental, no signing/notarization). Velopack is skipped on purpose: we just zip
+  # the .app and document the Gatekeeper quarantine workaround in the README/release notes. Mirrors the
+  # Linux packaging job; the only macOS-specific care is preserving the bundle's symlinks (zip -y) and the
+  # execute bits (artifacts strip them).
+  package-mac:
+    name: Package + release (macOS)
+    needs: build-player-mac
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download macOS player artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: player-mac
+          path: client/Build/macOS
+
+      # Artifacts strip Unix perms — restore +x on the bundle's entry binary AND the bundled local server,
+      # otherwise Singleplayer can't spawn the server on macOS (LocalServerLauncher.cs).
+      - name: Restore execute bits (app + bundled server)
+        run: |
+          APP="client/Build/macOS/BlocksBeyondTheStars.app"
+          chmod +x "$APP/Contents/MacOS/"*
+          chmod +x "$APP/Contents/Resources/Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer"
+
+      # zip -y preserves the symlinks inside the .app bundle; a plain upload-artifact re-zip would corrupt it.
+      - name: Zip the .app
+        run: |
+          OUT="artifacts/installer-mac"
+          mkdir -p "$OUT"
+          ( cd client/Build/macOS && \
+            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-osx-${{ needs.build-player-mac.outputs.version }}-Portable.zip" \
+              "BlocksBeyondTheStars.app" )
+
+      - name: Upload macOS installer artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: mac-installers
+          path: artifacts/installer-mac
+
+      - name: Publish GitHub Release (macOS assets)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
+        with:
+          files: artifacts/installer-mac/*Portable.zip
           generate_release_notes: false
 
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only

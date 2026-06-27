@@ -60,6 +60,15 @@ namespace BlocksBeyondTheStars.Client.EditorTools
         public static void BuildLinux()
             => BuildPlayer(BuildTarget.StandaloneLinux64, "BlocksBeyondTheStars.x86_64", "Build/Linux");
 
+        /// <summary>Builds the macOS player (StandaloneOSX) as a <c>.app</c> bundle. Because the project uses the
+        /// Mono scripting backend (not IL2CPP), GameCI cross-builds this on a Linux runner — no Mac hardware needed.
+        /// Experimental: the resulting bundle is unsigned/un-notarized, so macOS Gatekeeper quarantines it (users
+        /// run <c>xattr -dr com.apple.quarantine</c> once). Headless: same path with
+        /// <c>-buildMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS -buildOut &lt;dir&gt;</c>.</summary>
+        [MenuItem("BlocksBeyondTheStars/Build macOS Player")]
+        public static void BuildMacOS()
+            => BuildPlayer(BuildTarget.StandaloneOSX, "BlocksBeyondTheStars.app", "Build/macOS");
+
         private static void BuildPlayer(BuildTarget target, string exeName, string defaultOutDir)
         {
             EnsureLauncherScene();
