@@ -394,14 +394,22 @@ namespace BlocksBeyondTheStars.Client
                 far = Mathf.Lerp(far, far * 0.7f, dawn);
             }
 
-            RenderSettings.fogStartDistance = far * 0.55f;
+            // Where the haze begins, as a fraction of the far edge: thin/clear-air worlds stay CRISP across the
+            // near + mid distance and only veil the far edge (high start), while soupy worlds haze from much
+            // closer in (low start). This keeps the per-planet/per-atmosphere character while letting a clear
+            // world actually show the farther terrain the (now larger) view distance streams. Weather that already
+            // crushed `far` keeps its near, dense look — a small `far` lands the haze close even at a high factor.
+            float startFactor = Mathf.Lerp(0.72f, 0.5f, Mathf.Clamp01(airDensity));
+            float fogStart = far * startFactor;
+            RenderSettings.fogStartDistance = fogStart;
             RenderSettings.fogEndDistance = far;
 
             // The actual visible haze: an explicit distance blend the block shader applies (Unity's MixFog is dead
-            // on the unlit voxels). Strong toward the sky at the far edge so it masks chunk pop-in; faded out
-            // indoors via _indoor so the cabin never hazes.
-            float maxHaze = (FogEnabled ? 0.7f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
-            Shader.SetGlobalVector(FogId, new Vector4(far * 0.55f, far, maxHaze, FogEnabled ? 1f : 0f));
+            // on the unlit voxels). Strong toward the sky at the far edge so it masks chunk pop-in; a touch thinner
+            // on clear worlds so distant terrain reads through; faded out indoors via _indoor so the cabin never hazes.
+            float hazeStrength = Mathf.Lerp(0.6f, 0.75f, Mathf.Clamp01(airDensity));
+            float maxHaze = (FogEnabled ? hazeStrength : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
+            Shader.SetGlobalVector(FogId, new Vector4(fogStart, far, maxHaze, FogEnabled ? 1f : 0f));
         }
 
         /// <summary>Places the glowing sun billboard in the sky in the sun direction, tinted by the

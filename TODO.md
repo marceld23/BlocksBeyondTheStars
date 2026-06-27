@@ -78,8 +78,11 @@ chunk count at VD8 (~1734→~770) for faster fill + a lighter client — near co
 (`FarColumns_StreamOnlyTheSurfaceBand...`). **Client far-chunk unload:** the client used to never unload (its chunk set + the
 per-block reposition loop grew unbounded over long travel); now chunks past `ChunkUnloadDistanceBlocks` (384, beyond the 256
 renderer cull) are destroyed, and the server's far-chunk sweep also drops the evicted coords from every player's sent-set so
-they re-stream fresh on return — no new protocol. STILL OPEN: visual far-mesh/greedy LOD (render kept chunks cheaper / see
-beyond VD8); haze fine-tune. Plan: `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
+they re-stream fresh on return — no new protocol. **Haze fine-tune:** the fog start fraction + max haze are now tied to the
+world's atmosphere density (clear/thin worlds stay crisp across near+mid and only veil the far edge; soupy worlds + fog/sand
+weather stay near & dense), so a clear world shows the farther terrain the larger view distance streams. STILL OPEN: visual
+far-mesh/greedy LOD (render kept chunks cheaper / see beyond VD8) — high risk, in-editor iteration only. Plan:
+`plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
 
 ### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
 Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide
