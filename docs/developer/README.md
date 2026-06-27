@@ -21,6 +21,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 
 ## World & worldgen
 
+- [WORLD_GENERATION.md](WORLD_GENERATION.md) — the full procedural pipeline: seed → galaxy → system →
+  body → PlanetType → terrain/biomes/water/flora/fauna, and how variety and determinism are achieved.
 - [MULTIWORLD_AND_SYSTEM_FLIGHT.md](MULTIWORLD_AND_SYSTEM_FLIGHT.md) — multiple resident worlds, per-player
   location, system-scale flight and hyperjumps.
 - [STATION_AS_LOCATION.md](STATION_AS_LOCATION.md) — ships and space stations as first-class "void" worlds
