@@ -263,6 +263,13 @@ jobs:
           echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
           test "$baked" = "${{ steps.ver.outputs.version }}"
 
+      # The "Free disk space" step above deletes /usr/share/dotnet to make room for the Unity image, so the
+      # SDK is gone by now. Re-install it before publishing the launcher (cheap; the heavy build is done).
+      - name: Re-install .NET (disk-cleanup removed it)
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Build Linux console launcher
         run: |
           dotnet publish src/BlocksBeyondTheStars.Launcher.Console/BlocksBeyondTheStars.Launcher.Console.csproj \
