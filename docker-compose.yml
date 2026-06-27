@@ -28,7 +28,7 @@ services:
       BBS_ADMIN_BIND: "0.0.0.0"            # inside the container; reach it via the host port mapping above
       # BBS_ADMIN_PASSWORD: "change-me"    # REQUIRED before exposing 31416 publicly
       # BBS_ENABLE_WEBSOCKET: "true"       # also accept browser clients on the gameplay port
-      BBS_FETCH_CLIENT: "1"                # pull the latest Windows installer from GitHub Releases for /download
+      BBS_FETCH_CLIENT: "1"                # pull the latest Windows Setup.exe + Linux AppImage from GitHub Releases for /download + /download-linux
       # BBS_CLIENT_REPO: "marceld23/BlocksBeyondTheStars"
       # --- Optional AI text backend (NPC greetings / mission flavour / VEGA banter) ---
       # It is baked into the image but only STARTS when an ai-backend/.env is mounted (see volumes below)
@@ -37,7 +37,7 @@ services:
     volumes:
       - saves:/app/saves            # SQLite world + backups + logs + /bump bug reports (<world>/bumps)
       - config:/app/config          # server.json (created on first run)
-      - clients:/app/clients        # published Windows installer the portal hands out
+      - clients:/app/clients        # published clients the portal hands out (Windows Setup.exe + Linux AppImage)
       # Mount your AI config to enable the in-container LLM backend (copy ai-backend/.env.example -> .env):
       # - ./ai-backend/.env:/app/ai-backend/.env:ro
 

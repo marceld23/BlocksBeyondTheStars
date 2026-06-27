@@ -81,12 +81,18 @@ app.MapMethods("/download", new[] { "GET", "HEAD" }, () =>
         : Results.File(setup, "application/octet-stream", Path.GetFileName(setup), enableRangeProcessing: true);
 });
 
-app.MapGet("/play", () => Results.Content(
-    "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Blocks Beyond the Stars - Browser</title></head>" +
-    "<body style=\"font-family:system-ui;background:#0b0f1a;color:#dfe6f3;padding:40px\">" +
-    "<h1>Browser client</h1><p>The WebGL build will be served here. The server exposes a WebSocket " +
-    "gateway on the gameplay port so the browser client uses the same protocol. " +
-    "See docs/developer/WEBCLIENT_FEASIBILITY.md.</p></body></html>", "text/html"));
+// One-click Linux download: hand out the newest published Linux AppImage from <install>/clients. Mirrors
+// /download above (GET + HEAD + range processing for a resumable, large self-contained download). The Docker
+// entrypoint best-effort fetches this asset from the latest GitHub Release alongside the Windows Setup.exe.
+app.MapMethods("/download-linux", new[] { "GET", "HEAD" }, () =>
+{
+    var appImage = Directory.Exists(clientsDir)
+        ? Directory.GetFiles(clientsDir, "*.AppImage").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()
+        : null;
+    return appImage is null
+        ? Results.NotFound("No Linux client has been published yet. The latest GitHub Release ships a *.AppImage; drop it into the clients folder.")
+        : Results.File(appImage, "application/octet-stream", Path.GetFileName(appImage), enableRangeProcessing: true);
+});
 
 app.MapGet("/api/status", (AdminService a) => Results.Json(a.GetStatus()));
 
