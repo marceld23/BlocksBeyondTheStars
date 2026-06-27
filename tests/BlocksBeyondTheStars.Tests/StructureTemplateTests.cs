@@ -148,8 +148,13 @@ public sealed class StructureTemplateTests
         const int n = 128;
         var stationT = new StructureTemplate
         {
-            Key = "huge_station", Name = "Huge", Tier = "huge", Kind = "station",
-            Width = n, Height = n, Length = n,
+            Key = "huge_station",
+            Name = "Huge",
+            Tier = "huge",
+            Kind = "station",
+            Width = n,
+            Height = n,
+            Length = n,
             Cells = new List<TemplateCell>
             {
                 new() { X = 0, Y = 0, Z = 0, Kind = "block", Id = "iron_wall" },
@@ -166,8 +171,13 @@ public sealed class StructureTemplateTests
 
         var settlementT = new StructureTemplate
         {
-            Key = "huge_city", Name = "City", Tier = "city", Kind = "settlement",
-            Width = n, Height = n, Length = n,
+            Key = "huge_city",
+            Name = "City",
+            Tier = "city",
+            Kind = "settlement",
+            Width = n,
+            Height = n,
+            Length = n,
             Cells = new List<TemplateCell>
             {
                 new() { X = n - 1, Y = n - 1, Z = n - 1, Kind = "block", Id = "stone" },
