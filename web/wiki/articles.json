@@ -32,6 +32,22 @@
     }
   },
   {
+    "id": "factories",
+    "title": { "en": "Factories & Production Terminals", "de": "Fabriken & Produktionsterminals" },
+    "body": {
+      "en": "<p>Some breathable worlds hide a rare <b>factory</b> — an industrial hall whose presses, rotors and conveyors run nonstop, with a <b>factory terminal</b> by the door. No two are built alike.</p><p>Stand near the terminal and craft from the <i>Factory</i> category. Factory recipes turn <b>cheaper, less-rare materials into the same goods as the <span class=\"link\" data-link=\"cat:recipes\">workshop</span>, but in bulk</b> — more input, fewer steps. The catch: each factory only makes the few items on its own roster, so some recipes ask you to find a different factory, and factory crafts can't be taken apart again.</p><p>Crafting at a factory is free for anyone. But a factory is read-only until you <b>claim</b> it: stand at the terminal with an <b>SPS access code</b> and press <b>E</b>. That spends the code and makes the factory your base — you and your allies can rebuild it, and the claim sticks across reloads.</p>",
+      "de": "<p>Auf manchen atembaren Welten verbirgt sich eine seltene <b>Fabrik</b> — eine Industriehalle, deren Pressen, Rotoren und Förderbänder pausenlos laufen, mit einem <b>Fabrikterminal</b> an der Tür. Keine gleicht der anderen.</p><p>Stell dich ans Terminal und fertige in der Kategorie <i>Fabrik</i>. Fabrikrezepte machen aus <b>günstigeren, weniger seltenen Materialien dieselben Güter wie die <span class=\"link\" data-link=\"cat:recipes\">Werkstatt</span>, aber in großer Menge</b> — mehr Einsatz, weniger Schritte. Der Haken: Jede Fabrik stellt nur die wenigen Dinge auf ihrer eigenen Liste her, manche Rezepte verweisen dich also auf eine andere Fabrik, und Fabrik-Fertigungen lassen sich nicht wieder zerlegen.</p><p>Das Fertigen an einer Fabrik ist für alle frei. Doch eine Fabrik ist schreibgeschützt, bis du sie <b>beanspruchst</b>: Stell dich mit einem <b>SPS-Code</b> ans Terminal und drücke <b>E</b>. Das verbraucht den Code und macht die Fabrik zu deiner Basis — du und deine Verbündeten könnt sie umbauen, und der Anspruch bleibt über Neuladen erhalten.</p>"
+    }
+  },
+  {
+    "id": "ruins-and-treasure",
+    "title": { "en": "Ruins & Treasure", "de": "Ruinen & Schätze" },
+    "body": {
+      "en": "<p><b>Ruins</b> are the collapsed remains of fallen settlements — broken walls, a lone half-standing tower, and rubble reclaimed by flora. Unlike bases and stations they are <b>not protected</b>: every block is yours to mine, and what you clear stays cleared. VEGA may warn of <i>structural echoes nearby</i> — bring a <span class=\"link\" data-link=\"cat:tech\">scanner</span> and dig around.</p><p><b>Treasure chests</b> are lootable caches hidden away from towns. Each is looted only once and holds richer salvage than ordinary finds — and they are the main world source of a rare <b>SPS access code</b>, the item that lets you claim a <span class=\"link\" data-link=\"guide:factories\">factory</span> as your own base. You can also buy a code from a trader's Market, but it's steep. Keep any code you find.</p>",
+      "de": "<p><b>Ruinen</b> sind die eingestürzten Überreste verfallener Siedlungen — zerbrochene Mauern, ein einzelner halb stehender Turm und von Pflanzen überwuchertes Geröll. Anders als Basen und Stationen sind sie <b>nicht geschützt</b>: Jeden Block darfst du abbauen, und was du abräumst, bleibt weg. VEGA warnt manchmal vor <i>strukturellen Echos in der Nähe</i> — nimm einen <span class=\"link\" data-link=\"cat:tech\">Scanner</span> mit und grab nach.</p><p><b>Schatztruhen</b> sind plünderbare Verstecke abseits der Orte. Jede lässt sich nur einmal leeren und enthält wertvolleres Bergegut als gewöhnliche Funde — und sie sind die wichtigste Weltquelle für einen seltenen <b>SPS-Code</b>, den Gegenstand, mit dem du eine <span class=\"link\" data-link=\"guide:factories\">Fabrik</span> als eigene Basis beanspruchst. Einen Code gibt es auch im Markt eines Händlers zu kaufen, aber teuer. Heb jeden Code auf, den du findest.</p>"
+    }
+  },
+  {
     "id": "arcade",
     "title": { "en": "Data Cubes & Fragments", "de": "Datenwürfel & Fragmente" },
     "body": {

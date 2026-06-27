@@ -33,6 +33,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **System-Scale Flight:** Fly between unique procedurally generated planets and jump between star systems.
 *   **Complete Freedom:** Every block can be mined, reshaped, and rebuilt.
 *   **Deep Crafting:** Mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations.
+*   **Explore & Claim:** Discover rare factories with their own production terminals, salvage fallen ruins and treasure chests — and claim a factory as your own base with a rare access code.
 *   **In-Game Editors:** Design your own ships, stations, and cities block by block.
 *   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio.
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
@@ -292,7 +293,9 @@ planet, seam-free), 18 planet types including exotic ones (skylands, fungal, cor
 salt flats, …) with their own flora and fauna, swimming/diving, creature taming, a craftable hover
 speeder, mining → crafting → blueprints →
 ship building, real system-scale space flight (with jumps between systems) with stations,
-settlements and NPCs, peaceful NPC trader traffic, the
+settlements and NPCs, peaceful NPC trader traffic, rare **factories** with roster-limited
+production terminals, fallen **ruins** and **treasure chests**, **access-code claiming** that
+turns a factory into your own editable base, the
 **"VEGA Protocol" story campaign** (a swappable, story-agnostic engine with lore fragments, three
 Guardian machine types and a two-route finale), multiplayer with per-player ships, **player
 alliances**, shared bases and trading, planet **bases + teleporter pads**, material dyeing and
@@ -312,6 +315,9 @@ Blocks Beyond the Stars is **free and open-source software**, licensed under the
 **[GNU Affero General Public License v3.0 or later](LICENSE)** (AGPL-3.0-or-later).
 You may run, study, share and modify it; if you run a modified version for others over a
 network, the AGPL requires you to offer them its source code.
+
+**Source code:** [github.com/marceld23/BlocksBeyondTheStars](https://github.com/marceld23/BlocksBeyondTheStars)
+— the canonical repository for the corresponding source, wherever you obtained this build.
 
 Third-party libraries and bundled assets keep their own (permissive) licenses — see
 [NOTICES.md](NOTICES.md).

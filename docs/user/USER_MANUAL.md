@@ -8,7 +8,7 @@ chat/admin commands. This is a living document.
 > truth for player-facing operation. (Written in English per project doc policy; in-game text itself is
 > bilingual DE/EN.)
 
-Last updated: 2026-06-19.
+Last updated: 2026-06-27.
 
 ---
 
@@ -274,6 +274,33 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
 - A crashed wreck shows a **wreck panel** (right HUD) with a hull-repair progress bar. Aim at a breach
   (missing hull cell) and press **R** while holding the **matching block** — the panel lists which blocks
   are still needed. When fully repaired, **Claim ship** adds it to your fleet.
+
+### Factories
+- **Factories** are rare industrial halls found on some breathable worlds — metal walls and windows with
+  one or more **machine bays** whose presses, rotors and conveyors run continuously, plus a **factory
+  terminal** by the door. No two are alike (size, machine count and layout are world-specific).
+- Stand near the **factory terminal** to craft from it (Tab → Crafting → **Factory** category). Factory
+  recipes turn **cheaper, less-rare raw materials into the same output as the workshop, but in bulk** —
+  more input per step, fewer refining stages. The catch: each factory only makes the **1–4 items on its
+  own roster**, so a recipe the menu lists may say *"Use a factory terminal that makes this"* — you'll need
+  a different factory. Factory crafts **cannot be disassembled** back into their inputs.
+- **Operating a terminal is public** — you don't need to own a factory to craft there. But a spawned
+  factory is **read-only** (you can't mine or rebuild it) until you **claim** it: stand at the terminal
+  with an **SPS access code** (see below) and press **E**. Claiming spends one code, makes the factory
+  **your base** (you and your **allies** can rebuild it freely), and persists across reloads. One code
+  claims one factory.
+
+### Ruins & treasure chests
+- **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one
+  half-standing tower, and rubble overgrown by flora. Unlike bases and stations they are **not protected**:
+  every block is **freely mineable**, and what you clear stays cleared. VEGA may hint at *"structural
+  echoes nearby — ruins or wreckage"*; bring a scanner, there's often something worth digging out.
+- **Treasure chests** are standalone lootable caches scattered away from settlements. Each is looted
+  **once** and holds richer salvage than ordinary drops — and they are the main world source of a rare
+  **SPS access code**.
+- **SPS access codes** (`access_code`) are the rare item used to claim a factory as your base. You get them
+  two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
+  (a steep barter recipe). Keep one if you find it — it's your key to turning a factory into a home.
 
 ### Trade
 - **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and
