@@ -93,10 +93,13 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.True(server.World.IsChunkLoaded(nearChunk), "the player's own chunk should be resident");
 
         // Force a chunk far away into the cache (e.g. a query from another subsystem) — it sits well outside the
-        // player's keep-range and is exactly what the sweep is meant to reclaim. Offset from the actual anchor so
-        // it's far regardless of where the player spawned.
-        var farChunk = new ChunkCoord(nearChunk.X, nearChunk.Y, nearChunk.Z + 400); // ~6400 blocks away in Z
+        // player's keep-range and is exactly what the sweep is meant to reclaim. Canonicalize it the way the
+        // streamer/cache do (the world is a torus on BOTH axes), so the coord matches the key the sweep evicts —
+        // SentChunks only ever holds canonical coords in production.
+        var farChunk = WorldConstants.CanonicalChunk(
+            new ChunkCoord(nearChunk.X, nearChunk.Y, nearChunk.Z + 40), server.World.Circumference);
         server.World.GetOrLoadChunk(farChunk);
+        p.SentChunks.Add(farChunk); // pretend it was streamed to the player, so we can assert it gets forgotten
         Assert.True(server.World.IsChunkLoaded(farChunk), "the far chunk should be cached right after loading it");
 
         // Tick past the sweep interval (player stays put, so the near region is the anchor).
@@ -106,6 +109,7 @@ public sealed class ChunkStreamingTests : IDisposable
         }
 
         Assert.False(server.World.IsChunkLoaded(farChunk), "the far chunk should have been swept out of the cache");
+        Assert.DoesNotContain(farChunk, p.SentChunks); // forgotten too → it re-streams fresh if the player returns
         Assert.True(server.World.IsChunkLoaded(nearChunk), "the player's own region must stay resident through the sweep");
     }
 

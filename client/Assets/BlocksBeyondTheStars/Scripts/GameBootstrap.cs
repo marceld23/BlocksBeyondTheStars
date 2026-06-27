@@ -789,6 +789,13 @@ namespace BlocksBeyondTheStars.Client
         // (the sharedMesh stays assigned, no re-bake). Generous enough to cover footing, jumps, and digging.
         public float ChunkColliderDistanceBlocks = 96f;
 
+        // Performance: the client otherwise NEVER unloads a chunk, so a long exploration grows _chunkObjects (and
+        // the per-block-move RepositionChunks loop over it) without bound. Chunks farther than this are destroyed —
+        // set well beyond the renderer-cull distance so a chunk that could still be visible is never dropped; the
+        // server's far-chunk sweep forgets the same chunks, so they re-stream fresh if the player walks back.
+        public float ChunkUnloadDistanceBlocks = 384f;
+        private readonly List<ChunkCoord> _unloadScratch = new List<ChunkCoord>();
+
         // Performance (P2): assigning MeshCollider.sharedMesh cooks the collision mesh synchronously on the
         // main thread — the single heaviest per-chunk op. Instead we run Physics.BakeMesh on a worker thread
         // and assign the (now-cached) cook back on the main thread in DrainBakedColliders. _colliderGen +
@@ -1236,6 +1243,8 @@ namespace BlocksBeyondTheStars.Client
             var pp = PlayerPosition;
             float cullSq = ChunkDrawDistanceBlocks * ChunkDrawDistanceBlocks;
             float colliderSq = ChunkColliderDistanceBlocks * ChunkColliderDistanceBlocks;
+            float unloadSq = ChunkUnloadDistanceBlocks * ChunkUnloadDistanceBlocks;
+            _unloadScratch.Clear();
             foreach (var kv in _chunkObjects)
             {
                 var view = kv.Value;
@@ -1248,6 +1257,15 @@ namespace BlocksBeyondTheStars.Client
                 view.Go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
 
                 float distSq = ChunkDistSqToPlayer(kv.Key, pp);
+
+                // Far-chunk unload: a chunk the player has travelled well past (beyond even the renderer cull) is
+                // destroyed so the resident set stays bounded. Collected here, removed after the loop (can't mutate
+                // the dictionary mid-iteration). The server forgets it too, so it re-streams if the player returns.
+                if (distSq > unloadSq)
+                {
+                    _unloadScratch.Add(kv.Key);
+                    continue;
+                }
 
                 // Distance culling: disable the renderer of chunks well beyond the draw distance so the
                 // accumulated far chunks stop costing draw calls; re-enabled when the player moves back into
@@ -1268,6 +1286,24 @@ namespace BlocksBeyondTheStars.Client
                     view.Collider.enabled = collide;
                     view.ColliderEnabled = collide;
                 }
+            }
+
+            // Process the far-chunk unloads collected above (after iterating, so the dictionary isn't mutated
+            // mid-loop). Drop every bit of per-chunk bookkeeping so nothing dangles, and the world data + its
+            // light sources, then destroy the GameObject. A re-stream rebuilds it from scratch.
+            for (int i = 0; i < _unloadScratch.Count; i++)
+            {
+                var coord = _unloadScratch[i];
+                if (_chunkObjects.TryGetValue(coord, out var view) && view?.Go != null)
+                {
+                    Destroy(view.Go);
+                }
+
+                _chunkObjects.Remove(coord);
+                _dirty.Remove(coord);
+                _colliderGen.Remove(coord);
+                _meshGen.Remove(coord);
+                World.RemoveChunk(coord);
             }
         }
 

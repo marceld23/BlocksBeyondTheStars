@@ -1394,7 +1394,21 @@ public sealed partial class GameServer
         // the streamed column (dy -3..+2) is never evicted while still in view. A single shared keep radius (the
         // max across players) is safe: it can only keep MORE than any one player needs, never less.
         int keepRadius = maxViewRadius + 4;
-        _world.UnloadFarChunks(anchors, keepRadius);
+        var removed = _world.UnloadFarChunks(anchors, keepRadius);
+
+        // Also drop the evicted coords from every player's sent-set. A swept chunk is far from EVERY anchor (that
+        // is the sweep's condition), so this is safe for all sessions — and it lets the client unload the same far
+        // chunks (bounding its own memory) and still get them re-streamed fresh if it walks back into range.
+        if (removed.Count > 0)
+        {
+            foreach (var session in JoinedInActiveWorld())
+            {
+                foreach (var coord in removed)
+                {
+                    session.SentChunks.Remove(coord);
+                }
+            }
+        }
     }
 
     /// <summary>Fills a chunk message's sparse colour-modifier + shape arrays from the chunk's dyed/glowing/

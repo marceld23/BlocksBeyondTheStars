@@ -75,8 +75,11 @@ straight-down fall re-enables ground colliders in time. New tests: `ChunkStreami
 client e2e `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire`. **LOD step 1 (distance-based vertical detail):** far
 columns (Chebyshev > 3) stream only the band around their actual surface instead of the full -3..+2 span, roughly halving the
 chunk count at VD8 (~1734→~770) for faster fill + a lighter client — near columns keep the full span for caves/digging
-(`FarColumns_StreamOnlyTheSurfaceBand...`). STILL OPEN: visual far-mesh/greedy LOD (render kept chunks cheaper / see beyond
-VD8); client far-chunk unload; haze fine-tune. Plan: `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
+(`FarColumns_StreamOnlyTheSurfaceBand...`). **Client far-chunk unload:** the client used to never unload (its chunk set + the
+per-block reposition loop grew unbounded over long travel); now chunks past `ChunkUnloadDistanceBlocks` (384, beyond the 256
+renderer cull) are destroyed, and the server's far-chunk sweep also drops the evicted coords from every player's sent-set so
+they re-stream fresh on return — no new protocol. STILL OPEN: visual far-mesh/greedy LOD (render kept chunks cheaper / see
+beyond VD8); haze fine-tune. Plan: `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
 
 ### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
 Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide

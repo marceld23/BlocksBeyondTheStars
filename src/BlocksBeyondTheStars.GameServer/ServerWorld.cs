@@ -168,12 +168,14 @@ public sealed class ServerWorld
         }
     }
 
-    /// <summary>Unloads cached chunks that are not within <paramref name="keep"/> of any anchor.</summary>
-    public int UnloadFarChunks(IReadOnlyCollection<ChunkCoord> anchors, int keepRadius)
+    /// <summary>Unloads cached chunks that are not within <paramref name="keepRadius"/> of any anchor and returns
+    /// the coords that were dropped — the caller also clears them from each player's sent-set so they re-stream
+    /// (fresh) if the player returns.</summary>
+    public IReadOnlyList<ChunkCoord> UnloadFarChunks(IReadOnlyCollection<ChunkCoord> anchors, int keepRadius)
     {
         if (anchors.Count == 0)
         {
-            return 0;
+            return System.Array.Empty<ChunkCoord>();
         }
 
         int keepSq = keepRadius * keepRadius;
@@ -201,6 +203,6 @@ public sealed class ServerWorld
             _loaded.Remove(coord);
         }
 
-        return toRemove.Count;
+        return toRemove;
     }
 }
