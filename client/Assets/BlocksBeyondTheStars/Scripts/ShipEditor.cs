@@ -23,7 +23,8 @@ namespace BlocksBeyondTheStars.Client
     {
         public AppShell Shell;
 
-        private const int MaxW = 24, MaxH = 16, MaxL = 24;
+        private const int MaxW = 48, MaxH = 32, MaxL = 48;
+        private const float RaycastDist = 1200f;
 
         private Camera _cam;
         private GameObject _floor;
@@ -33,9 +34,8 @@ namespace BlocksBeyondTheStars.Client
         /// colour 0xRRGGBB, packed shape+orientation). Elements/stations carry no modifiers.</summary>
         private struct CellData { public string Id; public string Kind; public int Tint, Glow, Shape; }
 
-        private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell
-        private readonly Dictionary<Vector3i, GameObject> _cells = new();
-        private readonly Dictionary<string, Material> _mats = new();
+        private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell (export source)
+        private EditorVoxelChunkView _view;                                // chunked combined-mesh renderer
 
         private struct Pal { public string Id, Label, Kind; public Color Color; }
         private Pal[] _palette;
@@ -77,13 +77,14 @@ namespace BlocksBeyondTheStars.Client
             _cam = camGo.AddComponent<Camera>();
             _cam.clearFlags = CameraClearFlags.SolidColor;
             _cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
-            _cam.farClipPlane = 400f;
+            _cam.farClipPlane = 800f;
             camGo.AddComponent<AudioListener>();
-            _cam.transform.position = new Vector3(MaxW / 2f, 6f, -10f);
+            _cam.transform.position = new Vector3(MaxW / 2f, 10f, -18f);
             _yaw = 0f;
             _pitch = 15f;
             _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
 
+            _view = new EditorVoxelChunkView(transform);
             BuildRoom();
             BuildUi();
         }
@@ -207,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
                 _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             }
 
-            float speed = (Input.GetKey(KeyCode.LeftShift) ? 18f : 9f) * Time.deltaTime;
+            float speed = (Input.GetKey(KeyCode.LeftShift) ? 30f : 14f) * Time.deltaTime;
             var move = Vector3.zero;
             if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
             if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
@@ -242,14 +243,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 _brushOrient = (_brushOrient + 1) & 3;
             }
+
+            _view.Flush(); // upload any chunk meshes touched by this frame's edits
         }
 
-        /// <summary>Resolves the cell a placement would land in (floor hit or hit-block neighbour).</summary>
+        /// <summary>Resolves the cell a placement would land in: the floor column, or the empty cell just
+        /// outside the hit face (the chunk mesh is authored in world coords, so the hit point + normal locate
+        /// the cell directly — no per-cell GameObject to read a transform from).</summary>
         private bool TryGetTargetCell(out Vector3i cell)
         {
             cell = default;
             var ray = _cam.ScreenPointToRay(Input.mousePosition);
-            if (!Physics.Raycast(ray, out var hit, 200f))
+            if (!Physics.Raycast(ray, out var hit, RaycastDist))
             {
                 return false;
             }
@@ -260,11 +265,26 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                var t = hit.collider.transform.position;
-                var hc = new Vector3i(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y), Mathf.FloorToInt(t.z));
-                cell = new Vector3i(hc.X + Mathf.RoundToInt(hit.normal.x), hc.Y + Mathf.RoundToInt(hit.normal.y), hc.Z + Mathf.RoundToInt(hit.normal.z));
+                Vector3 outside = hit.point + hit.normal * 0.5f; // step out of the hit cell into its empty neighbour
+                cell = new Vector3i(Mathf.FloorToInt(outside.x), Mathf.FloorToInt(outside.y), Mathf.FloorToInt(outside.z));
             }
 
+            return true;
+        }
+
+        /// <summary>Resolves the actual occupied cell under the cursor (for removal); false if the ray misses
+        /// every block or hits only the floor.</summary>
+        private bool TryGetHitCell(out Vector3i cell)
+        {
+            cell = default;
+            var ray = _cam.ScreenPointToRay(Input.mousePosition);
+            if (!Physics.Raycast(ray, out var hit, RaycastDist) || hit.collider.gameObject == _floor)
+            {
+                return false;
+            }
+
+            Vector3 inside = hit.point - hit.normal * 0.5f; // step into the hit cell
+            cell = new Vector3i(Mathf.FloorToInt(inside.x), Mathf.FloorToInt(inside.y), Mathf.FloorToInt(inside.z));
             return true;
         }
 
@@ -321,17 +341,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void TryRemove()
         {
-            var ray = _cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, 200f) && hit.collider.gameObject != _floor)
+            if (TryGetHitCell(out var cell) && _design.ContainsKey(cell))
             {
-                var t = hit.collider.transform.position;
-                var cell = new Vector3i(Mathf.FloorToInt(t.x), Mathf.FloorToInt(t.y), Mathf.FloorToInt(t.z));
-                if (_cells.TryGetValue(cell, out var go))
-                {
-                    Destroy(go);
-                    _cells.Remove(cell);
-                    _design.Remove(cell);
-                }
+                _design.Remove(cell);
+                _view.Remove(cell);
             }
         }
 
@@ -351,56 +364,23 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCellData(Vector3i cell, Pal pal, CellData data)
         {
-            GameObject go;
-            Mesh shapeMesh = data.Shape != 0
-                ? EditorVoxelPreview.ShapeMesh(ShapeCode.ShapeOf(data.Shape), ShapeCode.OrientationOf(data.Shape))
-                : null;
-            if (shapeMesh != null)
-            {
-                go = new GameObject($"Cell {pal.Id}", typeof(MeshFilter), typeof(MeshRenderer));
-                go.GetComponent<MeshFilter>().sharedMesh = shapeMesh;
-                var bc = go.AddComponent<BoxCollider>();
-                bc.center = Vector3.one * 0.5f;
-                bc.size = Vector3.one;
-                go.transform.SetParent(transform, false);
-                go.transform.position = new Vector3(cell.X, cell.Y, cell.Z);
-            }
-            else
-            {
-                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = $"Cell {pal.Id}";
-                go.transform.SetParent(transform, false);
-                go.transform.position = new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
-                go.transform.localScale = Vector3.one * 0.98f;
-            }
-
-            go.GetComponent<Renderer>().sharedMaterial = MatFor(pal, data);
-            _cells[cell] = go;
-            _design[cell] = data;
-        }
-
-        private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
-
-        private Material MatFor(Pal pal, CellData data)
-        {
+            // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch
+            // (mirrors the in-game look). The chunked view bakes the directional shading + face culling.
             Color baseCol = data.Tint != 0
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
                 : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : pal.Color);
-            string key = $"{pal.Id}|{data.Tint}|{data.Glow}";
-            if (!_mats.TryGetValue(key, out var m))
+
+            _design[cell] = data;
+            _view.Set(cell, new EditorVoxelChunkView.Cell
             {
-                m = Lit(baseCol, null);
-                if (data.Glow != 0)
-                {
-                    m.EnableKeyword("_EMISSION");
-                    m.SetColor("_EmissionColor", ShaderColor.Srgb(EditorVoxelPreview.RgbToColor(data.Glow)));
-                }
-
-                _mats[key] = m;
-            }
-
-            return m;
+                Color = baseCol,
+                Glow = data.Glow != 0,
+                Shape = data.Shape,
+                Marker = false, // the ship editor has no markers (elements + stations are solid anchors)
+            });
         }
+
+        private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
 
         // ----------------------------- UI (modern uGUI) -----------------------------
 
@@ -427,6 +407,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            _view?.Dispose();
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
@@ -841,12 +822,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var layout = JsonUtility.FromJson<ExportLayoutJson>(File.ReadAllText(layoutPath));
 
-                foreach (var go in _cells.Values)
-                {
-                    Destroy(go);
-                }
-
-                _cells.Clear();
+                _view.Clear();
                 _design.Clear();
 
                 if (layout?.cells != null)
@@ -869,6 +845,8 @@ namespace BlocksBeyondTheStars.Client
                         PlaceCellData(cell, pal, data);
                     }
                 }
+
+                _view.Flush(); // build all loaded chunks in one batch
 
                 string shipPath = Path.Combine(dir, "ship.json");
                 if (File.Exists(shipPath) && JsonUtility.FromJson<ExportShipJson>(File.ReadAllText(shipPath)) is { } ship)

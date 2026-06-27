@@ -135,6 +135,62 @@ public sealed class StructureTemplateTests
         Assert.Equal(0x06, s.GetShape(2, 1, 2));
     }
 
+    [Fact]
+    public void LargeTemplate_HonorsFullDimensions_NoSizeCap()
+    {
+        // The in-game structure editor now authors builds up to 128³; the generators must carry those full
+        // dimensions through untruncated (block + marker at the far corner round-trip), so a big hand-built
+        // station/city isn't silently clamped to a smaller envelope.
+        var c = Content();
+        ushort hull = c.GetBlock("iron_wall")!.NumericId.Value;
+        ushort stone = c.GetBlock("stone")!.NumericId.Value;
+
+        const int n = 128;
+        var stationT = new StructureTemplate
+        {
+            Key = "huge_station",
+            Name = "Huge",
+            Tier = "huge",
+            Kind = "station",
+            Width = n,
+            Height = n,
+            Length = n,
+            Cells = new List<TemplateCell>
+            {
+                new() { X = 0, Y = 0, Z = 0, Kind = "block", Id = "iron_wall" },
+                new() { X = n - 1, Y = n - 1, Z = n - 1, Kind = "block", Id = "iron_wall" },
+                new() { X = n - 1, Y = 0, Z = n - 1, Kind = "marker", Id = "vendor" },
+            },
+        };
+
+        var station = StationGenerator.FromTemplate(stationT, c);
+        Assert.Equal(n, station.Width);
+        Assert.Equal(n, station.Height);
+        Assert.Equal(n, station.Length);
+        Assert.Equal(hull, station.Get(n - 1, n - 1, n - 1)); // far corner survives — no truncation
+
+        var settlementT = new StructureTemplate
+        {
+            Key = "huge_city",
+            Name = "City",
+            Tier = "city",
+            Kind = "settlement",
+            Width = n,
+            Height = n,
+            Length = n,
+            Cells = new List<TemplateCell>
+            {
+                new() { X = n - 1, Y = n - 1, Z = n - 1, Kind = "block", Id = "stone" },
+            },
+        };
+
+        var city = SettlementGenerator.FromTemplate(settlementT, c);
+        Assert.Equal(n, city.Width);
+        Assert.Equal(n, city.Height);
+        Assert.Equal(n, city.Length);
+        Assert.Equal(stone, city.Get(n - 1, n - 1, n - 1));
+    }
+
     // --- Tier-matched / pack-filtered / weighted selection (P1) ---
 
     private static StructureTemplate Tpl(string key, string tier, string pack = "default", int weight = 1)

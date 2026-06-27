@@ -6,6 +6,18 @@ build to verify). Requested: build a **space-station editor** and a **town/villa
 editor), then make world generation pick from **lists of hand-designed station/village/town types** *in
 addition to* procedural generation.
 
+> **Update (2026-06-27) — large builds.** The structure editor's build volume is now **128×128×128**
+> (`StructureEditor.MaxW/MaxH/MaxL`; the ship editor is 48×32×48). To keep large builds editable the editors
+> render the placed cells as a chunked combined mesh with face culling (`EditorVoxelChunkView`) instead of one
+> GameObject per cell. The settlement **placement** allocator scales with the footprint: the flatness
+> tolerance grows with build size, the wet/flatness gates sample a denser grid, large footprints are excluded
+> from floating-island seating, and the terrain carve is bounded to the actual relief height (so a 128-tall
+> tower no longer carves a 2M-block column). Settlements also get a **stepped support plinth**: the flat floor
+> stays level at `gy`, but each column is filled solid down to the natural surface (deep downhill, shallow
+> uphill, depth-capped), so a big build on a slope meets the ground all the way round instead of a flat slab
+> floating over a dip — a real multi-level foundation. Space stations live in void worlds, so they have no
+> placement gate. There is no size cap in the data model or merge tools — the editor bound is the only limit.
+
 What shipped differs from the design below in two notable ways:
 - **One editor, two modes — not two editors.** Both the station and the settlement editor are the single
   `client/.../StructureEditor.cs` (`Mode.Station` / `Mode.Settlement`); the menu exposes both entries

@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `dotnet test` — currently **741 server + 86 client passing** (2026-06-27). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **747 server + 86 client passing** (2026-06-27). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -59,6 +59,23 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Bigger ships / stations / cities in the editors (2026-06-27) — ✅ server 747 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT committed)
+Editor build volumes raised: **ship 24×16×24 → 48×32×48**, **structure (station + settlement) 32×16×32 → 128×128×128**
+(`ShipEditor`/`StructureEditor.MaxW/MaxH/MaxL`). The old one-GameObject-per-cell rendering collapsed at that scale, so
+both editors now render placed cells through a new chunked combined-mesh renderer
+[`EditorVoxelChunkView.cs`](client/Assets/BlocksBeyondTheStars/Scripts/EditorVoxelChunkView.cs) — 16³ chunks, exposed-face
+culling, directional shading baked into vertex colours (one `VertexColorOpaque` material), a `MeshCollider` per chunk;
+place/remove now resolve the target cell from `hit.point ± normal·0.5` instead of a per-cell transform. The data model,
+merge tools and netcode already carried arbitrary dimensions (no cap). Settlement **placement** was the real
+large-build blocker and was scaled to the footprint: flatness tolerance `clamp(maxDim/8, 8..24)`, denser wet/flatness
+sampling grid (~every 16 blocks), big footprints excluded from floating-island seating (≤40), 64→160 placement attempts,
+and the terrain carve bounded to the actual relief height (a 128-tall tower no longer carves a ~2M-block air column).
+Settlements also get a **stepped support plinth** (flat floor at `gy`, each column filled solid down to the natural
+surface — deep downhill, shallow uphill, depth-capped) so a big build on a slope meets the ground all round instead of
+floating over a dip — a real multi-level foundation. Space stations live in void worlds → no placement gate. New test
+`LargeTemplate_HonorsFullDimensions_NoSizeCap`. Docs:
+[SHIP_TYPE_EDITOR.md](docs/developer/SHIP_TYPE_EDITOR.md) + [STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md).
 
 ### ★ Planet view distance + on-foot smoothness (2026-06-27) — ✅ server 741 + client 86 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT merged)
 Planet surface felt close-horizoned and slow. **A1** default render distance 2→4 (~32→64 m; per-planet/weather haze still

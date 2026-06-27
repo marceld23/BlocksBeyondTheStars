@@ -289,22 +289,56 @@ public sealed partial class GameServer
         var origin = p.Origin;
         var foundationId = _content.GetBlock(surface)?.NumericId ?? BlockId.Air;
 
+        // Carve only as high as terrain actually rises above the foundation. Placement guarantees a low height
+        // spread, so the surface never climbs more than a handful of blocks over gy — clearing the structure's
+        // FULL height (up to 128 for a hand-authored tower) would be millions of pointless air writes. Sample
+        // the footprint coarsely to find that intrusion height. (On a sky island the ground is far below, so
+        // maxSurf - gy goes negative and the carve collapses to the minimum.)
+        var planet = _world.Planet;
+        int maxSurf = gy;
+        for (int x = 0; x < s.Width; x += 8)
+            for (int z = 0; z < s.Length; z += 8)
+            {
+                maxSurf = System.Math.Max(maxSurf, _generator.SurfaceHeight(planet, origin.X + x, origin.Z + z));
+            }
+
+        int clearH = System.Math.Clamp(maxSurf - gy + 3, 2, s.Height);
+
         // 1) Clear any terrain occupying the build volume above the foundation, so a hill never buries the
         //    buildings (the structure's own air cells are otherwise left as whatever was there).
         for (int x = 0; x < s.Width; x++)
             for (int z = 0; z < s.Length; z++)
-                for (int y = 1; y < s.Height; y++)
+                for (int y = 1; y < clearH; y++)
                 {
                     _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
                 }
 
-        // 2) Flatten a foundation slab at ground level across the footprint (so it sits flush).
+        // 2) Foundation row + support skirt. The buildings are authored on one flat plane, so the floor at gy
+        //    must stay level — but on a slope a single flat slab would hang in mid-air on the downhill side. So
+        //    each column also gets a stepped plinth: solid fill from gy down to the natural surface, deep on the
+        //    downhill side, shallow uphill. The result is a real multi-level foundation that meets the ground
+        //    all the way round instead of a flat platform floating over a dip. (Skipped on sky islands, whose
+        //    deck is meant to float over the void.) Depth is capped so a missed crevasse can't fill a chasm.
         if (!foundationId.IsAir)
         {
+            const int maxSkirt = 48;
             for (int x = 0; x < s.Width; x++)
                 for (int z = 0; z < s.Length; z++)
                 {
-                    _world.SetBlock(new Vector3i(origin.X + x, gy, origin.Z + z), foundationId);
+                    int wx = origin.X + x, wz = origin.Z + z;
+                    _world.SetBlock(new Vector3i(wx, gy, wz), foundationId); // flat floor row
+
+                    if (p.OnIsland)
+                    {
+                        continue;
+                    }
+
+                    int colSurf = _generator.SurfaceHeight(planet, wx, wz);
+                    int floorY = System.Math.Max(colSurf + 1, gy - maxSkirt);
+                    for (int y = gy - 1; y >= floorY; y--) // fill the gap down to the natural ground
+                    {
+                        _world.SetBlock(new Vector3i(wx, y, wz), foundationId);
+                    }
                 }
         }
 
@@ -347,7 +381,16 @@ public sealed partial class GameServer
         int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
         int maxDist = System.Math.Max(80, (int)(circ * 0.4));
 
-        for (int attempt = 0; attempt < 64; attempt++)
+        // A bigger build seats on a bigger, carved + foundationed footprint, so it tolerates more terrain
+        // relief than a small hut; and a large footprint can't fully cover a (small) floating island, so big
+        // builds always go on the ground. Both gates scale with the footprint so hand-authored 128² structures
+        // can actually find a home, while small settlements keep their tight, must-be-flat seating.
+        int maxSpread = System.Math.Clamp(System.Math.Max(w, l) / 8, 8, 24);
+        bool canIsland = wantIsland && System.Math.Max(w, l) <= 40;
+
+        // Larger footprints are harder to fit, so give the search more candidate spots before giving up.
+        int attempts = System.Math.Max(w, l) > 48 ? 160 : 64;
+        for (int attempt = 0; attempt < attempts; attempt++)
         {
             double ang = rng.NextDouble() * System.Math.PI * 2.0;
             int dist = 40 + rng.Next(0, maxDist);
@@ -361,7 +404,7 @@ public sealed partial class GameServer
 
             int ox = cx - w / 2, oz = cz - l / 2;
 
-            if (wantIsland)
+            if (canIsland)
             {
                 if (TryIslandFootprint(planet, ox, oz, w, l, out int itop))
                 {
@@ -374,7 +417,7 @@ public sealed partial class GameServer
                 continue; // wanted a sky island here but the footprint isn't fully on one
             }
 
-            if (FootprintWet(planet, ox, oz, w, l) || FootprintSpread(planet, ox, oz, w, l) > 8)
+            if (FootprintWet(planet, ox, oz, w, l) || FootprintSpread(planet, ox, oz, w, l) > maxSpread)
             {
                 continue; // in water/lava, or on terrain too uneven to seat the build
             }
@@ -389,14 +432,22 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>The nine footprint sample columns (corners, edge mid-points, centre) in world coords.</summary>
+    /// <summary>Footprint sample columns (world coords) used by the wet + flatness gates. A small footprint
+    /// samples a fixed 3×3 (corners, edge mid-points, centre); a large one samples a denser grid (≈ every 16
+    /// blocks) so a lake or a steep slope buried in the middle of a 128² footprint can't slip past the gates.</summary>
     private static IEnumerable<(int X, int Z)> FootprintSamples(int ox, int oz, int w, int l)
     {
-        int x0 = ox, x1 = ox + w / 2, x2 = ox + w - 1;
-        int z0 = oz, z1 = oz + l / 2, z2 = oz + l - 1;
-        yield return (x0, z0); yield return (x1, z0); yield return (x2, z0);
-        yield return (x0, z1); yield return (x1, z1); yield return (x2, z1);
-        yield return (x0, z2); yield return (x1, z2); yield return (x2, z2);
+        int nx = System.Math.Clamp(w / 16 + 1, 2, 9);
+        int nz = System.Math.Clamp(l / 16 + 1, 2, 9);
+        for (int ix = 0; ix <= nx; ix++)
+        {
+            int x = ox + (int)((long)(w - 1) * ix / nx);
+            for (int iz = 0; iz <= nz; iz++)
+            {
+                int z = oz + (int)((long)(l - 1) * iz / nz);
+                yield return (x, z);
+            }
+        }
     }
 
     private bool FootprintWet(PlanetType planet, int ox, int oz, int w, int l)

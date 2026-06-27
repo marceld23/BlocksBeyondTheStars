@@ -83,7 +83,7 @@ share one source of truth.
 
 - **Launch:** AppShell gets a new phase `ShipEditor` (main menu button → enter; Esc → back to menu).
 - **Build room:** a small flat platform in an empty starfield (reuse `MenuBackground`/`Sky` ambiance);
-  a bounded build volume (e.g. up to 24×16×24) with a faint grid + origin marker.
+  a bounded build volume (**48×32×48**, `ShipEditor.MaxW/MaxH/MaxL`) with a faint grid + origin marker.
 - **Movement:** reuse a trimmed `PlayerController` (walk + jump, or a free-fly toggle) with no vitals/
   combat — just look + move + place/remove. Block selection box + place/remove like in-game (MiningFx /
   the place path), but client-only (no server).
@@ -149,5 +149,6 @@ merge for ships + items + recipes.)
 3. **Where to save / how to integrate:** export to a user folder + `merge_ship.py` into `data/` (the
    recommended path), or write straight into `data/` from the editor (simpler for a solo dev, but mixes
    tool output with source). Recommend **export + merge script**.
-4. **Build-volume bounds + block budget:** a sensible max size (e.g. 24×16×24) to keep stamping/cost
-   reasonable — confirm or set.
+4. **Build-volume bounds + block budget:** ships are bounded to **48×32×48** (`ShipEditor.MaxW/MaxH/MaxL`);
+   structures (station/settlement editor) to **128×128×128**. The editor renders the build as a chunked
+   combined mesh (`EditorVoxelChunkView`) so large volumes stay performant.
