@@ -37,6 +37,20 @@
 
   { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] },
 
+  // Factory recipes — produced at a spawned factory's terminal. Each consumes CHEAPER / less-rare raw
+  // materials (raw ore, sand, carbon) but MORE of them than the base workshop/refinery chain, in a
+  // single step. A factory only offers a seeded subset of these (its roster). Excluded from disassembly.
+  { "key": "factory_iron_plate",      "station": "factory", "inputs": [ { "item": "iron_ore", "count": 6 } ],                                                              "outputs": [ { "item": "iron_plate", "count": 1 } ] },
+  { "key": "factory_metal_panel",     "station": "factory", "inputs": [ { "item": "iron_ore", "count": 7 } ],                                                              "outputs": [ { "item": "metal_panel", "count": 2 } ] },
+  { "key": "factory_steel",           "station": "factory", "inputs": [ { "item": "iron_ore", "count": 6 }, { "item": "nickel_ore", "count": 3 }, { "item": "carbon", "count": 2 } ], "outputs": [ { "item": "steel", "count": 1 } ] },
+  { "key": "factory_cable",           "station": "factory", "inputs": [ { "item": "copper_ore", "count": 2 }, { "item": "silicate", "count": 2 } ],                         "outputs": [ { "item": "cable", "count": 1 } ] },
+  { "key": "factory_glass",           "station": "factory", "inputs": [ { "item": "sand", "count": 8 } ],                                                                  "outputs": [ { "item": "glass", "count": 2 } ] },
+  { "key": "factory_carbon_composite","station": "factory", "inputs": [ { "item": "carbon", "count": 3 } ],                                                                "outputs": [ { "item": "carbon_composite", "count": 1 } ] },
+  { "key": "factory_energy_cell",     "station": "factory", "inputs": [ { "item": "copper_ore", "count": 2 }, { "item": "silicate", "count": 2 }, { "item": "carbon", "count": 3 } ], "outputs": [ { "item": "energy_cell_1", "count": 1 } ] },
+  { "key": "factory_circuit_board",   "station": "factory", "inputs": [ { "item": "gold_ore", "count": 3 }, { "item": "silver_ore", "count": 3 }, { "item": "silicate", "count": 4 } ], "outputs": [ { "item": "circuit_board", "count": 1 } ] },
+  { "key": "factory_polymer",         "station": "factory", "inputs": [ { "item": "carbon", "count": 3 }, { "item": "sulfur_ore", "count": 2 } ],                           "outputs": [ { "item": "polymer", "count": 1 } ] },
+  { "key": "factory_titanium_plate",  "station": "factory", "inputs": [ { "item": "titanium_ore", "count": 3 } ],                                                          "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
+
   { "key": "matter_forge", "station": "workshop", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "metal_panel", "count": 6 }, { "item": "circuit_board", "count": 2 }, { "item": "glass", "count": 3 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "matter_forge", "count": 1 } ] },
 
   { "key": "compact_sand",   "station": "transmuter", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "sand",   "count": 64 } ], "outputs": [ { "item": "matter_dust", "count": 1 } ] },
@@ -86,6 +100,8 @@
   { "key": "market_copper_to_silicate","station": "market", "marketTheme": "traders", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
   { "key": "market_sell_crystal",      "station": "market", "marketTheme": "traders", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
   { "key": "market_sell_gold",         "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 1 } ],   "outputs": [ { "item": "titanium_ore", "count": 6 } ] },
+  // A rare SPS / Scout-and-Pioneer-Service access code, occasionally offered by travelling traders. Steep barter — claiming a structure is a major prize.
+  { "key": "market_buy_access_code",   "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 4 }, { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 2 } ], "outputs": [ { "item": "access_code", "count": 1 } ] },
 
   { "key": "market_buy_iron",          "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 4 } ],      "outputs": [ { "item": "iron_ore", "count": 6 } ] },
   { "key": "market_buy_copper",        "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 3 } ],      "outputs": [ { "item": "copper_ore", "count": 4 } ] },

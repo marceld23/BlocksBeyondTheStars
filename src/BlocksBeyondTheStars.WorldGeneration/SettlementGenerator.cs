@@ -293,30 +293,62 @@ public static class SettlementGenerator
             StampPerimeter(Set, w, l, fence, rng);
         }
 
-        // Ruins: a decay pass removes a fraction of blocks and lets flora reclaim the rubble.
+        // Ruins: a decay pass turns the settlement into a proper ruin. Collapse rises with height — ground
+        // walls mostly survive while roofs and upper storeys are almost all gone — and one building is spared
+        // the worst of it so it reads as a half-standing tower. Rubble piles and flora then reclaim the
+        // ground. Every ruin differs (the spared plot + the seeded thresholds vary per instance).
         if (ruined)
         {
+            ushort rubble = B("stone", wall);
+
+            // Spare one plot from the heaviest collapse so a tall fragment / tower keeps standing.
+            int sparedCx = rng.Next(0, System.Math.Max(1, cols)) * Plot + 1 + Building / 2;
+            int sparedCz = rng.Next(0, System.Math.Max(1, rows)) * Plot + 1 + Building / 2;
+            const int sparedR = Building;
+
             for (int x = 0; x < w; x++)
                 for (int y = 0; y < h; y++)
                     for (int z = 0; z < l; z++)
                     {
-                        if (blocks[(x * h + y) * l + z] != 0 && rng.NextDouble() < 0.35)
+                        if (blocks[(x * h + y) * l + z] == 0)
+                        {
+                            continue;
+                        }
+
+                        double heightFrac = (double)y / System.Math.Max(1, h - 1);
+                        double pRemove = 0.20 + 0.65 * heightFrac; // 20% at the base rising to ~85% at roof level
+
+                        bool spared = System.Math.Abs(x - sparedCx) <= sparedR && System.Math.Abs(z - sparedCz) <= sparedR;
+                        if (spared)
+                        {
+                            pRemove *= 0.35; // the tower decays far less
+                        }
+
+                        if (rng.NextDouble() < pRemove)
                         {
                             Set(x, y, z, 0); // collapsed / missing
                         }
                     }
 
-            if (flora != 0)
-            {
-                for (int x = 1; x < w - 1; x++)
-                    for (int z = 1; z < l - 1; z++)
+            // Rubble piles + flora overgrowth on the surviving ground (only where a floor/ground cell remains).
+            for (int x = 1; x < w - 1; x++)
+                for (int z = 1; z < l - 1; z++)
+                {
+                    if (blocks[(x * h + 0) * l + z] == 0)
                     {
-                        if (blocks[(x * h + 0) * l + z] != 0 && rng.NextDouble() < 0.08)
-                        {
-                            Set(x, 1, z, flora); // overgrowth on intact ground
-                        }
+                        continue;
                     }
-            }
+
+                    double r = rng.NextDouble();
+                    if (rubble != 0 && r < 0.14)
+                    {
+                        Set(x, 1, z, rubble); // fallen debris
+                    }
+                    else if (flora != 0 && r < 0.24)
+                    {
+                        Set(x, 1, z, flora); // overgrowth reclaiming the rubble
+                    }
+                }
         }
 
         return new SettlementStructure(w, h, l, tier, ruined, inhabitant, blocks, markers, buildings);

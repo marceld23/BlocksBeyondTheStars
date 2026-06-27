@@ -41,6 +41,11 @@ public sealed class StructureInteractionTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = settlements,
             PlaceWrecks = wrecks,
+            // These tests assert on the wreck's containers specifically — keep standalone loot sources out.
+            PlaceRuins = false,
+            PlaceChests = false,
+            PlaceVaults = false,
+            PlaceFactories = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

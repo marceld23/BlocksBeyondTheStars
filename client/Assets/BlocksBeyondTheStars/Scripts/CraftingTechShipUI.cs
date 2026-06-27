@@ -240,6 +240,12 @@ namespace BlocksBeyondTheStars.Client
                 ClientAudio.Instance?.Cue("matter_synth", 0.8f);
             }
 
+            // A factory craft is a heavy machine stamping out the goods — play the press clunk.
+            if (recipe.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
+            {
+                ClientAudio.Instance?.Cue("factory_craft", 0.9f);
+            }
+
             _celebrateKey = output.Item;
             _celebrateUntil = Time.unscaledTime + 2.5f;
             SpawnFloatLabel("+ " + ItemName(output.Item), UiKit.Ok);
@@ -2952,6 +2958,18 @@ namespace BlocksBeyondTheStars.Client
                 if (!Game.MarketAvailable)
                 {
                     reason = L("ui.craft.need_market");
+                    return false;
+                }
+            }
+            else if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
+            {
+                // A factory recipe is craftable only while standing at a factory terminal that offers it on
+                // its roster (the server enforces the same). Factory terminals only exist in spawned factories.
+                string[] roster = System.Array.Empty<string>();
+                bool atFactory = FactoryView.Instance != null && FactoryView.Instance.PlayerAtTerminal(out roster);
+                if (!atFactory || System.Array.IndexOf(roster, r.Key) < 0)
+                {
+                    reason = L("ui.craft.go_to_factory");
                     return false;
                 }
             }

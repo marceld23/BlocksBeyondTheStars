@@ -60,6 +60,14 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Factories, ruins, treasure chests & access-code claiming (2026-06-27) — ✅ server 759 tests green + local Unity build green, on branch `feat/factories-ruins-claiming` (NOT committed)
+A four-part content feature, all deterministic from the world seed (doc [docs/developer/FACTORIES_RUINS_AND_CLAIMING.md](docs/developer/FACTORIES_RUINS_AND_CLAIMING.md)):
+- **Factories** — rare procedural industrial halls (`FactoryGenerator`) with **animated machines** (piston/rotor/conveyor via `FactoryView`, overlaid on the voxel housings) and a **production terminal**. Each factory offers only a seeded **roster** (1–4 of the factory recipes — never all). Factory recipes (`station: factory` in recipes.json) turn **cheaper/less-rare raw into the same output but more of it** in one step; excluded from disassembly. Protected until claimed. Stamper `StampFactories` (`PlaceFactories`), networking `FactoryList` (tag 172).
+- **Ruins** — randomised fallen-city ruins (`StampRuins`, `PlaceRuins`): height-graded collapse + a spared half-standing tower + rubble/overgrowth. Unprotected, mineable terrain (stamped once via `RuinsStamped`); not tracked as a structure.
+- **Treasure chests** — standalone rare lootable caches (`StampChests`, `PlaceChests`) reusing the container/loot flow; rare source of an access code.
+- **Access-code claiming** — `access_code` item ("SPS-Code") from chests + a `traders` market recipe. Standing at a claimable factory terminal with a code and pressing E (`ClaimStructureIntent`, tag 173) spends it and makes the factory the player's **base**: owner + allies may rebuild it (`IsFactoryProtected` → owner/ally, like bases); the claim persists in `WorldMetadata.Claims` and re-applies on reload.
+- Tests: `FactoryStructureTests`, `FactoryClaimTests`, `FactoryCraftingTests`, `RuinsAndChestsTests`. Config flags default ON; clean-world container tests opt out.
+
 ### ★ Bigger ships / stations / cities in the editors (2026-06-27) — ✅ server 747 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT committed)
 Editor build volumes raised: **ship 24×16×24 → 48×32×48**, **structure (station + settlement) 32×16×32 → 128×128×128**
 (`ShipEditor`/`StructureEditor.MaxW/MaxH/MaxL`). The old one-GameObject-per-cell rendering collapsed at that scale, so

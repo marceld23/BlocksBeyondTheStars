@@ -52,6 +52,7 @@ ITEMS = [
     ("titanium_plate", "a flat brushed silvery titanium plate"),
     ("data_fragment", "a glowing translucent blue data crystal chip"),
     ("ai_memory_fragment", "a cracked dark crystal memory shard with faint amber circuit traces glowing inside"),
+    ("access_code", "a small engraved metal access key-card chip with glowing amber circuit etching, an old industrial control code module"),
     ("ai_core_mk2", "a compact cubic ship AI computer core, brushed gunmetal housing with one glowing cyan ring eye"),
     ("ai_core_mk3", "an advanced spherical ship AI computer core, dark metal lattice with bright cyan energy seams"),
     ("plant_fiber", "a small bundle of dried green plant fibres"),

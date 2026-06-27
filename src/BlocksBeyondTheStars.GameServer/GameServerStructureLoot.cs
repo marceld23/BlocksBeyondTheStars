@@ -77,6 +77,20 @@ public sealed partial class GameServer
                 AddRandom(new[] { "data_fragment" }, 1, 1, 2);
                 AddRandom(new[] { "ai_memory_fragment" }, 1, 1, 1);
                 break;
+            case "chest": // a standalone treasure cache — richer odds than generic salvage
+                AddRandom(new[] { "iron_plate", "titanium_plate", "cable", "energy_cell_1", "circuit_board", "carbon_composite" }, 3, 1, 4);
+                if (rng.NextDouble() < 0.35)
+                {
+                    AddRandom(new[] { "data_fragment", "crystal", "gold_ingot" }, 1, 1, 2);
+                }
+
+                // A rare access (SPS) code — the prize that lets a structure be claimed as a base.
+                if (rng.NextDouble() < 0.14 && _content.GetItem("access_code") is not null)
+                {
+                    items.Add(new ItemStack("access_code", 1));
+                }
+
+                break;
             default: // general salvage cache
                 AddRandom(new[] { "iron_plate", "cable", "carbon_composite", "silicate", "iron_ore", "copper_ore" }, 3, 1, 4);
                 break;

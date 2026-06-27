@@ -43,6 +43,9 @@ public sealed class ContainerLootTests : IDisposable
             PlaceVaults = false,
             PlaceSettlements = false,
             PlaceWrecks = false,
+            PlaceRuins = false,
+            PlaceChests = false,
+            PlaceFactories = false,
             Rules = new GameRules { DeathPenalty = DeathPenalty.Normal, KeepInventoryOnDeath = false },
         };
         var server = new SvGameServer(config, _content, st, repo);

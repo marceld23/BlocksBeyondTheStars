@@ -280,6 +280,11 @@ public static class NetCodec
         // Flora regrow cue: a harvested plant has started regrowing — the client shows the spawn source as a
         // sprout that grows in until the plant returns (purely cosmetic; the plant pops back regardless).
         Register(171, typeof(FloraRegrowStarted));       // Server -> Client
+
+        // Factories: rare industrial halls with animated machines + a production terminal. The client renders
+        // the moving machines and opens the roster-filtered production UI at the terminal.
+        Register(172, typeof(FactoryList));              // Server -> Client (factories to render on this world)
+        Register(173, typeof(ClaimStructureIntent));     // Client -> Server (claim a factory with an access code)
     }
 
     private static void Register(byte tag, Type type)

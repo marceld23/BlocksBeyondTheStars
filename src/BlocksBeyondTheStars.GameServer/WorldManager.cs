@@ -27,6 +27,29 @@ internal sealed class SettlementInstance
     public HashSet<string> MissionIds { get; } = new();
 }
 
+/// <summary>One stamped factory on a world: an industrial hall with a production terminal and one or more
+/// animated machines. Protected (read-only) until claimed with an access code. The roster is the seeded
+/// subset of factory recipes this particular factory can produce — never all of them.</summary>
+internal sealed class FactoryInstance
+{
+    public int Id { get; set; }
+    public Vector3i Min { get; set; }
+    public Vector3i Max { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public Vector3f TerminalPos { get; set; }
+    public List<string> Roster { get; } = new();                         // recipe keys this factory offers
+    public List<(string Archetype, Vector3f Pos)> Machines { get; } = new();
+
+    /// <summary>Stable per-world id (origin-derived) used to persist a claim across sessions.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Whether this factory can be claimed with an access code (seeded — not every structure is).</summary>
+    public bool Claimable { get; set; }
+
+    /// <summary>Owner once claimed (empty = unclaimed). A claimed factory is an editable base for owner + allies.</summary>
+    public string OwnerId { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// One loaded voxel world for a celestial body: the <see cref="ServerWorld"/>, the ids that identify it,
 /// and its per-world runtime state (fauna, enemies, NPCs, flora, fluids, containers, stamped structures,
@@ -88,6 +111,16 @@ internal sealed class LoadedWorld
     // Buried-vault stamp state ("Welten reicher" W-R3): surface entrances of this world's vault ruins.
     public bool VaultsStamped { get; set; }
     public List<Vector3i> VaultEntrances { get; } = new();
+
+    // Fallen-city ruin stamp state — ruins are mineable, so they are stamped ONCE (guarded by this flag)
+    // and then live on as persisted block edits; they are NOT re-stamped on reload (that would resurrect
+    // blocks the player has cleared). Ruins are not tracked as structures (just terrain + loot).
+    public bool RuinsStamped { get; set; }
+
+    // Stamped factories on this world. Like settlements, they re-derive deterministically from the seed each
+    // session (so the list is rebuilt on load) and are protected, so re-stamping their blocks is idempotent.
+    public List<FactoryInstance> Factories { get; } = new();
+    public int NextFactoryId { get; set; } = 1;
 
     // Finale (P6 Stage 2): the buried Guardian-core chamber on the guardian_finale-core body — stamped once,
     // its terminal centre is where the breach hack is gated (reach it by digging or down the aperture shaft).

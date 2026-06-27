@@ -88,6 +88,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Data-cube minigames: cubes to render on the current world + the player's downloaded-games collection.
         public event Action<DataCubeList>? DataCubesReceived;
+        public event Action<FactoryList>? FactoriesReceived; // factories on the current world (animated machines + terminals)
         public event Action<GameUnlocks>? GameUnlocksReceived;
 
         // Story system ("The VEGA Protocol"): the active story's shared progress, the world's net fragments,
@@ -357,6 +358,9 @@ namespace BlocksBeyondTheStars.Client
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
         public void SendDoorInteract(int doorId) => Send(new DoorInteractIntent { DoorId = doorId });
 
+        /// <summary>Claim the factory you're standing at by spending an access code (it becomes your base).</summary>
+        public void SendClaimStructure(int factoryId) => Send(new ClaimStructureIntent { FactoryId = factoryId });
+
         /// <summary>Downloads the data cube the player is standing at into their arcade collection. The client
         /// resolves which game the cube holds (from its seed); the server validates proximity to the cube.</summary>
         public void SendUnlockGame(int cubeId, string gameKey) => Send(new UnlockGameIntent { CubeId = cubeId, GameKey = gameKey ?? string.Empty });
@@ -507,6 +511,7 @@ namespace BlocksBeyondTheStars.Client
                 case NpcList m: NpcsReceived?.Invoke(m); break;
                 case DoorList m: DoorsReceived?.Invoke(m); break;
                 case DataCubeList m: DataCubesReceived?.Invoke(m); break;
+                case FactoryList m: FactoriesReceived?.Invoke(m); break;
                 case GameUnlocks m: GameUnlocksReceived?.Invoke(m); break;
                 case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
                 case FloraRegrowStarted m: FloraRegrowStartedReceived?.Invoke(m); break;

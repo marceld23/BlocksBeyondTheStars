@@ -202,6 +202,10 @@ namespace BlocksBeyondTheStars.Client
             var dataCubes = root.AddComponent<DataCubeView>();
             dataCubes.Game = boot;
 
+            // Render factories' animated machines (pistons/rotors/conveyors) + the production-terminal prompt.
+            var factories = root.AddComponent<FactoryView>();
+            factories.Game = boot;
+
             // Render story "net fragments" scattered on the surface; press E to recover (text-only story finds).
             var netFragments = root.AddComponent<NetFragmentView>();
             netFragments.Game = boot;

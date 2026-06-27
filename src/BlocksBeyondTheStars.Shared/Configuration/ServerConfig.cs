@@ -122,6 +122,27 @@ public sealed class ServerConfig
     public bool PlaceDataCubes { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may stamp procedural <b>factories</b> on a body's surface — rare industrial buildings
+    /// (0–N per world, most get none) housing animated machines and a production terminal. Protected like a
+    /// settlement until claimed with an access code. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceFactories { get; set; } = true;
+
+    /// <summary>
+    /// Whether the server may stamp randomised <b>ruins</b> of fallen settlements on a body's surface — partial
+    /// walls, a half-collapsed tower, rubble. Unlike intact settlements, ruins are NOT protected (their blocks
+    /// are freely mineable). Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceRuins { get; set; } = true;
+
+    /// <summary>
+    /// Whether the server may scatter standalone <b>treasure chests</b> on a body's surface — rare lootable
+    /// caches independent of any structure (0–N per world, most get none). Looted once, then gone.
+    /// Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceChests { get; set; } = true;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

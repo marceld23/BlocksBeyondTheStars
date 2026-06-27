@@ -39,6 +39,13 @@ public sealed class WorldMetadata
     /// </summary>
     public System.Collections.Generic.List<string> GeneratedLoot { get; set; } = new();
 
+    /// <summary>
+    /// Player claims over spawned structures (factories): each maps a structure's stable per-world key to its
+    /// owner. A claimed structure becomes an editable player base for the owner + their allies. Founded by
+    /// consuming an access code at the structure. Persisted (the structures themselves re-derive from the seed).
+    /// </summary>
+    public System.Collections.Generic.List<StructureClaim> Claims { get; set; } = new();
+
     // --- Singleplayer "Creative" world options (chosen at creation; persisted so they reapply on every load).
     // A head-start sandbox: everything available + a starter set, while survival mechanics stay on. All false =
     // the normal "Explorer" world. Blueprints + ships are re-applied per join (idempotent); the kit is one-time. ---
@@ -56,4 +63,13 @@ public sealed class WorldMetadata
     /// Null on saves from before world options existed (the launch config's rules apply then).
     /// </summary>
     public BlocksBeyondTheStars.Shared.Configuration.GameRules? RulesOverride { get; set; }
+}
+
+/// <summary>One player claim over a spawned structure: a stable per-world key, the owner, and a display name.
+/// The structure itself re-derives from the seed every session; this persisted record re-applies the claim.</summary>
+public sealed class StructureClaim
+{
+    public string Key { get; set; } = string.Empty;       // stable per-world structure id (e.g. "loc|factory|x|y|z")
+    public string OwnerId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 }

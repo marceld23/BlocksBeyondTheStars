@@ -366,6 +366,16 @@ public sealed partial class GameServer
                     StampSettlement();
                 }
 
+                if (_config.PlaceRuins)
+                {
+                    StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
+                }
+
+                if (_config.PlaceFactories)
+                {
+                    StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
+                }
+
                 if (_config.PlaceWrecks)
                 {
                     StampWreck();
@@ -382,6 +392,11 @@ public sealed partial class GameServer
                 }
 
                 StampNetFragments(); // story net fragments scattered on the surface (P2; self-skips when story off / Void)
+
+                if (_config.PlaceChests)
+                {
+                    StampChests(); // rare standalone treasure caches (0-N per body)
+                }
             }
         }
 
@@ -574,6 +589,7 @@ public sealed partial class GameServer
         SendDoors(session);
         SendDataCubes(session); // minigame download cubes on this body
         SendNetFragments(session); // story net fragments on this body (P2)
+        SendFactories(session); // factories on this body (animated machines + production terminals)
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
         SendBases(session); // player-founded bases on this body (Grundstein markers)
@@ -1611,6 +1627,7 @@ public sealed partial class GameServer
             case MoveCargoItemIntent moveCargo: HandleMoveCargoItem(session, moveCargo); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
             case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;
+            case ClaimStructureIntent claim: HandleClaimStructure(session, claim); break;
             case TradeRequestIntent tradeReq: HandleTradeRequest(session, tradeReq); break;
             case TradeRespondIntent tradeResp: HandleTradeRespond(session, tradeResp); break;
             case TradeOfferIntent tradeOffer: HandleTradeOffer(session, tradeOffer); break;
@@ -1776,6 +1793,7 @@ public sealed partial class GameServer
         SendDoors(session);
         SendDataCubes(session);   // minigame download cubes on the join world
         SendNetFragments(session); // story net fragments on the join world (P2)
+        SendFactories(session);   // factories on the join world (animated machines + production terminals)
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
@@ -2151,6 +2169,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
+        {
+            Reject(session, "mine", "This factory is protected — claim it with an access code to rebuild it.");
+            return;
+        }
+
         if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
             Reject(session, "mine", "This base is protected — ally with its owner to build here.");
@@ -2354,6 +2378,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
+        {
+            Reject(session, "place", "This factory is protected — claim it with an access code to rebuild it.");
+            return;
+        }
+
         if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
             Reject(session, "place", "This base is protected — ally with its owner to build here.");
@@ -2513,6 +2543,18 @@ public sealed partial class GameServer
         {
             CraftFail(session, recipe.Key, "Required crafting station is not available here.");
             return;
+        }
+
+        // A factory only produces its own roster (a seeded subset of the factory recipes). The terminal the
+        // player stands at decides what's on offer — never every factory recipe.
+        if (recipe.Station == CraftingStation.Factory)
+        {
+            var factory = FactoryTerminalNear(session.State);
+            if (factory is null || !factory.Roster.Contains(recipe.Key))
+            {
+                CraftFail(session, recipe.Key, "This factory cannot produce that.");
+                return;
+            }
         }
 
         // Market barter is themed per VENDOR (B55): each vendor posts the goods of its own profession, so different
@@ -2707,11 +2749,13 @@ public sealed partial class GameServer
         // Market (barter) recipes are trades, not construction; transmuter recipes synthesise raw ore
         // from matter dust — neither is a built item, so they must not make raw resources look
         // "disassemblable" (else mined ore could be reversed into matter dust + an energy cell).
+        // Factory recipes deliberately consume MORE cheap raw than the base recipe, so disassembling
+        // a factory-made item must never refund that surplus (craft cheap-bulk → disassemble for more).
         RecipeDefinition? recipe = null;
         int perCraft = 1;
         foreach (var r in _content.Recipes.Values)
         {
-            if (r.Station is CraftingStation.Market or CraftingStation.Transmuter)
+            if (r.Station is CraftingStation.Market or CraftingStation.Transmuter or CraftingStation.Factory)
             {
                 continue;
             }
@@ -3090,6 +3134,9 @@ public sealed partial class GameServer
                 CraftingStation.Refinery => NearStationBlock(player, "forge"),
                 CraftingStation.Detoxifier => NearStationBlock(player, "detoxifier"),
                 CraftingStation.Transmuter => NearStationBlock(player, "matter_forge"),
+                // A factory's production terminal — only present inside spawned factory structures
+                // (players don't craft/place it), so factory recipes are only available at a factory.
+                CraftingStation.Factory => NearStationBlock(player, "factory_terminal"),
                 _ => false,
             };
         }

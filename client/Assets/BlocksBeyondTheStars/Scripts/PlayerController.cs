@@ -919,6 +919,34 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // A claimable factory terminal within reach → claim it with an access code (it becomes your base).
+            if (FactoryView.Instance != null)
+            {
+                int factory = FactoryView.Instance.NearestClaimable(transform.position, 4f);
+                if (factory != 0)
+                {
+                    bool hasCode = false;
+                    if (Game.Personal != null)
+                    {
+                        foreach (var s in Game.Personal)
+                        {
+                            if (s.Item == "access_code" && s.Count > 0) { hasCode = true; break; }
+                        }
+                    }
+
+                    if (hasCode)
+                    {
+                        Game.Network?.SendClaimStructure(factory);
+                    }
+                    else
+                    {
+                        Game.ShowMessage(Game.Localizer?.Get("ui.factory.need_code") ?? "You need an access code to claim this.");
+                    }
+
+                    return;
+                }
+            }
+
             // A net fragment within reach → recover it (text-only story find; reveals its archive + advances the story).
             if (NetFragmentView.Instance != null)
             {

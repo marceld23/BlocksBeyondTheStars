@@ -20,6 +20,7 @@
 
   { "key": "data_fragment",   "nameKey": "item.data_fragment.name",   "category": "component",  "maxStack": 20 },
   { "key": "ai_memory_fragment", "nameKey": "item.ai_memory_fragment.name", "category": "component", "maxStack": 10, "descriptionKey": "item.ai_memory_fragment.desc" },
+  { "key": "access_code",     "nameKey": "item.access_code.name",     "category": "component",  "maxStack": 10, "descriptionKey": "item.access_code.desc" },
   { "key": "oxygen_tank_1",   "nameKey": "item.oxygen_tank_1.name",   "category": "consumable", "maxStack": 10, "descriptionKey": "item.oxygen_tank_1.desc" },
   { "key": "medpack",         "nameKey": "item.medpack.name",         "category": "consumable", "maxStack": 20, "descriptionKey": "item.medpack.desc", "consumeHealth": 50 },
 

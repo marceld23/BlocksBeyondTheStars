@@ -635,6 +635,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Data cubes on the current world (synced from the server) — rendered by <c>DataCubeView</c>.</summary>
         public NetDataCube[] DataCubes { get; private set; } = System.Array.Empty<NetDataCube>();
 
+        /// <summary>Factories on the current world (synced from the server) — rendered by <c>FactoryView</c>
+        /// (animated machines) and used for the roster-filtered production terminal.</summary>
+        public NetFactory[] Factories { get; private set; } = System.Array.Empty<NetFactory>();
+
         // --- Story system ("The VEGA Protocol") ---
 
         /// <summary>The active story's shared progress (story P0) — drives the Story Log meter; null/inactive when off.</summary>
@@ -901,6 +905,7 @@ namespace BlocksBeyondTheStars.Client
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
             Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
+            Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; LandingPadsTimeOfDay = m.TimeOfDay; };
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
             Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
