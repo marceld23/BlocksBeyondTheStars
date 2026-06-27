@@ -82,6 +82,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<DoorList>? DoorsReceived;
         public event Action<MiningProgress>? MiningProgressReceived;
 
+        // A harvested plant has begun regrowing on its cell: lets the client show the spawn source as a sprout
+        // that grows in until the plant returns (cosmetic — the plant pops back via BlockChanged regardless).
+        public event Action<FloraRegrowStarted>? FloraRegrowStartedReceived;
+
         // Data-cube minigames: cubes to render on the current world + the player's downloaded-games collection.
         public event Action<DataCubeList>? DataCubesReceived;
         public event Action<GameUnlocks>? GameUnlocksReceived;
@@ -505,6 +509,7 @@ namespace BlocksBeyondTheStars.Client
                 case DataCubeList m: DataCubesReceived?.Invoke(m); break;
                 case GameUnlocks m: GameUnlocksReceived?.Invoke(m); break;
                 case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
+                case FloraRegrowStarted m: FloraRegrowStartedReceived?.Invoke(m); break;
                 case ScanResult m: ScanResultReceived?.Invoke(m); break;
                 case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
                 case ShipRepairStatus m: ShipRepairStatusChanged?.Invoke(m); break;

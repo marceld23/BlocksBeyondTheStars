@@ -168,9 +168,43 @@ public sealed partial class GameServer
         return def != null && IsFlora(def.NumericId.Value) && IsValidFloraHost(def.NumericId.Value, new Vector3i(x, y, z));
     }
 
-    /// <summary>Schedules a harvested plant to regrow on its cell (if the host stays intact).</summary>
+    /// <summary>Restores this world's persisted flora regrowths into the queue (so a harvest-then-restart
+    /// brings the plant back instead of leaving it gone for good). Non-void worlds only — stations grow none.</summary>
+    private void LoadFloraRegrow()
+    {
+        if (_world.Planet.Void)
+        {
+            return;
+        }
+
+        foreach (var fr in _repo.ListFloraRegrow(_world.LocationId))
+        {
+            // Drop stale rows whose block is no longer flora in this content set (defensive — keeps the queue clean).
+            if (IsFlora(fr.Block))
+            {
+                _floraRegrow[fr.WorldPosition] = (fr.Block, fr.Timer);
+            }
+            else
+            {
+                _repo.DeleteFloraRegrow(_world.LocationId, fr.WorldPosition);
+            }
+        }
+    }
+
+    /// <summary>Schedules a harvested plant to regrow on its cell (if the host stays intact). Persisted so the
+    /// regrow survives a restart — without it the harvest's air edit would keep the cell bare for good.</summary>
     private void ScheduleFloraRegrow(Vector3i pos, ushort floraId)
-        => _floraRegrow[pos] = (floraId, FloraRegrowSeconds);
+    {
+        _floraRegrow[pos] = (floraId, FloraRegrowSeconds);
+        _repo.SaveFloraRegrow(_world.LocationId, pos, floraId, FloraRegrowSeconds);
+
+        // Cosmetic cue: tell clients the spawn source has started regrowing so they can render a sprout that
+        // grows in over the delay (the plant pops back on its own via BlockChanged regardless of this).
+        BroadcastToWorld(new FloraRegrowStarted
+        {
+            X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId, Seconds = (float)FloraRegrowSeconds,
+        });
+    }
 
     private void TickFlora(double dt)
     {
@@ -208,6 +242,7 @@ public sealed partial class GameServer
             foreach (var pos in done)
             {
                 _floraRegrow.Remove(pos);
+                _repo.DeleteFloraRegrow(_world.LocationId, pos); // consumed (regrew or host lost) — clear the persisted row
             }
         }
     }

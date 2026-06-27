@@ -133,6 +133,24 @@ public readonly struct BlockEdit
     }
 }
 
+/// <summary>A scheduled surface-flora regrowth: a harvested plant that returns on its cell after a delay,
+/// as long as its host block stays intact. Persisted so the regrow survives a server restart — otherwise a
+/// harvest-then-restart removes the plant for good (the harvest leaves a persisted air edit that overrides
+/// the procedural baseline, and the in-memory regrow timer that would bring it back is lost).</summary>
+public readonly struct StoredFloraRegrow
+{
+    public readonly Vector3i WorldPosition;
+    public readonly ushort Block;
+    public readonly double Timer;
+
+    public StoredFloraRegrow(Vector3i worldPosition, ushort block, double timer)
+    {
+        WorldPosition = worldPosition;
+        Block = block;
+        Timer = timer;
+    }
+}
+
 /// <summary>
 /// Abstraction over savegame persistence. The default implementation is SQLite-backed
 /// (portable); a PostgreSQL implementation can be added later
@@ -156,6 +174,15 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Loads all stored block edits that fall inside the given chunk.</summary>
     IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk);
+
+    /// <summary>Stores (inserts or replaces) a scheduled flora regrowth, keyed by its world cell.</summary>
+    void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer);
+
+    /// <summary>Lists all scheduled flora regrowths on a planet (restored into the regrow queue on world load).</summary>
+    IReadOnlyList<StoredFloraRegrow> ListFloraRegrow(string planet);
+
+    /// <summary>Removes a scheduled flora regrowth (the plant returned, or its host was lost).</summary>
+    void DeleteFloraRegrow(string planet, Vector3i worldPosition);
 
     PlayerState? LoadPlayer(string playerId);
     void SavePlayer(PlayerState player);

@@ -214,6 +214,7 @@ public sealed class GameContent
         AssignBlockIds();
         MarkTintableDefaults();
         MarkShapeableDefaults();
+        MarkFloraHostDefaults();
 
         // Palette lookup: index by numeric id (air at 0).
         ushort max = 0;
@@ -280,6 +281,26 @@ public sealed class GameContent
             if (_blocks.TryGetValue(key, out var block))
             {
                 block.Shapeable = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Marks every block that any <see cref="FloraCatalog"/> species can root on as a <see
+    /// cref="BlockDefinition.FloraHost"/>. Derived from the catalog's host lists (the single source of truth)
+    /// so worldgen, server harvest-regrow and the client's "fertile ground" cue all share one flag instead of
+    /// re-deriving the host set. Applied here so client and server compute the identical set.
+    /// </summary>
+    private void MarkFloraHostDefaults()
+    {
+        foreach (var species in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
+        {
+            foreach (var hostKey in species.Hosts)
+            {
+                if (_blocks.TryGetValue(hostKey, out var block))
+                {
+                    block.FloraHost = true;
+                }
             }
         }
     }

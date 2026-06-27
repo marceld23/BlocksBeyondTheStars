@@ -67,6 +67,15 @@ public sealed class BlockDefinition
     /// </summary>
     public bool Shapeable { get; set; }
 
+    /// <summary>
+    /// Whether surface flora may root on top of this block — i.e. it is a host surface for at least one
+    /// species in <see cref="FloraCatalog"/> (grass, dirt, mud, sand, stone, crystal, water, …). Derived
+    /// from the catalog by the content registry (not in JSON) so client and server agree, and so worldgen,
+    /// harvest-regrow and the client's "fertile ground" cue all read the same flag instead of re-deriving
+    /// the host set. A plain terrain block; says nothing about which species (that stays in the catalog).
+    /// </summary>
+    public bool FloraHost { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

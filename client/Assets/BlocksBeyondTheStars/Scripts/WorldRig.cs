@@ -364,6 +364,10 @@ namespace BlocksBeyondTheStars.Client
             miningFx.Camera = cam;
             miningFx.Reach = pc.Reach;
 
+            // Flora spawn/regrow cue: a growing sprout marks a harvested cell while its plant regrows.
+            var floraGrowthFx = root.AddComponent<FloraGrowthFx>();
+            floraGrowthFx.Game = boot;
+
             // Tool/weapon VFX (beam + muzzle flash + impact sparks, drill sparks).
             var weaponFx = root.AddComponent<WeaponFx>();
             pc.Weapons = weaponFx;

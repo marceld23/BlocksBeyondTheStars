@@ -276,6 +276,10 @@ public static class NetCodec
 
         // Cargo hold: move items between the personal inventory and the ship's cargo hold (per-item or bulk).
         Register(170, typeof(MoveCargoItemIntent));      // Client -> Server
+
+        // Flora regrow cue: a harvested plant has started regrowing — the client shows the spawn source as a
+        // sprout that grows in until the plant returns (purely cosmetic; the plant pops back regardless).
+        Register(171, typeof(FloraRegrowStarted));       // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

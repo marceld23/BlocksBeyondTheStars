@@ -35,6 +35,19 @@ public class NetworkingTests
     }
 
     [Fact]
+    public void Codec_RoundTrips_FloraRegrowStarted()
+    {
+        var msg = new FloraRegrowStarted { X = 102, Y = 100, Z = -5, Block = 77, Seconds = 30f };
+        var typed = Assert.IsType<FloraRegrowStarted>(NetCodec.Decode(NetCodec.Encode(msg)));
+
+        Assert.Equal(102, typed.X);
+        Assert.Equal(100, typed.Y);
+        Assert.Equal(-5, typed.Z);
+        Assert.Equal(77, typed.Block);
+        Assert.Equal(30f, typed.Seconds);
+    }
+
+    [Fact]
     public void Codec_ReturnsNull_ForUnknownTag()
     {
         Assert.Null(NetCodec.Decode(new byte[] { 200, 1, 2, 3 }));

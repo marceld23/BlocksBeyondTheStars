@@ -303,6 +303,62 @@ public sealed class FloraTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FloraHostFlag_MarksGroundSurfaces_NotPlantsOrMachines()
+    {
+        // Every surface a catalog species roots on is flagged a host...
+        Assert.True(_content.GetBlock("grass")!.FloraHost);
+        Assert.True(_content.GetBlock("mud")!.FloraHost);
+        Assert.True(_content.GetBlock("sand")!.FloraHost);
+        Assert.True(_content.GetBlock("water")!.FloraHost); // lily pads root on the water surface
+
+        // ...while plants themselves and pure building materials are not hosts.
+        Assert.False(_content.GetBlock("flora_plant")!.FloraHost);
+        Assert.False(_content.GetBlock("iron_wall")!.FloraHost);
+    }
+
+    [Fact]
+    public void FloraHostFlag_CoversTheWholeCatalogHostUnion()
+    {
+        foreach (var key in FloraCatalog.All.SelectMany(s => s.Hosts).Distinct())
+        {
+            var block = _content.GetBlock(key);
+            if (block != null)
+            {
+                Assert.True(block.FloraHost, $"'{key}' is a catalog host and must carry the FloraHost flag.");
+            }
+        }
+    }
+
+    [Fact]
+    public void HarvestedFlora_RegrowSurvivesRestart()
+    {
+        var mud = _content.GetBlock("mud")!.NumericId;
+        var floraPlant = _content.GetBlock("flora_plant")!.NumericId;
+        var host = new Vector3i(102, 99, 100);
+        var cell = new Vector3i(102, 100, 100);
+
+        // First session: plant, harvest, and shut down BEFORE the regrow timer elapses.
+        var server1 = Started(out var repo1);
+        var session1 = server1.AddLocalPlayer("Botanist");
+        session1.State.Position = new Vector3f(100f, 100f, 100f);
+        server1.World.SetBlock(host, mud);
+        server1.World.SetBlock(cell, floraPlant);
+        server1.MineBlock(session1.State.PlayerId, cell.X, cell.Y, cell.Z);
+        server1.Tick(1.0); // far short of FloraRegrowSeconds — still air
+        Assert.True(server1.World.GetBlock(cell).IsAir);
+        repo1.Dispose(); // simulate a server restart on the same save
+
+        // Second session on the same save folder: the persisted regrow must bring the plant back.
+        var server2 = Started(out var repo2);
+        using (repo2)
+        {
+            server2.AddLocalPlayer("Botanist");
+            server2.Tick(31.0); // > FloraRegrowSeconds → regrow step
+            Assert.Equal(floraPlant.Value, server2.World.GetBlock(cell).Value);
+        }
+    }
+
     public void Dispose()
     {
         try

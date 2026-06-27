@@ -348,6 +348,7 @@ public sealed partial class GameServer
             InitFluids();
             InitFire();
             InitFlora();
+            LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
             InitCreatures();
             LoadContainers();
 

@@ -582,6 +582,24 @@ public sealed class BlockChanged
     public int Shape { get; set; }
 }
 
+/// <summary>A harvested surface plant has begun regrowing on its (now bare) cell: the server broadcasts this
+/// once, the moment the regrow is scheduled, so the client can show the spawn source as a small sprout that
+/// grows in over <see cref="Seconds"/> until the real plant returns (a normal BlockChanged). <see cref="Block"/>
+/// is the flora block id coming back, so the marker can wear its tile. Purely cosmetic — gameplay is unchanged
+/// whether or not a client renders it; a client may ignore it and just see the plant pop back at the end.</summary>
+public sealed class FloraRegrowStarted
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+
+    /// <summary>The flora block id that will return on this cell when the regrow completes.</summary>
+    public ushort Block { get; set; }
+
+    /// <summary>Seconds until the plant returns (the regrow delay), so the client can pace the grow-in.</summary>
+    public float Seconds { get; set; }
+}
+
 /// <summary>Mining progress on a block (a harder block needs several drill hits): Fraction 0..1 of the
 /// way to breaking. The client shows a crack overlay; the block stays until it breaks (BlockChanged).</summary>
 public sealed class MiningProgress

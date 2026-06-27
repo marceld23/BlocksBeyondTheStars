@@ -89,7 +89,10 @@ public sealed class SqliteWorldRepository : IWorldRepository
                 px REAL NOT NULL, py REAL NOT NULL, pz REAL NOT NULL, boardable INTEGER NOT NULL, blocks TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS structure_edit (
                 structure TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
-                block INTEGER NOT NULL, PRIMARY KEY (structure, x, y, z));");
+                block INTEGER NOT NULL, PRIMARY KEY (structure, x, y, z));
+            CREATE TABLE IF NOT EXISTS flora_regrow (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                block INTEGER NOT NULL, timer REAL NOT NULL, PRIMARY KEY (planet, x, y, z));");
         // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
         // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -421,6 +424,61 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$x", x);
             cmd.Parameters.AddWithValue("$y", y);
             cmd.Parameters.AddWithValue("$z", z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Flora regrowth (harvested plants returning on their cell) ---
+
+    public void SaveFloraRegrow(string planet, Vector3i worldPosition, ushort block, double timer)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO flora_regrow (planet, x, y, z, block, timer) " +
+                              "VALUES ($p, $x, $y, $z, $b, $t) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block=excluded.block, timer=excluded.timer;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", worldPosition.X);
+            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
+            cmd.Parameters.AddWithValue("$b", block);
+            cmd.Parameters.AddWithValue("$t", timer);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredFloraRegrow> ListFloraRegrow(string planet)
+    {
+        var result = new List<StoredFloraRegrow>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, block, timer FROM flora_regrow WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredFloraRegrow(
+                    new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)),
+                    (ushort)reader.GetInt32(3),
+                    reader.GetDouble(4)));
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteFloraRegrow(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM flora_regrow WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", worldPosition.X);
+            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
             cmd.ExecuteNonQuery();
         }
     }
