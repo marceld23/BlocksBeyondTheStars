@@ -336,7 +336,12 @@ not locally. Cut one by pushing a SemVer tag:
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
-The workflow builds for Windows, Linux **and** (experimentally) macOS in parallel jobs:
+The workflow builds for Windows, Linux **and** (experimentally) macOS in parallel jobs. A tiny **`version`**
+job resolves and validates the release version **once** (from the git tag, or `0.1.0-dev` on a manual
+dispatch); every build/package/docker job then reads `needs.version.outputs.version`, so the resolve logic
+is not copy-pasted per platform and the `docker` job no longer waits ~13 min on the Windows build just to
+learn the version. A `concurrency` group serializes overlapping release runs (without cancelling an in-flight
+one — a half-published release is worse than a delayed one). Then:
 
 1. **Build Unity player (Windows)** — GameCI (`game-ci/unity-builder`) in a Linux Docker image
    cross-builds the `StandaloneWindows64` player (Mono backend). It first runs the same prereqs as
