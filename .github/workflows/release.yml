@@ -462,12 +462,17 @@ jobs:
           path: client/Build/macOS
 
       # Artifacts strip Unix perms — restore +x on the bundle's entry binary AND the bundled local server,
-      # otherwise Singleplayer can't spawn the server on macOS (LocalServerLauncher.cs).
+      # otherwise Singleplayer can't spawn the server on macOS (LocalServerLauncher.cs). sudo: the files may be
+      # root-owned (GameCI builds as root); locate the server with find since its exact path inside the bundle
+      # is version/Unity-dependent.
       - name: Restore execute bits (app + bundled server)
         run: |
           APP="client/Build/macOS/BlocksBeyondTheStars.app"
-          chmod +x "$APP/Contents/MacOS/"*
-          chmod +x "$APP/Contents/Resources/Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer"
+          sudo chmod +x "$APP/Contents/MacOS/"*
+          server="$(find "$APP/Contents/Resources" -type f -name 'BlocksBeyondTheStars.GameServer' | head -n1)"
+          if [ -z "$server" ]; then echo "::error::bundled server binary not found in the .app"; exit 1; fi
+          sudo chmod +x "$server"
+          echo "Set +x on the app entry binary and bundled server: $server"
 
       # zip -y preserves the symlinks inside the .app bundle; a plain upload-artifact re-zip would corrupt it.
       - name: Zip the .app
