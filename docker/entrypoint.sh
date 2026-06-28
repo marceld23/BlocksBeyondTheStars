@@ -55,9 +55,11 @@ fetch_client() {
   local json
   json=$(curl -fsSL "$api") || return 1
 
-  # Each asset is independent: a missing Windows or Linux build must not skip the other.
-  fetch_asset "$json" 'Setup\.exe' 'Windows installer' || true
-  fetch_asset "$json" '\.AppImage' 'Linux AppImage'     || true
+  # Each asset is independent: a missing build for one platform must not skip the others. The macOS
+  # pattern is anchored on "osx-" so it does not also match the Windows/Linux *Portable.zip assets.
+  fetch_asset "$json" 'Setup\.exe' 'Windows installer'      || true
+  fetch_asset "$json" '\.AppImage' 'Linux AppImage'         || true
+  fetch_asset "$json" 'osx-[^"]*Portable\.zip' 'macOS zip'  || true
 }
 
 if [ "${BBS_FETCH_CLIENT:-1}" = "1" ]; then
