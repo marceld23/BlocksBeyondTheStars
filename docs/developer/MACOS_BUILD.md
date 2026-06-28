@@ -35,6 +35,13 @@ public static void BuildMacOS()
 The shared `BuildPlayer()` handles version injection, shader prewarming, scene generation and icon embedding
 for all three targets. `version.txt` is written next to the `.app` (the CI version guard reads it there).
 
+**macOS gotcha — Microphone Usage Description.** Voice chat (`BBS_VOICE`) uses Unity's `Microphone` API.
+On macOS/iOS, Apple requires a non-empty `NSMicrophoneUsageDescription`; if it is empty, the `StandaloneOSX`
+post-processor **fails the build** with *"Microphone class is used but Microphone Usage Description is empty
+in Player Settings."* (Windows/Linux don't gate on it, so this only surfaces on a real macOS build.)
+`BuildPlayer()` therefore sets `PlayerSettings.macOS.microphoneUsageDescription` for the `StandaloneOSX`
+target before building — idempotent, and a no-op on the other platforms.
+
 ### 2. Bundled local server (osx-x64)
 
 `publish-local-server.sh` already takes a runtime argument (`${1:-linux-x64}`), so `publish-local-server.sh
@@ -85,6 +92,24 @@ the bundle).
 #     -buildOut <out-dir>
 ```
 
+## Fast CI iteration — the slim `macos-build.yml`
+
+`release.yml` builds all platforms in parallel, but GitHub only frees a job's logs once the **whole** run
+finishes — so debugging a Mac build there means waiting on the Windows/Linux jobs too. For a tight loop,
+use **`.github/workflows/macos-build.yml`**: a dispatch-only workflow with a **single** job that builds just
+the `StandaloneOSX` player, packages the `.app` into a portable zip and uploads it as a run artifact
+(`mac-portable-zip`). Nothing is published. Because it is the only job, the run completes — and the logs
+unlock — the moment the Mac build does.
+
+Trigger it from the Actions tab ("macOS build (experimental)" → Run workflow), or:
+
+```bash
+gh workflow run macos-build.yml --ref <branch>
+```
+
+(It is a trimmed clone of `release.yml`'s `build-player-mac` + `package-mac`. The cleaner long-term shape is
+a reusable `workflow_call` shared by both; the clone is the pragmatic interim.)
+
 ## Running an unsigned build
 
 The `.app` is not signed or notarized, so macOS Gatekeeper quarantines it. After unzipping, either
@@ -100,7 +125,8 @@ The bundle is **Intel x64**; it runs on Apple Silicon through Rosetta 2.
 
 - **Limited hands-on testing.** There is no Mac in CI, so the build is verified to *compile and package*, not
   to *run*. The bundled-server launch (the `+x` failure mode) and Singleplayer should be smoke-tested on a
-  real Mac before this is promoted beyond "experimental".
+  real Mac before this is promoted beyond "experimental". (MacOS-only build-time issues do still surface in
+  CI — e.g. the Microphone Usage Description failure above was caught by the first dry-run, not on a Mac.)
 - **No signing/notarization.** Required for friction-free distribution outside the App Store; needs an Apple
   Developer account and a CI signing step. Out of scope for the experimental phase.
 - **No Velopack / no auto-update / no splash launcher** on macOS yet (Phase 1 ships a plain zip).

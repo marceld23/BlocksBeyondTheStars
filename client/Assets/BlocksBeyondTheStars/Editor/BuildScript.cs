@@ -83,6 +83,17 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 Debug.Log($"BlocksBeyondTheStars version set from -buildVersion: {version}");
             }
 
+            // macOS (and iOS) require a non-empty usage description for any Apple "Usage Description" API the
+            // player touches, or the StandaloneOSX post-processor fails the build with
+            // "Microphone class is used but Microphone Usage Description is empty in Player Settings."
+            // Voice chat (BBS_VOICE) uses the Microphone API, so set the Info.plist string here. No-op on
+            // Windows/Linux, which don't gate on it. Idempotent; safe to set on every build.
+            if (target == BuildTarget.StandaloneOSX)
+            {
+                PlayerSettings.macOS.microphoneUsageDescription =
+                    "Used for in-game voice chat with other players.";
+            }
+
             string outDir = GetArg("-buildOut") ?? defaultOutDir;
             Directory.CreateDirectory(outDir);
 

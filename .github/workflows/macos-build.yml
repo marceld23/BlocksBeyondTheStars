@@ -1,0 +1,102 @@
+# Slim, targeted macOS build — for iterating on the experimental Mac client WITHOUT running the full
+# release.yml (Windows + Linux + Docker). It builds only the StandaloneOSX player, packages the .app into
+# a portable zip and uploads it as a run artifact. Nothing is published.
+#
+# Why this exists: in release.yml the macOS job runs in parallel with the others, but GitHub only frees a
+# job's logs once the WHOLE run finishes — so debugging a Mac build meant waiting on the Windows/Linux jobs
+# too. Here the Mac job is the only job, so the run completes (and logs unlock) the moment it does.
+#
+# Trigger: the Actions tab -> "macOS build (experimental)" -> Run workflow. Dispatch-only; uses the same
+# Unity license secrets as release.yml, so it only runs on the main repo (not forks).
+
+name: macOS build (experimental)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to stamp into the build (test value; not a release)."
+        type: string
+        default: 0.1.0-dev
+
+permissions:
+  contents: read
+
+jobs:
+  build-mac:
+    name: Build + package macOS player
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      - name: Sync Velopack libs (bash)
+        run: ./scripts/sync-velopack-libs.sh
+
+      - name: Publish bundled local server (osx-x64)
+        run: ./scripts/publish-local-server.sh osx-x64
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5
+        with:
+          path: client/Library
+          key: Library-macOS-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-macOS-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
+      - name: Build macOS player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: StandaloneOSX
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS
+          versioning: Custom
+          version: ${{ inputs.version }}
+          customParameters: -buildOut /github/workspace/player-mac
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-mac
+
+      # Artifacts strip Unix perms — restore +x on the bundle's entry binary AND the bundled local server,
+      # otherwise Singleplayer can't spawn the server on macOS (LocalServerLauncher.cs). Same as package-mac.
+      - name: Restore execute bits (app + bundled server)
+        run: |
+          APP="player-mac/BlocksBeyondTheStars.app"
+          chmod +x "$APP/Contents/MacOS/"*
+          chmod +x "$APP/Contents/Resources/Data/StreamingAssets/server/BlocksBeyondTheStars.GameServer"
+
+      # zip -y preserves the symlinks inside the .app bundle; a plain upload-artifact re-zip would corrupt it.
+      - name: Zip the .app
+        run: |
+          OUT="artifacts/installer-mac"
+          mkdir -p "$OUT"
+          ( cd player-mac && \
+            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-osx-${{ inputs.version }}-Portable.zip" \
+              "BlocksBeyondTheStars.app" )
+
+      - name: Upload macOS portable zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: mac-portable-zip
+          path: artifacts/installer-mac
