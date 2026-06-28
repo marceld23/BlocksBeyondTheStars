@@ -29,9 +29,14 @@
 
 .PARAMETER Version
   SemVer for this release. Default: read from PlayerSettings.bundleVersion in ProjectSettings.asset (the
-  single source of truth, which the release CI sets from the git tag; local builds keep 0.0.0-dev). Pass a
-  clean value like 0.20.0 for an actual local release. Each published version MUST be higher than the last
+  single source of truth, which the release CI sets from the git tag; local builds keep 0.1.0-dev). Pass a
+  clean value like 0.7.0 for an actual local release. Each published version MUST be higher than the last
   for updates to apply.
+
+  Dev isolation: a version with a SemVer pre-release suffix (anything with a "-", e.g. the default
+  0.1.0-dev) is packed under a SEPARATE packId/title ("Blocks Beyond the Stars (Dev)" →
+  %LOCALAPPDATA%\BlocksBeyondTheStarsDev), so a local test install can never collide with — or downgrade-
+  block — the player's real install. Only a clean SemVer (the release CI's git tag) packs the production id.
 
 .PARAMETER BuildDir
   The Unity player folder to package (must contain BlocksBeyondTheStars.exe). Default: client/Build/Windows.
@@ -113,6 +118,21 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     else { Write-Error 'Could not read bundleVersion from ProjectSettings.asset; pass -Version explicitly.' }
 }
 
+# Isolate dev/test installs from the real one. A SemVer pre-release suffix (e.g. "0.1.0-dev") marks a
+# local/dispatch build that should NEVER touch the player's real "Blocks Beyond the Stars" install: it
+# would share the same packId, install dir (%LOCALAPPDATA%\BlocksBeyondTheStars) and Velopack version DB,
+# so a high dev version (the old 0.20.0-dev) poisons the version line and makes a later real release look
+# like a downgrade. Route any pre-release version to a separate packId/title → its own install dir
+# (...\BlocksBeyondTheStarsDev) + Apps & Features entry, fully decoupled from production. Clean SemVer
+# (the release CI's git tag, e.g. "0.6.1") keeps the real packId — that is a genuine production install.
+$packId = 'BlocksBeyondTheStars'
+$packTitle = 'Blocks Beyond the Stars'
+if ($Version -match '-') {
+    $packId = 'BlocksBeyondTheStarsDev'
+    $packTitle = 'Blocks Beyond the Stars (Dev)'
+    Write-Host "Pre-release version '$Version' → DEV install (packId '$packId'), isolated from the real install." -ForegroundColor Yellow
+}
+
 # Ensure the vpk CLI is on PATH (install the global tool on first use).
 if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) {
     Write-Host 'Installing the Velopack CLI (vpk) ...' -ForegroundColor Cyan
@@ -163,9 +183,9 @@ Write-Host 'Copied LICENSE.txt + THIRD-PARTY-NOTICES.txt into the player folder 
 Write-Host "Packaging Blocks Beyond the Stars $Version (channel '$Channel') from $build ..." -ForegroundColor Cyan
 $packArgs = @(
     'pack',
-    '--packId', 'BlocksBeyondTheStars',
+    '--packId', $packId,
     '--packVersion', $Version,
-    '--packTitle', 'Blocks Beyond the Stars',
+    '--packTitle', $packTitle,
     '--packAuthors', 'JuMaVe Games',
     '--packDir', $build,
     # The launcher is the launched executable (shortcut target + Velopack hook host); it shows the loading
