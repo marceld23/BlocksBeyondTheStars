@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `dotnet test` — currently **747 server + 86 client passing** (2026-06-27). Locale parity (en/de) is enforced by a test.
+**Test:** `dotnet test` — currently **779 server + 96 client passing** (2026-06-28). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -23,6 +23,16 @@ Published GitHub Releases (tag = version single-source-of-truth; each tag push b
 trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
 Per-item detail lives in the dated work log below.
 
+- **v0.6.0** — 2026-06-27 — *factories, ruins & native Linux.* Claimable **factories** with animated machine
+  bays + roster-limited production terminals, mineable **ruins** + standalone **treasure chests**, and **SPS
+  access codes** that claim a factory as your own editable base (shared with allies); **native Linux client** —
+  a real `StandaloneLinux64` shipped as AppImage + Linux Portable.zip, no Wine/Proton — the **first community
+  contribution**, by Cora de la Mouche (#69); new **Transmuter** station (spare terrain → scarce ore) + the
+  **Refinery** expanded into the full metallurgy station (Tier-2 metals, diamond, carbide, reactor fuel) +
+  titanium/carbide progression-deadlock fix; bigger ship/station/city editors; longer planet view distance with
+  far-chunk vertical LOD + unload; rivers & lava route downhill into sinks with waterfalls/lavafalls;
+  per-atmosphere haze; trees scanned as named per-world species; menu attract-scene aligned with the real
+  in-game space look.
 - **v0.5.0** — 2026-06-26 — *visual overhaul, browser-free UI & runtime quality.* In-game post stack now live
   (SMAA + SSAO + emissive glow), per-biome cinematic mood LUTs, GGX specular + roughness-aware reflections,
   global brightness control, readable/reflective water + visible sky bodies (#50–#56); embedded browser
@@ -60,18 +70,43 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Experimental macOS client build (2026-06-27) — ⚠️ CI + docs done, NOT built/run yet, on branch `feat/macos-experimental-build` (NOT committed to main)
-Adds an unsigned/un-notarized macOS player (doc [docs/developer/MACOS_BUILD.md](docs/developer/MACOS_BUILD.md)). The Mono scripting backend
-cross-compiles `StandaloneOSX` on the Linux runner — no Mac hardware in CI; UWB/CEF is already gone and there are no native plugins, so
-there were no real blockers. Changes: `BuildScript.BuildMacOS()` (StandaloneOSX → `.app`); two `release.yml` jobs (`build-player-mac`
-mirrors `build-player-linux`; `package-mac` zips the bundle, no Velopack/launcher = Phase 1); `publish-local-server.sh osx-x64` for the
-bundled singleplayer server. Also fixed a latent bug: GitHub artifacts strip the Unix `+x` bit, so **both** package jobs now `chmod +x` the
-player **and** the bundled server before packing (Linux AppImage was likely affected too — see [LINUX_PORT.md](docs/developer/LINUX_PORT.md)).
-- **Open / next:** no Mac in CI, so this is verified to *compile + package* only. Smoke-test on a real Mac (Singleplayer + bundled-server
-  launch = the `+x` failure mode) before promoting past "experimental". Phase 2: signing/notarization, Velopack/auto-update, splash launcher,
-  native `osx-arm64`/Universal, itch.io osx channel.
+### ★ Server portal serves the native Linux + macOS client downloads (2026-06-28) — ✅ MERGED to main (#83, #107)
+The dedicated server's `/portal` + `/download` pages now offer the **native Linux client (AppImage)** (#83) and the
+**macOS client (.app zip)** (#107) alongside the Windows installer, picking the right asset per the visitor's platform.
+The old WebGL stub download was dropped (there is no in-browser client). Players self-host can hand friends a one-click
+download for their OS straight from the running server.
 
-### ★ Factories, ruins, treasure chests & access-code claiming (2026-06-27) — ✅ server 759 tests green + local Unity build green, on branch `feat/factories-ruins-claiming` (NOT committed)
+### ★ Release pipeline hygiene (2026-06-28) — ✅ MERGED to main (#106)
+`release.yml` cleanup: a single shared **version** job (was duplicated per platform), the Docker image build **decoupled**
+from the player builds (so a player-build failure no longer blocks the image and vice-versa), and **concurrency** guards so
+overlapping tag pushes cancel cleanly. Also fixed the macOS CI execute-bit step (`sudo` + `find` for the bundled server).
+
+### ★ Automatic crash reporting — server + client (2026-06-28) — ✅ MERGED to main (#103)
+Opt-in automatic exception reporting to the website (reuses the existing Wix `post_bugreport` endpoint, mirroring `/bump`).
+**Server:** the Tick loop is hardened (per-system `Guard` + a top-level backstop so one uncaught exception no longer takes the
+whole server down) + `CrashReportWriter`/`CrashReportUploader` + AppDomain/unobserved-Task handlers + startup/periodic flush.
+**Client:** a `CrashReporter` hooks `Application.logMessageReceivedThreaded` → dedup/spool → `FeedbackUploader`, silent, with a
+startup retry. Payloads run through a shared `CrashPiiScrubber`. 779 server + 96 client tests. (Gave the user updated
+`http-functions.js` with triage/size-guard/rate-limit; OPTIONAL Wix CMS fields category/source/kind remain.)
+
+### ★ Playtest report issue template (2026-06-28) — ✅ MERGED to main (#85)
+A structured GitHub **Playtest report** issue form so community testers can file findings consistently
+(`.github/ISSUE_TEMPLATE`).
+
+### ★ Experimental macOS client build (2026-06-28) — ✅ MERGED to main (#84) + first Mac dry-run fixed (#105); still unsigned/experimental
+An unsigned/un-notarized macOS player (doc [docs/developer/MACOS_BUILD.md](docs/developer/MACOS_BUILD.md)). The Mono scripting backend
+cross-compiles `StandaloneOSX` on the Linux runner — no Mac hardware needed; UWB/CEF is gone and there are no native plugins, so there
+were no real blockers. Changes: `BuildScript.BuildMacOS()` (StandaloneOSX → `.app`); `release.yml` jobs (`build-player-mac` mirrors
+`build-player-linux`; `package-mac` zips the bundle, no Velopack/launcher = Phase 1); `publish-local-server.sh osx-x64` for the bundled
+singleplayer server. Also fixed a latent bug: GitHub artifacts strip the Unix `+x` bit, so **both** package jobs now `chmod +x` the player
+**and** the bundled server before packing. **First CI dry-run (#105)** then surfaced a real-Mac-only failure — `StandaloneOSX` requires a
+non-empty `NSMicrophoneUsageDescription` (voice chat uses the Microphone API), now set in `BuildPlayer()`; a slim dispatch-only
+`macos-build.yml` lets the Mac build be iterated without the full release pipeline.
+- **Open / next:** verified to *compile + package* (and the Mac build now passes CI); still needs a hands-on smoke test on a real Mac
+  (Singleplayer + bundled-server launch) before promoting past "experimental". Phase 2: signing/notarization, Velopack/auto-update, splash
+  launcher, native `osx-arm64`/Universal, itch.io osx channel.
+
+### ★ Factories, ruins, treasure chests & access-code claiming (2026-06-27) — ✅ SHIPPED in v0.6.0 (server 759 tests + local Unity build green)
 A four-part content feature, all deterministic from the world seed (doc [docs/developer/FACTORIES_RUINS_AND_CLAIMING.md](docs/developer/FACTORIES_RUINS_AND_CLAIMING.md)):
 - **Factories** — rare procedural industrial halls (`FactoryGenerator`) with **animated machines** (piston/rotor/conveyor via `FactoryView`, overlaid on the voxel housings) and a **production terminal**. Each factory offers only a seeded **roster** (1–4 of the factory recipes — never all). Factory recipes (`station: factory` in recipes.json) turn **cheaper/less-rare raw into the same output but more of it** in one step; excluded from disassembly. Protected until claimed. Stamper `StampFactories` (`PlaceFactories`), networking `FactoryList` (tag 172).
 - **Ruins** — randomised fallen-city ruins (`StampRuins`, `PlaceRuins`): height-graded collapse + a spared half-standing tower + rubble/overgrowth. Unprotected, mineable terrain (stamped once via `RuinsStamped`); not tracked as a structure.
@@ -79,7 +114,7 @@ A four-part content feature, all deterministic from the world seed (doc [docs/de
 - **Access-code claiming** — `access_code` item ("SPS-Code") from chests + a `traders` market recipe. Standing at a claimable factory terminal with a code and pressing E (`ClaimStructureIntent`, tag 173) spends it and makes the factory the player's **base**: owner + allies may rebuild it (`IsFactoryProtected` → owner/ally, like bases); the claim persists in `WorldMetadata.Claims` and re-applies on reload.
 - Tests: `FactoryStructureTests`, `FactoryClaimTests`, `FactoryCraftingTests`, `RuinsAndChestsTests`. Config flags default ON; clean-world container tests opt out.
 
-### ★ Bigger ships / stations / cities in the editors (2026-06-27) — ✅ server 747 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT committed)
+### ★ Bigger ships / stations / cities in the editors (2026-06-27) — ✅ SHIPPED in v0.6.0 (server 747 tests + local Unity build green)
 Editor build volumes raised: **ship 24×16×24 → 48×32×48**, **structure (station + settlement) 32×16×32 → 128×128×128**
 (`ShipEditor`/`StructureEditor.MaxW/MaxH/MaxL`). The old one-GameObject-per-cell rendering collapsed at that scale, so
 both editors now render placed cells through a new chunked combined-mesh renderer
@@ -96,7 +131,7 @@ floating over a dip — a real multi-level foundation. Space stations live in vo
 `LargeTemplate_HonorsFullDimensions_NoSizeCap`. Docs:
 [SHIP_TYPE_EDITOR.md](docs/developer/SHIP_TYPE_EDITOR.md) + [STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md).
 
-### ★ Planet view distance + on-foot smoothness (2026-06-27) — ✅ server 741 + client 86 tests green, local Unity build green, on branch `feat/planet-view-distance` (NOT merged)
+### ★ Planet view distance + on-foot smoothness (2026-06-27) — ✅ SHIPPED in v0.6.0 (server 741 + client 86 tests + local Unity build green)
 Planet surface felt close-horizoned and slow. **A1** default render distance 2→4 (~32→64 m; per-planet/weather haze still
 scales off it). **A2** the hard-coded per-tick chunk-stream budget is now `ServerConfig.ChunkStreamPerTick` (default 16,
 host-tunable) so the wider view fills faster — the true off-thread worker-pool gen was judged too risky to land blind (the
@@ -120,7 +155,7 @@ weather stay near & dense), so a clear world shows the farther terrain the large
 far-mesh/greedy LOD (render kept chunks cheaper / see beyond VD8) — high risk, in-editor iteration only. Plan:
 `plans/PLANET_VIEW_DISTANCE_AND_SMOOTHNESS_PLAN.md`.
 
-### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ data+tests green, NOT committed to main, content/data only (no Unity build)
+### ★ Fix titanium/carbide progression deadlock (2026-06-26) — ✅ SHIPPED in v0.6.0 (data+tests green; content/data only)
 Confirmed a pre-existing **hard survival deadlock**: the only Tier-2 drill (`titanium_drill`) required `carbide`, but carbide
 needs tungsten+platinum, whose ore is Tier-2 — minable only with the titanium_drill. A perfect circle, so the entire Tier-2
 economy (carbide tools, power_cell via cobalt, reactor_fuel via uranium, magnet/radar via neodymium, diamond/mining drills)
@@ -132,7 +167,7 @@ reachable via market/asteroid titanium → refinery → titanium_plate; carbide 
 `ToolTierProgressionTests` guards it (fixpoint: the first Tier-2 drill must be craftable without any Tier-2 mining). No
 wiki/manual change needed — the Codex Recipes/Tech chapters are data-driven and auto-reflect the new recipe.
 
-### ★ Refinery does more: Tier-2 metallurgy + efficiency smelts (2026-06-26) — ✅ data+tests green, NOT committed to main, client content-sync only (no Unity code build)
+### ★ Refinery does more: Tier-2 metallurgy + efficiency smelts (2026-06-26) — ✅ SHIPPED in v0.6.0 (data+tests green; client content-sync only)
 The Refinery held only 4 recipes while the always-available workshop held ~80, so the station felt pointless even though
 `titanium_plate` (refinery-only) is already the de-facto gate to the titanium age. Gave it a real role WITHOUT breaking
 crafting order: moved the smelting of the six metals whose ore needs a Tier-2 drill (cobalt, platinum, tungsten, uranium,
@@ -144,7 +179,7 @@ fixpoint over Hand+Workshop recipes (basic-drill ore only) asserts no pre-refine
 — the generic obtainability tests don't check station order. User manual + in-game wiki (DE+EN) updated to describe the
 workshop/refinery split (+ the transmuter, which they previously omitted; dropped the dead "machine room").
 
-### ★ Matter converter ("Transmuter"): craft scarce ore from spare terrain (2026-06-26) — ✅ data+server+assets+tests green (730), local Unity build green, committed (`79fa2c16`)
+### ★ Matter converter ("Transmuter"): craft scarce ore from spare terrain (2026-06-26) — ✅ SHIPPED in v0.6.0 (commit `79fa2c16`; 730 tests + local Unity build green)
 A new gated crafting station (placeable `matter_forge` block + `transmuter` ship module, unlocked by the `matter_forge`
 blueprint, prereq `refinery`) gives the effectively-infinite trash terrain (sand/dirt/mud/stone/basalt/ash) a sink:
 compact it into `matter_dust`, then synthesise it back into Tier-1 ore (Stage 1) or, via `matter_resynth`, select Tier-2
@@ -156,7 +191,7 @@ block tile is procedural from `color`). Also closed a side-effect: synthesised o
 ElevenLabs `matter_synth` SFX generated. Lore kept purely functional (not in VEGA canon). Doc:
 `docs/developer/MATTER_CONVERTER.md`.
 
-### ★ Cargo hold made actively usable: manual transfer + capacity + auto-stow (2026-06-25) — ✅ server+tests green (710), NEEDS Unity build
+### ★ Cargo hold made actively usable: manual transfer + capacity + auto-stow (2026-06-25) — ✅ SHIPPED in v0.5.0 (#62; server+tests green, 710)
 Before this the ship's cargo hold was functional but invisible in play: items only spilled into it when the 24-slot
 inventory was full, space salvage was the only thing that filled it, and the Cargo tab was read-only. Now you can move
 items between inventory and hold by hand, see capacity, and optionally auto-stow on boarding. Crafting already pooled
@@ -198,7 +233,7 @@ The remaining independent streams from the 2026-06-24 "modern game dev" gap anal
   physics — violates the lightweight-server rule); C "Weg B" (Input System / gamepad). A+C are Unity-side (a local
   Unity build + playtest is the final check beyond the .NET CI).
 
-### ★ Remove vestigial "block placer" item (2026-06-25) — ✅ code done + 717 tests green, NOT committed
+### ★ Remove vestigial "block placer" item (2026-06-25) — ✅ SHIPPED in v0.5.0 (#57; 717 tests green)
 Tester asked why the Block Placer exists when blocks are placed directly (select a block item → right-click). It's
 dead: `ToolKind.BlockPlacer` is never branched on anywhere, and the item has no `placesBlock`, so holding it does
 nothing — a leftover from an earlier "hold one placer tool" design. Removed it everywhere:
@@ -353,7 +388,7 @@ creature the ship parked on/over (or that a ship redesign grew over), leaving it
 - **P5** planet enemies (`MovePlanetEnemy`) get the same eject-if-inside + block-the-move-into-the-hull guard.
 - **P4** 2 new tests in `CreatureTests.cs` (park-over-creature sweep + per-tick eject). Suite **795 passing** (710 Dotnet + 85 ClientCore).
 
-### ★ Full Linux support (2026-06-23) — ✅ .NET build+scripts done; NEEDS Unity build+release CI
+### ★ Full Linux support (2026-06-23) — ✅ SHIPPED in v0.6.0 (#69, first community contribution; AppImage + Linux Portable + release CI)
 - **Cross-platform fixes:** `LocalServerLauncher.cs` + `ServerRoundtripPlayModeTests.cs` use `.exe` only on Windows;
   `BuildScript.cs` got `BuildLinux()` targeting `StandaloneLinux64`.
 - **Linux console launcher:** `src/BlocksBeyondTheStars.Launcher.Console/` — SkiaSharp-based splash renderer,

@@ -37,12 +37,20 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **In-Game Editors:** Design your own ships, stations, and cities block by block.
 *   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio.
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
+*   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
 
 ## 🎬 Watch the Let's Play
 
 See the game in action — a father-and-son playthrough (German audio):
 
 <a href="https://youtu.be/43oAgdaT1OE"><img src="https://img.youtube.com/vi/43oAgdaT1OE/maxresdefault.jpg" width="60%" alt="Watch the Blocks Beyond The Stars Let's Play on YouTube"></a>
+
+More on our YouTube channel:
+
+*   ▶️ [Let's Play & Tutorials playlist](https://www.youtube.com/playlist?list=PL2xTr_0UowpDXvcDWL7ZDp_Z8iXMo5KGk)
+*   📱 [Shorts playlist](https://www.youtube.com/playlist?list=PL2xTr_0UowpBt2mFd3wcRf43z39lRCEGH)
+
+👍 Liking the videos already helps a lot to make the game better known and grow our community!
 
 ## Screenshots
 
@@ -331,8 +339,10 @@ alliances**, shared bases and trading, planet **bases + teleporter pads**, mater
 colored-light building, in-game customization (avatar pixel-face editor, content/ship/station
 editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**,
 the VEGA ship-AI onboarding/advisor companion, world-creation options, and an optional LLM backend
-for dynamic dialogue/mission text. Self-hostable dedicated server.
-Currently **795 xUnit tests pass** (710 server/shared + 85 headless client<->server).
+for dynamic dialogue/mission text. Self-hostable dedicated server. **Native Windows and Linux**
+clients (no Wine/Proton; an experimental macOS build exists), and **opt-in automatic crash reporting**
+so problems get fixed faster.
+Currently **875 xUnit tests pass** (779 server/shared + 96 headless client<->server).
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
