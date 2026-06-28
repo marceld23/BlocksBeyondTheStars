@@ -217,6 +217,33 @@ public sealed class FeedbackUploaderTests : IDisposable
     }
 
     [Fact]
+    public void UploadRawJson_PostsBodyAsIs_AndReportsAccepted()
+    {
+        var uploader = new FeedbackUploader(Endpoint, "test-key");
+        string body = "{\"title\":\"Client crash\",\"description\":\"NullRef\",\"reportJson\":{\"kind\":\"crash\"}}";
+
+        var result = uploader.UploadRawJson(body);
+
+        Assert.True(result.Ok, $"expected success, got {result.StatusCode} {result.Error}");
+        Assert.Equal(201, result.StatusCode);
+        Assert.Equal("abc123", result.ReportId);
+        Assert.Equal("POST", _lastMethod);
+        Assert.Equal("test-key", _lastApiKey);
+        Assert.Equal(body, _lastBody); // sent verbatim — the spooled file IS the payload
+    }
+
+    [Fact]
+    public void UploadRawJson_NotConfigured_DoesNotSend()
+    {
+        var uploader = new FeedbackUploader(Endpoint, "");
+        var result = uploader.UploadRawJson("{\"description\":\"x\"}");
+
+        Assert.False(result.Ok);
+        Assert.Equal("not_configured", result.Error);
+        Assert.Equal(0, result.StatusCode);
+    }
+
+    [Fact]
     public void Upload_UnreachableEndpoint_FailsWithoutThrowing()
     {
         // Point at a port nothing is listening on.

@@ -72,7 +72,78 @@ if (config.EnableWebSocket)
 }
 
 var server = new GameServer(config, content, transport, repo, logger);
+
+// Last-resort crash capture. The per-tick Guards (GameServerResilience) already contain simulation faults;
+// these handlers catch what those can't see — exceptions on background threads / tasks, or anything that
+// still escapes the run loop. Each writes a durable, endpoint-independent crash report to disk (best effort,
+// never throws). We deliberately do NOT attempt an emergency SaveAll here: from an arbitrary thread mid-fault
+// the world state may be half-mutated, so persisting it could write corruption — the last autosave + the
+// report are the safer record.
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+{
+    try
+    {
+        var ex = e.ExceptionObject as Exception;
+        string? path = ex != null ? server.CrashWriter.Write("unhandled-exception", null, ex) : null;
+        logger.Error($"FATAL unhandled exception (terminating={e.IsTerminating}): {e.ExceptionObject}"
+            + (path != null ? $" — crash report written: {path}" : string.Empty));
+    }
+    catch
+    {
+        // never let the crash handler throw on the way down
+    }
+};
+
+TaskScheduler.UnobservedTaskException += (_, e) =>
+{
+    try
+    {
+        string? path = server.CrashWriter.Write("unobserved-task", null, e.Exception);
+        logger.Error($"Unobserved task exception (contained): {e.Exception}"
+            + (path != null ? $" — crash report written: {path}" : string.Empty));
+        e.SetObserved(); // we've logged + recorded it; don't let it escalate
+    }
+    catch
+    {
+        // best-effort
+    }
+};
+
 server.Start();
+
+// Automatic crash upload — opt-in. When config supplies an endpoint + key, the server sends queued reports
+// to the website: once now (catching crashes the previous run couldn't send, e.g. a fatal exit) and then
+// periodically in-session (driven by the tick, on a background thread so it never blocks simulation). When
+// unconfigured (the default) reports stay on disk for a manual send. The local files remain the source of
+// truth either way; a sent file is moved to crashreports/sent/, not deleted.
+var crashUploader = new CrashReportUploader(config.CrashReportEndpoint, config.CrashReportApiKey);
+int pendingCrashes = server.CrashWriter.CountPending();
+if (crashUploader.IsConfigured)
+{
+    server.CrashUploader = crashUploader;
+    if (pendingCrashes > 0)
+    {
+        var writer = server.CrashWriter;
+        logger.Info($"Uploading {pendingCrashes} queued crash report(s) to {config.CrashReportEndpoint}...");
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                int sent = writer.FlushPending(crashUploader);
+                logger.Info($"Crash report upload: {sent}/{pendingCrashes} sent; the rest stay queued for a later retry.");
+            }
+            catch
+            {
+                // best-effort startup catch-up
+            }
+        });
+    }
+}
+else if (pendingCrashes > 0)
+{
+    logger.Warn($"{pendingCrashes} unsent crash report(s) in {server.CrashWriter.DirectoryPath}. " +
+                "Attach them to a bug report, or set CrashReportEndpoint + CrashReportApiKey to upload them automatically.");
+}
 
 Console.CancelKeyPress += (_, e) =>
 {
