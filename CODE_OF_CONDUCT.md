@@ -13,6 +13,10 @@ That means:
   harassment, insults, or discrimination of any kind.
 - **Be patient and helpful.** Assume good intent, explain things kindly, and remember a
   lot of us are doing this in our spare time for fun.
+- **Keep it kid-friendly.** This is a family game and younger players are here too. No
+  swearing, slurs or mature content in chat, in the names you give players, bases, stations,
+  beacons or creatures, on signs or in builds. Server hosts may remove inappropriate content
+  and block players who break this.
 
 If someone is making the project a worse place — being rude, harassing others, or otherwise
 breaking the spirit above — please let us know.

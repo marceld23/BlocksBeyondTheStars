@@ -261,6 +261,10 @@ the hauler slow and heavy. Hull + shield are shown on the HUD; shields recharge,
   private** — only the owner and their allies can board them.
 - The **base core / station core** itself stays **owner-only** (an ally can't dissolve your base or rename your
   station). Alliances are pairwise (no named groups or roles).
+- **Family-friendly play:** this is a game for all ages, so keep radio chat and the names you give players,
+  bases, stations, beacons and creatures friendly. You can **mute** any player you don't want to hear, and
+  the host can turn **voice chat** off entirely. See the in-game Codex chapter **House Rules** for the full
+  list.
 
 ### Beam blocks (teleporter pads)
 - Craft a **beam block** (`beam_block`, blueprint-gated workshop recipe: titanium + cable + energy cell + crystal),

@@ -54,5 +54,13 @@
       "en": "<p>Scattered across some worlds are glowing <b>data cubes</b> — derelict storage terminals. Walk up to one and press <b>E</b> to extract its <b>data fragment</b> into your collection.</p><p>Not every world holds one, and a cube's fragment stays a surprise until you reach it. A recovered fragment is yours for good — open the <b>DataQubes</b> tab any time to run it. Your records are kept locally, just for you.</p>",
       "de": "<p>Über manche Welten verstreut leuchten <b>Datenwürfel</b> — verlassene Speicherterminals. Geh zu einem und drücke <b>E</b>, um sein <b>Datenfragment</b> in deine Sammlung zu bergen.</p><p>Nicht jede Welt birgt einen, und welches Fragment ein Würfel enthält, bleibt eine Überraschung, bis du ihn erreichst. Ein geborgenes Fragment gehört dir für immer — öffne jederzeit den <b>DataQubes</b>-Tab, um es auszuführen. Deine Bestwerte werden lokal nur für dich gespeichert.</p>"
     }
+  },
+  {
+    "id": "house-rules",
+    "title": { "en": "House Rules", "de": "Spielregeln" },
+    "body": {
+      "en": "<p><b>Blocks Beyond the Stars</b> is a family game — made so that kids can play safely. There is nothing here that isn't suitable for children.</p><p>When you play online with others, please keep it friendly:</p><ul><li>Be kind in <b>radio chat</b> — others may be younger than you.</li><li>No rude words in chat, or in the names you give players, bases, stations, beacons or creatures.</li><li>You can <b>mute</b> anyone you don't want to hear, and <b>voice chat</b> can be switched off completely.</li></ul><p>Server hosts may remove anything inappropriate and block players who break these rules.</p>",
+      "de": "<p><b>Blocks Beyond the Stars</b> ist ein Familienspiel — gemacht, damit Kinder sicher spielen können. Es gibt hier nichts, was nicht für Kinder geeignet ist.</p><p>Wenn du online mit anderen spielst, bleib bitte freundlich:</p><ul><li>Sei nett im <b>Funk-Chat</b> — andere sind vielleicht jünger als du.</li><li>Keine Schimpfwörter im Chat oder in den Namen, die du Spielern, Basen, Stationen, Funkbaken oder Kreaturen gibst.</li><li>Du kannst jeden <b>stummschalten</b>, den du nicht hören willst, und der <b>Sprachchat</b> lässt sich ganz ausschalten.</li></ul><p>Server-Betreiber dürfen unangemessene Inhalte entfernen und Spieler sperren, die gegen diese Regeln verstoßen.</p>"
+    }
   }
 ]
