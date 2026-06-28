@@ -23,6 +23,17 @@ Published GitHub Releases (tag = version single-source-of-truth; each tag push b
 trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
 Per-item detail lives in the dated work log below.
 
+- **v0.6.1** — 2026-06-28 — *experimental macOS, crash reporting & portal downloads.* **Experimental macOS
+  client** — a `StandaloneOSX` `.app` cross-built on the Linux runner (Mono backend, no Mac hardware), shipped
+  as a portable zip; unsigned/un-notarized and **not yet validated on real hardware** (help wanted: [#87](https://github.com/marceld23/BlocksBeyondTheStars/issues/87))
+  (#84, #105, #106, #107). **Automatic crash reporting** — hardened server tick + opt-in client/server crash
+  reports with a PII scrubber (#103). **One-click client downloads from the server portal** for Windows, Linux
+  and macOS — fetched at container start from the latest GitHub Release (#83 Linux, #107 macOS). **Release-CI
+  hygiene** — single shared version job, Docker decoupled from the Windows build, concurrency group, Windows
+  job-name fix, plus a slim `macos-build.yml` for targeted platform iteration (#105, #106). Dead arcade HTML/JS
+  removed + minigame/wiki data moved under `data/` (#104); Playtest issue template (#85); kid-friendly intent
+  signalled across README/CoC/Credits/Codex (#109); GitHub-stars community invite (#110). Native Linux is still
+  fresh too — testers welcome ([#86](https://github.com/marceld23/BlocksBeyondTheStars/issues/86)).
 - **v0.6.0** — 2026-06-27 — *factories, ruins & native Linux.* Claimable **factories** with animated machine
   bays + roster-limited production terminals, mineable **ruins** + standalone **treasure chests**, and **SPS
   access codes** that claim a factory as your own editable base (shared with allies); **native Linux client** —
@@ -93,7 +104,7 @@ startup retry. Payloads run through a shared `CrashPiiScrubber`. 779 server + 96
 A structured GitHub **Playtest report** issue form so community testers can file findings consistently
 (`.github/ISSUE_TEMPLATE`).
 
-### ★ Experimental macOS client build (2026-06-28) — ✅ MERGED to main (#84) + first Mac dry-run fixed (#105); still unsigned/experimental
+### ★ Experimental macOS client build (2026-06-28) — ✅ SHIPPED in v0.6.1 (#84/#105/#106/#107); CI-green E2E, still unsigned/experimental + unvalidated on real HW
 An unsigned/un-notarized macOS player (doc [docs/developer/MACOS_BUILD.md](docs/developer/MACOS_BUILD.md)). The Mono scripting backend
 cross-compiles `StandaloneOSX` on the Linux runner — no Mac hardware needed; UWB/CEF is gone and there are no native plugins, so there
 were no real blockers. Changes: `BuildScript.BuildMacOS()` (StandaloneOSX → `.app`); `release.yml` jobs (`build-player-mac` mirrors
@@ -102,9 +113,12 @@ singleplayer server. Also fixed a latent bug: GitHub artifacts strip the Unix `+
 **and** the bundled server before packing. **First CI dry-run (#105)** then surfaced a real-Mac-only failure — `StandaloneOSX` requires a
 non-empty `NSMicrophoneUsageDescription` (voice chat uses the Microphone API), now set in `BuildPlayer()`; a slim dispatch-only
 `macos-build.yml` lets the Mac build be iterated without the full release pipeline.
-- **Open / next:** verified to *compile + package* (and the Mac build now passes CI); still needs a hands-on smoke test on a real Mac
-  (Singleplayer + bundled-server launch) before promoting past "experimental". Phase 2: signing/notarization, Velopack/auto-update, splash
-  launcher, native `osx-arm64`/Universal, itch.io osx channel.
+The slim dispatch-only `macos-build.yml` dry-run is now **green end-to-end** (build → chmod → zip → artifact); the bundled osx-x64 server is
+confirmed inside the bundle at `Contents/Resources/Data/StreamingAssets/server/`. Portal serves it via `/download-mac` (#107). Release CI was
+also tidied (#106): one shared `version` job, Docker decoupled from the Windows build, concurrency group.
+- **Open / next:** CI proves *compile + package* only — still needs a hands-on **real-Mac smoke test** (Singleplayer + bundled-server launch)
+  before promoting past "experimental". Help wanted: [#87](https://github.com/marceld23/BlocksBeyondTheStars/issues/87). Phase 2:
+  signing/notarization, Velopack/auto-update, splash launcher, native `osx-arm64`/Universal, itch.io osx channel.
 
 ### ★ Factories, ruins, treasure chests & access-code claiming (2026-06-27) — ✅ SHIPPED in v0.6.0 (server 759 tests + local Unity build green)
 A four-part content feature, all deterministic from the world seed (doc [docs/developer/FACTORIES_RUINS_AND_CLAIMING.md](docs/developer/FACTORIES_RUINS_AND_CLAIMING.md)):
