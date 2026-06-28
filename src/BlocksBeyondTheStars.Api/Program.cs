@@ -94,6 +94,20 @@ app.MapMethods("/download-linux", new[] { "GET", "HEAD" }, () =>
         : Results.File(appImage, "application/octet-stream", Path.GetFileName(appImage), enableRangeProcessing: true);
 });
 
+// One-click macOS download: hand out the newest published macOS portable zip from <install>/clients.
+// Mirrors /download-linux. The glob is anchored on "osx" so it never picks the Windows/Linux *Portable.zip.
+// EXPERIMENTAL: the .app inside is unsigned/un-notarized (the portal page labels it as such). The Docker
+// entrypoint best-effort fetches this asset from the latest GitHub Release alongside the other clients.
+app.MapMethods("/download-mac", new[] { "GET", "HEAD" }, () =>
+{
+    var macZip = Directory.Exists(clientsDir)
+        ? Directory.GetFiles(clientsDir, "*osx*Portable.zip").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()
+        : null;
+    return macZip is null
+        ? Results.NotFound("No macOS client has been published yet. The latest GitHub Release ships a *-osx-*-Portable.zip; drop it into the clients folder.")
+        : Results.File(macZip, "application/octet-stream", Path.GetFileName(macZip), enableRangeProcessing: true);
+});
+
 app.MapGet("/api/status", (AdminService a) => Results.Json(a.GetStatus()));
 
 app.MapGet("/api/config", (AdminService a) => Results.Json(a.LoadConfig()));

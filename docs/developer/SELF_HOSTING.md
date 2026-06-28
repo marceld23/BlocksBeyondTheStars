@@ -149,7 +149,8 @@ Invoke-RestMethod http://127.0.0.1:31416/api/status -Headers @{ 'X-Admin-Passwor
 
 The host also serves a public-facing **`/portal`** landing page — a polished page with the
 JuMaVe Games + game logos, one-click client downloads (Windows `Setup.exe` at `/download`, Linux
-`.AppImage` at `/download-linux`) and the in-app update URL. See §9 for distributing the client this way.
+`.AppImage` at `/download-linux`, experimental macOS zip at `/download-mac`) and the in-app update URL.
+See §9 for distributing the client this way.
 
 ## 6. Backups & saves
 
@@ -241,7 +242,7 @@ That produces `BlocksBeyondTheStars-win-Setup.exe` plus an update feed
 
 **On the host:** start `BlocksBeyondTheStars.Api`, and (for LAN/internet reach) bind it beyond loopback —
 set `adminBindAddress` to the LAN IP or `0.0.0.0` **and** set an `adminPassword` first (§4). Only `/api/*`
-is password-gated; `/portal`, `/download`, `/download-linux` and `/updates` stay public so players can reach them.
+is password-gated; `/portal`, `/download`, `/download-linux`, `/download-mac` and `/updates` stay public so players can reach them.
 
 **Players:**
 
@@ -249,7 +250,9 @@ is password-gated; `/portal`, `/download`, `/download-linux` and `/updates` stay
 2. Click **Download the Windows client** (served from `/download`) and run the installer
    (per-user, no admin rights; an unsigned build shows a one-time SmartScreen "More info → Run anyway").
    On Linux, click **Download the Linux client (AppImage)** (served from `/download-linux`), then
-   `chmod +x` the `.AppImage` and run it.
+   `chmod +x` the `.AppImage` and run it. On macOS, click **Download the macOS client (experimental)**
+   (served from `/download-mac`), unzip it and clear the Gatekeeper quarantine
+   (`xattr -dr com.apple.quarantine BlocksBeyondTheStars.app`) since the build is unsigned.
 3. Launch the game and **Join** the server's IP on the gameplay port (default 31415).
 4. **Auto-update:** in **Settings → Software update**, paste the update URL shown on the portal
    (`http://<server-ip>:<adminPort>/updates`) and use **Check for updates**. Publishing a higher
@@ -346,17 +349,17 @@ docker run -d --name bbts \
 |---|---|
 | `/app/saves` | SQLite world + `backups/` + `logs/` **and `/bump` bug reports** (`<world>/bumps/`) |
 | `/app/config` | `server.json` (created on first run; env vars override it) |
-| `/app/clients` | the published clients the portal serves: Windows `*Setup.exe` at `/download` + Linux `*.AppImage` at `/download-linux` |
+| `/app/clients` | the published clients the portal serves: Windows `*Setup.exe` at `/download` + Linux `*.AppImage` at `/download-linux` + experimental macOS `*-osx-*-Portable.zip` at `/download-mac` |
 
 ### Client download from the container
 
-A Linux container can't *build* the clients, so on start the entrypoint pulls the newest `*Setup.exe`
-**and** `*.AppImage` from the latest GitHub Release into `/app/clients` (best-effort; each asset is
-fetched independently, so a missing one never blocks the other — controlled by `BBS_FETCH_CLIENT=1`/`0`
-and `BBS_CLIENT_REPO`). The portal (`/portal`) and the one-click `/download` (Windows) / `/download-linux`
-(Linux AppImage) routes then work as in §9. Without them the portal still runs and the download routes
-report "nothing published yet"; you can instead drop a `Setup.exe` / `.AppImage` into the `clients`
-volume yourself.
+A Linux container can't *build* the clients, so on start the entrypoint pulls the newest `*Setup.exe`,
+`*.AppImage` **and** the experimental `*-osx-*-Portable.zip` from the latest GitHub Release into
+`/app/clients` (best-effort; each asset is fetched independently, so a missing one never blocks the
+others — controlled by `BBS_FETCH_CLIENT=1`/`0` and `BBS_CLIENT_REPO`). The portal (`/portal`) and the
+one-click `/download` (Windows) / `/download-linux` (Linux AppImage) / `/download-mac` (macOS zip) routes
+then work as in §9. Without them the portal still runs and the download routes report "nothing published
+yet"; you can instead drop a `Setup.exe` / `.AppImage` / macOS zip into the `clients` volume yourself.
 
 ### Bug reports (`/bump`) in a container
 

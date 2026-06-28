@@ -7,8 +7,8 @@ namespace BlocksBeyondTheStars.Api;
 /// The public server portal landing page (anf_webclient.md §7): a polished page carrying the
 /// <b>JuMaVe Games</b> studio logo and the <b>Blocks Beyond the Stars</b> game logo, one-click
 /// client downloads (the Velopack <c>Setup.exe</c> served at <c>/download</c> for Windows, the
-/// <c>.AppImage</c> served at <c>/download-linux</c> for Linux) and the in-app update-feed URL
-/// players paste into the game.
+/// <c>.AppImage</c> at <c>/download-linux</c> for Linux, and the experimental macOS zip at
+/// <c>/download-mac</c>) and the in-app update-feed URL players paste into the game.
 ///
 /// Both logos are recreated as inline SVG/CSS so the page is fully self-contained — it needs no shipped
 /// art and renders on an offline LAN server. The studio emblem mirrors the in-game
@@ -120,6 +120,7 @@ a.ghost:hover{background:rgba(95,215,255,.1)}
  <div class='meta'>Server “__SERVER__” · World “__WORLD__” · native clients join on UDP __PORT__</div>
  <a class='btn primary' href='/download'>⬇&nbsp; Download the Windows client</a>
  <a class='btn ghost' href='/download-linux'>⬇&nbsp; Download the Linux client (AppImage)</a>
+ <a class='btn ghost' href='/download-mac'>⬇&nbsp; Download the macOS client (experimental)</a>
  <div class='hint'>Already installed? Updates come straight from this server — paste
   <code>__BASEURL__/updates</code> into <b>Settings → Software update</b> in the game.</div>
  <div class='foot'>JuMaVe Games · __SERVER__</div>
