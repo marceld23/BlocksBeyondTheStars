@@ -8,8 +8,9 @@
 > (UnityWebBrowser/CEF) entirely. The Codex/Wiki is now a native uGUI screen (`WikiUI.cs`) and the
 > Arcade runs a pure, engine-free C# host (`Client.Core/Minigames/MinigameHost`) that renders a
 > `Canvas2D` to a texture (`MinigameHostUI.cs`). No UWB/CEF packages, no `BBS_UWB` define and no
-> `LocalContentServer` are shipped anymore; `web/` is retained only as the authoring source the C#
-> games were ported from. Because the native UI carries no browser-engine dependency, it also builds
+> `LocalContentServer` are shipped anymore. The old `web/` authoring source has since been removed too
+> (the games are pure C# now); only the data files survive, at `data/minigames/catalog.json` and
+> `data/wiki/articles.json`. Because the native UI carries no browser-engine dependency, it also builds
 > cross-platform (Linux) and removes the WebGL blocker noted in *Consequences* below. This record is
 > kept for historical context; the decision it describes is no longer in effect.
 

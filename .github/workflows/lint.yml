@@ -1,5 +1,5 @@
 # Lightweight per-language syntax/lint checks for the non-.NET parts of the repo. The C# side is covered by
-# ci.yml (build with -warnaserror + dotnet format) and codeql.yml; this fills the gaps: Python, web JS, and
+# ci.yml (build with -warnaserror + dotnet format) and codeql.yml; this fills the gaps: Python and
 # the workflow YAML itself. Each job is independent and fast (seconds).
 #
 # Doc/screenshot-only PRs skip all three jobs via the shared detect-doc-only reusable workflow (same
@@ -34,31 +34,6 @@ jobs:
         with:
           args: "check"
           src: "ai-backend"
-
-  # Browser JavaScript for the in-game wiki + minigames. No bundler/module setup, so a zero-config
-  # `node --check` (parse-only) is the right "syntax check" — it catches parse errors without needing
-  # an ESLint config or browser-global allowlist. (Inline <script> in the minigame HTML is not covered.)
-  web-js:
-    name: web JS syntax (node --check)
-    needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '20'
-      - name: node --check every web/*.js
-        run: |
-          fail=0
-          while IFS= read -r -d '' f; do
-            if node --check "$f"; then
-              echo "ok   $f"
-            else
-              echo "FAIL $f"; fail=1
-            fi
-          done < <(find web -name '*.js' -print0)
-          exit $fail
 
   # Workflow YAML correctness. ShellCheck is disabled (-shellcheck=) so this stays a workflow-syntax check
   # and does not flag shell style in the existing run: scripts. Pinned for reproducibility.

@@ -123,8 +123,8 @@ problems are caught locally instead of at release time:
 3. **Format + lint** — match the PR checks so they don't fail in CI:
    - `dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes` (C# style; the `.slnf` excludes the
      Windows-only launcher so it runs on any OS). Drop `--verify-no-changes` to auto-fix.
-   - If you touched `ai-backend/`: `uvx ruff check ai-backend`. If you touched `web/`: `node --check` the
-     changed `.js`. If you touched `.github/workflows/`: `actionlint -shellcheck=`.
+   - If you touched `ai-backend/`: `uvx ruff check ai-backend`. If you touched `.github/workflows/`:
+     `actionlint -shellcheck=`.
 4. **Local Unity build when client (Unity) code changed** — **PR CI never builds Unity** (it is .NET-only);
    the Unity player is only built on a release tag / manual dispatch by
    [.github/workflows/release.yml](.github/workflows/release.yml). So whenever a `client/Assets/**` file
@@ -179,9 +179,9 @@ Apple code-signing/notarization work).
 - **Automated checks on every PR** (see [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md) §CI):
   `ci.yml` builds + tests with `-warnaserror` (Roslyn/Meziantou/VS.Threading analyzers as errors = the C#
   syntax/static-analysis gate) **and** runs `dotnet format --verify-no-changes` (C# style); `lint.yml` runs
-  ruff (Python), `node --check` (web JS) and actionlint (workflows); `codeql.yml` does security/quality
-  scanning. **All six are *required* status checks on `main`** — a PR can't merge until they pass — so run
-  the equivalents locally before pushing (next section).
+  ruff (Python) and actionlint (workflows); `codeql.yml` does security/quality scanning. **Four are
+  *required* status checks on `main`** (build+test, format, ruff, actionlint) — a PR can't merge until they
+  pass — so run the equivalents locally before pushing (next section).
 
 ## Git workflow (mandatory)
 
@@ -193,7 +193,7 @@ Every change ships through a **pull request**:
    `Co-Authored-By: Claude …` trailer.
 3. **Push the branch and open a PR** (`gh pr create` with a clear title + body). Never push to `main` directly.
 4. **Merge via the PR** once the required checks pass (`gh pr merge`). `main` requires 1 approval **and** the
-   six status checks (build+test, format, ruff, web-js, actionlint, CodeQL); an owner can `--admin`-override in
+   four status checks (build+test, format, ruff, actionlint); an owner can `--admin`-override in
    an emergency. Do not force-push or rewrite shared history on `main`.
 
 Other agents may share this clone, so **stage only your own files** (`git add <paths>` — never `git add -A`),

@@ -1,5 +1,5 @@
 {
-  "_comment": "Bundled data-fragment minigames. ORDER IS AUTHORITATIVE: a data cube's seed maps to a game by index (seed mod games.length). Append new games; reordering changes which cube yields which fragment. Add a game by dropping web/minigames/<key>/index.html (using ../_shared/framework.js) + an entry here, then run scripts/sync-client-libs.ps1.",
+  "_comment": "Bundled data-fragment minigames (native C#). ORDER IS AUTHORITATIVE and must match MinigameRegistry: a data cube's seed maps to a game by index (seed mod games.length). Append new games; reordering changes which cube yields which fragment. Add a game by implementing IMinigame in Client.Core/Minigames/Games + registering it in MinigameRegistry, then appending an entry here. See docs/developer/MINIGAMES_AND_WIKI.md.",
   "games": [
     { "key": "blockfall", "entry": "blockfall/index.html", "icon": "🧱",
       "title": { "en": "Blockfall", "de": "Blockfall" },

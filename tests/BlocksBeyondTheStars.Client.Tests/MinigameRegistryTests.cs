@@ -11,7 +11,7 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>Verifies the native minigame registry is self-consistent and, when the repo is present, stays in sync
-/// with <c>web/minigames/catalog.json</c> — whose order is authoritative for the data-cube → game mapping.</summary>
+/// with <c>data/minigames/catalog.json</c> — whose order is authoritative for the data-cube → game mapping.</summary>
 public sealed class MinigameRegistryTests
 {
     [Fact]
@@ -69,7 +69,7 @@ public sealed class MinigameRegistryTests
         var dir = new DirectoryInfo(System.AppContext.BaseDirectory);
         for (int up = 0; up < 12 && dir != null; up++, dir = dir.Parent)
         {
-            string candidate = Path.Combine(dir.FullName, "web", "minigames", "catalog.json");
+            string candidate = Path.Combine(dir.FullName, "data", "minigames", "catalog.json");
             if (File.Exists(candidate))
             {
                 return candidate;

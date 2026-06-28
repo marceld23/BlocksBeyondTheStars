@@ -12,8 +12,8 @@
 # `nondocs` stays empty; callers run unconditionally via `github.event_name != 'pull_request'`.
 #
 # IMPORTANT: this is the SINGLE SOURCE OF TRUTH for the doc/image skip list. To change what counts as
-# doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` and `web/**` are
-# deliberately NOT skipped: they feed the headless tests (e.g. the en/de locale-parity test).
+# doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` is
+# deliberately NOT skipped: it feeds the headless tests (e.g. the en/de locale-parity test).
 name: Detect doc-only changes
 
 on:
@@ -49,7 +49,7 @@ jobs:
             case "$f" in
               # Documentation
               *.md|docs/*|LICENSE*|NOTICES*|THIRD-PARTY*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md) ;;
-              # Images (screenshots, textures, icons) — none affect the .NET tests, ruff, web-js,
+              # Images (screenshots, textures, icons) — none affect the .NET tests, ruff,
               # actionlint or CodeQL analysis, so an image-only change is safe to skip everywhere.
               *.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.svg|*.ico) ;;
               *) nondocs=true; break ;;

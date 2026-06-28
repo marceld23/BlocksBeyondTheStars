@@ -188,7 +188,7 @@ public sealed partial class GameServer
         _minigameKeys = new List<string>();
         try
         {
-            var path = System.IO.Path.Combine(_config.DataDir, "..", "minigames", "catalog.json");
+            var path = System.IO.Path.Combine(_config.DataDir, "minigames", "catalog.json");
             if (System.IO.File.Exists(path))
             {
                 using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));

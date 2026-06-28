@@ -17,10 +17,10 @@
 # compiles, so the Unity client C# under client/Assets/ — which needs the Unity editor and isn't in any .csproj
 # we build — drops out of the C# scan. That trade is deliberate: the security-relevant code (GameServer,
 # Networking, Persistence, Api, Client.Core) is fully analysed, while the dropped Unity scripts are
-# MonoBehaviour rendering/UI with little security surface; their untrusted-input part (the wiki/minigames) is
-# JS and stays covered by the javascript-typescript analysis. The earlier buildless (build-mode: none) C# scan
+# MonoBehaviour rendering/UI with little security surface. The wiki/minigames untrusted-input parsing now
+# lives in native C# (Client.Core), which IS analysed by the csharp scan. The earlier buildless (build-mode: none) C# scan
 # left ~23% of calls unresolved (below CodeQL's 85% threshold → "low analysis quality"), risking false
-# positives / missed results. JS/TS, Python and Actions stay buildless (build-mode: none).
+# positives / missed results. Python and Actions stay buildless (build-mode: none).
 
 name: CodeQL
 
@@ -59,8 +59,6 @@ jobs:
         include:
           - language: csharp
             build-mode: manual
-          - language: javascript-typescript
-            build-mode: none
           - language: python
             build-mode: none
           - language: actions

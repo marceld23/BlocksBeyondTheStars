@@ -41,18 +41,11 @@ foreach ($p in $projects) {
 
 Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
 
-# Copy the data-driven content so the client can load definitions + locales at runtime.
+# Copy the data-driven content so the client can load definitions + locales at runtime. This also carries
+# the in-game wiki (data/wiki/articles.json) and arcade catalogue (data/minigames/catalog.json), both of
+# which the native UI reads from StreamingAssets. See docs/developer/MINIGAMES_AND_WIKI.md.
 Copy-Item (Join-Path $repo 'data/*') $streaming -Recurse -Force
-
-# Copy the embedded-browser web content (in-game wiki + arcade minigames) into StreamingAssets. Source of
-# truth is web/; StreamingAssets is generated (gitignored), like data/. See docs/developer/MINIGAMES_AND_WIKI.md.
-$streamingRoot = Join-Path $repo 'client/Assets/StreamingAssets'
-$web = Join-Path $repo 'web'
-if (Test-Path $web) {
-    Copy-Item (Join-Path $web '*') $streamingRoot -Recurse -Force
-}
 
 Write-Host "Synced libraries to $plugins" -ForegroundColor Green
 Write-Host "Synced content to $streaming" -ForegroundColor Green
-Write-Host "Synced web content (wiki + minigames) to $streamingRoot" -ForegroundColor Green
 Write-Host "Note: if Unity reports a duplicate of a System.* assembly it already ships, delete that DLL from Plugins." -ForegroundColor Yellow
