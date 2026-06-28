@@ -33,21 +33,28 @@ on:
 permissions:
   contents: write   # create the GitHub Release
 
+# Serialize release runs: a second tag push (or a manual dispatch landing on top of one) queues rather than
+# racing the first. We do NOT cancel-in-progress here (unlike ci.yml) — a half-published release is worse
+# than a slightly delayed one, so an in-flight run is allowed to finish.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-player:
-    name: Build Unity player (Linux)
+  # Single source of truth for the version, resolved ONCE and consumed by every build/package/docker job
+  # (so the resolve+validate logic is not copy-pasted per platform). A tag push (vX.Y.Z) defines the version
+  # for the whole build — in-game (Application.version), the launcher and the Velopack installers all derive
+  # from it. A manual workflow_dispatch run has no tag, so it builds a 0.1.0-dev test artifact (and never
+  # publishes). (Velopack requires packVersion >= 0.0.1, so the dev value can't be 0.0.0-*.) No checkout
+  # needed — it only reads GITHUB_REF, so this job is a few seconds.
+  version:
+    name: Resolve version
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.ver.outputs.version }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
-
-      # Version single source of truth: a tag push (vX.Y.Z) defines the version for the whole build —
-      # in-game (Application.version), the launcher and the Velopack installers all derive from it. A manual
-      # workflow_dispatch run has no tag, so it builds a 0.1.0-dev test artifact (and never publishes).
-      # (Velopack requires packVersion >= 0.0.1, so the dev value can't be 0.0.0-*.)
       - name: Resolve + validate version
-        id: ver
+        id: resolve
         shell: bash
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -61,6 +68,13 @@ jobs:
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Resolved build version: $v"
+
+  build-player:
+    name: Build Unity player (Windows)
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -144,7 +158,7 @@ jobs:
           # This makes Application.version in-game == the release version. BuildScript writes version.txt
           # from the resulting bundleVersion, which the guard checks.
           versioning: Custom
-          version: ${{ steps.ver.outputs.version }}
+          version: ${{ needs.version.outputs.version }}
           # BuildScript reads -buildOut and writes version.txt from the bundleVersion GameCI applied above.
           # allowDirtyBuild because the synced StreamingAssets/Plugins make the tree "dirty" for GameCI.
           customParameters: -buildOut /github/workspace/player
@@ -159,8 +173,8 @@ jobs:
         shell: bash
         run: |
           baked="$(cat player/version.txt)"
-          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
-          test "$baked" = "${{ steps.ver.outputs.version }}"
+          echo "Baked into player: '$baked' — expected: '${{ needs.version.outputs.version }}'"
+          test "$baked" = "${{ needs.version.outputs.version }}"
 
       - name: Upload player artifact
         uses: actions/upload-artifact@v6
@@ -170,27 +184,10 @@ jobs:
 
   build-player-linux:
     name: Build Unity player (Linux)
+    needs: version
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v5
-
-      - name: Resolve + validate version
-        id: ver
-        shell: bash
-        run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            v="${GITHUB_REF_NAME#v}"
-            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-              echo "::error::Tag '$GITHUB_REF_NAME' is not SemVer — expected vX.Y.Z (e.g. v0.3.0)."
-              exit 1
-            fi
-          else
-            v="0.1.0-dev"
-          fi
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "Resolved build version: $v"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -254,7 +251,7 @@ jobs:
           targetPlatform: StandaloneLinux64
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildLinux
           versioning: Custom
-          version: ${{ steps.ver.outputs.version }}
+          version: ${{ needs.version.outputs.version }}
           customParameters: -buildOut /github/workspace/player-linux
           allowDirtyBuild: true
 
@@ -265,8 +262,8 @@ jobs:
         shell: bash
         run: |
           baked="$(cat player-linux/version.txt)"
-          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
-          test "$baked" = "${{ steps.ver.outputs.version }}"
+          echo "Baked into player: '$baked' — expected: '${{ needs.version.outputs.version }}'"
+          test "$baked" = "${{ needs.version.outputs.version }}"
 
       # The "Free disk space" step above deletes /usr/share/dotnet to make room for the Unity image, so the
       # SDK is gone by now. Re-install it before publishing the launcher (cheap; the heavy build is done).
@@ -280,7 +277,7 @@ jobs:
           dotnet publish src/BlocksBeyondTheStars.Launcher.Console/BlocksBeyondTheStars.Launcher.Console.csproj \
             -c Release -r linux-x64 --self-contained true \
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:Version=${{ steps.ver.outputs.version }} \
+            -p:Version=${{ needs.version.outputs.version }} \
             -o artifacts/launcher-linux
           cp artifacts/launcher-linux/BlocksBeyondTheStars.Launcher.Console player-linux/
 
@@ -295,27 +292,10 @@ jobs:
   # bundle (Phase 1: zipped as-is, no Velopack, no splash launcher). Mirrors build-player-linux step-for-step.
   build-player-mac:
     name: Build Unity player (macOS)
+    needs: version
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v5
-
-      - name: Resolve + validate version
-        id: ver
-        shell: bash
-        run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            v="${GITHUB_REF_NAME#v}"
-            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-              echo "::error::Tag '$GITHUB_REF_NAME' is not SemVer — expected vX.Y.Z (e.g. v0.3.0)."
-              exit 1
-            fi
-          else
-            v="0.1.0-dev"
-          fi
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "Resolved build version: $v"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -379,7 +359,7 @@ jobs:
           targetPlatform: StandaloneOSX
           buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildMacOS
           versioning: Custom
-          version: ${{ steps.ver.outputs.version }}
+          version: ${{ needs.version.outputs.version }}
           customParameters: -buildOut /github/workspace/player-mac
           allowDirtyBuild: true
 
@@ -390,8 +370,8 @@ jobs:
         shell: bash
         run: |
           baked="$(cat player-mac/version.txt)"
-          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
-          test "$baked" = "${{ steps.ver.outputs.version }}"
+          echo "Baked into player: '$baked' — expected: '${{ needs.version.outputs.version }}'"
+          test "$baked" = "${{ needs.version.outputs.version }}"
 
       - name: Upload macOS player artifact
         uses: actions/upload-artifact@v6
@@ -402,7 +382,7 @@ jobs:
   # Linux packaging
   package-linux:
     name: Package + release (Linux)
-    needs: build-player-linux
+    needs: [version, build-player-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -441,7 +421,7 @@ jobs:
 
           vpk pack \
             --packId BlocksBeyondTheStars \
-            --packVersion ${{ needs.build-player-linux.outputs.version }} \
+            --packVersion ${{ needs.version.outputs.version }} \
             --packTitle 'Blocks Beyond the Stars' \
             --packAuthors 'JuMaVe Games' \
             --packDir client/Build/Linux \
@@ -470,7 +450,7 @@ jobs:
   # execute bits (artifacts strip them).
   package-mac:
     name: Package + release (macOS)
-    needs: build-player-mac
+    needs: [version, build-player-mac]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -495,7 +475,7 @@ jobs:
           OUT="artifacts/installer-mac"
           mkdir -p "$OUT"
           ( cd client/Build/macOS && \
-            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-osx-${{ needs.build-player-mac.outputs.version }}-Portable.zip" \
+            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-osx-${{ needs.version.outputs.version }}-Portable.zip" \
               "BlocksBeyondTheStars.app" )
 
       - name: Upload macOS installer artifact
@@ -512,12 +492,13 @@ jobs:
           generate_release_notes: false
 
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only
-  # needs the resolved version from build-player, NOT the Unity player, so it runs in parallel with package.
+  # needs the resolved version (from the lightweight `version` job, NOT the Unity player), so it starts
+  # immediately and runs fully in parallel with the player builds — no waiting on the ~13 min Unity build.
   # The image is PUSHED to GHCR only on a real tag (multi-arch, tagged with the version + `latest`); a manual
   # workflow_dispatch run just build-validates it — same publish gating as the GitHub Release / itch.io steps.
   docker:
     name: Dedicated-server image
-    needs: build-player
+    needs: version
     permissions:
       contents: read
       packages: write
@@ -525,13 +506,13 @@ jobs:
     with:
       push: ${{ startsWith(github.ref, 'refs/tags/') }}
       latest: ${{ startsWith(github.ref, 'refs/tags/') }}
-      tag: ${{ needs.build-player.outputs.version }}
+      tag: ${{ needs.version.outputs.version }}
       platforms: linux/amd64,linux/arm64
     secrets: inherit
 
   package:
     name: Package + release (Windows)
-    needs: build-player
+    needs: [version, build-player]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -548,7 +529,7 @@ jobs:
           dotnet publish src/BlocksBeyondTheStars.Launcher/BlocksBeyondTheStars.Launcher.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
-          -p:Version=${{ needs.build-player.outputs.version }}
+          -p:Version=${{ needs.version.outputs.version }}
           -o artifacts/launcher
 
       # Download the player into the layout publish-client-installer.ps1 expects (its default -BuildDir).
@@ -574,7 +555,7 @@ jobs:
       # the WiX MSI (machine-wide for IT/MDM), and a portable zip — plus the update feed (.nupkg/RELEASES).
       - name: Package installers (Setup.exe + MSI + Portable)
         shell: pwsh
-        run: ./scripts/publish-client-installer.ps1 -Version ${{ needs.build-player.outputs.version }} -Msi
+        run: ./scripts/publish-client-installer.ps1 -Version ${{ needs.version.outputs.version }} -Msi
 
       # Only a tag push can create a Release. A manual workflow_dispatch run still builds the installers
       # (verifiable from the run logs) but skips publishing.
@@ -592,7 +573,7 @@ jobs:
             Run the dedicated server (game server + admin/portal/download UI, optional AI backend) on any OS with Docker:
 
             ```bash
-            docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:${{ needs.build-player.outputs.version }}
+            docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:${{ needs.version.outputs.version }}
             # or the rolling tag:
             docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:latest
             ```
@@ -613,4 +594,4 @@ jobs:
         shell: pwsh
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: ./scripts/publish-itch.ps1 -Version ${{ needs.build-player.outputs.version }}
+        run: ./scripts/publish-itch.ps1 -Version ${{ needs.version.outputs.version }}
