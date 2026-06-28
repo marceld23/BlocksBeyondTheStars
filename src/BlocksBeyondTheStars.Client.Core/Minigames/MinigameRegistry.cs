@@ -9,7 +9,7 @@ using BlocksBeyondTheStars.Client.Minigames.Games;
 namespace BlocksBeyondTheStars.Client.Minigames
 {
     /// <summary>
-    /// The catalogue of native minigames, keyed the same as <c>web/minigames/catalog.json</c>. The ORDER is
+    /// The catalogue of native minigames, keyed the same as <c>data/minigames/catalog.json</c>. The ORDER is
     /// authoritative: a data cube's seed maps to a game by index (seed mod count), so this list must stay in the
     /// same order as the JSON catalogue — append new games, never reorder. The Unity Arcade host resolves a key
     /// to a fresh <see cref="IMinigame"/> through <see cref="Create"/>; <see cref="IndexOf"/> backs the cube→game

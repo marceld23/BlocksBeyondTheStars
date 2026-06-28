@@ -33,16 +33,10 @@ for p in "${PROJECTS[@]}"; do
     find "$out" -name '*.dll' -exec cp -f {} "$PLUGINS/" \;
 done
 
-# Copy data-driven content into StreamingAssets.
+# Copy data-driven content into StreamingAssets. This also carries the in-game wiki
+# (data/wiki/articles.json) and arcade catalogue (data/minigames/catalog.json), both read by the native UI.
 cp -r "$REPO/data/"* "$STREAMING/"
-
-# Copy embedded-browser web content (wiki + minigames) into StreamingAssets root.
-WEB="$REPO/web"
-if [ -d "$WEB" ]; then
-    cp -r "$WEB/"* "$REPO/client/Assets/StreamingAssets/"
-fi
 
 echo "Synced libraries to $PLUGINS"
 echo "Synced content to $STREAMING"
-echo "Synced web content (wiki + minigames) to $REPO/client/Assets/StreamingAssets"
 echo "Note: if Unity reports a duplicate of a System.* assembly it already ships, delete that DLL from Plugins."

@@ -427,7 +427,7 @@ two headless suites directly — `tests/BlocksBeyondTheStars.Tests` (Dotnet) + `
 (ClientCore) — the same default set as `run-tests.ps1`.
 - **Targets the test projects, not the `.sln`** — the solution's WinForms launcher (`net8.0-windows`) can't build on Linux.
 - **Warnings fail the PR** via `-warnaserror` (local build keeps `TreatWarningsAsErrors=false`; tree is currently 0-warning). `.trx` results uploaded as an artifact.
-- **Docs-only PRs skip the build but stay green** — a `changes` job (`dorny/paths-filter`) gates the `build-test` job; on a docs-only PR (`**/*.md`, `docs/**`, licences, issue/PR templates) `build-test` is skipped and a skipped *required* job counts as a pass, so it never blocks. `data/**`/`web/**` count as code (they feed tests). This makes the check **safe to mark required** (unlike a plain `paths-ignore` skip, which would stall a required check).
+- **Docs-only PRs skip the build but stay green** — a `changes` job (`dorny/paths-filter`) gates the `build-test` job; on a docs-only PR (`**/*.md`, `docs/**`, licences, issue/PR templates) `build-test` is skipped and a skipped *required* job counts as a pass, so it never blocks. `data/**` counts as code (it feeds tests). This makes the check **safe to mark required** (unlike a plain `paths-ignore` skip, which would stall a required check).
 - **Unity tiers (`UnityEdit`/`UnityPlay`) stay local** (need the Editor) — run `./scripts/run-tests.ps1 -Suites All` before client-affecting changes.
 - **Follow-up (manual, repo settings):** mark **`Build + test (.NET, headless)`** as a required status check in `main` branch protection (the `Detect code changes` helper does NOT need to be required). Docs: [DEVELOPER.md](docs/developer/DEVELOPER.md) §Continuous integration, [CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -1471,6 +1471,13 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
   packages + the `BBS_UWB` define are gone; `BuildScript.BuildLinux` added. 80 headless tests; Windows build
   green; playtested. **Remaining:** macOS runner + notarization (Linux CI packaging done in PR — linux-x64
   server bundle, Velopack AppImage + portable zip, release.yml jobs).
+- **✅ Dead web/ source removed (2026-06-28):** after the native rewrite the HTML/JS in `web/` was dead. Deleted
+  the 20 `index.html` games + `_shared/` framework + `web/wiki/{index,wiki.css,wiki.js}`. The only live data
+  files moved into the content tree: `web/minigames/catalog.json` → `data/minigames/catalog.json`,
+  `web/wiki/articles.json` → `data/wiki/articles.json` (client StreamingAssets paths unchanged; `data/` is
+  synced + bundled into the server build). Side fix: the server now resolves `<DataDir>/minigames/catalog.json`
+  (was `<DataDir>/../minigames/...`, which was missing on a dedicated server). Dropped the now-empty `web JS`
+  lint job + the `javascript-typescript` CodeQL language (no JS left in the repo).
 
 ## ▶ Open backlog — priority order (updated 2026-06-07)
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining

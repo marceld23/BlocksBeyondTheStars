@@ -73,7 +73,7 @@ These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. T
   `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy `build-test` and `format` jobs are
   skipped via their `if:`. The workflow still **runs** (so the checks always report), and a *skipped* required
   job counts as a pass — so the gates stay green on a docs PR instead of stalling. Any code/content file makes
-  it build for real; `data/**` and `web/**` count as code (they feed tests, e.g. the en/de locale-parity test).
+  it build for real; `data/**` counts as code (it feeds tests, e.g. the en/de locale-parity test).
   (The detection is an explicit `case` match, not `dorny/paths-filter` — that action's `some`-glob semantics
   made a `**/*` + `!doc` list evaluate true for every diff, so docs PRs never actually skipped.)
 
@@ -88,8 +88,8 @@ The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
 > **Required status checks on `main`** (branch protection): `Build + test (.NET, headless)`,
-> `Format (dotnet format)`, `ruff (Python ai-backend)`, `web JS syntax (node --check)`, `actionlint (workflows)`
-> and `CodeQL` — all six must pass before merge. The `Detect code changes` helper is intentionally **not**
+> `Format (dotnet format)`, `ruff (Python ai-backend)`, `actionlint (workflows)`
+> and `CodeQL` — all five must pass before merge. The `Detect code changes` helper is intentionally **not**
 > required (it's an always-skippable gate; only require jobs that always report). `strict` is off (no forced
 > rebase) and `enforce_admins` is off (an owner can still `gh pr merge --admin` in an emergency).
 
@@ -105,10 +105,9 @@ Beyond build+test, three more gates run on PRs:
   (`end_of_line = lf`) agree; a CRLF setting would fail it on every fresh checkout. Gated by the same `changes`
   job, so docs-only PRs skip it. Run `dotnet format BlocksBeyondTheStars.CI.slnf` to auto-fix before pushing.
 - **[`lint.yml`](../../.github/workflows/lint.yml)** — the non-.NET languages: **ruff** for the Python
-  `ai-backend`, **`node --check`** (parse-only, zero-config) for the browser JS under `web/`, and
-  **actionlint** (ShellCheck disabled → pure workflow-syntax) for the workflow YAML.
+  `ai-backend`, and **actionlint** (ShellCheck disabled → pure workflow-syntax) for the workflow YAML.
 - **[`codeql.yml`](../../.github/workflows/codeql.yml)** — GitHub CodeQL security + quality scanning for
-  C#, JavaScript/TypeScript, Python and Actions. C# uses `build-mode: none` (buildless), so it needs no Unity
+  C#, Python and Actions. C# uses `build-mode: none` (buildless), so it needs no Unity
   and also covers the Unity client C# under `client/Assets/` that the .NET build never sees. Findings appear in
   **Security → Code scanning**. This is the *advanced setup* (a committed workflow) rather than the API default
   setup, because the workflow's `GITHUB_TOKEN` already has `security-events: write` (the API PUT needs a PAT).
@@ -128,7 +127,6 @@ Run the equivalents locally before pushing (mirrors [AGENTS.md](../../AGENTS.md)
 ```powershell
 dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes                            # C# style/format
 uvx ruff check ai-backend                                                                # Python (uv is a project dep)
-Get-ChildItem web -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }     # web JS syntax
 ```
 
 **All of these are required status checks** on `main` (see the list above), so every PR must pass build+test,
