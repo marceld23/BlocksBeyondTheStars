@@ -25,6 +25,17 @@ public static class BugReportPaths
             : perWorldFallback;
     }
 
+    /// <summary>Resolves the directory crash reports should be written to. Mirrors <see cref="Resolve"/> but
+    /// targets <c>&lt;repoRoot&gt;/bugreports/crashes/</c> in a dev checkout (so contained tick faults and
+    /// process crashes land next to the source), falling back to the per-world directory in an installed build.</summary>
+    public static string ResolveCrashes(string perWorldFallback, string? startDirectory = null)
+    {
+        var repoRoot = FindRepositoryRoot(startDirectory ?? System.AppContext.BaseDirectory);
+        return repoRoot != null
+            ? Path.Combine(repoRoot, "bugreports", "crashes")
+            : perWorldFallback;
+    }
+
     /// <summary>Walks up from <paramref name="startDirectory"/> looking for the repository root — the nearest
     /// ancestor that contains a <c>.git</c> entry (a <c>BlocksBeyondTheStars.sln</c> is accepted as a secondary
     /// marker). Returns null when none is found within a bounded number of levels.</summary>

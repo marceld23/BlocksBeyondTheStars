@@ -162,6 +162,56 @@ namespace BlocksBeyondTheStars.Client.Feedback
             return result;
         }
 
+        /// <summary>Posts an already-serialized report body as-is — used to retry a crash report that was spooled
+        /// to disk verbatim (the file IS the payload), so no re-serialization can drift from what was stored.
+        /// Same endpoint, header and never-throws contract as <see cref="Upload"/>.</summary>
+        public FeedbackUploadResult UploadRawJson(string json)
+        {
+            var result = new FeedbackUploadResult();
+
+            if (!IsConfigured)
+            {
+                result.Error = "not_configured";
+                return result;
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                result.Error = "empty_body";
+                return result;
+            }
+
+            try
+            {
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint) { Content = content };
+                request.Headers.TryAddWithoutValidation(ApiKeyHeader, _apiKey);
+
+#pragma warning disable VSTHRD002 // Runs on a background uploader thread (no SynchronizationContext) — cannot deadlock.
+                using var response = _http.SendAsync(request).GetAwaiter().GetResult();
+                result.StatusCode = (int)response.StatusCode;
+                result.Ok = response.IsSuccessStatusCode;
+
+                string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+                if (result.Ok)
+                {
+                    result.ReportId = TryReadReportId(body);
+                }
+                else
+                {
+                    result.Error = "http_" + result.StatusCode;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Ok = false;
+                result.Error = ex.GetType().Name;
+            }
+
+            return result;
+        }
+
         /// <summary>Pulls <c>bugReportId</c> out of the backend's JSON response, tolerating any shape.</summary>
         private static string TryReadReportId(string body)
         {

@@ -63,6 +63,12 @@ namespace BlocksBeyondTheStars.Client
         {
             MigrateRenamedPersistentData();
             Settings = ClientSettings.Load();
+
+            // Install the global crash reporter early (on its own DontDestroyOnLoad object) so unhandled client
+            // exceptions are captured app-wide and reported automatically — see CrashReporter. AddComponent runs
+            // its Awake (hooks the log callback) synchronously; we pass Settings right after for the report id.
+            var crashGo = new GameObject("CrashReporter");
+            crashGo.AddComponent<CrashReporter>().Settings = Settings;
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
             Settings.Apply();
             LoadLocalizer();

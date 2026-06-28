@@ -77,6 +77,16 @@ public sealed class ServerConfig
     /// <summary>Base URL of the optional Python AI backend (used when <see cref="AiLevel"/> is not Off).</summary>
     public string AiBackendUrl { get; set; } = "http://127.0.0.1:8077";
 
+    /// <summary>Endpoint the server POSTs automatic crash reports to — the website's bug-report function, shared
+    /// with player feedback + client crashes (server reports are shaped to the same contract). Uploading stays
+    /// OFF until <see cref="CrashReportApiKey"/> is also set, so a self-hosted server never phones home unless
+    /// its operator opts in; reports are written to the local <c>crashreports/</c> folder regardless.</summary>
+    public string CrashReportEndpoint { get; set; } = "https://www.blocksbeyondthestars.com/_functions/bugreport";
+
+    /// <summary>Spam-gate key sent with an automatic crash report (the <c>x-bugreport-key</c> header). Empty
+    /// (the default) leaves crash uploading disabled regardless of the endpoint — official builds inject it.</summary>
+    public string CrashReportApiKey { get; set; } = string.Empty;
+
     /// <summary>Opt-in live voice chat. When false (the default on dedicated servers) the server rejects/ignores
     /// voice frames and tells clients voice is unavailable; text chat is unaffected. Voice is relayed live and
     /// never recorded. The bundled singleplayer/host launcher may turn this on for local co-op.</summary>
@@ -452,6 +462,8 @@ public sealed class ServerConfig
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
         if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
         if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
+        if (Env("BBS_CRASH_REPORT_ENDPOINT") is { } crashUrl) { CrashReportEndpoint = crashUrl; applied.Add("BBS_CRASH_REPORT_ENDPOINT"); }
+        if (Env("BBS_CRASH_REPORT_KEY") is { } crashKey) { CrashReportApiKey = crashKey; applied.Add("BBS_CRASH_REPORT_KEY"); }
         if (Env("BBS_VOICE") is { } voiceStr && bool.TryParse(voiceStr, out var voice)) { VoiceChatEnabled = voice; applied.Add("BBS_VOICE"); }
 
         return applied;

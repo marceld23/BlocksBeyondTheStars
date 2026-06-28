@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Reflection;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -48,6 +49,23 @@ public sealed partial class GameServer
     private readonly IWorldRepository _repo;
     private readonly IGameLogger _log;
     private readonly IAiMissionProvider _ai;
+
+    private CrashReportWriter? _crashWriter;
+
+    /// <summary>The durable, endpoint-independent sink for contained tick faults and process-wide crashes.
+    /// Lazily created (after <see cref="Start"/> has resolved the world directory) and shared with the host's
+    /// <c>AppDomain</c>/<c>TaskScheduler</c> handlers so every server fault is written to one place.</summary>
+    public CrashReportWriter CrashWriter => _crashWriter ??= new CrashReportWriter(
+        BugReportPaths.ResolveCrashes(Path.Combine(_repo.WorldDirectory, "crashes")),
+        _config.WorldName,
+        ServerVersionString);
+
+    /// <summary>Build string baked into each crash report (informational version if the build set one, else
+    /// the assembly version) so a report identifies the binary that produced it.</summary>
+    private static string ServerVersionString =>
+        typeof(GameServer).Assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(GameServer).Assembly.GetName().Version?.ToString()
+        ?? "unknown";
 
     private readonly Dictionary<int, PlayerSession> _sessions = new();
 
@@ -699,7 +717,18 @@ public sealed partial class GameServer
                 double dt = now - last;
                 last = now;
 
-                Tick(dt);
+                // Backstop: the per-system Guards inside Tick contain the simulation, but anything OUTSIDE
+                // them (transport.Poll, the world-loop scaffolding, an autosave path) must not be able to
+                // crash the loop either — a crash here would drop every player AND skip the shutdown save
+                // below. Contain it, log it (throttled) and keep the loop alive.
+                try
+                {
+                    Tick(dt);
+                }
+                catch (Exception ex)
+                {
+                    RecordTickFault("Tick", ex);
+                }
 
                 double sleep = tickSeconds - (sw.Elapsed.TotalSeconds - now);
                 if (sleep > 0)
@@ -754,7 +783,7 @@ public sealed partial class GameServer
     public void Tick(double deltaSeconds)
     {
         _transport.Poll();
-        TickSpace(deltaSeconds); // space instances are keyed by location and handle their own players
+        Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
         // weather/presence/chunk-streaming only touch that world's players. With a single occupied world
@@ -782,40 +811,47 @@ public sealed partial class GameServer
                 continue;
             }
 
-            TickEnvironment(deltaSeconds);
-            TickEnemies(deltaSeconds);
-            TickPresence(deltaSeconds);
-            TickFluids(deltaSeconds);
-            TickFire(deltaSeconds);
-            TickWeather(deltaSeconds);
-            TickFlora(deltaSeconds);
-            TickCreatures(deltaSeconds);
-            TickNpcs(deltaSeconds);
-            TickLandedTraders(deltaSeconds); // P3: materialize/lift-off a peaceful trader parked on this surface
-            TickDoors(deltaSeconds);
-            TickVoidRescue(deltaSeconds);
-            TickShipAi(deltaSeconds); // VEGA advisor hints + memory-fragment redemption
-            StreamChunks();
+            // Each simulation system is contained on its own (see GameServerResilience.Guard): a system
+            // that throws on edge-case data is logged + skipped for this tick, while every OTHER system in
+            // this world — and every other occupied world — keeps simulating. A throw here can never reach
+            // Run() and crash the process.
+            Guard("TickEnvironment", deltaSeconds, TickEnvironment);
+            Guard("TickEnemies", deltaSeconds, TickEnemies);
+            Guard("TickPresence", deltaSeconds, TickPresence);
+            Guard("TickFluids", deltaSeconds, TickFluids);
+            Guard("TickFire", deltaSeconds, TickFire);
+            Guard("TickWeather", deltaSeconds, TickWeather);
+            Guard("TickFlora", deltaSeconds, TickFlora);
+            Guard("TickCreatures", deltaSeconds, TickCreatures);
+            Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
+            Guard("TickDoors", deltaSeconds, TickDoors);
+            Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
+            Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
+            Guard("StreamChunks", StreamChunks);
             if (sweepDue)
             {
-                SweepFarChunks();
+                Guard("SweepFarChunks", SweepFarChunks);
             }
         }
 
-        SampleHistories(deltaSeconds);
-        SweepExpiredLandedTraders(); // P3: free pads of traders whose dwell ended on bodies nobody is on
-        TickGreetings(); // push any LLM NPC greetings finished off-thread (item 15)
-        TickMissionTexts(); // push mission-list refreshes when L3 board texts arrive
-        TickVegaBanter(); // push VEGA's LLM banter lines finished off-thread
+        Guard("SampleHistories", deltaSeconds, SampleHistories);
+        Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
+        Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
+        Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
+        Guard("TickVegaBanter", TickVegaBanter); // push VEGA's LLM banter lines finished off-thread
 
-        AccumulatePlaytime(deltaSeconds);
+        Guard("AccumulatePlaytime", deltaSeconds, AccumulatePlaytime);
+        Guard("CrashReportFlush", deltaSeconds, MaybeFlushCrashReports); // best-effort background upload of queued reports
 
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
         {
             _sinceAutoSave = 0;
-            SaveAll();
-            _log.Info("Autosave complete.");
+            if (Guard("Autosave", SaveAll))
+            {
+                _log.Info("Autosave complete.");
+            }
         }
     }
 
