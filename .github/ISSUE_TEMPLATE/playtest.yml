@@ -1,0 +1,56 @@
+name: "🎮 Playtest report"
+description: Share how a build ran for you — no coding needed.
+labels: ["playtest"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us test! Just download a build, play for a bit, and tell us how it went.
+        Even "it just worked" is a useful report. Please search [existing issues](../) first.
+        Tip: while playing you can press **F1** to send us in-game feedback with a screenshot.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux (AppImage)
+        - macOS (experimental)
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS / distro / hardware
+      description: e.g. "Ubuntu 24.04, Steam Deck, macOS 14 (Apple Silicon)"
+    validations:
+      required: false
+  - type: textarea
+    id: checklist
+    attributes:
+      label: What worked / what didn't
+      description: Tick what you got through. Anything that broke, note where.
+      value: |
+        - [ ] The game launches (splash → menu)
+        - [ ] A new singleplayer world loads
+        - [ ] I can move, mine and place blocks
+        - [ ] I can craft something
+        - [ ] I can fly the ship and land on a planet
+        - [ ] I could connect to / host a multiplayer world
+        - [ ] The game closes cleanly
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      description: Shown in the main menu / Credits screen.
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Screenshots, framerate, weird visuals, log snippets — all welcome.
+    validations:
+      required: false
