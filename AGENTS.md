@@ -132,6 +132,13 @@ problems are caught locally instead of at release time:
    `CS0246` "works in the Editor, broken in the build" trap) **and** surfaces generated/synced files that
    must be committed (synced libs under `client/Assets/.../Plugins`, `.meta` files, etc.). Pure
    server/shared/docs changes don't need it.
+   - **Platform-define gotcha (especially WebGL):** code behind `#if !UNITY_EDITOR` still compiles for
+     *every* player target, including WebGL. But the WebGL build ships **no desktop-only plugin DLLs** — its
+     CI job skips `sync-velopack-libs` and strips the bundled native server — so referencing e.g. `Velopack`
+     there fails the WebGL script compile with `CS0246 'Velopack'`. Guard any desktop-only dependency on
+     `!UNITY_EDITOR && !UNITY_WEBGL` (and take the Editor stub branch on `UNITY_EDITOR || UNITY_WEBGL`); a
+     browser build has no installer/auto-updater anyway. The Editor compiling fine proves nothing about WebGL —
+     a local `-buildTarget WebGL` build (or the `webgl-only.yml` dispatch) is the only real check.
 
 ## Releases & versioning
 
@@ -153,7 +160,11 @@ in GHCR), so the published release notes are prepended with its `docker pull` co
 dispatch (never `pull_request`), so the Unity license secrets (`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD`)
 are safe in a public repo. A manual *Run workflow* dispatch builds + packages a `0.1.0-dev` test artifact and
 build-validates the image, but publishes nothing (no Release, no itch.io push, no GHCR push). `docker.yml` can
-also be run on its own from the Actions tab to build/push the image ad-hoc.
+also be run on its own from the Actions tab to build/push the image ad-hoc. The release also builds an
+**(experimental) WebGL browser player**; if only that asset needs (re)building after a fix — without
+rebuilding the desktop installers or touching the release notes — dispatch
+[.github/workflows/webgl-only.yml](.github/workflows/webgl-only.yml) (input `release_tag`), which builds
+WebGL alone and attaches the zip to the existing release.
 
 **The git tag is the single source of truth for the version.** It flows into GameCI `versioning: Custom` →
 `PlayerSettings.bundleVersion`, so the in-game UI (`AppShell.Version` is a property `=> Application.version`,
