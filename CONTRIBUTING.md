@@ -90,6 +90,27 @@ consoles.
 **CLAassistant** bot comments with a link; you sign in with your GitHub account, accept, and
 your PR is unblocked. No paperwork, no email.
 
+## Hosting & publishing forks
+
+Because the game is open source under the **[AGPL-3.0](LICENSE)**, you are very welcome to
+run, fork, and host your own builds — including public web deployments (Glitch, itch.io, your
+own site, and so on). That's genuinely encouraged: more places to play means more people
+discovering the project. 🎉
+
+We only ask for two things so players can tell community builds apart from official releases:
+
+1. **Mark it as an unofficial fork / community build.** If you host or publish the game,
+   please make it clearly recognizable as a fork and not an official release. (AGPL-3.0 §7(c)
+   expressly allows requiring that modified or republished versions be marked as different from
+   the original — so this is in the spirit of the license, not an extra restriction on the code.)
+2. **Official branding needs maintainer sign-off.** Using the project **name, logo, store
+   listings, or official artwork** to present something *as* the official version requires prior
+   approval from the maintainers. This is a **trademark** matter, which is separate from the
+   code license — the AGPL covers the code and grants no rights in the project's name or branding.
+
+None of this limits your AGPL rights to the code itself. And if you'd like your build to become
+an official channel, please open an issue — we would much rather collaborate than say no. 🙂
+
 ## Questions
 
 Not sure where to start, or whether an idea fits? Open an issue and ask — we are happy to help.
