@@ -124,42 +124,71 @@ public sealed partial class GameServer
         new(1, 0, 0), new(-1, 0, 0), new(0, 0, 1), new(0, 0, -1),
     };
 
-    /// <summary>True if the cell holds a solid (collision) block — confirms flora has real ground/walls
-    /// backing it rather than open space.</summary>
-    private bool IsSolidCell(Vector3i p)
-    {
-        var b = _world.GetBlock(p);
-        return !b.IsAir && (_world.Definition(b)?.Solid ?? false);
-    }
+    // Cap on the void-enclosure flood-fill: a plant boxed in by this many reachable floor cells without finding
+    // an open drop is treated as enclosed. Far larger than any single station room, so real interiors always pass.
+    private const int FloraEnclosureFloodBudget = 512;
 
-    /// <summary>On a void world (a space station floating in the void) flora may only sit fully INSIDE the hull:
-    /// a solid block directly below AND no horizontal side opening onto floorless space. Otherwise the billboard
-    /// plant (rendered with no opaque face and no collider) shows the void behind it and lets the player walk
-    /// through it out into space. On normal worlds terrain always backs the plant, so this is a no-op there.</summary>
-    private bool IsFloraEnclosedForVoidWorld(Vector3i pos)
+    /// <summary>Core void-enclosure test, shared by live placement and the void-world stamp paths. Returns true if
+    /// the flora cell is NOT fully enclosed — i.e. a billboard plant there would show the void behind it and let the
+    /// player walk out into space. <paramref name="get"/> reads the block id at a cell (0 = empty) over whichever
+    /// space is being checked (the live world, or a structure's own cell map at stamp time).
+    ///
+    /// A flora cell is exposed when either the floor directly under it is not solid, OR a bounded flood-fill of the
+    /// walkable space at foot level (stepping through non-solid cells) reaches a cell with nothing solid beneath it
+    /// — a drop the player would fall through into the void. The flood-fill (rather than the old single-neighbour
+    /// check) also catches a plant standing one or more cells in from an open ledge, which the one-cell test missed.</summary>
+    private bool FloraCellOpensToVoid(System.Func<Vector3i, ushort> get, Vector3i flora)
     {
-        if (!_world.Planet.Void)
+        bool Solid(Vector3i p)
+        {
+            ushort id = get(p);
+            return id != 0 && (_content.BlockById(new BlockId(id))?.Solid ?? false);
+        }
+
+        // The plant must stand on a solid floor; nothing under it is an immediate fall-through.
+        if (!Solid(new Vector3i(flora.X, flora.Y - 1, flora.Z)))
         {
             return true;
         }
 
-        if (!IsSolidCell(new Vector3i(pos.X, pos.Y - 1, pos.Z)))
+        // Flood-fill the reachable walkable cells at the plant's own level. Any reachable open cell with no solid
+        // floor below opens onto the void (you would walk off the edge and fall). Bounded so this stays cheap.
+        var seen = new HashSet<Vector3i> { flora };
+        var queue = new Queue<Vector3i>();
+        queue.Enqueue(flora);
+        while (queue.Count > 0 && seen.Count <= FloraEnclosureFloodBudget)
         {
-            return false; // no solid floor under the plant
-        }
-
-        foreach (var d in FloraHorizontalDirs)
-        {
-            var n = new Vector3i(pos.X + d.X, pos.Y + d.Y, pos.Z + d.Z);
-            // A side that is open (non-solid) AND has no floor beneath it opens onto the void — reject.
-            if (!IsSolidCell(n) && !IsSolidCell(new Vector3i(n.X, n.Y - 1, n.Z)))
+            var c = queue.Dequeue();
+            foreach (var d in FloraHorizontalDirs)
             {
-                return false;
+                var n = new Vector3i(c.X + d.X, c.Y + d.Y, c.Z + d.Z);
+                if (Solid(n) || !seen.Add(n))
+                {
+                    continue; // a wall blocks movement here, or the cell was already visited
+                }
+
+                if (!Solid(new Vector3i(n.X, n.Y - 1, n.Z)))
+                {
+                    return true; // a reachable floorless cell — open to the void
+                }
+
+                queue.Enqueue(n);
             }
         }
 
-        return true;
+        return false; // boxed in within the budget — no escape to the void
     }
+
+    /// <summary>On a void world (a space station floating in the void) flora may only sit fully INSIDE the hull, so
+    /// the billboard plant (no opaque face, no collider) never shows the void behind it nor lets the player walk
+    /// out into space. On normal worlds terrain always backs the plant, so this is a no-op there.</summary>
+    private bool IsFloraEnclosedForVoidWorld(Vector3i pos)
+        => !_world.Planet.Void || !FloraCellOpensToVoid(p => _world.GetBlock(p).Value, pos);
+
+    /// <summary>Test seam: run the void-enclosure predicate against an arbitrary cell map, so the flood-fill /
+    /// ledge logic can be unit-tested without boarding a full void world. Returns true if the cell opens to the void.</summary>
+    public bool FloraCellOpensToVoidForTest(System.Func<int, int, int, ushort> get, int x, int y, int z)
+        => FloraCellOpensToVoid(p => get(p.X, p.Y, p.Z), new Vector3i(x, y, z));
 
     /// <summary>Test/diagnostic: whether a flora block could be planted at a cell.</summary>
     public bool CanPlantFlora(string floraKey, int x, int y, int z)

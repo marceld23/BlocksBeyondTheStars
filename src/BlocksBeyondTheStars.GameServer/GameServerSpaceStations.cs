@@ -440,6 +440,9 @@ public sealed partial class GameServer
         station.Structure = structure;
 
         // Stamp the whole station in one transaction (hundreds of voxels, otherwise one WAL commit each).
+        ushort GetStructureCell(Vector3i p) =>
+            (p.X >= 0 && p.Y >= 0 && p.Z >= 0 && p.X < structure.Width && p.Y < structure.Height && p.Z < structure.Length)
+                ? structure.Get(p.X, p.Y, p.Z) : (ushort)0;
         _repo.RunInTransaction(() =>
         {
             for (int x = 0; x < structure.Width; x++)
@@ -447,12 +450,21 @@ public sealed partial class GameServer
                     for (int z = 0; z < structure.Length; z++)
                     {
                         ushort b = structure.Get(x, y, z);
-                        if (b != 0)
+                        if (b == 0)
                         {
-                            var (tint, glow) = structure.GetModifier(x, y, z);
-                            _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
-                                new BlockId(b), tint, glow, structure.GetShape(x, y, z));
+                            continue;
                         }
+
+                        // Cheap insurance over the generator's own guarantee: never stamp a plant that opens onto
+                        // the void (see-through / walk-through into space) — also covers hand-authored templates.
+                        if (IsFlora(b) && FloraCellOpensToVoid(GetStructureCell, new Vector3i(x, y, z)))
+                        {
+                            continue;
+                        }
+
+                        var (tint, glow) = structure.GetModifier(x, y, z);
+                        _world.SetBlock(new Vector3i(station.Origin.X + x, station.Origin.Y + y, station.Origin.Z + z),
+                            new BlockId(b), tint, glow, structure.GetShape(x, y, z));
                     }
         });
 

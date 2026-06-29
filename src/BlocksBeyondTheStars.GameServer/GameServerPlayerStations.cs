@@ -361,10 +361,19 @@ public sealed partial class GameServer
 
         // Stamp the whole build in one transaction: a station can be hundreds of voxels and each SetBlock is
         // otherwise its own WAL commit — that loop stalls the tick thread for as long as it runs.
+        ushort GetCell(Vector3i p) => src.Get(p).Value;
         _repo.RunInTransaction(() =>
         {
             foreach (var kv in src.Cells)
             {
+                // A plant that opens onto the void (no opaque face, no collider) would be see-through and let a
+                // boarder walk out into space — drop it rather than stamp it. Evaluated against the build's own
+                // cells, so the verdict is independent of how it was authored (editor palette, import, etc.).
+                if (IsFlora(kv.Value.Value) && FloraCellOpensToVoid(GetCell, kv.Key))
+                {
+                    continue;
+                }
+
                 var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
                 _world.SetBlock(w, kv.Value);
             }
