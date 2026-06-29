@@ -108,6 +108,12 @@ stripping stale native-server StreamingAssets from browser builds.
 - **PR review follow-up (2026-06-29):** committed the WebGL `.jslib` bridge, fixed the `link.xml` client
   assembly preserve entry, added JSON/frame-size guards plus browser-payload drop logging, and moved
   provider-specific deployment scripts/README links out of this merge PR for a later platform-owned deploy PR.
+- **Browser menu simplification (2026-06-29) — #120:** WebGL builds now show a slim "enter your name → Play"
+  start menu (no singleplayer/host/editors/quit); a name is required so nobody joins the public realm
+  anonymously, while a curated `?auto_join=1&player_name=…` link stays zero-click. Native menu unchanged
+  (all changes behind `#if UNITY_WEBGL`).
+- **Open follow-up — #121:** serve the WebGL build from the Docker image (`/play` route + volume / release-asset
+  fetch + portal deep-link; public https needs a `wss://` TLS proxy). Analysis done, implementation pending.
 
 ---
 
