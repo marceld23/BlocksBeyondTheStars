@@ -34,15 +34,16 @@ public sealed partial class GameServer
         return System.Math.Min(MaxArmorResistance, sum);
     }
 
-    /// <summary>Maximum suit oxygen — base 100 plus any carried tank bonuses.</summary>
+    /// <summary>Maximum suit oxygen — base 100 plus the best carried tank's bonus. Tanks are tiered (I/II/III),
+    /// so only the highest bonus counts; carrying several does not stack.</summary>
     private float MaxOxygen(PlayerState p)
     {
         float bonus = 0f;
         foreach (var item in _content.Items.Values)
         {
-            if (item.OxygenBonus > 0f && p.Inventory.Has(item.Key, 1))
+            if (item.OxygenBonus > bonus && p.Inventory.Has(item.Key, 1))
             {
-                bonus += item.OxygenBonus;
+                bonus = item.OxygenBonus;
             }
         }
 

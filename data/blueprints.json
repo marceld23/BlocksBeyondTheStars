@@ -190,6 +190,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 }, { "item": "glass", "count": 4 } ]
   },
   {
+    "key": "oxygen_tank_3", "nameKey": "blueprint.oxygen_tank_3.name", "descriptionKey": "blueprint.oxygen_tank_3.desc",
+    "category": "Suit", "prerequisites": [ "oxygen_tank_2" ], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "glass", "count": 5 } ]
+  },
+  {
     "key": "suit_lamp", "nameKey": "blueprint.suit_lamp.name", "descriptionKey": "blueprint.suit_lamp.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 2,
     "unlockCost": [ { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]

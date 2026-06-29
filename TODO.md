@@ -3197,8 +3197,8 @@ rearranging the existing slots — no new data model.
    - **60 items** (`items.json`): ~**22 map to a block** (placesBlock or same key → free **atlas tile** icon:
      stone/dirt/ores/glass/iron_wall/sand/mud/crystal/ice/basalt/wood_log/ladder/stairs/seeds…). The other **~38
      have no block art** and need a real icon: processed mats (iron_ingot, iron_plate, copper_wire, cable,
-     carbon_composite, energy_cell_1, titanium_plate, data_fragment, plant_fiber), 7 consumables
-     (creature_meat, **toxic_gland**, berries, **toxic_berries**, emergency_ration, medpack, oxygen_tank_1),
+     carbon_composite, energy_cell_1, titanium_plate, data_fragment, plant_fiber), 6 consumables
+     (creature_meat, **toxic_gland**, berries, **toxic_berries**, emergency_ration, medpack),
      6 weapons, 6 tools, 11 suit/wearable components.
    - **23 ship modules** (`ship_modules.json`) + the **space tools** (laser, tractor_beam) — for the builder/space
      UI.
@@ -5280,6 +5280,19 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-06-29): oxygen tank tiers + water-exit assist
+- **Oxygen tank tiers I/II/III ([#129](https://github.com/marceld23/BlocksBeyondTheStars/issues/129)).** `oxygen_tank_1`
+  was a dead consumable (no effect) whose description wrongly promised a capacity boost. It is now a worn
+  **component** with `oxygenBonus 50`; `oxygen_tank_2` stays `+100` (renamed "Oxygen Tank II"); new
+  **`oxygen_tank_3`** `+200` ("Oxygen Tank III", blueprint gated behind tank II, titanium recipe). `MaxOxygen()`
+  now takes the **best** carried tank's bonus instead of summing — tanks don't stack (highest tier wins).
+  Descriptions corrected in DE+EN; new AI icon `item_oxygen_tank_3.png`. Tests: stale `+50` comment fixed +
+  `OxygenTanks_DoNotStack_HighestTierWins`.
+- **Easier to climb out of water ([#131](https://github.com/marceld23/BlocksBeyondTheStars/issues/131)).** In water
+  the Jump button was only a slow 4/s swim-up (no impulse), so a 1-block bank couldn't be cleared and you slid
+  back. At the surface, pressing Jump while pushing forward (A) — or swimming into a low ≤1-block bank (B) — now
+  gives a real jump impulse + full forward speed to mount the shore (`PlayerController.Move`, `LedgeAhead`).
 
 ## ✅ Done (2026-06-06): world block — terrain archetypes, seas, trees
 Done in the user's reconsidered order (terrain shapes the basins → fluids fill them → trees on the land):

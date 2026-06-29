@@ -98,10 +98,31 @@ public sealed class EquipmentTests : IDisposable
             var p = server.AddLocalPlayer("Diver");
             p.State.AboardShip = true; // life support regenerates
             p.State.Oxygen = 100f;
-            p.State.Inventory.Add("oxygen_tank_2", 1, 1); // +50 max
+            p.State.Inventory.Add("oxygen_tank_2", 1, 1); // +100 max
 
             server.Tick(3.0);
             Assert.True(p.State.Oxygen > 100f, "The bigger tank should let oxygen exceed 100.");
+        }
+    }
+
+    [Fact]
+    public void OxygenTanks_DoNotStack_HighestTierWins()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Diver");
+            p.State.AboardShip = true; // life support regenerates up to the suit maximum
+            p.State.Oxygen = 100f;
+            p.State.Inventory.Add("oxygen_tank_1", 1, 1); // +50
+            p.State.Inventory.Add("oxygen_tank_2", 1, 1); // +100 — only this (the best) should count
+
+            // Regen aboard ship (~25/s) for long enough to saturate at the suit maximum, then read the cap.
+            server.Tick(20.0);
+
+            // Max = 100 + best bonus (100) = 200. If the bonuses stacked it would saturate at 250.
+            Assert.True(p.State.Oxygen > 150f, "The +100 tank should apply (oxygen well above 150).");
+            Assert.True(p.State.Oxygen <= 201f, "Tanks must not stack — the cap should be 200, not 250.");
         }
     }
 
