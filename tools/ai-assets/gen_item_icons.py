@@ -79,6 +79,7 @@ ITEMS = [
     ("armor_legs", "a pair of armored leg greaves"),
     ("helmet", "a space suit helmet with a tinted visor"),
     ("oxygen_tank_2", "a large high-capacity cyan oxygen tank"),
+    ("oxygen_tank_3", "an oversized heavy-duty cyan oxygen tank with reinforced metal bands and a pressure gauge"),
     ("suit_lamp", "a helmet-mounted headlamp casting light"),
     ("jetpack", "a rocket jetpack backpack with twin thrusters"),
     ("radar_scanner", "a handheld radar scanner with a small dish"),

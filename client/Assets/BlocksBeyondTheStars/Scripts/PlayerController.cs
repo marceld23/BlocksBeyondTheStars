@@ -1503,9 +1503,24 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Buoyant swimming: drift down slowly when idle, hold Jump to rise and surface; water also
                 // breaks a fall (the big downward speed eases out instead of slamming the seabed). No jetpack.
-                float target = Input.GetButton("Jump") ? SwimUpSpeed : -SwimSinkSpeed;
-                _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
-                move *= SwimSpeedMul;
+                //
+                // Climb-out assist (#131): the slow swim-up (4/s, no jump impulse) can't clear a 1-block bank, so
+                // you bob against the shore and slide back. At the surface, when you press Jump while pushing
+                // forward (A) — or simply swim into a low ≤1-block bank (B) — give a real jump impulse and keep
+                // full forward speed so you mount the land instead.
+                bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
+                bool atSurface = BlockKeyAt(transform.position + Vector3.up * 1.9f) != "water"; // open air above the head
+                bool climbingOut = pushing && atSurface && (Input.GetButton("Jump") || LedgeAhead(move));
+                if (climbingOut)
+                {
+                    _verticalVelocity = _effJumpSpeed; // real hop out of the water (full forward speed kept below)
+                }
+                else
+                {
+                    float target = Input.GetButton("Jump") ? SwimUpSpeed : -SwimSinkSpeed;
+                    _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
+                    move *= SwimSpeedMul;
+                }
             }
             else if (onLadder)
             {
@@ -1594,6 +1609,40 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
         /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
         private bool IsSubmerged() => BlockKeyAt(transform.position + Vector3.up * 1.1f) == "water";
+
+        /// <summary>True when a low (≤1 block) solid bank sits directly ahead of the swimmer — a wall at knee
+        /// height with clear space just above it — the cue to mantle out of the water onto land (#131).</summary>
+        private bool LedgeAhead(Vector3 moveDir)
+        {
+            Vector3 flat = new Vector3(moveDir.x, 0f, moveDir.z);
+            if (flat.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+
+            Vector3 ahead = transform.position + flat.normalized * 0.7f;
+            return IsBlockingAt(ahead + Vector3.up * 0.5f)        // bank face at ~knee height
+                && !IsBlockingAt(ahead + Vector3.up * 1.6f);      // and open space to stand on top
+        }
+
+        /// <summary>True when a solid (standable/blocking) block sits at this world position. Air, water and lava
+        /// don't block; everything else does — a coarse check used to spot a low bank when climbing out of water.</summary>
+        private bool IsBlockingAt(Vector3 world)
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            var id = Game.World.GetBlock(Mathf.FloorToInt(world.x), Mathf.FloorToInt(world.y), Mathf.FloorToInt(world.z));
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            string key = Game.Content.BlockById(id)?.Key;
+            return key != "water" && key != "lava";
+        }
 
         /// <summary>True when the player overlaps a ladder block (sampled at shin + chest height), the cue to
         /// switch to climbing instead of falling/walking. (#126)</summary>

@@ -21,7 +21,7 @@
   { "key": "data_fragment",   "nameKey": "item.data_fragment.name",   "category": "component",  "maxStack": 20 },
   { "key": "ai_memory_fragment", "nameKey": "item.ai_memory_fragment.name", "category": "component", "maxStack": 10, "descriptionKey": "item.ai_memory_fragment.desc" },
   { "key": "access_code",     "nameKey": "item.access_code.name",     "category": "component",  "maxStack": 10, "descriptionKey": "item.access_code.desc" },
-  { "key": "oxygen_tank_1",   "nameKey": "item.oxygen_tank_1.name",   "category": "consumable", "maxStack": 10, "descriptionKey": "item.oxygen_tank_1.desc" },
+  { "key": "oxygen_tank_1",   "nameKey": "item.oxygen_tank_1.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_tank_1.desc", "oxygenBonus": 50 },
   { "key": "medpack",         "nameKey": "item.medpack.name",         "category": "consumable", "maxStack": 20, "descriptionKey": "item.medpack.desc", "consumeHealth": 50 },
 
   { "key": "glass",           "nameKey": "item.glass.name",           "category": "block",      "maxStack": 99, "placesBlock": "glass" },
@@ -56,6 +56,7 @@
   { "key": "armor_legs",      "nameKey": "item.armor_legs.name",      "category": "component",  "maxStack": 1,  "descriptionKey": "item.armor_legs.desc", "armorResistance": 0.15 },
   { "key": "helmet",          "nameKey": "item.helmet.name",          "category": "component",  "maxStack": 1,  "descriptionKey": "item.helmet.desc", "armorResistance": 0.15 },
   { "key": "oxygen_tank_2",   "nameKey": "item.oxygen_tank_2.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_tank_2.desc", "oxygenBonus": 100 },
+  { "key": "oxygen_tank_3",   "nameKey": "item.oxygen_tank_3.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.oxygen_tank_3.desc", "oxygenBonus": 200 },
   { "key": "suit_lamp",       "nameKey": "item.suit_lamp.name",       "category": "component",  "maxStack": 1,  "descriptionKey": "item.suit_lamp.desc" },
   { "key": "jetpack",         "nameKey": "item.jetpack.name",         "category": "component",  "maxStack": 1,  "descriptionKey": "item.jetpack.desc" },
   { "key": "radar_scanner",   "nameKey": "item.radar_scanner.name",   "category": "component",  "maxStack": 1,  "descriptionKey": "item.radar_scanner.desc" },
