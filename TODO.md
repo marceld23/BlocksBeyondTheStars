@@ -23,6 +23,22 @@ Published GitHub Releases (tag = version single-source-of-truth; each tag push b
 trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
 Per-item detail lives in the dated work log below.
 
+- **v0.6.2** — 2026-06-30 — *gameplay polish, oxygen tiers & a browser-client start.* **Gameplay fixes** —
+  shaped blocks (sphere/pyramid/slab) now get masked silhouette icons in the hotbar/crafting instead of plain
+  cubes, ladders are climbable, you auto-step onto slabs/stairs without jumping, and mining is tool-gated (stone
+  needs a drill — granted by the starter kit — while soft earth/sand/plants dig bare-handed) (#130, fixing
+  #125–#128). **Oxygen Tank tiers I/II/III** — the dead `oxygen_tank_1` consumable became a worn `+50` component;
+  II `+100`, new III `+200` (titanium recipe, blueprint-gated); `MaxOxygen` now takes the **best** tank, not the
+  sum (#133, issue #129). **Easier water exit** — a real jump impulse + full forward speed lets you mount a
+  ≤1-block bank instead of bobbing and sliding back (#133, issue #131). **Sealed a station-to-space gap** — flora
+  cells opening onto the void (see-through *and* walk-through) are dropped via a bounded flood-fill enclosure
+  check, on both live placement and void-world station stamps (#134, #135). **Browser client (experimental,
+  not yet verified end-to-end — [#132](https://github.com/marceld23/BlocksBeyondTheStars/issues/132))** — hosted
+  **WebGL client + optional PostgreSQL** by Devin Dixon (#116), served at `/play` from the dedicated-server image
+  (#123), slim browser start menu (#122); the WebGL player build needed a Velopack compile-guard fix (Velopack is
+  desktop-only) plus a `webgl-only.yml` workflow that attaches the WebGL zip to a release without rebuilding the
+  desktop installers (#151). **Plus** dev-build packId isolation (#115), de.json duplicate/wording cleanup by
+  Maqbool Ahmed (#112), README Download & Play CTA (#113) and a hosting/forks policy in CONTRIBUTING (#117).
 - **v0.6.1** — 2026-06-28 — *experimental macOS, crash reporting & portal downloads.* **Experimental macOS
   client** — a `StandaloneOSX` `.app` cross-built on the Linux runner (Mono backend, no Mac hardware), shipped
   as a portable zip; unsigned/un-notarized and **not yet validated on real hardware** (help wanted: [#87](https://github.com/marceld23/BlocksBeyondTheStars/issues/87))
@@ -5281,7 +5297,7 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
-## ✅ Done (2026-06-29): oxygen tank tiers + water-exit assist
+## ✅ Done (2026-06-29): oxygen tank tiers + water-exit assist — SHIPPED in v0.6.2 (#133)
 - **Oxygen tank tiers I/II/III ([#129](https://github.com/marceld23/BlocksBeyondTheStars/issues/129)).** `oxygen_tank_1`
   was a dead consumable (no effect) whose description wrongly promised a capacity boost. It is now a worn
   **component** with `oxygenBonus 50`; `oxygen_tank_2` stays `+100` (renamed "Oxygen Tank II"); new
@@ -5293,6 +5309,20 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
   the Jump button was only a slow 4/s swim-up (no impulse), so a 1-block bank couldn't be cleared and you slid
   back. At the surface, pressing Jump while pushing forward (A) — or swimming into a low ≤1-block bank (B) — now
   gives a real jump impulse + full forward speed to mount the shore (`PlayerController.Move`, `LedgeAhead`).
+
+## ✅ Done (2026-06-30): WebGL release-build fix + WebGL-only attach workflow — SHIPPED to main (#151)
+- **WebGL player build failed on the v0.6.2 tag** with `CS0246 'Velopack'` in `ClientUpdater.cs`. The Velopack
+  auto-updater was guarded only by `#if !UNITY_EDITOR`, so it still compiled for WebGL — but the browser build
+  ships no Velopack DLL (the `sync-velopack-libs` step is desktop-only). A browser build has no auto-updater
+  anyway (you "update" by reloading the page), so it's now treated like the Editor: `using Velopack;` and
+  `Bootstrap()` guard on `!UNITY_EDITOR && !UNITY_WEBGL`, and `CheckForUpdates()` takes the stub branch
+  (`UNITY_EDITOR || UNITY_WEBGL`) reporting `NotInstalled`. Desktop installers + the Docker image had already
+  published from the tagged commit — only the WebGL asset was missing.
+- **New `.github/workflows/webgl-only.yml`** — a manual `workflow_dispatch` (input `release_tag`) that builds
+  **only** the WebGL player and attaches the zip to an existing release, without rebuilding the desktop
+  installers / Docker image and without touching the release notes. Built from the fixed branch (the tag itself
+  is not moved), so the v0.6.2 WebGL zip = v0.6.2 content + the compile guard. Also the reusable path for the
+  end-to-end WebGL verification tracked in [#132](https://github.com/marceld23/BlocksBeyondTheStars/issues/132).
 
 ## ✅ Done (2026-06-06): world block — terrain archetypes, seas, trees
 Done in the user's reconsidered order (terrain shapes the basins → fluids fill them → trees on the land):
