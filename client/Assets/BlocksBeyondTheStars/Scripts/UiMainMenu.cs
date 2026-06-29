@@ -50,6 +50,42 @@ namespace BlocksBeyondTheStars.Client
             // --- Menu buttons ---
             const float bx = 90f, bw = 440f, bh = 54f, gap = 62f;
             float by = 322f;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Browser build: a slimmed "enter your name and play" screen. There is no singleplayer,
+            // host, editors or quit in the browser (no local filesystem, no bundled server, and quitting
+            // a browser tab is meaningless). The server is preconfigured via Glitch/URL params, so the
+            // primary action just joins it; "Connect to a server…" stays as a manual fallback. A name is
+            // required so players never join the public realm anonymously. The whole block is guarded so
+            // the native client (the #else below) is byte-for-byte unchanged.
+            string[] webName = { shell.PlayerName };
+            UiKit.AddText(root, bx, by, bw, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(root, bx, by + 28f, bw, 44f, webName[0], v => webName[0] = v);
+            var webWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
+                new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            float wby = by + 112f;
+            UiKit.AddButton(root, bx, wby, bw, bh, shell.L("ui.menu.play"), () =>
+            {
+                if (string.IsNullOrWhiteSpace(webName[0]))
+                {
+                    webWarn.text = shell.L("ui.webgl.need_name");
+                    return;
+                }
+
+                shell.PlayerName = webName[0].Trim();
+                shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
+                shell.Settings.Save();
+                shell.StartJoin();
+            }, "btn_join");
+            UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.connect_manual"), () =>
+            {
+                if (connect != null)
+                {
+                    connect.SetActive(true);
+                }
+            }, "btn_join");
+            UiKit.AddButton(root, bx, wby + gap * 2f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, wby + gap * 3f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+#else
             UiKit.AddButton(root, bx, by, bw, bh, shell.L("ui.menu.singleplayer"), shell.StartSingleplayer, "btn_singleplayer");
             UiKit.AddButton(root, bx, by + gap, bw, bh, shell.L("ui.menu.host"), shell.StartHost, "btn_join");
             UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.join"), () =>
@@ -63,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
             UiKit.AddButton(root, bx, by + gap * 5f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
             UiKit.AddButton(root, bx, by + gap * 6f, bw, bh, shell.L("ui.menu.quit"), shell.Quit, "btn_exit");
+#endif
 
             // --- World / server info panel (bottom-right, decorative) ---
             UiKit.AddPanel(root, 1290f, 650f, 590f, 250f, UiKit.PanelFill);
