@@ -74,7 +74,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 ## Forward-looking
 
 - [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) — the optional, offline-safe LLM service (design + contract).
-- [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md) — browser/WebGL client feasibility (decided, not built).
+- [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md) — browser/WebGL client feasibility and the hosted
+  Lite lane (local WebSocket/PostgreSQL play works; production hardening/deployment remains).
 
 ## Architecture Decision Records
 

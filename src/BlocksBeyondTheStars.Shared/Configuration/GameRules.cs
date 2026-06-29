@@ -135,7 +135,7 @@ public sealed class GameRules
 
     // --- Space flight / combat / enemies / docking / landing zones ---
 
-    public bool FreeSpaceFlight { get; set; }
+    public bool FreeSpaceFlight { get; set; } = true;
     public SpaceCombatMode SpaceCombat { get; set; } = SpaceCombatMode.Off;
     public ShipWeaponMode ShipWeapons { get; set; } = ShipWeaponMode.Off;
     public AlienActivity SpaceNpcEnemies { get; set; } = AlienActivity.Off;

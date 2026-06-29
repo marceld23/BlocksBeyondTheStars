@@ -1,0 +1,10 @@
+<linker>
+  <assembly fullname="BlocksBeyondTheStars.Shared" preserve="all" />
+  <assembly fullname="BlocksBeyondTheStars.Networking" preserve="all" />
+  <assembly fullname="BlocksBeyondTheStars.Client.Core" preserve="all" />
+  <assembly fullname="BlocksBeyondTheStars.Client" preserve="all" />
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.SphereCollider" preserve="all" />
+    <type fullname="UnityEngine.CapsuleCollider" preserve="all" />
+  </assembly>
+</linker>

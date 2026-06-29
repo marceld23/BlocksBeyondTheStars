@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
@@ -262,6 +263,12 @@ namespace BlocksBeyondTheStars.Client
         public StarMapData StarMap { get; private set; }
         public MissionList Missions { get; private set; }
         public ServerRules Rules { get; private set; }
+
+        /// <summary>Frame marker used when the in-game menu consumes Esc/Tab, so the app shell
+        /// does not also open the quit prompt on the same key press.</summary>
+        public int MenuInputHandledFrame { get; private set; } = -1;
+        public bool MenuInputHandledThisFrame => MenuInputHandledFrame == Time.frameCount;
+        public void MarkMenuInputHandled() => MenuInputHandledFrame = Time.frameCount;
 
         /// <summary>This player's alliance roster (mutual allies + pending requests), for the Alliances menu tab.</summary>
         public AllianceList Alliances { get; private set; } = new AllianceList();
@@ -822,12 +829,25 @@ namespace BlocksBeyondTheStars.Client
         public int WorldEpoch { get; private set; }
 
         private bool _joinSent;
+        private bool _joinSendFailureLogged;
         private float _retryTimer;
         private int _retries;
 
         private void Start()
         {
-            string dataDir = Path.Combine(Application.streamingAssetsPath, "data");
+            if (!StreamingAssetsCache.IsReady && !StreamingAssetsCache.UsesRemoteStreamingAssets)
+            {
+                StreamingAssetsCache.EnsureLocalReady();
+            }
+
+            if (!StreamingAssetsCache.IsReady)
+            {
+                Debug.LogError("Bundled content is not ready; aborting game bootstrap.");
+                enabled = false;
+                return;
+            }
+
+            string dataDir = StreamingAssetsCache.DataDir;
             Content = ContentLoader.LoadFromDirectory(dataDir);
             Localizer = Content.CreateLocalizer(German ? GameLocale.German : GameLocale.English);
             World = new ClientWorld();
@@ -862,7 +882,11 @@ namespace BlocksBeyondTheStars.Client
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+            Network = new NetworkClient(new BrowserWebSocketClientTransport());
+#else
             Network = new NetworkClient();
+#endif
             Network.JoinAccepted += m =>
             {
                 LocalPlayerId = m.PlayerId;
@@ -1160,15 +1184,28 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Network.Connected)
                 {
-                    Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
-                        string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks);
-                    Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
-                    if (!string.IsNullOrEmpty(FacePixels))
+                    try
                     {
-                        Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)
-                    }
+                        Debug.Log($"Sending join request to {Host}:{Port} as {PlayerName}.");
+                        Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
+                            string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks);
+                        Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
+                        if (!string.IsNullOrEmpty(FacePixels))
+                        {
+                            Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)
+                        }
 
-                    _joinSent = true;
+                        _joinSent = true;
+                        _joinSendFailureLogged = false;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        if (!_joinSendFailureLogged)
+                        {
+                            Debug.LogError($"Join request could not be encoded or sent: {ex}");
+                            _joinSendFailureLogged = true;
+                        }
+                    }
                 }
                 else
                 {

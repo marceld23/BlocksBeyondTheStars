@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 
 // BlocksBeyondTheStars server tools — a small CLI for hosts and developers: validate content,
@@ -56,6 +57,7 @@ static void PrintUsage()
     Console.WriteLine("  BlocksBeyondTheStars.Tools backup <savesRoot> <world>  Create a consistent world backup");
     Console.WriteLine("  BlocksBeyondTheStars.Tools export-pack <savesRoot> <world> <outFile>          Export admin content pack");
     Console.WriteLine("  BlocksBeyondTheStars.Tools import-pack <savesRoot> <world> <inFile> [dataDir]  Import & validate a content pack");
+    Console.WriteLine("Set BBS_DATABASE_PROVIDER=postgresql and BBS_POSTGRES_CONNECTION_STRING for hosted PostgreSQL worlds.");
 }
 
 static void RequireArgs(string[] args, int count, string usage)
@@ -82,34 +84,41 @@ static int ValidateContent(string dataDir)
 static int WorldInfo(string savesRoot, string world)
 {
     var paths = new SaveGamePaths(savesRoot, world);
-    if (!File.Exists(paths.DatabaseFile))
+    var config = ToolConfig(savesRoot, world);
+    if (!WorldRepositoryFactory.IsPostgreSql(config) && !File.Exists(paths.DatabaseFile))
     {
         Console.Error.WriteLine($"No world database at {paths.DatabaseFile}");
         return 1;
     }
 
-    using var repo = new SqliteWorldRepository(paths);
+    using var repo = WorldRepositoryFactory.Create(config, paths);
     repo.Initialize();
     var meta = repo.LoadMetadata();
     Console.WriteLine($"World:        {meta?.WorldName ?? "(unknown)"}");
+    Console.WriteLine($"Backend:      {WorldRepositoryFactory.DisplayName(config)}");
     Console.WriteLine($"Seed:         {meta?.Seed}");
     Console.WriteLine($"Start planet: {meta?.DefaultPlanetType}");
     Console.WriteLine($"Save version: {meta?.SaveVersion}");
     Console.WriteLine($"Players:      {repo.ListPlayerIds().Count}");
-    Console.WriteLine($"DB size:      {new FileInfo(paths.DatabaseFile).Length / 1024.0:0.0} KiB");
+    if (!WorldRepositoryFactory.IsPostgreSql(config))
+    {
+        Console.WriteLine($"DB size:      {new FileInfo(paths.DatabaseFile).Length / 1024.0:0.0} KiB");
+    }
+
     return 0;
 }
 
 static int Backup(string savesRoot, string world)
 {
     var paths = new SaveGamePaths(savesRoot, world);
-    if (!File.Exists(paths.DatabaseFile))
+    var config = ToolConfig(savesRoot, world);
+    if (!WorldRepositoryFactory.IsPostgreSql(config) && !File.Exists(paths.DatabaseFile))
     {
         Console.Error.WriteLine($"No world database at {paths.DatabaseFile}");
         return 1;
     }
 
-    using var repo = new SqliteWorldRepository(paths);
+    using var repo = WorldRepositoryFactory.Create(config, paths);
     repo.Initialize();
     var path = repo.CreateBackup("backup_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
     Console.WriteLine($"Backup created: {path}");
@@ -118,7 +127,7 @@ static int Backup(string savesRoot, string world)
 
 static int ExportPack(string savesRoot, string world, string outFile)
 {
-    using var repo = new SqliteWorldRepository(new SaveGamePaths(savesRoot, world));
+    using var repo = OpenToolRepository(savesRoot, world);
     repo.Initialize();
     var pack = new BlocksBeyondTheStars.Shared.Missions.ContentPack { Name = world + "-content", Missions = repo.ListMissions().ToList() };
     File.WriteAllText(outFile, System.Text.Json.JsonSerializer.Serialize(pack, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
@@ -142,7 +151,7 @@ static int ImportPack(string savesRoot, string world, string inFile, string data
         return 1;
     }
 
-    using var repo = new SqliteWorldRepository(new SaveGamePaths(savesRoot, world));
+    using var repo = OpenToolRepository(savesRoot, world);
     repo.Initialize();
     int imported = 0, rejected = 0;
     foreach (var mission in pack.Missions)
@@ -161,4 +170,19 @@ static int ImportPack(string savesRoot, string world, string inFile, string data
 
     Console.WriteLine($"Imported {imported}, rejected {rejected}.");
     return rejected == 0 ? 0 : 2;
+}
+
+static ServerConfig ToolConfig(string savesRoot, string world)
+{
+    var config = new ServerConfig();
+    config.ApplyEnvironment();
+    config.SavesRoot = savesRoot;
+    config.WorldName = world;
+    return config;
+}
+
+static IWorldRepository OpenToolRepository(string savesRoot, string world)
+{
+    var config = ToolConfig(savesRoot, world);
+    return WorldRepositoryFactory.Create(config, new SaveGamePaths(savesRoot, world));
 }

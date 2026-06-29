@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 #if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using System.Text;
 using BlocksBeyondTheStars.Client;
 using UnityEditor;
 using UnityEditor.Build;
@@ -69,12 +73,23 @@ namespace BlocksBeyondTheStars.Client.EditorTools
         public static void BuildMacOS()
             => BuildPlayer(BuildTarget.StandaloneOSX, "BlocksBeyondTheStars.app", "Build/macOS");
 
+        /// <summary>Builds the WebGL player folder for browser deployment. The browser path uses WebSockets
+        /// against a hosted authoritative server, so this target keeps browser-client packaging repeatable.</summary>
+        [MenuItem("BlocksBeyondTheStars/Build WebGL Player")]
+        public static void BuildWebGL()
+            => BuildPlayer(BuildTarget.WebGL, string.Empty, "Build/WebGL");
+
         private static void BuildPlayer(BuildTarget target, string exeName, string defaultOutDir)
         {
             EnsureLauncherScene();
             EnsureShadersIncluded();
             EnsureRendererFeatures();
             EnsureAppIcon();
+            if (target == BuildTarget.WebGL)
+            {
+                ConfigureWebGLPlayer();
+                EnsureStreamingAssetsManifest();
+            }
 
             string version = GetArg("-buildVersion");
             if (!string.IsNullOrEmpty(version))
@@ -96,11 +111,12 @@ namespace BlocksBeyondTheStars.Client.EditorTools
 
             string outDir = GetArg("-buildOut") ?? defaultOutDir;
             Directory.CreateDirectory(outDir);
+            string locationPathName = target == BuildTarget.WebGL ? outDir : Path.Combine(outDir, exeName);
 
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = Path.Combine(outDir, exeName),
+                locationPathName = locationPathName,
                 target = target,
                 options = BuildOptions.None,
             };
@@ -116,7 +132,143 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 EditorApplication.Exit(1);
             }
 
+            if (target == BuildTarget.WebGL)
+            {
+                RemoveAutoFullscreen(outDir);
+            }
+
             File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
+        }
+
+        /// <summary>Best-effort WebGL production defaults. Reflection keeps this resilient across Unity 6 patch
+        /// API shuffles while still applying Brotli + 512 MB heap when those properties are available.</summary>
+        public static void ConfigureWebGLPlayer()
+        {
+            bool fastLocal = string.Equals(Environment.GetEnvironmentVariable("BBS_WEBGL_FAST_LOCAL"), "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Environment.GetEnvironmentVariable("BBS_WEBGL_FAST_LOCAL"), "true", StringComparison.OrdinalIgnoreCase);
+
+            EditorUserBuildSettings.development = false;
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Low);
+            SetWebGLProperty("memorySize", 512);
+            SetWebGLProperty("compressionFormat", fastLocal ? "Disabled" : "Brotli");
+            SetWebGLProperty("decompressionFallback", !fastLocal);
+            SetWebGLProperty("dataCaching", true);
+            if (fastLocal)
+            {
+                Debug.Log("BBS_WEBGL_FAST_LOCAL enabled: WebGL build compression disabled for local browser verification.");
+            }
+        }
+
+        private static void EnsureStreamingAssetsManifest()
+        {
+            string dataRoot = Path.Combine(Application.dataPath, "StreamingAssets", "data");
+            if (!Directory.Exists(dataRoot))
+            {
+                Debug.LogWarning($"StreamingAssets data folder not found at {dataRoot}; WebGL content manifest skipped.");
+                return;
+            }
+
+            var files = new List<string>();
+            foreach (string file in Directory.GetFiles(dataRoot, "*", SearchOption.AllDirectories))
+            {
+                if (file.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Path.GetFileName(file), "manifest.json", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string relative = file.Substring(dataRoot.Length + 1)
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+                files.Add(relative);
+            }
+
+            files.Sort(StringComparer.Ordinal);
+
+            var json = new StringBuilder();
+            json.AppendLine("{");
+            json.AppendLine("  \"files\": [");
+            for (int i = 0; i < files.Count; i++)
+            {
+                json.Append("    \"").Append(EscapeJson(files[i])).Append('"');
+                if (i < files.Count - 1)
+                {
+                    json.Append(',');
+                }
+
+                json.AppendLine();
+            }
+
+            json.AppendLine("  ]");
+            json.AppendLine("}");
+
+            string manifestPath = Path.Combine(dataRoot, "manifest.json");
+            File.WriteAllText(manifestPath, json.ToString());
+            AssetDatabase.ImportAsset("Assets/StreamingAssets/data/manifest.json", ImportAssetOptions.ForceUpdate);
+            Debug.Log($"WebGL StreamingAssets manifest written with {files.Count} files.");
+        }
+
+        private static void RemoveAutoFullscreen(string outDir)
+        {
+            string indexPath = Path.Combine(outDir, "index.html");
+            if (!File.Exists(indexPath))
+            {
+                Debug.LogWarning($"WebGL index.html not found at {indexPath}; fullscreen patch skipped.");
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(indexPath);
+            var kept = new List<string>(lines.Length);
+            bool changed = false;
+            foreach (string line in lines)
+            {
+                if (line.Trim() == "unityInstance.SetFullscreen(1);")
+                {
+                    changed = true;
+                    continue;
+                }
+
+                kept.Add(line);
+            }
+
+            if (changed)
+            {
+                File.WriteAllLines(indexPath, kept);
+                Debug.Log("Removed generated WebGL auto-fullscreen call; fullscreen remains available from the button.");
+            }
+        }
+
+        private static string EscapeJson(string value)
+            => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+        private static void SetWebGLProperty(string propertyName, object value)
+        {
+            Type webGlType = typeof(PlayerSettings).GetNestedType("WebGL", BindingFlags.Public | BindingFlags.NonPublic);
+            var property = webGlType?.GetProperty(propertyName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (property == null || !property.CanWrite)
+            {
+                Debug.Log($"WebGL PlayerSettings.{propertyName} is not available in this Unity version; leaving default.");
+                return;
+            }
+
+            try
+            {
+                object converted = value;
+                if (property.PropertyType.IsEnum)
+                {
+                    converted = Enum.Parse(property.PropertyType, value.ToString());
+                }
+                else if (property.PropertyType != value.GetType())
+                {
+                    converted = Convert.ChangeType(value, property.PropertyType);
+                }
+
+                property.SetValue(null, converted, null);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Could not set WebGL PlayerSettings.{propertyName}: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -196,7 +348,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                     if (f != null)
                     {
                         AssetDatabase.RemoveObjectFromAsset(f);
-                        Object.DestroyImmediate(f, true);
+                        UnityEngine.Object.DestroyImmediate(f, true);
                     }
 
                     changed = true;

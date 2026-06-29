@@ -6,14 +6,14 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `dotnet test` — currently **779 server + 96 client passing** (2026-06-28). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **783 server + 96 client passing** (2026-06-28). Locale parity (en/de) is enforced by a test.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
 Architecture: Unity 6 (URP since 2026-06-10) client + authoritative .NET 8 server, everything built in
-code (no scene authoring). One shared world; contractless MessagePack networking; deterministic seed
-world-gen; SQLite persistence.
+code (no scene authoring). One shared world; MessagePack networking for native clients plus a WebGL JSON
+envelope at the WebSocket edge; deterministic seed world-gen; SQLite default persistence with opt-in PostgreSQL.
 
 ---
 
@@ -81,6 +81,36 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Hosted WebGL transport + optional browser platform hooks (2026-06-28) — ✅ DONE locally
+Added the reusable hosted-browser path without committing provider credentials: the Unity client now has a
+dormant-by-default `GlitchIntegration` (Aegis heartbeat/validation plus helper calls for scores, stats,
+leaderboards, achievements and raw cloud saves), with credentials injectable only through a git-ignored generated
+partial. The committed defaults are empty, so public builds never call a platform API unless a build explicitly
+provides title id, token and API base URL. `BuildScript.BuildWebGL()` creates a Unity WebGL folder while
+stripping stale native-server StreamingAssets from browser builds.
+- **Browser play follow-up (2026-06-29):** WebGL now has a browser `IClientTransport` backed by WebSockets, a
+  JSON `NetCodec` envelope for IL2CPP/AOT, and a JavaScript bridge that handles `ArrayBuffer`, typed-array,
+  string and `Blob` frames. A local WebGL build joined a real .NET server, received authoritative chunks and
+  rendered a playable world.
+- **Browser smoke follow-up (2026-06-29):** the HAR/log capture for the "empty world" report showed the Unity
+  payload and every `StreamingAssets/data` JSON loading successfully; the failure was gameplay entering the native
+  local-server/UDP path in a browser. Singleplayer/Host remain intentionally unavailable in WebGL, but Join now
+  uses the hosted WebSocket path.
+- **Hosted realm prep (2026-06-29):** server persistence now keeps SQLite as the default but adds opt-in
+  PostgreSQL (`databaseProvider=postgresql`, `BBS_POSTGRES_CONNECTION_STRING`) through `WorldRepositoryFactory`.
+  The admin API/tools report/use the selected backend, and WebGL builds can embed a generated-only default
+  hosted server host/port without changing ordinary desktop/native builds.
+  Verified against Docker `postgres:16-alpine` reporting PostgreSQL 16.14 via `BBS_POSTGRES_TEST_CONNECTION_STRING`.
+- **Hosted usability follow-up (2026-06-29):** the full-screen Codex/DataQubes menu screens now close reliably
+  with **Esc** or **Tab** before the app shell can open the leave-game prompt. Free space flight is enabled by
+  default and can be forced for hosted/container worlds with `BBS_FREE_FLIGHT=true`; existing worlds that saved
+  the old disabled value are upgraded only for that rule.
+- **PR review follow-up (2026-06-29):** committed the WebGL `.jslib` bridge, fixed the `link.xml` client
+  assembly preserve entry, added JSON/frame-size guards plus browser-payload drop logging, and moved
+  provider-specific deployment scripts/README links out of this merge PR for a later platform-owned deploy PR.
+
+---
+
 ### ★ Server portal serves the native Linux + macOS client downloads (2026-06-28) — ✅ MERGED to main (#83, #107)
 The dedicated server's `/portal` + `/download` pages now offer the **native Linux client (AppImage)** (#83) and the
 **macOS client (.app zip)** (#107) alongside the Windows installer, picking the right asset per the visitor's platform.
@@ -97,7 +127,7 @@ Opt-in automatic exception reporting to the website (reuses the existing Wix `po
 **Server:** the Tick loop is hardened (per-system `Guard` + a top-level backstop so one uncaught exception no longer takes the
 whole server down) + `CrashReportWriter`/`CrashReportUploader` + AppDomain/unobserved-Task handlers + startup/periodic flush.
 **Client:** a `CrashReporter` hooks `Application.logMessageReceivedThreaded` → dedup/spool → `FeedbackUploader`, silent, with a
-startup retry. Payloads run through a shared `CrashPiiScrubber`. 779 server + 96 client tests. (Gave the user updated
+startup retry. Payloads run through a shared `CrashPiiScrubber`. 783 server + 96 client tests. (Gave the user updated
 `http-functions.js` with triage/size-guard/rate-limit; OPTIONAL Wix CMS fields category/source/kind remain.)
 
 ### ★ Playtest report issue template (2026-06-28) — ✅ MERGED to main (#85)
@@ -1527,6 +1557,17 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
   synced + bundled into the server build). Side fix: the server now resolves `<DataDir>/minigames/catalog.json`
   (was `<DataDir>/../minigames/...`, which was missing on a dedicated server). Dropped the now-empty `web JS`
   lint job + the `javascript-typescript` CodeQL language (no JS left in the repo).
+- **✅ WebGL content startup fixed locally (2026-06-29):** the first hosted WebGL smoke booted Unity/Aegis but crashed
+  because WebGL exposes `Application.streamingAssetsPath` as an HTTPS URL, while the shared `ContentLoader`
+  expects a local directory. `BuildScript.BuildWebGL()` now writes a `StreamingAssets/data/manifest.json`, the
+  Unity shell downloads/caches that data through `UnityWebRequest` before loading content, Wiki/Arcade read the
+  corrected `data/...` paths, shared content reflection metadata is preserved for IL2CPP, and the generated
+  WebGL `index.html` no longer auto-requests fullscreen on load. Follow-up browser smoke testing also preserved
+  `SphereCollider` so startup components requested by name are not stripped from WebGL.
+- **✅ WebGL hosted-world rendering fixed locally (2026-06-29):** production HAR/log review confirmed content
+  assets loaded; the screenshot came from attempting native singleplayer/UDP gameplay in WebGL. The shell now
+  logs remote content/cache counts, blocks only browser-incompatible Singleplayer/Host, and routes Join through
+  the browser WebSocket transport with the WebGL JSON envelope.
 
 ## ▶ Open backlog — priority order (updated 2026-06-07)
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining

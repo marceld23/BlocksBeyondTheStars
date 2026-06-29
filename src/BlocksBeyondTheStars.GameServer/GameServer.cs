@@ -192,6 +192,7 @@ public sealed partial class GameServer
     {
         _repo.Initialize();
 
+        var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
 
         // World options: once created, the WORLD owns its rules — the save's override replaces the launch
@@ -200,6 +201,15 @@ public sealed partial class GameServer
         if (_meta.RulesOverride is not null)
         {
             _config.Rules = _meta.RulesOverride;
+        }
+
+        // Hosted servers can now opt everyone into free space flight from launch config/env. If an
+        // older world baked the previous default (off), preserve other saved world rules but lift this one.
+        if (launchRules.FreeSpaceFlight && !_config.Rules.FreeSpaceFlight)
+        {
+            _config.Rules.FreeSpaceFlight = true;
+            _meta.RulesOverride = _config.Rules.Clone();
+            _log.Info("Free space flight enabled for this world by server launch rules.");
         }
 
         _repo.SaveMetadata(_meta);

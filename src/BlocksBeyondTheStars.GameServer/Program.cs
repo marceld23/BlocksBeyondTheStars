@@ -57,7 +57,8 @@ catch (Exception ex)
 }
 
 var paths = new SaveGamePaths(savesRoot, config.WorldName);
-using var repo = new SqliteWorldRepository(paths);
+using var repo = WorldRepositoryFactory.Create(config, paths);
+logger.Info($"Persistence backend: {WorldRepositoryFactory.DisplayName(config)}.");
 
 // Native UDP for the Windows client; optionally also WebSocket for browser clients
 // (same protocol, same authoritative server). Both share the gameplay port number.

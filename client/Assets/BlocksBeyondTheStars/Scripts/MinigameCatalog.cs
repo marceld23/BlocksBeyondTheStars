@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The client-side catalogue of bundled arcade minigames, loaded from
-    /// <c>StreamingAssets/minigames/catalog.json</c>. It is the single source of truth for which games exist,
+    /// <c>StreamingAssets/data/minigames/catalog.json</c>. It is the single source of truth for which games exist,
     /// their bilingual titles/descriptions, and — crucially — how a data cube's opaque <see cref="long"/> seed
     /// maps to a concrete game (<see cref="GameForSeed"/>). The server never reads this; it only places cubes
     /// with seeds, so the same build resolves every cube to the same game on every client.
@@ -43,7 +43,7 @@ namespace BlocksBeyondTheStars.Client
 
         public static MinigameCatalog Instance { get; private set; }
 
-        /// <summary>Loads (once) the catalogue from StreamingAssets. Returns the cached instance on repeat calls.</summary>
+        /// <summary>Loads (once) the catalogue from bundled content. Returns the cached instance on repeat calls.</summary>
         public static MinigameCatalog Load()
         {
             if (Instance != null)
@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
             var cat = new MinigameCatalog();
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, "minigames", "catalog.json");
+                string path = Path.Combine(StreamingAssetsCache.DataDir, "minigames", "catalog.json");
                 if (File.Exists(path))
                 {
                     var parsed = JsonUtility.FromJson<File_>(File.ReadAllText(path));

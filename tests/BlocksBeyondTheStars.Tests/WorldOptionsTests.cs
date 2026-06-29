@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -123,6 +124,35 @@ public sealed class WorldOptionsTests : IDisposable
             Assert.Equal(AlienActivity.Extreme, defaults.Rules.CreatureAbundance);
             server2.Stop();
         }
+    }
+
+    [Fact]
+    public void LaunchRules_EnableFreeFlightForExistingWorlds()
+    {
+        var paths = new SaveGamePaths(_root, "flightupgrade");
+        using var repo = new SqliteWorldRepository(paths);
+        repo.Initialize();
+        repo.SaveMetadata(new WorldMetadata
+        {
+            WorldName = "flightupgrade",
+            Seed = 11,
+            DefaultPlanetType = "rocky",
+            ActiveLocationId = "rocky",
+            RulesOverride = new GameRules { FreeSpaceFlight = false, PlanetEnemies = AlienActivity.Off },
+        });
+
+        using var serverTransport = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = "flightupgrade", Seed = 11, AutoSaveIntervalMinutes = 9999 };
+        config.Rules.FreeSpaceFlight = true;
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+
+        Assert.True(config.Rules.FreeSpaceFlight);
+        Assert.Equal(AlienActivity.Off, config.Rules.PlanetEnemies);
+        Assert.True(repo.LoadMetadata()!.RulesOverride!.FreeSpaceFlight);
+        Assert.Equal(AlienActivity.Off, repo.LoadMetadata()!.RulesOverride!.PlanetEnemies);
+
+        server.Stop();
     }
 
     // ---- Creature abundance ---------------------------------------------------------------------

@@ -50,11 +50,22 @@ namespace BlocksBeyondTheStars.Client
 
                 _wasInSpaceView = Game.SpaceViewActive;
 
+                // Full-screen menu/browser panes must be escapable before the app shell sees Esc
+                // as "leave game", otherwise the player can get trapped behind overlapping modals.
+                if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping)
+                {
+                    Game.MarkMenuInputHandled();
+                    SetOpen(false);
+                    return;
+                }
+
                 // Don't let Tab open the menu while the death / ship-destruction prompt is up — only its
                 // "Weiter" button proceeds.
                 if (Input.GetKeyDown(KeyCode.Tab) && !Game.AwaitingRespawnConfirm && !Game.ChatTyping)
                 {
+                    Game.MarkMenuInputHandled();
                     SetOpen(!_open);
+                    return;
                 }
             }
 

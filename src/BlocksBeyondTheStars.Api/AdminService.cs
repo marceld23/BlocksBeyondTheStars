@@ -31,6 +31,7 @@ public sealed class AdminStatus
     public int RegisteredPlayers { get; set; }
     public int BackupCount { get; set; }
     public bool AdminPasswordSet { get; set; }
+    public string PersistenceBackend { get; set; } = string.Empty;
     public string? Warning { get; set; }
 }
 
@@ -91,28 +92,40 @@ public sealed class AdminService
             AdminPort = config.AdminPort,
             MaxPlayers = config.MaxPlayers,
             AdminPasswordSet = !string.IsNullOrEmpty(config.AdminPassword),
-            WorldExists = File.Exists(paths.DatabaseFile),
+            PersistenceBackend = WorldRepositoryFactory.DisplayName(config),
+            WorldExists = WorldRepositoryFactory.IsPostgreSql(config) || File.Exists(paths.DatabaseFile),
         };
 
         if (status.WorldExists)
         {
-            var info = new FileInfo(paths.DatabaseFile);
-            status.WorldSizeBytes = info.Length;
-            status.LastModifiedUtc = info.LastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm:ss");
+            if (!WorldRepositoryFactory.IsPostgreSql(config))
+            {
+                var info = new FileInfo(paths.DatabaseFile);
+                status.WorldSizeBytes = info.Length;
+                status.LastModifiedUtc = info.LastWriteTimeUtc.ToString("yyyy-MM-dd HH:mm:ss");
+            }
 
-            using var repo = new SqliteWorldRepository(paths);
-            repo.Initialize();
-            status.RegisteredPlayers = repo.ListPlayerIds().Count;
+            try
+            {
+                using var repo = WorldRepositoryFactory.Create(config, paths);
+                repo.Initialize();
+                status.RegisteredPlayers = repo.ListPlayerIds().Count;
+            }
+            catch (Exception ex)
+            {
+                status.Warning = "Could not open the configured world database: " + ex.Message;
+            }
         }
 
         if (Directory.Exists(paths.BackupsDirectory))
         {
-            status.BackupCount = Directory.GetFiles(paths.BackupsDirectory, "*.db").Length;
+            status.BackupCount = Directory.GetFiles(paths.BackupsDirectory, WorldRepositoryFactory.BackupSearchPattern(config)).Length;
         }
 
         if (!status.AdminPasswordSet)
         {
-            status.Warning = "No admin password is set. Keep the admin port bound to localhost/LAN only.";
+            string adminWarning = "No admin password is set. Keep the admin port bound to localhost/LAN only.";
+            status.Warning = string.IsNullOrEmpty(status.Warning) ? adminWarning : status.Warning + " " + adminWarning;
         }
 
         return status;
@@ -120,13 +133,14 @@ public sealed class AdminService
 
     public IReadOnlyList<BackupInfo> ListBackups()
     {
-        var paths = PathsFor(LoadConfig());
+        var config = LoadConfig();
+        var paths = PathsFor(config);
         if (!Directory.Exists(paths.BackupsDirectory))
         {
             return Array.Empty<BackupInfo>();
         }
 
-        return Directory.GetFiles(paths.BackupsDirectory, "*.db")
+        return Directory.GetFiles(paths.BackupsDirectory, WorldRepositoryFactory.BackupSearchPattern(config))
             .Select(f => new FileInfo(f))
             .OrderByDescending(f => f.LastWriteTimeUtc)
             .Select(f => new BackupInfo
@@ -140,13 +154,14 @@ public sealed class AdminService
 
     public string CreateBackup()
     {
-        var paths = PathsFor(LoadConfig());
-        if (!File.Exists(paths.DatabaseFile))
+        var config = LoadConfig();
+        var paths = PathsFor(config);
+        if (!WorldRepositoryFactory.IsPostgreSql(config) && !File.Exists(paths.DatabaseFile))
         {
             throw new InvalidOperationException("No world database exists to back up.");
         }
 
-        using var repo = new SqliteWorldRepository(paths);
+        using var repo = WorldRepositoryFactory.Create(config, paths);
         repo.Initialize();
         var label = "backup_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         return Path.GetFileName(repo.CreateBackup(label));
@@ -186,9 +201,10 @@ public sealed class AdminService
         return _content;
     }
 
-    private SqliteWorldRepository OpenRepo()
+    private IWorldRepository OpenRepo()
     {
-        var repo = new SqliteWorldRepository(PathsFor(LoadConfig()));
+        var config = LoadConfig();
+        var repo = WorldRepositoryFactory.Create(config, PathsFor(config));
         repo.Initialize();
         return repo;
     }
