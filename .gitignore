@@ -50,8 +50,10 @@ backups/
 plans/
 
 # Generated Unity client content (reproduce via scripts/sync-client-libs.ps1).
-# Ignore the whole synced folders incl. their folder .meta so no dangling metas are tracked.
-client/Assets/Plugins/
+# Ignore synced plugin payloads, but keep hand-written WebGL browser plugins versioned.
+client/Assets/Plugins/*
+!client/Assets/Plugins/BbsWebSocket.jslib
+!client/Assets/Plugins/BbsWebSocket.jslib.meta
 client/Assets/Plugins.meta
 client/Assets/StreamingAssets/
 client/Assets/StreamingAssets.meta
@@ -91,6 +93,14 @@ client/schtask-build.log
 # Player-feedback API key injected at release-build time (never committed)
 client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
 client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs.meta
+
+# Local secrets and Glitch build credentials (never committed)
+.env
+.env.*
+!.env.example
+glitch.local.env
+client/Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs
+client/Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs.meta
 
 # Build/capture run logs (client)
 client/build-run.log

@@ -127,6 +127,10 @@ namespace BlocksBeyondTheStars.Client
             string worldOptionArgs = null,
             int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null)
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            Debug.LogWarning("Local world hosting is unavailable in WebGL; browsers cannot launch the bundled server process.");
+            return false;
+#else
             if (IsRunning)
             {
                 return true;
@@ -202,6 +206,7 @@ namespace BlocksBeyondTheStars.Client
                 RedirectStandardError = true,
             };
             return true;
+#endif
         }
 
         /// <summary>Spawns the prepared server process. **Thread-safe** (no Unity APIs) so it can run on a

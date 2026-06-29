@@ -52,7 +52,13 @@ namespace BlocksBeyondTheStars.Client
             float by = 322f;
             UiKit.AddButton(root, bx, by, bw, bh, shell.L("ui.menu.singleplayer"), shell.StartSingleplayer, "btn_singleplayer");
             UiKit.AddButton(root, bx, by + gap, bw, bh, shell.L("ui.menu.host"), shell.StartHost, "btn_join");
-            UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.join"), () => { if (connect != null) connect.SetActive(true); }, "btn_join");
+            UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.join"), () =>
+            {
+                if (connect != null)
+                {
+                    connect.SetActive(true);
+                }
+            }, "btn_join");
             UiKit.AddButton(root, bx, by + gap * 3f, bw, bh, shell.L("ui.menu.editors"), () => shell.GoTo(ShellPhase.Editors), "btn_singleplayer");
             UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
             UiKit.AddButton(root, bx, by + gap * 5f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");

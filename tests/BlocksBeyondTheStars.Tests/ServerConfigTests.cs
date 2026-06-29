@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -21,6 +22,8 @@ public sealed class ServerConfigTests
             "--world", "singleplayer",
             "--saves", @"C:\sp\saves",
             "--data", @"C:\sp\data",
+            "--database-provider", "postgresql",
+            "--postgres-connection-string", "Host=db;Database=bbs;Username=bbs;Password=secret",
             "--max-players", "1",
             "--view-distance", "3",
         });
@@ -30,6 +33,8 @@ public sealed class ServerConfigTests
         Assert.Equal("singleplayer", config.WorldName);
         Assert.Equal(@"C:\sp\saves", config.SavesRoot);
         Assert.Equal(@"C:\sp\data", config.DataDir);
+        Assert.Equal("postgresql", config.DatabaseProvider);
+        Assert.Equal("Host=db;Database=bbs;Username=bbs;Password=secret", config.PostgresConnectionString);
         Assert.Equal(1, config.MaxPlayers);
         Assert.Equal(3, config.ViewDistanceChunks);
         Assert.Contains("port", applied);
@@ -138,7 +143,13 @@ public sealed class ServerConfigTests
             ["BBS_ENABLE_WEBSOCKET"] = "true",
             ["BBS_ADMINS"] = "Alice, Bob",
             ["BBS_WORLD"] = "dockerworld",
+            ["BBS_FREE_FLIGHT"] = "false",
+            ["BBS_SPACE_COMBAT"] = "PvE",
+            ["BBS_SHIP_WEAPONS"] = "All",
+            ["BBS_SPACE_NPCS"] = "Normal",
             ["BBS_AI_LEVEL"] = "Suggest",
+            ["BBS_DATABASE_PROVIDER"] = "postgresql",
+            ["BBS_POSTGRES_CONNECTION_STRING"] = "Host=db;Database=bbs;Username=bbs;Password=secret",
         };
 
         WithEnvironment(vars, () =>
@@ -154,11 +165,34 @@ public sealed class ServerConfigTests
             Assert.True(config.EnableWebSocket);
             Assert.Equal(new[] { "Alice", "Bob" }, config.AdminPlayers);
             Assert.Equal("dockerworld", config.WorldName);
+            Assert.False(config.Rules.FreeSpaceFlight);
+            Assert.Equal(SpaceCombatMode.PvE, config.Rules.SpaceCombat);
+            Assert.Equal(ShipWeaponMode.All, config.Rules.ShipWeapons);
+            Assert.Equal(AlienActivity.Normal, config.Rules.SpaceNpcEnemies);
             Assert.Equal(AiLevel.Suggest, config.AiLevel);
+            Assert.Equal("postgresql", config.DatabaseProvider);
+            Assert.Equal("Host=db;Database=bbs;Username=bbs;Password=secret", config.PostgresConnectionString);
             Assert.Contains("BBS_PORT", applied);
             Assert.Contains("BBS_ADMIN_BIND", applied);
+            Assert.Contains("BBS_FREE_FLIGHT", applied);
             Assert.Contains("BBS_AI_LEVEL", applied);
         });
+    }
+
+    [Fact]
+    public void RepositoryFactory_SelectsPostgreSqlFromConfig()
+    {
+        var config = new ServerConfig
+        {
+            DatabaseProvider = "postgres",
+            PostgresConnectionString = "Host=db;Database=bbs;Username=bbs;Password=secret",
+        };
+
+        using var repo = WorldRepositoryFactory.Create(config, new SaveGamePaths(Path.GetTempPath(), "factory"));
+
+        Assert.IsType<PostgreSqlWorldRepository>(repo);
+        Assert.True(WorldRepositoryFactory.IsPostgreSql(config));
+        Assert.Equal("PostgreSQL", WorldRepositoryFactory.DisplayName(config));
     }
 
     [Fact]

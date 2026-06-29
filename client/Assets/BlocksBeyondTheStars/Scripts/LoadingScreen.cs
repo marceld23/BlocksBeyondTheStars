@@ -31,6 +31,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            if (!_shell.ContentReady)
+            {
+                return;
+            }
+
             _elapsed += Time.deltaTime;
             if (_elapsed >= MinShow)
             {

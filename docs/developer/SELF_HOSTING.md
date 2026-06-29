@@ -45,7 +45,7 @@ Created on first run; editable directly or through the admin UI.
 |---|---|---|
 | `serverName` | Display name | `Blocks Beyond the Stars Server` |
 | `worldName` | Save folder under `saves/` | `world_001` |
-| `gameplayPort` | UDP port for the game (open/forward this) | `31415` |
+| `gameplayPort` | UDP gameplay port for native clients; also the HTTP/WebSocket port when WebSocket is enabled | `31415` |
 | `adminPort` | HTTP port for the admin UI | `31416` |
 | `maxPlayers` | Connection cap | `12` |
 | `serverPassword` | Required to join (empty = none) | `""` |
@@ -59,6 +59,10 @@ Created on first run; editable directly or through the admin UI.
 | `seed` | World seed (0 = derive from world name) | `0` |
 | `startPlanet` | Starting planet type | `rocky` |
 | `adminBindAddress` | Admin UI bind address | `127.0.0.1` |
+| `enableWebSocket` | Enable browser/WebGL WebSocket gameplay transport | `false` |
+| `webSocketBindAddress` | WebSocket HTTP bind host (`+` for all interfaces/reverse proxies) | `localhost` |
+| `databaseProvider` | Save backend: `sqlite` or `postgresql` | `sqlite` |
+| `postgresConnectionString` | PostgreSQL connection string (prefer env/secret) | `""` |
 | `aiLevel` | Optional AI text backend: `Off`, `Suggest` (AI missions land as drafts), `Auto` (published) — see §8 | `Off` |
 | `aiBackendUrl` | Base URL of the optional AI backend | `http://127.0.0.1:8077` |
 
@@ -79,7 +83,14 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_ADMINS` | `adminPlayers` (comma-separated) | `BBS_USERCONTENT` | `userContentDir` |
 | `BBS_SEED` | `seed` | `BBS_TICK_RATE` | `tickRate` |
 | `BBS_START_PLANET` | `startPlanet` | `BBS_VIEW_DISTANCE` | `viewDistanceChunks` |
+| `BBS_FREE_FLIGHT` | `rules.freeSpaceFlight` | `BBS_SPACE_COMBAT` | `rules.spaceCombat` |
+| `BBS_SHIP_WEAPONS` | `rules.shipWeapons` | `BBS_SPACE_NPCS` | `rules.spaceNpcEnemies` |
+| `BBS_DATABASE_PROVIDER` (`BBS_DATABASE`) | `databaseProvider` | `BBS_POSTGRES_CONNECTION_STRING` (`DATABASE_URL`) | `postgresConnectionString` |
 | `BBS_AI_LEVEL` | `aiLevel` | `BBS_AI_BACKEND_URL` | `aiBackendUrl` |
+
+`BBS_FREE_FLIGHT=true` is useful for hosted WebGL realms where every player should be allowed to launch and fly
+manually right away. It also upgrades older world metadata that was saved before free flight became the default,
+while leaving the rest of that world's saved rules intact.
 
 ### Player names & name verification
 
@@ -96,8 +107,13 @@ secret is stored in the save. The very first player ever to join a fresh world b
 
 ## 4. Ports & networking
 
-- **Gameplay**: UDP `gameplayPort` (default 31415). Forward this on your router for
-  internet play.
+- **Native gameplay**: UDP `gameplayPort` (default 31415). Forward this on your router for
+  desktop native clients.
+- **Browser/WebGL gameplay**: when `enableWebSocket=true`, the server also listens for HTTP/WebSocket
+  upgrades on `gameplayPort`. Browsers connect with `ws://` or `wss://`; reverse proxies and managed
+  hosts must allow WebSocket upgrade traffic to the game server. Azure Container Apps should use HTTP/auto
+  ingress to target port 31415 for WebGL, then clients use the app's `wss://...` URL. Native UDP clients
+  still need a UDP-capable host.
 - **Admin UI**: HTTP `adminPort` (default 31416), bound to `127.0.0.1` by default so it
   is **not** reachable from outside. Only change `adminBindAddress` if you understand the
   risk, and always set an `adminPassword` first.
@@ -154,10 +170,19 @@ See §9 for distributing the client this way.
 
 ## 6. Backups & saves
 
-- A world lives in `saves/<worldName>/world.db` (SQLite) with `backups/` and `logs/`
-  alongside — fully portable; copy the folder to move or back up a world.
-- Backups are transactionally consistent copies (`VACUUM INTO`). Create them from the
-  admin UI, the Tools CLI (`BlocksBeyondTheStars.Tools backup saves <world>`), or on a schedule.
+- SQLite remains the default. A world lives in `saves/<worldName>/world.db` with `backups/` and
+  `logs/` alongside — fully portable; copy the folder to move or back up a local/self-hosted world.
+- PostgreSQL is opt-in for hosted dedicated servers: set `databaseProvider` to `postgresql` (or
+  `BBS_DATABASE_PROVIDER=postgresql`) and provide `postgresConnectionString` through an environment
+  secret such as `BBS_POSTGRES_CONNECTION_STRING`. Each world is isolated into its own schema named
+  from the world name, while logs, bug reports and JSON backup exports still use `saves/<worldName>/`.
+- SQLite backups are transactionally consistent `.db` copies (`VACUUM INTO`). PostgreSQL backups are
+  JSON table-export snapshots (`*.postgresql.json`) for inspection/operator recovery workflows; the game does
+  not yet include an importer that restores those snapshots. For production PostgreSQL operations, also use the
+  provider's built-in point-in-time backups.
+- Create backups from the admin UI, the Tools CLI (`BlocksBeyondTheStars.Tools backup saves <world>`),
+  or on a schedule. The Tools CLI also honors `BBS_DATABASE_PROVIDER=postgresql` +
+  `BBS_POSTGRES_CONNECTION_STRING`.
 - The world is `seed + parameters + player edits`: the procedural terrain is regenerated,
   only your changes are stored, keeping saves small.
 
@@ -306,6 +331,17 @@ A quick end-to-end test on your own machine (Docker Desktop on Windows/macOS/Lin
 
    Docker pulls the image automatically. Add `-e BBS_FETCH_CLIENT=0` to skip the GitHub
    client-installer download for a pure offline server test.
+
+   To test a WebGL/browser client against the container, also publish the TCP/WebSocket gameplay port and
+   enable the WebSocket listener:
+
+   ```bash
+   docker run -d --name bbts-web \
+     -p 31415:31415/udp -p 31415:31415/tcp -p 31416:31416/tcp \
+     -e BBS_ENABLE_WEBSOCKET=true -e BBS_WEBSOCKET_BIND=+ \
+     -e BBS_ADMIN_PASSWORD=test123 -e BBS_SERVER_NAME="Local WebGL Test" \
+     ghcr.io/marceld23/blocks-beyond-the-stars-server:latest
+   ```
 
 2. **Check it's up** — open the admin dashboard at <http://localhost:31416/> and the public portal at
    <http://localhost:31416/portal>. `BBS_ADMIN_PASSWORD` gates the `/api/*` calls (the dashboard

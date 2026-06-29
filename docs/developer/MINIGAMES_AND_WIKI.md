@@ -59,9 +59,9 @@ Menu "Codex"/"DataQubes" button
   drawing into a `Canvas2D`.
 - `MinigameHostUI.cs` (Unity) — gives the host a uGUI body: a point-filtered `RawImage` fed from the game's
   `Canvas2D` each frame. Needs no UWB/CEF, so it builds on every platform.
-- `MinigameCatalog.cs` (Unity) — loads `StreamingAssets/minigames/catalog.json` for UI metadata
-  (icon/title/desc + cube seed → game). The `entry` field is legacy and unused by the native host.
-- `WikiUI.cs` + `WikiMarkup` (`Client.Core`) — load `StreamingAssets/wiki/articles.json` and render the
+- `MinigameCatalog.cs` (Unity) — loads `StreamingAssets/data/minigames/catalog.json` for UI metadata
+  (icon/title/desc + cube seed → game). On WebGL this comes from the cached StreamingAssets data folder.
+- `WikiUI.cs` + `WikiMarkup` (`Client.Core`) — load `StreamingAssets/data/wiki/articles.json` and render the
   articles natively (discovery-gated Systems & Worlds chapters from the player's visited set).
 - `DataCubeView.cs` — renders the glowing cube (texture `Resources/props/data_cube`, point light, pulse),
   proximity hum (`data_cube_hum`), and the E label. `PlayerController` E-interact sends the download +

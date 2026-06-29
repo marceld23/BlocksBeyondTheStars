@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _builtCanvas;
         private string _chapter = "guide";
 
-        // Guide articles, loaded once from the bundled wiki content (StreamingAssets/wiki/articles.json).
+        // Guide articles, loaded once from the bundled wiki content (StreamingAssets/data/wiki/articles.json).
         [Serializable] private sealed class LocText { public string en = ""; public string de = ""; }
         [Serializable] private sealed class Article { public string id = ""; public LocText title; public LocText body; }
         [Serializable] private sealed class ArticleList { public Article[] items; }
@@ -252,7 +252,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, "wiki", "articles.json");
+                string path = Path.Combine(StreamingAssetsCache.DataDir, "wiki", "articles.json");
                 if (File.Exists(path))
                 {
                     // JsonUtility can't parse a top-level array, so wrap it as { "items": [...] }.

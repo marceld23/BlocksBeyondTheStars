@@ -843,6 +843,7 @@
   "ui.menu.connect_port": "Port",
   "ui.menu.connect_password": "Server password (leave empty if none)",
   "ui.menu.connect": "Connect",
+  "ui.webgl.gameplay_blocked": "Browser builds can join the online realm, but cannot start a local world on this device.",
   "ui.host.title": "HOST A WORLD",
   "ui.host.subtitle": "Host a world for friends: pick any saved world or create a new one, then share the address shown in-game.",
   "ui.host.max_players": "Max players",

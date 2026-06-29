@@ -32,8 +32,8 @@ both inside Unity and on the server; everything else targets **`net8.0`** (the L
 |---|---|---|
 | `BlocksBeyondTheStars.Shared` | `netstandard2.1` | Data models, data-driven definitions, geometry, localization, protocol DTOs, game rules, story engine. Depends on nothing in the solution. |
 | `BlocksBeyondTheStars.WorldGeneration` | `netstandard2.1` | Seed-deterministic chunk/galaxy/flora/settlement/creature generation. |
-| `BlocksBeyondTheStars.Networking` | `netstandard2.1` | Transport abstraction + concrete transports, message classes, `NetCodec` registry. Refs LiteNetLib + MessagePack. |
-| `BlocksBeyondTheStars.Persistence` | `net8.0` | `IWorldRepository` + SQLite implementation, savegame paths/snapshots. Refs Microsoft.Data.Sqlite. |
+| `BlocksBeyondTheStars.Networking` | `netstandard2.1` | Transport abstraction + concrete transports, message classes, `NetCodec` registry. Refs LiteNetLib + MessagePack; WebGL uses a JSON envelope at the WebSocket edge. |
+| `BlocksBeyondTheStars.Persistence` | `net8.0` | `IWorldRepository` + SQLite/PostgreSQL implementations, savegame paths/snapshots. Refs Microsoft.Data.Sqlite + Npgsql. |
 | `BlocksBeyondTheStars.GameServer` | `net8.0` (Exe) | Authoritative tick loop + console host. |
 | `BlocksBeyondTheStars.Api` | `net8.0` (Web) | ASP.NET Core minimal-API admin/portal/distribution. |
 | `BlocksBeyondTheStars.Tools` | `net8.0` (Exe) | Backup/export/debug CLI. |
@@ -71,7 +71,7 @@ feature files. It is **single-threaded and tick-driven** by design (`GameServer.
 
 - **Host** — `GameServer/Program.cs` loads `config/server.json` (with CLI overrides such as
   the client's `--port/--saves/--data/--usercontent`), loads data-driven content, opens the
-  SQLite repository, builds the transport, then `Start()` + `Run()`. `Ctrl-C` only *requests*
+  configured repository, builds the transport, then `Start()` + `Run()`. `Ctrl-C` only *requests*
   a stop; the run loop drains and saves on the tick thread so a save never races a live tick.
 - **Tick loop** — `Run()` sleeps to a configured `TickRate`. Each `Tick(dt)` polls the
   transport, ticks each *occupied* world with an "active world cursor" set (environment, fauna,
@@ -80,18 +80,21 @@ feature files. It is **single-threaded and tick-driven** by design (`GameServer.
   through forwarding properties.
 - **Networking** — `Networking/Transport/` defines `IServerTransport`/`IClientTransport`
   carrying raw `NetCodec`-encoded payloads; events fire during `Poll()` so the server stays
-  single-threaded. Concrete transports: `LiteNetLibTransport` (UDP, the Windows client),
-  `WebSocketServerTransport` (browser clients, same protocol/port), `LoopbackTransport`
+  single-threaded. Concrete transports: `LiteNetLibTransport` (UDP, native clients),
+  `WebSocketServerTransport` (browser clients, same gameplay port), `LoopbackTransport`
   (in-process), and `CompositeServerTransport` (runs UDP + WebSocket together). UDP is the
-  default; WebSocket is opt-in (`EnableWebSocket`).
-- **Persistence** — `Persistence/SqliteWorldRepository.cs` behind `IWorldRepository`. SQLite
-  in **WAL** mode (`synchronous=NORMAL`), portable. Stores world
+  default; WebSocket is opt-in (`EnableWebSocket`). Browser clients use the JSON `NetCodec`
+  envelope at this edge; native clients keep MessagePack.
+- **Persistence** — `IWorldRepository` behind `WorldRepositoryFactory`. SQLite
+  (`SqliteWorldRepository`, WAL mode, `synchronous=NORMAL`) is the portable default for local,
+  singleplayer and self-hosted worlds; PostgreSQL (`PostgreSqlWorldRepository`) is an opt-in hosted
+  backend selected by `databaseProvider` / `BBS_DATABASE_PROVIDER=postgresql` plus a connection string.
+  Both backends store world
   metadata, **only player block-edit deltas** (`block_edit`, keyed by planet+xyz with
   tint/glow/shape), player/ship JSON blobs, containers, doors, beacons, beams, bases,
   alliances, story state, space structures + their per-cell edits, location statuses and
   player/admin missions. `RunInTransaction` batches bursty writes into one commit; autosave +
-  atomic backups via `CreateBackup`. A PostgreSQL impl can be added without touching the
-  server. See [SELF_HOSTING.md](SELF_HOSTING.md).
+  backups via `CreateBackup`. See [SELF_HOSTING.md](SELF_HOSTING.md).
 - **WorldGen** — `WorldGeneration/WorldGenerator.cs` is **seed-deterministic**: given a seed,
   `PlanetType` and `ChunkCoord` it always yields the same blocks, so the procedural baseline is
   never stored. `UniverseGenerator` builds the galaxy of systems/bodies from the seed; flora,
@@ -157,10 +160,11 @@ comments are English; player-facing text is bilingual.
 
 ## Networking protocol (intents → state)
 
-`Networking/NetCodec.cs` is a stable **tag↔type registry**: each payload is a one-byte
+`Networking/NetCodec.cs` is a stable **tag↔type registry**. Native payloads are a one-byte
 message-type tag followed by a MessagePack *contractless* body (no serialization attributes,
-compact wire format). Ids are append-only and never reused; a message class that isn't
-`Register()`'d silently fails to send.
+compact wire format). Browser WebSocket payloads use a reserved JSON envelope tag whose body
+contains the same registered message tag plus JSON. Ids are append-only and never reused; a
+message class that isn't `Register()`'d silently fails to send.
 
 - **Client → server = intents** (tags 1+): `JoinRequest`, `MoveIntent`, `MineBlockIntent`,
   `PlaceBlockIntent`, `CraftIntent`, `DockRequestIntent`, `TravelIntent`, `FireWeaponIntent`, …

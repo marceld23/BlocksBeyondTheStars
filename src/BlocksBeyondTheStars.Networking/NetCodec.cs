@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text;
+using System.Text.Json;
 using BlocksBeyondTheStars.Networking.Messages;
 using MessagePack;
 using MessagePack.Resolvers;
@@ -14,8 +16,30 @@ namespace BlocksBeyondTheStars.Networking;
 /// </summary>
 public static class NetCodec
 {
+    private const byte JsonEnvelopeTag = 255;
+    public const int MaxJsonPayloadBytes = 1024 * 1024;
+    private const int MaxJsonDepth = 64;
+
     private static readonly MessagePackSerializerOptions Options =
         MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance);
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        MaxDepth = MaxJsonDepth,
+    };
+
+    private static readonly JsonDocumentOptions JsonDocumentOptions = new()
+    {
+        MaxDepth = MaxJsonDepth,
+    };
+
+    /// <summary>
+    /// WebGL/IL2CPP cannot rely on MessagePack's contractless runtime formatter path.
+    /// Browser transports set this flag so their outbound payloads use the JSON envelope below; native
+    /// clients and the server keep the compact MessagePack binary protocol.
+    /// </summary>
+    public static bool UseJsonEncoding { get; set; }
 
     // Stable tag <-> type registry. Append new messages with new ids; never reuse ids.
     private static readonly Dictionary<byte, Type> TagToType = new();
@@ -294,6 +318,9 @@ public static class NetCodec
     }
 
     public static byte[] Encode(object message)
+        => UseJsonEncoding ? EncodeJson(message) : EncodeMessagePack(message);
+
+    private static byte[] EncodeMessagePack(object message)
     {
         var type = message.GetType();
         if (!TypeToTag.TryGetValue(type, out var tag))
@@ -308,12 +335,52 @@ public static class NetCodec
         return payload;
     }
 
+    /// <summary>Encodes a tagged JSON payload for browser WebSocket clients.</summary>
+    public static byte[] EncodeJson(object message)
+    {
+        var type = message.GetType();
+        if (!TypeToTag.TryGetValue(type, out var tag))
+        {
+            throw new InvalidOperationException($"Message type '{type.Name}' is not registered with NetCodec.");
+        }
+
+        string body = JsonSerializer.Serialize(message, type, JsonOptions);
+        string envelope = "{\"tag\":" + tag + ",\"body\":" + body + "}";
+        byte[] json = Encoding.UTF8.GetBytes(envelope);
+        var payload = new byte[json.Length + 1];
+        payload[0] = JsonEnvelopeTag;
+        Buffer.BlockCopy(json, 0, payload, 1, json.Length);
+        return payload;
+    }
+
+    /// <summary>
+    /// Converts an already-encoded NetCodec payload to the browser JSON envelope. Used by the WebSocket server
+    /// transport so the authoritative server can keep its normal MessagePack send path internally.
+    /// </summary>
+    public static bool TryConvertToJsonPayload(byte[] payload, out byte[] jsonPayload)
+    {
+        var message = Decode(payload);
+        if (message == null)
+        {
+            jsonPayload = Array.Empty<byte>();
+            return false;
+        }
+
+        jsonPayload = EncodeJson(message);
+        return true;
+    }
+
     /// <summary>Decodes a payload into a message object, or null if the tag is unknown/empty or the body is
     /// malformed. A corrupt/truncated/maliciously-shaped body must never throw out to the caller — a single
     /// bad packet would otherwise crash the single-threaded server tick (DoS); we swallow it and return null
     /// so the caller can drop the message.</summary>
     public static object? Decode(byte[] payload)
     {
+        if (payload.Length > 0 && payload[0] == JsonEnvelopeTag)
+        {
+            return DecodeJson(payload);
+        }
+
         if (payload.Length == 0 || !TagToType.TryGetValue(payload[0], out var type))
         {
             return null;
@@ -327,6 +394,48 @@ public static class NetCodec
         catch (MessagePackSerializationException)
         {
             return null; // corrupt/truncated body for this tag — drop it
+        }
+    }
+
+    private static object? DecodeJson(byte[] payload)
+    {
+        if (payload.Length <= 1 || payload.Length > MaxJsonPayloadBytes)
+        {
+            return null;
+        }
+
+        try
+        {
+            string json = Encoding.UTF8.GetString(payload, 1, payload.Length - 1);
+            using var doc = JsonDocument.Parse(json, JsonDocumentOptions);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("tag", out var tagElement)
+                || !tagElement.TryGetInt32(out int tag)
+                || tag < 0
+                || tag > byte.MaxValue)
+            {
+                return null;
+            }
+
+            if (!TagToType.TryGetValue((byte)tag, out var type)
+                || !root.TryGetProperty("body", out var bodyElement))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize(bodyElement.GetRawText(), type, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
         }
     }
 }

@@ -55,6 +55,7 @@ public sealed class AdminServiceTests : IDisposable
         var before = admin.GetStatus();
         Assert.True(before.WorldExists);
         Assert.Equal(1, before.RegisteredPlayers);
+        Assert.Equal("SQLite", before.PersistenceBackend);
 
         var backupName = admin.CreateBackup();
         Assert.EndsWith(".db", backupName);

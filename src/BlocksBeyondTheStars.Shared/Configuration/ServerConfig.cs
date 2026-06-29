@@ -97,6 +97,16 @@ public sealed class ServerConfig
     public string SavesRoot { get; set; } = "saves";
     public string DataDir { get; set; } = "data";
 
+    /// <summary>
+    /// Persistence backend for authoritative world state. "sqlite" is the portable default; "postgresql"
+    /// uses <see cref="PostgresConnectionString"/> and is intended for hosted dedicated/MMO-style servers.
+    /// </summary>
+    public string DatabaseProvider { get; set; } = "sqlite";
+
+    /// <summary>PostgreSQL connection string. Prefer supplying this through BBS_POSTGRES_CONNECTION_STRING
+    /// or DATABASE_URL in hosted deployments instead of committing it to server.json.</summary>
+    public string PostgresConnectionString { get; set; } = string.Empty;
+
     /// <summary>Optional writable folder holding in-game-editor structure templates
     /// (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>). When set, they are merged
     /// into the template pools at load so player-authored structures appear in new worlds without a
@@ -250,6 +260,15 @@ public sealed class ServerConfig
                 case "usercontent":
                 case "user-content":
                     UserContentDir = value; applied.Add("usercontent");
+                    break;
+                case "database":
+                case "database-provider":
+                    DatabaseProvider = value; applied.Add("database-provider");
+                    break;
+                case "postgres":
+                case "postgres-connection":
+                case "postgres-connection-string":
+                    PostgresConnectionString = value; applied.Add("postgres-connection-string");
                     break;
                 case "world":
                 case "world-name":
@@ -456,10 +475,16 @@ public sealed class ServerConfig
         if (Env("BBS_SAVES") is { } saves) { SavesRoot = saves; applied.Add("BBS_SAVES"); }
         if (Env("BBS_DATA") is { } data) { DataDir = data; applied.Add("BBS_DATA"); }
         if (Env("BBS_USERCONTENT") is { } userContent) { UserContentDir = userContent; applied.Add("BBS_USERCONTENT"); }
+        if ((Env("BBS_DATABASE_PROVIDER") ?? Env("BBS_DATABASE")) is { } databaseProvider) { DatabaseProvider = databaseProvider; applied.Add("BBS_DATABASE_PROVIDER"); }
+        if ((Env("BBS_POSTGRES_CONNECTION_STRING") ?? Env("DATABASE_URL")) is { } pg) { PostgresConnectionString = pg; applied.Add("BBS_POSTGRES_CONNECTION_STRING"); }
         if (Env("BBS_SEED") is { } seedStr && long.TryParse(seedStr, out var seed)) { Seed = seed; applied.Add("BBS_SEED"); }
         if (Env("BBS_START_PLANET") is { } startPlanet) { StartPlanet = startPlanet.Trim(); applied.Add("BBS_START_PLANET"); }
         if (Env("BBS_TICK_RATE") is { } tickStr && int.TryParse(tickStr, out var tick)) { TickRate = tick; applied.Add("BBS_TICK_RATE"); }
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
+        if (Env("BBS_FREE_FLIGHT") is { } ffStr && bool.TryParse(ffStr, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("BBS_FREE_FLIGHT"); }
+        if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }
+        if (Env("BBS_SHIP_WEAPONS") is { } swStr && Enum.TryParse<ShipWeaponMode>(swStr, ignoreCase: true, out var sw)) { Rules.ShipWeapons = sw; applied.Add("BBS_SHIP_WEAPONS"); }
+        if (Env("BBS_SPACE_NPCS") is { } snStr && Enum.TryParse<AlienActivity>(snStr, ignoreCase: true, out var sn)) { Rules.SpaceNpcEnemies = sn; applied.Add("BBS_SPACE_NPCS"); }
         if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
         if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
         if (Env("BBS_CRASH_REPORT_ENDPOINT") is { } crashUrl) { CrashReportEndpoint = crashUrl; applied.Add("BBS_CRASH_REPORT_ENDPOINT"); }

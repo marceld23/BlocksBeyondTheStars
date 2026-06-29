@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections;
 using System.IO;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
@@ -47,6 +48,19 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>One-shot notice shown on the main menu (e.g. why the last join was refused).</summary>
         public string MenuNotice = "";
 
+        /// <summary>Browser builds cannot launch the bundled native server, but they can join a hosted WebSocket server.</summary>
+        public static bool BrowserLocalServerBlocked
+        {
+            get
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
         private SplashScreen _splash;
         private StudioSplash _studio;
         private LoadingScreen _loading;
@@ -57,7 +71,10 @@ namespace BlocksBeyondTheStars.Client
         private System.Threading.Tasks.Task _serverLaunch;    // the off-thread spawn (so Process.Start can't freeze us)
         private GameObject _gameRoot;
 
+        public bool ContentReady { get; private set; }
+
         private bool _splashSoundDone;
+        private bool _autoJoinWhenReady;
 
         private void Awake()
         {
@@ -71,11 +88,23 @@ namespace BlocksBeyondTheStars.Client
             crashGo.AddComponent<CrashReporter>().Settings = Settings;
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
             Settings.Apply();
-            LoadLocalizer();
+            if (StreamingAssetsCache.UsesRemoteStreamingAssets)
+            {
+                StartCoroutine(LoadContentForStartup());
+            }
+            else
+            {
+                StreamingAssetsCache.EnsureLocalReady();
+                LoadLocalizer();
+            }
+
             if (!string.IsNullOrWhiteSpace(Settings.PlayerName))
             {
                 PlayerName = Settings.PlayerName.Trim();
             }
+
+            ApplyGlitchServerDefaults();
+            ConfigureOptionalWebAutoJoin();
 
             // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
             // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
@@ -83,11 +112,60 @@ namespace BlocksBeyondTheStars.Client
             _studio = new StudioSplash(this);
             _loading = new LoadingScreen(this);
 
-            EnsureMenuBackground();
+            GlitchIntegration.InstallIfConfigured();
+            if (ContentReady)
+            {
+                EnsureMenuBackground();
+            }
 
             // Persistent background-music director: spans splash → menu → loading → in-game so the shell
             // screens get music too, and cross-fades context tracks (synth or the AI track library).
             gameObject.AddComponent<ClientMusic>().Shell = this;
+        }
+
+        private void ConfigureOptionalWebAutoJoin()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            _autoJoinWhenReady = GlitchIntegration.AutoJoinRequested;
+            string playerName = GlitchIntegration.AutoJoinPlayerName;
+            if (!string.IsNullOrWhiteSpace(playerName))
+            {
+                PlayerName = playerName.Trim();
+            }
+#endif
+        }
+
+        private void ApplyGlitchServerDefaults()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!GlitchIntegration.TryGetConfiguredServer(out string host, out string port, out string password))
+            {
+                return;
+            }
+
+            Host = host;
+            if (!string.IsNullOrWhiteSpace(port))
+            {
+                Port = port;
+            }
+
+            Password = password ?? string.Empty;
+            Debug.Log($"[Glitch] Applied WebGL server defaults: {Host}:{Port}.");
+#endif
+        }
+
+        private IEnumerator LoadContentForStartup()
+        {
+            System.Exception failure = null;
+            yield return StreamingAssetsCache.EnsureReady(ex => failure = ex);
+            if (failure != null)
+            {
+                Debug.LogError($"Content startup failed: {failure.Message}");
+                yield break;
+            }
+
+            LoadLocalizer();
+            EnsureMenuBackground();
         }
 
         /// <summary>
@@ -147,6 +225,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Spawns the animated space-scene backdrop shown behind the shell screens.</summary>
         private void EnsureMenuBackground()
         {
+            if (!ContentReady)
+            {
+                return;
+            }
+
             if (_menuBackground == null)
             {
                 _menuBackground = new GameObject("MenuBackground");
@@ -208,10 +291,23 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>(Re)loads content and the localizer for the currently selected language.</summary>
         public void LoadLocalizer()
         {
-            string dataDir = Path.Combine(Application.streamingAssetsPath, "data");
+            if (!StreamingAssetsCache.IsReady)
+            {
+                if (StreamingAssetsCache.UsesRemoteStreamingAssets)
+                {
+                    Debug.LogWarning("Remote StreamingAssets content is not ready yet.");
+                    return;
+                }
+
+                StreamingAssetsCache.EnsureLocalReady();
+            }
+
+            string dataDir = StreamingAssetsCache.DataDir;
             Content = ContentLoader.LoadFromDirectory(dataDir);
+            Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             var locale = Settings.Language == "de" ? GameLocale.German : GameLocale.English;
             Localizer = Content.CreateLocalizer(locale);
+            ContentReady = true;
         }
 
         /// <summary>Localize, falling back to the key before content is loaded.</summary>
@@ -250,6 +346,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Opens the singleplayer world picker (choose an existing save or start a new one).</summary>
         public void StartSingleplayer()
         {
+            if (ShowBrowserLocalServerBlockedNotice())
+            {
+                return;
+            }
+
             HostMode = false;
             Phase = ShellPhase.SaveSelect;
         }
@@ -257,6 +358,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Opens the world picker in host mode (any singleplayer save can be hosted, "open to LAN" style).</summary>
         public void StartHost()
         {
+            if (ShowBrowserLocalServerBlockedNotice())
+            {
+                return;
+            }
+
             HostMode = true;
             Phase = ShellPhase.SaveSelect;
         }
@@ -283,6 +389,11 @@ namespace BlocksBeyondTheStars.Client
             bool creativeUnlockAll, bool creativeAllShips, bool creativeKit, WorldCreationOptions worldOptions,
             int maxPlayers, string password)
         {
+            if (ShowBrowserLocalServerBlockedNotice())
+            {
+                return;
+            }
+
             // Singleplayer AND in-game hosting run the bundled dedicated server as a child process
             // (Option A), then connect to it like any other server; hosting just opens the player cap.
             bool hosting = maxPlayers > 1;
@@ -357,6 +468,26 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.Loading;
         }
 
+        public bool ShowBrowserLocalServerBlockedNotice()
+        {
+            if (!BrowserLocalServerBlocked)
+            {
+                return false;
+            }
+
+            MenuNotice = L("ui.webgl.gameplay_blocked");
+            HostInfo = "";
+            _serverPending = false;
+            Phase = ShellPhase.MainMenu;
+            if (_uiMenu != null)
+            {
+                Destroy(_uiMenu);
+                _uiMenu = null;
+            }
+
+            return true;
+        }
+
         public void Quit()
         {
             StopLocalServer();
@@ -388,6 +519,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds the in-game rig (player + camera + world + HUD) and enters play.</summary>
         public void LaunchGame()
         {
+            if (!ContentReady)
+            {
+                Debug.LogWarning("Game launch delayed until bundled content is ready.");
+                return;
+            }
+
             DestroyMenuBackground();
             _gameRoot = WorldRig.Build(this);
             CurrentBoot = Boot(); // hand the live world to the music director
@@ -585,6 +722,12 @@ namespace BlocksBeyondTheStars.Client
                 UiSound.Volume = Mathf.Clamp01(Settings.MasterVolume * Settings.SfxVolume) * 0.6f;
             }
 
+            if (_autoJoinWhenReady && ContentReady && Phase == ShellPhase.MainMenu)
+            {
+                _autoJoinWhenReady = false;
+                StartJoin();
+            }
+
             // The main menu + loading are uGUI (M27): spawn each for its phase, tear it down otherwise.
             if (Phase == ShellPhase.MainMenu && _uiMenu == null)
             {
@@ -692,6 +835,10 @@ namespace BlocksBeyondTheStars.Client
                     else if (_confirmQuit)
                     {
                         CancelQuit(); // Esc again dismisses the confirmation
+                    }
+                    else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame))
+                    {
+                        // The in-game menu or one of its browser screens owns this Esc press.
                     }
                     else
                     {

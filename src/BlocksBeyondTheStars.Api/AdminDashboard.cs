@@ -86,6 +86,7 @@ public static class AdminDashboard
         let html = '<table>';
         const rows = [['Server', s.serverName], ['World', s.worldName], ['Gameplay port', s.gameplayPort],
           ['Admin port', s.adminPort], ['Max players', s.maxPlayers], ['World exists', s.worldExists],
+          ['Persistence', s.persistenceBackend],
           ['World size', (s.worldSizeBytes/1024).toFixed(1) + ' KiB'], ['Last modified', s.lastModifiedUtc || '—'],
           ['Registered players', s.registeredPlayers], ['Backups', s.backupCount], ['Admin password set', s.adminPasswordSet]];
         for (const [k,v] of rows) html += `<tr><th>${k}</th><td>${v}</td></tr>`;

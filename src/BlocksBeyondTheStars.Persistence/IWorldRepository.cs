@@ -152,9 +152,8 @@ public readonly struct StoredFloraRegrow
 }
 
 /// <summary>
-/// Abstraction over savegame persistence. The default implementation is SQLite-backed
-/// (portable); a PostgreSQL implementation can be added later
-/// without touching the game server (technical requirements §10.2, §23.3).
+/// Abstraction over savegame persistence. SQLite remains the portable default; PostgreSQL is available
+/// for hosted dedicated servers that need managed storage and easier cloud operations.
 /// </summary>
 public interface IWorldRepository : IDisposable
 {

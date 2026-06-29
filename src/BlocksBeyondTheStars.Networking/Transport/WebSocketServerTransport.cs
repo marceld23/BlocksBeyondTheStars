@@ -12,12 +12,14 @@ namespace BlocksBeyondTheStars.Networking.Transport;
 /// <summary>
 /// WebSocket server transport for browser clients (technical requirements /
 /// `anf_webclient.md` §8): browsers cannot open native UDP sockets, so the web client
-/// connects over WebSocket and exchanges the exact same <see cref="NetCodec"/> payloads as
-/// native clients. Network events are queued on background threads and surfaced during
+/// connects over WebSocket. Browser clients use <see cref="NetCodec"/>'s JSON envelope to avoid
+/// WebGL/IL2CPP contractless formatter generation, while native clients keep MessagePack. Network events are queued on background threads and surfaced during
 /// <see cref="Poll"/>, matching the single-threaded, tick-driven server model.
 /// </summary>
 public sealed class WebSocketServerTransport : IServerTransport
 {
+    private const int MaxReceiveFrameBytes = NetCodec.MaxJsonPayloadBytes;
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
         Justification = "Per-connection holder; the socket is torn down when the receive loop ends or the listener stops, and SendLock is used only for WaitAsync/Release (no WaitHandle is ever allocated), so there is nothing requiring deterministic disposal.")]
     private sealed class Client
@@ -67,8 +69,22 @@ public sealed class WebSocketServerTransport : IServerTransport
 
             if (!ctx.Request.IsWebSocketRequest)
             {
-                ctx.Response.StatusCode = 400;
-                ctx.Response.Close();
+                if (ctx.Request.HttpMethod == "GET"
+                    && (ctx.Request.Url?.AbsolutePath is "/" or "/healthz"))
+                {
+                    byte[] body = System.Text.Encoding.UTF8.GetBytes("Blocks Beyond the Stars WebSocket gateway\n");
+                    ctx.Response.StatusCode = 200;
+                    ctx.Response.ContentType = "text/plain; charset=utf-8";
+                    ctx.Response.ContentLength64 = body.Length;
+                    await ctx.Response.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
+                    ctx.Response.Close();
+                }
+                else
+                {
+                    ctx.Response.StatusCode = 400;
+                    ctx.Response.Close();
+                }
+
                 continue;
             }
 
@@ -112,6 +128,14 @@ public sealed class WebSocketServerTransport : IServerTransport
                     }
 
 #pragma warning disable VSTHRD103 // MemoryStream.Write is an in-memory copy with nothing to await.
+                    if (ms.Length + result.Count > MaxReceiveFrameBytes)
+                    {
+                        await client.Socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, "Frame too large", CancellationToken.None)
+                            .ConfigureAwait(false);
+                        LogWarning($"Dropped oversized browser WebSocket frame from connection {id}.");
+                        return;
+                    }
+
                     ms.Write(buffer, 0, result.Count);
 #pragma warning restore VSTHRD103
                 }
@@ -138,17 +162,31 @@ public sealed class WebSocketServerTransport : IServerTransport
 
     public void Send(int connectionId, byte[] payload, DeliveryMode mode)
     {
-        if (_clients.TryGetValue(connectionId, out var client))
+        if (!_clients.TryGetValue(connectionId, out var client))
         {
-            _ = SendAsync(client, payload);
+            return;
         }
+
+        if (!NetCodec.TryConvertToJsonPayload(payload, out var browserPayload))
+        {
+            LogWarning($"Dropped server payload for browser connection {connectionId}: could not convert NetCodec payload to JSON.");
+            return;
+        }
+
+        _ = SendAsync(client, browserPayload);
     }
 
     public void Broadcast(byte[] payload, DeliveryMode mode)
     {
+        if (!NetCodec.TryConvertToJsonPayload(payload, out var browserPayload))
+        {
+            LogWarning("Dropped broadcast payload for browser clients: could not convert NetCodec payload to JSON.");
+            return;
+        }
+
         foreach (var client in _clients.Values)
         {
-            _ = SendAsync(client, payload);
+            _ = SendAsync(client, browserPayload);
         }
     }
 
@@ -172,6 +210,9 @@ public sealed class WebSocketServerTransport : IServerTransport
             client.SendLock.Release();
         }
     }
+
+    private static void LogWarning(string message)
+        => System.Console.Error.WriteLine("[WARN] " + message);
 
     public void Poll()
     {
