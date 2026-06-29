@@ -1,0 +1,136 @@
+# Builds ONLY the WebGL (browser) player and attaches it to an EXISTING GitHub Release, without
+# rebuilding the desktop installers or the Docker image. Use this when a release already shipped its
+# desktop assets but the WebGL zip is missing (e.g. a WebGL-specific build fix landed after the tag),
+# or to (re)produce a WebGL build for end-to-end verification (issue #132).
+#
+# It builds from the ref it is dispatched on (default: the default branch), NOT the release tag — the
+# release tag predates the fix, so building it would just reproduce the failure. The baked version is
+# driven from the `release_tag` input so version.txt still matches the release. The release notes/body
+# are left untouched: this job only uploads the WebGL zip as an asset.
+#
+# Mirrors the `build-player-webgl` + `package-webgl` jobs in release.yml (kept deliberately small —
+# no local server, no Velopack, no launcher; WebGL only joins a hosted server over WebSocket).
+
+name: WebGL only (attach to release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing release tag to attach the WebGL build to (e.g. v0.6.2)'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # upload the asset to the existing Release
+
+jobs:
+  webgl:
+    name: Build + attach WebGL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve version from the tag
+        id: ver
+        shell: bash
+        run: |
+          v="${{ inputs.release_tag }}"
+          v="${v#v}"
+          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::release_tag '${{ inputs.release_tag }}' is not vX.Y.Z."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building WebGL for release ${{ inputs.release_tag }} (version $v)"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      # Shared libs + content only (no publish-local-server / Velopack): the browser build strips the
+      # bundled native server and has no auto-updater. sync-client-libs makes data/ present so the build
+      # writes the StreamingAssets manifest the browser fetches at runtime.
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5
+        with:
+          path: client/Library
+          key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
+      - name: Inject player-feedback API key
+        env:
+          WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$WIX_BUGREPORT_API_KEY" ]; then
+            echo "WIX_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the WIX_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$WIX_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
+      - name: Build WebGL player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: WebGL
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL
+          versioning: Custom
+          version: ${{ steps.ver.outputs.version }}
+          customParameters: -buildOut /github/workspace/player-webgl
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-webgl
+
+      - name: Verify baked version matches the tag
+        shell: bash
+        run: |
+          baked="$(cat player-webgl/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ steps.ver.outputs.version }}'"
+          test "$baked" = "${{ steps.ver.outputs.version }}"
+
+      # Zip the CONTENTS (index.html at the zip root) so the dedicated-server entrypoint can unzip it
+      # straight into /app/webgl when BBS_FETCH_WEBGL=1 (issue #121).
+      - name: Zip the WebGL build
+        run: |
+          OUT="artifacts/webgl"
+          mkdir -p "$OUT"
+          ( cd player-webgl && \
+            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-webgl-${{ steps.ver.outputs.version }}.zip" . )
+
+      # Attach to the existing Release WITHOUT touching its notes/body (no body, no generate_release_notes).
+      - name: Attach WebGL asset to the release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: artifacts/webgl/*.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: false

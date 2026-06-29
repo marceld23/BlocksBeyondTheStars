@@ -1,7 +1,10 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-#if !UNITY_EDITOR
+// Velopack is the desktop installer/auto-updater. It is excluded from the Editor AND the WebGL player:
+// the browser build has no Velopack DLL (you "update" by reloading the page), so referencing it there
+// fails the WebGL script compile with CS0246 'Velopack'.
+#if !UNITY_EDITOR && !UNITY_WEBGL
 using Velopack;
 #endif
 using System;
@@ -47,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Extra detail (target version, or error text) appended after the localized status label.</summary>
         public static string Detail { get; private set; } = string.Empty;
 
-#if !UNITY_EDITOR
+#if !UNITY_EDITOR && !UNITY_WEBGL
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
         private static void Bootstrap()
         {
@@ -73,8 +76,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-#pragma warning disable CS1998 // the Editor branch has no awaits by design
-#if UNITY_EDITOR
+#pragma warning disable CS1998 // the Editor/WebGL branch has no awaits by design
+#if UNITY_EDITOR || UNITY_WEBGL
+            // No Velopack in the Editor or the browser build — there is no installed app to update.
             State = UpdateState.NotInstalled;
             Detail = string.Empty;
             onChanged?.Invoke();
