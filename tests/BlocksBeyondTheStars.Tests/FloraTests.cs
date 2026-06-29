@@ -255,6 +255,59 @@ public sealed class FloraTests : IDisposable
         }
     }
 
+    /// <summary>The void-enclosure predicate that gates flora on a space station (and is reused by the void-world
+    /// stamp paths): a plant counts as "open to the void" unless it is boxed in by hull on every escape route.
+    /// Covers the sealed-room case (safe), the directly-adjacent drop, the deeper ledge the old single-neighbour
+    /// check missed (now caught by the flood-fill), and a plant standing on nothing.</summary>
+    [Fact]
+    public void FloraVoidEnclosure_FloodFill_DetectsExposedPlants_AcceptsSealedRooms()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            ushort hull = _content.GetBlock("iron_wall")!.NumericId.Value;
+            ushort plant = _content.GetBlock("flora_plant")!.NumericId.Value;
+            Assert.NotEqual((ushort)0, hull);
+            Assert.NotEqual((ushort)0, plant);
+
+            var cells = new Dictionary<(int, int, int), ushort>();
+            ushort Get(int x, int y, int z) => cells.TryGetValue((x, y, z), out var b) ? b : (ushort)0;
+            void Solid(int x, int y, int z) => cells[(x, y, z)] = hull;
+
+            // (1) Fully sealed room: a 5x5 hull floor (y=0) under a hull wall ring (y=1); plant in the centre.
+            // Every foot-level escape hits a wall, so it is enclosed → NOT open to the void.
+            cells.Clear();
+            for (int x = 0; x <= 4; x++)
+                for (int z = 0; z <= 4; z++) Solid(x, 0, z);
+            for (int x = 0; x <= 4; x++) { Solid(x, 1, 0); Solid(x, 1, 4); }
+            for (int z = 0; z <= 4; z++) { Solid(0, 1, z); Solid(4, 1, z); }
+            cells[(2, 1, 2)] = plant;
+            Assert.False(server.FloraCellOpensToVoidForTest(Get, 2, 1, 2),
+                "A plant in a fully sealed room must not count as open to the void.");
+
+            // (2) Open drop right beside the plant: floor only under the plant → an immediate neighbour is floorless.
+            cells.Clear();
+            Solid(2, 0, 2);
+            cells[(2, 1, 2)] = plant;
+            Assert.True(server.FloraCellOpensToVoidForTest(Get, 2, 1, 2),
+                "A plant with an open drop right beside it must count as open to the void.");
+
+            // (3) Deeper ledge — the case the old single-neighbour check missed: the plant's four neighbours are all
+            // floored, but two cells out the floor stops. The flood-fill must still reach that drop → exposed.
+            cells.Clear();
+            Solid(2, 0, 2); Solid(1, 0, 2); Solid(3, 0, 2); Solid(2, 0, 1); Solid(2, 0, 3);
+            cells[(2, 1, 2)] = plant;
+            Assert.True(server.FloraCellOpensToVoidForTest(Get, 2, 1, 2),
+                "A plant one cell in from an open ledge must still count as open to the void (flood-fill).");
+
+            // (4) Nothing solid beneath the plant at all → trivially open to the void.
+            cells.Clear();
+            cells[(5, 1, 5)] = plant;
+            Assert.True(server.FloraCellOpensToVoidForTest(Get, 5, 1, 5),
+                "A plant with nothing solid beneath it must count as open to the void.");
+        }
+    }
+
     [Fact]
     public void HarvestedFlora_RegrowsWhenHostIntact()
     {
