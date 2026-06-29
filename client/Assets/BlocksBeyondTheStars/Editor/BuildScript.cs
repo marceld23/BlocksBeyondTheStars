@@ -135,9 +135,35 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             if (target == BuildTarget.WebGL)
             {
                 RemoveAutoFullscreen(outDir);
+                StripBundledServerFromWebGLOutput(outDir);
             }
 
             File.WriteAllText(Path.Combine(outDir, "version.txt"), PlayerSettings.bundleVersion);
+        }
+
+        /// <summary>Strips the bundled native game server from a WebGL build's output StreamingAssets. On desktop
+        /// the client launches this server for Singleplayer/Host, so a prior desktop build leaves
+        /// <c>StreamingAssets/server/</c> in the project — and Unity copies the whole StreamingAssets folder into
+        /// every build, WebGL included. A browser can never run a native server, so it is ~70 MB of dead weight
+        /// (and a stray platform binary) that must not ride along in the web bundle. Only the build OUTPUT is
+        /// touched; the source project is left intact so a later desktop Singleplayer build/run still finds it.</summary>
+        private static void StripBundledServerFromWebGLOutput(string outDir)
+        {
+            string serverDir = Path.Combine(outDir, "StreamingAssets", "server");
+            if (!Directory.Exists(serverDir))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(serverDir, recursive: true);
+                Debug.Log($"WebGL: stripped the bundled native server from the build output ({serverDir}).");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"WebGL: could not strip the bundled native server at {serverDir}: {ex.Message}");
+            }
         }
 
         /// <summary>Best-effort WebGL production defaults. Reflection keeps this resilient across Unity 6 patch
