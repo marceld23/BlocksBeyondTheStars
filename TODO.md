@@ -81,6 +81,25 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Gameplay fixes: shape icons, ladders, shape auto-step & tool-gated mining (2026-06-29) — ✅ code done, 792 server tests green, local Unity build pending
+Four player-reported issues fixed on `feat/gameplay-fixes-shapes-ladders-mining` (#125–#128):
+- **#125 — per-shape hotbar/inventory icons.** Crafted forms (sphere/pyramid/slab/ramp/stairs/dome/cone/cylinder)
+  used to show as a plain cube of the base material because the icon path looked up only the base block tile and
+  dropped the shape carried in the item key (`stone#s04`). New `ShapeIconFactory` masks the block's atlas tile to
+  a 2-D front silhouette of the form (with a darkened rim), cached per (tile, shape); wired into both the hotbar
+  (`HudUi.RefreshHotbar`) and the shared `IconResolver.Resolve` so crafting/inventory lists match.
+- **#126 — climbable ladders.** Ladders existed as blocks but had no climb logic. `PlayerController.Move` now
+  detects a ladder at shin/chest height and climbs (Jump/forward = up, Ctrl/back = down, else a gentle cling),
+  cancelling gravity while on it. New `ClimbSpeed` (4 m/s).
+- **#127 — walk up shapes without jumping.** The `CharacterController` had no `stepOffset`/`slopeLimit` set, so
+  slab (0.5) and stair treads (0.5) were unclimbable. `WorldRig` now sets `stepOffset = 0.6` (full cubes still
+  need a jump) and `slopeLimit = 50°` so the 45° ramp walks.
+- **#128 — hard materials need a tool; soft don't, and behave differently.** `stone` was `requiredTool: none`
+  (hand-mineable); now `drill`/tier 1 (the starter kit already grants a basic drill, so no deadlock). Bare-hand
+  hold-to-dig now works on soft (no-tool) blocks — earth, sand, plants — with a dust puff instead of drill
+  sparks; hard materials (stone, ore, metal, wood) stay drill-only. New server tests: stone and wood reject
+  hands and break with a drill.
+
 ### ★ Hosted WebGL transport + optional browser platform hooks (2026-06-28) — ✅ DONE locally
 Added the reusable hosted-browser path without committing provider credentials: the Unity client now has a
 dormant-by-default `GlitchIntegration` (Aegis heartbeat/validation plus helper calls for scores, stats,

@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
         public float SwimSinkSpeed = 1.5f; // gentle idle sink toward the seabed
         public float SwimAccel = 12f;      // how fast vertical speed eases toward the swim target
         public float SwimSpeedMul = 0.62f; // horizontal movement is slower in water
+        public float ClimbSpeed = 4f;      // up/down speed while on a ladder (Minecraft-style climbing, #126)
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
 
@@ -620,10 +621,19 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
-        /// <summary>Keeps the drill loop alive while the player holds mine with a drill aimed at a block.</summary>
+        /// <summary>Keeps the mining loop alive while the player holds left-click: a drill cuts any block it is
+        /// allowed to, while bare hands can only keep digging the soft, hand-mineable blocks (earth, sand,
+        /// plants) — hard materials need a drill. (#128)</summary>
         private void HandleDrillAudio()
         {
-            if (Camera == null || !Input.GetMouseButton(0) || !HoldingDrill())
+            if (Camera == null || !Input.GetMouseButton(0))
+            {
+                return;
+            }
+
+            bool drill = HoldingDrill();
+            // A weapon/scanner left-click is an attack/scan (handled as a tap in HandleInteract), never a mine hold.
+            if (!drill && (HoldingWeapon() || HoldingScanner()))
             {
                 return;
             }
@@ -637,23 +647,52 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            ClientAudio.Instance?.DrillTick();
-            TriggerSwing(); // keep the mining chop going while the drill is held
-            var center = new Vector3(hitCell.x + 0.5f, hitCell.y + 0.5f, hitCell.z + 0.5f);
-            if (Weapons != null && Time.time >= _nextDrillSpark)
+            // By hand, only soft hand-mineable blocks keep digging; hard blocks reject without a drill, so don't
+            // hammer the server with a hold the server will only refuse (the initial tap already surfaces the hint).
+            if (!drill && !IsHandMineable(hitCell))
             {
-                _nextDrillSpark = Time.time + 0.07f;
-                Weapons.Sparks(center, new Color(1f, 0.85f, 0.5f), 3);
+                return;
             }
 
-            // Hard blocks need several hits — keep sending mine attempts while the drill is held
-            // (the server accumulates effort until the block breaks).
+            TriggerSwing(); // keep the mining chop going while held
+            var center = new Vector3(hitCell.x + 0.5f, hitCell.y + 0.5f, hitCell.z + 0.5f);
+            if (drill)
+            {
+                ClientAudio.Instance?.DrillTick();
+                if (Weapons != null && Time.time >= _nextDrillSpark)
+                {
+                    _nextDrillSpark = Time.time + 0.07f;
+                    Weapons.Sparks(center, new Color(1f, 0.85f, 0.5f), 3);
+                }
+            }
+            else if (Weapons != null && Time.time >= _nextDrillSpark)
+            {
+                _nextDrillSpark = Time.time + 0.09f;
+                Weapons.Dust(center); // bare-hand digging kicks up dust instead of drill sparks
+            }
+
+            // Hard blocks need several hits — keep sending mine attempts while held (the server accumulates
+            // effort until the block breaks); soft hand-digging breaks in one but the loop lets you sweep along.
             if (Time.time >= _nextDrillMine)
             {
-                _nextDrillMine = Time.time + 0.28f; // slower, weightier mining (was 0.18)
+                _nextDrillMine = Time.time + (drill ? 0.28f : 0.22f); // slower, weightier mining (was 0.18)
                 Game.LastMineCell = hitCell; // so an "already empty" rejection can clear the ghost here (B32)
                 Game.Network?.SendMine(hitCell.x, hitCell.y, hitCell.z);
             }
+        }
+
+        /// <summary>True when the block at a cell can be broken by bare hands — mineable and requiring no tool
+        /// (earth, sand, plants). Hard materials declare a required tool and are excluded. (#128)</summary>
+        private bool IsHandMineable(Vector3Int cell)
+        {
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            var def = Game.Content.BlockById(Game.World.GetBlock(cell.x, cell.y, cell.z));
+            return def != null && def.Mineable
+                && def.RequiredTool == BlocksBeyondTheStars.Shared.Definitions.ToolKind.None;
         }
 
         private float _nextDrillSpark;
@@ -1457,7 +1496,8 @@ namespace BlocksBeyondTheStars.Client
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
             bool grounded = _controller.isGrounded;
             bool inWater = IsSubmerged();
-            _moving = (inWater || grounded) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
+            bool onLadder = !inWater && OnLadder();
+            _moving = (inWater || grounded || onLadder) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
             bool jetpacking = false;
             if (inWater)
             {
@@ -1466,6 +1506,14 @@ namespace BlocksBeyondTheStars.Client
                 float target = Input.GetButton("Jump") ? SwimUpSpeed : -SwimSinkSpeed;
                 _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
                 move *= SwimSpeedMul;
+            }
+            else if (onLadder)
+            {
+                // Climbing (Minecraft-style): no gravity while on a ladder. Hold Jump or push forward to go up,
+                // crouch (Ctrl/C) or pull back to go down; otherwise cling with a gentle slide. (#126)
+                bool up = Input.GetButton("Jump") || v > 0.1f;
+                bool down = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C) || v < -0.1f;
+                _verticalVelocity = up ? ClimbSpeed : (down ? -ClimbSpeed : -1f);
             }
             else if (grounded)
             {
@@ -1546,6 +1594,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
         /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
         private bool IsSubmerged() => BlockKeyAt(transform.position + Vector3.up * 1.1f) == "water";
+
+        /// <summary>True when the player overlaps a ladder block (sampled at shin + chest height), the cue to
+        /// switch to climbing instead of falling/walking. (#126)</summary>
+        private bool OnLadder() =>
+            BlockKeyAt(transform.position + Vector3.up * 0.3f) == "ladder"
+            || BlockKeyAt(transform.position + Vector3.up * 1.1f) == "ladder";
 
         /// <summary>The content key of the block at a world position (null if the world/content isn't ready).</summary>
         private string BlockKeyAt(Vector3 world)

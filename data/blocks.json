@@ -1,5 +1,5 @@
 [
-  { "key": "stone",        "nameKey": "block.stone.name",        "hardness": 6.1, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "stone", "count": 1 } ] },
+  { "key": "stone",        "nameKey": "block.stone.name",        "hardness": 6.1, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "stone", "count": 1 } ] },
   { "key": "dirt",         "nameKey": "block.dirt.name",         "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
   { "key": "basalt",       "nameKey": "block.basalt.name",       "hardness": 3.2, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "basalt", "count": 1 } ] },
   { "key": "ice",          "nameKey": "block.ice.name",          "hardness": 0.8, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "ice", "count": 1 } ] },
