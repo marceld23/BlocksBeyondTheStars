@@ -379,6 +379,95 @@ jobs:
           name: player-mac
           path: player-mac
 
+  # WebGL (browser) player. Unlike the standalone builds it bundles no local server and needs no Velopack
+  # or console launcher — it only ever joins a hosted server over WebSocket (issue #121). The output is a
+  # static folder served at /play by the dedicated-server image.
+  build-player-webgl:
+    name: Build Unity player (WebGL)
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      # Shared libs + content only: the WebGL build strips the bundled native-server StreamingAssets, so no
+      # publish-local-server / Velopack steps. sync-client-libs makes data/ present so the build writes the
+      # StreamingAssets manifest the browser fetches at runtime.
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      - name: Cache Unity Library
+        uses: actions/cache@v5
+        with:
+          path: client/Library
+          key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          sudo docker image prune --all --force || true
+          echo "After:"; df -h /
+
+      - name: Inject player-feedback API key
+        env:
+          WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$WIX_BUGREPORT_API_KEY" ]; then
+            echo "WIX_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the WIX_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$WIX_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
+      - name: Build WebGL player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: WebGL
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL
+          versioning: Custom
+          version: ${{ needs.version.outputs.version }}
+          customParameters: -buildOut /github/workspace/player-webgl
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-webgl
+
+      - name: Verify baked version matches the tag
+        shell: bash
+        run: |
+          baked="$(cat player-webgl/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ needs.version.outputs.version }}'"
+          test "$baked" = "${{ needs.version.outputs.version }}"
+
+      - name: Upload WebGL player artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: player-webgl
+          path: player-webgl
+
   # Linux packaging
   package-linux:
     name: Package + release (Linux)
@@ -494,6 +583,40 @@ jobs:
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
         with:
           files: artifacts/installer-mac/*Portable.zip
+          generate_release_notes: false
+
+  # WebGL packaging: just zip the static build folder and attach it to the release. The dedicated-server
+  # image's entrypoint fetches this `webgl*.zip` (BBS_FETCH_WEBGL=1) and serves it at /play (issue #121).
+  package-webgl:
+    name: Package + release (WebGL)
+    needs: [version, build-player-webgl]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download WebGL player artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: player-webgl
+          path: player-webgl
+
+      # Zip the CONTENTS (index.html at the zip root) so the entrypoint can unzip straight into /app/webgl.
+      - name: Zip the WebGL build
+        run: |
+          OUT="artifacts/webgl"
+          mkdir -p "$OUT"
+          ( cd player-webgl && \
+            zip -ry "$GITHUB_WORKSPACE/$OUT/BlocksBeyondTheStars-webgl-${{ needs.version.outputs.version }}.zip" . )
+
+      - name: Upload WebGL package artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: webgl-package
+          path: artifacts/webgl
+
+      - name: Publish GitHub Release (WebGL asset)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
+        with:
+          files: artifacts/webgl/*.zip
           generate_release_notes: false
 
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only

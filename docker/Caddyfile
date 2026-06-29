@@ -1,0 +1,23 @@
+# Blocks Beyond the Stars — public HTTPS reverse proxy for browser play (issue #121).
+#
+# Caddy auto-provisions and renews a Let's Encrypt certificate for $BBS_DOMAIN, then fronts two things:
+#   * the admin / portal / static web + the /play browser client   -> server:31416
+#   * the TLS-terminated gameplay WebSocket (wss://)                -> server:31415
+#
+# Why two site blocks: an https page cannot open a plain ws:// (browsers block it as mixed content), so the
+# gameplay WebSocket needs TLS too. The WebGL client opens `wss://$BBS_DOMAIN:31415` (that is what the portal
+# "Play in the browser" deep-link sets: server_host=$BBS_DOMAIN, server_port=31415, and the client picks wss
+# from the https page). So the gameplay port gets its own TLS site here. Native UDP clients bypass Caddy
+# entirely and still connect directly on udp/31415.
+#
+# Used by docker-compose.tls.yml. Set BBS_DOMAIN to your public hostname; DNS must point at this host and
+# ports 80 + 443 + 31415 must be reachable from the internet.
+
+{$BBS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy server:31416
+}
+
+{$BBS_DOMAIN}:31415 {
+	reverse_proxy server:31415
+}

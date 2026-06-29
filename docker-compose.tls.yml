@@ -1,0 +1,67 @@
+# Blocks Beyond the Stars — public HTTPS browser play (issue #121): the dedicated server fronted by Caddy
+# for automatic TLS. This is the standalone compose file for exposing the browser client on the public
+# internet, where an https page MUST use wss:// (a plain ws:// is blocked as mixed content).
+#
+# You do NOT need this for localhost or a home LAN over http — use the plain docker-compose.yml there.
+#
+#   BBS_DOMAIN=play.example.com BBS_ADMIN_PASSWORD=change-me \
+#     docker compose -f docker-compose.tls.yml up -d
+#
+# Requirements: DNS for $BBS_DOMAIN points at this host, and ports 80, 443 and 31415 are reachable from the
+# internet (Caddy needs 80/443 for the ACME challenge + web, and 31415 for the TLS-terminated gameplay WS).
+#
+# How traffic flows:
+#   browser  https://$BBS_DOMAIN        -> Caddy :443   -> server:31416   (portal, /play, /updates, /api)
+#   browser  wss://$BBS_DOMAIN:31415    -> Caddy :31415 -> server:31415   (gameplay WebSocket)
+#   native   udp  $BBS_DOMAIN:31415     -> server:31415  (bypasses Caddy)
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blocks-beyond-the-stars-server:local
+    restart: unless-stopped
+    stop_grace_period: 60s        # give the world time to drain + save on SIGTERM
+    ports:
+      - "31415:31415/udp"          # native UDP clients connect directly; Caddy only fronts the TCP/web/WS
+    environment:
+      BBS_SERVER_NAME: "Blocks Beyond the Stars Server"
+      BBS_WORLD: "world_001"
+      BBS_MAX_PLAYERS: "12"
+      BBS_ADMIN_BIND: "0.0.0.0"            # inside the container; only Caddy reaches it on the internal network
+      BBS_ADMIN_PASSWORD: "${BBS_ADMIN_PASSWORD:?set BBS_ADMIN_PASSWORD for a public deployment}"
+      BBS_ENABLE_WEBSOCKET: "true"         # browser clients over WebSocket (Caddy terminates TLS in front)
+      BBS_WEBSOCKET_BIND: "+"              # bind the WS gateway to all interfaces inside the container
+      BBS_FETCH_CLIENT: "1"                # pull native client downloads for the portal
+      # BBS_FETCH_WEBGL: "1"               # auto-pull the browser build from GitHub Releases (once one ships it)
+    volumes:
+      - saves:/app/saves
+      - config:/app/config
+      - clients:/app/clients
+      - webgl:/app/webgl                   # or bind-mount ./client/Build/WebGL:/app/webgl:ro to serve a local build
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"                    # ACME HTTP challenge + http->https redirect
+      - "443:443"                  # web (portal / /play / /updates / /api)
+      - "443:443/udp"              # HTTP/3 (QUIC)
+      - "31415:31415/tcp"          # TLS-terminated gameplay WebSocket (wss://$BBS_DOMAIN:31415)
+    environment:
+      BBS_DOMAIN: "${BBS_DOMAIN:?set BBS_DOMAIN to your public hostname}"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data           # persisted certificates — keep this volume so Let's Encrypt isn't re-hit
+      - caddy_config:/config
+
+volumes:
+  saves:
+  config:
+  clients:
+  webgl:
+  caddy_data:
+  caddy_config:

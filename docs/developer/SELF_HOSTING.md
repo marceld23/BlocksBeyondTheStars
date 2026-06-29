@@ -286,6 +286,52 @@ is password-gated; `/portal`, `/download`, `/download-linux`, `/download-mac` an
 Updates only apply to an *installed* client (not a dev/Editor or portable-zip run). Each published
 version must be higher than the last.
 
+### Play in the browser (no install)
+
+The server can also serve the **WebGL browser client** at `http://<server>:<adminPort>/play`. The portal's
+**Play in the browser** button deep-links to it with the server host/port pre-filled (`/play?server_host=…&server_port=31415`).
+No download, no install — players just open the link. Singleplayer/host are unavailable in the browser (it
+only joins a hosted server over WebSocket), so `BBS_ENABLE_WEBSOCKET=true` is required.
+
+The browser build is **not** baked into the server image (it needs Unity, which can't run in the image). You
+get it onto the server one of two ways:
+
+- **Mount a locally-built folder** (works today): build the WebGL player on a machine with Unity
+  (`BlocksBeyondTheStars → Build WebGL Player`, or headless `-buildMethod …BuildScript.BuildWebGL`), then
+  bind-mount `client/Build/WebGL` at `/app/webgl` (see the Docker section below).
+- **Auto-fetch from a release** (`BBS_FETCH_WEBGL=1`): once a release ships a `webgl*.zip` asset, the
+  entrypoint downloads and unzips it into `/app/webgl`. A mounted build always wins.
+
+If no build is present, `/play` shows a friendly "not installed yet" page instead of a blank 404.
+
+**The TLS rule (read this before exposing it publicly):** a browser will only open the gameplay WebSocket
+if the scheme is allowed for the page it is on.
+
+| Where the page is reached | Gameplay WebSocket | Works? |
+|---|---|---|
+| `http://localhost:31416/play` (same machine) | `ws://localhost:31415` | ✅ browsers exempt `localhost` |
+| `http://<lan-ip>:31416/play` (home LAN over http) | `ws://<lan-ip>:31415` | ✅ page is http, so `ws://` is not mixed content |
+| `https://<domain>/play` (public, https) | **must be `wss://`** | ❌ unless the WebSocket has TLS — an https page **cannot** open a plain `ws://` |
+
+The server's WebSocket gateway has **no built-in TLS**, so **public browser play needs a TLS-terminating
+reverse proxy in front of the gameplay port.** Use the ready-made Caddy setup
+(`docker-compose.tls.yml` + `docker/Caddyfile`, see below) which auto-provisions a Let's Encrypt
+certificate, or front it with Cloudflare Tunnel / a PaaS ingress (Fly.io, Railway, Azure Container Apps —
+the latter is what the original Glitch web build used). localhost and LAN-over-http need none of this.
+
+**Where to host it (rough cost):** you do **not** need Azure or any specific cloud, and SQLite (the default)
+is fine — no managed database required.
+
+| Option | Cost (approx.) | TLS | Notes |
+|---|---|---|---|
+| Home PC/NAS + Cloudflare Tunnel | free (electricity) | free (Cloudflare) | the machine must stay on while people play |
+| Small EU VPS (e.g. Hetzner/Netcup) | ~€4–6/month | free (Caddy + Let's Encrypt) | the typical hobby choice; `docker-compose.tls.yml` is built for this |
+| PaaS (Fly.io / Railway) | free–~€10/month | free (managed) | an always-on WebSocket server may exceed free tiers |
+| Azure Container Apps + managed PostgreSQL | ~€20–40+/month | free (managed ingress) | only worth it for a large always-on realm |
+
+You can also host just the **server** on a cheap VPS and serve the static browser build for free elsewhere
+(itch.io, GitHub Pages, Glitch) pointed at it with `?server_host=…` — then you only pay for the server.
+
 ## 10. Running in Docker
 
 The dedicated server (game server **and** admin/portal/download UI, plus the optional AI text backend)
@@ -386,6 +432,36 @@ docker run -d --name bbts \
 | `/app/saves` | SQLite world + `backups/` + `logs/` **and `/bump` bug reports** (`<world>/bumps/`) |
 | `/app/config` | `server.json` (created on first run; env vars override it) |
 | `/app/clients` | the published clients the portal serves: Windows `*Setup.exe` at `/download` + Linux `*.AppImage` at `/download-linux` + experimental macOS `*-osx-*-Portable.zip` at `/download-mac` |
+| `/app/webgl` | the Unity WebGL browser build served at `/play` — bind-mount a local `client/Build/WebGL`, or let `BBS_FETCH_WEBGL=1` fetch the release `webgl*.zip` |
+
+### Browser play from the container
+
+To serve the in-browser client (§"Play in the browser"), put a WebGL build on the `/app/webgl` volume —
+either bind-mount a locally-built `client/Build/WebGL` (`-v "$PWD/client/Build/WebGL:/app/webgl:ro"`) or set
+`BBS_ENABLE_WEBSOCKET=true` + `BBS_FETCH_WEBGL=1` to auto-pull it from the release. Then open
+`http://localhost:31416/play`. For a **public** deployment (https), use `docker-compose.tls.yml` — it adds a
+Caddy reverse proxy that auto-provisions TLS so `wss://` works (a plain `docker run` over the public internet
+will fail the WebSocket on https). See the TLS table in §9.
+
+```bash
+BBS_DOMAIN=play.example.com BBS_ADMIN_PASSWORD=change-me \
+  docker compose -f docker-compose.tls.yml up -d
+```
+
+### PostgreSQL instead of SQLite (optional)
+
+SQLite (the default) needs no setup and is right for most self-hosted realms. For a larger/long-running
+realm you can switch the authoritative world store to **PostgreSQL** with the overlay compose file — it adds
+a `postgres:16-alpine` service and points the server at it (`BBS_DATABASE_PROVIDER=postgresql` +
+`BBS_POSTGRES_CONNECTION_STRING`):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+# public TLS: docker compose -f docker-compose.tls.yml -f docker-compose.postgres.yml up -d
+```
+
+Override `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` via a `.env` file or the shell. The world then
+lives in Postgres (back it up with `pg_dump`); the `saves` volume still holds logs and `/bump` reports.
 
 ### Client download from the container
 
