@@ -32,6 +32,15 @@ namespace BlocksBeyondTheStars.Client
                 return cached;
             }
 
+            // 0) A shaped block (sphere/pyramid/…) gets a form-specific silhouette icon so it doesn't read as a
+            //    plain cube — the same treatment the hotbar uses (#125).
+            var shaped = ShapedSprite(key, game);
+            if (shaped != null)
+            {
+                _sprites[key] = shaped;
+                return shaped;
+            }
+
             // 1) A generated content icon sits in Resources/icons under an item_ prefix.
             // 2) Otherwise surface the block's atlas tile (materials/blocks reuse their in-game texture).
             var sprite = UiKit.Icon("item_" + key) ?? BlockTileSprite(key, game);
@@ -77,6 +86,33 @@ namespace BlocksBeyondTheStars.Client
 
             var def = game?.Content?.GetItem(key);
             return def != null && def.ConsumeHealth < 0f ? new Color(0.45f, 1f, 0.4f) : Color.white;
+        }
+
+        /// <summary>Builds a form-silhouette sprite for a shaped block key (e.g. <c>"stone#s04"</c>); null when
+        /// the key carries no shape, isn't a block, or the atlas isn't ready. (#125)</summary>
+        private static Sprite ShapedSprite(string key, GameBootstrap game)
+        {
+            int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(key);
+            if (shape <= 0 || game == null || game.Atlas == null || game.Content == null)
+            {
+                return null;
+            }
+
+            string blockKey = BlocksBeyondTheStars.Shared.State.ItemKey.Base(key);
+            var item = game.Content.GetItem(blockKey);
+            if (item != null && !string.IsNullOrEmpty(item.PlacesBlock))
+            {
+                blockKey = item.PlacesBlock;
+            }
+
+            var block = game.Content.GetBlock(blockKey);
+            if (block?.NumericId == null)
+            {
+                return null;
+            }
+
+            var tex = ShapeIconFactory.ForBlock(game.Atlas, (ushort)block.NumericId.Value, shape);
+            return tex == null ? null : Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
         }
 
         /// <summary>Builds a sprite from the block atlas tile for a material/block key (resolving an

@@ -114,6 +114,64 @@ public sealed class MiningTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Stone_RequiresDrill_NotMineableByHand()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            p.State.SelectedHotbarSlot = 5; // an empty slot → bare hands (no tool)
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("stone")!.NumericId);
+
+            for (int i = 0; i < 10; i++)
+            {
+                server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+            }
+
+            Assert.False(server.World.GetBlock(pos).IsAir, "Stone is a hard material — bare hands must not break it.");
+
+            p.State.SelectedHotbarSlot = 0; // the starter basic drill
+            for (int i = 0; i < 10; i++)
+            {
+                server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+            }
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "Stone should break with a drill.");
+        }
+    }
+
+    [Fact]
+    public void WoodLog_RequiresDrill_NotMineableByHand()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            p.State.SelectedHotbarSlot = 5; // an empty slot → bare hands (no tool)
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("wood_log")!.NumericId); // hardness 1.6
+
+            for (int i = 0; i < 6; i++)
+            {
+                server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+            }
+
+            Assert.False(server.World.GetBlock(pos).IsAir, "Wood logs need a tool — bare hands must not break them.");
+
+            p.State.SelectedHotbarSlot = 0; // the starter basic drill
+            for (int i = 0; i < 3; i++)
+            {
+                server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+            }
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "Wood should break with a drill.");
+        }
+    }
+
     public void Dispose()
     {
         try

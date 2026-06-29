@@ -665,8 +665,19 @@ namespace BlocksBeyondTheStars.Client
                     blockDef = Game.Content?.GetBlock(pb); // a seed etc. shows the tile of the block it places
                 }
 
+                // A shaped block (sphere/pyramid/…) shows a form-specific icon instead of a plain cube tile (#125).
+                int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(item);
+                Texture2D shapeTex = (blockDef != null && Game.Atlas != null && shape > 0)
+                    ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape)
+                    : null;
+
                 Texture2D itemTex;
-                if (blockDef != null && Game.Atlas != null)
+                if (shapeTex != null)
+                {
+                    s.Icon.texture = shapeTex;
+                    s.Icon.uvRect = new Rect(0, 0, 1, 1);
+                }
+                else if (blockDef != null && Game.Atlas != null)
                 {
                     s.Icon.texture = Game.Atlas.Texture;
                     s.Icon.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);

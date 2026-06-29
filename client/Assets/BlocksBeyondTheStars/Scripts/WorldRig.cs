@@ -66,6 +66,11 @@ namespace BlocksBeyondTheStars.Client
             cc.height = 1.8f;
             cc.radius = 0.35f;
             cc.center = new Vector3(0f, 0.9f, 0f);
+            // Auto-step + slope walking so the crafted building shapes are usable on foot: a slab (top at 0.5)
+            // and each stair tread (0.5 high) are climbed without jumping, while a full 1.0-high block still
+            // needs a jump. The 50° slope limit lets the 45° ramp wedge be walked up smoothly. (Issues #127.)
+            cc.stepOffset = 0.6f;
+            cc.slopeLimit = 50f;
 
             var camGo = new GameObject("Player Camera");
             camGo.transform.SetParent(player.transform);
