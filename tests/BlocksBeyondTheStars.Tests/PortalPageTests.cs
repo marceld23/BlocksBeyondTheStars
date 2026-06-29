@@ -31,6 +31,17 @@ public sealed class PortalPageTests
         Assert.DoesNotContain("__SERVER__", html);
         Assert.DoesNotContain("__WORLD__", html);
         Assert.DoesNotContain("__PORT__", html);
+        Assert.DoesNotContain("__WSHOST__", html);
         Assert.DoesNotContain("__BASEURL__", html);
+    }
+
+    [Fact]
+    public void Render_OffersBrowserPlayDeepLinkWithBareHostAndGameplayPort()
+    {
+        string html = PortalPage.Render("MyServer", "MyWorld", 31415, "http://example:31416");
+
+        // The "Play in the browser" deep-link uses the bare host (no scheme/port) for server_host and the
+        // gameplay port for server_port; the WebGL client picks ws/wss from the page scheme.
+        Assert.Contains("href='/play?server_host=example&amp;server_port=31415&amp;bbs_auto_join=0'", html);
     }
 }

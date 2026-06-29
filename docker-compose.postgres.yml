@@ -1,0 +1,38 @@
+# Optional PostgreSQL backend for the dedicated server (opt-in — SQLite is and stays the default).
+#
+# Use it as an OVERLAY on top of the base compose file (or the TLS one). It adds a postgres service and
+# points the server at it; nothing else changes:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+#   # public TLS:  docker compose -f docker-compose.tls.yml -f docker-compose.postgres.yml up -d
+#
+# The world then lives in PostgreSQL instead of the SQLite world.db on the saves volume — back it up with
+# pg_dump (the saves volume still holds logs + /bump reports). Override the credentials via a .env file or
+# the shell (POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD); the defaults below are fine for a private host.
+
+services:
+  server:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BBS_DATABASE_PROVIDER: "postgresql"
+      BBS_POSTGRES_CONNECTION_STRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-bbstars};Username=${POSTGRES_USER:-bbstars};Password=${POSTGRES_PASSWORD:-bbstars}"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-bbstars}"
+      POSTGRES_USER: "${POSTGRES_USER:-bbstars}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-bbstars}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbstars} -d ${POSTGRES_DB:-bbstars}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -19,7 +19,8 @@ services:
     ports:
       - "31415:31415/udp"          # native client (UDP)
       - "31415:31415/tcp"          # browser client over WebSocket (only when BBS_ENABLE_WEBSOCKET=true)
-      - "127.0.0.1:31416:31416/tcp" # admin + portal + download — bound to localhost on the HOST by default
+      - "127.0.0.1:31416:31416/tcp" # admin + portal + browser /play — bound to localhost on the HOST by default
+      # - "31416:31416/tcp"          # expose portal + /play on the LAN/internet for browser play — REQUIRES BBS_ADMIN_PASSWORD
     environment:
       BBS_SERVER_NAME: "Blocks Beyond the Stars Server"
       BBS_WORLD: "world_001"
@@ -27,7 +28,9 @@ services:
       # BBS_PASSWORD: "join-secret"        # required to join the game (optional)
       BBS_ADMIN_BIND: "0.0.0.0"            # inside the container; reach it via the host port mapping above
       # BBS_ADMIN_PASSWORD: "change-me"    # REQUIRED before exposing 31416 publicly
-      # BBS_ENABLE_WEBSOCKET: "true"       # also accept browser clients on the gameplay port
+      # BBS_ENABLE_WEBSOCKET: "true"       # also accept browser clients on the gameplay port (needed for /play)
+      # BBS_WEBSOCKET_BIND: "+"            # bind the WS gateway to all interfaces (needed for LAN/remote browser play)
+      # BBS_FETCH_WEBGL: "0"               # pull webgl*.zip from GitHub Releases into /app/webgl (needs a release that ships it)
       BBS_FETCH_CLIENT: "1"                # pull the latest Windows Setup.exe + Linux AppImage from GitHub Releases for /download + /download-linux
       # BBS_CLIENT_REPO: "marceld23/BlocksBeyondTheStars"
       # --- Optional AI text backend (NPC greetings / mission flavour / VEGA banter) ---
@@ -38,6 +41,9 @@ services:
       - saves:/app/saves            # SQLite world + backups + logs + /bump bug reports (<world>/bumps)
       - config:/app/config          # server.json (created on first run)
       - clients:/app/clients        # published clients the portal hands out (Windows Setup.exe + Linux AppImage)
+      - webgl:/app/webgl            # Unity WebGL browser build served at /play (issue #121); empty until you fill it
+      # To serve a LOCALLY-built browser client, bind-mount it here INSTEAD of the named volume above:
+      # - ./client/Build/WebGL:/app/webgl:ro
       # Mount your AI config to enable the in-container LLM backend (copy ai-backend/.env.example -> .env):
       # - ./ai-backend/.env:/app/ai-backend/.env:ro
 
@@ -45,3 +51,4 @@ volumes:
   saves:
   config:
   clients:
+  webgl:

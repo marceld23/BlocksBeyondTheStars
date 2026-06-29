@@ -19,10 +19,27 @@ public static class PortalPage
 {
     public static string Render(string serverName, string worldName, int gameplayPort, string baseUrl)
     {
+        // server_host for the WebGL deep-link is the bare hostname (no scheme, no port): the browser client
+        // (BrowserWebSocketClientTransport) picks ws/wss from the /play page's own scheme and appends
+        // server_port. Strip the scheme and any port from baseUrl.
+        string wsHost = baseUrl ?? string.Empty;
+        int schemeIdx = wsHost.IndexOf("://", StringComparison.Ordinal);
+        if (schemeIdx >= 0)
+        {
+            wsHost = wsHost.Substring(schemeIdx + 3);
+        }
+
+        int portIdx = wsHost.IndexOf(':');
+        if (portIdx >= 0)
+        {
+            wsHost = wsHost.Substring(0, portIdx);
+        }
+
         return Template
             .Replace("__SERVER__", System.Net.WebUtility.HtmlEncode(serverName ?? string.Empty))
             .Replace("__WORLD__", System.Net.WebUtility.HtmlEncode(worldName ?? string.Empty))
             .Replace("__PORT__", gameplayPort.ToString())
+            .Replace("__WSHOST__", System.Net.WebUtility.HtmlEncode(wsHost))
             .Replace("__BASEURL__", System.Net.WebUtility.HtmlEncode(baseUrl ?? string.Empty));
     }
 
@@ -118,7 +135,8 @@ a.ghost:hover{background:rgba(95,215,255,.1)}
  <div class='rule'></div>
  <div class='logo'><b>Blocks</b> Beyond the Stars</div>
  <div class='meta'>Server “__SERVER__” · World “__WORLD__” · native clients join on UDP __PORT__</div>
- <a class='btn primary' href='/download'>⬇&nbsp; Download the Windows client</a>
+ <a class='btn primary' href='/play?server_host=__WSHOST__&amp;server_port=__PORT__&amp;bbs_auto_join=0'>▶&nbsp; Play in the browser</a>
+ <a class='btn ghost' href='/download'>⬇&nbsp; Download the Windows client</a>
  <a class='btn ghost' href='/download-linux'>⬇&nbsp; Download the Linux client (AppImage)</a>
  <a class='btn ghost' href='/download-mac'>⬇&nbsp; Download the macOS client (experimental)</a>
  <div class='hint'>Already installed? Updates come straight from this server — paste

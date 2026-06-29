@@ -112,8 +112,14 @@ stripping stale native-server StreamingAssets from browser builds.
   start menu (no singleplayer/host/editors/quit); a name is required so nobody joins the public realm
   anonymously, while a curated `?auto_join=1&player_name=…` link stays zero-click. Native menu unchanged
   (all changes behind `#if UNITY_WEBGL`).
-- **Open follow-up — #121:** serve the WebGL build from the Docker image (`/play` route + volume / release-asset
-  fetch + portal deep-link; public https needs a `wss://` TLS proxy). Analysis done, implementation pending.
+- **Docker browser play (2026-06-29) — #121:** the dedicated-server image now serves the WebGL client at
+  `/play` (same-origin static mount with Brotli/immutable-cache headers + a friendly "not installed" page),
+  the portal has a **Play in the browser** deep-link, and `X-Forwarded-*` is honored so it works behind a
+  proxy. The build is injected out-of-band: bind-mount `/app/webgl` (phase 1) or `BBS_FETCH_WEBGL=1` pulls a
+  release `webgl*.zip` (phase 2 — new `build-player-webgl`/`package-webgl` jobs in `release.yml`). Public
+  https/`wss://` uses the new Caddy profile (`docker-compose.tls.yml` + `docker/Caddyfile`); localhost/LAN
+  need none. SELF_HOSTING.md documents the TLS matrix + hosting/cost options. Note: the GameCI WebGL build
+  job is untested and may need iteration on the first tagged release (Unity can't build in CI without it).
 
 ---
 

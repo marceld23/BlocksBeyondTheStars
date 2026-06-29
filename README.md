@@ -151,6 +151,9 @@ NAS or a VPS (including via Docker) can host a world that players join.
   it a preview: it builds green in CI but has had limited hands-on testing.
 - The client always talks to a server: a local one started automatically in singleplayer / "Host
   Game", or a remote dedicated server.
+- **Browser (WebGL, experimental):** a dedicated server can also serve a **play-in-the-browser** build —
+  no install, just open the server's `/play` page. Browser play only joins a hosted server (no
+  singleplayer), so it is opt-in on the host side; see [self-hosting](#self-hosting-packages) below.
 
 **Dedicated server (to host)**
 
@@ -323,6 +326,13 @@ Players can also download and install the Windows client **from the running serv
 `scripts/publish-client-installer.ps1` builds a [Velopack](https://velopack.io) installer + auto-update
 feed, the admin host serves it at `/download` + `/updates`, and the `/portal` page links it. See
 [docs/developer/SELF_HOSTING.md](docs/developer/SELF_HOSTING.md) §9.
+
+The server can also host a **play-in-the-browser (WebGL)** build at `/play` — players just open the link,
+no install. Drop a Unity WebGL build on the `webgl` volume (or let `BBS_FETCH_WEBGL=1` pull it from a
+release) and enable `BBS_ENABLE_WEBSOCKET=true`. localhost and LAN work over plain http; a **public**
+deployment needs TLS for `wss://`, for which a ready-made Caddy setup ships (`docker-compose.tls.yml`).
+SQLite stays the default; an optional `postgres` profile is available for larger realms. See
+[docs/developer/SELF_HOSTING.md](docs/developer/SELF_HOSTING.md) §9–§10.
 
 ## Adding content (data-driven)
 

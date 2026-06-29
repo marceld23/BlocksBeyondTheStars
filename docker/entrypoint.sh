@@ -16,7 +16,8 @@ APP_DIR=/app
 CONFIG_DIR="$APP_DIR/config"
 CLIENTS_DIR="$APP_DIR/clients"
 SAVES_DIR="$APP_DIR/saves"
-mkdir -p "$CONFIG_DIR" "$CLIENTS_DIR" "$SAVES_DIR"
+WEBGL_DIR="$APP_DIR/webgl"
+mkdir -p "$CONFIG_DIR" "$CLIENTS_DIR" "$SAVES_DIR" "$WEBGL_DIR"
 
 log() { echo "[entrypoint] $*"; }
 
@@ -66,6 +67,50 @@ if [ "${BBS_FETCH_CLIENT:-1}" = "1" ]; then
   fetch_client || log "client download skipped (continuing without it)"
 else
   log "BBS_FETCH_CLIENT=0 -> skipping client download"
+fi
+
+# --- best-effort: fetch + unzip the Unity WebGL browser build (webgl*.zip) for /play (issue #121) ---
+# Like the native clients, a Linux container cannot build the WebGL player (Unity needed), so it is pulled
+# from the latest GitHub Release into $WEBGL_DIR and served by the admin API at /play. Off by default
+# (BBS_FETCH_WEBGL=0) because the release only carries this asset once the WebGL build job ships it; a
+# bind-mounted /app/webgl with an existing index.html always wins and is left untouched. Non-fatal.
+fetch_webgl() {
+  if [ -f "$WEBGL_DIR/index.html" ]; then
+    log "webgl: /app/webgl already has a build (mounted?) -> leaving it as-is"
+    return 0
+  fi
+
+  local repo="${BBS_CLIENT_REPO:-marceld23/BlocksBeyondTheStars}"
+  local api="https://api.github.com/repos/${repo}/releases/latest"
+  local json url tmp
+  json=$(curl -fsSL "$api") || return 1
+  url=$(printf '%s' "$json" \
+        | grep -o '"browser_download_url":[ ]*"[^"]*webgl[^"]*\.zip"' \
+        | head -n1 | sed 's/.*"\(https[^"]*\)"/\1/')
+  [ -n "$url" ] || { log "no webgl asset in the latest release"; return 1; }
+
+  tmp="$WEBGL_DIR/.webgl.zip"
+  curl -fsSL "$url" -o "$tmp" || return 1
+  rm -rf "$WEBGL_DIR.new" && mkdir -p "$WEBGL_DIR.new"
+  unzip -q "$tmp" -d "$WEBGL_DIR.new" || { rm -rf "$WEBGL_DIR.new" "$tmp"; return 1; }
+
+  # The release zip should hold the Build/WebGL contents at its root; if it nested a single top-level dir,
+  # flatten it so index.html lands directly in $WEBGL_DIR.
+  if [ ! -f "$WEBGL_DIR.new/index.html" ]; then
+    local inner
+    inner=$(find "$WEBGL_DIR.new" -maxdepth 2 -name index.html | head -n1)
+    [ -n "$inner" ] && mv "$(dirname "$inner")"/* "$WEBGL_DIR.new/" 2>/dev/null || true
+  fi
+
+  rm -rf "$WEBGL_DIR" && mv "$WEBGL_DIR.new" "$WEBGL_DIR"
+  rm -f "$WEBGL_DIR/.webgl.zip"
+  log "webgl build ready at $WEBGL_DIR"
+}
+
+if [ "${BBS_FETCH_WEBGL:-0}" = "1" ]; then
+  fetch_webgl || log "webgl fetch skipped (continuing without it)"
+else
+  log "BBS_FETCH_WEBGL=0 -> skipping webgl download (mount /app/webgl to serve a local build)"
 fi
 
 # --- admin API: best-effort sidecar, auto-restarted, never fatal to the container ---
