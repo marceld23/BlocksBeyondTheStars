@@ -110,6 +110,7 @@ Community contributions we're grateful for:
 
 - **Cora de la Mouche** ([@corarona](https://github.com/corarona)) — Linux support: client build target, console launcher, bash build scripts and cross-platform release CI/CD ([#69](https://github.com/marceld23/BlocksBeyondTheStars/pull/69))
 - **Maqbool Ahmed** ([@Maqbool61](https://github.com/Maqbool61)) — German localization: removed duplicate keys and fixed awkward wording in `de.json` ([#112](https://github.com/marceld23/BlocksBeyondTheStars/pull/112))
+- **Devin Dixon** ([@ProdigyView](https://github.com/ProdigyView)) — web support: browser-playable WebGL client (WebSocket transport) and optional PostgreSQL persistence backend ([#116](https://github.com/marceld23/BlocksBeyondTheStars/pull/116))
 
 Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
