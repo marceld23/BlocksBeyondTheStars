@@ -1,15 +1,21 @@
 [
   {
     "id": "welcome",
-    "title": { "en": "Welcome, Explorer", "de": "Willkommen, Entdecker" },
+    "title": {
+      "en": "Welcome, Explorer",
+      "de": "Willkommen, Entdecker"
+    },
     "body": {
-      "en": "<p>Welcome to <b>Blocks Beyond the Stars</b>. You begin stranded with a starter ship and a single goal: survive, build, and explore the galaxy one world at a time.</p><p>This Codex is your field reference. The <i>Tech</i>, <i>Ships</i>, <i>Blocks</i>, <i>Items</i> and <i>Recipes</i> chapters are always available. <i>Systems</i> and <i>Worlds</i> only list places you have already discovered — fly out and scan to fill in the map.</p>",
-      "de": "<p>Willkommen bei <b>Blocks Beyond the Stars</b>. Du startest gestrandet mit einem einfachen Schiff und einem Ziel: überleben, bauen und die Galaxie Welt für Welt erkunden.</p><p>Dieser Codex ist dein Nachschlagewerk. Die Kapitel <i>Technik</i>, <i>Schiffe</i>, <i>Blöcke</i>, <i>Gegenstände</i> und <i>Rezepte</i> sind immer verfügbar. <i>Systeme</i> und <i>Welten</i> zeigen nur Orte, die du bereits entdeckt hast — flieg hinaus und scanne, um die Karte zu füllen.</p>"
+      "en": "<p>Welcome to <b>Blocks Beyond the Stars</b>. You begin stranded with a starter ship and a single goal: survive, build, and explore the galaxy one world at a time.</p><p>This Codex is your field reference. Browse the <span class=\"link\" data-link=\"cat:blocks\">Blocks</span>, <span class=\"link\" data-link=\"cat:items\">Items</span>, <span class=\"link\" data-link=\"cat:tech\">Tech</span>, <span class=\"link\" data-link=\"cat:ships\">Ships</span>, <span class=\"link\" data-link=\"cat:modules\">Modules</span> and <span class=\"link\" data-link=\"cat:planets\">Planets</span> chapters to learn what everything is and does — and read on through these guides for how the galaxy works, from mining and trading to taming and flight. VEGA, your ship's assistant, will chime in as you explore.</p>",
+      "de": "<p>Willkommen bei <b>Blocks Beyond the Stars</b>. Du startest gestrandet mit einem einfachen Schiff und einem Ziel: überleben, bauen und die Galaxie Welt für Welt erkunden.</p><p>Dieser Codex ist dein Nachschlagewerk. Stöbere in den Kapiteln <span class=\"link\" data-link=\"cat:blocks\">Blöcke</span>, <span class=\"link\" data-link=\"cat:items\">Gegenstände</span>, <span class=\"link\" data-link=\"cat:tech\">Technik</span>, <span class=\"link\" data-link=\"cat:ships\">Schiffe</span>, <span class=\"link\" data-link=\"cat:modules\">Module</span> und <span class=\"link\" data-link=\"cat:planets\">Planeten</span>, um zu erfahren, was alles ist und tut — und lies dich durch diese Leitfäden, wie die Galaxie funktioniert, von Abbau und Handel bis Zähmen und Flug. VEGA, die Assistentin deines Schiffs, meldet sich beim Erkunden zu Wort.</p>"
     }
   },
   {
     "id": "survival",
-    "title": { "en": "Staying Alive", "de": "Am Leben bleiben" },
+    "title": {
+      "en": "Staying Alive",
+      "de": "Am Leben bleiben"
+    },
     "body": {
       "en": "<p>Three meters keep you breathing:</p><ul><li><b>Oxygen</b> drains in vacuum and above the atmosphere. Refill aboard your ship or anywhere breathable.</li><li><b>Hunger</b> falls over time — eat food or load rations into your suit dispenser so it feeds you automatically when low.</li><li><b>Health</b> regenerates slowly when fed and oxygenated; the Medbay heal-tank is your respawn point.</li></ul><p>Your <b>suit energy</b> powers tools, the jetpack and stealth. Keep an energy cell handy.</p>",
       "de": "<p>Drei Anzeigen halten dich am Leben:</p><ul><li><b>Sauerstoff</b> sinkt im Vakuum und oberhalb der Atmosphäre. Fülle ihn an Bord deines Schiffs oder überall dort auf, wo Luft atembar ist.</li><li><b>Hunger</b> steigt mit der Zeit — iss Nahrung oder lade Rationen in deinen Anzugspender, der dich bei Bedarf automatisch versorgt.</li><li><b>Gesundheit</b> regeneriert langsam, wenn du satt und mit Sauerstoff versorgt bist; der Heiltank im Medbay ist dein Wiedereinstiegspunkt.</li></ul><p>Deine <b>Anzugsenergie</b> betreibt Werkzeuge, Jetpack und Tarnung. Halte eine Energiezelle bereit.</p>"
@@ -17,39 +23,208 @@
   },
   {
     "id": "mining-crafting",
-    "title": { "en": "Mining & Crafting", "de": "Abbau & Herstellung" },
+    "title": {
+      "en": "Mining & Crafting",
+      "de": "Abbau & Herstellung"
+    },
     "body": {
       "en": "<p>Aim at a block and hold the mine button. Harder blocks and ores need a better <i>drill tier</i> — see the <span class=\"link\" data-link=\"cat:blocks\">Blocks</span> chapter for what each needs and drops.</p><p>Smelt the common ores into ingots and plates and craft tools, suit upgrades and ship parts at the <b>workshop</b>. The <b>refinery</b> — unlocked later in the <span class=\"link\" data-link=\"cat:tech\">Tech</span> tree — is the high-heat station: it alone smelts the rare Tier-2 metals (titanium, cobalt, tungsten, platinum, uranium, neodymium) and refines diamond, carbide and reactor fuel, and it smelts common ores at a higher yield. The <b>transmuter</b> turns surplus terrain into matter dust and back into ore. Unlock new recipes in the Tech tree by spending data fragments and materials.</p>",
       "de": "<p>Ziele auf einen Block und halte die Abbau-Taste. Härtere Blöcke und Erze brauchen eine bessere <i>Bohrer-Stufe</i> — im Kapitel <span class=\"link\" data-link=\"cat:blocks\">Blöcke</span> steht, was jeder benötigt und fallen lässt.</p><p>Verhütte die häufigen Erze an der <b>Werkstatt</b> zu Barren und Platten und fertige Werkzeuge, Anzug-Upgrades und Schiffsteile. Die <b>Raffinerie</b> — später im <span class=\"link\" data-link=\"cat:tech\">Technik</span>-Baum freigeschaltet — ist die Hochhitze-Station: nur sie verhüttet die seltenen Tier-2-Metalle (Titan, Kobalt, Wolfram, Platin, Uran, Neodym) und veredelt Diamant, Karbid und Reaktorbrennstoff, und sie schmilzt häufige Erze mit höherer Ausbeute. Der <b>Transmutator</b> verwandelt überschüssiges Gelände in Materiestaub und zurück in Erz. Schalte neue Rezepte im Technik-Baum frei, indem du Datenfragmente und Materialien einsetzt.</p>"
     }
   },
   {
-    "id": "travel",
-    "title": { "en": "Space Travel", "de": "Raumreise" },
+    "id": "prospecting",
+    "title": {
+      "en": "Prospecting & Ore",
+      "de": "Schürfen & Erz"
+    },
     "body": {
-      "en": "<p>Launch from a landing pad to enter flight, then open the <b>Map</b> to pick a destination. You can fly and land manually, or quick-travel to a body you have already visited. A hyperjump carries you to another star system entirely.</p><p>Each world you land on and each system you enter is remembered — they appear in this Codex under <span class=\"link\" data-link=\"cat:systems\">Systems</span> and <span class=\"link\" data-link=\"cat:worlds\">Worlds</span>.</p>",
-      "de": "<p>Starte von einem Landeplatz in den Flugmodus und öffne dann die <b>Karte</b>, um ein Ziel zu wählen. Du kannst manuell fliegen und landen oder per Schnellreise zu einem bereits besuchten Körper springen. Ein Hypersprung bringt dich in ein ganz anderes Sternsystem.</p><p>Jede Welt, auf der du landest, und jedes System, das du betrittst, wird gespeichert — sie erscheinen in diesem Codex unter <span class=\"link\" data-link=\"cat:systems\">Systeme</span> und <span class=\"link\" data-link=\"cat:worlds\">Welten</span>.</p>"
+      "en": "<p>Every world wears its riches differently — the <span class=\"link\" data-link=\"cat:planets\">Planets</span> chapter lists which ores each world type favours. As a rule of thumb:</p><ul><li><b>Common metals</b> — iron, copper, aluminium, tin — sit close to the surface almost everywhere.</li><li><b>Gold and silver</b> lie a little deeper; try rocky, desert and savanna worlds.</li><li><b>Rare metals</b> — titanium, cobalt, uranium, platinum, tungsten, neodymium — need a Tier-2 drill and reward digging deep on volcanic, crystal and corrupted worlds. Bare asteroids carry them near the surface.</li><li><b>Diamond</b> is the deepest prize of all, 40+ blocks down on the harshest worlds.</li></ul><p>Carry a <span class=\"link\" data-link=\"cat:items\">scanner</span> — it points you toward ore and earns knowledge for every new find.</p>",
+      "de": "<p>Jede Welt trägt ihre Schätze anders — das Kapitel <span class=\"link\" data-link=\"cat:planets\">Planeten</span> zeigt, welche Erze jeder Welttyp bevorzugt. Als Faustregel:</p><ul><li><b>Gewöhnliche Metalle</b> — Eisen, Kupfer, Aluminium, Zinn — liegen fast überall knapp unter der Oberfläche.</li><li><b>Gold und Silber</b> liegen etwas tiefer; versuch es auf Fels-, Wüsten- und Savannenwelten.</li><li><b>Seltene Metalle</b> — Titan, Kobalt, Uran, Platin, Wolfram, Neodym — brauchen einen Tier-2-Bohrer und belohnen tiefes Graben auf Vulkan-, Kristall- und verseuchten Welten. Kahle Asteroiden tragen sie oberflächennah.</li><li><b>Diamant</b> ist der tiefste Schatz von allen, 40+ Blöcke tief auf den rauesten Welten.</li></ul><p>Nimm einen <span class=\"link\" data-link=\"cat:items\">Scanner</span> mit — er weist dir den Weg zum Erz und bringt Wissen für jeden neuen Fund.</p>"
+    }
+  },
+  {
+    "id": "knowledge",
+    "title": {
+      "en": "Knowledge & Tech",
+      "de": "Wissen & Technik"
+    },
+    "body": {
+      "en": "<p>New recipes are unlocked in the <span class=\"link\" data-link=\"cat:tech\">Tech</span> tree, paid for with <b>data fragments</b> and <b>knowledge</b>.</p><p>You gather them in many ways: mine glowing <b>data caches</b> in the deep rock, crack open <b>data cubes</b> scattered on the surface (see <span class=\"link\" data-link=\"guide:arcade\">Data Cubes</span>), <b>scan</b> creatures, plants and blocks you've never seen — a better scanner earns more — and <b>tame</b> wild creatures for a first-time bonus. Crystal worlds are especially rich in caches.</p>",
+      "de": "<p>Neue Rezepte schaltest du im <span class=\"link\" data-link=\"cat:tech\">Technik</span>-Baum frei, bezahlt mit <b>Datenfragmenten</b> und <b>Wissen</b>.</p><p>Du sammelst sie auf viele Arten: bau leuchtende <b>Datenspeicher</b> im tiefen Gestein ab, knacke über die Oberfläche verstreute <b>Datenwürfel</b> (siehe <span class=\"link\" data-link=\"guide:arcade\">Datenwürfel</span>), <b>scanne</b> Kreaturen, Pflanzen und Blöcke, die du noch nie gesehen hast — ein besserer Scanner bringt mehr —, und <b>zähme</b> wilde Kreaturen für einen Erstfund-Bonus. Kristallwelten sind besonders reich an Speichern.</p>"
+    }
+  },
+  {
+    "id": "travel",
+    "title": {
+      "en": "Space Travel",
+      "de": "Raumreise"
+    },
+    "body": {
+      "en": "<p>Launch from a landing pad to enter flight, then open the <b>Map</b> to pick a destination. You can fly and land manually, or quick-travel to a body you have already visited. A hyperjump carries you to another star system entirely.</p><p>Each world you land on and each system you enter is remembered — they are recorded on your <b>Map</b>. The <span class=\"link\" data-link=\"cat:planets\">Planets</span> chapter explains what to expect from each kind of world.</p>",
+      "de": "<p>Starte von einem Landeplatz in den Flugmodus und öffne dann die <b>Karte</b>, um ein Ziel zu wählen. Du kannst manuell fliegen und landen oder per Schnellreise zu einem bereits besuchten Körper springen. Ein Hypersprung bringt dich in ein ganz anderes Sternsystem.</p><p>Jede Welt, auf der du landest, und jedes System, das du betrittst, wird gespeichert — sie werden auf deiner <b>Karte</b> festgehalten. Das Kapitel <span class=\"link\" data-link=\"cat:planets\">Planeten</span> erklärt, was dich auf jeder Art von Welt erwartet.</p>"
+    }
+  },
+  {
+    "id": "fast-travel",
+    "title": {
+      "en": "Getting Around",
+      "de": "Unterwegs"
+    },
+    "body": {
+      "en": "<p>On foot, a <b>jetpack</b> lifts you over cliffs and a packable <b>speeder</b> covers ground fast. To cross a whole world, fly your ship.</p><p>A <b>suit teleporter</b> recalls you instantly to your ship's heal-tank — handy when you're cornered or overloaded — but it needs suit energy and a short cooldown, and won't fire in open space. Plant <b>radio beacons</b> as glowing landmarks so you can always find your way back to a dig site or base.</p>",
+      "de": "<p>Zu Fuß hebt dich ein <b>Jetpack</b> über Klippen, und ein einpackbarer <b>Speeder</b> bringt dich schnell voran. Um eine ganze Welt zu durchqueren, flieg dein Schiff.</p><p>Ein <b>Anzug-Teleporter</b> ruft dich sofort zum Heiltank deines Schiffs zurück — praktisch, wenn du in der Klemme oder überladen bist —, doch er braucht Anzugsenergie und eine kurze Abklingzeit und zündet nicht im offenen All. Setz <b>Funkbaken</b> als leuchtende Landmarken, damit du immer zu einer Grabungsstelle oder Basis zurückfindest.</p>"
+    }
+  },
+  {
+    "id": "trading",
+    "title": {
+      "en": "Traders & Markets",
+      "de": "Händler & Märkte"
+    },
+    "body": {
+      "en": "<p>There is no money in the galaxy — everything is <b>barter</b>. Bring goods a trader wants and swap them for what you need. Each <b>trade post</b> is run by a vendor with their own leaning — miners, traders, researchers or settlers — so different stalls offer different wares.</p><p>You'll find trade posts in <span class=\"link\" data-link=\"guide:settlements\">settlements</span> and aboard <span class=\"link\" data-link=\"guide:stations\">space stations</span>. Now and then a <b>travelling trader</b> drops out of the sky and lands for a few minutes — busy systems (those with stations) see them most. If you spot one touch down, hurry over before it launches again.</p>",
+      "de": "<p>In der Galaxie gibt es kein Geld — alles ist <b>Tauschhandel</b>. Bring Waren, die ein Händler will, und tausch sie gegen das, was du brauchst. Jeder <b>Handelsposten</b> wird von einem Händler mit eigener Ausrichtung geführt — Bergleute, Händler, Forscher oder Siedler —, sodass verschiedene Stände verschiedene Waren bieten.</p><p>Handelsposten findest du in <span class=\"link\" data-link=\"guide:settlements\">Siedlungen</span> und an Bord von <span class=\"link\" data-link=\"guide:stations\">Raumstationen</span>. Hin und wieder fällt ein <b>fliegender Händler</b> vom Himmel und landet für ein paar Minuten — belebte Systeme (jene mit Stationen) sehen sie am häufigsten. Wenn du einen landen siehst, beeil dich, bevor er wieder startet.</p>"
+    }
+  },
+  {
+    "id": "settlements",
+    "title": {
+      "en": "Settlements & Towns",
+      "de": "Siedlungen & Orte"
+    },
+    "body": {
+      "en": "<p>Breathable worlds — jungle, ocean, savanna, temperate and the like — are dotted with <b>settlements</b>, from lonely hamlets to bustling towns and cities. Each holds settlers, a <b>trade post</b> and a <span class=\"link\" data-link=\"guide:missions\">mission board</span>. Their blocks are protected, so you can't mine a town apart.</p><p>Not every settlement still stands. <b>Ruins</b> are the collapsed remains of fallen ones — unprotected, free to dig through, and often hiding loot. See <span class=\"link\" data-link=\"guide:ruins-and-treasure\">Ruins & Treasure</span> for what they hold.</p>",
+      "de": "<p>Atembare Welten — Dschungel, Ozean, Savanne, gemäßigte und ähnliche — sind mit <b>Siedlungen</b> übersät, vom einsamen Weiler bis zur geschäftigen Stadt. Jede hat Siedler, einen <b>Handelsposten</b> und ein <span class=\"link\" data-link=\"guide:missions\">Auftragsbrett</span>. Ihre Blöcke sind geschützt, du kannst eine Stadt also nicht abbauen.</p><p>Nicht jede Siedlung steht noch. <b>Ruinen</b> sind die eingestürzten Reste verfallener — ungeschützt, frei zum Durchgraben und oft mit Beute. Siehe <span class=\"link\" data-link=\"guide:ruins-and-treasure\">Ruinen & Schätze</span>, was sie bergen.</p>"
+    }
+  },
+  {
+    "id": "stations",
+    "title": {
+      "en": "Space Stations",
+      "de": "Raumstationen"
+    },
+    "body": {
+      "en": "<p>Orbiting some worlds are <b>space stations</b> — havens you can board from space when you fly close. Inside you'll find a <b>hangar</b> to dock, a <b>heal-tank</b> to patch up and respawn, a <b>trade post</b> and a <span class=\"link\" data-link=\"guide:missions\">mission board</span>, all in breathable air.</p><p>Stations come in every size, from tiny outposts to colossal hubs, and the systems that have them tend to draw the most <span class=\"link\" data-link=\"guide:trading\">traders</span>. With an SPS access code you can even claim one as your own base.</p>",
+      "de": "<p>Um manche Welten kreisen <b>Raumstationen</b> — Zufluchtsorte, die du aus dem All betreten kannst, wenn du nah heranfliegst. Drinnen findest du einen <b>Hangar</b> zum Andocken, einen <b>Heiltank</b> zum Heilen und Wiedereinstieg, einen <b>Handelsposten</b> und ein <span class=\"link\" data-link=\"guide:missions\">Auftragsbrett</span>, alles in atembarer Luft.</p><p>Stationen gibt es in jeder Größe, vom winzigen Außenposten bis zum riesigen Knotenpunkt, und Systeme mit Stationen ziehen die meisten <span class=\"link\" data-link=\"guide:trading\">Händler</span> an. Mit einem SPS-Code kannst du eine sogar als eigene Basis beanspruchen.</p>"
+    }
+  },
+  {
+    "id": "missions",
+    "title": {
+      "en": "Missions & Jobs",
+      "de": "Aufträge & Jobs"
+    },
+    "body": {
+      "en": "<p><b>Mission boards</b> at settlements and stations post an endless run of jobs — mine this, deliver that, travel there. Accept one at the board, complete the objective, and return to the same board to claim your reward in goods.</p><p>VEGA hands you a few starter tasks too. Missions are a steady way to earn materials and a sense of direction in the early game.</p>",
+      "de": "<p><b>Auftragsbretter</b> in Siedlungen und auf Stationen geben endlose Jobs aus — bau dies ab, liefere das, reise dorthin. Nimm einen am Brett an, erfülle das Ziel und kehr zum selben Brett zurück, um deine Belohnung in Waren abzuholen.</p><p>Auch VEGA gibt dir ein paar Startaufgaben. Aufträge sind ein verlässlicher Weg, im frühen Spiel an Material und Richtung zu kommen.</p>"
     }
   },
   {
     "id": "factories",
-    "title": { "en": "Factories & Production Terminals", "de": "Fabriken & Produktionsterminals" },
+    "title": {
+      "en": "Factories & Production Terminals",
+      "de": "Fabriken & Produktionsterminals"
+    },
     "body": {
-      "en": "<p>Some breathable worlds hide a rare <b>factory</b> — an industrial hall whose presses, rotors and conveyors run nonstop, with a <b>factory terminal</b> by the door. No two are built alike.</p><p>Stand near the terminal and craft from the <i>Factory</i> category. Factory recipes turn <b>cheaper, less-rare materials into the same goods as the <span class=\"link\" data-link=\"cat:recipes\">workshop</span>, but in bulk</b> — more input, fewer steps. The catch: each factory only makes the few items on its own roster, so some recipes ask you to find a different factory, and factory crafts can't be taken apart again.</p><p>Crafting at a factory is free for anyone. But a factory is read-only until you <b>claim</b> it: stand at the terminal with an <b>SPS access code</b> and press <b>E</b>. That spends the code and makes the factory your base — you and your allies can rebuild it, and the claim sticks across reloads.</p>",
-      "de": "<p>Auf manchen atembaren Welten verbirgt sich eine seltene <b>Fabrik</b> — eine Industriehalle, deren Pressen, Rotoren und Förderbänder pausenlos laufen, mit einem <b>Fabrikterminal</b> an der Tür. Keine gleicht der anderen.</p><p>Stell dich ans Terminal und fertige in der Kategorie <i>Fabrik</i>. Fabrikrezepte machen aus <b>günstigeren, weniger seltenen Materialien dieselben Güter wie die <span class=\"link\" data-link=\"cat:recipes\">Werkstatt</span>, aber in großer Menge</b> — mehr Einsatz, weniger Schritte. Der Haken: Jede Fabrik stellt nur die wenigen Dinge auf ihrer eigenen Liste her, manche Rezepte verweisen dich also auf eine andere Fabrik, und Fabrik-Fertigungen lassen sich nicht wieder zerlegen.</p><p>Das Fertigen an einer Fabrik ist für alle frei. Doch eine Fabrik ist schreibgeschützt, bis du sie <b>beanspruchst</b>: Stell dich mit einem <b>SPS-Code</b> ans Terminal und drücke <b>E</b>. Das verbraucht den Code und macht die Fabrik zu deiner Basis — du und deine Verbündeten könnt sie umbauen, und der Anspruch bleibt über Neuladen erhalten.</p>"
+      "en": "<p>Some breathable worlds hide a rare <b>factory</b> — an industrial hall whose presses, rotors and conveyors run nonstop, with a <b>factory terminal</b> by the door. No two are built alike.</p><p>Stand near the terminal and craft from the <i>Factory</i> category. Factory recipes turn <b>cheaper, less-rare materials into the same goods as the <b>workshop</b>, but in bulk</b> — more input, fewer steps. The catch: each factory only makes the few items on its own roster, so some recipes ask you to find a different factory, and factory crafts can't be taken apart again.</p><p>Crafting at a factory is free for anyone. But a factory is read-only until you <b>claim</b> it: stand at the terminal with an <b>SPS access code</b> and press <b>E</b>. That spends the code and makes the factory your base — you and your allies can rebuild it, and the claim sticks across reloads.</p>",
+      "de": "<p>Auf manchen atembaren Welten verbirgt sich eine seltene <b>Fabrik</b> — eine Industriehalle, deren Pressen, Rotoren und Förderbänder pausenlos laufen, mit einem <b>Fabrikterminal</b> an der Tür. Keine gleicht der anderen.</p><p>Stell dich ans Terminal und fertige in der Kategorie <i>Fabrik</i>. Fabrikrezepte machen aus <b>günstigeren, weniger seltenen Materialien dieselben Güter wie die <b>Werkstatt</b>, aber in großer Menge</b> — mehr Einsatz, weniger Schritte. Der Haken: Jede Fabrik stellt nur die wenigen Dinge auf ihrer eigenen Liste her, manche Rezepte verweisen dich also auf eine andere Fabrik, und Fabrik-Fertigungen lassen sich nicht wieder zerlegen.</p><p>Das Fertigen an einer Fabrik ist für alle frei. Doch eine Fabrik ist schreibgeschützt, bis du sie <b>beanspruchst</b>: Stell dich mit einem <b>SPS-Code</b> ans Terminal und drücke <b>E</b>. Das verbraucht den Code und macht die Fabrik zu deiner Basis — du und deine Verbündeten könnt sie umbauen, und der Anspruch bleibt über Neuladen erhalten.</p>"
     }
   },
   {
     "id": "ruins-and-treasure",
-    "title": { "en": "Ruins & Treasure", "de": "Ruinen & Schätze" },
+    "title": {
+      "en": "Ruins & Treasure",
+      "de": "Ruinen & Schätze"
+    },
     "body": {
       "en": "<p><b>Ruins</b> are the collapsed remains of fallen settlements — broken walls, a lone half-standing tower, and rubble reclaimed by flora. Unlike bases and stations they are <b>not protected</b>: every block is yours to mine, and what you clear stays cleared. VEGA may warn of <i>structural echoes nearby</i> — bring a <span class=\"link\" data-link=\"cat:tech\">scanner</span> and dig around.</p><p><b>Treasure chests</b> are lootable caches hidden away from towns. Each is looted only once and holds richer salvage than ordinary finds — and they are the main world source of a rare <b>SPS access code</b>, the item that lets you claim a <span class=\"link\" data-link=\"guide:factories\">factory</span> as your own base. You can also buy a code from a trader's Market, but it's steep. Keep any code you find.</p>",
       "de": "<p><b>Ruinen</b> sind die eingestürzten Überreste verfallener Siedlungen — zerbrochene Mauern, ein einzelner halb stehender Turm und von Pflanzen überwuchertes Geröll. Anders als Basen und Stationen sind sie <b>nicht geschützt</b>: Jeden Block darfst du abbauen, und was du abräumst, bleibt weg. VEGA warnt manchmal vor <i>strukturellen Echos in der Nähe</i> — nimm einen <span class=\"link\" data-link=\"cat:tech\">Scanner</span> mit und grab nach.</p><p><b>Schatztruhen</b> sind plünderbare Verstecke abseits der Orte. Jede lässt sich nur einmal leeren und enthält wertvolleres Bergegut als gewöhnliche Funde — und sie sind die wichtigste Weltquelle für einen seltenen <b>SPS-Code</b>, den Gegenstand, mit dem du eine <span class=\"link\" data-link=\"guide:factories\">Fabrik</span> als eigene Basis beanspruchst. Einen Code gibt es auch im Markt eines Händlers zu kaufen, aber teuer. Heb jeden Code auf, den du findest.</p>"
     }
   },
   {
+    "id": "creatures",
+    "title": {
+      "en": "Creatures & Wildlife",
+      "de": "Kreaturen & Wildtiere"
+    },
+    "body": {
+      "en": "<p>Every world breeds its own creatures, each a one-of-a-kind species shaped by that world. Some graze and wander, some flee at the sight of you, some defend their patch, and a few <b>hunt</b> — only the aggressive ones will come for you, so no world is all teeth. Watch their habits: many sleep through part of the day or night.</p><p>Defeated or harvested creatures may drop <b>meat</b> (good food) or a <b>toxic gland</b> (don't eat it). But there's a friendlier path — see <span class=\"link\" data-link=\"guide:taming\">Taming</span>.</p>",
+      "de": "<p>Jede Welt bringt eigene Kreaturen hervor, jede eine einzigartige Art, geformt von dieser Welt. Manche grasen und wandern, manche fliehen bei deinem Anblick, manche verteidigen ihr Revier, und einige <b>jagen</b> — nur die aggressiven kommen auf dich zu, keine Welt ist also voller Zähne. Beobachte ihre Gewohnheiten: viele schlafen einen Teil von Tag oder Nacht.</p><p>Besiegte oder geerntete Kreaturen lassen vielleicht <b>Fleisch</b> (gute Nahrung) oder eine <b>Giftdrüse</b> (nicht essen) fallen. Doch es gibt einen freundlicheren Weg — siehe <span class=\"link\" data-link=\"guide:taming\">Zähmen</span>.</p>"
+    }
+  },
+  {
+    "id": "taming",
+    "title": {
+      "en": "Taming & Companions",
+      "de": "Zähmen & Gefährten"
+    },
+    "body": {
+      "en": "<p>With a <b>creature translator</b> in hand, step up to a wild creature and begin to win its trust. It will signal a mood; answer it the right way — offer the <b>bait</b> it craves, calm it, approach slowly, or give it space — and trust grows. A wrong move can spook a shy creature into bolting, so read it carefully.</p><p>Carry the right bait — <i>plant forage</i>, <i>fresh meat</i> or <i>sweet nectar</i>. Tame a creature and it becomes a loyal companion that follows you on its home world. You can keep a handful at once, rename them, and release any you choose. A first tame of a new species also earns you knowledge.</p>",
+      "de": "<p>Mit einem <b>Kreaturen-Übersetzer</b> in der Hand tritt an eine wilde Kreatur heran und beginne, ihr Vertrauen zu gewinnen. Sie zeigt eine Stimmung; antworte richtig darauf — biete den <b>Köder</b>, den sie begehrt, beruhige sie, nähere dich langsam oder gib ihr Raum — und das Vertrauen wächst. Ein falscher Schritt kann eine scheue Kreatur in die Flucht schlagen, also lies sie genau.</p><p>Trag den passenden Köder bei dir — <i>Pflanzenfutter</i>, <i>frisches Fleisch</i> oder <i>süßer Nektar</i>. Eine gezähmte Kreatur wird ein treuer Gefährte, der dir auf seiner Heimatwelt folgt. Du kannst eine Handvoll gleichzeitig halten, sie umbenennen und jede freilassen. Ein Erstfund einer neuen Art bringt dir außerdem Wissen.</p>"
+    }
+  },
+  {
+    "id": "hazards",
+    "title": {
+      "en": "Air, Weather & Hazards",
+      "de": "Luft, Wetter & Gefahren"
+    },
+    "body": {
+      "en": "<p>Not every world is kind to lungs. <b>Breathable</b> worlds let you roam freely; <b>toxic</b> worlds drain your suit oxygen — fit an <b>oxygen extractor</b> to pull breathable air from the haze and slow the loss. <b>Airless</b> worlds and open space give nothing back, so watch your tank.</p><p>Weather rolls from clear skies to rain and storms, and worlds run hot or cold — pack accordingly. Gravity varies too: on light worlds you'll leap far, on heavy ones every jump costs more. Refill oxygen and energy aboard your ship or at any heal-tank.</p>",
+      "de": "<p>Nicht jede Welt ist gut für die Lunge. <b>Atembare</b> Welten lassen dich frei umherstreifen; <b>giftige</b> Welten zehren an deinem Anzug-Sauerstoff — bau einen <b>Sauerstoffsammler</b> ein, um atembare Luft aus dem Schleier zu ziehen und den Verlust zu bremsen. <b>Luftlose</b> Welten und das offene All geben nichts zurück, also achte auf deinen Tank.</p><p>Das Wetter wechselt von klarem Himmel zu Regen und Stürmen, und Welten sind heiß oder kalt — rüste dich entsprechend. Auch die Schwerkraft schwankt: auf leichten Welten springst du weit, auf schweren kostet jeder Sprung mehr. Sauerstoff und Energie füllst du an Bord deines Schiffs oder an jedem Heiltank auf.</p>"
+    }
+  },
+  {
+    "id": "farming",
+    "title": {
+      "en": "Farming & Foraging",
+      "de": "Anbau & Sammeln"
+    },
+    "body": {
+      "en": "<p>Flora is everywhere, and most of it gives <b>plant fiber</b> when cut, with some plants offering <b>berries</b> to eat. Watch for <i>toxic</i> berries and glands — they'll hurt rather than heal.</p><p>You can grow your own: plant a <b>plant seed</b> or <b>crystal seed</b> on open ground and it will sprout. Many wild plants regrow on their own over time if you leave their roots, so a good foraging spot keeps giving. Load rations into your suit dispenser and it feeds you automatically when hunger bites.</p>",
+      "de": "<p>Flora gibt es überall, und das meiste liefert beim Schneiden <b>Pflanzenfaser</b>, manche Pflanzen bieten <b>Beeren</b> zum Essen. Hüte dich vor <i>giftigen</i> Beeren und Drüsen — sie schaden, statt zu heilen.</p><p>Du kannst selbst anbauen: setz ein <b>Pflanzen-Saatgut</b> oder <b>Kristall-Saatgut</b> auf offenen Boden, und es sprießt. Viele wilde Pflanzen wachsen mit der Zeit von selbst nach, wenn du ihre Wurzeln lässt — ein guter Sammelplatz gibt also immer weiter. Lad Rationen in deinen Anzugspender, und er versorgt dich automatisch, wenn der Hunger kommt.</p>"
+    }
+  },
+  {
+    "id": "combat",
+    "title": {
+      "en": "Combat & Defence",
+      "de": "Kampf & Verteidigung"
+    },
+    "body": {
+      "en": "<p>When trouble finds you, gear up. Melee tools — from a humble machete to a plasma sword — hit hard up close, while pistols and blasters strike from range; higher tiers cost suit energy but deal far more. Wearing a <b>helmet</b>, <b>chest</b> and <b>leg</b> armour stacks up your damage resistance.</p><p>A <b>stasis projector</b> freezes a charging creature in its tracks, and a <b>stealth suit</b> lets you slip past unseen while it drains energy. In space, expect hostile drones and craft — fit your ship with weapons and shields before you go looking for a fight.</p>",
+      "de": "<p>Wenn Ärger dich findet, rüste auf. Nahkampfwerkzeuge — von der schlichten Machete bis zum Plasmaschwert — treffen aus der Nähe hart, während Pistolen und Blaster aus der Ferne zuschlagen; höhere Stufen kosten Anzugsenergie, richten aber weit mehr an. <b>Helm</b>, <b>Brust</b>- und <b>Beinpanzerung</b> summieren deinen Schadenswiderstand.</p><p>Ein <b>Stase-Projektor</b> friert eine angreifende Kreatur an Ort und Stelle ein, und ein <b>Tarnanzug</b> lässt dich ungesehen vorbeischleichen, solange er Energie zieht. Im All erwarten dich feindliche Drohnen und Schiffe — rüste dein Schiff mit Waffen und Schilden, bevor du einen Kampf suchst.</p>"
+    }
+  },
+  {
+    "id": "ships-modules",
+    "title": {
+      "en": "Your Ship & Modules",
+      "de": "Dein Schiff & Module"
+    },
+    "body": {
+      "en": "<p>Your ship is your home, workshop and ride between worlds. It's built from <span class=\"link\" data-link=\"cat:modules\">modules</span> — a cockpit, reactor and life support keep it flying, while a workshop, medbay, cargo holds and more add comforts and capacity.</p><p>Unlock and craft bigger hulls in the <span class=\"link\" data-link=\"cat:tech\">Tech</span> tree — a nimble <b>scout</b>, a roomy <b>hauler</b>, a balanced <b>corvette</b> — and fit them with refineries, a jump generator for crossing star systems, tractor beams, shields and weapons. See the <span class=\"link\" data-link=\"cat:ships\">Ships</span> chapter for each hull.</p>",
+      "de": "<p>Dein Schiff ist Zuhause, Werkstatt und Reisemittel zwischen den Welten. Es besteht aus <span class=\"link\" data-link=\"cat:modules\">Modulen</span> — Cockpit, Reaktor und Lebenserhaltung halten es in der Luft, während Werkstatt, Medbay, Frachträume und mehr Komfort und Kapazität bringen.</p><p>Größere Rümpfe schaltest du im <span class=\"link\" data-link=\"cat:tech\">Technik</span>-Baum frei und fertigst sie — ein wendiger <b>Späher</b>, ein geräumiger <b>Frachter</b>, eine ausgewogene <b>Korvette</b> — und rüstest sie mit Raffinerien, einem Sprunggenerator zum Wechseln der Sternsysteme, Traktorstrahlen, Schilden und Waffen aus. Das Kapitel <span class=\"link\" data-link=\"cat:ships\">Schiffe</span> zeigt jeden Rumpf.</p>"
+    }
+  },
+  {
+    "id": "alliances",
+    "title": {
+      "en": "Allies & Playing Together",
+      "de": "Verbündete & Zusammenspiel"
+    },
+    "body": {
+      "en": "<p>Online, you can form an <b>alliance</b> with another player — both must agree. Allies share full access to each other's <b>planet bases</b> and <b>space stations</b>: you can build and rebuild together, and you can't harm one another, even on rougher servers.</p><p>Ships always stay personal — an alliance never opens your ship to others. Either side can end an alliance at any time. Be kind out there; see the <span class=\"link\" data-link=\"guide:house-rules\">House Rules</span>.</p>",
+      "de": "<p>Online kannst du mit einem anderen Spieler ein <b>Bündnis</b> schließen — beide müssen zustimmen. Verbündete teilen vollen Zugang zu den <b>Planetenbasen</b> und <b>Raumstationen</b> des anderen: ihr könnt gemeinsam bauen und umbauen, und ihr könnt einander nicht schaden, selbst auf raueren Servern.</p><p>Schiffe bleiben immer persönlich — ein Bündnis öffnet dein Schiff nie für andere. Jede Seite kann ein Bündnis jederzeit beenden. Sei freundlich da draußen; siehe die <span class=\"link\" data-link=\"guide:house-rules\">Spielregeln</span>.</p>"
+    }
+  },
+  {
     "id": "arcade",
-    "title": { "en": "Data Cubes & Fragments", "de": "Datenwürfel & Fragmente" },
+    "title": {
+      "en": "Data Cubes & Fragments",
+      "de": "Datenwürfel & Fragmente"
+    },
     "body": {
       "en": "<p>Scattered across some worlds are glowing <b>data cubes</b> — derelict storage terminals. Walk up to one and press <b>E</b> to extract its <b>data fragment</b> into your collection.</p><p>Not every world holds one, and a cube's fragment stays a surprise until you reach it. A recovered fragment is yours for good — open the <b>DataQubes</b> tab any time to run it. Your records are kept locally, just for you.</p>",
       "de": "<p>Über manche Welten verstreut leuchten <b>Datenwürfel</b> — verlassene Speicherterminals. Geh zu einem und drücke <b>E</b>, um sein <b>Datenfragment</b> in deine Sammlung zu bergen.</p><p>Nicht jede Welt birgt einen, und welches Fragment ein Würfel enthält, bleibt eine Überraschung, bis du ihn erreichst. Ein geborgenes Fragment gehört dir für immer — öffne jederzeit den <b>DataQubes</b>-Tab, um es auszuführen. Deine Bestwerte werden lokal nur für dich gespeichert.</p>"
@@ -57,7 +232,10 @@
   },
   {
     "id": "house-rules",
-    "title": { "en": "House Rules", "de": "Spielregeln" },
+    "title": {
+      "en": "House Rules",
+      "de": "Spielregeln"
+    },
     "body": {
       "en": "<p><b>Blocks Beyond the Stars</b> is a family game — made so that kids can play safely. There is nothing here that isn't suitable for children.</p><p>When you play online with others, please keep it friendly:</p><ul><li>Be kind in <b>radio chat</b> — others may be younger than you.</li><li>No rude words in chat, or in the names you give players, bases, stations, beacons or creatures.</li><li>You can <b>mute</b> anyone you don't want to hear, and <b>voice chat</b> can be switched off completely.</li></ul><p>Server hosts may remove anything inappropriate and block players who break these rules.</p>",
       "de": "<p><b>Blocks Beyond the Stars</b> ist ein Familienspiel — gemacht, damit Kinder sicher spielen können. Es gibt hier nichts, was nicht für Kinder geeignet ist.</p><p>Wenn du online mit anderen spielst, bleib bitte freundlich:</p><ul><li>Sei nett im <b>Funk-Chat</b> — andere sind vielleicht jünger als du.</li><li>Keine Schimpfwörter im Chat oder in den Namen, die du Spielern, Basen, Stationen, Funkbaken oder Kreaturen gibst.</li><li>Du kannst jeden <b>stummschalten</b>, den du nicht hören willst, und der <b>Sprachchat</b> lässt sich ganz ausschalten.</li></ul><p>Server-Betreiber dürfen unangemessene Inhalte entfernen und Spieler sperren, die gegen diese Regeln verstoßen.</p>"
