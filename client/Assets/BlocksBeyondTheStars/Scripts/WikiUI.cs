@@ -184,12 +184,16 @@ namespace BlocksBeyondTheStars.Client
             "guide" => BuildGuide(),
             // Items/Tech/Ships/Modules carry a DescriptionKey (shown under each name); Blocks/Planets have no
             // description text in the content data yet, so they list names only (pass a null description selector).
-            "blocks" => BuildEntries(L("ui.wiki.blocks"), Entries(Game?.Content?.Blocks?.Values, d => d.NameKey, null)),
+            // Blocks/Planets carry no DescriptionKey in their definitions, but the locale tables now hold
+            // block.*.desc / planet.*.desc entries authored alongside the names — derive the key by convention
+            // (".name" → ".desc") so they show a description line. Desc() still renders nothing for any key
+            // that has no locale entry, so undescribed (cosmetic) blocks stay name-only.
+            "blocks" => BuildEntries(L("ui.wiki.blocks"), Entries(Game?.Content?.Blocks?.Values, d => d.NameKey, d => ToDescKey(d.NameKey))),
             "items" => BuildEntries(L("ui.wiki.items"), Entries(Game?.Content?.Items?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "tech" => BuildEntries(L("ui.wiki.tech"), Entries(Game?.Content?.Blueprints?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "ships" => BuildEntries(L("ui.wiki.ships"), Entries(Game?.Content?.Ships?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "modules" => BuildEntries(L("ui.wiki.modules"), Entries(Game?.Content?.ShipModules?.Values, d => d.NameKey, d => d.DescriptionKey)),
-            "planets" => BuildEntries(L("ui.wiki.planets"), Entries(Game?.Content?.Planets?.Values, d => d.NameKey, null)),
+            "planets" => BuildEntries(L("ui.wiki.planets"), Entries(Game?.Content?.Planets?.Values, d => d.NameKey, d => ToDescKey(d.NameKey))),
             _ => string.Empty,
         };
 
@@ -210,6 +214,14 @@ namespace BlocksBeyondTheStars.Client
             result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
             return result;
         }
+
+        /// <summary>Maps a name-key to its sibling description key by the locale convention used throughout the
+        /// content tables ("block.stone.name" → "block.stone.desc"). Used for the Blocks and Planets chapters,
+        /// whose definitions hold a NameKey but no explicit DescriptionKey.</summary>
+        private static string ToDescKey(string nameKey)
+            => string.IsNullOrEmpty(nameKey) || !nameKey.EndsWith(".name", StringComparison.Ordinal)
+                ? string.Empty
+                : nameKey.Substring(0, nameKey.Length - ".name".Length) + ".desc";
 
         /// <summary>Localized description text for a key, or empty when the key is blank or unknown — so an entry
         /// renders a description line only when one actually exists (Localizer.Get returns "[key]" for a miss).</summary>
