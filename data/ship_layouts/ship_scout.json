@@ -333,7 +333,7 @@
    "id": "iron_wall"
   },
   {
-   "x": 2,
+   "x": 1,
    "y": 1,
    "z": -1,
    "kind": "block",
@@ -375,8 +375,8 @@
    "id": "glass"
   },
   {
-   "x": 2,
-   "y": 2,
+   "x": 3,
+   "y": 1,
    "z": -1,
    "kind": "block",
    "id": "engine"
