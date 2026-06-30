@@ -5315,6 +5315,22 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-01): three reported bug fixes — helmet lamp, world-options modal, ship-exit door (#179, #180, #181)
+- **Helmet lamp stays on in space ([#179](https://github.com/marceld23/BlocksBeyondTheStars/issues/179)).** The suit
+  headlamp (toggle `L`) is a shader spotlight driven by `_Sc_LampColor` in `PlayerController.UpdateLamp()`. When the
+  space view took over, `Update()` returned early **before** `UpdateLamp()` ran, so the global kept its last "on"
+  value and the lamp stayed lit in space. Now the `SpaceViewActive` branch turns the lamp off once on the way in
+  (clears the global + hides the light cone), mirroring the existing clear-on-context-change in `Sky.cs`/`MenuBackground`.
+- **World-options modal too transparent ([#180](https://github.com/marceld23/BlocksBeyondTheStars/issues/180)).** The
+  "Weltoptionen" overlay (`UiWorldOptions.Build`) used a `0.72`-alpha dim scrim over the shared `0.80`-alpha
+  `UiKit.Panel`, so the animated menu shimmered through and hurt readability. Raised the scrim to `0.90` and gave this
+  panel its own near-opaque blue `(0.05,0.12,0.24,0.97)` (site-wide `UiKit.Panel` left untouched).
+- **Must jump to exit the ship ([#181](https://github.com/marceld23/BlocksBeyondTheStars/issues/181)).** The scout's
+  only door (`ship_scout.json` cell `(2,1,0)`) had its two `engine` blocks stacked **directly behind it** at
+  `(2,1,-1)`/`(2,2,-1)`, so walking out the centre door hit the engine and you had to jump onto it to get through.
+  The corvette/hauler already place engines **flanking** the central door; the scout now matches — its two engines
+  moved to `(1,1,-1)`/`(3,1,-1)`, clearing the exit path. Repro confirmed in-game before the fix.
+
 ## ✅ Done (2026-06-29): oxygen tank tiers + water-exit assist — SHIPPED in v0.6.2 (#133)
 - **Oxygen tank tiers I/II/III ([#129](https://github.com/marceld23/BlocksBeyondTheStars/issues/129)).** `oxygen_tank_1`
   was a dead consumable (no effect) whose description wrongly promised a capacity boost. It is now a worn

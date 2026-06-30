@@ -20,11 +20,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds the (initially hidden) overlay; returns its root for the caller to toggle.</summary>
         public static GameObject Build(AppShell shell, Transform root, WorldCreationOptions opt)
         {
-            var dim = UiKit.AddImage(root, 0f, 0f, 1920f, 1080f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.72f));
+            // Near-opaque scrim + panel so the animated menu behind the dialog can't shimmer through and
+            // hurt readability (the shared UiKit.Panel alpha 0.80 is intentionally left untouched site-wide).
+            var dim = UiKit.AddImage(root, 0f, 0f, 1920f, 1080f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.90f));
             dim.raycastTarget = true;
             var overlay = dim.gameObject;
 
-            var panel = UiKit.AddPanel(overlay.transform, 160f, 90f, 1600f, 900f, UiKit.Panel).transform;
+            var panel = UiKit.AddPanel(overlay.transform, 160f, 90f, 1600f, 900f, new Color(0.05f, 0.12f, 0.24f, 0.97f)).transform;
             UiKit.AddText(panel, 30f, 20f, 800f, 34f, shell.L("ui.worldopt.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Stacked views inside the panel: the main sliders, the advanced per-type list, and the

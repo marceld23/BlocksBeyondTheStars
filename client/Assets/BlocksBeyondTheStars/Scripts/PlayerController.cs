@@ -236,6 +236,13 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && Game.SpaceViewActive)
             {
                 UpdateJetpack(false);
+                // Entering space skips the per-frame UpdateLamp() below, so the suit headlamp's
+                // shader global would otherwise stay lit. Turn it off once on the way in.
+                if (_lampOn)
+                {
+                    _lampOn = false;
+                    UpdateLamp();
+                }
                 return;
             }
 
