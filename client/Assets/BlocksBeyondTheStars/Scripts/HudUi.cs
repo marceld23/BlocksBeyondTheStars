@@ -882,8 +882,13 @@ namespace BlocksBeyondTheStars.Client
                 return loc.Get(it.NameKey);
             }
 
-            string creatureName = loc.Get($"creature.{key}.name");
-            return creatureName.StartsWith("creature.") ? key : creatureName; // fall back to the raw key
+            // Not a block/item key: the server already resolved creatures/flora/trees to their coined,
+            // language-neutral display name (CreatureSpecies.Name etc.) and asteroids to a plain label, so
+            // the subject IS the display name — show it as-is. (A real per-species localization key is
+            // honoured if one exists; Localizer.Get returns "[key]" for a missing key, so we must probe
+            // with Has() rather than inspect the returned string.)
+            string creatureKey = $"creature.{key}.name";
+            return loc.Has(creatureKey) ? loc.Get(creatureKey) : key;
         }
 
         private void RefreshWreck(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

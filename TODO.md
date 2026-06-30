@@ -97,6 +97,24 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Codex (in-game Wiki) navigation + scan-name fixes (2026-06-30) — ✅ code done, local Unity build green
+Three player-reported client fixes on `fix/codex-wiki-buttons-unclickable-176` (#176, #177):
+- **#176 — Codex buttons unclickable.** `GameMenu.Update` calls `WikiUI.Show()` every frame while the Codex is
+  open, and `Show()` rebuilt the whole screen unconditionally — destroying and recreating every button each
+  frame, so a uGUI click (pointer-down + pointer-up on the *same* surviving object) never completed. Sidebar
+  chapter nav, "Back to menu" and "Close" were all dead; only Esc (polled in `GameMenu`) worked. Fix: `Show()`
+  now rebuilds only on the disabled→enabled transition (mirrors `ArcadeUI`/`CraftingTechShipUI`); `SelectChapter`
+  still rebuilds on a chapter click.
+- **Codex list descriptions (folded into #176).** The reference chapters listed names only. They now render each
+  entry's `DescriptionKey` text under the name — full coverage for Tech (57/57) and Modules (24/24), partial for
+  Items (64/163) and Ships (4/4); Blocks/Planets stay name-only (no description text in the data yet).
+- **#177 — scan readout showed `[creature.<name>.name]`.** The server already resolves a scanned creature/flora
+  to its coined, language-neutral display name (`CreatureSpecies.Name` etc.) in `ScanResult.Subject`, but the
+  client re-processed it: `HudUi.ScanSubjectName` ran a `creature.{subject}.name` localizer lookup that missed
+  (no such key — by design) and the broken `StartsWith("creature.")` guard let the bracketed `[…]` key through.
+  Fix: show the subject as-is when it is not a known block/item key; only localize a per-species key when
+  `Localizer.Has` confirms it exists. Client-only.
+
 ### ★ Gameplay fixes: shape icons, ladders, shape auto-step & tool-gated mining (2026-06-29) — ✅ code done, 792 server tests green, local Unity build pending
 Four player-reported issues fixed on `feat/gameplay-fixes-shapes-ladders-mining` (#125–#128):
 - **#125 — per-shape hotbar/inventory icons.** Crafted forms (sphere/pyramid/slab/ramp/stairs/dome/cone/cylinder)
