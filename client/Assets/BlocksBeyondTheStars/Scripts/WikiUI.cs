@@ -57,10 +57,16 @@ namespace BlocksBeyondTheStars.Client
         public void Show()
         {
             EnsureCanvas();
-            Rebuild();
+
+            // Rebuild ONLY on the disabled→enabled transition (mirrors ArcadeUI/CraftingTechShipUI).
+            // GameMenu.Update calls Show() every frame while the Codex is open; rebuilding each frame
+            // destroyed and recreated every button, so a uGUI click (pointer-down + pointer-up on the
+            // SAME surviving object) never completed — sidebar nav, Back and Close were all dead and
+            // only Esc (polled in GameMenu) worked. SelectChapter() rebuilds itself on a chapter click.
             if (!_canvas.enabled)
             {
                 _canvas.enabled = true;
+                Rebuild();
                 UiKit.TransitionIn(_canvas.gameObject);
             }
         }
@@ -176,44 +182,61 @@ namespace BlocksBeyondTheStars.Client
         private string BuildChapterText(string chapter) => chapter switch
         {
             "guide" => BuildGuide(),
-            "blocks" => BuildList(L("ui.wiki.blocks"), Names(Game?.Content?.Blocks?.Values, d => d.NameKey)),
-            "items" => BuildList(L("ui.wiki.items"), Names(Game?.Content?.Items?.Values, d => d.NameKey)),
-            "tech" => BuildList(L("ui.wiki.tech"), Names(Game?.Content?.Blueprints?.Values, d => d.NameKey)),
-            "ships" => BuildList(L("ui.wiki.ships"), Names(Game?.Content?.Ships?.Values, d => d.NameKey)),
-            "modules" => BuildList(L("ui.wiki.modules"), Names(Game?.Content?.ShipModules?.Values, d => d.NameKey)),
-            "planets" => BuildList(L("ui.wiki.planets"), Names(Game?.Content?.Planets?.Values, d => d.NameKey)),
+            // Items/Tech/Ships/Modules carry a DescriptionKey (shown under each name); Blocks/Planets have no
+            // description text in the content data yet, so they list names only (pass a null description selector).
+            "blocks" => BuildEntries(L("ui.wiki.blocks"), Entries(Game?.Content?.Blocks?.Values, d => d.NameKey, null)),
+            "items" => BuildEntries(L("ui.wiki.items"), Entries(Game?.Content?.Items?.Values, d => d.NameKey, d => d.DescriptionKey)),
+            "tech" => BuildEntries(L("ui.wiki.tech"), Entries(Game?.Content?.Blueprints?.Values, d => d.NameKey, d => d.DescriptionKey)),
+            "ships" => BuildEntries(L("ui.wiki.ships"), Entries(Game?.Content?.Ships?.Values, d => d.NameKey, d => d.DescriptionKey)),
+            "modules" => BuildEntries(L("ui.wiki.modules"), Entries(Game?.Content?.ShipModules?.Values, d => d.NameKey, d => d.DescriptionKey)),
+            "planets" => BuildEntries(L("ui.wiki.planets"), Entries(Game?.Content?.Planets?.Values, d => d.NameKey, null)),
             _ => string.Empty,
         };
 
-        /// <summary>Localized, sorted display names for a content collection (each definition carries a NameKey).</summary>
-        private List<string> Names<T>(IEnumerable<T> defs, Func<T, string> nameKey)
+        /// <summary>Localized, name-sorted (name, description) entries for a content collection. Every definition
+        /// carries a NameKey; <paramref name="descKey"/> is null for collections without description text, and an
+        /// individual entry's description is empty when its key is blank or unknown (see <see cref="Desc"/>).</summary>
+        private List<(string Name, string Desc)> Entries<T>(IEnumerable<T> defs, Func<T, string> nameKey, Func<T, string> descKey)
         {
-            var result = new List<string>();
+            var result = new List<(string Name, string Desc)>();
             if (defs != null)
             {
                 foreach (var d in defs)
                 {
-                    result.Add(L(nameKey(d)));
+                    result.Add((L(nameKey(d)), descKey == null ? string.Empty : Desc(descKey(d))));
                 }
             }
 
-            result.Sort(StringComparer.CurrentCultureIgnoreCase);
+            result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
             return result;
         }
 
-        private string BuildList(string header, List<string> names)
+        /// <summary>Localized description text for a key, or empty when the key is blank or unknown — so an entry
+        /// renders a description line only when one actually exists (Localizer.Get returns "[key]" for a miss).</summary>
+        private string Desc(string key)
+            => string.IsNullOrEmpty(key) || Game?.Localizer == null || !Game.Localizer.Has(key)
+                ? string.Empty
+                : Game.Localizer.Get(key);
+
+        private string BuildEntries(string header, List<(string Name, string Desc)> entries)
         {
             var sb = new StringBuilder();
             sb.Append("<b><size=24>").Append(header).Append("</size></b>\n\n");
-            if (names.Count == 0)
+            if (entries.Count == 0)
             {
                 sb.Append(L("ui.wiki.empty"));
             }
             else
             {
-                foreach (var n in names)
+                foreach (var (name, desc) in entries)
                 {
-                    sb.Append("• ").Append(n).Append('\n');
+                    sb.Append("• <b>").Append(name).Append("</b>\n");
+                    if (!string.IsNullOrEmpty(desc))
+                    {
+                        sb.Append("<color=#9fb4c8>").Append(desc).Append("</color>\n");
+                    }
+
+                    sb.Append('\n');
                 }
             }
 
