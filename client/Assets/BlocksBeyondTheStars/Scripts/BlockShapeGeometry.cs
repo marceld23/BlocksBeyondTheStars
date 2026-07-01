@@ -55,6 +55,7 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Post: Box(faces, 0.3f, 0f, 0.3f, 0.7f, 1f, 0.7f); break;          // slim square column
                 case BlockShape.Beam: Box(faces, 0f, 0.35f, 0.35f, 1f, 0.65f, 0.65f); break;      // bar along X (yaw → Z)
                 case BlockShape.LowRamp: LowRamp(faces); break;                                    // half-height incline
+                case BlockShape.QuarterCube: Box(faces, 0f, 0f, 0f, 0.5f, 0.5f, 0.5f); break;       // 0.5³ corner micro-cube
                 default: return null; // Cube / unknown → no custom geometry
             }
 

@@ -626,6 +626,7 @@
   "ui.shape.post": "Post",
   "ui.shape.beam": "Beam",
   "ui.shape.lowramp": "Low ramp",
+  "ui.shape.quartercube": "Quarter cube",
   "ui.craft.ready": "Craftable",
   "ui.craft.blocked": "Materials missing",
   "ui.craft.pick": "Select an entry on the left.",

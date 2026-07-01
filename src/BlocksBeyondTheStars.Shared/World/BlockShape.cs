@@ -26,6 +26,7 @@ public enum BlockShape : byte
     Post = 10,    // slim square column centred in the cell (pillars, railings)
     Beam = 11,    // horizontal square bar spanning the cell (structural frames), yaw-oriented
     LowRamp = 12, // half-height wedge — a gentle incline (yaw-oriented like Ramp)
+    QuarterCube = 13, // small 0.5³ cube in a cell corner (micro-detail; full orientation reaches all 8 corners)
 }
 
 /// <summary>
@@ -40,7 +41,7 @@ public enum BlockShape : byte
 public static class ShapeCode
 {
     /// <summary>Number of distinct <see cref="BlockShape"/> forms (including <see cref="BlockShape.Cube"/>).</summary>
-    public const int Count = 13;
+    public const int Count = 14;
 
     /// <summary>The default up-face (local +Y points to world +Y): the original, pre-orientation behaviour.</summary>
     public const int UpPlusY = 0;

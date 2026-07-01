@@ -627,6 +627,7 @@
   "ui.shape.post": "Pfeiler",
   "ui.shape.beam": "Balken",
   "ui.shape.lowramp": "Flache Rampe",
+  "ui.shape.quartercube": "Viertelwürfel",
   "ui.craft.ready": "Baubar",
   "ui.craft.blocked": "Material fehlt",
   "ui.craft.pick": "Wähle links einen Eintrag.",

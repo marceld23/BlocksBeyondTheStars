@@ -149,6 +149,8 @@ namespace BlocksBeyondTheStars.Client
                     return v >= 0.35f && v <= 0.65f;
                 case BlockShape.LowRamp: // right triangle rising to the right, half height
                     return v <= 0.5f * u;
+                case BlockShape.QuarterCube: // small square in the lower-left quadrant
+                    return u <= 0.5f && v <= 0.5f;
                 default:
                     return true; // cube — full tile (callers never ask us for this)
             }
