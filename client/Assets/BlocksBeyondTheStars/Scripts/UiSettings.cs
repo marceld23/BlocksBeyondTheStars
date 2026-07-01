@@ -280,6 +280,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => "ui.key.deposit_to_crate",
             InputAction.RepairWreck => "ui.key.repair_wreck",
             InputAction.ToggleLamp => "ui.key.toggle_lamp",
+            InputAction.RotateShape => "ui.key.rotate_shape",
             InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
             InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
             InputAction.FlightAutopilot => "ui.key.flight_autopilot",

@@ -34,9 +34,11 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Builds the polygons for a shape index (see <see cref="BlockShape"/>), rotated by a yaw
-        /// orientation (0..3 quarter-turns about the cell's vertical centre). Returns null for cube/unknown.</summary>
-        public static List<Face> Build(int shapeIndex, int orientation)
+        /// <summary>Builds the polygons for a shape index (see <see cref="BlockShape"/>), oriented by a yaw
+        /// (0..3 quarter-turns about the vertical centre) THEN tilted so the shape's local +Y points to
+        /// <paramref name="upFace"/> (0 = +Y = the original behaviour → yaw-only, unchanged). yaw × up-face give
+        /// the full 24 cube orientations. Returns null for cube/unknown.</summary>
+        public static List<Face> Build(int shapeIndex, int orientation, int upFace = 0)
         {
             var faces = new List<Face>();
             switch ((BlockShape)shapeIndex)
@@ -49,6 +51,11 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Stairs: Stairs(faces); break;
                 case BlockShape.Cone: Cone(faces); break;
                 case BlockShape.Cylinder: Cylinder(faces); break;
+                case BlockShape.Panel: Box(faces, 0f, 0f, 0f, 1f, 0.25f, 1f); break;             // thin floor/ceiling plate
+                case BlockShape.Post: Box(faces, 0.3f, 0f, 0.3f, 0.7f, 1f, 0.7f); break;          // slim square column
+                case BlockShape.Beam: Box(faces, 0f, 0.35f, 0.35f, 1f, 0.65f, 0.65f); break;      // bar along X (yaw → Z)
+                case BlockShape.LowRamp: LowRamp(faces); break;                                    // half-height incline
+                case BlockShape.QuarterCube: Box(faces, 0f, 0f, 0f, 0.5f, 0.5f, 0.5f); break;       // 0.5³ corner micro-cube
                 default: return null; // Cube / unknown → no custom geometry
             }
 
@@ -63,7 +70,40 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Tilt so local +Y points at the up-face (0 = +Y = no tilt). Applied AFTER yaw, so up-face 0
+            // reproduces the original yaw-only behaviour exactly (existing placed shapes are unchanged). A pure
+            // rotation about the cell centre → winding + outward-facing normals are preserved.
+            if (upFace != 0)
+            {
+                for (int i = 0; i < faces.Count; i++)
+                {
+                    var f = faces[i];
+                    faces[i] = f.IsQuad
+                        ? new Face(Tilt(f.A, upFace), Tilt(f.B, upFace), Tilt(f.C, upFace), Tilt(f.D, upFace))
+                        : new Face(Tilt(f.A, upFace), Tilt(f.B, upFace), Tilt(f.C, upFace));
+                }
+            }
+
             return faces;
+        }
+
+        // Quaternion per up-face that maps local +Y onto that world face (indices match the mesher's face order:
+        // 0 +Y, 1 -Y, 2 +X, 3 -X, 4 +Z, 5 -Z). Index 0 is identity (handled by the caller's != 0 guard).
+        private static readonly Quaternion[] UpFaceRot =
+        {
+            Quaternion.identity,             // +Y
+            Quaternion.Euler(180f, 0f, 0f),  // -Y
+            Quaternion.Euler(0f, 0f, -90f),  // +X
+            Quaternion.Euler(0f, 0f, 90f),   // -X
+            Quaternion.Euler(90f, 0f, 0f),   // +Z
+            Quaternion.Euler(-90f, 0f, 0f),  // -Z
+        };
+
+        /// <summary>Rotates a cell-local point about the cell centre so local +Y points at <paramref name="upFace"/>.</summary>
+        private static Vector3 Tilt(Vector3 p, int upFace)
+        {
+            var c = new Vector3(0.5f, 0.5f, 0.5f);
+            return c + UpFaceRot[Mathf.Clamp(upFace, 0, 5)] * (p - c);
         }
 
         // --- Primitive builders (unit cell, y up, centre at 0.5,*,0.5) ---
@@ -98,6 +138,16 @@ namespace BlocksBeyondTheStars.Client
             f.Add(new Face(new(0, 0, 0), new(0, 1, 1), new(1, 1, 1), new(1, 0, 0))); // slope (up + toward -Z)
             f.Add(new Face(new(0, 0, 0), new(0, 0, 1), new(0, 1, 1)));               // -X side triangle
             f.Add(new Face(new(1, 0, 0), new(1, 1, 1), new(1, 0, 1)));               // +X side triangle
+        }
+
+        private static void LowRamp(List<Face> f)
+        {
+            // Like Ramp but only half height — a gentle incline rising toward +Z (yaw rotates it).
+            f.Add(new Face(new(0, 0, 1), new(0, 0, 0), new(1, 0, 0), new(1, 0, 1)));       // -Y floor
+            f.Add(new Face(new(1, 0, 1), new(1, 0.5f, 1), new(0, 0.5f, 1), new(0, 0, 1))); // +Z back wall (half height)
+            f.Add(new Face(new(0, 0, 0), new(0, 0.5f, 1), new(1, 0.5f, 1), new(1, 0, 0))); // slope
+            f.Add(new Face(new(0, 0, 0), new(0, 0, 1), new(0, 0.5f, 1)));                   // -X side triangle
+            f.Add(new Face(new(1, 0, 0), new(1, 0.5f, 1), new(1, 0, 1)));                   // +X side triangle
         }
 
         private static void Stairs(List<Face> f)

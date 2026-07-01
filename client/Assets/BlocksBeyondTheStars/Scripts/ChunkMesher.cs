@@ -28,6 +28,12 @@ namespace BlocksBeyondTheStars.Client
         /// Used both by the mesher's flood-fill and by callers when gathering nearby light sources.</summary>
         public const int LightRadius = 9;
 
+        /// <summary>Edge-bevel size (fraction of a block) for plain opaque cubes: exposed CONVEX edges are cut
+        /// with a small 45° chamfer so silhouettes + lighting soften and the world reads less blocky. Only
+        /// applied where two exposed faces meet (a flat field of ground adds ZERO extra geometry — its side
+        /// faces are hidden, so it has no convex edges). Set to 0 to disable the whole bevel pass. Tunable.</summary>
+        public const float BevelAmount = 0.06f;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.
@@ -66,6 +72,9 @@ namespace BlocksBeyondTheStars.Client
             var blockLight = new List<Vector3>(); // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
             var blockLightDir = new List<Vector3>(); // TEXCOORD4: dominant block-light direction (toward source), 0 = none
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
+            // Ground-detail scatter points (not part of the mesh): xyz = local cell-top position, w = type
+            // (0 = grass tuft, 1 = pebble). GroundScatter draws them GPU-instanced, culled + quality-gated.
+            var scatter = new List<Vector4>();
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
@@ -198,6 +207,56 @@ namespace BlocksBeyondTheStars.Client
                 return new Vector2(foam * 0.25f, amp * 0.25f);
             }
 
+            // Per-vertex ambient occlusion ("smooth lighting"): each face corner is darkened by how many of
+            // the three solid blocks meeting at it (its two edge neighbours + the diagonal, in the outward
+            // layer) are filled. Turns the flat per-face shade into soft contact shadows in every crevice, so
+            // the blocky world reads far more grounded/organic. Baked into vertex-colour .b, which the atlas
+            // shader already multiplies into the lighting — no shader change. Air, glass, water + plants don't
+            // occlude; opaque solids do. The outward-cell probes are cached for the chunk.
+            var aoOcc = new Dictionary<(int, int, int), bool>();
+            bool AoOccluder(int ax, int ay, int az)
+            {
+                var key = (ax, ay, az);
+                if (aoOcc.TryGetValue(key, out var o))
+                {
+                    return o;
+                }
+
+                var b = worldBlock(ax, ay, az);
+                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b);
+                aoOcc[key] = res;
+                return res;
+            }
+
+            // AO brightness for a face's four corners in FaceQuad vertex order (AoDark = fully occluded ..
+            // 1 = open). Samples the outward layer (block + face normal) offset along the face's two in-plane
+            // axes; the classic voxel rule is that two touching side blocks fully darken the shared corner.
+            const float AoDark = 0.55f;
+            Vector4 FaceAo(int bx, int by, int bz, int f)
+            {
+                var dir = Faces[f];
+                int cx = bx + dir.X, cy = by + dir.Y, cz = bz + dir.Z; // the outward (air) layer
+                int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;          // normal axis (contributes no offset)
+                var q = FaceQuad(Vector3.zero, f);
+                var res = Vector4.one;
+                for (int i = 0; i < 4; i++)
+                {
+                    // The two in-plane axis offsets for this corner (sign from the 0/1 quad coordinate).
+                    int e1x = 0, e1y = 0, e1z = 0, e2x = 0, e2y = 0, e2z = 0;
+                    if (na == 0) { e1y = q[i].y > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else if (na == 1) { e1x = q[i].x > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else { e1x = q[i].x > 0.5f ? 1 : -1; e2y = q[i].y > 0.5f ? 1 : -1; }
+
+                    bool s1 = AoOccluder(cx + e1x, cy + e1y, cz + e1z);
+                    bool s2 = AoOccluder(cx + e2x, cy + e2y, cz + e2z);
+                    bool cn = AoOccluder(cx + e1x + e2x, cy + e1y + e2y, cz + e1z + e2z);
+                    int ao = s1 && s2 ? 0 : 3 - (s1 ? 1 : 0) - (s2 ? 1 : 0) - (cn ? 1 : 0);
+                    res[i] = Mathf.Lerp(AoDark, 1f, ao / 3f);
+                }
+
+                return res;
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -256,6 +315,22 @@ namespace BlocksBeyondTheStars.Client
                 bool collidable = collKey != "water" && collKey != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Ground-detail scatter (T0): on planet chunks, strew a sparse deterministic set of tufts/
+                // pebbles on open-topped ground cells. Render-only decoration drawn instanced by GroundScatter
+                // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
+                if (atlas != null)
+                {
+                    int stype = ScatterType(collKey);
+                    if (stype >= 0 && worldBlock(wx, wy + 1, wz).IsAir)
+                    {
+                        int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
+                        if ((uint)sh % 7u == 0u)
+                        {
+                            scatter.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, stype));
+                        }
+                    }
+                }
+
                 // Natural-block variation: a deterministic WORLD-position hash (stable across remeshes,
                 // identical on all clients) picks one of the block's variant tiles and a 90° rotation
                 // for the top/bottom faces — breaking the visible texture tiling on open ground.
@@ -308,8 +383,29 @@ namespace BlocksBeyondTheStars.Client
                     float tallBoost = TallFlora.Contains(collKey) ? 1.85f : 1f;
                     float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f) * tallBoost;
                     float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
+                    // Per-plant top lean (deterministic, ±~0.12) so a field reads as naturally varied rather
+                    // than a grid of upright cards.
+                    var plantLean = new Vector2(
+                        (CrossPlantScale(wx, wy, wz, 0x4, 1f) - 1f) * 0.12f,
+                        (CrossPlantScale(wx, wy, wz, 0x8, 1f) - 1f) * 0.12f);
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantH, plantW);
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean, plantH, plantW);
+                    continue;
+                }
+
+                // Solid flora (cactus/crystal/mushroom/puffball/…): render as a fitting 3D form (cylinder/cone/
+                // dome/sphere) via the tested building-shape geometry instead of a plain cube — a big step up in
+                // "plant" read at ~cube cost, carrying the same flora tint (mode 1) + emission (glowcaps etc.).
+                if (atlas != null && collKey != null && SolidFlora.Contains(collKey))
+                {
+                    float flSky = Skylight(wx, wy + 1, wz);
+                    Vector3 flBl = BlockLightAt(wx, wy + 1, wz);
+                    Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
+                    Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
+                    float flMode = dyed ? 3f : isFlora ? 1f : 0f;
+                    AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        SolidFloraShape(collKey), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
+                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir);
                     continue;
                 }
 
@@ -326,9 +422,30 @@ namespace BlocksBeyondTheStars.Client
                     Color shTint = dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
                     float shTintMode = dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
                     AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), new Vector3(x, y, z), uv,
+                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z), uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
                     continue;
+                }
+
+                // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/
+                // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
+                // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
+                bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage
+                    && collKey != "water" && collKey != "lava" && collKey != "fire";
+                int openMask = 0;
+                if (bevel)
+                {
+                    for (int bf = 0; bf < Faces.Length; bf++)
+                    {
+                        var bd = Faces[bf];
+                        int ox = wx + bd.X, oy = wy + bd.Y, oz = wz + bd.Z;
+                        var onb = worldBlock(ox, oy, oz);
+                        if (onb.IsAir || IsTransparent(content, onb)
+                            || (worldShape != null && !ShapeCode.IsCube(worldShape(ox, oy, oz))))
+                        {
+                            openMask |= 1 << bf;
+                        }
+                    }
                 }
 
                 for (int f = 0; f < Faces.Length; f++)
@@ -368,14 +485,33 @@ namespace BlocksBeyondTheStars.Client
 
                     float s = FaceShade(f);
                     // With an atlas the lit shader does the directional shading, so the vertex colour
-                    // carries material params instead: r=gloss, g=metal, b=per-face AO (subtle edge
-                    // definition). Without one, fall back to the flat palette colour x face shade.
-                    var col = atlas != null
-                        ? new Color(matR, matG, s, emission)
-                        : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
+                    // carries material params instead: r=gloss, g=metal, b=per-vertex shade×AO (soft contact
+                    // shadows in crevices). Without one, fall back to the flat palette colour × shade × AO.
+                    // See-through blocks (glass/water) skip AO so the water/energy shaders read a clean shade.
+                    Vector4 ao = transparent ? Vector4.one : FaceAo(wx, wy, wz, f);
+                    Color c0, c1, c2, c3;
+                    if (atlas != null)
+                    {
+                        c0 = new Color(matR, matG, s * ao.x, emission);
+                        c1 = new Color(matR, matG, s * ao.y, emission);
+                        c2 = new Color(matR, matG, s * ao.z, emission);
+                        c3 = new Color(matR, matG, s * ao.w, emission);
+                    }
+                    else
+                    {
+                        c0 = new Color(baseColor.r * s * ao.x, baseColor.g * s * ao.x, baseColor.b * s * ao.x, 1f);
+                        c1 = new Color(baseColor.r * s * ao.y, baseColor.g * s * ao.y, baseColor.b * s * ao.y, 1f);
+                        c2 = new Color(baseColor.r * s * ao.z, baseColor.g * s * ao.z, baseColor.b * s * ao.z, 1f);
+                        c3 = new Color(baseColor.r * s * ao.w, baseColor.g * s * ao.w, baseColor.b * s * ao.w, 1f);
+                    }
+
+                    // Bevel cubes inset each exposed convex edge of the face by BevelAmount (edges against a
+                    // solid neighbour stay flush → no gap); the chamfer strips + corners are added after the loop.
+                    Vector3[] bevelQuad = bevel ? BevelInsetQuad(new Vector3(x, y, z), f, openMask) : null;
                     int faceBase = verts.Count;
-                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv,
-                        dir.Y != 0 ? uvRot : 0); // rotate only top/bottom faces — sides keep their up-orientation
+                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
+                        c0, c1, c2, c3, uv,
+                        dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation
                     if (collidable)
                     {
                         colliderTris.Add(faceBase); colliderTris.Add(faceBase + 1); colliderTris.Add(faceBase + 2);
@@ -421,6 +557,29 @@ namespace BlocksBeyondTheStars.Client
                         var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
+
+                    // Ship hull greeble (T2): a sparse set of raised, slightly darker plating panels on exposed
+                    // hull faces so ships read as "built" rather than bare cubes. Ship/structure context only
+                    // (paintTint != null), render-only, deterministic per world cell + face. Density/size tunable.
+                    if (paintTint != null && collKey == "iron_wall" && GreebleAt(wx, wy, wz, f))
+                    {
+                        var gTint = dyed ? dye : painted ? paint : speciesTint;
+                        var gLeaf = new Vector4(leafFlag, gTint.r, gTint.g, gTint.b);
+                        AddGreeblePanel(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                            new Vector3(x, y, z), f, uv, matR, matG, s, emission, sky, faceMode, gLeaf, faceBl, faceBlDir);
+                    }
+                }
+
+                // Bevel chamfer strips (per exposed convex edge) + corner triangles (per exposed convex
+                // corner), render-only. Attributes are a representative snapshot of the block (a thin 45°
+                // strip; the tiny lighting approximation is invisible). Skipped for the collider (tiny inset).
+                if (bevel)
+                {
+                    var bevTint = dyed ? dye : painted ? paint : speciesTint;
+                    var bevLeaf = new Vector4(0f, bevTint.r, bevTint.g, bevTint.b); // not foliage-cutout
+                    EmitBevel(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        new Vector3(x, y, z), openMask, uv, matR, matG, emission, floraFlag, bevLeaf,
+                        Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz));
                 }
             }
 
@@ -450,6 +609,7 @@ namespace BlocksBeyondTheStars.Client
                 Tangents = tangents,
                 Normals = normals,
                 Bounds = bounds,
+                Scatter = scatter,
             };
         }
 
@@ -501,27 +661,31 @@ namespace BlocksBeyondTheStars.Client
             return 1f + (t - 0.5f) * 2f * amp;
         }
 
-        /// <summary>Adds a cross-billboard plant: two diagonal cutout quads through the cell, each emitted with
-        /// BOTH windings (the atlas shaders cull back faces), slightly inset to avoid z-fighting. Render-only —
-        /// no collider triangles, so small plants are walk-through. <paramref name="heightScale"/> /
-        /// <paramref name="widthScale"/> give each plant its own size (so a field reads as tall + short tufts).</summary>
+        // The three vertical plane orientations of a plant rosette (degrees around Y): 0/60/120 give six
+        // half-planes of coverage, so a plant reads as a rounded 3D tuft from every angle instead of a flat cross.
+        private static readonly float[] PlantPlaneAngles = { 0f, 60f, 120f };
+
+        /// <summary>Adds a leafy plant as a THREE-plane rosette of cutout quads through the cell (T3): fuller +
+        /// more volumetric than the old flat cross, each plane emitted with BOTH windings (the atlas shaders cull
+        /// back faces). <paramref name="lean"/> tilts the top for per-plant variation so a field doesn't look
+        /// like uniform flat cards. Render-only — no collider, so small plants stay walk-through.
+        /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint, Vector3 bl, Vector3 blDir, float heightScale = 1f, float widthScale = 1f)
+            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, float heightScale = 1f, float widthScale = 1f)
         {
-            // The two crossed planes' floor diagonals, inset symmetrically from the cell centre (so the width
-            // scales about the middle), clamped inside the cell to avoid bleeding into neighbours.
+            // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
+            // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
             float half = Mathf.Clamp(0.42f * widthScale, 0.18f, 0.49f);
-            float lo = 0.5f - half, hi = 0.5f + half;
-            var diagonals = new[]
-            {
-                (A: new Vector3(cell.x + lo, cell.y, cell.z + lo), B: new Vector3(cell.x + hi, cell.y, cell.z + hi)),
-                (A: new Vector3(cell.x + hi, cell.y, cell.z + lo), B: new Vector3(cell.x + lo, cell.y, cell.z + hi)),
-            };
+            float cx = cell.x + 0.5f, cz = cell.z + 0.5f, cy = cell.y;
+            var up = new Vector3(lean.x, heightScale, lean.y); // top tilts by the per-plant lean
 
-            foreach (var (a, b) in diagonals)
+            foreach (float deg in PlantPlaneAngles)
             {
-                var up = Vector3.up * heightScale;
+                float rad = deg * Mathf.Deg2Rad;
+                float dx = Mathf.Cos(rad) * half, dz = Mathf.Sin(rad) * half;
+                var a = new Vector3(cx - dx, cy, cz - dz);
+                var b = new Vector3(cx + dx, cy, cz + dz);
                 var tangent = (Vector4)((b - a).normalized);
                 tangent.w = -1f;
 
@@ -562,10 +726,10 @@ namespace BlocksBeyondTheStars.Client
         /// lit atlas shader does the main directional shading from the per-face normals.</summary>
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
             List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
-            List<Vector3> blockLightDir, int shapeIndex, int orientation, Vector3 cell, Rect uv, float matR, float matG,
+            List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir)
         {
-            var faces = BlockShapeGeometry.Build(shapeIndex, orientation);
+            var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace);
             if (faces == null)
             {
                 return;
@@ -617,6 +781,51 @@ namespace BlocksBeyondTheStars.Client
                     colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 2); colliderTris.Add(baseIdx + 3);
                 }
             }
+        }
+
+        /// <summary>Deterministic "does this hull face carry a greeble panel" test (~1/3 of faces), stable per
+        /// world cell + face so a ship looks the same on every client and across rebuilds.</summary>
+        private static bool GreebleAt(int wx, int wy, int wz, int face)
+        {
+            int h = unchecked(wx * 92837111 ^ wy * 689287499 ^ wz * 283923481 ^ face * 49979687);
+            return (uint)h % 3u == 0u;
+        }
+
+        /// <summary>Adds one raised, slightly darker plating panel proud of a hull face (T2 greeble): a single
+        /// inset quad offset outward along the face normal — render-only, winding inherited from the face so it
+        /// always shows. Carries the face's tint mode + hull-paint tint so it recolours with the ship. Conservative
+        /// (top quad only, no rim); raise/inset are easy to tune.</summary>
+        private static void AddGreeblePanel(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir,
+            Vector3 cell, int face, Rect uv, float matR, float matG, float shade, float emission, float sky, float tintMode,
+            Vector4 leaf, Vector3 bl, Vector3 blDir)
+        {
+            const float insetT = 0.26f, raise = 0.02f;
+            var dir = Faces[face];
+            var nrm = new Vector3(dir.X, dir.Y, dir.Z);
+            var q = FaceQuad(cell, face);
+            Vector3 c = (q[0] + q[1] + q[2] + q[3]) * 0.25f;
+            Vector3 off = nrm * raise;
+            Vector3 p0 = Vector3.Lerp(q[0], c, insetT) + off;
+            Vector3 p1 = Vector3.Lerp(q[1], c, insetT) + off;
+            Vector3 p2 = Vector3.Lerp(q[2], c, insetT) + off;
+            Vector3 p3 = Vector3.Lerp(q[3], c, insetT) + off;
+
+            int baseIdx = verts.Count;
+            verts.Add(p0); verts.Add(p1); verts.Add(p2); verts.Add(p3);
+            var col = new Color(matR, matG, shade * 0.82f, emission); // slightly darker → reads as a raised plate
+            Vector3 tan3 = (p3 - p0).sqrMagnitude > 1e-8f ? (p3 - p0).normalized : (p1 - p0).normalized;
+            float hand = Vector3.Dot(Vector3.Cross(nrm, tan3), p1 - p0) < 0f ? -1f : 1f;
+            var tan = new Vector4(tan3.x, tan3.y, tan3.z, hand);
+            Vector2 uvC = uv.center;
+            for (int i = 0; i < 4; i++)
+            {
+                colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
+            }
+
+            tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+            tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
         }
 
         /// <summary>Relative brightness per face (top brightest, bottom darkest) for a lit-looking blocky world.</summary>
@@ -697,6 +906,27 @@ namespace BlocksBeyondTheStars.Client
             var key = content.BlockById(id)?.Key;
             return key is "water" or "lava";
         }
+
+        /// <summary>Ground-detail scatter host classification: 0 = grass tuft (soft ground), 1 = pebble (dry/
+        /// rocky ground), -1 = no scatter. Only open-topped ground blocks get decoration; ores, machines,
+        /// fluids, flora and built blocks return -1.</summary>
+        private static int ScatterType(string key) => key switch
+        {
+            "grass" or "dirt" or "mud" => 0,
+            "sand" or "snow" or "stone" or "basalt" => 1,
+            _ => -1,
+        };
+
+        /// <summary>Maps a solid-flora block to a fitting <see cref="BlockShape"/> index (T3): columns → cylinder,
+        /// crystalline/ember blooms → cone, capped fungi → dome, bulbous forms → sphere. Reuses the tested
+        /// building-shape geometry so structural plants read as 3D forms instead of cubes.</summary>
+        private static int SolidFloraShape(string key) => key switch
+        {
+            "flora_cactus" or "flora_pitcher" or "flora_sporepod" or "flora_glowvine" => 8, // cylinder (columns)
+            "flora_crystal" or "flora_shardbloom" or "flora_emberbloom" or "flora_frostflower" => 7, // cone (shards)
+            "flora_mushroom" or "flora_glowcap" => 3, // dome (caps)
+            _ => 4, // sphere (puffball, succulent, bulb, gasbloom, …)
+        };
 
         private static Vector2 BlockMaterial(GameContent content, BlockId id)
         {
@@ -990,12 +1220,13 @@ namespace BlocksBeyondTheStars.Client
                 0.35f + 0.5f * (float)rng.NextDouble());
         }
 
-        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color color, Rect uv, int uvRot = 0)
+        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color col0, Color col1, Color col2, Color col3, Rect uv, int uvRot = 0, Vector3[] quad = null)
         {
             int baseIndex = verts.Count;
-            Vector3[] q = FaceQuad(p, face);
+            Vector3[] q = quad ?? FaceQuad(p, face);
             verts.Add(q[0]); verts.Add(q[1]); verts.Add(q[2]); verts.Add(q[3]);
-            colors.Add(color); colors.Add(color); colors.Add(color); colors.Add(color);
+            // Per-corner colours (AO in .b) in the same q0..q3 order as the verts/uvs below.
+            colors.Add(col0); colors.Add(col1); colors.Add(col2); colors.Add(col3);
 
             // Tangent = world-space U direction (q0→q3, matching the UV mapping below); w = bitangent
             // handedness. Lets the shader transform the tangent-space normal map into world space.
@@ -1032,6 +1263,143 @@ namespace BlocksBeyondTheStars.Client
                 default: return new[] { p + new Vector3(0, 0, 0), p + new Vector3(0, 1, 0), p + new Vector3(1, 1, 0), p + new Vector3(1, 0, 0) }; // -Z
             }
         }
+
+        /// <summary>The <see cref="Faces"/> index for a signed axis (axis 0=X,1=Y,2=Z; sign ±1) — maps an
+        /// in-plane neighbour direction to its face so the bevel can test whether that face is exposed.</summary>
+        private static int FaceIndexFor(int axis, int sign)
+            => axis == 0 ? (sign > 0 ? 2 : 3) : axis == 1 ? (sign > 0 ? 0 : 1) : (sign > 0 ? 4 : 5);
+
+        /// <summary>A cell-local point with the three axis coordinates assigned by axis index.</summary>
+        private static Vector3 AxisVec(int a0, float c0, int a1, float c1, int a2, float c2)
+        {
+            var v = Vector3.zero;
+            v[a0] = c0; v[a1] = c1; v[a2] = c2;
+            return v;
+        }
+
+        /// <summary>The face quad with each corner pulled inward by <see cref="BevelAmount"/> along an in-plane
+        /// axis IFF that edge is a convex exposed edge (the in-plane neighbour face is open). Edges against a
+        /// solid neighbour stay flush, so beveled and unbeveled cubes still tile without gaps.</summary>
+        private static Vector3[] BevelInsetQuad(Vector3 cell, int face, int openMask)
+        {
+            var q = FaceQuad(cell, face);
+            var dir = Faces[face];
+            int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;
+            for (int i = 0; i < 4; i++)
+            {
+                var c = q[i];
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    if (axis == na)
+                    {
+                        continue;
+                    }
+
+                    int sgn = c[axis] - cell[axis] > 0.5f ? 1 : -1;
+                    if ((openMask & (1 << FaceIndexFor(axis, sgn))) != 0)
+                    {
+                        c[axis] -= sgn * BevelAmount;
+                    }
+                }
+
+                q[i] = c;
+            }
+
+            return q;
+        }
+
+        /// <summary>Adds the render-only bevel geometry for one plain opaque cube: a 45° chamfer strip for every
+        /// exposed convex EDGE (both faces sharing it open) and a small triangle for every exposed convex CORNER
+        /// (all three faces open). Windings are fixed so each polygon's geometric normal faces outward. Carries a
+        /// representative attribute snapshot of the block (a thin strip — the lighting approximation is invisible).</summary>
+        private static void EmitBevel(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir,
+            Vector3 cell, int openMask, Rect uv, float matR, float matG, float emission, float tintMode, Vector4 leaf,
+            float sky, Vector3 bl, Vector3 blDir)
+        {
+            float b = BevelAmount;
+            Vector2 uvC = uv.center;
+            bool Open(int axis, int sign) => (openMask & (1 << FaceIndexFor(axis, sign))) != 0;
+
+            void AddPoly(Vector3 a, Vector3 v1, Vector3 v2, bool isQuad, Vector3 v3, Vector3 outward)
+            {
+                a += cell; v1 += cell; v2 += cell;
+                if (isQuad)
+                {
+                    v3 += cell;
+                }
+
+                Vector3 far = isQuad ? v3 : v2;
+                bool flip = Vector3.Dot(Vector3.Cross(v1 - a, far - a), outward) < 0f;
+                float shade = Mathf.Clamp(0.72f + 0.28f * outward.normalized.y, 0.5f, 1f);
+                var col = new Color(matR, matG, shade, emission);
+                Vector3 tan3 = (far - a).sqrMagnitude > 1e-8f ? (far - a).normalized : (v1 - a).normalized;
+                var tan = new Vector4(tan3.x, tan3.y, tan3.z, -1f);
+                int baseIdx = verts.Count;
+
+                void Push(Vector3 p)
+                {
+                    verts.Add(p); colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                    skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
+                }
+
+                if (isQuad)
+                {
+                    if (!flip) { Push(a); Push(v1); Push(v2); Push(v3); }
+                    else { Push(a); Push(v3); Push(v2); Push(v1); }
+                    tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+                    tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
+                }
+                else
+                {
+                    if (!flip) { Push(a); Push(v1); Push(v2); }
+                    else { Push(a); Push(v2); Push(v1); }
+                    tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+                }
+            }
+
+            // Chamfer strips — one per exposed convex edge.
+            for (int axisA = 0; axisA < 3; axisA++)
+            for (int axisB = axisA + 1; axisB < 3; axisB++)
+            {
+                int axisC = 3 - axisA - axisB;
+                for (int sa = -1; sa <= 1; sa += 2)
+                for (int sb = -1; sb <= 1; sb += 2)
+                {
+                    if (!Open(axisA, sa) || !Open(axisB, sb))
+                    {
+                        continue;
+                    }
+
+                    float tLo = Open(axisC, -1) ? b : 0f;
+                    float tHi = Open(axisC, 1) ? 1f - b : 1f;
+                    float aMain = sa > 0 ? 1f : 0f, aInset = sa > 0 ? 1f - b : b;
+                    float bMain = sb > 0 ? 1f : 0f, bInset = sb > 0 ? 1f - b : b;
+                    Vector3 pAlo = AxisVec(axisA, aMain, axisB, bInset, axisC, tLo);
+                    Vector3 pAhi = AxisVec(axisA, aMain, axisB, bInset, axisC, tHi);
+                    Vector3 pBlo = AxisVec(axisB, bMain, axisA, aInset, axisC, tLo);
+                    Vector3 pBhi = AxisVec(axisB, bMain, axisA, aInset, axisC, tHi);
+                    AddPoly(pAlo, pAhi, pBhi, true, pBlo, AxisVec(axisA, sa, axisB, sb, axisC, 0f));
+                }
+            }
+
+            // Corner triangles — one per exposed convex corner.
+            for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                if (!Open(0, sx) || !Open(1, sy) || !Open(2, sz))
+                {
+                    continue;
+                }
+
+                float xI = sx > 0 ? 1f - b : b, yI = sy > 0 ? 1f - b : b, zI = sz > 0 ? 1f - b : b;
+                Vector3 pX = new(sx > 0 ? 1f : 0f, yI, zI);
+                Vector3 pY = new(xI, sy > 0 ? 1f : 0f, zI);
+                Vector3 pZ = new(xI, yI, sz > 0 ? 1f : 0f);
+                AddPoly(pX, pY, pZ, false, Vector3.zero, new Vector3(sx, sy, sz));
+            }
+        }
     }
 
     /// <summary>The plain-data result of <see cref="ChunkMesher.BuildGeometry"/>: the vertex/index/attribute
@@ -1053,6 +1421,7 @@ namespace BlocksBeyondTheStars.Client
         public List<Vector4> Tangents;
         public Vector3[] Normals;          // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
         public Bounds Bounds;
+        public List<Vector4> Scatter;      // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
 
         /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
         /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).</summary>

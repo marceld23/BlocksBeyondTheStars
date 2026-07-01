@@ -57,6 +57,10 @@ public sealed class PlaceBlockIntent
 
     /// <summary>Optional label carried when placing a labelled block (a radio beacon); ignored otherwise.</summary>
     public string Label { get; set; } = string.Empty;
+
+    /// <summary>Explicit shape up-face override (0..5) from the client's rotate key; -1 = none, so the server
+    /// auto-orients the shape from the surface it was built against. Only used for shapeable building blocks.</summary>
+    public int UpFace { get; set; } = -1;
 }
 
 public sealed class CraftIntent

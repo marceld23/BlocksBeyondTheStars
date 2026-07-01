@@ -26,7 +26,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A tangent-space normal map derived from the colour atlas (Sobel on luminance), so flat
         /// block faces catch the light with micro-relief (cracks, rivets, grain). Same tile layout as
-        /// <see cref="Texture"/>; the block shader samples it for per-pixel lighting.</summary>
+        /// <see cref="Texture"/>; the block shader samples it for per-pixel lighting. The ALPHA channel
+        /// carries a cavity/crevice AO (steep luminance edges → darker) the shader multiplies into the
+        /// diffuse for texture-scale depth.</summary>
         public Texture2D NormalTexture { get; private set; }
 
         public BlockTextureAtlas(GameContent content)
@@ -182,7 +184,11 @@ namespace BlocksBeyondTheStars.Client
                     float dx = Lum(x + 1, y) - Lum(x - 1, y);
                     float dy = Lum(x, y + 1) - Lum(x, y - 1);
                     var n = new Vector3(-dx * strength, -dy * strength, 1f).normalized;
-                    dst[y * w + x] = new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, 1f);
+                    // Cavity/crevice AO packed into the (otherwise unused) alpha: steep luminance edges —
+                    // painted cracks, seams, rivets, grain — read as shallow pits, so the block shader can
+                    // darken them a touch for texture-scale depth on top of the per-vertex AO.
+                    float cav = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) * 2.0f);
+                    dst[y * w + x] = new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, cav);
                 }
             }
 

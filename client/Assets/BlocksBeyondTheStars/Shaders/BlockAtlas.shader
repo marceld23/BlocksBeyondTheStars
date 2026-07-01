@@ -156,7 +156,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 gN = normalize(i.wn);
                 float3 T = normalize(i.wt.xyz);
                 float3 B = normalize(cross(gN, T) * i.wt.w);
-                float3 tn = SAMPLE_TEXTURE2D(_NormalTex, sampler_NormalTex, i.uv).xyz * 2.0 - 1.0;
+                float4 nrm = SAMPLE_TEXTURE2D(_NormalTex, sampler_NormalTex, i.uv);
+                float3 tn = nrm.xyz * 2.0 - 1.0;
                 float3 N = normalize(tn.x * T + tn.y * B + tn.z * gN);
 
                 float3 L = normalize(_Sc_SunDir.xyz);
@@ -168,7 +169,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // shadowed (ambient/sky fill + emissive stay), so shadowed faces dim but never go black.
                 float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
 
-                float faceAo = lerp(0.88, 1.0, i.mat.b);
+                // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
+                // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
+                float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
                 float amb = lerp(0.24, 0.70, sky);
                 float3 col = albedo * (light * (amb + 0.5 * ndl * sky * shadow) + 0.05) * faceAo;
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
@@ -444,7 +447,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float3 gN = normalize(i.wn);
                 float3 T = normalize(i.wt.xyz);
                 float3 B = normalize(cross(gN, T) * i.wt.w);
-                float3 tn = tex2D(_NormalTex, i.uv).xyz * 2.0 - 1.0;
+                float4 nrm = tex2D(_NormalTex, i.uv);
+                float3 tn = nrm.xyz * 2.0 - 1.0;
                 float3 N = normalize(tn.x * T + tn.y * B + tn.z * gN);
 
                 float3 L = normalize(_Sc_SunDir.xyz);
@@ -458,7 +462,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Diffuse: a tiny cave-ambient floor + (sky-ambient + directional) scaled by skylight,
                 // coloured by the system sun. A subtle per-face AO keeps cube edges readable.
-                float faceAo = lerp(0.88, 1.0, i.mat.b);
+                // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
+                // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
+                float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
                 // Ambient fill: a brighter floor so shadowed faces / overcast aren't crushed to black
                 // (outdoors ~0.70, a readable cave floor of 0.24). The directional adds the sunny side on top.
                 // A small flat term (sun/sky-independent) guarantees a minimum readable level, so blocks in a
