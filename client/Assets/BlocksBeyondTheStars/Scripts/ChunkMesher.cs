@@ -198,6 +198,56 @@ namespace BlocksBeyondTheStars.Client
                 return new Vector2(foam * 0.25f, amp * 0.25f);
             }
 
+            // Per-vertex ambient occlusion ("smooth lighting"): each face corner is darkened by how many of
+            // the three solid blocks meeting at it (its two edge neighbours + the diagonal, in the outward
+            // layer) are filled. Turns the flat per-face shade into soft contact shadows in every crevice, so
+            // the blocky world reads far more grounded/organic. Baked into vertex-colour .b, which the atlas
+            // shader already multiplies into the lighting — no shader change. Air, glass, water + plants don't
+            // occlude; opaque solids do. The outward-cell probes are cached for the chunk.
+            var aoOcc = new Dictionary<(int, int, int), bool>();
+            bool AoOccluder(int ax, int ay, int az)
+            {
+                var key = (ax, ay, az);
+                if (aoOcc.TryGetValue(key, out var o))
+                {
+                    return o;
+                }
+
+                var b = worldBlock(ax, ay, az);
+                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b);
+                aoOcc[key] = res;
+                return res;
+            }
+
+            // AO brightness for a face's four corners in FaceQuad vertex order (AoDark = fully occluded ..
+            // 1 = open). Samples the outward layer (block + face normal) offset along the face's two in-plane
+            // axes; the classic voxel rule is that two touching side blocks fully darken the shared corner.
+            const float AoDark = 0.55f;
+            Vector4 FaceAo(int bx, int by, int bz, int f)
+            {
+                var dir = Faces[f];
+                int cx = bx + dir.X, cy = by + dir.Y, cz = bz + dir.Z; // the outward (air) layer
+                int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;          // normal axis (contributes no offset)
+                var q = FaceQuad(Vector3.zero, f);
+                var res = Vector4.one;
+                for (int i = 0; i < 4; i++)
+                {
+                    // The two in-plane axis offsets for this corner (sign from the 0/1 quad coordinate).
+                    int e1x = 0, e1y = 0, e1z = 0, e2x = 0, e2y = 0, e2z = 0;
+                    if (na == 0) { e1y = q[i].y > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else if (na == 1) { e1x = q[i].x > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else { e1x = q[i].x > 0.5f ? 1 : -1; e2y = q[i].y > 0.5f ? 1 : -1; }
+
+                    bool s1 = AoOccluder(cx + e1x, cy + e1y, cz + e1z);
+                    bool s2 = AoOccluder(cx + e2x, cy + e2y, cz + e2z);
+                    bool cn = AoOccluder(cx + e1x + e2x, cy + e1y + e2y, cz + e1z + e2z);
+                    int ao = s1 && s2 ? 0 : 3 - (s1 ? 1 : 0) - (s2 ? 1 : 0) - (cn ? 1 : 0);
+                    res[i] = Mathf.Lerp(AoDark, 1f, ao / 3f);
+                }
+
+                return res;
+            }
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -368,13 +418,29 @@ namespace BlocksBeyondTheStars.Client
 
                     float s = FaceShade(f);
                     // With an atlas the lit shader does the directional shading, so the vertex colour
-                    // carries material params instead: r=gloss, g=metal, b=per-face AO (subtle edge
-                    // definition). Without one, fall back to the flat palette colour x face shade.
-                    var col = atlas != null
-                        ? new Color(matR, matG, s, emission)
-                        : new Color(baseColor.r * s, baseColor.g * s, baseColor.b * s, 1f);
+                    // carries material params instead: r=gloss, g=metal, b=per-vertex shade×AO (soft contact
+                    // shadows in crevices). Without one, fall back to the flat palette colour × shade × AO.
+                    // See-through blocks (glass/water) skip AO so the water/energy shaders read a clean shade.
+                    Vector4 ao = transparent ? Vector4.one : FaceAo(wx, wy, wz, f);
+                    Color c0, c1, c2, c3;
+                    if (atlas != null)
+                    {
+                        c0 = new Color(matR, matG, s * ao.x, emission);
+                        c1 = new Color(matR, matG, s * ao.y, emission);
+                        c2 = new Color(matR, matG, s * ao.z, emission);
+                        c3 = new Color(matR, matG, s * ao.w, emission);
+                    }
+                    else
+                    {
+                        c0 = new Color(baseColor.r * s * ao.x, baseColor.g * s * ao.x, baseColor.b * s * ao.x, 1f);
+                        c1 = new Color(baseColor.r * s * ao.y, baseColor.g * s * ao.y, baseColor.b * s * ao.y, 1f);
+                        c2 = new Color(baseColor.r * s * ao.z, baseColor.g * s * ao.z, baseColor.b * s * ao.z, 1f);
+                        c3 = new Color(baseColor.r * s * ao.w, baseColor.g * s * ao.w, baseColor.b * s * ao.w, 1f);
+                    }
+
                     int faceBase = verts.Count;
-                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f, col, uv,
+                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
+                        c0, c1, c2, c3, uv,
                         dir.Y != 0 ? uvRot : 0); // rotate only top/bottom faces — sides keep their up-orientation
                     if (collidable)
                     {
@@ -990,12 +1056,13 @@ namespace BlocksBeyondTheStars.Client
                 0.35f + 0.5f * (float)rng.NextDouble());
         }
 
-        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color color, Rect uv, int uvRot = 0)
+        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color col0, Color col1, Color col2, Color col3, Rect uv, int uvRot = 0)
         {
             int baseIndex = verts.Count;
             Vector3[] q = FaceQuad(p, face);
             verts.Add(q[0]); verts.Add(q[1]); verts.Add(q[2]); verts.Add(q[3]);
-            colors.Add(color); colors.Add(color); colors.Add(color); colors.Add(color);
+            // Per-corner colours (AO in .b) in the same q0..q3 order as the verts/uvs below.
+            colors.Add(col0); colors.Add(col1); colors.Add(col2); colors.Add(col3);
 
             // Tangent = world-space U direction (q0→q3, matching the UV mapping below); w = bitangent
             // handedness. Lets the shader transform the tangent-space normal map into world space.
