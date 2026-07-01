@@ -26,11 +26,13 @@ namespace BlocksBeyondTheStars.Client
         private Transform _root;        // the canvas (holds the dimmer + the fixed panel frame + the scroll area)
         private Transform _content;     // scroll content the rows live in (taller than the panel → it scrolls)
         private float _px, _pw, _x, _rowW;
-        private InputAction? _rebinding; // the control row currently capturing a new key (else null)
+        private InputAction? _rebinding;    // the control row currently capturing a new KEYBOARD key (else null)
+        private InputAction? _rebindingPad; // the control row currently capturing a new GAMEPAD button (else null)
 
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("SettingsUI");
+            UiNav.Enable(canvas.gameObject); // gamepad can drive the settings (inert on KB/mouse)
             var ui = canvas.gameObject.AddComponent<UiSettings>();
             ui._shell = shell;
             ui._root = canvas.transform;
@@ -139,7 +141,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
-                () => { S.KeyBindings.Clear(); S.Save(); _rebinding = null; Rebuild(); });
+                () => { S.KeyBindings.Clear(); S.PadBindings.Clear(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
             y += 52f;
 
             Head(ref y, L("ui.settings.comfort"));
@@ -255,16 +257,31 @@ namespace BlocksBeyondTheStars.Client
             y += 52f;
         }
 
-        /// <summary>A control-rebind row: the action label + a button showing its current key. Clicking the
-        /// button arms capture (<see cref="Update"/> binds the next key pressed).</summary>
+        /// <summary>A control-rebind row: the action label + a button showing its current keyboard key + a
+        /// second button showing its gamepad button ("—" when the action has none). Clicking either arms
+        /// capture for that device (<see cref="Update"/> binds the next key / pad button pressed).</summary>
         private void KeyRow(ref float y, InputAction action)
         {
-            string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
             UiKit.AddText(_content, _x, y, 240, 44, L(KeyLabel(action)), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var b = UiKit.AddButton(_content, _x + 250, y, _rowW - 250, 44, val, () => { _rebinding = action; Rebuild(); });
+
+            float keyW = _rowW - 250f - 130f; // leave a 120-wide pad column + a 10 gap on the right
+            string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
+            var b = UiKit.AddButton(_content, _x + 250, y, keyW, 44, val,
+                () => { _rebinding = action; _rebindingPad = null; Rebuild(); });
             if (_rebinding == action)
             {
                 b.GetComponent<Image>().color = UiKit.Cyan;
+            }
+
+            // Gamepad column: the action's current pad button (rebindable even with no pad plugged in yet).
+            string padVal = _rebindingPad == action
+                ? L("ui.settings.press_pad")
+                : InputMap.PadGlyph(GamepadInputSource.ButtonFor(action)) ?? "—";
+            var pb = UiKit.AddButton(_content, _x + 250 + keyW + 10f, y, 120f, 44, padVal,
+                () => { _rebindingPad = action; _rebinding = null; Rebuild(); });
+            if (_rebindingPad == action)
+            {
+                pb.GetComponent<Image>().color = UiKit.Cyan;
             }
 
             y += 52f;
@@ -294,10 +311,37 @@ namespace BlocksBeyondTheStars.Client
             _ => string.Empty,
         };
 
-        /// <summary>While a control row is capturing, bind the next key pressed (Escape cancels). Returns
-        /// immediately when not rebinding, so it costs nothing in normal use.</summary>
+        /// <summary>While a control row is capturing, bind the next key / pad button pressed (Escape cancels).
+        /// Returns immediately when not rebinding, so it costs nothing in normal use.</summary>
         private void Update()
         {
+            // Gamepad capture: only joystick buttons count, so stray keyboard presses can't land here.
+            if (_rebindingPad is { } padAction)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    _rebindingPad = null;
+                    Rebuild();
+                    return;
+                }
+
+                for (var kc = KeyCode.JoystickButton0; kc <= KeyCode.JoystickButton19; kc++)
+                {
+                    if (Input.GetKeyDown(kc))
+                    {
+                        // Store the override — or clear it when the chosen button is already this action's default.
+                        S.SetBoundPad(padAction.ToString(),
+                            kc == GamepadInputSource.DefaultButtonFor(padAction) ? string.Empty : kc.ToString());
+                        S.Save();
+                        _rebindingPad = null;
+                        Rebuild();
+                        return;
+                    }
+                }
+
+                return;
+            }
+
             if (_rebinding is not { } action)
             {
                 return;
@@ -312,9 +356,10 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (KeyCode kc in System.Enum.GetValues(typeof(KeyCode)))
             {
-                if (kc == KeyCode.None || kc == KeyCode.Escape || (kc >= KeyCode.Mouse0 && kc <= KeyCode.Mouse6))
+                if (kc == KeyCode.None || kc == KeyCode.Escape || (kc >= KeyCode.Mouse0 && kc <= KeyCode.Mouse6)
+                    || (kc >= KeyCode.JoystickButton0 && kc <= KeyCode.Joystick8Button19))
                 {
-                    continue; // skip "no key", the cancel key and mouse buttons
+                    continue; // skip "no key", the cancel key, mouse buttons and pad buttons (own column)
                 }
 
                 if (Input.GetKeyDown(kc))

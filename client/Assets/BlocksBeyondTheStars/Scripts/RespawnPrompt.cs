@@ -159,6 +159,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("RespawnPrompt");
             _canvas.sortingOrder = 85; // above the HUD (60) and the DeathFx flash (80)
+            UiNav.Enable(_canvas.gameObject); // the pad can confirm the respawn (inert on KB/mouse)
 
             _panel = new GameObject("RespawnPromptPanel", typeof(RectTransform));
             var prt = _panel.GetComponent<RectTransform>();

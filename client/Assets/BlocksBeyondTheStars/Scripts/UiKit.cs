@@ -215,8 +215,16 @@ namespace BlocksBeyondTheStars.Client
             if (Object.FindFirstObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem");
-                es.AddComponent<EventSystem>();
+                var system = es.AddComponent<EventSystem>();
                 es.AddComponent<StandaloneInputModule>();
+
+                // Touch devices: scale the tap-vs-drag threshold with the display's DPI. The default (10 px)
+                // is tuned for a mouse — on a high-DPI tablet a finger wobbles further than that, so menu taps
+                // get misread as drags and silently do nothing. ~1 mm of physical movement is the usual bound.
+                if (TouchControlsUi.ShouldShow() && Screen.dpi > 0f)
+                {
+                    system.pixelDragThreshold = Mathf.Max(10, Mathf.RoundToInt(Screen.dpi / 25.4f)); // ≈1 mm
+                }
             }
 
             var go = new GameObject(name);
@@ -512,6 +520,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 input.onValueChanged.AddListener(v => onChange(v));
             }
+
+            // WebGL on a touch device can't summon a soft keyboard — route taps through the browser prompt.
+            // No-op (not even a component) everywhere else.
+            TouchTextEntry.Attach(input, placeholder);
 
             return input;
         }

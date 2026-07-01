@@ -575,7 +575,9 @@ namespace BlocksBeyondTheStars.Client
             _speederFuel.color = fuelFrac > 0.2f ? new Color(0.4f, 0.8f, 1f) : new Color(0.95f, 0.5f, 0.2f);
             _speederFuelLabel.text = $"{loc.Get("hud.speeder.fuel")}  {Mathf.RoundToInt(s.Fuel)}";
 
-            string hint = $"F: {loc.Get("hud.speeder.exit")}  ·  R: {loc.Get("hud.speeder.refuel")}";
+            // Key letters come from the live bindings (keyboard key or pad glyph), not hardcoded F/R.
+            string hint = $"{InputMap.Glyph(InputAction.SpeederExit)}: {loc.Get("hud.speeder.exit")}"
+                        + $"  ·  {InputMap.Glyph(InputAction.SpeederRefuel)}: {loc.Get("hud.speeder.refuel")}";
             if (s.Fuel <= 0.01f)
             {
                 hint = loc.Get("hud.speeder.nofuel");

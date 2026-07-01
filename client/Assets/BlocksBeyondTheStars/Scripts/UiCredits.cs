@@ -13,6 +13,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var canvas = UiKit.CreateCanvas("CreditsUI");
             var root = canvas.transform;
+            UiNav.Enable(canvas.gameObject); // gamepad can leave the screen (inert on KB/mouse)
 
             UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.55f));
             float px = 560f, pw = 800f, py = 230f, ph = 620f;

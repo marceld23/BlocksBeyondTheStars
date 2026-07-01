@@ -135,6 +135,12 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="InputMap"/>. An action absent here uses its built-in default, so an empty list = stock
         /// controls. Stored as a flat list so JsonUtility can persist it.</summary>
         public List<KeyBinding> KeyBindings = new List<KeyBinding>();
+
+        /// <summary>Remapped GAMEPAD buttons: per-<see cref="InputAction"/> pad-button overrides (stored as
+        /// <see cref="UnityEngine.KeyCode"/> names like "JoystickButton2"), resolved by
+        /// <see cref="GamepadInputSource"/>. Mirrors <see cref="KeyBindings"/>: absent = the built-in pad
+        /// default, empty list = stock pad controls.</summary>
+        public List<KeyBinding> PadBindings = new List<KeyBinding>();
         /// <summary>Optional named microphone device ("" = the system default).</summary>
         public string MicrophoneDevice = "";
         /// <summary>Player names the local player has muted (voice playback suppressed). Runtime-toggleable.</summary>
@@ -278,6 +284,41 @@ namespace BlocksBeyondTheStars.Client
 
             if (string.IsNullOrEmpty(keyName)) return false;
             KeyBindings.Add(new KeyBinding { Action = action, Key = keyName });
+            return true;
+        }
+
+        /// <summary>The bound gamepad-button NAME for an input action (empty = the pad default). Mirrors
+        /// <see cref="BoundKeyName"/> for the pad binding list.</summary>
+        public string BoundPadName(string action)
+        {
+            if (string.IsNullOrEmpty(action) || PadBindings == null) return "";
+            for (int i = 0; i < PadBindings.Count; i++)
+            {
+                if (PadBindings[i].Action == action) return PadBindings[i].Key;
+            }
+
+            return "";
+        }
+
+        /// <summary>Sets (or, when <paramref name="keyName"/> is empty, clears) the gamepad binding for an
+        /// action. Returns true if anything changed. Mirrors <see cref="SetBoundKey"/>.</summary>
+        public bool SetBoundPad(string action, string keyName)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            PadBindings ??= new List<KeyBinding>();
+            for (int i = 0; i < PadBindings.Count; i++)
+            {
+                if (PadBindings[i].Action == action)
+                {
+                    if (PadBindings[i].Key == keyName) return false;
+                    if (string.IsNullOrEmpty(keyName)) PadBindings.RemoveAt(i);
+                    else PadBindings[i].Key = keyName;
+                    return true;
+                }
+            }
+
+            if (string.IsNullOrEmpty(keyName)) return false;
+            PadBindings.Add(new KeyBinding { Action = action, Key = keyName });
             return true;
         }
 
