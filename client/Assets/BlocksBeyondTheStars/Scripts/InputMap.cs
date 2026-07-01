@@ -60,9 +60,11 @@ namespace BlocksBeyondTheStars.Client
     {
         private static ClientSettings _settings;
 
-        // The two live backends. Both are polled every frame and merged; see the class summary.
+        // The live backends. All are polled every frame and merged; see the class summary. The touch source
+        // is inert unless a touch UI is active (tablet / touch browser), so it contributes nothing on desktop.
         private static readonly IInputSource _desktop = new DesktopInputSource();
         private static readonly IInputSource _pad = new GamepadInputSource();
+        private static readonly IInputSource _touch = new TouchInputSource();
 
         private static int _deviceFrame = -1;
         private static InputDeviceKind _activeDevice = InputDeviceKind.KeyboardMouse;
@@ -76,7 +78,11 @@ namespace BlocksBeyondTheStars.Client
                 if (Time.frameCount != _deviceFrame)
                 {
                     _deviceFrame = Time.frameCount;
-                    if (_pad.HadActivityThisFrame())
+                    if (_touch.HadActivityThisFrame())
+                    {
+                        _activeDevice = InputDeviceKind.Touch;
+                    }
+                    else if (_pad.HadActivityThisFrame())
                     {
                         _activeDevice = InputDeviceKind.Gamepad;
                     }
@@ -156,46 +162,53 @@ namespace BlocksBeyondTheStars.Client
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
         }
 
-        // Discrete rebindable actions — now combined across both backends so a pad button and the bound key
-        // both fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key(action)).
-        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action);
-        public static bool Held(InputAction action) => _desktop.ActionHeld(action) || _pad.ActionHeld(action);
-        public static bool Up(InputAction action) => _desktop.ActionUp(action) || _pad.ActionUp(action);
+        // Discrete rebindable actions — combined across all backends so a pad button, the touch USE button, or
+        // the bound key all fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key).
+        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action);
+        public static bool Held(InputAction action) => _desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action);
+        public static bool Up(InputAction action) => _desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action);
 
         // ---- Continuous locomotion / camera / interaction core -------------------------------------------
-        // Each merges the two backends. Movement + look are additive (mouse delta + stick delta); the
+        // Each merges the backends. Movement + look are additive (mouse delta + stick delta + touch); the
         // button verbs OR together. This is what the migrated PlayerController/SpaceView call sites read
-        // instead of Input.GetAxis / GetButton / GetMouseButton.
+        // instead of Input.GetAxis / GetButton / GetMouseButton. The touch source is zero unless a touch UI
+        // is live, so on desktop these equal the keyboard/mouse (+ pad) behaviour exactly.
 
         /// <summary>Strafe axis, −1..1 — replaces <c>Input.GetAxis("Horizontal")</c>.</summary>
-        public static float MoveX() => Mathf.Clamp(_desktop.MoveX() + _pad.MoveX(), -1f, 1f);
+        public static float MoveX() => Mathf.Clamp(_desktop.MoveX() + _pad.MoveX() + _touch.MoveX(), -1f, 1f);
 
         /// <summary>Forward axis, −1..1 — replaces <c>Input.GetAxis("Vertical")</c>.</summary>
-        public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY(), -1f, 1f);
+        public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY() + _touch.MoveY(), -1f, 1f);
 
         /// <summary>Yaw look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse X")</c>.</summary>
-        public static float LookX() => _desktop.LookX() + _pad.LookX();
+        public static float LookX() => _desktop.LookX() + _pad.LookX() + _touch.LookX();
 
         /// <summary>Pitch look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse Y")</c>.</summary>
-        public static float LookY() => _desktop.LookY() + _pad.LookY();
+        public static float LookY() => _desktop.LookY() + _pad.LookY() + _touch.LookY();
 
         /// <summary>Hotbar scroll: &gt;0 = previous slot, &lt;0 = next — replaces <c>GetAxis("Mouse ScrollWheel")</c>.
-        /// Mouse wheel takes precedence; the pad d-pad fills in when the wheel is idle.</summary>
+        /// Mouse wheel takes precedence; the pad d-pad / touch ◄► buttons fill in when the wheel is idle.</summary>
         public static float HotbarScroll()
         {
             float d = _desktop.HotbarScroll();
-            return Mathf.Abs(d) > 0.0001f ? d : _pad.HotbarScroll();
+            if (Mathf.Abs(d) > 0.0001f)
+            {
+                return d;
+            }
+
+            float p = _pad.HotbarScroll();
+            return Mathf.Abs(p) > 0.0001f ? p : _touch.HotbarScroll();
         }
 
-        public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld();
-        public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown();
-        public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld();
-        public static bool PrimaryDown() => _desktop.PrimaryDown() || _pad.PrimaryDown();
-        public static bool PrimaryHeld() => _desktop.PrimaryHeld() || _pad.PrimaryHeld();
-        public static bool SecondaryDown() => _desktop.SecondaryDown() || _pad.SecondaryDown();
+        public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld() || _touch.JumpHeld();
+        public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown() || _touch.JumpDown();
+        public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld() || _touch.CrouchHeld();
+        public static bool PrimaryDown() => _desktop.PrimaryDown() || _pad.PrimaryDown() || _touch.PrimaryDown();
+        public static bool PrimaryHeld() => _desktop.PrimaryHeld() || _pad.PrimaryHeld() || _touch.PrimaryHeld();
+        public static bool SecondaryDown() => _desktop.SecondaryDown() || _pad.SecondaryDown() || _touch.SecondaryDown();
 
-        /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. The pad has no direct
-        /// pick (it cycles via <see cref="HotbarScroll"/>), so this is the keyboard's answer.</summary>
+        /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. Pad + touch have no
+        /// direct pick (they cycle via <see cref="HotbarScroll"/>), so this is the keyboard's answer.</summary>
         public static int HotbarSlotDown()
         {
             int s = _desktop.HotbarSlotDown();

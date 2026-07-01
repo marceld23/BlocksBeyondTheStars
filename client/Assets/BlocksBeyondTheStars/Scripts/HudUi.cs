@@ -507,7 +507,13 @@ namespace BlocksBeyondTheStars.Client
 
             _toast.text = Game.LastMessage ?? string.Empty;
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
-            _hint.text = loc.Get(InputMap.ActiveDevice == InputDeviceKind.Gamepad ? "ui.hud.hint_pad" : "ui.hud.hint");
+            _hint.text = InputMap.ActiveDevice switch
+            {
+                // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
+                InputDeviceKind.Touch => string.Empty,
+                InputDeviceKind.Gamepad => loc.Get("ui.hud.hint_pad"),
+                _ => loc.Get("ui.hud.hint"),
+            };
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on

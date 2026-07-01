@@ -50,8 +50,35 @@ has nothing selected — this component selects (and re-selects, self-healing) t
 while a pad is the active device, and is completely inert on keyboard/mouse. Wire it with `UiNav.Enable(root)`;
 it is currently on the main menu and the in-game (Tab/Start) menu. Broader panel coverage is follow-up.
 
-## Adding touch later (tablet-web)
+## Touch controls (tablet-web)
 
-Implement a `TouchInputSource : IInputSource` (virtual joystick → `MoveX/MoveY`, drag zone → `LookX/LookY`,
-on-screen buttons → the verb methods) and add it to `InputMap`'s combine. No gameplay changes required —
-that is the point of this seam.
+`TouchInputSource` (`Scripts/Input/`) + `TouchControlsUi` (`Scripts/TouchControlsUi.cs`) implement the touch
+layer, added to `InputMap`'s combine exactly like the pad — no gameplay changes.
+
+- **`TouchControlsUi`** builds the on-screen UI (left virtual joystick, full-screen right look pad, and
+  buttons: JUMP / MINE-hold / PLACE / USE / DOWN / hotbar ◄► / menu) on its own overlay canvas, using uGUI
+  pointer handlers (`TouchStick`, `TouchLookPad`, `TouchButton`) so the canvas scaler and multitouch routing
+  are the EventSystem's job. It is created in `WorldRig` on `root`.
+- **Inert on desktop / behaviour-preserving:** the UI is only built when the device has touch
+  (`TouchControlsUi.ShouldShow()` = `Application.isMobilePlatform || Input.touchSupported`), and
+  `TouchInputSource` reads zero whenever the controls aren't `Visible`. A desktop mouse rig (and a desktop
+  browser, which reports no touch) never builds it.
+- **Scope:** on-foot only — the controls hide during flight/EVA and while a menu is open (menus are
+  tap-navigable through the EventSystem directly). `TouchButton.DownThisFrame` is a frame-idempotent edge
+  (like `GetKeyDown`) computed in an early `Update` (order −100), because a single action is polled at more
+  than one call site per frame — a consume-on-read latch would let the first site eat the edge.
+- **Device glyphs:** `InputDeviceKind.Touch` is tracked; the HUD text hint blanks on touch (the on-screen
+  buttons are self-labelling).
+
+Deferred (need on-device testing — issue #197): flight/speeder/EVA touch layouts, contextual button labels
+(board/loot/dock), on-screen **text entry** (name/chat need a soft-keyboard — uGUI's custom text capture
+doesn't open one), and menu touch-sizing.
+
+## Web / performance (P5)
+
+- **Lite graphics default:** on a fresh install on a tablet or the WebGL build, `ClientSettings.Load` starts
+  the quality `Preset` at `Low` (the scene is heavy: custom URP, SSAO, SMAA, PBR). Only on a genuine first
+  run — a returning player keeps their choice.
+- **Browser gamepad:** the same `GamepadInputSource` runs under WebGL, but the browser Gamepad API's axis /
+  button numbering can differ from native XInput; verifying + remapping it is a playtest item (issue #198),
+  not shipped as an untested guess.

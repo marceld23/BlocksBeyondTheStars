@@ -99,6 +99,26 @@ In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes ba
 steers the ship in flight. Direct hotbar number-key picks and a few secondary actions remain
 keyboard-only for now; a full controller binding + on-screen rebinding pass is planned.
 
+### Touch controls (experimental — tablet / touch browser)
+
+On a touch device (tablet, or a touch-capable browser) on-screen controls appear automatically:
+
+| On-screen control | Action |
+|---|---|
+| **Left stick** (bottom-left) | Move |
+| **Drag** anywhere on the right | Look |
+| **JUMP** | Jump |
+| **MINE** (hold) | Mine the targeted block |
+| **PLACE** | Place the selected hotbar block |
+| **USE** | Use / board / interact |
+| **DOWN** | Descend (swim/float/climb down) |
+| **◄ ►** | Cycle hotbar slot |
+| **≡** (top-right) | Open / close the gameplay menu |
+
+Menus are tapped directly. This is a first, **on-foot** pass: flight/speeder/EVA touch layouts, contextual
+button labels, and on-screen text entry (for your name / chat) are still being built — on a desktop or a
+desktop browser nothing changes, controls stay keyboard + mouse (or a gamepad).
+
 ---
 
 ## 3. Space-flight controls

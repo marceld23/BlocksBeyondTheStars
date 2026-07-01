@@ -97,8 +97,23 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Input abstraction + gamepad/controller support (2026-07-01) — ✅ code done, local Unity build pending
-On `feat/input-abstraction-and-controller` (epic #193; P1 #194, P2 #195). Decouples gameplay from directly
+### ★ Touch controls + web polish (2026-07-01) — ✅ code done, local Unity build pending
+On `feat/touch-controls-and-web-polish` (epic #193; P3 #196, P4 #197, P5 #198). Adds the tablet/browser touch
+layer on top of the input abstraction — **inert on desktop** (built only on a touch device; the source reads
+zero otherwise, so keyboard/mouse + pad are unaffected).
+- **P3 — touch (on-foot).** `TouchInputSource` (`Scripts/Input/`) reads `TouchControlsUi`
+  (`Scripts/TouchControlsUi.cs`): left virtual joystick (move), full-screen right look pad (look), buttons
+  JUMP / MINE-hold / PLACE / USE / DOWN / hotbar ◄► / menu. Built on uGUI pointer handlers (`TouchStick`,
+  `TouchLookPad`, `TouchButton`) so the scaler + multitouch are the EventSystem's job. Added to `InputMap`'s
+  combine + `InputDeviceKind.Touch`; HUD hint blanks on touch. `TouchButton.DownThisFrame` is a
+  frame-idempotent edge (matches `GetKeyDown`; an action is polled at >1 site/frame). Instantiated in `WorldRig`.
+- **P5 — web polish.** Fresh install on a tablet / WebGL starts the graphics `Preset` at `Low` (heavy scene).
+- **Docs:** INPUT_AND_CONTROLLER touch + web sections; USER_MANUAL touch table.
+- **Deferred to playtest issues** (need on-device testing; CI can't drive touch/WebGL): flight/speeder/EVA
+  touch layouts + contextual labels + text entry (#197), browser gamepad axis/button remap (#198).
+
+### ★ Input abstraction + gamepad/controller support (2026-07-01) — ✅ MERGED to main (PR #199, `75a3788`; closes #194)
+On `feat/input-abstraction-and-controller` (epic #193; P1 #194, P2 #195 core). Decouples gameplay from directly
 polling `UnityEngine.Input` and adds experimental Xbox/XInput controller support on the native desktop client.
 - **P1 — input abstraction.** New `IInputSource` (`Scripts/Input/`) with a `DesktopInputSource` (1:1 wrapper
   over the legacy calls) behind a rewritten `InputMap` facade exposing the continuous/pointer core
@@ -113,8 +128,8 @@ polling `UnityEngine.Input` and adds experimental Xbox/XInput controller support
 - **Docs:** `docs/developer/INPUT_AND_CONTROLLER.md`; USER_MANUAL gamepad table; README feature bullet.
 - **Tests:** EditMode `InputAbstractionEditModeTests` (inert-without-pad guarantee + mapping tables). NOTE: CI
   is .NET-only and can't compile the Unity client or drive a pad — validated by local Unity build + manual
-  on-device test. Remaining (deferred to #195): on-screen pad **rebinding** group, full glyph coverage across
-  all prompts, broader menu-panel focus wiring, and stick/button **retuning on real hardware**.
+  on-device test. Remaining: dev follow-ups (pad rebinding UI, full glyph coverage, broader menu focus-nav) →
+  #200; on-hardware verify + axis/button retuning → #201 (`playtest`). P2 issue #195 closed.
 
 ### ★ Codex (in-game Wiki) navigation + scan-name fixes (2026-06-30) — ✅ code done, local Unity build green
 Three player-reported client fixes on `fix/codex-wiki-buttons-unclickable-176` (#176, #177):

@@ -308,6 +308,14 @@ namespace BlocksBeyondTheStars.Client
                 // German Windows starts in German; everything else falls back to English. The chosen value
                 // is persisted by the Save below, so the pre-engine launcher splash picks it up next launch.
                 settings.Language = Application.systemLanguage == SystemLanguage.German ? "de" : "en";
+
+                // Tablets and the browser build are GPU-weak next to a desktop, and the scene is heavy (custom
+                // URP, SSAO, SMAA, PBR). Start those on a Lite preset so the first run is playable; the player
+                // can still raise it in Settings. Only on a genuine first run — a returning player keeps theirs.
+                if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WebGLPlayer)
+                {
+                    settings.Preset = QualityPreset.Low;
+                }
             }
 
             if (string.IsNullOrEmpty(settings.PlayerToken))
