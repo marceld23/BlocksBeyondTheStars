@@ -54,14 +54,34 @@ namespace BlocksBeyondTheStars.Client
             // Open the input with Enter (when no other panel is open).
             if (!_typing && !Game.MenuOpen && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
-                _typing = true;
-                _openFrame = Time.frameCount;
-                Game.ChatTyping = true;
-                _inputRow.gameObject.SetActive(true);
-                _input.text = string.Empty;
-                _input.ActivateInputField();
-                RefreshLog();
+                OpenInput();
             }
+        }
+
+        /// <summary>Opens the chat input box (the same path as pressing Enter). Public so the touch layer's
+        /// CHAT button can open it — tablets have no Enter key. On WebGL-touch (no soft keyboard in the
+        /// browser) it skips the dead InputField and goes straight through the browser prompt.</summary>
+        public void OpenInput()
+        {
+            if (_typing || Game == null || Game.MenuOpen)
+            {
+                return;
+            }
+
+            if (TouchTextEntry.NeedsPrompt)
+            {
+                string label = Game.Localizer != null ? Game.Localizer.Get("ui.chat.hint") : "Chat";
+                Submit(TouchTextEntry.Prompt(label, string.Empty));
+                return;
+            }
+
+            _typing = true;
+            _openFrame = Time.frameCount;
+            Game.ChatTyping = true;
+            _inputRow.gameObject.SetActive(true);
+            _input.text = string.Empty;
+            _input.ActivateInputField();
+            RefreshLog();
         }
 
         private void OnDisable()
@@ -99,18 +119,7 @@ namespace BlocksBeyondTheStars.Client
             bool enter = Input.GetKey(KeyCode.Return) || Input.GetKey(KeyCode.KeypadEnter);
             if (enter)
             {
-                string t = text.Trim();
-                if (t.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    // Bug report: grab a screenshot first, then send it with the description. The capture
-                    // runs next frame (after the chat box closes), so the input box stays out of the shot.
-                    string desc = t.Length > 5 ? t.Substring(5).Trim() : string.Empty;
-                    StartCoroutine(CaptureBumpAndSend(desc, t));
-                }
-                else if (t.Length > 0 && !TryAdminCommand(t))
-                {
-                    Game.Network.SendChat(t);
-                }
+                Submit(text);
             }
 
             _typing = false;
@@ -118,6 +127,23 @@ namespace BlocksBeyondTheStars.Client
             _input.text = string.Empty;
             _inputRow.gameObject.SetActive(false);
             RefreshLog();
+        }
+
+        /// <summary>Sends a finished chat line (also the touch/browser prompt path, which has no Enter key).</summary>
+        private void Submit(string text)
+        {
+            string t = (text ?? string.Empty).Trim();
+            if (t.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Bug report: grab a screenshot first, then send it with the description. The capture
+                // runs next frame (after the chat box closes), so the input box stays out of the shot.
+                string desc = t.Length > 5 ? t.Substring(5).Trim() : string.Empty;
+                StartCoroutine(CaptureBumpAndSend(desc, t));
+            }
+            else if (t.Length > 0 && !TryAdminCommand(t))
+            {
+                Game.Network.SendChat(t);
+            }
         }
 
         /// <summary>Captures an in-game screenshot (downscaled JPG) at the end of the frame — with the chat

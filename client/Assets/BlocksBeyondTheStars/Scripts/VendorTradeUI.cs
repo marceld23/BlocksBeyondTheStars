@@ -114,6 +114,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas = UiKit.CreateCanvas("VendorTradeUI");
             _canvas.sortingOrder = 60; // above the crafting menu (50)
             _root = _canvas.transform;
+            UiNav.Enable(_canvas.gameObject); // gamepad can drive the trade screen (inert on KB/mouse)
 
             UiKit.AddImage(_root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.72f)); // dim backdrop
 

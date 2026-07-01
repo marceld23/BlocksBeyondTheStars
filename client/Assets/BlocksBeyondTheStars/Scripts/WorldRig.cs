@@ -196,6 +196,7 @@ namespace BlocksBeyondTheStars.Client
             var touch = root.AddComponent<TouchControlsUi>();
             touch.Game = boot;
             touch.Menu = menu;
+            touch.Chat = chat;
 
             // Render other players (multiplayer presence).
             var remotes = root.AddComponent<RemotePlayers>();

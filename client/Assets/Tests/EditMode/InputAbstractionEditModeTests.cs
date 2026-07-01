@@ -78,6 +78,29 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void PadBinding_Override_Wins_AndClearRestoresDefault()
+        {
+            var settings = new ClientSettings();
+            InputMap.Use(settings); // also hands the settings to the gamepad backend
+            Assert.AreEqual(KeyCode.JoystickButton2, GamepadInputSource.ButtonFor(InputAction.Interact),
+                "stock pad binding should hold when nothing is bound");
+
+            settings.SetBoundPad(InputAction.Interact.ToString(), KeyCode.JoystickButton9.ToString());
+            Assert.AreEqual(KeyCode.JoystickButton9, GamepadInputSource.ButtonFor(InputAction.Interact),
+                "player pad override should win");
+
+            settings.SetBoundPad(InputAction.Interact.ToString(), "");
+            Assert.AreEqual(KeyCode.JoystickButton2, GamepadInputSource.ButtonFor(InputAction.Interact),
+                "clearing the override should restore the default");
+
+            // An action with no stock pad button can still be bound by the player.
+            settings.SetBoundPad(InputAction.LootContainer.ToString(), KeyCode.JoystickButton6.ToString());
+            Assert.AreEqual(KeyCode.JoystickButton6, GamepadInputSource.ButtonFor(InputAction.LootContainer));
+            settings.SetBoundPad(InputAction.LootContainer.ToString(), "");
+            InputMap.Use(new ClientSettings()); // leave stock settings for later tests
+        }
+
+        [Test]
         public void Glyph_ShowsBoundKey_OnKeyboardMouse()
         {
             InputMap.Use(new ClientSettings());

@@ -130,16 +130,35 @@ namespace BlocksBeyondTheStars.Client
         // No direct 1..9 pick on a pad — the hotbar is cycled via HotbarScroll (d-pad) instead.
         public int HotbarSlotDown() => -1;
 
-        /// <summary>The pad button bound to a discrete action, or <see cref="KeyCode.None"/> if this action
-        /// isn't on the pad yet (it then stays keyboard-only — sources are combined, so nothing is lost).
-        /// A fuller binding set is follow-up work (issue #195).</summary>
-        public static KeyCode ButtonFor(InputAction action) => action switch
+        /// <summary>The player's pad-binding source (set from <see cref="InputMap.Use"/>). Null = defaults only.</summary>
+        public static ClientSettings Settings;
+
+        /// <summary>The BUILT-IN pad button for a discrete action, or <see cref="KeyCode.None"/> if the action
+        /// has no stock pad button (it then stays keyboard-only unless the player binds one — sources are
+        /// combined, so nothing is lost).</summary>
+        // NOTE: FlightEnterInterior deliberately has NO default pad button. ToggleThirdPerson (Y) is polled
+        // during flight too, so sharing Y would fire BOTH on one press at the helm (switch view AND walk the
+        // interior). It stays keyboard-F by default; bindable to a free pad button in the settings.
+        public static KeyCode DefaultButtonFor(InputAction action) => action switch
         {
             InputAction.Interact => BtnX,
             InputAction.ToggleThirdPerson => BtnY,
-            InputAction.FlightEnterInterior => BtnY,
             _ => KeyCode.None,
         };
+
+        /// <summary>The pad button bound to a discrete action — the player's override from the pad-rebinding
+        /// UI (<see cref="ClientSettings.PadBindings"/>) if set, else <see cref="DefaultButtonFor"/>.</summary>
+        public static KeyCode ButtonFor(InputAction action)
+        {
+            var def = DefaultButtonFor(action);
+            if (Settings == null)
+            {
+                return def;
+            }
+
+            string name = Settings.BoundPadName(action.ToString());
+            return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
+        }
 
         public bool ActionDown(InputAction action)
         {

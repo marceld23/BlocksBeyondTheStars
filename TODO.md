@@ -97,7 +97,33 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Touch controls + web polish (2026-07-01) — ✅ code done, local Unity build pending
+### ★ Input epic completion: pad rebinding, glyphs, context touch layouts, browser text entry (2026-07-02) — ✅ code done, local Unity build pending
+On `feat/input-epic-completion` (epic #193; closes #197, #198, #200). Finishes every implementable item of
+the input epic; what remains open is on-device playtesting (#201 pad, #202 touch, #203 WebGL).
+- **Pad rebinding (#200).** `ClientSettings.PadBindings` (mirrors `KeyBindings`) + a second per-row button in
+  the settings controls list capturing `JoystickButton0..19`; `GamepadInputSource.ButtonFor` = override→
+  default; reset clears both. Keyboard capture now excludes pad buttons. Fixed a P2 conflict: Y was both
+  ToggleThirdPerson AND FlightEnterInterior (both polled in flight → one press fired both); the latter now
+  has no pad default (bindable).
+- **Glyph coverage (#200).** Speeder exit/refuel hint uses `InputMap.Glyph`; flight+EVA controls hints are
+  device-aware (`ui.space.controls_pad`/`eva_controls_pad`, blank on touch); board/land/EVA-board prompts use
+  new `ui.space.*_fmt` keys with the live Interact glyph. `PadGlyph` covers all 20 buttons (public).
+- **Menu focus-nav breadth (#200).** `UiNav.Enable` added to settings, world picker, vendor trade, Codex,
+  credits, feedback dialog, respawn prompt.
+- **Context touch layouts (#197).** `TouchControlsUi` now has three clusters swapped by context — on-foot
+  (JUMP/MINE/PLACE/USE/DOWN/CHAT), flight+EVA (FIRE/LAND/SHIP/AUTO/VIEW/USE/UP/DOWN), speeder
+  (BOOST/JUMP/EXIT/FUEL) — with localized labels (`ui.touch.*`, DE+EN), lazy build (localizer-ready), state
+  cleared on cluster switch, generic `InputAction` routing (down + held) via `TouchInputSource`.
+- **Text entry on touch (#197).** Native tablets: uGUI InputField opens the OS keyboard by itself. WebGL on
+  touch: new `BbsTextPrompt.jslib` + `TouchTextEntry` fall back to `window.prompt()`; wired into
+  `UiKit.AddInput` (name/host/port/password/settings/feedback) and `ChatUi.OpenInput` (also reachable via
+  the new touch CHAT button; submit path extracted as `ChatUi.Submit`).
+- **Touch menu usability (#197).** EventSystem `pixelDragThreshold` scales to ≈1 mm from `Screen.dpi` on
+  touch devices (10 px mouse default misread finger taps as drags). A global canvas rescale was rejected —
+  absolute 1920×1080 layouts would overflow.
+- **Tests:** EditMode pad-binding override resolution added. **Docs:** INPUT_AND_CONTROLLER, USER_MANUAL.
+
+### ★ Touch controls + web polish (2026-07-01) — ✅ MERGED to main (PR #204, `2e41622`; closes #196)
 On `feat/touch-controls-and-web-polish` (epic #193; P3 #196, P4 #197, P5 #198). Adds the tablet/browser touch
 layer on top of the input abstraction — **inert on desktop** (built only on a touch device; the source reads
 zero otherwise, so keyboard/mouse + pad are unaffected).

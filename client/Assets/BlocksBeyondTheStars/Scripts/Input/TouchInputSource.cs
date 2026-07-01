@@ -45,10 +45,11 @@ namespace BlocksBeyondTheStars.Client
         // No 1..9 pick on touch — the hotbar is cycled via the ◄ ► buttons (HotbarScroll).
         public int HotbarSlotDown() => -1;
 
-        // Only "Interact" (the USE button) is on the touch layer for now; everything else stays keyboard-only
-        // (harmless, since sources are combined). A fuller contextual button set is follow-up (issue #197).
-        public bool ActionDown(InputAction action) => Live && action == InputAction.Interact && Ui.UseDown;
-        public bool ActionHeld(InputAction action) => false;
+        // Discrete actions come from the per-context button clusters (USE / LAND / SHIP / AUTO / VIEW /
+        // EXIT / FUEL, and BOOST as a hold). Anything without a touch button stays keyboard/pad-only —
+        // harmless, since sources are combined.
+        public bool ActionDown(InputAction action) => Live && Ui.ActionDownFor(action);
+        public bool ActionHeld(InputAction action) => Live && Ui.ActionHeldFor(action);
         public bool ActionUp(InputAction action) => false;
 
         public bool HadActivityThisFrame()

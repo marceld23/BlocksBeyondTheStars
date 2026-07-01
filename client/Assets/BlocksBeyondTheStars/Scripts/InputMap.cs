@@ -121,8 +121,13 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Disembark, InputAction.RequestTrade, InputAction.RequestDock,
         };
 
-        /// <summary>Points the map at the active settings (called once after <c>ClientSettings.Load()</c>).</summary>
-        public static void Use(ClientSettings settings) => _settings = settings;
+        /// <summary>Points the map at the active settings (called once after <c>ClientSettings.Load()</c>).
+        /// Also hands them to the gamepad backend so pad-button rebinds resolve.</summary>
+        public static void Use(ClientSettings settings)
+        {
+            _settings = settings;
+            GamepadInputSource.Settings = settings;
+        }
 
         /// <summary>The built-in default key for an action (its binding before remapping existed).</summary>
         public static KeyCode DefaultKey(InputAction action) => action switch
@@ -234,8 +239,9 @@ namespace BlocksBeyondTheStars.Client
             return Key(action).ToString();
         }
 
-        /// <summary>Human label for a pad button, or null if it isn't one of the mapped face buttons.</summary>
-        private static string PadGlyph(KeyCode button) => button switch
+        /// <summary>Human label for a pad button (XInput names for the well-known ones, "B10"… for the rest),
+        /// or null for <see cref="KeyCode.None"/> / non-pad codes.</summary>
+        public static string PadGlyph(KeyCode button) => button switch
         {
             KeyCode.JoystickButton0 => "(A)",
             KeyCode.JoystickButton1 => "(B)",
@@ -243,6 +249,11 @@ namespace BlocksBeyondTheStars.Client
             KeyCode.JoystickButton3 => "(Y)",
             KeyCode.JoystickButton4 => "LB",
             KeyCode.JoystickButton5 => "RB",
+            KeyCode.JoystickButton6 => "Back",
+            KeyCode.JoystickButton7 => "Start",
+            KeyCode.JoystickButton8 => "LS",
+            KeyCode.JoystickButton9 => "RS",
+            >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),
             _ => null,
         };
     }

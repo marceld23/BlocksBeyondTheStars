@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var canvas = UiKit.CreateCanvas("SaveSelectUI");
             var root = canvas.transform;
+            UiNav.Enable(canvas.gameObject); // gamepad can pick a world (inert on KB/mouse)
 
             // Host mode ("Host Game" on the main menu): the same picker — any singleplayer save can be
             // hosted, "open to LAN" style — plus a host bar (max players + optional join password).

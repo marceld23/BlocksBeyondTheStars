@@ -3818,19 +3818,30 @@ namespace BlocksBeyondTheStars.Client
                 // Spacewalk HUD: float controls, a board prompt for the ship/station, and the oxygen lifeline.
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                _hint.text = loc != null ? loc.Get("ui.space.eva_controls")
-                    : "EVA — WASD/Mouse float · Space/Ctrl up/down · E board";
+                // Device-aware controls hint: pad glyphs on a gamepad; blank on touch (the on-screen buttons
+                // are self-labelling); the keyboard text otherwise.
+                _hint.text = InputMap.ActiveDevice switch
+                {
+                    InputDeviceKind.Touch => string.Empty,
+                    InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.eva_controls_pad")
+                        : "EVA — Left stick float · Right stick look · (A)/(B) up·down · (X) board",
+                    _ => loc != null ? loc.Get("ui.space.eva_controls")
+                        : "EVA — WASD/Mouse float · Space/Ctrl up/down · E board",
+                };
                 _hint.gameObject.SetActive(true);
 
+                string useGlyph = InputMap.Glyph(InputAction.Interact); // the live binding (key or pad button)
                 bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
                 if (stationCloser)
                 {
-                    string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
+                    string board = loc != null ? string.Format(loc.Get("ui.space.board_fmt"), useGlyph) : $"Press {useGlyph} to board";
                     _board.text = $"{board} {_nearStationName}";
                 }
                 else if (_evaNearShip)
                 {
-                    _board.text = loc != null ? loc.Get("ui.space.eva_board_ship") : "Press E to board your ship";
+                    _board.text = loc != null
+                        ? string.Format(loc.Get("ui.space.eva_board_ship_fmt"), useGlyph)
+                        : $"Press {useGlyph} to board your ship";
                 }
                 else
                 {
@@ -3854,15 +3865,25 @@ namespace BlocksBeyondTheStars.Client
             {
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                _hint.text = loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return · G EVA";
-                if (Game.AiCoreTier >= 2)
+                // Device-aware controls hint (pad glyphs on a gamepad; blank on touch — the on-screen buttons
+                // are self-labelling; the keyboard text otherwise).
+                _hint.text = InputMap.ActiveDevice switch
+                {
+                    InputDeviceKind.Touch => string.Empty,
+                    InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.controls_pad")
+                        : "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
+                    _ => loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
+                };
+                if (Game.AiCoreTier >= 2 && InputMap.ActiveDevice != InputDeviceKind.Touch)
                 {
                     _hint.text += " · " + Loc("ui.vega.autopilot.hint", "[P] Autopilot");
                 }
 
                 _hint.gameObject.SetActive(true);
 
-                // Prompt whichever you're closest to: dock a station (E) or land on a body (E) you've flown up to.
+                // Prompt whichever you're closest to: dock a station or land on a body you've flown up to —
+                // labelled with the live Interact binding (keyboard key or pad glyph).
+                string useGlyph = InputMap.Glyph(InputAction.Interact);
                 bool haveStation = _nearStationId != null;
                 bool haveBody = _landTargetId != null;
                 bool stationCloser = haveStation && (!haveBody || _nearStationSq <= _landTargetSq);
@@ -3870,12 +3891,12 @@ namespace BlocksBeyondTheStars.Client
                 bool showBody = haveBody && !stationCloser;
                 if (showStation)
                 {
-                    string board = loc != null ? loc.Get("ui.space.board") : "Press E to board";
+                    string board = loc != null ? string.Format(loc.Get("ui.space.board_fmt"), useGlyph) : $"Press {useGlyph} to board";
                     _board.text = $"{board} {_nearStationName}";
                 }
                 else if (showBody)
                 {
-                    string land = loc != null ? loc.Get("ui.space.land_prompt") : "Press E to land on";
+                    string land = loc != null ? string.Format(loc.Get("ui.space.land_prompt_fmt"), useGlyph) : $"Press {useGlyph} to land on";
                     _board.text = $"{land} {_landTargetName}";
                 }
 

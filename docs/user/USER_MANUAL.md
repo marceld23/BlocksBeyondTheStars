@@ -96,28 +96,30 @@ buttons — retuning is tracked in issue #195):
 | **Start** | Open / close the gameplay menu |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back. The right stick also
-steers the ship in flight. Direct hotbar number-key picks and a few secondary actions remain
-keyboard-only for now; a full controller binding + on-screen rebinding pass is planned.
+steers the ship in flight. Direct hotbar number-key picks remain keyboard-only.
+
+**Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
+Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button
+by default but can be given one). *Reset controls* restores both keyboard and pad defaults.
 
 ### Touch controls (experimental — tablet / touch browser)
 
-On a touch device (tablet, or a touch-capable browser) on-screen controls appear automatically:
+On a touch device (tablet, or a touch-capable browser) on-screen controls appear automatically. The
+buttons swap with what you're doing:
 
 | On-screen control | Action |
 |---|---|
-| **Left stick** (bottom-left) | Move |
-| **Drag** anywhere on the right | Look |
-| **JUMP** | Jump |
-| **MINE** (hold) | Mine the targeted block |
-| **PLACE** | Place the selected hotbar block |
-| **USE** | Use / board / interact |
-| **DOWN** | Descend (swim/float/climb down) |
-| **◄ ►** | Cycle hotbar slot |
+| **Left stick** (bottom-left) | Move / thrust / steer |
+| **Drag** anywhere on the right | Look / steer the ship |
+| **◄ ►** | Cycle hotbar slot (ship-systems bar in flight) |
 | **≡** (top-right) | Open / close the gameplay menu |
+| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT** | Jump · mine · place · use/board · descend · open chat |
+| *Flying / EVA:* **FIRE (hold) · LAND · SHIP · AUTO · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · camera · dock/board · float up/down |
+| *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
-Menus are tapped directly. This is a first, **on-foot** pass: flight/speeder/EVA touch layouts, contextual
-button labels, and on-screen text entry (for your name / chat) are still being built — on a desktop or a
-desktop browser nothing changes, controls stay keyboard + mouse (or a gamepad).
+Menus are tapped directly. Text entry (your name, chat): on a native tablet the on-screen keyboard opens
+by itself; in a tablet **browser** a small input prompt opens instead. On a desktop or a desktop browser
+nothing changes — controls stay keyboard + mouse (or a gamepad).
 
 ---
 

@@ -89,6 +89,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas = UiKit.CreateCanvas("WikiUI");
             _canvas.sortingOrder = 55;
             _root = _canvas.transform;
+            UiNav.Enable(_canvas.gameObject); // gamepad can browse the Codex (inert on KB/mouse)
             _canvas.enabled = false;
             _builtCanvas = true;
         }
