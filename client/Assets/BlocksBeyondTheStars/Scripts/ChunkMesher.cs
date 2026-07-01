@@ -383,8 +383,29 @@ namespace BlocksBeyondTheStars.Client
                     float tallBoost = TallFlora.Contains(collKey) ? 1.85f : 1f;
                     float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f) * tallBoost;
                     float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
+                    // Per-plant top lean (deterministic, ±~0.12) so a field reads as naturally varied rather
+                    // than a grid of upright cards.
+                    var plantLean = new Vector2(
+                        (CrossPlantScale(wx, wy, wz, 0x4, 1f) - 1f) * 0.12f,
+                        (CrossPlantScale(wx, wy, wz, 0x8, 1f) - 1f) * 0.12f);
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantH, plantW);
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean, plantH, plantW);
+                    continue;
+                }
+
+                // Solid flora (cactus/crystal/mushroom/puffball/…): render as a fitting 3D form (cylinder/cone/
+                // dome/sphere) via the tested building-shape geometry instead of a plain cube — a big step up in
+                // "plant" read at ~cube cost, carrying the same flora tint (mode 1) + emission (glowcaps etc.).
+                if (atlas != null && collKey != null && SolidFlora.Contains(collKey))
+                {
+                    float flSky = Skylight(wx, wy + 1, wz);
+                    Vector3 flBl = BlockLightAt(wx, wy + 1, wz);
+                    Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
+                    Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
+                    float flMode = dyed ? 3f : isFlora ? 1f : 0f;
+                    AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        SolidFloraShape(collKey), 0, new Vector3(x, y, z), uv,
+                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir);
                     continue;
                 }
 
@@ -629,27 +650,31 @@ namespace BlocksBeyondTheStars.Client
             return 1f + (t - 0.5f) * 2f * amp;
         }
 
-        /// <summary>Adds a cross-billboard plant: two diagonal cutout quads through the cell, each emitted with
-        /// BOTH windings (the atlas shaders cull back faces), slightly inset to avoid z-fighting. Render-only —
-        /// no collider triangles, so small plants are walk-through. <paramref name="heightScale"/> /
-        /// <paramref name="widthScale"/> give each plant its own size (so a field reads as tall + short tufts).</summary>
+        // The three vertical plane orientations of a plant rosette (degrees around Y): 0/60/120 give six
+        // half-planes of coverage, so a plant reads as a rounded 3D tuft from every angle instead of a flat cross.
+        private static readonly float[] PlantPlaneAngles = { 0f, 60f, 120f };
+
+        /// <summary>Adds a leafy plant as a THREE-plane rosette of cutout quads through the cell (T3): fuller +
+        /// more volumetric than the old flat cross, each plane emitted with BOTH windings (the atlas shaders cull
+        /// back faces). <paramref name="lean"/> tilts the top for per-plant variation so a field doesn't look
+        /// like uniform flat cards. Render-only — no collider, so small plants stay walk-through.
+        /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint, Vector3 bl, Vector3 blDir, float heightScale = 1f, float widthScale = 1f)
+            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, float heightScale = 1f, float widthScale = 1f)
         {
-            // The two crossed planes' floor diagonals, inset symmetrically from the cell centre (so the width
-            // scales about the middle), clamped inside the cell to avoid bleeding into neighbours.
+            // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
+            // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
             float half = Mathf.Clamp(0.42f * widthScale, 0.18f, 0.49f);
-            float lo = 0.5f - half, hi = 0.5f + half;
-            var diagonals = new[]
-            {
-                (A: new Vector3(cell.x + lo, cell.y, cell.z + lo), B: new Vector3(cell.x + hi, cell.y, cell.z + hi)),
-                (A: new Vector3(cell.x + hi, cell.y, cell.z + lo), B: new Vector3(cell.x + lo, cell.y, cell.z + hi)),
-            };
+            float cx = cell.x + 0.5f, cz = cell.z + 0.5f, cy = cell.y;
+            var up = new Vector3(lean.x, heightScale, lean.y); // top tilts by the per-plant lean
 
-            foreach (var (a, b) in diagonals)
+            foreach (float deg in PlantPlaneAngles)
             {
-                var up = Vector3.up * heightScale;
+                float rad = deg * Mathf.Deg2Rad;
+                float dx = Mathf.Cos(rad) * half, dz = Mathf.Sin(rad) * half;
+                var a = new Vector3(cx - dx, cy, cz - dz);
+                var b = new Vector3(cx + dx, cy, cz + dz);
                 var tangent = (Vector4)((b - a).normalized);
                 tangent.w = -1f;
 
@@ -834,6 +859,17 @@ namespace BlocksBeyondTheStars.Client
             "grass" or "dirt" or "mud" => 0,
             "sand" or "snow" or "stone" or "basalt" => 1,
             _ => -1,
+        };
+
+        /// <summary>Maps a solid-flora block to a fitting <see cref="BlockShape"/> index (T3): columns → cylinder,
+        /// crystalline/ember blooms → cone, capped fungi → dome, bulbous forms → sphere. Reuses the tested
+        /// building-shape geometry so structural plants read as 3D forms instead of cubes.</summary>
+        private static int SolidFloraShape(string key) => key switch
+        {
+            "flora_cactus" or "flora_pitcher" or "flora_sporepod" or "flora_glowvine" => 8, // cylinder (columns)
+            "flora_crystal" or "flora_shardbloom" or "flora_emberbloom" or "flora_frostflower" => 7, // cone (shards)
+            "flora_mushroom" or "flora_glowcap" => 3, // dome (caps)
+            _ => 4, // sphere (puffball, succulent, bulb, gasbloom, …)
         };
 
         private static Vector2 BlockMaterial(GameContent content, BlockId id)
