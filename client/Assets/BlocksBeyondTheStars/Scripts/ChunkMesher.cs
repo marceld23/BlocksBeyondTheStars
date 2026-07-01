@@ -28,6 +28,12 @@ namespace BlocksBeyondTheStars.Client
         /// Used both by the mesher's flood-fill and by callers when gathering nearby light sources.</summary>
         public const int LightRadius = 9;
 
+        /// <summary>Edge-bevel size (fraction of a block) for plain opaque cubes: exposed CONVEX edges are cut
+        /// with a small 45° chamfer so silhouettes + lighting soften and the world reads less blocky. Only
+        /// applied where two exposed faces meet (a flat field of ground adds ZERO extra geometry — its side
+        /// faces are hidden, so it has no convex edges). Set to 0 to disable the whole bevel pass. Tunable.</summary>
+        public const float BevelAmount = 0.06f;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.
@@ -400,6 +406,27 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // Edge bevel (T0): plain opaque cubes get their exposed convex edges chamfered. Fluids, glass/
+                // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
+                // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
+                bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage
+                    && collKey != "water" && collKey != "lava" && collKey != "fire";
+                int openMask = 0;
+                if (bevel)
+                {
+                    for (int bf = 0; bf < Faces.Length; bf++)
+                    {
+                        var bd = Faces[bf];
+                        int ox = wx + bd.X, oy = wy + bd.Y, oz = wz + bd.Z;
+                        var onb = worldBlock(ox, oy, oz);
+                        if (onb.IsAir || IsTransparent(content, onb)
+                            || (worldShape != null && !ShapeCode.IsCube(worldShape(ox, oy, oz))))
+                        {
+                            openMask |= 1 << bf;
+                        }
+                    }
+                }
+
                 for (int f = 0; f < Faces.Length; f++)
                 {
                     var dir = Faces[f];
@@ -457,10 +484,13 @@ namespace BlocksBeyondTheStars.Client
                         c3 = new Color(baseColor.r * s * ao.w, baseColor.g * s * ao.w, baseColor.b * s * ao.w, 1f);
                     }
 
+                    // Bevel cubes inset each exposed convex edge of the face by BevelAmount (edges against a
+                    // solid neighbour stay flush → no gap); the chamfer strips + corners are added after the loop.
+                    Vector3[] bevelQuad = bevel ? BevelInsetQuad(new Vector3(x, y, z), f, openMask) : null;
                     int faceBase = verts.Count;
                     AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
                         c0, c1, c2, c3, uv,
-                        dir.Y != 0 ? uvRot : 0); // rotate only top/bottom faces — sides keep their up-orientation
+                        dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation
                     if (collidable)
                     {
                         colliderTris.Add(faceBase); colliderTris.Add(faceBase + 1); colliderTris.Add(faceBase + 2);
@@ -506,6 +536,18 @@ namespace BlocksBeyondTheStars.Client
                         var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
+                }
+
+                // Bevel chamfer strips (per exposed convex edge) + corner triangles (per exposed convex
+                // corner), render-only. Attributes are a representative snapshot of the block (a thin 45°
+                // strip; the tiny lighting approximation is invisible). Skipped for the collider (tiny inset).
+                if (bevel)
+                {
+                    var bevTint = dyed ? dye : painted ? paint : speciesTint;
+                    var bevLeaf = new Vector4(0f, bevTint.r, bevTint.g, bevTint.b); // not foliage-cutout
+                    EmitBevel(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        new Vector3(x, y, z), openMask, uv, matR, matG, emission, floraFlag, bevLeaf,
+                        Skylight(wx, wy + 1, wz), BlockLightAt(wx, wy + 1, wz), BlockLightDirAt(wx, wy + 1, wz));
                 }
             }
 
@@ -1086,10 +1128,10 @@ namespace BlocksBeyondTheStars.Client
                 0.35f + 0.5f * (float)rng.NextDouble());
         }
 
-        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color col0, Color col1, Color col2, Color col3, Rect uv, int uvRot = 0)
+        private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color col0, Color col1, Color col2, Color col3, Rect uv, int uvRot = 0, Vector3[] quad = null)
         {
             int baseIndex = verts.Count;
-            Vector3[] q = FaceQuad(p, face);
+            Vector3[] q = quad ?? FaceQuad(p, face);
             verts.Add(q[0]); verts.Add(q[1]); verts.Add(q[2]); verts.Add(q[3]);
             // Per-corner colours (AO in .b) in the same q0..q3 order as the verts/uvs below.
             colors.Add(col0); colors.Add(col1); colors.Add(col2); colors.Add(col3);
@@ -1127,6 +1169,143 @@ namespace BlocksBeyondTheStars.Client
                 case 3: return new[] { p + new Vector3(0, 0, 1), p + new Vector3(0, 1, 1), p + new Vector3(0, 1, 0), p + new Vector3(0, 0, 0) }; // -X
                 case 4: return new[] { p + new Vector3(1, 0, 1), p + new Vector3(1, 1, 1), p + new Vector3(0, 1, 1), p + new Vector3(0, 0, 1) }; // +Z
                 default: return new[] { p + new Vector3(0, 0, 0), p + new Vector3(0, 1, 0), p + new Vector3(1, 1, 0), p + new Vector3(1, 0, 0) }; // -Z
+            }
+        }
+
+        /// <summary>The <see cref="Faces"/> index for a signed axis (axis 0=X,1=Y,2=Z; sign ±1) — maps an
+        /// in-plane neighbour direction to its face so the bevel can test whether that face is exposed.</summary>
+        private static int FaceIndexFor(int axis, int sign)
+            => axis == 0 ? (sign > 0 ? 2 : 3) : axis == 1 ? (sign > 0 ? 0 : 1) : (sign > 0 ? 4 : 5);
+
+        /// <summary>A cell-local point with the three axis coordinates assigned by axis index.</summary>
+        private static Vector3 AxisVec(int a0, float c0, int a1, float c1, int a2, float c2)
+        {
+            var v = Vector3.zero;
+            v[a0] = c0; v[a1] = c1; v[a2] = c2;
+            return v;
+        }
+
+        /// <summary>The face quad with each corner pulled inward by <see cref="BevelAmount"/> along an in-plane
+        /// axis IFF that edge is a convex exposed edge (the in-plane neighbour face is open). Edges against a
+        /// solid neighbour stay flush, so beveled and unbeveled cubes still tile without gaps.</summary>
+        private static Vector3[] BevelInsetQuad(Vector3 cell, int face, int openMask)
+        {
+            var q = FaceQuad(cell, face);
+            var dir = Faces[face];
+            int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;
+            for (int i = 0; i < 4; i++)
+            {
+                var c = q[i];
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    if (axis == na)
+                    {
+                        continue;
+                    }
+
+                    int sgn = c[axis] - cell[axis] > 0.5f ? 1 : -1;
+                    if ((openMask & (1 << FaceIndexFor(axis, sgn))) != 0)
+                    {
+                        c[axis] -= sgn * BevelAmount;
+                    }
+                }
+
+                q[i] = c;
+            }
+
+            return q;
+        }
+
+        /// <summary>Adds the render-only bevel geometry for one plain opaque cube: a 45° chamfer strip for every
+        /// exposed convex EDGE (both faces sharing it open) and a small triangle for every exposed convex CORNER
+        /// (all three faces open). Windings are fixed so each polygon's geometric normal faces outward. Carries a
+        /// representative attribute snapshot of the block (a thin strip — the lighting approximation is invisible).</summary>
+        private static void EmitBevel(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir,
+            Vector3 cell, int openMask, Rect uv, float matR, float matG, float emission, float tintMode, Vector4 leaf,
+            float sky, Vector3 bl, Vector3 blDir)
+        {
+            float b = BevelAmount;
+            Vector2 uvC = uv.center;
+            bool Open(int axis, int sign) => (openMask & (1 << FaceIndexFor(axis, sign))) != 0;
+
+            void AddPoly(Vector3 a, Vector3 v1, Vector3 v2, bool isQuad, Vector3 v3, Vector3 outward)
+            {
+                a += cell; v1 += cell; v2 += cell;
+                if (isQuad)
+                {
+                    v3 += cell;
+                }
+
+                Vector3 far = isQuad ? v3 : v2;
+                bool flip = Vector3.Dot(Vector3.Cross(v1 - a, far - a), outward) < 0f;
+                float shade = Mathf.Clamp(0.72f + 0.28f * outward.normalized.y, 0.5f, 1f);
+                var col = new Color(matR, matG, shade, emission);
+                Vector3 tan3 = (far - a).sqrMagnitude > 1e-8f ? (far - a).normalized : (v1 - a).normalized;
+                var tan = new Vector4(tan3.x, tan3.y, tan3.z, -1f);
+                int baseIdx = verts.Count;
+
+                void Push(Vector3 p)
+                {
+                    verts.Add(p); colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                    skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
+                }
+
+                if (isQuad)
+                {
+                    if (!flip) { Push(a); Push(v1); Push(v2); Push(v3); }
+                    else { Push(a); Push(v3); Push(v2); Push(v1); }
+                    tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+                    tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
+                }
+                else
+                {
+                    if (!flip) { Push(a); Push(v1); Push(v2); }
+                    else { Push(a); Push(v2); Push(v1); }
+                    tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+                }
+            }
+
+            // Chamfer strips — one per exposed convex edge.
+            for (int axisA = 0; axisA < 3; axisA++)
+            for (int axisB = axisA + 1; axisB < 3; axisB++)
+            {
+                int axisC = 3 - axisA - axisB;
+                for (int sa = -1; sa <= 1; sa += 2)
+                for (int sb = -1; sb <= 1; sb += 2)
+                {
+                    if (!Open(axisA, sa) || !Open(axisB, sb))
+                    {
+                        continue;
+                    }
+
+                    float tLo = Open(axisC, -1) ? b : 0f;
+                    float tHi = Open(axisC, 1) ? 1f - b : 1f;
+                    float aMain = sa > 0 ? 1f : 0f, aInset = sa > 0 ? 1f - b : b;
+                    float bMain = sb > 0 ? 1f : 0f, bInset = sb > 0 ? 1f - b : b;
+                    Vector3 pAlo = AxisVec(axisA, aMain, axisB, bInset, axisC, tLo);
+                    Vector3 pAhi = AxisVec(axisA, aMain, axisB, bInset, axisC, tHi);
+                    Vector3 pBlo = AxisVec(axisB, bMain, axisA, aInset, axisC, tLo);
+                    Vector3 pBhi = AxisVec(axisB, bMain, axisA, aInset, axisC, tHi);
+                    AddPoly(pAlo, pAhi, pBhi, true, pBlo, AxisVec(axisA, sa, axisB, sb, axisC, 0f));
+                }
+            }
+
+            // Corner triangles — one per exposed convex corner.
+            for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+            {
+                if (!Open(0, sx) || !Open(1, sy) || !Open(2, sz))
+                {
+                    continue;
+                }
+
+                float xI = sx > 0 ? 1f - b : b, yI = sy > 0 ? 1f - b : b, zI = sz > 0 ? 1f - b : b;
+                Vector3 pX = new(sx > 0 ? 1f : 0f, yI, zI);
+                Vector3 pY = new(xI, sy > 0 ? 1f : 0f, zI);
+                Vector3 pZ = new(xI, yI, sz > 0 ? 1f : 0f);
+                AddPoly(pX, pY, pZ, false, Vector3.zero, new Vector3(sx, sy, sz));
             }
         }
     }
