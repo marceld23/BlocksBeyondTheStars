@@ -22,6 +22,7 @@ namespace BlocksBeyondTheStars.Client
         DepositToCrate,    // deposit into the nearest storage crate — default H
         RepairWreck,       // repair the nearest wreck cell (on foot) — default R
         ToggleLamp,        // toggle the suit lamp — default L
+        RotateShape,       // cycle a held building shape's orientation (auto → the 6 up-faces) — default R
 
         // Flight / EVA (cockpit + spacewalk). Interact (dock/land/board) and ToggleThirdPerson (view) are
         // reused from the on-foot set so one binding works in both contexts.
@@ -55,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
         {
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
-            InputAction.RepairWreck, InputAction.ToggleLamp,
+            InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -86,6 +87,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.DepositToCrate => KeyCode.H,
             InputAction.RepairWreck => KeyCode.R,
             InputAction.ToggleLamp => KeyCode.L,
+            InputAction.RotateShape => KeyCode.R,
             InputAction.FlightEnterInterior => KeyCode.F,
             InputAction.FlightPadChooser => KeyCode.L,
             InputAction.FlightAutopilot => KeyCode.P,

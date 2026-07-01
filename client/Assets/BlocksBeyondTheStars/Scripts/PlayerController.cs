@@ -73,6 +73,9 @@ namespace BlocksBeyondTheStars.Client
 
         private CharacterController _controller;
         private float _pitch;
+        // Placement orientation override for shaped building blocks: -1 = auto (the server orients from the
+        // surface built against), 0..5 = a forced up-face cycled with the RotateShape key. Sent on each place.
+        private int _placeUpFace = -1;
         private float _verticalVelocity;
         private float _moveSendTimer;
         private bool _spawned;
@@ -289,6 +292,19 @@ namespace BlocksBeyondTheStars.Client
             {
                 ThirdPerson = !ThirdPerson;
                 ApplyCameraMode();
+            }
+
+            // Rotate the held building shape's placement orientation: auto (-1) → the 6 up-faces → auto.
+            // Only cycles when a shaped block is selected (so it never clashes with RepairWreck on the same key).
+            if (InputMap.Down(InputAction.RotateShape))
+            {
+                string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
+                if (!string.IsNullOrEmpty(held) && BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held) > 0)
+                {
+                    _placeUpFace = _placeUpFace >= 5 ? -1 : _placeUpFace + 1;
+                    string label = _placeUpFace < 0 ? "Auto" : UpFaceLabel(_placeUpFace);
+                    Game.ShowMessage(string.Format(Game.Localizer?.Get("hud.shape.orient") ?? "Shape orientation: {0}", label));
+                }
             }
 
             RefreshHeldItem();
@@ -1873,7 +1889,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item);
+                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item, upFace: _placeUpFace);
                     }
 
                     TriggerSwing();
@@ -1989,6 +2005,12 @@ namespace BlocksBeyondTheStars.Client
 
             return false;
         }
+
+        /// <summary>Short symbolic label for a shape up-face (language-neutral), shown when cycling with RotateShape.</summary>
+        private static string UpFaceLabel(int upFace) => upFace switch
+        {
+            0 => "+Y", 1 => "-Y", 2 => "+X", 3 => "-X", 4 => "+Z", 5 => "-Z", _ => "Auto",
+        };
 
         /// <summary>Water/lava are passed through when aiming (they have no collider — you swim/sink into them).</summary>
         private bool IsFluidBlock(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
