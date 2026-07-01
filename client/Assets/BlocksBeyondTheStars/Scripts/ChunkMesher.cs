@@ -557,6 +557,17 @@ namespace BlocksBeyondTheStars.Client
                         var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
+
+                    // Ship hull greeble (T2): a sparse set of raised, slightly darker plating panels on exposed
+                    // hull faces so ships read as "built" rather than bare cubes. Ship/structure context only
+                    // (paintTint != null), render-only, deterministic per world cell + face. Density/size tunable.
+                    if (paintTint != null && collKey == "iron_wall" && GreebleAt(wx, wy, wz, f))
+                    {
+                        var gTint = dyed ? dye : painted ? paint : speciesTint;
+                        var gLeaf = new Vector4(leafFlag, gTint.r, gTint.g, gTint.b);
+                        AddGreeblePanel(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                            new Vector3(x, y, z), f, uv, matR, matG, s, emission, sky, faceMode, gLeaf, faceBl, faceBlDir);
+                    }
                 }
 
                 // Bevel chamfer strips (per exposed convex edge) + corner triangles (per exposed convex
@@ -770,6 +781,51 @@ namespace BlocksBeyondTheStars.Client
                     colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 2); colliderTris.Add(baseIdx + 3);
                 }
             }
+        }
+
+        /// <summary>Deterministic "does this hull face carry a greeble panel" test (~1/3 of faces), stable per
+        /// world cell + face so a ship looks the same on every client and across rebuilds.</summary>
+        private static bool GreebleAt(int wx, int wy, int wz, int face)
+        {
+            int h = unchecked(wx * 92837111 ^ wy * 689287499 ^ wz * 283923481 ^ face * 49979687);
+            return (uint)h % 3u == 0u;
+        }
+
+        /// <summary>Adds one raised, slightly darker plating panel proud of a hull face (T2 greeble): a single
+        /// inset quad offset outward along the face normal — render-only, winding inherited from the face so it
+        /// always shows. Carries the face's tint mode + hull-paint tint so it recolours with the ship. Conservative
+        /// (top quad only, no rim); raise/inset are easy to tune.</summary>
+        private static void AddGreeblePanel(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir,
+            Vector3 cell, int face, Rect uv, float matR, float matG, float shade, float emission, float sky, float tintMode,
+            Vector4 leaf, Vector3 bl, Vector3 blDir)
+        {
+            const float insetT = 0.26f, raise = 0.02f;
+            var dir = Faces[face];
+            var nrm = new Vector3(dir.X, dir.Y, dir.Z);
+            var q = FaceQuad(cell, face);
+            Vector3 c = (q[0] + q[1] + q[2] + q[3]) * 0.25f;
+            Vector3 off = nrm * raise;
+            Vector3 p0 = Vector3.Lerp(q[0], c, insetT) + off;
+            Vector3 p1 = Vector3.Lerp(q[1], c, insetT) + off;
+            Vector3 p2 = Vector3.Lerp(q[2], c, insetT) + off;
+            Vector3 p3 = Vector3.Lerp(q[3], c, insetT) + off;
+
+            int baseIdx = verts.Count;
+            verts.Add(p0); verts.Add(p1); verts.Add(p2); verts.Add(p3);
+            var col = new Color(matR, matG, shade * 0.82f, emission); // slightly darker → reads as a raised plate
+            Vector3 tan3 = (p3 - p0).sqrMagnitude > 1e-8f ? (p3 - p0).normalized : (p1 - p0).normalized;
+            float hand = Vector3.Dot(Vector3.Cross(nrm, tan3), p1 - p0) < 0f ? -1f : 1f;
+            var tan = new Vector4(tan3.x, tan3.y, tan3.z, hand);
+            Vector2 uvC = uv.center;
+            for (int i = 0; i < 4; i++)
+            {
+                colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
+            }
+
+            tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
+            tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
         }
 
         /// <summary>Relative brightness per face (top brightest, bottom darkest) for a lit-looking blocky world.</summary>
