@@ -2363,6 +2363,26 @@ public sealed partial class GameServer
                 }
     }
 
+    /// <summary>Auto-orients a placed shape from the surface it was built against: the shape's base rests on
+    /// the first solid neighbour, preferring the floor (→ +Y up = the original ground behaviour), then walls,
+    /// then the ceiling. Returns a <see cref="ShapeCode"/> up-face index (0..5); no solid neighbour → +Y.</summary>
+    private int DeriveShapeUpFace(Vector3i pos)
+    {
+        bool Solid(int dx, int dy, int dz)
+        {
+            var p = WorldConstants.CanonicalBlock(new Vector3i(pos.X + dx, pos.Y + dy, pos.Z + dz), _world.Circumference);
+            return !_world.GetBlock(p).IsAir;
+        }
+
+        if (Solid(0, -1, 0)) return 0; // floor → +Y up (unchanged for ground placement)
+        if (Solid(-1, 0, 0)) return 2; // wall → +X up
+        if (Solid(1, 0, 0)) return 3;  // wall → -X up
+        if (Solid(0, 0, -1)) return 4; // wall → +Z up
+        if (Solid(0, 0, 1)) return 5;  // wall → -Z up
+        if (Solid(0, 1, 0)) return 1;  // ceiling → -Y up
+        return 0;
+    }
+
     private void HandlePlace(PlayerSession session, PlaceBlockIntent place)
     {
         var item = _content.GetItem(place.ItemKey);
@@ -2521,7 +2541,11 @@ public sealed partial class GameServer
             if (ShapeCode.IsValidShape(shapeIndex))
             {
                 int facing = ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
-                placeShape = ShapeCode.Pack(shapeIndex, facing);
+                // Orientation: the client may send an explicit rotation override (rotate key); otherwise the
+                // shape auto-orients so its base rests on the surface it was built against (floor → +Y, i.e.
+                // unchanged; walls/ceiling tilt it). up-face × yaw give the full 24 orientations.
+                int upFace = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveShapeUpFace(pos);
+                placeShape = ShapeCode.Pack(shapeIndex, facing, upFace);
             }
         }
 

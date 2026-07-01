@@ -404,7 +404,7 @@ namespace BlocksBeyondTheStars.Client
                     Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
                     float flMode = dyed ? 3f : isFlora ? 1f : 0f;
                     AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        SolidFloraShape(collKey), 0, new Vector3(x, y, z), uv,
+                        SolidFloraShape(collKey), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir);
                     continue;
                 }
@@ -422,7 +422,7 @@ namespace BlocksBeyondTheStars.Client
                     Color shTint = dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
                     float shTintMode = dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
                     AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), new Vector3(x, y, z), uv,
+                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z), uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
                     continue;
                 }
@@ -726,10 +726,10 @@ namespace BlocksBeyondTheStars.Client
         /// lit atlas shader does the main directional shading from the per-face normals.</summary>
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
             List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
-            List<Vector3> blockLightDir, int shapeIndex, int orientation, Vector3 cell, Rect uv, float matR, float matG,
+            List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir)
         {
-            var faces = BlockShapeGeometry.Build(shapeIndex, orientation);
+            var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace);
             if (faces == null)
             {
                 return;
