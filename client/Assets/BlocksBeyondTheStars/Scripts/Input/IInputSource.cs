@@ -11,6 +11,7 @@ namespace BlocksBeyondTheStars.Client
     {
         KeyboardMouse,
         Gamepad,
+        Touch,
     }
 
     /// <summary>

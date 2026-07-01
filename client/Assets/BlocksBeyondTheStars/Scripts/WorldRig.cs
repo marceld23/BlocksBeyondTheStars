@@ -191,6 +191,12 @@ namespace BlocksBeyondTheStars.Client
             menu.Avatar = avatar;
             pc.Menu = menu;
 
+            // On-screen touch controls (tablet / touch browser). Inert on desktop: builds its UI only on a
+            // touch device and reads zero otherwise, so keyboard/mouse + pad are unaffected.
+            var touch = root.AddComponent<TouchControlsUi>();
+            touch.Game = boot;
+            touch.Menu = menu;
+
             // Render other players (multiplayer presence).
             var remotes = root.AddComponent<RemotePlayers>();
             remotes.Game = boot;
