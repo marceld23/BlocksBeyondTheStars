@@ -22,6 +22,10 @@ public enum BlockShape : byte
     Stairs = 6,   // two-step staircase rising along the facing axis
     Cone = 7,     // circular base tapering to an apex
     Cylinder = 8, // circular column, full height
+    Panel = 9,    // thin quarter-height plate (floor/ceiling trim)
+    Post = 10,    // slim square column centred in the cell (pillars, railings)
+    Beam = 11,    // horizontal square bar spanning the cell (structural frames), yaw-oriented
+    LowRamp = 12, // half-height wedge — a gentle incline (yaw-oriented like Ramp)
 }
 
 /// <summary>
@@ -33,7 +37,7 @@ public enum BlockShape : byte
 public static class ShapeCode
 {
     /// <summary>Number of distinct <see cref="BlockShape"/> forms (including <see cref="BlockShape.Cube"/>).</summary>
-    public const int Count = 9;
+    public const int Count = 13;
 
     /// <summary>Packs a shape index (0..63) + a yaw orientation (0..3) into one stored descriptor.</summary>
     public static int Pack(int shape, int orientation) => ((shape & 0x3F) << 2) | (orientation & 0x3);

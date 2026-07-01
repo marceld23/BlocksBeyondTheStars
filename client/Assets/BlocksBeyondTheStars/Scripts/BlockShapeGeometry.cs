@@ -49,6 +49,10 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Stairs: Stairs(faces); break;
                 case BlockShape.Cone: Cone(faces); break;
                 case BlockShape.Cylinder: Cylinder(faces); break;
+                case BlockShape.Panel: Box(faces, 0f, 0f, 0f, 1f, 0.25f, 1f); break;             // thin floor/ceiling plate
+                case BlockShape.Post: Box(faces, 0.3f, 0f, 0.3f, 0.7f, 1f, 0.7f); break;          // slim square column
+                case BlockShape.Beam: Box(faces, 0f, 0.35f, 0.35f, 1f, 0.65f, 0.65f); break;      // bar along X (yaw → Z)
+                case BlockShape.LowRamp: LowRamp(faces); break;                                    // half-height incline
                 default: return null; // Cube / unknown → no custom geometry
             }
 
@@ -98,6 +102,16 @@ namespace BlocksBeyondTheStars.Client
             f.Add(new Face(new(0, 0, 0), new(0, 1, 1), new(1, 1, 1), new(1, 0, 0))); // slope (up + toward -Z)
             f.Add(new Face(new(0, 0, 0), new(0, 0, 1), new(0, 1, 1)));               // -X side triangle
             f.Add(new Face(new(1, 0, 0), new(1, 1, 1), new(1, 0, 1)));               // +X side triangle
+        }
+
+        private static void LowRamp(List<Face> f)
+        {
+            // Like Ramp but only half height — a gentle incline rising toward +Z (yaw rotates it).
+            f.Add(new Face(new(0, 0, 1), new(0, 0, 0), new(1, 0, 0), new(1, 0, 1)));       // -Y floor
+            f.Add(new Face(new(1, 0, 1), new(1, 0.5f, 1), new(0, 0.5f, 1), new(0, 0, 1))); // +Z back wall (half height)
+            f.Add(new Face(new(0, 0, 0), new(0, 0.5f, 1), new(1, 0.5f, 1), new(1, 0, 0))); // slope
+            f.Add(new Face(new(0, 0, 0), new(0, 0, 1), new(0, 0.5f, 1)));                   // -X side triangle
+            f.Add(new Face(new(1, 0, 0), new(1, 0.5f, 1), new(1, 0, 1)));                   // +X side triangle
         }
 
         private static void Stairs(List<Face> f)

@@ -141,6 +141,14 @@ namespace BlocksBeyondTheStars.Client
                     return u < 0.5f ? v <= 0.5f : v <= 1f;
                 case BlockShape.Cylinder: // upright column narrower than a full cube
                     return u >= 0.18f && u <= 0.82f;
+                case BlockShape.Panel: // thin plate across the bottom
+                    return v <= 0.25f;
+                case BlockShape.Post: // slim full-height column
+                    return u >= 0.34f && u <= 0.66f;
+                case BlockShape.Beam: // horizontal bar across the middle
+                    return v >= 0.35f && v <= 0.65f;
+                case BlockShape.LowRamp: // right triangle rising to the right, half height
+                    return v <= 0.5f * u;
                 default:
                     return true; // cube — full tile (callers never ask us for this)
             }
