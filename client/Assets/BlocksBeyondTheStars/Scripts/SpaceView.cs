@@ -34,7 +34,7 @@ namespace BlocksBeyondTheStars.Client
         private float _captureThrottle = -1f;
         public void SetFlightThrottle(float throttle) => _captureThrottle = throttle < 0f ? -1f : Mathf.Clamp01(throttle);
         public void SetFlightPitch(float pitchDeg) => _pitch = Mathf.Clamp(pitchDeg, -80f, 80f);
-        private float CaptureForward() => _captureThrottle >= 0f ? _captureThrottle : Input.GetAxis("Vertical");
+        private float CaptureForward() => _captureThrottle >= 0f ? _captureThrottle : InputMap.MoveY();
 
         // --- Cinematic landing hooks (ClipDirector): a hands-off version of the player's fly-in → pick-pad → land. ---
         public bool CaptureLandMapShowing => _landMapGo != null;
@@ -1029,7 +1029,7 @@ namespace BlocksBeyondTheStars.Client
             if (_autopilot && TryAutopilotTarget(out var apTarget, out float apArriveSq))
             {
                 // Manual input takes the helm back instantly.
-                if (Mathf.Abs(Input.GetAxis("Vertical")) > 0.25f || Mathf.Abs(Input.GetAxis("Horizontal")) > 0.25f)
+                if (Mathf.Abs(InputMap.MoveY()) > 0.25f || Mathf.Abs(InputMap.MoveX()) > 0.25f)
                 {
                     SetAutopilot(false);
                 }
@@ -1055,10 +1055,10 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                _yaw += Input.GetAxis("Mouse X") * LookSpeed * _shipTurnMul;
-                _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * LookSpeed * _shipTurnMul, -80f, 80f);
+                _yaw += InputMap.LookX() * LookSpeed * _shipTurnMul;
+                _pitch = Mathf.Clamp(_pitch - InputMap.LookY() * LookSpeed * _shipTurnMul, -80f, 80f);
                 fwd = CaptureForward();
-                strafe = Input.GetAxis("Horizontal");
+                strafe = InputMap.MoveX();
             }
 
             var rot = Quaternion.Euler(_pitch, _yaw, 0f);
@@ -1200,7 +1200,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var target = BestFireTarget();
                 _fireTargetId = target?.Id;
-                if (target != null && _fireCd <= 0f && Input.GetMouseButton(0))
+                if (target != null && _fireCd <= 0f && InputMap.PrimaryHeld())
                 {
                     _fireCd = FireRate;
                     FireAt(target, sys.WeaponKey);
@@ -1212,7 +1212,7 @@ namespace BlocksBeyondTheStars.Client
                 // a blind radius sweep was impossible to aim in 3D, where depth is hard to judge.
                 var drop = BestTractorTarget();
                 _fireTargetId = drop?.Id;
-                if (_fireCd <= 0f && Input.GetMouseButtonDown(0))
+                if (_fireCd <= 0f && InputMap.PrimaryDown())
                 {
                     _fireCd = 0.6f;
                     ActivateTractor(drop);
@@ -1619,15 +1619,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Free-look.
-            _evaYaw += Input.GetAxis("Mouse X") * LookSpeed;
-            _evaPitch = Mathf.Clamp(_evaPitch - Input.GetAxis("Mouse Y") * LookSpeed, -89f, 89f);
+            _evaYaw += InputMap.LookX() * LookSpeed;
+            _evaPitch = Mathf.Clamp(_evaPitch - InputMap.LookY() * LookSpeed, -89f, 89f);
             var rot = Quaternion.Euler(_evaPitch, _evaYaw, 0f);
 
             // 6-DOF thrust: WASD in the look plane, Space/Ctrl for world up/down.
-            float fwd = Input.GetAxis("Vertical");
-            float strafe = Input.GetAxis("Horizontal");
-            float lift = (Input.GetKey(KeyCode.Space) ? 1f : 0f)
-                       - ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C)) ? 1f : 0f);
+            float fwd = InputMap.MoveY();
+            float strafe = InputMap.MoveX();
+            float lift = (InputMap.JumpHeld() ? 1f : 0f)
+                       - ((InputMap.CrouchHeld()) ? 1f : 0f);
             Vector3 dir = rot * (Vector3.forward * fwd + Vector3.right * strafe) + Vector3.up * lift;
             Vector3 delta = dir * (EvaSpeed * Time.deltaTime);
 
@@ -1910,7 +1910,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            float scroll = InputMap.HotbarScroll();
             if (scroll > 0f) { SelectEvaSlot((Game.SelectedHotbarSlot + slots - 1) % slots); }
             else if (scroll < 0f) { SelectEvaSlot((Game.SelectedHotbarSlot + 1) % slots); }
         }
@@ -1932,11 +1932,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetMouseButtonDown(0))
+            if (InputMap.PrimaryDown())
             {
                 Game.Network?.SendStructureEdit(_evaAimStructId, _evaAimHit.x, _evaAimHit.y, _evaAimHit.z, mine: true);
             }
-            else if (Input.GetMouseButtonDown(1))
+            else if (InputMap.SecondaryDown())
             {
                 string item = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
                 var def = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item);
@@ -4021,7 +4021,7 @@ namespace BlocksBeyondTheStars.Client
             _instLastCamPos = Camera.transform.position;
             _instSpeed = Mathf.Lerp(_instSpeed, Mathf.Min(raw, 999f), 0.15f);
 
-            int thr = Mathf.RoundToInt(Mathf.Clamp01(Input.GetAxis("Vertical")) * 100f);
+            int thr = Mathf.RoundToInt(Mathf.Clamp01(InputMap.MoveY()) * 100f);
             int hdg = Mathf.RoundToInt(Mathf.Repeat(_yaw, 360f));
             string text = $"SPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
             var combat = Game?.ShipCombat;

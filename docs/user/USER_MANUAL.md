@@ -76,6 +76,29 @@ Last updated: 2026-06-29.
 
 Interaction reach is ~6 m (extended by reach equipment).
 
+### Gamepad / controller (experimental)
+
+A connected controller works **alongside** keyboard + mouse — both stay live at once, so you can mix them
+freely and neither locks the other out. The HUD control hint swaps to controller labels while a pad is the
+device in hand. Mapping targets an **Xbox / XInput** pad on Windows (other pads may report different
+buttons — retuning is tracked in issue #195):
+
+| Control | Action |
+|---|---|
+| **Left stick** | Move |
+| **Right stick** | Look |
+| **RB** | Mine / attack (hold to keep mining) |
+| **LB** | Place the selected hotbar block / use the held gadget |
+| **D-pad ◄ ►** | Cycle hotbar slot |
+| **(A)** | Jump (hold in air = jetpack; in water = swim up) |
+| **(X)** | Use / board / interact |
+| **(Y)** | Toggle first / third-person camera |
+| **Start** | Open / close the gameplay menu |
+
+In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back. The right stick also
+steers the ship in flight. Direct hotbar number-key picks and a few secondary actions remain
+keyboard-only for now; a full controller binding + on-screen rebinding pass is planned.
+
 ---
 
 ## 3. Space-flight controls

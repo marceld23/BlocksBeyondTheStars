@@ -61,7 +61,9 @@ namespace BlocksBeyondTheStars.Client
 
                 // Don't let Tab open the menu while the death / ship-destruction prompt is up — only its
                 // "Weiter" button proceeds.
-                if (Input.GetKeyDown(KeyCode.Tab) && !Game.AwaitingRespawnConfirm && !Game.ChatTyping)
+                // Tab (keyboard) or Start (gamepad button 7) toggles the menu.
+                if ((Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.JoystickButton7))
+                    && !Game.AwaitingRespawnConfirm && !Game.ChatTyping)
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(!_open);
@@ -164,6 +166,7 @@ namespace BlocksBeyondTheStars.Client
             Cursor.visible = _open;
             if (_open)
             {
+                UiNav.Enable(gameObject); // gamepad can drive the menu (covers every tab; inert on KB/mouse)
                 SwitchTo(_tab); // refresh data for the current tab
             }
             else

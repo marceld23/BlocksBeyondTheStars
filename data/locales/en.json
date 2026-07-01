@@ -450,6 +450,7 @@
   "mission.settlement.gather.title": "Settlement Supply Request",
   "mission.settlement.gather.desc": "Deliver the requested resources to the settlement's mission board for a reward.",
   "ui.hud.hint": "WASD move · LMB mine · RMB place · 1-9 hotbar · F attack · G loot · R repair · L lamp · M map · Enter chat · E use · V view · Tab menu · F1 feedback · Esc quit",
+  "ui.hud.hint_pad": "Left stick move · Right stick look · RB mine · LB place · D-pad hotbar · (A) jump · (X) use · (Y) view · Start menu",
   "ui.door.hint": "E: Door",
   "ui.tab.tech": "Tech",
   "ui.tab.ship": "Ship",

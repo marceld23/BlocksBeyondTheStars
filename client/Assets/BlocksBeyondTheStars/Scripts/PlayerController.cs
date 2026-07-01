@@ -649,7 +649,7 @@ namespace BlocksBeyondTheStars.Client
         /// plants) — hard materials need a drill. (#128)</summary>
         private void HandleDrillAudio()
         {
-            if (Camera == null || !Input.GetMouseButton(0))
+            if (Camera == null || !InputMap.PrimaryHeld())
             {
                 return;
             }
@@ -1111,15 +1111,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            for (int i = 0; i < HotbarSlots; i++)
+            int pick = InputMap.HotbarSlotDown();
+            if (pick >= 0 && pick < HotbarSlots)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i))
-                {
-                    SelectSlot(i);
-                }
+                SelectSlot(pick);
             }
 
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            float scroll = InputMap.HotbarScroll();
             if (scroll > 0f)
             {
                 SelectSlot((Game.SelectedHotbarSlot + HotbarSlots - 1) % HotbarSlots);
@@ -1167,7 +1165,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Cinematic-capture hooks (<see cref="ClipDirector"/>): drive the on-foot player's walk + look
         /// without keyboard input so a recorded clip shows the character actually moving. <see cref="_captureWalk"/>
-        /// gates this — when false the normal <c>Input.GetAxis</c> path is untouched in regular play.</summary>
+        /// gates this — when false the normal <c>InputMap.MoveX/MoveY</c> path is untouched in regular play.</summary>
         private bool _captureWalk;
         private float _captureH, _captureV;
         public void SetWalkInput(float horizontal, float vertical)
@@ -1287,8 +1285,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void LookAround()
         {
-            float mx = Input.GetAxis("Mouse X") * MouseSensitivity;
-            float my = Input.GetAxis("Mouse Y") * MouseSensitivity * (InvertY ? -1f : 1f);
+            float mx = InputMap.LookX() * MouseSensitivity;
+            float my = InputMap.LookY() * MouseSensitivity * (InvertY ? -1f : 1f);
             transform.Rotate(0f, mx, 0f);
             _pitch = Mathf.Clamp(_pitch - my, -89f, 89f);
             if (Camera != null)
@@ -1338,7 +1336,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Chase camera behind + above the speeder; mouse Y tilts it.
-            float my = Input.GetAxis("Mouse Y") * MouseSensitivity * (InvertY ? -1f : 1f);
+            float my = InputMap.LookY() * MouseSensitivity * (InvertY ? -1f : 1f);
             _speederCamPitch = Mathf.Clamp(_speederCamPitch - my, -8f, 35f);
             if (Camera != null)
             {
@@ -1349,8 +1347,8 @@ namespace BlocksBeyondTheStars.Client
             var driven = Game.DrivenSpeeder;
             bool outOfFuel = driven != null && driven.Fuel <= 0.01f;
 
-            float throttle = Input.GetAxis("Vertical");   // W = +1, S = -1 (brake / reverse)
-            float steer = Input.GetAxis("Horizontal");    // A = -1, D = +1
+            float throttle = InputMap.MoveY();   // W = +1, S = -1 (brake / reverse)
+            float steer = InputMap.MoveX();    // A = -1, D = +1
             bool boosting = InputMap.Held(InputAction.SpeederBoost) && !outOfFuel && throttle > 0.1f;
 
             // Steering scales with speed (no pirouetting while parked).
@@ -1374,7 +1372,7 @@ namespace BlocksBeyondTheStars.Client
                 vSpeed = -Gravity * 0.2f;
             }
 
-            if (Input.GetButtonDown("Jump") && !outOfFuel)
+            if (InputMap.JumpDown() && !outOfFuel)
             {
                 vSpeed = SpeederHopSpeed; // a quick hover-hop over a low obstacle
             }
@@ -1512,8 +1510,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Move()
         {
-            float h = _captureWalk ? _captureH : Input.GetAxis("Horizontal");
-            float v = _captureWalk ? _captureV : Input.GetAxis("Vertical");
+            float h = _captureWalk ? _captureH : InputMap.MoveX();
+            float v = _captureWalk ? _captureV : InputMap.MoveY();
             Vector3 move = (transform.right * h + transform.forward * v) * _effMoveSpeed;
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)
@@ -1533,14 +1531,14 @@ namespace BlocksBeyondTheStars.Client
                 // full forward speed so you mount the land instead.
                 bool pushing = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
                 bool atSurface = BlockKeyAt(transform.position + Vector3.up * 1.9f) != "water"; // open air above the head
-                bool climbingOut = pushing && atSurface && (Input.GetButton("Jump") || LedgeAhead(move));
+                bool climbingOut = pushing && atSurface && (InputMap.JumpHeld() || LedgeAhead(move));
                 if (climbingOut)
                 {
                     _verticalVelocity = _effJumpSpeed; // real hop out of the water (full forward speed kept below)
                 }
                 else
                 {
-                    float target = Input.GetButton("Jump") ? SwimUpSpeed : -SwimSinkSpeed;
+                    float target = InputMap.JumpHeld() ? SwimUpSpeed : -SwimSinkSpeed;
                     _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, target, SwimAccel * Time.deltaTime);
                     move *= SwimSpeedMul;
                 }
@@ -1549,25 +1547,25 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Climbing (Minecraft-style): no gravity while on a ladder. Hold Jump or push forward to go up,
                 // crouch (Ctrl/C) or pull back to go down; otherwise cling with a gentle slide. (#126)
-                bool up = Input.GetButton("Jump") || v > 0.1f;
-                bool down = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C) || v < -0.1f;
+                bool up = InputMap.JumpHeld() || v > 0.1f;
+                bool down = InputMap.CrouchHeld() || v < -0.1f;
                 _verticalVelocity = up ? ClimbSpeed : (down ? -ClimbSpeed : -1f);
             }
             else if (grounded)
             {
-                if (Input.GetButtonDown("Jump"))
+                if (InputMap.JumpDown())
                 {
                     ClientAudio.Instance?.Cue("jump", 0.6f);
                 }
 
-                _verticalVelocity = Input.GetButton("Jump") ? _effJumpSpeed : -1f;
+                _verticalVelocity = InputMap.JumpHeld() ? _effJumpSpeed : -1f;
             }
             else if (Game != null && Game.OnFootInSpace)
             {
                 // Above the atmosphere there is no gravity: float, never fall. Jump rises, crouch (Ctrl/C)
                 // sinks, otherwise the suit drifts to a gentle stop. (Set by item 10 — building up into space.)
-                float lift = (Input.GetButton("Jump") ? SpaceFloatSpeed : 0f)
-                           - ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C)) ? SpaceFloatSpeed : 0f);
+                float lift = (InputMap.JumpHeld() ? SpaceFloatSpeed : 0f)
+                           - ((InputMap.CrouchHeld()) ? SpaceFloatSpeed : 0f);
                 _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, lift, SpaceFloatAccel * Time.deltaTime);
             }
             else
@@ -1576,7 +1574,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Jetpack: hold Jump in the air to thrust upward (needs the item + suit energy). The server
                 // drains energy on the reported state and forces it off when empty (SuitEnergy then hits 0).
-                if (Input.GetButton("Jump") && CanJetpack())
+                if (InputMap.JumpHeld() && CanJetpack())
                 {
                     jetpacking = true;
                     _verticalVelocity += _effJetpackAccel * Time.deltaTime;
@@ -1765,8 +1763,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            bool mine = Input.GetMouseButtonDown(0);
-            bool place = Input.GetMouseButtonDown(1);
+            bool mine = InputMap.PrimaryDown();
+            bool place = InputMap.SecondaryDown();
             if (!mine && !place)
             {
                 return;

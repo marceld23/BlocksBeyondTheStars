@@ -41,15 +41,57 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
-    /// Central indirection over Unity's legacy Input so every key flows through the player's bindings
-    /// (<see cref="ClientSettings"/>) instead of a hardcoded <see cref="KeyCode"/> — the foundation for
-    /// rebindable controls. Call <see cref="Use"/> once at startup with the loaded settings; an unbound action
-    /// falls back to <see cref="DefaultKey"/> (the key it had before remapping existed), so migrating a call
-    /// site is behaviour-preserving until the player actually rebinds it.
+    /// Central indirection over the game's input. Two things flow through here: (1) discrete rebindable
+    /// actions (<see cref="InputAction"/>) resolved to a <see cref="KeyCode"/> through the player's bindings
+    /// (<see cref="ClientSettings"/>), and (2) the continuous locomotion/camera/interaction core (move, look,
+    /// jump, mine/place, hotbar) that used to poll <c>UnityEngine.Input</c> directly.
+    ///
+    /// Rather than switching between input devices (a mode that could strand the keyboard), the map
+    /// <b>combines</b> a keyboard/mouse backend and a gamepad backend: every getter reads BOTH and merges
+    /// them, so a player can mix mouse and pad and neither can lock the other out. With no pad connected the
+    /// gamepad backend returns zero/false, so this is exactly the legacy behaviour — the abstraction is
+    /// behaviour-preserving on keyboard+mouse. <see cref="ActiveDevice"/> tracks which family was used most
+    /// recently, purely to choose which button glyphs to show (see <see cref="Glyph"/>).
+    ///
+    /// Call <see cref="Use"/> once at startup with the loaded settings; an unbound action falls back to
+    /// <see cref="DefaultKey"/> (the key it had before remapping existed).
     /// </summary>
     public static class InputMap
     {
         private static ClientSettings _settings;
+
+        // The two live backends. Both are polled every frame and merged; see the class summary.
+        private static readonly IInputSource _desktop = new DesktopInputSource();
+        private static readonly IInputSource _pad = new GamepadInputSource();
+
+        private static int _deviceFrame = -1;
+        private static InputDeviceKind _activeDevice = InputDeviceKind.KeyboardMouse;
+
+        /// <summary>The input family used most recently — drives which glyphs the HUD shows. Recomputed at
+        /// most once per frame; sticks to the last device when neither backend is active this frame.</summary>
+        public static InputDeviceKind ActiveDevice
+        {
+            get
+            {
+                if (Time.frameCount != _deviceFrame)
+                {
+                    _deviceFrame = Time.frameCount;
+                    if (_pad.HadActivityThisFrame())
+                    {
+                        _activeDevice = InputDeviceKind.Gamepad;
+                    }
+                    else if (_desktop.HadActivityThisFrame())
+                    {
+                        _activeDevice = InputDeviceKind.KeyboardMouse;
+                    }
+                }
+
+                return _activeDevice;
+            }
+        }
+
+        /// <summary>True if a gamepad is connected (any slot). Cheap; safe to poll from UI.</summary>
+        public static bool GamepadConnected => GamepadInputSource.Connected();
 
         /// <summary>On-foot actions exposed in the controls-rebinding UI, in display order.</summary>
         public static readonly InputAction[] Remappable =
@@ -114,8 +156,81 @@ namespace BlocksBeyondTheStars.Client
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
         }
 
-        public static bool Down(InputAction action) => Input.GetKeyDown(Key(action));
-        public static bool Held(InputAction action) => Input.GetKey(Key(action));
-        public static bool Up(InputAction action) => Input.GetKeyUp(Key(action));
+        // Discrete rebindable actions — now combined across both backends so a pad button and the bound key
+        // both fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key(action)).
+        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action);
+        public static bool Held(InputAction action) => _desktop.ActionHeld(action) || _pad.ActionHeld(action);
+        public static bool Up(InputAction action) => _desktop.ActionUp(action) || _pad.ActionUp(action);
+
+        // ---- Continuous locomotion / camera / interaction core -------------------------------------------
+        // Each merges the two backends. Movement + look are additive (mouse delta + stick delta); the
+        // button verbs OR together. This is what the migrated PlayerController/SpaceView call sites read
+        // instead of Input.GetAxis / GetButton / GetMouseButton.
+
+        /// <summary>Strafe axis, −1..1 — replaces <c>Input.GetAxis("Horizontal")</c>.</summary>
+        public static float MoveX() => Mathf.Clamp(_desktop.MoveX() + _pad.MoveX(), -1f, 1f);
+
+        /// <summary>Forward axis, −1..1 — replaces <c>Input.GetAxis("Vertical")</c>.</summary>
+        public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY(), -1f, 1f);
+
+        /// <summary>Yaw look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse X")</c>.</summary>
+        public static float LookX() => _desktop.LookX() + _pad.LookX();
+
+        /// <summary>Pitch look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse Y")</c>.</summary>
+        public static float LookY() => _desktop.LookY() + _pad.LookY();
+
+        /// <summary>Hotbar scroll: &gt;0 = previous slot, &lt;0 = next — replaces <c>GetAxis("Mouse ScrollWheel")</c>.
+        /// Mouse wheel takes precedence; the pad d-pad fills in when the wheel is idle.</summary>
+        public static float HotbarScroll()
+        {
+            float d = _desktop.HotbarScroll();
+            return Mathf.Abs(d) > 0.0001f ? d : _pad.HotbarScroll();
+        }
+
+        public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld();
+        public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown();
+        public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld();
+        public static bool PrimaryDown() => _desktop.PrimaryDown() || _pad.PrimaryDown();
+        public static bool PrimaryHeld() => _desktop.PrimaryHeld() || _pad.PrimaryHeld();
+        public static bool SecondaryDown() => _desktop.SecondaryDown() || _pad.SecondaryDown();
+
+        /// <summary>Hotbar slot 0..8 picked directly this frame (number keys), or −1. The pad has no direct
+        /// pick (it cycles via <see cref="HotbarScroll"/>), so this is the keyboard's answer.</summary>
+        public static int HotbarSlotDown()
+        {
+            int s = _desktop.HotbarSlotDown();
+            return s >= 0 ? s : _pad.HotbarSlotDown();
+        }
+
+        // ---- Glyphs -------------------------------------------------------------------------------------
+
+        /// <summary>A short on-screen label for an action's control, matched to the <see cref="ActiveDevice"/>:
+        /// the pad face-button letter when a pad is in use and the action is mapped, otherwise the bound
+        /// keyboard key. Used for HUD control hints so they read correctly whichever device is in hand.</summary>
+        public static string Glyph(InputAction action)
+        {
+            if (ActiveDevice == InputDeviceKind.Gamepad)
+            {
+                string pad = PadGlyph(GamepadInputSource.ButtonFor(action));
+                if (pad != null)
+                {
+                    return pad;
+                }
+            }
+
+            return Key(action).ToString();
+        }
+
+        /// <summary>Human label for a pad button, or null if it isn't one of the mapped face buttons.</summary>
+        private static string PadGlyph(KeyCode button) => button switch
+        {
+            KeyCode.JoystickButton0 => "(A)",
+            KeyCode.JoystickButton1 => "(B)",
+            KeyCode.JoystickButton2 => "(X)",
+            KeyCode.JoystickButton3 => "(Y)",
+            KeyCode.JoystickButton4 => "LB",
+            KeyCode.JoystickButton5 => "RB",
+            _ => null,
+        };
     }
 }

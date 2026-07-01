@@ -44,6 +44,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio.
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
 *   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
+*   **Keyboard, mouse & controller:** Play with keyboard + mouse or an Xbox/XInput gamepad — both work at once, and menus are pad-navigable (controller support is experimental).
 
 ## 🎬 Watch the Let's Play
 
