@@ -66,6 +66,9 @@ namespace BlocksBeyondTheStars.Client
             var blockLight = new List<Vector3>(); // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
             var blockLightDir = new List<Vector3>(); // TEXCOORD4: dominant block-light direction (toward source), 0 = none
             var tangents = new List<Vector4>(); // per-face tangents for normal mapping
+            // Ground-detail scatter points (not part of the mesh): xyz = local cell-top position, w = type
+            // (0 = grass tuft, 1 = pebble). GroundScatter draws them GPU-instanced, culled + quality-gated.
+            var scatter = new List<Vector4>();
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
@@ -306,6 +309,22 @@ namespace BlocksBeyondTheStars.Client
                 bool collidable = collKey != "water" && collKey != "fire";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Ground-detail scatter (T0): on planet chunks, strew a sparse deterministic set of tufts/
+                // pebbles on open-topped ground cells. Render-only decoration drawn instanced by GroundScatter
+                // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
+                if (atlas != null)
+                {
+                    int stype = ScatterType(collKey);
+                    if (stype >= 0 && worldBlock(wx, wy + 1, wz).IsAir)
+                    {
+                        int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
+                        if ((uint)sh % 7u == 0u)
+                        {
+                            scatter.Add(new Vector4(x + 0.5f, y + 1f, z + 0.5f, stype));
+                        }
+                    }
+                }
+
                 // Natural-block variation: a deterministic WORLD-position hash (stable across remeshes,
                 // identical on all clients) picks one of the block's variant tiles and a 90° rotation
                 // for the top/bottom faces — breaking the visible texture tiling on open ground.
@@ -516,6 +535,7 @@ namespace BlocksBeyondTheStars.Client
                 Tangents = tangents,
                 Normals = normals,
                 Bounds = bounds,
+                Scatter = scatter,
             };
         }
 
@@ -763,6 +783,16 @@ namespace BlocksBeyondTheStars.Client
             var key = content.BlockById(id)?.Key;
             return key is "water" or "lava";
         }
+
+        /// <summary>Ground-detail scatter host classification: 0 = grass tuft (soft ground), 1 = pebble (dry/
+        /// rocky ground), -1 = no scatter. Only open-topped ground blocks get decoration; ores, machines,
+        /// fluids, flora and built blocks return -1.</summary>
+        private static int ScatterType(string key) => key switch
+        {
+            "grass" or "dirt" or "mud" => 0,
+            "sand" or "snow" or "stone" or "basalt" => 1,
+            _ => -1,
+        };
 
         private static Vector2 BlockMaterial(GameContent content, BlockId id)
         {
@@ -1120,6 +1150,7 @@ namespace BlocksBeyondTheStars.Client
         public List<Vector4> Tangents;
         public Vector3[] Normals;          // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
         public Bounds Bounds;
+        public List<Vector4> Scatter;      // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
 
         /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
         /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).</summary>

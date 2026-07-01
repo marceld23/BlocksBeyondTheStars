@@ -1748,6 +1748,24 @@ namespace BlocksBeyondTheStars.Client
 
             view!.Filter.sharedMesh = mesh;
 
+            // Ground-detail scatter (T0): (re)build this chunk's instanced tuft/pebble decoration. Render-only,
+            // distance-culled + quality-gated inside the component; a chunk with no scatter points disables it.
+            var scatterGo = view.Go;
+            var scatter = scatterGo.GetComponent<GroundScatter>();
+            if (data.Scatter != null && data.Scatter.Count > 0)
+            {
+                if (scatter == null)
+                {
+                    scatter = scatterGo.AddComponent<GroundScatter>();
+                }
+
+                scatter.Setup(data.Scatter);
+            }
+            else if (scatter != null)
+            {
+                scatter.Setup(null);
+            }
+
             // The collider uses the solid-only mesh (fluids excluded) so the player can swim into water/lava.
             // Baking the collision mesh is the heaviest per-chunk step, so do it off the main thread (P2): bump
             // this chunk's bake generation, cook on a worker via Physics.BakeMesh, then assign the cached cook
