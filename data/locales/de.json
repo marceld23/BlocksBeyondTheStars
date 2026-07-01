@@ -451,6 +451,7 @@
   "mission.settlement.gather.title": "Versorgungsauftrag der Siedlung",
   "mission.settlement.gather.desc": "Liefere die geforderten Rohstoffe am Missionsboard der Siedlung ab und erhalte eine Belohnung.",
   "ui.hud.hint": "WASD bewegen · LMT abbauen · RMT setzen · 1-9 Hotbar · F angreifen · G plündern · R reparieren · L Lampe · M Karte · Enter Chat · E benutzen · V Ansicht · Tab Menü · F1 Feedback · Esc beenden",
+  "ui.hud.hint_pad": "Linker Stick bewegen · Rechter Stick umsehen · RB abbauen · LB setzen · Steuerkreuz Hotbar · (A) springen · (X) benutzen · (Y) Ansicht · Start Menü",
   "ui.door.hint": "E: Tür",
   "ui.tab.tech": "Technik",
   "ui.tab.ship": "Schiff",

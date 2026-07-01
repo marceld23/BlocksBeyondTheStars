@@ -19,6 +19,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var canvas = UiKit.CreateCanvas("MainMenuUI");
             var root = canvas.transform;
+            UiNav.Enable(canvas.gameObject); // let a gamepad drive the menu (inert on keyboard/mouse)
 
             // --- SYSTEM CHECK panel (decorative flavour) ---
             UiKit.AddPanel(root, 40f, 40f, 280f, 220f, UiKit.PanelFill);

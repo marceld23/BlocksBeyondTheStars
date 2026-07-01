@@ -97,6 +97,25 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Input abstraction + gamepad/controller support (2026-07-01) — ✅ code done, local Unity build pending
+On `feat/input-abstraction-and-controller` (epic #193; P1 #194, P2 #195). Decouples gameplay from directly
+polling `UnityEngine.Input` and adds experimental Xbox/XInput controller support on the native desktop client.
+- **P1 — input abstraction.** New `IInputSource` (`Scripts/Input/`) with a `DesktopInputSource` (1:1 wrapper
+  over the legacy calls) behind a rewritten `InputMap` facade exposing the continuous/pointer core
+  (`MoveX/MoveY`, `LookX/LookY`, `HotbarScroll`, `Jump/Crouch/Primary/Secondary`, `HotbarSlotDown`). Migrated
+  the ~gameplay `Input.*` sites in `PlayerController` (on-foot + speeder) and `SpaceView` (flight + EVA +
+  turret). Behaviour-preserving on keyboard/mouse.
+- **P2 — controller.** `GamepadInputSource` (right stick = look, RB/LB = mine/place, (A) jump, (X) interact,
+  d-pad = hotbar; left stick already feeds the shared Horizontal/Vertical axes) + `RightStickX/Y`+`DPadX`
+  joystick axes added to `InputManager.asset`. `InputMap` **combines** keyboard+pad (both live at once) and
+  tracks the active device for glyphs. `UiNavFocus` (`Scripts/UiNav.cs`) makes menus pad-navigable (wired on
+  the main menu + Tab/Start menu). Device-aware HUD hint (`ui.hud.hint_pad`, DE+EN). Start toggles the menu.
+- **Docs:** `docs/developer/INPUT_AND_CONTROLLER.md`; USER_MANUAL gamepad table; README feature bullet.
+- **Tests:** EditMode `InputAbstractionEditModeTests` (inert-without-pad guarantee + mapping tables). NOTE: CI
+  is .NET-only and can't compile the Unity client or drive a pad — validated by local Unity build + manual
+  on-device test. Remaining (deferred to #195): on-screen pad **rebinding** group, full glyph coverage across
+  all prompts, broader menu-panel focus wiring, and stick/button **retuning on real hardware**.
+
 ### ★ Codex (in-game Wiki) navigation + scan-name fixes (2026-06-30) — ✅ code done, local Unity build green
 Three player-reported client fixes on `fix/codex-wiki-buttons-unclickable-176` (#176, #177):
 - **#176 — Codex buttons unclickable.** `GameMenu.Update` calls `WikiUI.Show()` every frame while the Codex is
