@@ -783,7 +783,14 @@ namespace BlocksBeyondTheStars.Client
         // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
         // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
         // the rest stay queued in _dirty. Tunable — raise for less pop-in, lower for smoother frame times.
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // WebGL has no worker threads, so each build + collider cook runs synchronously on the main thread
+        // (see DispatchChunkBuild / ApplyChunkMesh). Cap dispatches lower so a burst of arriving chunks spreads
+        // over more frames instead of spiking a single one.
+        public int MeshChunksPerFrame = 2;
+#else
         public int MeshChunksPerFrame = 4;
+#endif
         private readonly List<ChunkCoord> _dirtyScratch = new List<ChunkCoord>();
 
         // Distance culling (A4): chunks farther than this (blocks, seam-aware 3D distance) have their renderer
@@ -824,6 +831,13 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<ChunkCoord, int> _meshGen = new Dictionary<ChunkCoord, int>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)> _builtChunks
             = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)>();
+
+        // WebGL ships without worker threads (ProjectSettings webGLThreadsSupport:0), so Task.Run bodies never
+        // execute there — the two heavy per-chunk steps above (geometry build + Physics.BakeMesh) would never
+        // complete, leaving the world un-meshed and un-collided. The player, released from the spawn settle
+        // after its grace, then falls straight through into the void. On WebGL we therefore build the geometry
+        // and cook the collider synchronously on the main thread (see the #if UNITY_WEBGL branches in
+        // DispatchChunkBuild + ApplyChunkMesh); every other platform keeps the off-thread fast path.
 
         /// <summary>Bumped each time the world is rebuilt (travel); the player re-snaps to the new spawn.</summary>
         public int WorldEpoch { get; private set; }
@@ -1352,6 +1366,19 @@ namespace BlocksBeyondTheStars.Client
         private void OnChunk(BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage m)
         {
             var coord = new ChunkCoord(m.Cx, m.Cy, m.Cz);
+
+            // Reject a malformed/short chunk payload: ChunkData.FromRaw requires exactly BlocksPerChunk cells and
+            // throws otherwise, which would bubble out of the network dispatch. Drop + warn instead, so a bad
+            // packet can neither crash the client nor be stored as solid terrain (which the player would read as
+            // a floor and then fall through). A normal chunk is ~8-25 KB of JSON — well under the codec cap, so
+            // this only fires on a genuinely truncated/dropped payload; the warning is the diagnostic to watch.
+            int expected = WorldConstants.BlocksPerChunk;
+            if (m.Blocks == null || m.Blocks.Length != expected)
+            {
+                Debug.LogWarning($"[Chunk] Dropped malformed chunk {coord}: expected {expected} blocks, got {(m.Blocks?.Length ?? 0)}.");
+                return;
+            }
+
             World.StoreChunk(coord, m.Blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
             MarkChunkAndNeighborsDirty(coord);
         }
@@ -1655,7 +1682,8 @@ namespace BlocksBeyondTheStars.Client
             var content = Content;
             var atlas = Atlas;
             var capturedCoord = coord;
-            System.Threading.Tasks.Task.Run(() =>
+
+            void Build()
             {
                 ChunkMeshData data = null;
                 try
@@ -1668,7 +1696,16 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _builtChunks.Enqueue((capturedCoord, data, gen, epoch));
-            });
+            }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // WebGL: no worker threads — build inline on the main thread. DrainBuiltChunks still uploads the
+            // result next frame, exactly as it does for the async path on every other platform.
+            Build();
+#else
+            System.Threading.Tasks.Task.Run(Build);
+#endif
+
             return true;
         }
 
@@ -1782,6 +1819,15 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                // WebGL: no worker threads to bake on, so cook synchronously by assigning the mesh directly —
+                // MeshCollider.sharedMesh cooks the collision mesh on the spot. The collider is live in THIS
+                // frame, so the spawn ground-check raycast finds footing and the player never falls through.
+                if (mcol != null)
+                {
+                    mcol.sharedMesh = collider;
+                }
+#else
                 int meshId = collider.GetInstanceID();
                 var capturedCoord = coord;
                 var capturedCollider = collider;
@@ -1799,6 +1845,7 @@ namespace BlocksBeyondTheStars.Client
 
                     _bakedColliders.Enqueue((capturedCoord, capturedCollider, bakeGen, epoch));
                 });
+#endif
             }
         }
 
