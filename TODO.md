@@ -97,6 +97,26 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ WebGL fall-through: land on a planet then drop into the void (2026-07-02) — ✅ code done, local WebGL build green, browser E2E pending
+On `fix/webgl-fall-through-synchronous-meshing` (closes #205). The browser client (#116) let you land on a
+planet and then fall straight through the terrain into nothing. Root cause is **WebGL-specific and not
+PostgreSQL** (Postgres always generates terrain server-side before applying edits, so it never yields empty
+chunks; and a full 16³ chunk is ~8–25 KB of JSON, far under the 1 MB codec cap — the data path is intact).
+- **Cause.** The chunk pipeline offloads its two heaviest per-chunk steps to a worker via `Task.Run` —
+  geometry build (`GameBootstrap.DispatchChunkBuild`) and collision cook (`Physics.BakeMesh` in
+  `ApplyChunkMesh`). But the WebGL player ships with `webGLThreadsSupport: 0`, so those `Task.Run` bodies
+  never run: the world is never meshed/collided, and the player — released from the spawn *settle* freeze
+  after its 8 s grace — falls through the un-collided ground. (The same main-thread-only constraint is why
+  `BrowserWebSocketClientTransport` already pumps its queue via `Poll()`.)
+- **Fix.** Behind `#if UNITY_WEBGL && !UNITY_EDITOR`, build the geometry inline and cook the collider by
+  assigning `MeshCollider.sharedMesh` directly (a synchronous cook, live in the same frame) — every other
+  platform keeps the off-thread fast path. `MeshChunksPerFrame` drops 4→2 on WebGL so the now-synchronous
+  builds spread over more frames. Used `#if` rather than a `const bool` flag to avoid CS0162 unreachable-code
+  warnings. Hardening: `OnChunk` now drops a malformed chunk (`Blocks.Length != BlocksPerChunk`) with a
+  warning instead of throwing out of the network dispatch — the warning doubles as the diagnostic to watch.
+- **Verified.** 890 .NET tests green (96 client + 794 server); local `-buildTarget WebGL` build **Succeeded**
+  (0 errors, no new warnings). Still open: a hands-on browser playtest to confirm the ground now holds (#205).
+
 ### ★ Input epic completion: pad rebinding, glyphs, context touch layouts, browser text entry (2026-07-02) — ✅ code done, local Unity build pending
 On `feat/input-epic-completion` (epic #193; closes #197, #198, #200). Finishes every implementable item of
 the input epic; what remains open is on-device playtesting (#201 pad, #202 touch, #203 WebGL).
