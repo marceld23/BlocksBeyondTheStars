@@ -271,11 +271,15 @@ public sealed partial class GameServer
             s.StationCells.Add((type, cell));
         }
 
-        BoxStation("medbay", 1, 1);
+        // Keep the two rows just inside the hatch (z=1,2) free of station blocks: stations stamp as solid,
+        // knee-high marker blocks, and medbay/quarters in the rear corners (z=1) flanked the 3-wide doorway,
+        // leaving a single 1-wide lane the 0.86-wide player capsule snagged on unless dead-centred (#211).
+        int rearRow = System.Math.Min(halfZ + 1, halfZ * 2 - 2); // deeper in the cabin, clear of the lab/console row
+        BoxStation("medbay", 1, rearRow);
         BoxStation("cockpit", halfX, halfZ * 2 - 1);
         BoxStation("workshop", halfX * 2 - 1, halfZ);
         BoxStation("cargo", 1, halfZ);
-        BoxStation("quarters", halfX * 2 - 1, 1);
+        BoxStation("quarters", halfX * 2 - 1, rearRow);
         BoxStation("lab", 1, halfZ * 2 - 1);
         BoxStation("console", halfX * 2 - 1, halfZ * 2 - 1);
 

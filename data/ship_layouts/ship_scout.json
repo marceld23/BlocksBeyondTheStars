@@ -230,7 +230,7 @@
   {
    "x": 1,
    "y": 1,
-   "z": 1,
+   "z": 3,
    "kind": "station",
    "id": "cargo"
   },
@@ -347,9 +347,9 @@
    "id": "door_slide"
   },
   {
-   "x": 2,
+   "x": 3,
    "y": 1,
-   "z": 2,
+   "z": 3,
    "kind": "station",
    "id": "medbay"
   },

@@ -285,8 +285,11 @@ public sealed class ShipStructureTests : IDisposable
     {
         // #211: the box ship's rear engine nozzles used to sit at halfX∓1 — inside the 3-wide hatch gap on the
         // 5-wide starter hull — so the open door still blocked the player at knee height unless they walked out
-        // dead-centre (or jumped onto a nozzle). The full doorway gap must have a clear corridor just outside
-        // (z = -1) at feet AND head height.
+        // dead-centre (or jumped onto a nozzle). And the medbay/quarters station blocks used to sit in the rear
+        // cabin corners (z=1), pinching the doorway approach to a single 1-wide lane the same way. The full
+        // doorway gap must have a clear corridor OUTSIDE (z=-1) and on the two APPROACH rows INSIDE (z=+1,+2),
+        // at feet AND head height. (The hatch faces -Z on every ship — the rear-wall convention RegisterDoors
+        // relies on too.)
         var server = Started(placeShip: true, out var repo);
         using (repo)
         {
@@ -297,10 +300,13 @@ public sealed class ShipStructureTests : IDisposable
             {
                 foreach (var gx in DoorwayGapColumns(x => !s.Get(new Vector3i(x, door.Y, door.Z)).IsAir, door.X))
                 {
-                    Assert.True(s.Get(new Vector3i(gx, door.Y, door.Z - 1)).IsAir,
-                        $"box ship: exit corridor blocked at feet height, x={gx}");
-                    Assert.True(s.Get(new Vector3i(gx, door.Y + 1, door.Z - 1)).IsAir,
-                        $"box ship: exit corridor blocked at head height, x={gx}");
+                    foreach (int dz in new[] { -1, 1, 2 })
+                    {
+                        Assert.True(s.Get(new Vector3i(gx, door.Y, door.Z + dz)).IsAir,
+                            $"box ship: doorway corridor blocked at feet height, x={gx} dz={dz}");
+                        Assert.True(s.Get(new Vector3i(gx, door.Y + 1, door.Z + dz)).IsAir,
+                            $"box ship: doorway corridor blocked at head height, x={gx} dz={dz}");
+                    }
                 }
             }
         }
@@ -310,8 +316,9 @@ public sealed class ShipStructureTests : IDisposable
     public void DesignedShipLayouts_ExitCorridorIsClear_AcrossTheFullDoorwayGap()
     {
         // #211 (and the incomplete #181/#182 fix): authored layouts placed engine blocks directly in front of
-        // doorway columns. For every ship layout in content, the cells just outside each door's full air gap
-        // (z-1, i.e. beyond the rear wall the hatch sits in) must be free at feet and head height.
+        // doorway columns — and station marker blocks (cargo/medbay) directly behind them. For every ship
+        // layout in content, the door's full air gap must have a clear corridor just OUTSIDE (z-1, beyond the
+        // rear wall the hatch sits in) and on the two APPROACH rows INSIDE (z+1, z+2), at feet + head height.
         int layoutsChecked = 0;
         foreach (var ship in _content.Ships.Values)
         {
@@ -334,10 +341,13 @@ public sealed class ShipStructureTests : IDisposable
             {
                 foreach (var gx in DoorwayGapColumns(x => solid.Contains((x, door.Y, door.Z)), door.X))
                 {
-                    Assert.False(solid.Contains((gx, door.Y, door.Z - 1)),
-                        $"{ship.Key}: exit corridor blocked at feet height, x={gx}");
-                    Assert.False(solid.Contains((gx, door.Y + 1, door.Z - 1)),
-                        $"{ship.Key}: exit corridor blocked at head height, x={gx}");
+                    foreach (int dz in new[] { -1, 1, 2 })
+                    {
+                        Assert.False(solid.Contains((gx, door.Y, door.Z + dz)),
+                            $"{ship.Key}: doorway corridor blocked at feet height, x={gx} dz={dz}");
+                        Assert.False(solid.Contains((gx, door.Y + 1, door.Z + dz)),
+                            $"{ship.Key}: doorway corridor blocked at head height, x={gx} dz={dz}");
+                    }
                 }
             }
         }

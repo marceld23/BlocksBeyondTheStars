@@ -98,6 +98,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Ship hatch exit, part 2: station blocks no longer pinch the doorway approach (#211, 2026-07-02)
+The engine-nozzle fix below was correct but incomplete — in-game the player STILL snagged at the open
+hatch. A structure dump revealed a **second pinch just inside the door**: the box ship's `medbay (1,1,1)`
+and `quarters (3,1,1)` station marker blocks (solid, knee-high, colliding) sat in the rear cabin corners,
+directly behind the left/right thirds of the 3-wide doorway — leaving a 1.0-wide lane for the effectively
+0.86-wide player capsule (radius 0.35 + skinWidth 0.08 ⇒ ±0.07 slack). A jump cleared the 1-high blocks,
+matching the report exactly.
+- **Fix:** box medbay/quarters moved deeper into the cabin (`z = halfZ+1`, clamped clear of the lab/console
+  row); `ship_scout.json` cargo (1,1,1)→(1,1,3) + medbay (2,1,2 — dead centre behind the door!)→(3,1,3);
+  `ship_corvette.json` cargo (4,1,2)→(4,1,5). Rule: **no station cell in the two rows inside the hatch
+  within the doorway's gap columns.** The hauler already complied.
+- **Regression tests extended:** the corridor checks now cover the two approach rows INSIDE the door
+  (z=+1,+2) as well as the exit row outside (z=−1), at feet + head height, box ship + all layouts — the
+  extended tests fail on the pre-fix geometry.
+
 ### ★ Ship hatch exit: engine nozzles no longer block the doorway (#211, 2026-07-02)
 Walking out of the **starter ship** still snagged the player at the open hatch — you had to jump at exactly
 the doorway centre. The earlier fix (#181/#182) edited the wrong ship *and* reproduced the flaw: the starter
