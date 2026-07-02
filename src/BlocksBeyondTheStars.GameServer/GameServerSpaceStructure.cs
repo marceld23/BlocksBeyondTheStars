@@ -295,8 +295,11 @@ public sealed partial class GameServer
                 }
             }
 
-            // Rear engine nozzles (dark), just behind the rear wall at the corners.
-            s.Set(new Vector3i(sgn < 0 ? 1 : halfX * 2 - 1, 1, -1), dark);
+            // Rear engine nozzles (dark), just behind the rear wall at the TRUE corners (x=0 / x=2·halfX).
+            // They must stay clear of the 3-wide rear hatch gap (x = halfX-1 .. halfX+1): at halfX∓1 they sat
+            // inside the doorway on a 5-wide hull, pinching the exit to a single centre lane the player had to
+            // hit exactly or jump (#181, #211).
+            s.Set(new Vector3i(sgn < 0 ? 0 : halfX * 2, 1, -1), dark);
 
             // Wingtip nav lights: red to port (-X), green to starboard (+X).
             s.Set(new Vector3i(sgn < 0 ? -2 : halfX * 2 + 2, wingY, halfZ), sgn < 0 ? lightR : lightG);

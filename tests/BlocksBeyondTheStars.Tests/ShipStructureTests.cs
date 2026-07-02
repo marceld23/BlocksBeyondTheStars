@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -277,6 +278,81 @@ public sealed class ShipStructureTests : IDisposable
             // Every stored cell is a real (non-air) block id.
             Assert.All(s.Cells.Values, b => Assert.False(b.IsAir));
         }
+    }
+
+    [Fact]
+    public void BoxShipHatch_ExitCorridorIsClear_AcrossTheFullDoorwayGap()
+    {
+        // #211: the box ship's rear engine nozzles used to sit at halfX∓1 — inside the 3-wide hatch gap on the
+        // 5-wide starter hull — so the open door still blocked the player at knee height unless they walked out
+        // dead-centre (or jumped onto a nozzle). The full doorway gap must have a clear corridor just outside
+        // (z = -1) at feet AND head height.
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var s = server.BuildShipStructureForTest("Host");
+            Assert.NotEmpty(s.DoorCells); // the box ship has its rear hatch door
+
+            foreach (var door in s.DoorCells)
+            {
+                foreach (var gx in DoorwayGapColumns(x => !s.Get(new Vector3i(x, door.Y, door.Z)).IsAir, door.X))
+                {
+                    Assert.True(s.Get(new Vector3i(gx, door.Y, door.Z - 1)).IsAir,
+                        $"box ship: exit corridor blocked at feet height, x={gx}");
+                    Assert.True(s.Get(new Vector3i(gx, door.Y + 1, door.Z - 1)).IsAir,
+                        $"box ship: exit corridor blocked at head height, x={gx}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void DesignedShipLayouts_ExitCorridorIsClear_AcrossTheFullDoorwayGap()
+    {
+        // #211 (and the incomplete #181/#182 fix): authored layouts placed engine blocks directly in front of
+        // doorway columns. For every ship layout in content, the cells just outside each door's full air gap
+        // (z-1, i.e. beyond the rear wall the hatch sits in) must be free at feet and head height.
+        int layoutsChecked = 0;
+        foreach (var ship in _content.Ships.Values)
+        {
+            var layout = _content.GetShipLayout(ship.Layout);
+            if (layout is null)
+            {
+                continue;
+            }
+
+            layoutsChecked++;
+
+            // Everything except door/hatch markers stamps as a solid, colliding cell (blocks, stations,
+            // glass, lights, engines — see BuildShipStructureFrom).
+            var solid = layout.Cells
+                .Where(c => c.Id != "door_slide" && c.Id != "door_hinge" && c.Id != "hatch")
+                .Select(c => (c.X, c.Y, c.Z))
+                .ToHashSet();
+
+            foreach (var door in layout.Cells.Where(c => c.Id == "door_slide" || c.Id == "door_hinge"))
+            {
+                foreach (var gx in DoorwayGapColumns(x => solid.Contains((x, door.Y, door.Z)), door.X))
+                {
+                    Assert.False(solid.Contains((gx, door.Y, door.Z - 1)),
+                        $"{ship.Key}: exit corridor blocked at feet height, x={gx}");
+                    Assert.False(solid.Contains((gx, door.Y + 1, door.Z - 1)),
+                        $"{ship.Key}: exit corridor blocked at head height, x={gx}");
+                }
+            }
+        }
+
+        Assert.True(layoutsChecked >= 3, "expected the scout/corvette/hauler layouts to be checked");
+    }
+
+    /// <summary>The X columns of a doorway's contiguous air gap around a door marker, scanned like the
+    /// server's <c>MakeDoor</c> probe (up to 3 cells each way along the wall).</summary>
+    private static IEnumerable<int> DoorwayGapColumns(Func<int, bool> solidAt, int doorX)
+    {
+        int lo = doorX, hi = doorX;
+        for (int s = 1; s <= 3 && !solidAt(doorX - s); s++) { lo = doorX - s; }
+        for (int s = 1; s <= 3 && !solidAt(doorX + s); s++) { hi = doorX + s; }
+        for (int x = lo; x <= hi; x++) { yield return x; }
     }
 
     [Fact]

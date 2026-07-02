@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **794 server + 96 client passing** (2026-07-02). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **796 server + 96 client passing** (2026-07-02). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~6 min gate); pushes to `main` and the release workflow run the full suite.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -97,6 +97,20 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Ship hatch exit: engine nozzles no longer block the doorway (#211, 2026-07-02)
+Walking out of the **starter ship** still snagged the player at the open hatch — you had to jump at exactly
+the doorway centre. The earlier fix (#181/#182) edited the wrong ship *and* reproduced the flaw: the starter
+has **no authored layout**, it's the fallback hull box in `BuildShipStructureFrom`, whose rear engine nozzles
+sat at `halfX∓1` — inside the 3-wide hatch gap on the 5-wide hull (engines stamp as solid carbon; the mesher
+collides every non-air cell; the remaining 1-wide centre lane fits the 0.7-wide capsule only within ±0.15).
+- **Fix:** nozzles moved to the true hull corners (`x=0` / `x=2·halfX`), clear of the gap for every interior
+  width; same correction applied to `ship_scout.json` (engines → (0,1,-1)/(4,1,-1) — #182 had put them at
+  x=1/x=3, in 2 of the 3 doorway columns) and `ship_corvette.json` (→ x=0/x=5; x=4 blocked its right column
+  at feet *and* head height). The hauler already had the correct pattern.
+- **Regression tests:** `BoxShipHatch_ExitCorridorIsClear…` + `DesignedShipLayouts_ExitCorridorIsClear…`
+  scan each door's full air gap (like the server's `MakeDoor` probe) and assert the corridor just outside is
+  free at feet + head height — both fail on the pre-fix geometry.
 
 ### ★ CI two-tier test gate: fast PRs, full coverage on main + release (2026-07-02)
 On `ci/fast-pr-test-gate`. The PR check took ~13 min, ~12.5 of which was `dotnet test` — dominated by 27
