@@ -127,6 +127,7 @@ public sealed class SettlementNpcTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Npcs_Stroll_ButStayNearHome_WhilePlayerPresent()
     {
         // Search inhabited settlements for one that demonstrates strolling. Some settlements are cramped or sit

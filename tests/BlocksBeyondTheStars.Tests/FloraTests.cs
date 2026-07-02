@@ -200,6 +200,7 @@ public sealed class FloraTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Worldgen_SeedsFlora_OnAFloraPlanet()
     {
         var planet = _content.GetPlanet("jungle")!; // grass surface, floraDensity 0.14

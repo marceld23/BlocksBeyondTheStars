@@ -6,7 +6,8 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **783 server + 96 client passing** (2026-06-28). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **794 server + 96 client passing** (2026-07-02). Locale parity (en/de) is enforced by a test.
+CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~6 min gate); pushes to `main` and the release workflow run the full suite.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -96,6 +97,22 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ CI two-tier test gate: fast PRs, full coverage on main + release (2026-07-02)
+On `ci/fast-pr-test-gate`. The PR check took ~13 min, ~12.5 of which was `dotnet test` — dominated by 27
+server + 4 client tests over 10 s each (statistical worldgen/simulation heavies; the top two alone are
+320 s + 311 s). Restore/build/caching were already optimal (~55 s combined), and xUnit already saturates
+the runner's 4 cores, so the fix is tiering, not more parallelism.
+- **Fast PR tier.** The 31 heavies are marked `[Trait("Category", "Slow")]`; ci.yml's Test step filters
+  `Category!=Slow` on `pull_request` only (~6 min gate). Every test class still runs its fast tests on PRs.
+- **Full coverage guaranteed twice.** Pushes to `main` run the complete suite (unchanged trigger, empty
+  filter), and release.yml gains a `test` job — the full suite on the exact tagged commit — that every
+  package/publish job (installers, itch.io, Docker/GHCR) now `needs`. Previously release.yml ran no tests
+  at all; nothing tied a tag to a green CI run. The job runs parallel to the ~15 min Unity builds, so a
+  release gets its full-coverage guarantee at no wall-clock cost.
+- **Not the PR size.** Test time is constant per PR regardless of diff size — small PRs only cost total
+  compute minutes, never per-PR latency. Follow-up candidates: shrink the two 300 s tests (sample counts /
+  possible real-time waits in `WebSocketTransport_JoinsAndStreamsChunksAsync`) and run tests in Release config.
 
 ### ★ WebGL fall-through: land on a planet then drop into the void (2026-07-02) — ✅ code done, local WebGL build green, browser E2E pending
 On `fix/webgl-fall-through-synchronous-meshing` (closes #205). The browser client (#116) let you land on a

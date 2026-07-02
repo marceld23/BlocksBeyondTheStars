@@ -6,6 +6,11 @@
 #   tests/BlocksBeyondTheStars.Client.Tests (real NetworkClient vs in-process GameServer, no Unity/sockets)
 # The Unity Edit/PlayMode suites need the editor and stay opt-in/local (see scripts/run-tests.ps1).
 #
+# TWO-TIER TEST GATE: pull requests run only the fast tier (--filter Category!=Slow); pushes to main run
+# the full suite, and release.yml re-runs the full suite on the tagged commit before publishing anything.
+# So a PR check is fast (~6 min instead of ~13), while every commit that lands on main — and every
+# release — is still covered by all tests. See the Test step below for details.
+#
 # We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
 # WinForms launcher (net8.0-windows), which cannot build on the Linux runner. Building the test
 # projects pulls in exactly their dependencies (server/shared/client.core) and nothing Windows-only.
@@ -70,10 +75,18 @@ jobs:
           dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -warnaserror
           dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -warnaserror
 
+      # Two-tier test gate: PRs skip the ~31 tests marked [Trait("Category", "Slow")] — the statistical
+      # worldgen/simulation heavies (10 s–320 s each) that make up ~55% of the suite's CPU time — cutting
+      # the PR check from ~13 min to ~6 min. Full coverage is still guaranteed twice downstream: every
+      # push to main runs the COMPLETE suite here (empty filter), and release.yml runs it again on the
+      # tagged commit before anything is published.
       - name: Test
+        env:
+          # xUnit maps [Trait("Category", ...)] to the vstest Category property.
+          FILTER: ${{ github.event_name == 'pull_request' && 'Category!=Slow' || '' }}
         run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
 
       # Keep the .trx results even when a suite fails, so failures are inspectable from the run page.
       - name: Upload test results

@@ -57,6 +57,7 @@ public sealed class WreckRepairTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void RepairWreck_RequiresMatchingBlockItem()
     {
         var server = StartedWithWreck(out var repo);
@@ -75,6 +76,7 @@ public sealed class WreckRepairTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void RepairWreck_ConsumesItem_AndRestoresHullCell()
     {
         var server = StartedWithWreck(out var repo);
@@ -97,6 +99,7 @@ public sealed class WreckRepairTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void ClaimWreck_RejectedUntilFullyRepaired()
     {
         var server = StartedWithWreck(out var repo);
@@ -111,6 +114,7 @@ public sealed class WreckRepairTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void ClaimWreck_AddsOwnedShip_WhenFullyRepaired()
     {
         var server = StartedWithWreck(out var repo);

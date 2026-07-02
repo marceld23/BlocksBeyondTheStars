@@ -63,6 +63,7 @@ public sealed class SettlementOverhaulTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Settlements_NeverSitOnALandingPad()
     {
         for (long seed = 1; seed <= 30; seed++)
@@ -148,6 +149,7 @@ public sealed class SettlementOverhaulTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void HarshWorlds_SkewToRuins_MoreThanLushWorlds()
     {
         var (iceInhab, iceRuin) = CountKinds("ice", 60);
