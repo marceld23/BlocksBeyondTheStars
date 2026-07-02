@@ -98,6 +98,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Ship hatch exit, part 3 — THE actual cause: 2-tall hatch vs step-up headroom (#211, 2026-07-02)
+Parts 1+2 removed real pinches but the jump-to-exit persisted. A /bump on the fixed build nailed it: the
+player froze with the capsule front EXACTLY at the door wall's inner face plane, grounded, doorway
+geometrically clear (no stations/engines/terrain/water — nearest water 8 blocks away, below pad level;
+the "underwater look" was night + rain + the open door's energy field across the camera). Root cause:
+the **ship hatch opening is only 2 blocks tall** (settlement doorways are 3): the capsule is 1.88 m
+(1.8 + 0.08 skin) and since auto-step (#127/#130) the grounded CharacterController sweeps the capsule UP
+by `stepOffset` 0.6 before moving forward → needs ~2.4 m of passage → the sweep hits the lintel and the
+walk jams. Jumping goes airborne (no step sweep) → glides under the lintel — exactly the workaround.
+- **Fix:** hatch openings are now **3 tall** like settlement doors (which the 2.8-tall door panels were
+  designed for): box ship carves y=1..3 (guarded for very low hulls); scout/corvette/hauler layouts drop
+  the wall cells directly above the 3-wide door gap.
+- **Tests:** the corridor checks now demand THREE rows of height (feet/head/step headroom) at the door
+  plane, both approach rows inside and the exit row outside — they fail on the 2-tall geometry.
+
 ### ★ Ship hatch exit, part 2: station blocks no longer pinch the doorway approach (#211, 2026-07-02)
 The engine-nozzle fix below was correct but incomplete — in-game the player STILL snagged at the open
 hatch. A structure dump revealed a **second pinch just inside the door**: the box ship's `medbay (1,1,1)`

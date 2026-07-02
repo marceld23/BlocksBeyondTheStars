@@ -615,13 +615,6 @@
   {
    "x": 2,
    "y": 3,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
-  },
-  {
-   "x": 2,
-   "y": 3,
    "z": 8,
    "kind": "block",
    "id": "iron_wall"
@@ -811,13 +804,6 @@
   {
    "x": 3,
    "y": 3,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
-  },
-  {
-   "x": 3,
-   "y": 3,
    "z": 8,
    "kind": "block",
    "id": "iron_wall"
@@ -996,13 +982,6 @@
    "z": 8,
    "kind": "block",
    "id": "glass"
-  },
-  {
-   "x": 4,
-   "y": 3,
-   "z": 0,
-   "kind": "block",
-   "id": "iron_wall"
   },
   {
    "x": 4,

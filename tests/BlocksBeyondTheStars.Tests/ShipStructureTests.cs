@@ -283,13 +283,13 @@ public sealed class ShipStructureTests : IDisposable
     [Fact]
     public void BoxShipHatch_ExitCorridorIsClear_AcrossTheFullDoorwayGap()
     {
-        // #211: the box ship's rear engine nozzles used to sit at halfX∓1 — inside the 3-wide hatch gap on the
-        // 5-wide starter hull — so the open door still blocked the player at knee height unless they walked out
-        // dead-centre (or jumped onto a nozzle). And the medbay/quarters station blocks used to sit in the rear
-        // cabin corners (z=1), pinching the doorway approach to a single 1-wide lane the same way. The full
-        // doorway gap must have a clear corridor OUTSIDE (z=-1) and on the two APPROACH rows INSIDE (z=+1,+2),
-        // at feet AND head height. (The hatch faces -Z on every ship — the rear-wall convention RegisterDoors
-        // relies on too.)
+        // #211: the box ship's hatch used to jam the walk-out three ways — engine nozzles in the gap (outside),
+        // medbay/quarters station blocks behind it (inside), and finally a 2-tall opening: the player capsule
+        // is 1.88 m and the grounded step-up sweep (stepOffset 0.6) needs that much headroom on top, so the
+        // sweep hit the lintel and only a jump (airborne — no step sweep) got through. The full doorway gap
+        // must be clear for THREE rows of height (feet/head/step headroom) at the door plane (dz=0), the two
+        // approach rows inside (dz=+1,+2) and the exit row outside (dz=-1). (The hatch faces -Z on every
+        // ship — the rear-wall convention RegisterDoors relies on too.)
         var server = Started(placeShip: true, out var repo);
         using (repo)
         {
@@ -300,12 +300,13 @@ public sealed class ShipStructureTests : IDisposable
             {
                 foreach (var gx in DoorwayGapColumns(x => !s.Get(new Vector3i(x, door.Y, door.Z)).IsAir, door.X))
                 {
-                    foreach (int dz in new[] { -1, 1, 2 })
+                    foreach (int dz in new[] { -1, 0, 1, 2 })
                     {
-                        Assert.True(s.Get(new Vector3i(gx, door.Y, door.Z + dz)).IsAir,
-                            $"box ship: doorway corridor blocked at feet height, x={gx} dz={dz}");
-                        Assert.True(s.Get(new Vector3i(gx, door.Y + 1, door.Z + dz)).IsAir,
-                            $"box ship: doorway corridor blocked at head height, x={gx} dz={dz}");
+                        for (int dy = 0; dy <= 2; dy++)
+                        {
+                            Assert.True(s.Get(new Vector3i(gx, door.Y + dy, door.Z + dz)).IsAir,
+                                $"box ship: doorway corridor blocked, x={gx} dy={dy} dz={dz}");
+                        }
                     }
                 }
             }
@@ -316,9 +317,10 @@ public sealed class ShipStructureTests : IDisposable
     public void DesignedShipLayouts_ExitCorridorIsClear_AcrossTheFullDoorwayGap()
     {
         // #211 (and the incomplete #181/#182 fix): authored layouts placed engine blocks directly in front of
-        // doorway columns — and station marker blocks (cargo/medbay) directly behind them. For every ship
-        // layout in content, the door's full air gap must have a clear corridor just OUTSIDE (z-1, beyond the
-        // rear wall the hatch sits in) and on the two APPROACH rows INSIDE (z+1, z+2), at feet + head height.
+        // doorway columns, station marker blocks (cargo/medbay) directly behind them, and capped the doorway
+        // at 2 blocks — too low for the 1.88 m player capsule plus the 0.6 grounded step-up sweep. For every
+        // ship layout in content, the door's full air gap must be clear for THREE rows of height at the door
+        // plane (z), the approach rows inside (z+1, z+2) and the exit row outside (z-1).
         int layoutsChecked = 0;
         foreach (var ship in _content.Ships.Values)
         {
@@ -341,12 +343,13 @@ public sealed class ShipStructureTests : IDisposable
             {
                 foreach (var gx in DoorwayGapColumns(x => solid.Contains((x, door.Y, door.Z)), door.X))
                 {
-                    foreach (int dz in new[] { -1, 1, 2 })
+                    foreach (int dz in new[] { -1, 0, 1, 2 })
                     {
-                        Assert.False(solid.Contains((gx, door.Y, door.Z + dz)),
-                            $"{ship.Key}: doorway corridor blocked at feet height, x={gx} dz={dz}");
-                        Assert.False(solid.Contains((gx, door.Y + 1, door.Z + dz)),
-                            $"{ship.Key}: doorway corridor blocked at head height, x={gx} dz={dz}");
+                        for (int dy = 0; dy <= 2; dy++)
+                        {
+                            Assert.False(solid.Contains((gx, door.Y + dy, door.Z + dz)),
+                                $"{ship.Key}: doorway corridor blocked, x={gx} dy={dy} dz={dz}");
+                        }
                     }
                 }
             }

@@ -227,10 +227,16 @@ public sealed partial class GameServer
                         continue; // hollow interior
                     }
 
-                    bool door = z == 0 && (x == halfX - 1 || x == halfX || x == halfX + 1) && (y == 1 || y == 2);
+                    // Rear hatch opening (a slide door fills it, see DoorCells below). THREE tall like every
+                    // settlement doorway: the player capsule is 1.88 m and the grounded step-up sweep
+                    // (stepOffset 0.6) needs that much headroom on top — a 2-tall hatch jammed the walk-out
+                    // against the lintel until the player jumped (#211). Very low hulls keep a 2-tall hatch
+                    // rather than cutting into the roof rim.
+                    int doorTop = System.Math.Min(3, height - 1);
+                    bool door = z == 0 && (x == halfX - 1 || x == halfX || x == halfX + 1) && y >= 1 && y <= doorTop;
                     if (door)
                     {
-                        continue; // rear hatch opening (a slide door fills it, see DoorCells below)
+                        continue;
                     }
 
                     // Window panes at eye height: a band along the front (+Z) and both side walls (matching the
