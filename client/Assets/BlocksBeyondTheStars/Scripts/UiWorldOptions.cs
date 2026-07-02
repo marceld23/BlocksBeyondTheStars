@@ -17,6 +17,10 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class UiWorldOptions
     {
+        /// <summary>View-local y of the shared footer button row (= panel y 842; the views sit at panel
+        /// y 64). Every page places its bottom controls on this line so nothing overlaps or misaligns.</summary>
+        private const float FooterY = 778f;
+
         /// <summary>Builds the (initially hidden) overlay; returns its root for the caller to toggle.</summary>
         public static GameObject Build(AppShell shell, Transform root, WorldCreationOptions opt)
         {
@@ -30,10 +34,12 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 30f, 20f, 800f, 34f, shell.L("ui.worldopt.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Stacked views inside the panel: the main sliders, the advanced per-type list, and the
-            // authored-structure (template) controls.
-            var main = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
-            var advanced = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
-            var structures = UiKit.AddPanel(panel, 0f, 64f, 1600f, 770f, new Color(0f, 0f, 0f, 0f)).gameObject;
+            // authored-structure (template) controls. Each view owns a shared footer row (FooterY):
+            // page-navigation on the left, ONE "leave this page" action bottom-right (Done on main,
+            // Back on sub-pages) — so only a single page's controls are ever visible at once.
+            var main = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
+            var advanced = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
+            var structures = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
             advanced.SetActive(false);
             structures.SetActive(false);
 
@@ -100,14 +106,6 @@ namespace BlocksBeyondTheStars.Client
             Row(true, shell.L("ui.worldopt.space_combat"), onOff, () => opt.SpaceCombat ? 1 : 0, v => opt.SpaceCombat = v == 1);
             Row(true, shell.L("ui.worldopt.keep_ship"), onOff, () => opt.KeepShip ? 1 : 0, v => opt.KeepShip = v == 1);
 
-            // Authored hand-designed stations/towns (template pools) get their own page (left column has room).
-            ly += 16f;
-            UiKit.AddButton(main.transform, lx, ly, 740f, 44f, shell.L("ui.worldopt.structures_btn"), () =>
-            {
-                main.SetActive(false);
-                structures.SetActive(true);
-            });
-
             // Right column: the generated world.
             UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_world"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ry += 34f;
@@ -131,11 +129,18 @@ namespace BlocksBeyondTheStars.Client
                 new[] { shell.L("ui.worldopt.density_sparse"), shell.L("ui.worldopt.density_normal"), shell.L("ui.worldopt.density_dense") },
                 () => opt.StoryDensity, v => opt.StoryDensity = v);
 
-            UiKit.AddButton(main.transform, rx, ry + 8f, 740f, 44f, shell.L("ui.worldopt.advanced"), () =>
+            // ── Footer (main page): page navigation left, Done right ───────────────────────
+            UiKit.AddButton(main.transform, 30f, FooterY, 560f, 48f, shell.L("ui.worldopt.structures_btn"), () =>
+            {
+                main.SetActive(false);
+                structures.SetActive(true);
+            });
+            UiKit.AddButton(main.transform, 620f, FooterY, 560f, 48f, shell.L("ui.worldopt.advanced"), () =>
             {
                 main.SetActive(false);
                 advanced.SetActive(true);
             });
+            UiKit.AddButton(main.transform, 1290f, FooterY, 280f, 48f, shell.L("ui.worldopt.done"), () => overlay.SetActive(false), "btn_singleplayer");
 
             // ── Advanced: per-planet-type frequencies ──────────────────────────────────────
             BuildAdvanced(shell, advanced.transform, opt, freqSteps, () =>
@@ -151,8 +156,6 @@ namespace BlocksBeyondTheStars.Client
                 main.SetActive(true);
             });
 
-            UiKit.AddButton(panel, 1290f, 842f, 280f, 48f, shell.L("ui.worldopt.done"), () => overlay.SetActive(false), "btn_singleplayer");
-
             overlay.SetActive(false);
             return overlay;
         }
@@ -167,6 +170,10 @@ namespace BlocksBeyondTheStars.Client
             var note = UiKit.AddText(parent, 30f, 34f, 1520f, 44f, shell.L("ui.worldopt.advanced_note"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
             note.horizontalOverflow = HorizontalWrapMode.Wrap;
 
+            // Back sits in the shared footer slot (bottom-right = "leave this page" on every page) and is
+            // built even when the page stays empty, so the sub-page can never trap the player.
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+
             var types = shell.Content?.Planets.Values
                 .Where(p => p.Selectable)
                 .OrderBy(p => p.Exotic)
@@ -174,7 +181,6 @@ namespace BlocksBeyondTheStars.Client
                 .ToList();
             if (types is null)
             {
-                onBack();
                 return;
             }
 
@@ -207,8 +213,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(parent, 30f, 706f, 280f, 44f, shell.L("ui.worldopt.advanced_reset"), () => opt.PlanetTypes.Clear());
-            UiKit.AddButton(parent, 330f, 706f, 280f, 44f, shell.L("ui.menu.back"), onBack);
+            UiKit.AddButton(parent, 30f, FooterY, 420f, 48f, shell.L("ui.worldopt.advanced_reset"), () => opt.PlanetTypes.Clear());
         }
 
         /// <summary>The authored-structures page: how readily hand-designed station/settlement templates are
@@ -253,7 +258,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(parent, 30f, 706f, 280f, 44f, shell.L("ui.menu.back"), onBack);
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
         }
 
         /// <summary>A labelled discrete slider (whole steps) with the current step's name beside it.</summary>
