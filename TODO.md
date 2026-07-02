@@ -5412,6 +5412,18 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-02): world-options overlay footer — no more overlapping buttons (#209)
+- **"Done" partially covered the "Advanced: planet types…" button ([#209](https://github.com/marceld23/BlocksBeyondTheStars/issues/209), PR [#210](https://github.com/marceld23/BlocksBeyondTheStars/pull/210)).**
+  In `UiWorldOptions` the main page's two page-nav buttons flowed below the 770-px content view into the footer
+  zone, where the panel-level "Fertig" button (built later → drawn on top) overlapped the "Erweitert" button and
+  stole its clicks; "Selbst gebaute Strukturen…" sat flush against the panel's bottom edge, misaligned. On the
+  Advanced/Structures sub-pages the parent's Done stayed visible over the sub-page chrome, and closing from there
+  reopened the overlay on the sub-page. Now every page shares one footer row (`FooterY`, panel y 842): page nav
+  bottom-left on main, exactly **one** "leave this page" action bottom-right (Done on main, Back on sub-pages).
+  Done is a child of the main view, so only one page's controls are ever visible and the overlay always reopens
+  on the main page; the Advanced page builds its Back button before the planet-type early-return so an empty
+  page can't trap the player. Client-only; local Unity build + full test suite green.
+
 ## ✅ Done (2026-07-01): three reported bug fixes — helmet lamp, world-options modal, ship-exit door (#179, #180, #181)
 - **Helmet lamp stays on in space ([#179](https://github.com/marceld23/BlocksBeyondTheStars/issues/179)).** The suit
   headlamp (toggle `L`) is a shader spotlight driven by `_Sc_LampColor` in `PlayerController.UpdateLamp()`. When the
