@@ -159,6 +159,7 @@ public sealed class FloraVarietyTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Worldgen_ConiferWorld_GrowsPines_NotBroadleafCrowns()
     {
         var planet = _content.GetPlanet("highland")!; // alpine theme → conifers only

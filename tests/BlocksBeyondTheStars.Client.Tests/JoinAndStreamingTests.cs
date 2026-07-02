@@ -67,6 +67,7 @@ public sealed class JoinAndStreamingTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire()
     {
         // Host default is radius 1 (ClientServerHarness); the client asks for radius 3 via the JoinRequest.

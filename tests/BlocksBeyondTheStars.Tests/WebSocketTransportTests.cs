@@ -28,6 +28,7 @@ public sealed class WebSocketTransportTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task WebSocketTransport_JoinsAndStreamsChunksAsync()
     {
         int port = FreeTcpPort();

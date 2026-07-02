@@ -78,6 +78,7 @@ public sealed class PlaytimeTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Playtime_PersistsAcrossReload()
     {
         var server = Start(out var repo, "persist");

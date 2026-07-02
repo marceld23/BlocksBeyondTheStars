@@ -30,6 +30,7 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void CrateredWorld_FlatRegolithWithPits_AndRareMetalInSomeCraters()
     {
         // Item 33: landable asteroids (and airless moons) are mostly flat regolith pocked with round impact
@@ -88,6 +89,7 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void WateryWorld_GeneratesUplandPonds_AboveSeaLevel()
     {
         // B7: a watery (atmospheric) world should scatter swimmable upland ponds — water ABOVE the global sea
@@ -124,6 +126,7 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Trees_DoNotStandInUplandPonds()
     {
         // B35: a tree must never spawn in the water — its trunk base sitting directly on a pond/sea cell. Scan a
@@ -296,6 +299,7 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void MultiBiomeWorld_HasSeveralSurfaceBlocks()
     {
         var content = Content();

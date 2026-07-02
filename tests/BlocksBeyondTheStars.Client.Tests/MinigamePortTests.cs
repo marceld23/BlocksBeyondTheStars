@@ -49,6 +49,7 @@ public sealed class MinigamePortTests
     [InlineData(1)]
     [InlineData(7)]
     [InlineData(42)]
+    [Trait("Category", "Slow")]
     public void DataFishing_RunsAndReachesAResult(int seed)
     {
         var host = RunToEnd(new DataFishingGame(), seed);
@@ -115,6 +116,7 @@ public sealed class MinigamePortTests
     [Theory]
     [InlineData(1)]
     [InlineData(7)]
+    [Trait("Category", "Slow")]
     public void Blockfall_RunsToResult(int seed)
     {
         var host = RunToEnd(new BlockfallGame(), seed, maxSeconds: 300f);
@@ -256,6 +258,7 @@ public sealed class MinigamePortTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void SignalTuner_TimesOutToAResult()
     {
         var host = new MinigameHost(new SignalTunerGame(), seed: 1);

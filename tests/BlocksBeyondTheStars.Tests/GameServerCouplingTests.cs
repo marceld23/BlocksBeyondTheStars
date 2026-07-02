@@ -91,6 +91,7 @@ public sealed class GameServerCouplingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Machines_cluster_at_a_wreck_when_coupling_is_on()
     {
         var server = StartedWithWreck(coupling: true, out var repo);
@@ -104,6 +105,7 @@ public sealed class GameServerCouplingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Machines_do_not_cluster_at_a_wreck_when_coupling_is_off()
     {
         var server = StartedWithWreck(coupling: false, out var repo);
@@ -118,6 +120,7 @@ public sealed class GameServerCouplingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Coupling_does_not_change_how_many_machines_spawn()
     {
         int on = FillToCap(coupling: true);

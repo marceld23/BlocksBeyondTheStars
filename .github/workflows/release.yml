@@ -69,6 +69,43 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Resolved build version: $v"
 
+  # RELEASE TEST GATE: the FULL headless test suite on the exact tagged commit. ci.yml's PR check runs
+  # only the fast tier (Category!=Slow), and nothing ties a tag to a green CI run on main — this job
+  # closes that gap: every package/publish job (installers, itch.io, Docker image) `needs` it, so no
+  # asset ships unless all tests pass. It runs in parallel with the ~15+ min Unity player builds, so it
+  # adds no wall-clock time to a release. Mirrors ci.yml's build-test but without -warnaserror (warnings
+  # are a PR-gate concern; this gate is about behaviour).
+  test:
+    name: Full test suite (release gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore + build test projects
+        run: |
+          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
+          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore
+          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore
+
+      - name: Test (full suite, Slow tier included)
+        run: |
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+
   build-player:
     name: Build Unity player (Windows)
     needs: version
@@ -468,10 +505,11 @@ jobs:
           name: player-webgl
           path: player-webgl
 
-  # Linux packaging
+  # Linux packaging. `needs: test` (like every package/publish job below): nothing ships unless the
+  # full suite passed on this commit.
   package-linux:
     name: Package + release (Linux)
-    needs: [version, build-player-linux]
+    needs: [version, build-player-linux, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -539,7 +577,7 @@ jobs:
   # execute bits (artifacts strip them).
   package-mac:
     name: Package + release (macOS)
-    needs: [version, build-player-mac]
+    needs: [version, build-player-mac, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -589,7 +627,7 @@ jobs:
   # image's entrypoint fetches this `webgl*.zip` (BBS_FETCH_WEBGL=1) and serves it at /play (issue #121).
   package-webgl:
     name: Package + release (WebGL)
-    needs: [version, build-player-webgl]
+    needs: [version, build-player-webgl, test]
     runs-on: ubuntu-latest
     steps:
       - name: Download WebGL player artifact
@@ -626,7 +664,9 @@ jobs:
   # workflow_dispatch run just build-validates it — same publish gating as the GitHub Release / itch.io steps.
   docker:
     name: Dedicated-server image
-    needs: version
+    # `test` gates the GHCR push like every other publish job. It costs the image ~14 min of start delay
+    # (it no longer launches immediately), but that stays well inside the Unity-build wall time.
+    needs: [version, test]
     permissions:
       contents: read
       packages: write
@@ -640,7 +680,7 @@ jobs:
 
   package:
     name: Package + release (Windows)
-    needs: [version, build-player]
+    needs: [version, build-player, test]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5

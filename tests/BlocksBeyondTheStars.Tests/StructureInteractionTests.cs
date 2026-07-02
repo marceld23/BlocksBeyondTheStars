@@ -55,6 +55,7 @@ public sealed class StructureInteractionTests : IDisposable
     // ---------------- Wreck loot ----------------
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Wreck_SpawnsScavengeableLootContainers()
     {
         for (long seed = 1; seed <= 60; seed++)
@@ -82,6 +83,7 @@ public sealed class StructureInteractionTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void StructureLoot_DoesNotRespawn_OnReload()
     {
         // Find a wreck seed, loot all its containers, then restart the same world and confirm the

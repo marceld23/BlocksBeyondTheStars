@@ -64,6 +64,7 @@ public sealed class ChunkStreamingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Sweep_EvictsFarChunks_ButKeepsThePlayersOwnRegion()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "sweep"));
@@ -114,6 +115,7 @@ public sealed class ChunkStreamingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void ClientViewDistance_ExtendsStreamingRadius_BeyondHostDefault()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vd"));
@@ -150,6 +152,7 @@ public sealed class ChunkStreamingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void FarColumns_StreamOnlyTheSurfaceBand_WhileNearColumnsStreamTheFullVerticalSpan()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "lod"));

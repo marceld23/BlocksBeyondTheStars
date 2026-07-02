@@ -627,6 +627,7 @@ public sealed class CreatureTests : IDisposable
     // ---------------- Give-up leash (aggressors don't hound the player forever) ----------------
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Aggressor_GivesUpAfterChasingTooLong_ThenItsCooldownDecays()
     {
         var server = Started("jungle", out var repo);

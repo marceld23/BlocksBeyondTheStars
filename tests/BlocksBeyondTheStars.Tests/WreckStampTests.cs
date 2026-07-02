@@ -63,6 +63,7 @@ public sealed class WreckStampTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Wreck_StampsWithName_AndLootMarkers()
     {
         var server = StartedWithWreck("rocky", out var repo);
@@ -76,6 +77,7 @@ public sealed class WreckStampTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Wreck_StampsRealBlocksIntoTheWorld()
     {
         var server = StartedWithWreck("rocky", out var repo);
@@ -100,6 +102,7 @@ public sealed class WreckStampTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void Wreck_IsNotProtected_CanBeMined()
     {
         var server = StartedWithWreck("rocky", out var repo);
