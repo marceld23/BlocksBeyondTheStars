@@ -192,10 +192,15 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     float2 screenUV = GetNormalizedScreenSpaceUV(i.positionCS);
                     float sceneEye = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
                     float fragEye = -TransformWorldToView(i.wp).z;
-                    float column = max(0.0, sceneEye - fragEye); // metres of water column at this pixel
-                    float depth01 = saturate(column / 16.0); // see far deeper before it reads "deep" (was 6 m)
+                    float column = max(0.0, sceneEye - fragEye); // metres of water column ALONG THE VIEW RAY
+                    // Depth tint keys on the VERTICAL water depth, not the ray length: at a shallow viewing
+                    // angle the ray travels far through even knee-deep water (1/cos blow-up), which used to
+                    // tint the whole lake "deep sea" from the shore. Scaling by |V.y| recovers ~true depth.
+                    float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
+                    float vertical = column * max(abs(Vw.y), 0.08); // floor keeps near-horizontal rays finite
+                    float depth01 = saturate(vertical / 16.0);
                     col = lerp(col, col * 0.6 + light * float3(0.03, 0.10, 0.16), depth01 * 0.45); // gentler, lighter deep tint
-                    alpha = lerp(alpha, saturate(alpha + 0.16), depth01); // deep water stays much more see-through
+                    alpha = lerp(alpha, saturate(alpha + 0.08), depth01); // depth reads as colour, barely as opacity
                     float edge = 1.0 - saturate(column / 0.55);          // ~1 right at the waterline / around objects
                     if (edge > 0.01)
                     {
@@ -219,14 +224,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // back to the sky. Blended by Fresnel (grazing angles reflect most) + a tight sun glint. This
                     // is SSR localised to WATER — no full-screen pass, so no darkening risk, and it only reflects
                     // the surface that should (the sea), never matte walls.
-                    float3 Vw = normalize(i.wp - _WorldSpaceCameraPos);
                     // Stronger wave perturbation on the reflection ray breaks the mirror into a soft, watery
-                    // reflection instead of a hard pixel-perfect one.
+                    // reflection instead of a hard pixel-perfect one. (Vw declared above for the depth measure.)
                     float3 rn = normalize(N + float3(wob.x, 0.0, wob.y) * 0.12);
                     float3 Rw = reflect(Vw, rn);
                     // Keep the reflection a sheen, not a mirror, so you can see INTO the water: low base sheen and
-                    // a capped grazing maximum (0.7, not full mirror) let the depth/bed colour read through.
-                    float fres = lerp(0.08, 0.7, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
+                    // a capped grazing maximum (0.45, not full mirror) let the depth/bed colour read through.
+                    float fres = lerp(0.08, 0.45, pow(1.0 - saturate(dot(-Vw, rn)), 4.0));
                     float3 reflCol = _Sc_Sky.rgb; // most of a water reflection is the sky
                     float3 sp = i.wp;
                     float stepLen = 0.5;
@@ -254,9 +258,10 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                             break;
                         }
                     }
-                    float sunSpec = pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 4.0;
+                    // Glint capped well below the old x4 blow-out: it should sparkle, not white out the bed below.
+                    float sunSpec = min(pow(saturate(dot(Rw, normalize(_Sc_SunDir.xyz))), 220.0) * 1.5, 1.5);
                     reflCol += light * sunSpec;
-                    col = lerp(col, reflCol, saturate(fres) * 0.45);
+                    col = lerp(col, reflCol, saturate(fres) * 0.35);
 
                     alpha = 1.0; // bed + reflection composited here → opaque output, no hardware double-blend
                     } // _Sc_ScreenFx (depth/opaque available)
