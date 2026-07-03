@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
         // ClientSettings (Awake / the connect dialog); Password is session-only.
         public string Host = "127.0.0.1";
         public string Port = "31415";
-        public string PlayerName = "Pilot";
+        public string PlayerName = ""; // empty until chosen — the menu gates play actions on it (#221)
         public string Password = "";
 
         /// <summary>One-shot notice shown on the main menu (e.g. why the last join was refused).</summary>

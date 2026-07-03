@@ -135,7 +135,7 @@ a.ghost:hover{background:rgba(95,215,255,.1)}
  <div class='rule'></div>
  <div class='logo'><b>Blocks</b> Beyond the Stars</div>
  <div class='meta'>Server “__SERVER__” · World “__WORLD__” · native clients join on UDP __PORT__</div>
- <a class='btn primary' href='/play?server_host=__WSHOST__&amp;server_port=__PORT__&amp;bbs_auto_join=0'>▶&nbsp; Play in the browser</a>
+ <a class='btn primary' href='/play/?server_host=__WSHOST__&amp;server_port=__PORT__&amp;bbs_auto_join=0'>▶&nbsp; Play in the browser</a>
  <a class='btn ghost' href='/download'>⬇&nbsp; Download the Windows client</a>
  <a class='btn ghost' href='/download-linux'>⬇&nbsp; Download the Linux client (AppImage)</a>
  <a class='btn ghost' href='/download-mac'>⬇&nbsp; Download the macOS client (experimental)</a>

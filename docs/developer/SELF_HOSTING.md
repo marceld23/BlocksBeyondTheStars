@@ -288,9 +288,11 @@ version must be higher than the last.
 
 ### Play in the browser (no install)
 
-The server can also serve the **WebGL browser client** at `http://<server>:<adminPort>/play`. The portal's
-**Play in the browser** button deep-links to it with the server host/port pre-filled (`/play?server_host=…&server_port=31415`).
-No download, no install — players just open the link. Singleplayer/host are unavailable in the browser (it
+The server can also serve the **WebGL browser client** at `http://<server>:<adminPort>/play/`. The portal's
+**Play in the browser** button deep-links to it with the server host/port pre-filled (`/play/?server_host=…&server_port=31415`;
+the slashless `/play` redirects there, keeping the query — the Unity page references its assets relatively, #218).
+No download, no install — players just open the link, pick a pilot name and press Play (the deep-linked
+menu hides the manual server picker, #221). Singleplayer/host are unavailable in the browser (it
 only joins a hosted server over WebSocket), so `BBS_ENABLE_WEBSOCKET=true` is required.
 
 The browser build is **not** baked into the server image (it needs Unity, which can't run in the image). You

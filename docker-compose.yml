@@ -8,6 +8,10 @@
 # Config precedence is server.json < BBS_* env vars < CLI; in a container you normally use the env vars
 # below. ALWAYS set BBS_ADMIN_PASSWORD before exposing the admin port (31416) beyond your LAN.
 
+# Pin the Compose project name: without it Compose brands every container/volume/network after the
+# checkout FOLDER (historically "SpaceCraft"), not the game (#217).
+name: blocks-beyond-the-stars
+
 services:
   server:
     build:

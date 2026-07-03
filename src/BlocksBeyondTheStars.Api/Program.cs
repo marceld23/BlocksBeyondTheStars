@@ -80,8 +80,16 @@ Directory.CreateDirectory(webglDir);
 
 // Friendly page when no build is installed yet (volume not mounted / fetch disabled), so /play never
 // 404s blankly. Registered BEFORE UseStaticFiles so it only fires when index.html is absent.
-app.MapGet("/play", () =>
+app.MapGet("/play", (HttpContext ctx) =>
 {
+    // The Unity index.html references its assets RELATIVELY (TemplateData/…, Build/…). Served at the
+    // slashless "/play" those resolve against "/" and 404 (#218) — canonicalize to "/play/" and keep the
+    // query string (the WebGL client reads server_host/server_port/bbs_auto_join from the page URL).
+    if (!ctx.Request.Path.Value!.EndsWith('/'))
+    {
+        return Results.Redirect("/play/" + ctx.Request.QueryString);
+    }
+
     if (File.Exists(Path.Combine(webglDir, "index.html")))
     {
         return Results.File(Path.Combine(webglDir, "index.html"), "text/html; charset=utf-8");

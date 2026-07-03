@@ -64,7 +64,10 @@ namespace BlocksBeyondTheStars.Client
                 GlitchIntegrationSecrets.ServerPassword,
                 GetEnv("GLITCH_SERVER_PASSWORD"));
 
-            return IsConfigured && !string.IsNullOrWhiteSpace(host);
+            // A host is enough: the portal's /play deep-link (?server_host=…) must work in plain
+            // open-source/self-host builds too — gating on the Glitch config made the params dead there,
+            // so "Play" silently joined the default 127.0.0.1 (#221).
+            return !string.IsNullOrWhiteSpace(host);
         }
 
         public static void InstallIfConfigured()

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      /* Space-themed shell (#220): black page, subtle starfield, branded loading UI. Fully
+         self-contained — no TemplateData images, so the template is a single file. */
+      html, body { padding: 0; margin: 0; width: 100%; height: 100%; background: #05070d; overflow: hidden }
+      #bbs-sky { position: fixed; inset: 0; pointer-events: none;
+        background:
+          radial-gradient(1.4px 1.4px at 20% 30%, #bfe7ff88, transparent),
+          radial-gradient(1.2px 1.2px at 75% 22%, #ffffff66, transparent),
+          radial-gradient(1.6px 1.6px at 60% 70%, #bfe7ff55, transparent),
+          radial-gradient(1.2px 1.2px at 35% 80%, #ffffff44, transparent),
+          radial-gradient(1.3px 1.3px at 88% 62%, #bfe7ff66, transparent),
+          radial-gradient(1100px 640px at 50% -12%, #15243f 0%, #05070d 58%) }
+      #unity-container { position: fixed; inset: 0 }
+      #unity-canvas { width: 100%; height: 100%; display: block; background: #05070d }
+      #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        display: none; text-align: center; font-family: 'Rajdhani', system-ui, 'Segoe UI', sans-serif }
+      #bbs-title { color: #eaf6ff; font-size: 28px; font-weight: 700; letter-spacing: .18em;
+        text-transform: uppercase; text-shadow: 0 0 20px rgba(95,215,255,.5), 0 0 3px rgba(95,215,255,.85);
+        margin-bottom: 26px; white-space: nowrap }
+      #bbs-title b { color: #5fd7ff; font-weight: 700 }
+      #unity-progress-bar-empty { width: 280px; height: 10px; margin: 0 auto; border: 1px solid #21304c;
+        border-radius: 6px; background: rgba(95,215,255,.06) }
+      #unity-progress-bar-full { width: 0%; height: 100%; border-radius: 5px;
+        background: linear-gradient(90deg, #2b9fd6, #5fd7ff); box-shadow: 0 0 12px rgba(95,215,255,.55) }
+      #bbs-loading-hint { color: #8aa0bd; font-size: 12px; letter-spacing: .22em; text-transform: uppercase; margin-top: 14px }
+      #unity-warning { position: absolute; left: 50%; top: 5%; transform: translate(-50%);
+        background: white; padding: 10px; display: none; font-family: system-ui, sans-serif }
+      #unity-fullscreen-button { position: absolute; right: 14px; bottom: 12px; width: 34px; height: 34px;
+        cursor: pointer; opacity: .35; transition: opacity .15s; color: #bfe7ff; font-size: 24px;
+        line-height: 34px; text-align: center; user-select: none }
+      #unity-fullscreen-button:hover { opacity: 1 }
+    </style>
+  </head>
+  <body>
+    <div id="bbs-sky"></div>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="bbs-title"><b>Blocks</b> Beyond the Stars</div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+        <div id="bbs-loading-hint">Loading</div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-fullscreen-button" title="Fullscreen">⛶</div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#if MEMORY_FILENAME
+        memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        showBanner: unityShowBanner,
+      };
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile: lock the visual viewport so the canvas maps 1:1 to CSS pixels (no pinch zoom).
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+      }
+      // Desktop and mobile alike fill the whole browser client area (the CSS pins the canvas to the
+      // viewport); Unity keeps the render target matched to the DOM size, so no manual resize handling.
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          document.querySelector("#unity-loading-bar").style.display = "none";
+          document.querySelector("#unity-fullscreen-button").onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>

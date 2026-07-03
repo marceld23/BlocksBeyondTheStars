@@ -39,7 +39,9 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
             // Connect-to-server dialog (built below; the JOIN button reveals it). Captured by the button.
+            // dlgName mirrors the dialog's name input so openers can carry the menu's name field over.
             GameObject connect = null;
+            InputField dlgName = null;
 
             // --- One-shot notice (e.g. why the last join was refused) ---
             if (!string.IsNullOrEmpty(shell.MenuNotice))
@@ -77,29 +79,69 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.Save();
                 shell.StartJoin();
             }, "btn_join");
-            UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.connect_manual"), () =>
+
+            // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
+            // players arriving through the portal already have host/port preconfigured, so the extra
+            // choice is just noise for them (#221).
+            float wextra = 0f;
+            if (!GlitchIntegration.TryGetConfiguredServer(out _, out _, out _))
             {
-                if (connect != null)
+                UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.connect_manual"), () =>
                 {
-                    connect.SetActive(true);
-                }
-            }, "btn_join");
-            UiKit.AddButton(root, bx, wby + gap * 2f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
-            UiKit.AddButton(root, bx, wby + gap * 3f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+                    if (connect != null)
+                    {
+                        dlgName.text = webName[0]; // carry the menu's name over (fires the input's onChange)
+                        connect.SetActive(true);
+                    }
+                }, "btn_join");
+                wextra = gap;
+            }
+
+            UiKit.AddButton(root, bx, wby + wextra + gap, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, wby + wextra + gap * 2f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
 #else
-            UiKit.AddButton(root, bx, by, bw, bh, shell.L("ui.menu.singleplayer"), shell.StartSingleplayer, "btn_singleplayer");
-            UiKit.AddButton(root, bx, by + gap, bw, bh, shell.L("ui.menu.host"), shell.StartHost, "btn_join");
-            UiKit.AddButton(root, bx, by + gap * 2f, bw, bh, shell.L("ui.menu.join"), () =>
+            // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent
+            // "Pilot" default meant nobody ever picked one and multiplayer names collided. The value is
+            // persisted on use; the connect dialog's own name field stays as a per-join override.
+            string[] natName = { shell.PlayerName };
+            UiKit.AddText(root, bx, by, bw, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(root, bx, by + 28f, bw, 44f, natName[0], v => natName[0] = v);
+            var natWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
+                new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
+            float nby = by + 112f;
+
+            // True when a name is present (warns + blocks otherwise); commits it to the shell + settings.
+            bool CommitName()
             {
-                if (connect != null)
+                if (string.IsNullOrWhiteSpace(natName[0]))
                 {
+                    natWarn.text = shell.L("ui.webgl.need_name");
+                    return false;
+                }
+
+                natWarn.text = "";
+                shell.PlayerName = natName[0].Trim();
+                shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
+                shell.Settings.Save();
+                return true;
+            }
+
+            UiKit.AddButton(root, bx, nby, bw, bh, shell.L("ui.menu.singleplayer"),
+                () => { if (CommitName()) { shell.StartSingleplayer(); } }, "btn_singleplayer");
+            UiKit.AddButton(root, bx, nby + gap, bw, bh, shell.L("ui.menu.host"),
+                () => { if (CommitName()) { shell.StartHost(); } }, "btn_join");
+            UiKit.AddButton(root, bx, nby + gap * 2f, bw, bh, shell.L("ui.menu.join"), () =>
+            {
+                if (CommitName() && connect != null)
+                {
+                    dlgName.text = shell.PlayerName; // carry the menu's name over (fires the input's onChange)
                     connect.SetActive(true);
                 }
             }, "btn_join");
-            UiKit.AddButton(root, bx, by + gap * 3f, bw, bh, shell.L("ui.menu.editors"), () => shell.GoTo(ShellPhase.Editors), "btn_singleplayer");
-            UiKit.AddButton(root, bx, by + gap * 4f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
-            UiKit.AddButton(root, bx, by + gap * 5f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
-            UiKit.AddButton(root, bx, by + gap * 6f, bw, bh, shell.L("ui.menu.quit"), shell.Quit, "btn_exit");
+            UiKit.AddButton(root, bx, nby + gap * 3f, bw, bh, shell.L("ui.menu.editors"), () => shell.GoTo(ShellPhase.Editors), "btn_singleplayer");
+            UiKit.AddButton(root, bx, nby + gap * 4f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, nby + gap * 5f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+            UiKit.AddButton(root, bx, nby + gap * 6f, bw, bh, shell.L("ui.menu.quit"), shell.Quit, "btn_exit");
 #endif
 
             // --- World / server info panel (bottom-right, decorative) ---
@@ -129,21 +171,29 @@ namespace BlocksBeyondTheStars.Client
             var dlg = UiKit.AddPanel(connect.transform, 660f, 280f, 600f, 520f, UiKit.Panel).transform;
             UiKit.AddText(dlg, 30f, 24f, 540f, 30f, shell.L("ui.menu.connect_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(dlg, 30f, 80f, 540f, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(dlg, 30f, 106f, 540f, 38f, name[0], v => name[0] = v);
+            dlgName = UiKit.AddInput(dlg, 30f, 106f, 540f, 38f, name[0], v => name[0] = v);
             UiKit.AddText(dlg, 30f, 160f, 540f, 22f, shell.L("ui.menu.connect_host"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 186f, 540f, 38f, host[0], v => host[0] = v);
             UiKit.AddText(dlg, 30f, 240f, 540f, 22f, shell.L("ui.menu.connect_port"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 266f, 260f, 38f, port[0], v => port[0] = v);
             UiKit.AddText(dlg, 30f, 320f, 540f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 346f, 540f, 38f, pass[0], v => pass[0] = v);
+            var dlgWarn = UiKit.AddText(dlg, 30f, 396f, 540f, 22f, "", 14,
+                new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddButton(dlg, 30f, 432f, 270f, 54f, shell.L("ui.menu.connect"), () =>
             {
-                if (!string.IsNullOrWhiteSpace(name[0]))
+                // A name is required (#221): joining anonymously fell back to a server-assigned
+                // "player_N" identity nobody recognizes, and shared "Pilot" names collide.
+                if (string.IsNullOrWhiteSpace(name[0]))
                 {
-                    shell.PlayerName = name[0].Trim();
-                    shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
-                    shell.Settings.Save();
+                    dlgWarn.text = shell.L("ui.webgl.need_name");
+                    return;
                 }
+
+                dlgWarn.text = "";
+                shell.PlayerName = name[0].Trim();
+                shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
+                shell.Settings.Save();
 
                 shell.Host = string.IsNullOrWhiteSpace(host[0]) ? "127.0.0.1" : host[0].Trim();
                 shell.Port = string.IsNullOrWhiteSpace(port[0]) ? shell.Port : port[0].Trim();

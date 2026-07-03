@@ -150,7 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BlocksBeyondTheStars.Client::BlocksBeyondTheStars.Client.AppShell
   Host: 127.0.0.1
   Port: 31415
-  PlayerName: Pilot
+  PlayerName:
 --- !u!4 &401903626
 Transform:
   m_ObjectHideFlags: 0

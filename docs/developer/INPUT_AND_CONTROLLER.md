@@ -80,10 +80,12 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
   FIRE-hold / LAND / SHIP / AUTO / VIEW / USE / UP / DOWN) and **speeder** (`Game.DrivenSpeeder != null`:
   BOOST-hold / JUMP / EXIT / FUEL). Discrete buttons map to `InputAction`s through a lookup the
   `TouchInputSource.ActionDown/ActionHeld` methods read, so rebind-consuming call sites work unchanged.
-- **Inert on desktop / behaviour-preserving:** the UI is only built when the device has touch
-  (`TouchControlsUi.ShouldShow()` = `Application.isMobilePlatform || Input.touchSupported`), and
-  `TouchInputSource` reads zero whenever the controls aren't `Visible`. A desktop mouse rig (and a desktop
-  browser, which reports no touch) never builds it.
+- **Inert on desktop / behaviour-preserving:** the UI is only built when touch is actually in use
+  (`TouchControlsUi.ShouldShow()` = `Application.isMobilePlatform` OR a real touch has been seen —
+  `Input.touchCount > 0` latches once), and `TouchInputSource` reads zero whenever the controls aren't
+  `Visible`. `Input.touchSupported` is deliberately NOT consulted: it reports the OS/browser touch API
+  (true on Windows ≥ 8 and in desktop Chrome without any touchscreen, #219). A desktop mouse rig never
+  latches; touch laptops and iPad-Safari's desktop UA get the controls on the first tap.
 - **Edges:** `TouchButton.DownThisFrame` is a frame-idempotent edge (like `GetKeyDown`) computed in an early
   `Update` (order −100), because a single action is polled at more than one call site per frame — a
   consume-on-read latch would let the first site eat the edge. All widget state clears on disable, so a

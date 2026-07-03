@@ -5482,6 +5482,28 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-03): browser-play polish — five bugs from the first local Docker browser test (#217–#221)
+Found by building the dedicated-server Docker image locally and playing at `/play`:
+- **Compose project name ([#217](https://github.com/marceld23/BlocksBeyondTheStars/issues/217)).** `docker compose`
+  branded containers/volumes after the checkout folder (`spacecraft-*`); a top-level `name: blocks-beyond-the-stars`
+  in `docker-compose.yml` pins it. Existing local `spacecraft_*` volumes are orphaned by the rename — remove or migrate once.
+- **Portal browser-play link broken ([#218](https://github.com/marceld23/BlocksBeyondTheStars/issues/218)).** The
+  portal linked `/play?…` (slashless); the Unity page's RELATIVE asset URLs then resolved against `/` → 404 → white
+  broken page. The Api now 302-redirects `/play` → `/play/` keeping the query, and the portal links `/play/` directly.
+- **Touch overlay on desktop browsers ([#219](https://github.com/marceld23/BlocksBeyondTheStars/issues/219)).**
+  `Input.touchSupported` is capability, not usage (true on Windows ≥ 8 / desktop Chrome without a touchscreen).
+  `TouchControlsUi.ShouldShow()` now latches on the first REAL touch (`Input.touchCount > 0`) or mobile platform;
+  mouse-only desktops never see the overlay, touch laptops/iPad-desktop-UA get it on first tap.
+- **White `/play` page ([#220](https://github.com/marceld23/BlocksBeyondTheStars/issues/220)).** The build used
+  Unity's default white template. New self-contained dark template `client/Assets/WebGLTemplates/BlocksBeyondTheStars`
+  (starfield, branded cyan loading bar, full-viewport canvas, fullscreen button); `webGLTemplate: PROJECT:BlocksBeyondTheStars`.
+- **Player name & browser menu ([#221](https://github.com/marceld23/BlocksBeyondTheStars/issues/221)).** Nobody was
+  ever forced to pick a name (silent `Pilot` default → multiplayer collisions). `PlayerName` now defaults empty; the
+  native main menu gained the pilot-name field and Singleplayer/Host/Join require it (the connect dialog too); the
+  browser menu already required one. `TryGetConfiguredServer` no longer requires the Glitch config, so the portal's
+  `?server_host=` deep-link finally works in plain self-host builds — and a deep-linked browser menu hides the manual
+  server picker. Server-side duplicate-name rejection existed already (online-name + per-install token claim).
+
 ## ✅ Done (2026-07-02): world-options overlay footer — no more overlapping buttons (#209)
 - **"Done" partially covered the "Advanced: planet types…" button ([#209](https://github.com/marceld23/BlocksBeyondTheStars/issues/209), PR [#210](https://github.com/marceld23/BlocksBeyondTheStars/pull/210)).**
   In `UiWorldOptions` the main page's two page-nav buttons flowed below the 770-px content view into the footer

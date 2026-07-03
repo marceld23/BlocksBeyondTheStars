@@ -46,10 +46,15 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<(InputAction Action, TouchButton Button)> _heldActions = new();
         private bool _built;
 
-        /// <summary>True on a touch device (tablet / touch-capable browser). Desktop mouse rigs report false,
-        /// so the whole feature stays dormant there. WebGL on a desktop browser also reports false → the
-        /// browser build uses keyboard/mouse or a pad, exactly as intended.</summary>
-        public static bool ShouldShow() => Application.isMobilePlatform || Input.touchSupported;
+        // Input.touchSupported is capability, not usage: Windows ≥8 standalone and desktop browsers
+        // report it without any touchscreen (the OS/browser merely exposes the touch API), which popped
+        // the overlay on plain desktops (#219). Evidence latch instead: the first REAL touch flips it.
+        private static bool s_touchSeen;
+
+        /// <summary>True on a device where touch is in use: mobile platforms immediately, everything else
+        /// (desktop, WebGL in a desktop browser) only once an actual touch has been seen — so mouse-only
+        /// rigs stay dormant while touch laptops and iPad-Safari's desktop UA get controls on first tap.</summary>
+        public static bool ShouldShow() => Application.isMobilePlatform || s_touchSeen;
 
         /// <summary>Whether the controls are currently live (built AND visible). The source reads zero when false.</summary>
         public bool Visible => _built && _rootPanel != null && _rootPanel.activeSelf;
@@ -142,6 +147,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            if (!s_touchSeen && Input.touchCount > 0)
+            {
+                s_touchSeen = true;
+            }
+
             if (!_built)
             {
                 // Lazy build on the first frame: WorldRig assigns Game/Menu/Chat after AddComponent (so Awake

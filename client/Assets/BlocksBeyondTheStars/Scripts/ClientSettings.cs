@@ -157,8 +157,11 @@ namespace BlocksBeyondTheStars.Client
         /// Empty = no in-app updates. Only effective in an installed build (see <see cref="ClientUpdater"/>).</summary>
         public string UpdateFeedUrl = "";
 
-        /// <summary>The player's name — shown to other players and keying the server-side player state.</summary>
-        public string PlayerName = "Pilot";
+        /// <summary>The player's name — shown to other players and keying the server-side player state.
+        /// Empty by default ON PURPOSE (#221): the main menu forces a choice before playing — a silent
+        /// "Pilot" default made everyone collide as Pilot in multiplayer. Existing installs keep the
+        /// name their settings file already carries.</summary>
+        public string PlayerName = "";
 
         /// <summary>Per-install secret backing name verification: sent with every join; the first join
         /// under a name claims it, later joins must match. Generated once on load, never shown in UI.</summary>
