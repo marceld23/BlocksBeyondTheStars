@@ -230,6 +230,10 @@ function v(id){return document.getElementById(id).value.trim();}
                 noWorlds = T("Noch keine Welt — erstelle deine erste!", "No world yet — create your first!"),
                 creating = T("Welt wird erstellt…", "Creating world…"),
                 created = T("Welt erstellt! 🚀", "World created! 🚀"),
+                stopping = T("Welt wird gestoppt…", "Stopping the world…"),
+                stopDone = T("Welt gestoppt.", "World stopped."),
+                deleting = T("Welt wird gelöscht…", "Deleting the world…"),
+                delDone = T("Welt gelöscht.", "World deleted."),
                 makePublic = T("Öffentlich listen", "List publicly"),
                 makePrivate = T("Privat machen", "Make private"),
                 publicOn = T("Welt ist jetzt öffentlich sichtbar. 🌍", "World is now public. 🌍"),
@@ -284,6 +288,14 @@ function say(t){
   // The message line lives at the top — surface it when an action further down reports something.
   if(t) m.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+// Like say(), but with an animated spinner in front — for actions that run in the background (waking,
+// creating, stopping, deleting, uploading) so a slow action never looks like nothing happened. A later
+// say() (success or error) sets textContent, which clears the spinner.
+function busy(t){
+  const m = document.getElementById('msg');
+  m.innerHTML = '<span class=""spin""></span>' + esc(t||'');
+  m.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
 async function api(method, url, body){
   const r = await fetch(url, {method, headers:H, body: body?JSON.stringify(body):undefined});
   if(r.status===401){ location.href='/'; return null; }
@@ -298,10 +310,10 @@ async function load(){
     const d = document.createElement('div'); d.className='card world';
     d.innerHTML = `<h2>${esc(w.name)} ${w.hasPassword?`<span title='${L.pwProtected}'>🔒</span> `:''}${w.isPublic?`<span title='${L.publicBadge}'>🌍</span> `:''}<span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
       <button onclick=""joinWorld('${w.id}')"">${L.play}</button>
-      <button onclick=""stopWorld('${w.id}')"">${L.stop}</button>
+      <button onclick=""stopWorld('${w.id}', this)"">${L.stop}</button>
       <button onclick=""dlSave('${w.id}')"">${L.dlSave}</button>
       <label class='up'>${L.upSave}<input type='file' style='display:none' onchange=""upSave('${w.id}', this.files[0])""></label>
-      <button class='danger' onclick=""delWorld('${w.id}', '${esc(w.name)}')"">${L.del}</button>
+      <button class='danger' onclick=""delWorld('${w.id}', '${esc(w.name)}', this)"">${L.del}</button>
       <details><summary>${L.pw} ${w.hasPassword?'🔒':L.pwOff}</summary>
         <input id='p1-${w.id}' type='password' placeholder='${L.pwNew}' maxlength='24' autocomplete='new-password'>
         <input id='p2-${w.id}' type='password' placeholder='${L.pwRepeat}' maxlength='24' autocomplete='new-password'>
@@ -344,7 +356,7 @@ async function createWorld(){
   if(pw !== pw2){ say(L.pwMismatch); return; }
   // Disable the button + show progress so the create → re-fetch round-trip never looks like a frozen
   // no-op (the new world used to appear only after a manual refresh, #creating-feedback).
-  const btn = document.getElementById('w-create'); btn.disabled = true; say(L.creating);
+  const btn = document.getElementById('w-create'); btn.disabled = true; busy(L.creating);
   const j = await api('POST','/api/worlds',{name: document.getElementById('w-name').value.trim(), password: pw||null});
   if(j){ for(const f of ['w-name','w-pass','w-pass2']) document.getElementById(f).value=''; await load(); say(L.created); }
   btn.disabled = false;
@@ -369,7 +381,7 @@ async function joinWorld(id, pw, grantId){
   if(!name){ say(L.needName); pn.focus(); pn.scrollIntoView({behavior:'smooth', block:'center'}); return; }
   localStorage.setItem('bbs_player_name', name);
   for(;;){
-    say(L.waking);
+    busy(L.waking);
     const r = await fetch(`/api/worlds/${id}/join`, {method:'POST', headers:H, body: JSON.stringify({playerName:name, password: pw||null})});
     if(r.status===401){ location.href='/'; return; }
     let j=null; try{ j=await r.json(); }catch{}
@@ -404,10 +416,18 @@ async function joinWorld(id, pw, grantId){
     return;
   }
 }
-async function stopWorld(id){ if(await api('POST',`/api/worlds/${id}/stop`)) load(); }
-async function delWorld(id,name){
+async function stopWorld(id, btn){
+  // Show progress + disable the button: stopping runs a docker stop in the background, so without this
+  // the click looked like a no-op until the list refreshed (world-lifecycle UX).
+  if(btn) btn.disabled = true; busy(L.stopping);
+  if(await api('POST',`/api/worlds/${id}/stop`)){ await load(); say(L.stopDone); }
+  else if(btn) btn.disabled = false;
+}
+async function delWorld(id, name, btn){
   if(!confirm(L.delConfirm.replace('%s', name))) return;
-  if(await api('DELETE',`/api/worlds/${id}`)!==null) load();
+  if(btn) btn.disabled = true; busy(L.deleting);
+  if(await api('DELETE',`/api/worlds/${id}`)!==null){ await load(); say(L.delDone); }
+  else if(btn) btn.disabled = false;
 }
 async function dlSave(id){
   const r = await fetch(`/api/worlds/${id}/save`, {headers:{'Authorization':'Bearer '+S}});
@@ -417,7 +437,7 @@ async function dlSave(id){
 }
 async function upSave(id, file){
   if(!file) return;
-  say(L.uploading);
+  busy(L.uploading);
   const r = await fetch(`/api/worlds/${id}/save`, {method:'POST', headers:{'Authorization':'Bearer '+S}, body: file});
   let j=null; try{ j=await r.json(); }catch{}
   say(r.ok ? L.upDone : bbsErr(j, L.err));
@@ -673,6 +693,8 @@ a.playnow:hover{{filter:brightness(1.08)}}
 .st.running{{color:#7dff9e;border-color:#2e7d44}} .st.stopped{{color:#9db2cf}} .st.starting{{color:var(--orange);border-color:#7a5218}}
 code{{background:#0a101d;border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}}
 #msg{{margin:10px 0;color:var(--orange);min-height:1.2em;font-weight:600}}
+.spin{{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border:2px solid var(--line);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite}}
+@keyframes spin{{to{{transform:rotate(360deg)}}}}
 ul{{line-height:1.6}}
 footer{{max-width:860px;margin:28px auto 0;padding-top:12px;border-top:1px solid var(--line);
  color:#9db2cf;font-size:.9rem;text-align:center}}

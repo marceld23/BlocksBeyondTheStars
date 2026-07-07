@@ -865,6 +865,8 @@
   "ui.portal.err_save_file_missing": "No backup file found — download one first or put it into the backup folder.",
   "ui.portal.err_name_reserved": "This name is reserved.",
   "ui.portal.err_name_blocked": "Please choose a different name.",
+  "ui.portal.err_name_reserved_hint": "That player name is reserved. Please choose a different name to join with:",
+  "ui.portal.err_name_blocked_hint": "That player name isn't allowed. Please choose a different name to join with:",
   "ui.portal.err_player_name_invalid": "Player name must be 1-24 printable characters.",
   "ui.portal.err_world_not_found": "World not found.",
   "ui.portal.err_world_start_failed": "The world could not be started — please try again in a moment.",

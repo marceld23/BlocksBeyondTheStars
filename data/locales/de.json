@@ -866,6 +866,8 @@
   "ui.portal.err_save_file_missing": "Keine Sicherungs-Datei gefunden — lade zuerst eine herunter oder lege sie in den Sicherungs-Ordner.",
   "ui.portal.err_name_reserved": "Dieser Name ist reserviert.",
   "ui.portal.err_name_blocked": "Bitte wähle einen anderen Namen.",
+  "ui.portal.err_name_reserved_hint": "Dieser Spielername ist reserviert. Bitte wähle einen anderen Namen zum Beitreten:",
+  "ui.portal.err_name_blocked_hint": "Dieser Spielername ist nicht erlaubt. Bitte wähle einen anderen Namen zum Beitreten:",
   "ui.portal.err_player_name_invalid": "Spielername: 1-24 druckbare Zeichen.",
   "ui.portal.err_world_not_found": "Welt nicht gefunden.",
   "ui.portal.err_world_start_failed": "Die Welt konnte nicht gestartet werden — bitte gleich nochmal versuchen.",
