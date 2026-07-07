@@ -830,6 +830,7 @@
   "ui.portal.account_deleted": "Dein Konto wurde gelöscht.",
   "ui.portal.no_worlds": "Noch keine Welten — erstelle deine erste Welt mit 'Neue Welt'!",
   "ui.portal.public_browse": "Öffentliche Welten",
+  "ui.portal.my_worlds": "Meine Welten",
   "ui.portal.public_browse_title": "ÖFFENTLICHE WELTEN",
   "ui.portal.public_intro": "Von anderen Spielern geteilte Welten. Zum Beitreten brauchst du das Passwort des Erstellers.",
   "ui.portal.no_public": "Gerade keine öffentlichen Welten. Sei die/der Erste — teile eine deiner Welten!",

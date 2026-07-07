@@ -829,6 +829,7 @@
   "ui.portal.account_deleted": "Your account was deleted.",
   "ui.portal.no_worlds": "No worlds yet — create your first world with 'New world'!",
   "ui.portal.public_browse": "Public worlds",
+  "ui.portal.my_worlds": "My worlds",
   "ui.portal.public_browse_title": "PUBLIC WORLDS",
   "ui.portal.public_intro": "Worlds shared by other players. You need the creator's password to join.",
   "ui.portal.no_public": "No public worlds right now. Be the first — list one of yours!",
