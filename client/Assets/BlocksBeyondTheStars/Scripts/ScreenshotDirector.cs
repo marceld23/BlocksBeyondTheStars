@@ -47,13 +47,14 @@ namespace BlocksBeyondTheStars.Client
         private string _outDir;
         private bool _headless; // true = launched via the -captureShots command line (exit the process when done)
         private string _planet; // when set (-planet <key>), capture ONLY that planet's surface (surface_<key>.png)
+        private bool _credits;  // when true (-captureCredits), capture ONLY the credits screen (credits.png) and quit
 
         /// <summary>Self-install at startup when capture is requested. Reload-safe: reads config fresh from the
         /// command line (player/headless) or EditorPrefs (editor menu) rather than relying on static state.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
         {
-            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet))
+            if (!CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits))
             {
                 return;
             }
@@ -66,15 +67,17 @@ namespace BlocksBeyondTheStars.Client
             d._seed = seed;
             d._headless = headless;
             d._planet = planet;
+            d._credits = credits;
         }
 
-        private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet)
+        private static bool CaptureRequested(out string lang, out string outDir, out long seed, out bool headless, out string planet, out bool credits)
         {
             lang = "en";
             outDir = null;
             seed = DefaultSeed;
             headless = false;
             planet = null;
+            credits = false;
 
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
@@ -83,6 +86,11 @@ namespace BlocksBeyondTheStars.Client
                 if (string.Equals(a, "-captureShots", StringComparison.OrdinalIgnoreCase))
                 {
                     headless = true;
+                }
+                else if (string.Equals(a, "-captureCredits", StringComparison.OrdinalIgnoreCase))
+                {
+                    headless = true;
+                    credits = true;
                 }
                 else if (string.Equals(a, "-lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                 {
@@ -137,7 +145,35 @@ namespace BlocksBeyondTheStars.Client
 
             string dir = ResolveOutDir();
             Directory.CreateDirectory(dir);
-            Debug.Log($"[Capture] lang={_lang} seed={_seed} planet={_planet ?? "(none)"} out={dir}");
+            Debug.Log($"[Capture] lang={_lang} seed={_seed} planet={_planet ?? "(none)"} credits={_credits} out={dir}");
+
+            // Credits-only mode (-captureCredits): from the main menu, open the credits screen, let it build,
+            // capture it, and quit. Used to verify the credits layout without a full marketing run.
+            if (_credits)
+            {
+                yield return WaitForPhase(shell, ShellPhase.MainMenu, 30f);
+                yield return new WaitForSecondsRealtime(MenuSettle);
+                Debug.Log($"[Capture] phase before GoTo = {shell.Phase}");
+                // Force credits and HOLD it there for a few seconds — defeats any late splash/menu transition
+                // that would otherwise bounce the phase back to MainMenu before the shot.
+                float held = 0f;
+                while (held < 3f)
+                {
+                    if (shell.Phase != ShellPhase.Credits)
+                    {
+                        shell.GoTo(ShellPhase.Credits);
+                    }
+
+                    held += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Debug.Log($"[Capture] phase at shot = {shell.Phase}");
+                yield return Capture(Path.Combine(dir, "credits.png"));
+                Debug.Log("[Capture] Done (credits).");
+                Quit(0);
+                yield break;
+            }
 
             // Planet-variety mode: when -planet <key> is given, shoot ONLY that planet's surface and quit.
             // The menu/cockpit/flight shots are planet-agnostic, so they're skipped — the ps1 loops this over a

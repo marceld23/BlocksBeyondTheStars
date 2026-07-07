@@ -21,6 +21,10 @@ public sealed record JoinRequestDto(string PlayerName, string? Password = null);
 /// <summary>Owner-only: set/change (4-24 chars) or remove (empty) a world's join password (#250).</summary>
 public sealed record WorldPasswordRequest(string? Password);
 
+/// <summary>Owner-only: list (<c>true</c>) or un-list (<c>false</c>) a world in the public browser.
+/// Listing requires a join password — public worlds stay password-gated so strangers still need it to join.</summary>
+public sealed record WorldVisibilityRequest(bool Public);
+
 /// <summary>Operator maintenance announcement (#249). Kind: 0 = info message, 1 = restart countdown of
 /// <paramref name="Seconds"/>, 2 = cancel a scheduled restart. <paramref name="WorldId"/> targets one
 /// world; null = the whole fleet.</summary>

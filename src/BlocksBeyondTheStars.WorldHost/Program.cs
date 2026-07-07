@@ -715,7 +715,23 @@ app.MapGet("/api/worlds", (HttpContext ctx) =>
     }
 
     var worlds = registry.ListWorlds(account.Id)
-        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, subdomain = w.Subdomain, hasPassword = w.HasPassword });
+        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, subdomain = w.Subdomain, hasPassword = w.HasPassword, isPublic = w.IsPublic });
+    return Results.Json(new { worlds });
+});
+
+// Public world browser: worlds their owners opted into listing. Requires a signed-in account (joining
+// needs one anyway) but is NOT owner-scoped — this is the one cross-account world listing players can see.
+// Every listed world is password-gated by construction (see HostRegistry.SetWorldVisibility), so the join
+// still requires the owner-shared password; we surface only name + status, never owner identity.
+app.MapGet("/api/worlds/public", (HttpContext ctx) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    var worlds = registry.ListPublicWorlds()
+        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, hasPassword = w.HasPassword });
     return Results.Json(new { worlds });
 });
 
@@ -798,7 +814,38 @@ app.MapPost("/api/worlds/{id}/password", (HttpContext ctx, string id, WorldPassw
 
     bool hasPassword = !string.IsNullOrEmpty(req.Password);
     log.LogInformation("World {Id}: join password {Action} by its owner.", world.Id, hasPassword ? "set" : "removed");
-    return Results.Json(new { hasPassword });
+    // Removing the password also un-lists a public world (SetWorldPassword enforces it) — tell the client
+    // so its toggle reflects the new state without a reload.
+    return Results.Json(new { hasPassword, isPublic = hasPassword && registry.GetWorld(world.Id)?.IsPublic == true });
+});
+
+// Owner-only: opt a world in/out of the public browser. Listing requires a join password first (enforced
+// in the registry) — public worlds are always password-gated.
+app.MapPost("/api/worlds/{id}/visibility", (HttpContext ctx, string id, WorldVisibilityRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    if (world.OwnerAccountId != account.Id)
+    {
+        return Results.Forbid();
+    }
+
+    var (ok, error) = registry.SetWorldVisibility(world.Id, req.Public);
+    if (!ok)
+    {
+        return ApiError(error);
+    }
+
+    log.LogInformation("World {Id}: public listing {Action} by its owner.", world.Id, req.Public ? "enabled" : "disabled");
+    return Results.Json(new { isPublic = req.Public });
 });
 
 app.MapPost("/api/worlds/{id}/stop", (HttpContext ctx, string id) =>

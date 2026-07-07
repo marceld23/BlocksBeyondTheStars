@@ -25,7 +25,8 @@ public sealed record WorldRecord(
     string ContainerId,
     long CreatedUnix,
     long LastStartedUnix,
-    string PasswordHash = "")
+    string PasswordHash = "",
+    bool IsPublic = false)
 {
     /// <summary>The public routing label: <c>w-&lt;id&gt;.&lt;BaseDomain&gt;</c> resolves to this world's instance.</summary>
     public string Subdomain => "w-" + Id;
@@ -120,7 +121,8 @@ public sealed class HostRegistry : IDisposable
                 created_unix INTEGER NOT NULL,
                 last_started_unix INTEGER NOT NULL DEFAULT 0,
                 last_active_unix INTEGER NOT NULL DEFAULT 0,
-                password_hash TEXT NOT NULL DEFAULT '');
+                password_hash TEXT NOT NULL DEFAULT '',
+                is_public INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS report(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 world_id TEXT NOT NULL,
@@ -143,6 +145,7 @@ public sealed class HostRegistry : IDisposable
             "ALTER TABLE account ADD COLUMN terms_accepted_unix INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE world ADD COLUMN last_active_unix INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE world ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';", // #250: creator-set join password
+            "ALTER TABLE world ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;", // public world browser (opt-in, requires password)
         })
         {
             try
@@ -620,10 +623,69 @@ public sealed class HostRegistry : IDisposable
 
         lock (_gate)
         {
-            using var cmd = Cmd("UPDATE world SET password_hash = $ph WHERE id = $i");
-            cmd.Parameters.AddWithValue("$ph", string.IsNullOrEmpty(password) ? string.Empty : PasswordHasher.Hash(password));
+            bool removing = string.IsNullOrEmpty(password);
+            // A public world must always have a password (safety rule): removing the password also
+            // un-lists it, so it can never end up publicly joinable by anyone with no gate at all.
+            using var cmd = Cmd(removing
+                ? "UPDATE world SET password_hash = '', is_public = 0 WHERE id = $i"
+                : "UPDATE world SET password_hash = $ph WHERE id = $i");
+            if (!removing)
+            {
+                cmd.Parameters.AddWithValue("$ph", PasswordHasher.Hash(password!));
+            }
+
             cmd.Parameters.AddWithValue("$i", worldId ?? string.Empty);
             return cmd.ExecuteNonQuery() == 1 ? (true, string.Empty) : (false, "World not found.");
+        }
+    }
+
+    /// <summary>Lists or un-lists a world in the public browser (#public-browser). The caller has already
+    /// verified ownership. Listing requires a join password to be set — public worlds are always
+    /// password-gated so strangers still need the owner-shared password to actually join.</summary>
+    public (bool Ok, string Error) SetWorldVisibility(string worldId, bool isPublic)
+    {
+        lock (_gate)
+        {
+            if (isPublic)
+            {
+                using var check = Cmd("SELECT password_hash FROM world WHERE id = $i");
+                check.Parameters.AddWithValue("$i", worldId ?? string.Empty);
+                if (check.ExecuteScalar() is not string hash)
+                {
+                    return (false, "World not found.");
+                }
+
+                if (hash.Length == 0)
+                {
+                    return (false, "A public world needs a join password first.");
+                }
+            }
+
+            using var cmd = Cmd("UPDATE world SET is_public = $p WHERE id = $i");
+            cmd.Parameters.AddWithValue("$p", isPublic ? 1 : 0);
+            cmd.Parameters.AddWithValue("$i", worldId ?? string.Empty);
+            return cmd.ExecuteNonQuery() == 1 ? (true, string.Empty) : (false, "World not found.");
+        }
+    }
+
+    /// <summary>Every world the owner opted into the public browser — running ones first, then by name.
+    /// All are password-gated by construction (see <see cref="SetWorldVisibility"/>).</summary>
+    public IReadOnlyList<WorldRecord> ListPublicWorlds()
+    {
+        lock (_gate)
+        {
+            // running (2) → starting (1) → everything else (0), then alphabetical.
+            using var cmd = Cmd(SelectWorld + @" WHERE is_public = 1
+                ORDER BY CASE status WHEN 'running' THEN 2 WHEN 'starting' THEN 1 ELSE 0 END DESC,
+                         display_name COLLATE NOCASE");
+            using var reader = cmd.ExecuteReader();
+            var list = new List<WorldRecord>();
+            while (reader.Read())
+            {
+                list.Add(ReadWorld(reader));
+            }
+
+            return list;
         }
     }
 
@@ -782,11 +844,11 @@ public sealed class HostRegistry : IDisposable
     // ---------------- Internals ----------------
 
     private const string SelectWorld =
-        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash FROM world";
+        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash, is_public FROM world";
 
     private static WorldRecord ReadWorld(SqliteDataReader r) => new(
         r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt32(4),
-        r.GetString(5), r.GetString(6), r.GetInt64(7), r.GetInt64(8), r.GetString(9));
+        r.GetString(5), r.GetString(6), r.GetInt64(7), r.GetInt64(8), r.GetString(9), r.GetInt64(10) != 0);
 
     /// <summary>Smallest unused port in the configured range. Ports stay allocated for a world's lifetime
     /// (they are its stable native-UDP endpoint), so a deleted world's port returns to the pool.</summary>

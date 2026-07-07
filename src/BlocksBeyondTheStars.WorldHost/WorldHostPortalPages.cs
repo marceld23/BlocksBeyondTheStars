@@ -157,6 +157,11 @@ function v(id){return document.getElementById(id).value.trim();}
         "Worlds can break or vanish — download backups!")}</div>
 <div id='msg'></div>
 <div class='card'>
+ <h2>{T("Dein Spielername", "Your player name")}</h2>
+ <input id='player-name' placeholder='{T("Dein Spielername", "Your player name")}' maxlength='24'>
+ <p class='hint'>{T("Mit diesem Namen trittst du Welten bei.", "You join worlds with this name.")}</p>
+</div>
+<div class='card'>
  <h2>{T("Neue Welt", "New world")}</h2>
  <input id='w-name' placeholder='{T("Weltname", "World name")}' maxlength='40'>
  <details>
@@ -165,9 +170,16 @@ function v(id){return document.getElementById(id).value.trim();}
   <input id='w-pass2' type='password' placeholder='{T("Passwort wiederholen", "Repeat password")}' maxlength='24' autocomplete='new-password'>
   <p class='hint'>{T("Mit Passwort können nur Spieler beitreten, die es kennen.", "With a password, only players who know it can join.")}</p>
  </details>
- <button onclick='createWorld()'>{T("Erstellen", "Create")}</button>
+ <button id='w-create' onclick='createWorld()'>{T("Erstellen", "Create")}</button>
 </div>
 <div id='list'></div>
+<div class='card'>
+ <h2>{T("Öffentliche Welten", "Public worlds")}</h2>
+ <p class='hint'>{T(
+        "Von anderen Spielern geteilte Welten — zum Beitreten brauchst du das Passwort des Erstellers.",
+        "Worlds shared by other players — you need the creator's password to join.")}</p>
+ <div id='public-list'></div>
+</div>
 <div class='card'>
  <h2>{T("Feedback & Ideen", "Feedback & ideas")}</h2>
  <p class='hint'>{T(
@@ -202,8 +214,11 @@ function v(id){return document.getElementById(id).value.trim();}
             {
                 err = T("Fehler", "Error"),
                 namePrompt = T("Dein Spielername?", "Your player name?"),
-                waking = T("Welt wird gestartet…", "Waking the world…"),
-                playNow = T("▶ Jetzt im Browser spielen", "▶ Play now in the browser"),
+                yourName = T("Dein Spielername", "Your player name"),
+                needName = T("Bitte gib oben deinen Spielernamen ein.", "Please enter your player name above."),
+                waking = T("Welt wird gestartet… das kann bis zu einer Minute dauern.", "Waking the world… this can take up to a minute."),
+                ready = T("Welt läuft! Klick unten auf „Im Browser spielen“.", "World is running! Click “Play in the browser” below."),
+                playNow = T("✅ Bereit — jetzt im Browser spielen", "✅ Ready — play now in the browser"),
                 joinInGame = T("Im Spiel beitreten", "Join in game"),
                 token = T("Token (10 min gültig)", "Token (valid 10 min)"),
                 play = T("Spielen", "Play"),
@@ -213,6 +228,18 @@ function v(id){return document.getElementById(id).value.trim();}
                 del = T("Löschen", "Delete"),
                 delConfirm = T("Welt '%s' wirklich löschen?", "Really delete world '%s'?"),
                 noWorlds = T("Noch keine Welt — erstelle deine erste!", "No world yet — create your first!"),
+                creating = T("Welt wird erstellt…", "Creating world…"),
+                created = T("Welt erstellt! 🚀", "World created! 🚀"),
+                makePublic = T("Öffentlich listen", "List publicly"),
+                makePrivate = T("Privat machen", "Make private"),
+                publicOn = T("Welt ist jetzt öffentlich sichtbar. 🌍", "World is now public. 🌍"),
+                publicOff = T("Welt ist wieder privat.", "World is private again."),
+                publicBadge = T("Öffentlich gelistet", "Publicly listed"),
+                publicConfirm = T(
+                    "Diese Welt öffentlich listen? Jede/r mit dem Passwort kann dann beitreten.",
+                    "List this world publicly? Anyone with the password can then join."),
+                publicNeedsPw = T("Nur Welten mit Passwort können öffentlich gelistet werden.", "Only password-protected worlds can be listed publicly."),
+                noPublic = T("Gerade keine öffentlichen Welten. Sei die/der Erste! 🚀", "No public worlds right now. Be the first! 🚀"),
                 uploading = T("Upload läuft…", "Uploading…"),
                 upDone = T("Save übernommen!", "Save imported!"),
                 reported = T("Danke für deine Meldung!", "Thanks for your report!"),
@@ -269,7 +296,7 @@ async function load(){
   const el = document.getElementById('list'); el.innerHTML='';
   for(const w of j.worlds){
     const d = document.createElement('div'); d.className='card world';
-    d.innerHTML = `<h2>${esc(w.name)} ${w.hasPassword?`<span title='${L.pwProtected}'>🔒</span> `:''}<span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
+    d.innerHTML = `<h2>${esc(w.name)} ${w.hasPassword?`<span title='${L.pwProtected}'>🔒</span> `:''}${w.isPublic?`<span title='${L.publicBadge}'>🌍</span> `:''}<span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
       <button onclick=""joinWorld('${w.id}')"">${L.play}</button>
       <button onclick=""stopWorld('${w.id}')"">${L.stop}</button>
       <button onclick=""dlSave('${w.id}')"">${L.dlSave}</button>
@@ -281,6 +308,9 @@ async function load(){
         <button onclick=""setWorldPassword('${w.id}')"">${L.pwSet}</button>
         ${w.hasPassword?`<button onclick=""removeWorldPassword('${w.id}')"">${L.pwRemove}</button>`:''}
       </details>
+      ${w.hasPassword
+        ? `<button onclick=""setVisibility('${w.id}', ${!w.isPublic})"">${w.isPublic?L.makePrivate:L.makePublic}</button>`
+        : `<p class='hint'>${L.publicNeedsPw}</p>`}
       <div class='grant' id='g-${w.id}'></div>`;
     el.appendChild(d);
   }
@@ -290,11 +320,34 @@ async function load(){
   for(const w of j.worlds){ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; rw.appendChild(o); }
   rw.value = keep && [...rw.options].some(o=>o.value===keep) ? keep : '';
 }
+async function loadPublic(){
+  // The public browser: worlds other players opted to list. Join reuses joinWorld(), which prompts for
+  // the (required) password — public worlds are always password-gated.
+  const j = await api('GET','/api/worlds/public'); if(!j) return;
+  const el = document.getElementById('public-list'); el.innerHTML='';
+  for(const w of j.worlds){
+    const d = document.createElement('div'); d.className='card world';
+    d.innerHTML = `<h2>${esc(w.name)} <span title='${L.pwProtected}'>🔒</span> <span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
+      <button onclick=""joinWorld('${w.id}', null, 'gp-${w.id}')"">${L.play}</button>
+      <div class='grant' id='gp-${w.id}'></div>`;
+    el.appendChild(d);
+  }
+  if(!j.worlds.length) el.innerHTML = `<p class='hint'>${L.noPublic}</p>`;
+}
+async function setVisibility(id, makePublic){
+  if(makePublic && !confirm(L.publicConfirm)) return;
+  const j = await api('POST',`/api/worlds/${id}/visibility`,{public: makePublic});
+  if(j){ say(makePublic ? L.publicOn : L.publicOff); await load(); loadPublic(); }
+}
 async function createWorld(){
   const pw = document.getElementById('w-pass').value, pw2 = document.getElementById('w-pass2').value;
   if(pw !== pw2){ say(L.pwMismatch); return; }
+  // Disable the button + show progress so the create → re-fetch round-trip never looks like a frozen
+  // no-op (the new world used to appear only after a manual refresh, #creating-feedback).
+  const btn = document.getElementById('w-create'); btn.disabled = true; say(L.creating);
   const j = await api('POST','/api/worlds',{name: document.getElementById('w-name').value.trim(), password: pw||null});
-  if(j){ for(const f of ['w-name','w-pass','w-pass2']) document.getElementById(f).value=''; say(''); load(); }
+  if(j){ for(const f of ['w-name','w-pass','w-pass2']) document.getElementById(f).value=''; await load(); say(L.created); }
+  btn.disabled = false;
 }
 async function setWorldPassword(id){
   const pw = document.getElementById('p1-'+id).value, pw2 = document.getElementById('p2-'+id).value;
@@ -304,30 +357,41 @@ async function setWorldPassword(id){
 }
 async function removeWorldPassword(id){
   if(!confirm(L.pwRemoveConfirm)) return;
-  if(await api('POST',`/api/worlds/${id}/password`,{password: ''})){ say(L.pwRemovedDone); load(); }
+  // Removing the password also un-lists a public world server-side — refresh both views.
+  if(await api('POST',`/api/worlds/${id}/password`,{password: ''})){ say(L.pwRemovedDone); await load(); loadPublic(); }
 }
-async function joinWorld(id, pw){
-  // Prefill with the last used player name — kids should not have to re-invent it on every join.
-  const name = prompt(L.namePrompt, localStorage.getItem('bbs_player_name')||''); if(!name) return;
+async function joinWorld(id, pw, grantId){
+  grantId = grantId || ('g-'+id);
+  // Read the shared player-name field instead of a jarring prompt() — the field is prefilled and
+  // persisted, so tapping Play goes straight to waking the world rather than asking a question first.
+  const pn = document.getElementById('player-name');
+  const name = (pn.value||'').trim();
+  if(!name){ say(L.needName); pn.focus(); pn.scrollIntoView({behavior:'smooth', block:'center'}); return; }
+  localStorage.setItem('bbs_player_name', name);
   for(;;){
     say(L.waking);
     const r = await fetch(`/api/worlds/${id}/join`, {method:'POST', headers:H, body: JSON.stringify({playerName:name, password: pw||null})});
     if(r.status===401){ location.href='/'; return; }
     let j=null; try{ j=await r.json(); }catch{}
     if(r.ok){
-      localStorage.setItem('bbs_player_name', name);
       // Refresh the list FIRST (the world just woke, its status chip changed) — load() rebuilds every
       // card with an empty grant div, so rendering the grant before awaiting it made Play look like a
       // no-op (#252).
       await load();
-      say('');
+      say(L.ready);
       const playUrl = `/play/?auto_join=1&player_name=${encodeURIComponent(name)}`
         + `&server_host=${encodeURIComponent(j.wssUrl)}&hosted_token=${encodeURIComponent(j.joinToken)}`
         + `&world_id=${encodeURIComponent(j.worldId)}`;
-      document.getElementById('g-'+id).innerHTML =
+      // Primary action = the browser-play button (can't auto-open a popup after the await — the click
+      // gesture is spent — so it's a link the player taps with a fresh gesture). Native host/port/token
+      // tucked into a details so desktop players can still copy it without cluttering the main action.
+      const g = document.getElementById(grantId);
+      g.innerHTML =
         `<p><a class='playnow' href='${esc(playUrl)}' target='_blank' rel='noopener'>${L.playNow}</a></p>
-         <p class='hint'><b>${L.joinInGame}:</b> Host <code>${esc(j.nativeHost)}</code> Port <code>${j.nativePort}</code><br>
-         ${L.token}: <code>${esc(j.joinToken)}</code></p>`;
+         <details><summary>${L.joinInGame}</summary>
+         <p class='hint'>Host <code>${esc(j.nativeHost)}</code> Port <code>${j.nativePort}</code><br>
+         ${L.token}: <code>${esc(j.joinToken)}</code></p></details>`;
+      g.scrollIntoView({behavior:'smooth', block:'center'});
       return;
     }
     if(j && (j.code==='password_required' || j.code==='wrong_password')){
@@ -376,7 +440,11 @@ async function deleteAccount(){
 }
 function v(id){return document.getElementById(id).value.trim();}
 function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','""':'&quot;',""'"":'&#39;'}[c]));}
+// Shared player-name field: prefilled from the last used name and persisted as it changes, so joining
+// any world (own or public) never has to prompt for it.
+(function(){ const pn=document.getElementById('player-name'); if(pn){ pn.value=localStorage.getItem('bbs_player_name')||''; pn.addEventListener('input',()=>localStorage.setItem('bbs_player_name', pn.value.trim())); } })();
 load();
+loadPublic();
 </script>";
 
     public static string Rules(WorldHostConfig config, string lang = "de")

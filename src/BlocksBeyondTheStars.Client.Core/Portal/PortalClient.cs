@@ -32,6 +32,10 @@ namespace BlocksBeyondTheStars.Client.Portal
 
         /// <summary>The creator protected this world with a join password (#250) — the UI shows a lock.</summary>
         public bool HasPassword { get; set; }
+
+        /// <summary>The owner listed this world in the public browser (opt-in; requires a password). Only
+        /// meaningful for the caller's own worlds — the public listing returns only listed worlds.</summary>
+        public bool IsPublic { get; set; }
     }
 
     public sealed class PortalWorldsResult
@@ -143,6 +147,14 @@ namespace BlocksBeyondTheStars.Client.Portal
             return ParseWorlds(status, body);
         }
 
+        /// <summary>Lists worlds other players opted into the public browser (not owner-scoped). Every
+        /// listed world is password-gated — joining still needs the owner-shared password.</summary>
+        public PortalWorldsResult ListPublicWorlds(string session)
+        {
+            var (status, body) = Get("/api/worlds/public", session);
+            return ParseWorlds(status, body);
+        }
+
         /// <summary>Requests a join grant; <paramref name="password"/> is the world's join password when
         /// the world is protected (#250) — null first, retried after a password_required/wrong_password code.</summary>
         public PortalJoinResult JoinWorld(string session, string worldId, string playerName, string? password = null)
@@ -193,6 +205,14 @@ namespace BlocksBeyondTheStars.Client.Portal
         public PortalSimpleResult SetWorldPassword(string session, string worldId, string password)
         {
             var (status, body) = Post($"/api/worlds/{worldId}/password", new { password }, session);
+            return ParseSimple(status, body);
+        }
+
+        /// <summary>Owner-only: list (<paramref name="isPublic"/> true) or un-list a world in the public
+        /// browser. Listing requires a join password first (server-enforced).</summary>
+        public PortalSimpleResult SetWorldVisibility(string session, string worldId, bool isPublic)
+        {
+            var (status, body) = Post($"/api/worlds/{worldId}/visibility", new { @public = isPublic }, session);
             return ParseSimple(status, body);
         }
 
@@ -275,6 +295,7 @@ namespace BlocksBeyondTheStars.Client.Portal
                             Name = GetString(w, "name"),
                             Status = GetString(w, "status"),
                             HasPassword = w.TryGetProperty("hasPassword", out var hp) && hp.ValueKind == JsonValueKind.True,
+                            IsPublic = w.TryGetProperty("isPublic", out var ip) && ip.ValueKind == JsonValueKind.True,
                         });
                     }
                 }

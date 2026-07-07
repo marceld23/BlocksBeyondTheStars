@@ -246,7 +246,7 @@ public sealed class WorldHostPortalPagesTests
         // rebuilds every card with an empty grant div — wiping the info milliseconds after it appeared.
         string html = WorldHostPortalPages.Worlds(Config);
         int refresh = html.IndexOf("await load();", StringComparison.Ordinal);
-        int grant = html.IndexOf("getElementById('g-'+id).innerHTML", StringComparison.Ordinal);
+        int grant = html.IndexOf("document.getElementById(grantId)", StringComparison.Ordinal);
         Assert.True(refresh >= 0 && grant >= 0 && refresh < grant,
             "joinWorld() must await load() BEFORE rendering the grant block");
     }

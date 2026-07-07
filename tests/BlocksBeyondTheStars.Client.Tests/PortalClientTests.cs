@@ -45,6 +45,18 @@ public sealed class PortalClientTests
         Assert.Equal("aabbccddee11", world.Id);
         Assert.Equal("My World", world.Name);
         Assert.Equal("stopped", world.Status);
+        Assert.False(world.IsPublic); // absent flag → private
+    }
+
+    [Fact]
+    public void ParseWorlds_ReadsPasswordAndPublicFlags()
+    {
+        var r = PortalClient.ParseWorlds(200,
+            "{\"worlds\":[{\"id\":\"aabbccddee11\",\"name\":\"Family\",\"status\":\"running\",\"hasPassword\":true,\"isPublic\":true}]}");
+        Assert.True(r.Ok);
+        var world = Assert.Single(r.Worlds);
+        Assert.True(world.HasPassword);
+        Assert.True(world.IsPublic);
     }
 
     [Fact]

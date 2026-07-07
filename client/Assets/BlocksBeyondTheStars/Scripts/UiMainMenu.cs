@@ -259,9 +259,11 @@ namespace BlocksBeyondTheStars.Client
             var betaLine = UiKit.AddText(odlg, 30f, 58f, 640f, 40f, shell.L("ui.portal.beta"), 13,
                 new Color(1f, 0.72f, 0.35f), TextAnchor.UpperLeft);
             betaLine.horizontalOverflow = HorizontalWrapMode.Wrap;
-            var rulesLine = UiKit.AddText(odlg, 30f, 100f, 455f, 44f, shell.L("ui.portal.rules_line"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+            var rulesLine = UiKit.AddText(odlg, 30f, 100f, 448f, 44f, shell.L("ui.portal.rules_line"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             rulesLine.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(odlg, 510f, 100f, 160f, 40f, shell.L("ui.portal.view_rules"),
+            // "Regeln ansehen" pulled in from the panel edge and given a wider box so the German label sits
+            // comfortably with clear margins on both sides (was crowding the panel's right border).
+            UiKit.AddButton(odlg, 492f, 98f, 178f, 44f, shell.L("ui.portal.view_rules"),
                 () => Application.OpenURL(PortalBase() + "/rules"), "btn_credits");
 
             var oStatus = UiKit.AddText(odlg, 30f, 592f, 640f, 48f, "", 14,
@@ -630,6 +632,75 @@ namespace BlocksBeyondTheStars.Client
                 DoRefresh(); // the list's [PW] marker must follow
             }
 
+            async void DoSetVisibility(string worldId, bool makePublic, Text warn)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.SetWorldVisibility(session, worldId, makePublic));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                warn.color = UiKit.Ok;
+                warn.text = shell.L(makePublic ? "ui.portal.public_on" : "ui.portal.public_off");
+                DoRefresh(); // the list's [PUB] marker + the manage toggle must follow on reopen
+            }
+
+            async void DoRefreshPublic(Transform list, Text status)
+            {
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.ListPublicWorlds(session));
+                if (official == null || list == null) { return; }
+                if (!r.Ok)
+                {
+                    if (r.Code == "unauthorized" || r.Error == "unauthorized") { CloseModal(); SignOut(); return; }
+                    status.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                for (int i = list.childCount - 1; i >= 0; i--)
+                {
+                    Object.Destroy(list.GetChild(i).gameObject);
+                }
+
+                if (r.Worlds.Count == 0)
+                {
+                    status.text = shell.L("ui.portal.no_public");
+                    return;
+                }
+
+                status.text = "";
+                float ry = 0f;
+                foreach (var world in r.Worlds)
+                {
+                    var w = world; // capture per row for the Play lambda
+                    UiKit.AddText(list, 10f, ry + 10f, 400f, 26f, w.Name + "  [PW]", 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    UiKit.AddText(list, 420f, ry + 10f, 130f, 26f, w.Status, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    UiKit.AddButton(list, 560f, ry, 160f, 46f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
+                    ry += 56f;
+                    if (ry > 470f) { break; } // dialog list area caps the visible rows
+                }
+            }
+
+            void OpenPublicBrowse()
+            {
+                var pDlg = OpenModalPanel(560f, 180f, 800f, 720f);
+                UiKit.AddText(pDlg, 30f, 24f, 740f, 30f, shell.L("ui.portal.public_browse_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var pIntro = UiKit.AddText(pDlg, 40f, 62f, 720f, 44f, shell.L("ui.portal.public_intro"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+                pIntro.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var pStatus = UiKit.AddText(pDlg, 40f, 112f, 720f, 24f, shell.L("ui.portal.working"), 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                pStatus.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var pList = UiKit.AddPanel(pDlg, 30f, 144f, 740f, 476f, new Color(0f, 0f, 0f, 0f)).transform;
+                UiKit.AddButton(pDlg, 250f, 640f, 300f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+                DoRefreshPublic(pList, pStatus);
+            }
+
             async void DoStopWorld(string worldId, Text warn, Text statusLabel)
             {
                 warn.color = warnCol;
@@ -758,7 +829,7 @@ namespace BlocksBeyondTheStars.Client
                 var mDlg = OpenModalPanel(460f, 150f, 1000f, 780f);
                 UiKit.AddText(mDlg, 30f, 24f, 940f, 30f, world.Name, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
                 var mStatus = UiKit.AddText(mDlg, 40f, 58f, 920f, 24f, world.Status + (world.HasPassword ? "  [PW]" : ""), 14, UiKit.CyanDim, TextAnchor.MiddleCenter);
-                var mWarn = UiKit.AddText(mDlg, 40f, 560f, 920f, 60f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                var mWarn = UiKit.AddText(mDlg, 40f, 596f, 920f, 56f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 mWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
 
                 // World join password (owner-only; empty remove keeps the world open).
@@ -798,7 +869,20 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddInput(mDlg, 40f, 468f, 480f, 38f, typed[0], v => typed[0] = v, world.Name);
                 UiKit.AddButton(mDlg, 552f, 464f, 408f, 46f, shell.L("ui.portal.delete_world"), () => DoDeleteWorld(world, typed[0], mWarn), "btn_exit");
 
-                UiKit.AddButton(mDlg, 330f, 640f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+                // Public listing (opt-in). Requires a join password — public worlds stay password-gated, so
+                // strangers who find the world in the browser still need the owner-shared password to join.
+                UiKit.AddText(mDlg, 40f, 522f, 600f, 22f, shell.L("ui.portal.public_title"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                var pubHint = UiKit.AddText(mDlg, 40f, 548f, 600f, 44f,
+                    shell.L(world.HasPassword ? "ui.portal.public_hint" : "ui.portal.public_needs_pw"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+                pubHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                if (world.HasPassword)
+                {
+                    UiKit.AddButton(mDlg, 664f, 540f, 296f, 46f,
+                        shell.L(world.IsPublic ? "ui.portal.make_private" : "ui.portal.make_public"),
+                        () => DoSetVisibility(world.Id, !world.IsPublic, mWarn), world.IsPublic ? "btn_exit" : "btn_join");
+                }
+
+                UiKit.AddButton(mDlg, 330f, 700f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
             }
 
             async void DoFeedbackSend(string message, Text warn)
@@ -990,11 +1074,13 @@ namespace BlocksBeyondTheStars.Client
                     shell.L("ui.portal.signed_in") + " " + shell.Settings.PortalAccountName, 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.AddButton(oContent, 460f, 8f, 210f, 42f, shell.L("ui.portal.logout"), SignOut, "btn_exit");
 
-                // Everything the portal's My-Worlds page offers, one row of entry points (#269/#270).
-                UiKit.AddButton(oContent, 30f, 54f, 150f, 42f, shell.L("ui.portal.refresh"), DoRefresh, "btn_settings");
-                UiKit.AddButton(oContent, 190f, 54f, 160f, 42f, shell.L("ui.portal.new_world"), OpenCreateWorld, "btn_join");
-                UiKit.AddButton(oContent, 360f, 54f, 150f, 42f, shell.L("ui.portal.feedback"), OpenFeedback, "btn_credits");
-                UiKit.AddButton(oContent, 520f, 54f, 150f, 42f, shell.L("ui.portal.account_btn"), OpenAccount, "btn_settings");
+                // Everything the portal's My-Worlds page offers, one row of entry points (#269/#270) + the
+                // public-worlds browser (join others' listed worlds — public-browser feature).
+                UiKit.AddButton(oContent, 30f, 54f, 128f, 42f, shell.L("ui.portal.refresh"), DoRefresh, "btn_settings");
+                UiKit.AddButton(oContent, 166f, 54f, 128f, 42f, shell.L("ui.portal.new_world"), OpenCreateWorld, "btn_join");
+                UiKit.AddButton(oContent, 302f, 54f, 128f, 42f, shell.L("ui.portal.public_browse"), OpenPublicBrowse, "btn_credits");
+                UiKit.AddButton(oContent, 438f, 54f, 110f, 42f, shell.L("ui.portal.feedback"), OpenFeedback, "btn_credits");
+                UiKit.AddButton(oContent, 556f, 54f, 114f, 42f, shell.L("ui.portal.account_btn"), OpenAccount, "btn_settings");
 
                 if (oWorlds.Count == 0)
                 {
@@ -1008,7 +1094,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var w = world; // capture per row (Play joins, Manage opens the owner dialog)
                     UiKit.AddText(oContent, 30f, ry + 10f, 280f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                    UiKit.AddText(oContent, 314f, ry + 10f, 100f, 26f, w.Status + (w.HasPassword ? " [PW]" : ""), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    UiKit.AddText(oContent, 314f, ry + 10f, 100f, 26f, w.Status + (w.HasPassword ? " [PW]" : "") + (w.IsPublic ? " [PUB]" : ""), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
                     UiKit.AddButton(oContent, 418f, ry, 118f, 46f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
                     UiKit.AddButton(oContent, 542f, ry, 128f, 46f, shell.L("ui.portal.manage"), () => OpenManage(w));
                     ry += 56f;
