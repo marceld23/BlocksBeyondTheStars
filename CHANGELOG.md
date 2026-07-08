@@ -31,7 +31,7 @@ A round of new-player and comfort fixes from a hands-on playtest by **Severin**.
 - **Severin** is credited as a playtester (README + in-game credits) for the feedback behind all of the above. (#297)
 
 ### 🖱️ Official Worlds & portal UX polish
-Follow-up polish to the hosted-worlds flow (portal + in-game *Official Worlds* menu). (#289)
+Follow-up polish to the hosted-worlds flow (portal + in-game *Official Worlds* menu). (#289, #290)
 - **Loading spinners** everywhere an action runs in the background — waking/playing, creating, stopping, deleting and uploading a save. The web portal now also gives stopping and deleting a progress state (button disabled + "Stopping…/Deleting…" → "stopped/deleted"); before, those looked like nothing happened until the list refreshed.
 - **Play → clearer name handling in the game client**: if the chosen player name is reserved or not allowed, an in-place prompt lets you pick another name and retries the join, instead of a dead-end error you could only fix from the main menu.
 - **"Play" (portal)** reads a prefilled, remembered player-name field instead of a pop-up prompt; the browser-play button is the clear primary action with the native host/port/token in an expander.

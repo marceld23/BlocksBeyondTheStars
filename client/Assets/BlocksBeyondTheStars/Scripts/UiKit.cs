@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         private static Sprite _panelSprite;
         private static Sprite _buttonSprite;
         private static Sprite _solidSprite;
+        private static Sprite _spinnerSprite;
 
         /// <summary>A plain white sprite (tint via Image.color) — used for fills/bars.</summary>
         public static Sprite SolidSprite
@@ -61,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
 
         public static Sprite PanelSprite => _panelSprite != null ? _panelSprite : _panelSprite = RoundedSprite(18, 3);
         public static Sprite ButtonSprite => _buttonSprite != null ? _buttonSprite : _buttonSprite = RoundedSprite(14, 2);
+        public static Sprite SpinnerSprite => _spinnerSprite != null ? _spinnerSprite : _spinnerSprite = SpinnerRingSprite();
 
         /// <summary>Set from <see cref="ClientSettings.Apply"/>: reduced-effects users keep instant panel snaps.</summary>
         public static bool ReducedMotion;
@@ -675,6 +677,87 @@ namespace BlocksBeyondTheStars.Client
             int b = radius + 2;
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
                 SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
+
+        /// <summary>A cyan ring with an alpha gradient around its circumference (a fading tail) — rotated
+        /// by <see cref="SpinnerRotate"/> it reads as a smooth loading spinner.</summary>
+        private static Sprite SpinnerRingSprite()
+        {
+            const int size = 48;
+            float c = (size - 1) / 2f, outer = c, inner = c - 7f;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            var px = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - c, dy = y - c;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    Color col = new Color(0f, 0f, 0f, 0f);
+                    if (d <= outer && d >= inner)
+                    {
+                        // Angle 0..1 around the ring → alpha, so the ring fades to transparent (the tail).
+                        float t = (Mathf.Atan2(dy, dx) + Mathf.PI) / (2f * Mathf.PI);
+                        col = new Color(Cyan.r, Cyan.g, Cyan.b, t);
+                    }
+
+                    px[y * size + x] = col;
+                }
+            }
+
+            tex.SetPixels(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>A small loading spinner. When <paramref name="follow"/> is given, it is visible only while
+        /// that label shows an in-progress message (its text contains "…") — so it auto-appears during
+        /// waking/stopping/deleting and hides on the result, with no per-handler wiring.</summary>
+        public static GameObject AddSpinner(Transform parent, float x, float y, float size, Text follow = null)
+        {
+            var go = new GameObject("Spinner", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            Place(go, x, y, size, size);
+            var img = go.AddComponent<Image>();
+            img.sprite = SpinnerSprite;
+            img.raycastTarget = false;
+            var rot = go.AddComponent<SpinnerRotate>();
+            rot.Bind(img, follow);
+            return go;
+        }
+
+        /// <summary>Spins its image and (when bound to a label) shows it only while an action is in progress.</summary>
+        private sealed class SpinnerRotate : MonoBehaviour
+        {
+            private Image _img;
+            private Text _follow;
+
+            public void Bind(Image img, Text follow)
+            {
+                _img = img;
+                _follow = follow;
+                if (_follow != null && _img != null)
+                {
+                    _img.enabled = false; // idle until an in-progress message appears
+                }
+            }
+
+            private void Update()
+            {
+                transform.Rotate(0f, 0f, -220f * Time.unscaledDeltaTime);
+                if (_follow != null && _img != null)
+                {
+                    bool busy = !string.IsNullOrEmpty(_follow.text) && _follow.text.Contains("…");
+                    if (_img.enabled != busy)
+                    {
+                        _img.enabled = busy;
+                    }
+                }
+            }
         }
     }
 }

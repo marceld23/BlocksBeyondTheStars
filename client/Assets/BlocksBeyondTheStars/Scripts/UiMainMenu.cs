@@ -250,34 +250,39 @@ namespace BlocksBeyondTheStars.Client
 
             var odim = UiKit.AddModalDim(root);
             official = odim.gameObject;
-            var odlg = UiKit.AddDialogPanel(official.transform, 610f, 180f, 700f, 720f);
-            UiKit.AddText(odlg, 30f, 24f, 640f, 30f, shell.L("ui.portal.title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // Wide panel (1100) so the world rows have a roomy status column — a "starting…"/"running"
+            // status used to sit behind the Play/Manage buttons on the old 700-wide layout.
+            var odlg = UiKit.AddDialogPanel(official.transform, 410f, 180f, 1100f, 720f);
+            UiKit.AddText(odlg, 30f, 24f, 1040f, 30f, shell.L("ui.portal.title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // The same notices the portal shows (client parity): the beta warning, the one-line rules
             // summary, and a button opening the full rules page in the browser. The long notices MUST
             // wrap — AddText defaults to overflow, which ran them under the button and off the panel.
-            var betaLine = UiKit.AddText(odlg, 30f, 58f, 640f, 40f, shell.L("ui.portal.beta"), 13,
+            var betaLine = UiKit.AddText(odlg, 30f, 58f, 1040f, 40f, shell.L("ui.portal.beta"), 13,
                 new Color(1f, 0.72f, 0.35f), TextAnchor.UpperLeft);
             betaLine.horizontalOverflow = HorizontalWrapMode.Wrap;
-            var rulesLine = UiKit.AddText(odlg, 30f, 100f, 448f, 44f, shell.L("ui.portal.rules_line"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+            var rulesLine = UiKit.AddText(odlg, 30f, 100f, 820f, 44f, shell.L("ui.portal.rules_line"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             rulesLine.horizontalOverflow = HorizontalWrapMode.Wrap;
-            // "Regeln ansehen" pulled in from the panel edge and given a wider box so the German label sits
-            // comfortably with clear margins on both sides (was crowding the panel's right border).
-            UiKit.AddButton(odlg, 492f, 98f, 178f, 44f, shell.L("ui.portal.view_rules"),
+            // Right column (x=874, w=195): "Regeln ansehen" here, "Abmelden"/"Konto"/per-world "Verwalten"
+            // below all share this column so the whole right edge lines up.
+            UiKit.AddButton(odlg, 874f, 98f, 195f, 44f, shell.L("ui.portal.view_rules"),
                 () => Application.OpenURL(PortalBase() + "/rules"), "btn_credits");
 
-            var oStatus = UiKit.AddText(odlg, 30f, 592f, 640f, 48f, "", 14,
+            var oStatus = UiKit.AddText(odlg, 66f, 592f, 1004f, 48f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.UpperLeft, FontStyle.Bold);
             oStatus.horizontalOverflow = HorizontalWrapMode.Wrap; // localized errors can be long
-            UiKit.AddButton(odlg, 400f, 648f, 270f, 54f, shell.L("ui.menu.back"), () =>
+            // Spinner shown automatically while a status message is in progress (its text contains "…").
+            UiKit.AddSpinner(odlg, 32f, 590f, 26f, oStatus);
+            UiKit.AddButton(odlg, 415f, 648f, 270f, 54f, shell.L("ui.menu.back"), () =>
             {
                 CloseAllPortalModals(); // leaving the overlay must not park stale dialogs behind it
                 official.SetActive(false);
             }, "btn_exit");
 
             // Content area rebuilt on every state change (signed out ↔ signed in ↔ fresh world list).
-            var oContent = UiKit.AddPanel(odlg, 0f, 150f, 700f, 440f, new Color(0f, 0f, 0f, 0f)).transform;
-            var oWorlds = new List<PortalWorldInfo>();
+            var oContent = UiKit.AddPanel(odlg, 0f, 150f, 1100f, 440f, new Color(0f, 0f, 0f, 0f)).transform;
+            var oWorlds = new List<PortalWorldInfo>();  // the signed-in account's own worlds
+            var oPublic = new List<PortalWorldInfo>();  // public worlds shared by OTHERS (own ones filtered out)
 
             string PortalBase() => string.IsNullOrWhiteSpace(shell.Settings.PortalUrl)
                 ? PortalClient.DefaultPortalUrl
@@ -323,9 +328,27 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // Also pull the public worlds so both lists show in one window. A failure here is non-fatal:
+                // the public section just stays empty rather than blocking the player's own worlds.
+                var pub = await Task.Run(() => portal.ListPublicWorlds(session));
+                if (official == null) { return; }
+
                 oStatus.text = "";
                 oWorlds.Clear();
                 oWorlds.AddRange(r.Worlds);
+                oPublic.Clear();
+                if (pub.Ok)
+                {
+                    // Hide worlds the player already owns (they appear in "My worlds" above).
+                    foreach (var p in pub.Worlds)
+                    {
+                        if (!oWorlds.Exists(o => o.Id == p.Id))
+                        {
+                            oPublic.Add(p);
+                        }
+                    }
+                }
+
                 RebuildPortal();
             }
 
@@ -651,56 +674,6 @@ namespace BlocksBeyondTheStars.Client
                 DoRefresh(); // the list's [PUB] marker + the manage toggle must follow on reopen
             }
 
-            async void DoRefreshPublic(Transform list, Text status)
-            {
-                var portal = new PortalClient(PortalBase());
-                string session = shell.Settings.PortalSessionToken;
-                var r = await Task.Run(() => portal.ListPublicWorlds(session));
-                if (official == null || list == null) { return; }
-                if (!r.Ok)
-                {
-                    if (r.Code == "unauthorized" || r.Error == "unauthorized") { CloseModal(); SignOut(); return; }
-                    status.text = PortalErr(r.Code, r.Error);
-                    return;
-                }
-
-                for (int i = list.childCount - 1; i >= 0; i--)
-                {
-                    Object.Destroy(list.GetChild(i).gameObject);
-                }
-
-                if (r.Worlds.Count == 0)
-                {
-                    status.text = shell.L("ui.portal.no_public");
-                    return;
-                }
-
-                status.text = "";
-                float ry = 0f;
-                foreach (var world in r.Worlds)
-                {
-                    var w = world; // capture per row for the Play lambda
-                    UiKit.AddText(list, 10f, ry + 10f, 400f, 26f, w.Name + "  [PW]", 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                    UiKit.AddText(list, 420f, ry + 10f, 130f, 26f, w.Status, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                    UiKit.AddButton(list, 560f, ry, 160f, 46f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
-                    ry += 56f;
-                    if (ry > 470f) { break; } // dialog list area caps the visible rows
-                }
-            }
-
-            void OpenPublicBrowse()
-            {
-                var pDlg = OpenModalPanel(560f, 180f, 800f, 720f);
-                UiKit.AddText(pDlg, 30f, 24f, 740f, 30f, shell.L("ui.portal.public_browse_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                var pIntro = UiKit.AddText(pDlg, 40f, 62f, 720f, 44f, shell.L("ui.portal.public_intro"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
-                pIntro.horizontalOverflow = HorizontalWrapMode.Wrap;
-                var pStatus = UiKit.AddText(pDlg, 40f, 112f, 720f, 24f, shell.L("ui.portal.working"), 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
-                pStatus.horizontalOverflow = HorizontalWrapMode.Wrap;
-                var pList = UiKit.AddPanel(pDlg, 30f, 144f, 740f, 476f, new Color(0f, 0f, 0f, 0f)).transform;
-                UiKit.AddButton(pDlg, 250f, 640f, 300f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
-                DoRefreshPublic(pList, pStatus);
-            }
-
             async void DoStopWorld(string worldId, Text warn, Text statusLabel)
             {
                 warn.color = warnCol;
@@ -829,8 +802,9 @@ namespace BlocksBeyondTheStars.Client
                 var mDlg = OpenModalPanel(460f, 150f, 1000f, 780f);
                 UiKit.AddText(mDlg, 30f, 24f, 940f, 30f, world.Name, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
                 var mStatus = UiKit.AddText(mDlg, 40f, 58f, 920f, 24f, world.Status + (world.HasPassword ? "  [PW]" : ""), 14, UiKit.CyanDim, TextAnchor.MiddleCenter);
-                var mWarn = UiKit.AddText(mDlg, 40f, 596f, 920f, 56f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                var mWarn = UiKit.AddText(mDlg, 76f, 596f, 884f, 56f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 mWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddSpinner(mDlg, 42f, 596f, 26f, mWarn); // spins while a manage action is in progress
 
                 // World join password (owner-only; empty remove keeps the world open).
                 string[] mp1 = { "" };
@@ -1009,6 +983,47 @@ namespace BlocksBeyondTheStars.Client
                 }, "btn_exit");
             }
 
+            // Error-driven player-name prompt: the world join was refused because the current player name is
+            // reserved/not allowed. Let the player type another name (writing it back to the menu's name field
+            // so CommitName picks it up), then retry the same join.
+            void PromptPlayerName(string worldId, string code)
+            {
+                if (passwordPrompt != null)
+                {
+                    Object.Destroy(passwordPrompt);
+                }
+
+                var dim = UiKit.AddModalDim(official.transform, 0.9f);
+                passwordPrompt = dim.gameObject;
+                var dlg = UiKit.AddDialogPanel(passwordPrompt.transform, 610f, 350f, 700f, 360f);
+                UiKit.AddText(dlg, 30f, 24f, 640f, 30f, shell.L("ui.menu.connect_name"), 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var hint = UiKit.AddText(dlg, 30f, 64f, 640f, 60f,
+                    shell.L(code == "name_reserved" ? "ui.portal.err_name_reserved_hint" : "ui.portal.err_name_blocked_hint"),
+                    14, new Color(1f, 0.55f, 0.4f), TextAnchor.UpperLeft, FontStyle.Bold);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+                string[] nm = { string.Empty };
+                UiKit.AddInput(dlg, 30f, 132f, 640f, 40f, nm[0], v => nm[0] = v);
+                UiKit.AddButton(dlg, 30f, 192f, 320f, 54f, shell.L("ui.portal.play"), () =>
+                {
+                    if (string.IsNullOrWhiteSpace(nm[0]))
+                    {
+                        return;
+                    }
+
+                    natName[0] = nm[0].Trim(); // CommitName (in DoJoinWorld) reads the menu field, not shell.PlayerName
+                    Object.Destroy(passwordPrompt);
+                    passwordPrompt = null;
+                    DoJoinWorld(worldId);
+                }, "btn_join");
+                UiKit.AddButton(dlg, 370f, 192f, 300f, 54f, shell.L("ui.menu.back"), () =>
+                {
+                    Object.Destroy(passwordPrompt);
+                    passwordPrompt = null;
+                    oStatus.text = string.Empty;
+                }, "btn_exit");
+            }
+
             async void DoJoinWorld(string worldId)
             {
                 if (!CommitName())
@@ -1031,6 +1046,15 @@ namespace BlocksBeyondTheStars.Client
                         joinPasswords.Remove(worldId); // a cached one that failed is stale
                         oStatus.text = "";
                         PromptWorldPassword(worldId, wrongBefore: r.Code == "wrong_password");
+                        return;
+                    }
+
+                    // The chosen player name is reserved/not allowed — let the player pick another one right
+                    // here and retry, instead of a dead-end error they can only fix back on the main menu.
+                    if (r.Code == "name_reserved" || r.Code == "name_blocked")
+                    {
+                        oStatus.text = "";
+                        PromptPlayerName(worldId, r.Code);
                         return;
                     }
 
@@ -1057,49 +1081,108 @@ namespace BlocksBeyondTheStars.Client
                 {
                     string[] acc = { shell.Settings.PortalAccountName };
                     string[] pw = { "" };
-                    UiKit.AddText(oContent, 30f, 20f, 640f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    UiKit.AddInput(oContent, 30f, 46f, 640f, 38f, acc[0], v => acc[0] = v);
-                    UiKit.AddText(oContent, 30f, 100f, 640f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    var pwInput = UiKit.AddInput(oContent, 30f, 126f, 640f, 38f, pw[0], v => pw[0] = v);
+                    UiKit.AddText(oContent, 30f, 20f, 1040f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    UiKit.AddInput(oContent, 30f, 46f, 1040f, 38f, acc[0], v => acc[0] = v);
+                    UiKit.AddText(oContent, 30f, 100f, 1040f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    var pwInput = UiKit.AddInput(oContent, 30f, 126f, 1040f, 38f, pw[0], v => pw[0] = v);
                     pwInput.contentType = InputField.ContentType.Password;
-                    UiKit.AddButton(oContent, 30f, 184f, 300f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
-                    UiKit.AddButton(oContent, 370f, 184f, 300f, 54f, shell.L("ui.portal.signup"), OpenSignup, "btn_credits");
-                    var signupHere = UiKit.AddText(oContent, 30f, 260f, 640f, 44f, shell.L("ui.portal.signup_here"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    UiKit.AddButton(oContent, 30f, 184f, 320f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
+                    UiKit.AddButton(oContent, 370f, 184f, 320f, 54f, shell.L("ui.portal.signup"), OpenSignup, "btn_credits");
+                    var signupHere = UiKit.AddText(oContent, 30f, 260f, 1040f, 44f, shell.L("ui.portal.signup_here"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
                     signupHere.horizontalOverflow = HorizontalWrapMode.Wrap;
-                    UiKit.AddText(oContent, 30f, 310f, 640f, 24f, PortalBase(), 15, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                    UiKit.AddText(oContent, 30f, 310f, 1040f, 24f, PortalBase(), 15, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                     return;
                 }
 
-                UiKit.AddText(oContent, 30f, 16f, 420f, 26f,
+                UiKit.AddText(oContent, 30f, 18f, 640f, 26f,
                     shell.L("ui.portal.signed_in") + " " + shell.Settings.PortalAccountName, 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddButton(oContent, 460f, 8f, 210f, 42f, shell.L("ui.portal.logout"), SignOut, "btn_exit");
+                UiKit.AddButton(oContent, 874f, 8f, 195f, 44f, shell.L("ui.portal.logout"), SignOut, "btn_exit");
 
-                // Everything the portal's My-Worlds page offers, one row of entry points (#269/#270) + the
-                // public-worlds browser (join others' listed worlds — public-browser feature).
-                UiKit.AddButton(oContent, 30f, 54f, 128f, 42f, shell.L("ui.portal.refresh"), DoRefresh, "btn_settings");
-                UiKit.AddButton(oContent, 166f, 54f, 128f, 42f, shell.L("ui.portal.new_world"), OpenCreateWorld, "btn_join");
-                UiKit.AddButton(oContent, 302f, 54f, 128f, 42f, shell.L("ui.portal.public_browse"), OpenPublicBrowse, "btn_credits");
-                UiKit.AddButton(oContent, 438f, 54f, 110f, 42f, shell.L("ui.portal.feedback"), OpenFeedback, "btn_credits");
-                UiKit.AddButton(oContent, 556f, 54f, 114f, 42f, shell.L("ui.portal.account_btn"), OpenAccount, "btn_settings");
+                // Entry points in a uniform column grid (equal width + gap). Columns are reused by the world
+                // rows below: Play sits in the "Feedback" column (663), Manage in the "Konto" column (874),
+                // so every button shares a column edge with the row above it. Public worlds are no longer a
+                // separate window — they live in the same scroll area below (see "Öffentliche Welten" section).
+                const float colW = 195f;
+                float[] col = { 30f, 241f, 452f, 663f, 874f };
+                UiKit.AddButton(oContent, col[0], 54f, colW, 44f, shell.L("ui.portal.refresh"), DoRefresh, "btn_settings");
+                UiKit.AddButton(oContent, col[1], 54f, colW, 44f, shell.L("ui.portal.new_world"), OpenCreateWorld, "btn_join");
+                UiKit.AddButton(oContent, col[3], 54f, colW, 44f, shell.L("ui.portal.feedback"), OpenFeedback, "btn_credits");
+                UiKit.AddButton(oContent, col[4], 54f, colW, 44f, shell.L("ui.portal.account_btn"), OpenAccount, "btn_settings");
 
-                if (oWorlds.Count == 0)
+                // Both lists live in ONE scrollable area with section headers + a divider — no second window,
+                // and a clear visual split between the player's own worlds and the public ones.
+                var scrollGo = new GameObject("WorldsScroll", typeof(RectTransform));
+                scrollGo.transform.SetParent(oContent, false);
+                UiKit.Place(scrollGo, 0f, 108f, 1076f, 322f);
+                var scroll = scrollGo.AddComponent<ScrollRect>();
+                scroll.horizontal = false;
+                scroll.vertical = true;
+                scroll.movementType = ScrollRect.MovementType.Clamped;
+                scroll.scrollSensitivity = 28f;
+                scrollGo.AddComponent<RectMask2D>();
+                var hit = scrollGo.AddComponent<Image>();
+                hit.color = new Color(0f, 0f, 0f, 0.001f); // catches wheel/drag over empty areas
+
+                var listGo = new GameObject("Content", typeof(RectTransform));
+                listGo.transform.SetParent(scrollGo.transform, false);
+                var list = listGo.GetComponent<RectTransform>();
+                list.anchorMin = new Vector2(0f, 1f);
+                list.anchorMax = new Vector2(1f, 1f);
+                list.pivot = new Vector2(0.5f, 1f);
+                list.anchoredPosition = Vector2.zero;
+                scroll.viewport = (RectTransform)scrollGo.transform;
+                scroll.content = list;
+
+                float ry = 0f;
+
+                void WorldRow(PortalWorldInfo world, bool owned)
                 {
-                    var noWorlds = UiKit.AddText(oContent, 30f, 120f, 640f, 48f, shell.L("ui.portal.no_worlds"), 15, UiKit.TextCol, TextAnchor.UpperLeft);
-                    noWorlds.horizontalOverflow = HorizontalWrapMode.Wrap;
-                    return;
+                    var w = world; // capture per row (Play joins; Manage is owner-only)
+                    UiKit.AddText(list, 30f, ry + 8f, 380f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    string status = owned
+                        ? w.Status + (w.HasPassword ? " [PW]" : "") + (w.IsPublic ? " [PUB]" : "")
+                        : w.Status + " [PW]"; // public worlds are always password-gated
+                    var st = UiKit.AddText(list, 420f, ry + 8f, 220f, 26f, status, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    st.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    UiKit.AddButton(list, col[3], ry, colW, 44f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
+                    if (owned)
+                    {
+                        UiKit.AddButton(list, col[4], ry, colW, 44f, shell.L("ui.portal.manage"), () => OpenManage(w));
+                    }
+
+                    ry += 52f;
                 }
 
-                float ry = 116f;
-                foreach (var world in oWorlds)
+                void SectionHeader(string label)
                 {
-                    var w = world; // capture per row (Play joins, Manage opens the owner dialog)
-                    UiKit.AddText(oContent, 30f, ry + 10f, 280f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                    UiKit.AddText(oContent, 314f, ry + 10f, 100f, 26f, w.Status + (w.HasPassword ? " [PW]" : "") + (w.IsPublic ? " [PUB]" : ""), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                    UiKit.AddButton(oContent, 418f, ry, 118f, 46f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
-                    UiKit.AddButton(oContent, 542f, ry, 128f, 46f, shell.L("ui.portal.manage"), () => OpenManage(w));
-                    ry += 56f;
-                    if (ry > 330f) { break; } // quota keeps this short; guard against overflow anyway
+                    UiKit.AddText(list, 30f, ry, 600f, 26f, label, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    ry += 34f;
                 }
+
+                void EmptyHint(string label)
+                {
+                    var t = UiKit.AddText(list, 30f, ry, 1000f, 40f, label, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    ry += 40f;
+                }
+
+                // Section 1 — the player's own worlds.
+                SectionHeader(shell.L("ui.portal.my_worlds"));
+                if (oWorlds.Count == 0) { EmptyHint(shell.L("ui.portal.no_worlds")); }
+                else { foreach (var world in oWorlds) { WorldRow(world, owned: true); } }
+
+                // Divider between the two sections.
+                ry += 12f;
+                UiKit.AddImage(list, 30f, ry, 1016f, 2f, UiKit.SolidSprite, new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.28f));
+                ry += 18f;
+
+                // Section 2 — public worlds shared by other players.
+                SectionHeader(shell.L("ui.portal.public_browse_title"));
+                if (oPublic.Count == 0) { EmptyHint(shell.L("ui.portal.no_public")); }
+                else { foreach (var world in oPublic) { WorldRow(world, owned: false); } }
+
+                list.sizeDelta = new Vector2(0f, Mathf.Max(322f, ry + 8f));
+                UiKit.AddVerticalScrollbar(oContent, scroll, 1080f, 108f, 14f, 322f);
             }
 
             RebuildPortal();
