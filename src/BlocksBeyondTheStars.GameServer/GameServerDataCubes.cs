@@ -95,13 +95,15 @@ public sealed partial class GameServer
             });
         }
 
-        // Singleplayer/admin convenience: drop one guaranteed cube right beside the start world's landing pad,
-        // once per session (so the first world a solo player lands on always has a minigame within reach).
+        // Singleplayer/admin convenience: drop one guaranteed cube near the start world's landing pad, once
+        // per session (so the first world a solo player lands on always has a minigame within reach). It sits
+        // a short walk OFF the pad (+14/+14 ≈ 20 blocks; the pad radius is 8) — at the old +6/+6 it glowed
+        // right beside the ship and hijacked a new player's first minutes into the minigame (#296).
         if (_config.GuaranteeStartDataCube && !_startCubePlaced && _landingPads.Count > 0)
         {
             _startCubePlaced = true;
-            int gx = WorldConstants.WrapX(_landingPads[0].CenterX + 6, _world.Circumference);
-            int gz = _landingPads[0].CenterZ + 6;
+            int gx = WorldConstants.WrapX(_landingPads[0].CenterX + 14, _world.Circumference);
+            int gz = _landingPads[0].CenterZ + 14;
             int gy = _generator.SurfaceHeight(planet, gx, gz);
             _dataCubes.Add(new ServerDataCube
             {

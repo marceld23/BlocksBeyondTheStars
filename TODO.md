@@ -6,7 +6,7 @@ plans live under [docs/](docs/) (committed); this file is the high-level status.
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **988 server + 118 client passing** (2026-07-07). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **989 server + 118 client passing** (2026-07-08). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~6 min gate); pushes to `main` and the release workflow run the full suite.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -108,7 +108,9 @@ chest-deep (`PlayerController.FeetInWater`, #293). Oxygen is **more discoverable
 rates (Normal tank ~285 s, #294). **Iron/ore onboarding**: the starter mission + mine tutorial say iron sits
 a few blocks down, and ores (esp. iron) are a bit more common (per-world richness + iron rarity, #295).
 Severin credited as a playtester (README + in-game credits, #297). No new tests; suite stays 988+118 green,
-local Unity build verified.
+local Unity build verified. Follow-up: the guaranteed start data cube moved off the landing pad (+6/+6 →
++14/+14, ≈20 blocks from the spawn) so it no longer hijacks a new player's first minutes into the minigame
+(#296, +1 placement test → 989).
 
 ### ★ Client-portal parity: signup, create & manage worlds, saves, feedback and account deletion in-game (#268-#270, 2026-07-06)
 The desktop client could only sign in, list and join hosted worlds — creating an account or a world

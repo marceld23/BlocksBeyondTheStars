@@ -26,6 +26,7 @@ A round of new-player and comfort fixes from a hands-on playtest by **Severin**.
 ### 🧭 New-player guidance
 - **The oxygen mechanic is finally visible** — on a breathable world the vitals bar now reads **"Oxygen (breathable)"** so you understand why it never drains here, and a one-time advisor line explains that space, water and toxic worlds will empty your suit tank. (#294)
 - **Finding iron** — the starter mission and the mining tutorial now tell you iron sits just a few blocks underground, so "where's the iron?" has an answer. Ores in general — and iron in particular — are also a bit more common now. (#295)
+- **The first minutes stay yours** — the guaranteed starter data cube no longer glows right beside your ship; it now sits a short walk off the landing pad (~20 blocks), so new players aren't pulled into a minigame before they've even looked around. (#296)
 
 ### 🙌 Credits
 - **Severin** is credited as a playtester (README + in-game credits) for the feedback behind all of the above. (#297)
