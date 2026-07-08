@@ -326,6 +326,17 @@ namespace BlocksBeyondTheStars.Client
             var locale = Settings.Language == "de" ? GameLocale.German : GameLocale.English;
             Localizer = Content.CreateLocalizer(locale);
             ContentReady = true;
+
+            // A live world keeps its OWN Localizer (snapshotted at build) — push the change so the running
+            // HUD/chat swap language immediately instead of after re-entering the world (Severin playtest).
+            CurrentBoot?.SetLanguage(Settings.Language == "de");
+
+            // The pause menu caches its texts at build time — drop it so the next show rebuilds localized.
+            if (_quitDialog != null)
+            {
+                Destroy(_quitDialog);
+                _quitDialog = null;
+            }
         }
 
         /// <summary>Localize, falling back to the key before content is loaded.</summary>
@@ -344,14 +355,36 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        public void OpenSettings() => Phase = ShellPhase.Settings;
+        // Where CloseSettings returns to. Settings is opened both from the main menu and from the in-game pause
+        // menu; it must go back to whichever it came from, so the player can change the volume mid-game without
+        // quitting the world (Severin playtest).
+        private ShellPhase _settingsReturnPhase = ShellPhase.MainMenu;
+
+        public void OpenSettings()
+        {
+            _settingsReturnPhase = Phase;
+            if (Phase == ShellPhase.InGame)
+            {
+                ShowQuitDialog(false); // tuck the pause menu away while the settings overlay is up
+            }
+
+            Phase = ShellPhase.Settings;
+        }
 
         public void CloseSettings()
         {
             Settings.Save();
             Settings.Apply();
             LoadLocalizer(); // language may have changed
-            Phase = ShellPhase.MainMenu;
+            if (_settingsReturnPhase == ShellPhase.InGame && _gameRoot != null)
+            {
+                Phase = ShellPhase.InGame;
+                ShowQuitDialog(true); // back to the (still-paused) pause menu over the live world
+            }
+            else
+            {
+                Phase = ShellPhase.MainMenu;
+            }
         }
 
         /// <summary>True while the save-select screen is picking a world to HOST (multiplayer)
@@ -549,6 +582,29 @@ namespace BlocksBeyondTheStars.Client
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             Phase = ShellPhase.InGame;
+        }
+
+        /// <summary>Windows/desktop Unity releases a locked cursor when the window loses focus (Alt-Tab), and
+        /// nothing re-locked it on return — so the mouse stayed free and could wander or click out of the game
+        /// during normal on-foot play (Severin playtest). Re-lock on focus regain, but only when we're actually
+        /// in on-foot play with nothing that intentionally frees the cursor: a menu, chat, any of the
+        /// map/trade/dock/beacon/feedback modals (all via <see cref="GameBootstrap.MenuOpen"/>), the space view,
+        /// the respawn prompt, or the quit dialog. Editors/settings are separate shell phases, so already excluded.</summary>
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus || Phase != ShellPhase.InGame || _confirmQuit)
+            {
+                return;
+            }
+
+            var boot = Boot();
+            if (boot == null || boot.MenuOpen || boot.ChatTyping || boot.SpaceViewActive || boot.AwaitingRespawnConfirm)
+            {
+                return;
+            }
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         /// <summary>Tears down the in-game world, stops the local server, and returns to the menu.</summary>
@@ -939,22 +995,25 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // The in-game Esc menu. Was a bare "leave the game?" confirmation; now a small pause menu so the player
+        // can reach Settings (and the volume) without quitting the world — the tester had to leave the session
+        // just to turn the sound down (Severin playtest). Resume/Settings/Quit, laid out top to bottom.
         private void BuildQuitDialog()
         {
             bool de = Settings != null && Settings.Language == "de";
-            var canvas = UiKit.CreateCanvas("Quit Confirm");
+            var canvas = UiKit.CreateCanvas("Pause Menu");
             canvas.sortingOrder = 60; // above the in-game HUD/menu
             _quitDialog = canvas.gameObject;
 
             var bg = UiKit.AddImage(canvas.transform, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.6f));
             bg.raycastTarget = true; // swallow clicks behind the dialog
 
-            var panel = UiKit.AddDialogPanel(canvas.transform, 720f, 430f, 480f, 220f);
-            UiKit.AddText(panel.transform, 24f, 26f, 432f, 72f,
-                de ? "Spiel verlassen und zurück zum Hauptmenü?" : "Leave the game and return to the main menu?",
-                22, UiKit.TextCol, TextAnchor.MiddleCenter);
-            UiKit.AddButton(panel.transform, 30f, 132f, 200f, 58f, de ? "Ja, verlassen" : "Yes, leave", ReturnToMenu);
-            UiKit.AddButton(panel.transform, 250f, 132f, 200f, 58f, de ? "Nein, weiter" : "No, keep playing", CancelQuit);
+            var panel = UiKit.AddDialogPanel(canvas.transform, 720f, 370f, 480f, 340f);
+            UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
+                de ? "Pause" : "Paused", 26, UiKit.TextCol, TextAnchor.MiddleCenter);
+            UiKit.AddButton(panel.transform, 90f, 88f, 300f, 56f, de ? "Weiterspielen" : "Resume", CancelQuit);
+            UiKit.AddButton(panel.transform, 90f, 152f, 300f, 56f, de ? "Einstellungen" : "Settings", OpenSettings);
+            UiKit.AddButton(panel.transform, 90f, 216f, 300f, 56f, de ? "Zum Hauptmenü" : "Quit to main menu", ReturnToMenu);
         }
     }
 }

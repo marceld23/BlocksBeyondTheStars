@@ -481,7 +481,9 @@ namespace BlocksBeyondTheStars.Client
 
             // Vitals.
             SetVital(0, loc.Get("ui.hud.health"), Game.Health, Game.Health / 100f, Health, true);
-            string oxy = loc.Get("ui.hud.oxygen") + (Game.Environment != null && Game.Environment.Breathable ? " *" : string.Empty);
+            // Spell out "(breathable)" rather than a bare "*", so new players understand the full O2 bar isn't
+            // draining because the air here is breathable — and that it will drain elsewhere (space, toxic worlds).
+            string oxy = loc.Get("ui.hud.oxygen") + (Game.Environment != null && Game.Environment.Breathable ? "  (" + loc.Get("ui.hud.breathable") + ")" : string.Empty);
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / 100f, Oxygen, true);
             SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f, Energy, true);
             SetVital(3, loc.Get("ui.hud.hunger"), Game.Hunger, Game.Hunger / 100f, Hunger, true);

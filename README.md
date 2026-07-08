@@ -123,6 +123,10 @@ Community contributions we're grateful for:
 - **Maqbool Ahmed** ([@Maqbool61](https://github.com/Maqbool61)) — German localization: removed duplicate keys and fixed awkward wording in `de.json` ([#112](https://github.com/marceld23/BlocksBeyondTheStars/pull/112))
 - **Devin Dixon** ([@ProdigyView](https://github.com/ProdigyView)) — web support: browser-playable WebGL client (WebSocket transport) and optional PostgreSQL persistence backend ([#116](https://github.com/marceld23/BlocksBeyondTheStars/pull/116))
 
+**Playtesters** — hands-on testers whose feedback shaped the game:
+
+- **Severin** — detailed hands-on playtest feedback (ship exit, in-game settings/volume, cursor after Alt-Tab, shallow-water fall damage, oxygen & iron discoverability)
+
 Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 > **Status & docs:** [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in

@@ -98,6 +98,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Severin playtest fixes: pause menu, cursor, water, oxygen & iron onboarding (#291-#297, 2026-07-08)
+Comfort and new-player fixes from a hands-on playtest by **Severin**. **Esc** now opens a small in-game
+**pause menu** (Resume / Settings / Quit) so the volume and settings are reachable without leaving the
+world, and volume applies live (#291). The **mouse cursor re-locks on focus regain** after Alt-Tab during
+on-foot play (`AppShell.OnApplicationFocus`, #292). **Any depth of water cushions a fall** now, not just
+chest-deep (`PlayerController.FeetInWater`, #293). Oxygen is **more discoverable**: the vitals bar reads
+"Oxygen (breathable)" and a one-time VEGA line explains the suit tank; **oxygen drain lowered** across all
+rates (Normal tank ~285 s, #294). **Iron/ore onboarding**: the starter mission + mine tutorial say iron sits
+a few blocks down, and ores (esp. iron) are a bit more common (per-world richness + iron rarity, #295).
+Severin credited as a playtester (README + in-game credits, #297). No new tests; suite stays 988+118 green,
+local Unity build verified.
+
 ### ★ Client-portal parity: signup, create & manage worlds, saves, feedback and account deletion in-game (#268-#270, 2026-07-06)
 The desktop client could only sign in, list and join hosted worlds — creating an account or a world
 required the portal website. The **Official Worlds** menu now covers everything the portal offers, so

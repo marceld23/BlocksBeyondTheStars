@@ -51,7 +51,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddImage(_root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.55f));
-            _px = 660f; _pw = 600f;
+            _px = 510f; _pw = 900f; // widened from 600 — labels stopped truncating and the rows breathe (Severin playtest)
             UiKit.AddDialogPanel(_root, _px, 80, _pw, 920); // opaque: the menu/game behind must not mix into the rows
 
             // The settings list is taller than the panel, so host it in a scroll viewport (mouse wheel / drag)
@@ -67,7 +67,9 @@ namespace BlocksBeyondTheStars.Client
             y += 64f;
 
             Head(ref y, L("ui.settings.graphics"));
-            Cycle(ref y, L("ui.settings.preset"), S.Preset.ToString(), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); Rebuild(); });
+            // Graphics rows apply immediately (like the window-mode row always did) so changes made from the
+            // in-game pause menu are visible right away instead of only when the settings screen closes.
+            Cycle(ref y, L("ui.settings.preset"), S.Preset.ToString(), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); S.Apply(); ApplyLiveWorld(); Rebuild(); });
             // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
@@ -76,23 +78,30 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks - 1, 1, 8); Rebuild(); },
                 () => { S.ViewDistanceChunks = Mathf.Clamp(S.ViewDistanceChunks + 1, 1, 8); Rebuild(); },
                 S.ViewDistanceChunks.ToString());
+            if (_shell.CurrentBoot != null)
+            {
+                // The (local) server streams the radius it was STARTED with, so this one honestly can't
+                // change mid-session — say so instead of looking broken when opened from the pause menu.
+                UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.view_distance_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 28f;
+            }
             Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
                 () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
                 () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
                 Mathf.RoundToInt(S.Brightness * 100f) + "%");
             // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
             // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
-            Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; Rebuild(); });
+            Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; S.Apply(); Rebuild(); });
             if (!S.VSync)
             {
                 Cycle(ref y, L("ui.settings.fps_cap"), FpsCapLabel(S.FrameRateCap),
-                    () => { S.FrameRateCap = NextFpsCap(S.FrameRateCap); Rebuild(); });
+                    () => { S.FrameRateCap = NextFpsCap(S.FrameRateCap); S.Apply(); Rebuild(); });
             }
 
             Toggle(ref y, L("ui.settings.smaa"), S.Smaa, () => { S.Smaa = !S.Smaa; S.ApplyCameraLook(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; Rebuild(); });
-            Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; Rebuild(); });
-            Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; Rebuild(); });
+            Toggle(ref y, L("ui.settings.lens_flare"), S.LensFlare, () => { S.LensFlare = !S.LensFlare; ApplyLiveWorld(); Rebuild(); });
+            Toggle(ref y, L("ui.settings.motion_blur"), S.MotionBlur, () => { S.MotionBlur = !S.MotionBlur; ApplyLiveWorld(); Rebuild(); });
+            Toggle(ref y, L("ui.settings.volumetric_fog"), S.VolumetricFog, () => { S.VolumetricFog = !S.VolumetricFog; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.reflections"), S.Reflections, () => { S.Reflections = !S.Reflections; Rebuild(); });
 
             Head(ref y, L("ui.settings.audio"));
@@ -115,11 +124,11 @@ namespace BlocksBeyondTheStars.Client
 
             Head(ref y, L("ui.settings.controls"));
             Stepper(ref y, L("ui.settings.mouse_sensitivity"), (S.MouseSensitivity - 0.5f) / 5.5f, 0, 1,
-                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); Rebuild(); },
-                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity + 0.5f, 0.5f, 6f); Rebuild(); },
+                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
+                () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity + 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
                 S.MouseSensitivity.ToString("0.0"));
-            Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; Rebuild(); });
-            Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; Rebuild(); });
+            Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; ApplyLiveWorld(); Rebuild(); });
+            Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
 
             // Rebindable key controls (Stream C): one row per remappable action; click to capture a new key.
             Head(ref y, L("ui.settings.controls_keys"));
@@ -161,8 +170,8 @@ namespace BlocksBeyondTheStars.Client
             ColorRow(ref y, L("ui.settings.legs"), S.LegColor, () => { S.LegColor = Next(S.LegColor); Rebuild(); });
 
             Head(ref y, L("ui.settings.updates"));
-            UiKit.AddText(_content, _x, y, 240, 38, L("ui.settings.update_url"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(_content, _x + 250, y, _rowW - 250, 38, S.UpdateFeedUrl, v => S.UpdateFeedUrl = (v ?? string.Empty).Trim());
+            UiKit.AddText(_content, _x, y, LabelW, 38, L("ui.settings.update_url"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(_content, _x + CtrlX, y, _rowW - CtrlX, 38, S.UpdateFeedUrl, v => S.UpdateFeedUrl = (v ?? string.Empty).Trim());
             y += 46f;
             UiKit.AddButton(_content, _x, y, 250, 44,
                 ClientUpdater.Busy ? L("ui.settings.update_checking") : L("ui.settings.update_check"),
@@ -170,10 +179,11 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_content, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 52f;
 
-            y += 14f;
+            // Language + back get their own section so the row doesn't float unlabelled at the very bottom.
+            Head(ref y, L("ui.settings.language"));
             UiKit.AddButton(_content, _x, y, 250, 50, $"{L("ui.settings.language")}: {(S.Language == "de" ? "DE" : "EN")}",
                 () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
-            UiKit.AddButton(_content, _x + 270, y, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings());
+            UiKit.AddButton(_content, _x + _rowW - 250, y, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings());
             y += 50f;
 
             // Size the scroll content to the rows so the viewport can scroll to the very bottom.
@@ -236,23 +246,33 @@ namespace BlocksBeyondTheStars.Client
             return string.IsNullOrEmpty(ClientUpdater.Detail) ? s : $"{s} ({ClientUpdater.Detail})";
         }
 
+        // Two-column row layout shared by every row so labels and controls line up throughout the
+        // screen: labels get LabelW, every control column starts at CtrlX (relative to _x).
+        private const float LabelW = 330f;
+        private const float CtrlX = 345f;
+
         private void Head(ref float y, string text)
         {
-            UiKit.AddText(_content, _x, y, _rowW, 24, text, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 30f;
+            // Section header: extra air above, bold title + a divider line, so the groups scan clearly
+            // in the long list (Severin playtest: settings were hard to skim).
+            y += 14f;
+            UiKit.AddText(_content, _x, y, _rowW, 28, text.ToUpperInvariant(), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 32f;
+            UiKit.AddImage(_content, _x, y, _rowW, 2, UiKit.SolidSprite, new Color(0.12f, 0.35f, 0.5f, 0.9f));
+            y += 12f;
         }
 
         private void Cycle(ref float y, string label, string value, System.Action onClick)
         {
-            UiKit.AddText(_content, _x, y, 240, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + 250, y, _rowW - 250, 44, value, onClick);
+            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, value, onClick);
             y += 52f;
         }
 
         private void Toggle(ref float y, string label, bool on, System.Action onClick)
         {
-            UiKit.AddText(_content, _x, y, 240, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var b = UiKit.AddButton(_content, _x + 250, y, _rowW - 250, 44, on ? L("ui.toggle.on") : L("ui.toggle.off"), onClick);
+            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var b = UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, on ? L("ui.toggle.on") : L("ui.toggle.off"), onClick);
             if (on)
             {
                 b.GetComponent<Image>().color = UiKit.Cyan;
@@ -266,11 +286,11 @@ namespace BlocksBeyondTheStars.Client
         /// capture for that device (<see cref="Update"/> binds the next key / pad button pressed).</summary>
         private void KeyRow(ref float y, InputAction action)
         {
-            UiKit.AddText(_content, _x, y, 240, 44, L(KeyLabel(action)), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddText(_content, _x, y, LabelW, 44, L(KeyLabel(action)), 20, UiKit.TextCol, TextAnchor.MiddleLeft);
 
-            float keyW = _rowW - 250f - 130f; // leave a 120-wide pad column + a 10 gap on the right
+            float keyW = _rowW - CtrlX - 130f; // leave a 120-wide pad column + a 10 gap on the right
             string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
-            var b = UiKit.AddButton(_content, _x + 250, y, keyW, 44, val,
+            var b = UiKit.AddButton(_content, _x + CtrlX, y, keyW, 44, val,
                 () => { _rebinding = action; _rebindingPad = null; Rebuild(); });
             if (_rebinding == action)
             {
@@ -281,7 +301,7 @@ namespace BlocksBeyondTheStars.Client
             string padVal = _rebindingPad == action
                 ? L("ui.settings.press_pad")
                 : InputMap.PadGlyph(GamepadInputSource.ButtonFor(action)) ?? "—";
-            var pb = UiKit.AddButton(_content, _x + 250 + keyW + 10f, y, 120f, 44, padVal,
+            var pb = UiKit.AddButton(_content, _x + CtrlX + keyW + 10f, y, 120f, 44, padVal,
                 () => { _rebindingPad = action; _rebinding = null; Rebuild(); });
             if (_rebindingPad == action)
             {
@@ -380,30 +400,63 @@ namespace BlocksBeyondTheStars.Client
 
         private void Stepper(ref float y, string label, float frac01, float min, float max, System.Action minus, System.Action plus, string value)
         {
-            UiKit.AddText(_content, _x, y, 240, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + 250, y, 50, 44, "−", minus);
-            UiKit.AddText(_content, _x + 304, y, _rowW - 250 - 50 - 50 - 8, 44, value, 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddButton(_content, _x + CtrlX, y, 50, 44, "−", minus);
+            UiKit.AddText(_content, _x + CtrlX + 54, y, _rowW - CtrlX - 50 - 50 - 8, 44, value, 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddButton(_content, _x + _rowW - 50, y, 50, 44, "+", plus);
             // fill bar
-            float fw = _rowW - 250f;
-            UiKit.AddImage(_content, _x + 250, y + 40, fw, 4, UiKit.SolidSprite, new Color(0.1f, 0.18f, 0.3f));
-            UiKit.AddImage(_content, _x + 250, y + 40, fw * Mathf.Clamp01(frac01), 4, UiKit.SolidSprite, UiKit.Cyan);
+            float fw = _rowW - CtrlX;
+            UiKit.AddImage(_content, _x + CtrlX, y + 40, fw, 4, UiKit.SolidSprite, new Color(0.1f, 0.18f, 0.3f));
+            UiKit.AddImage(_content, _x + CtrlX, y + 40, fw * Mathf.Clamp01(frac01), 4, UiKit.SolidSprite, UiKit.Cyan);
             y += 56f;
+        }
+
+        /// <summary>Pushes the settings that <see cref="WorldRig"/> snapshots at world build to the LIVE world
+        /// objects, so changes made from the in-game pause menu take effect immediately instead of only on the
+        /// next world entry (Severin playtest follow-up). Safe no-op in the main menu (nothing is spawned);
+        /// the find-by-type lookups only run on a settings click, never per frame.</summary>
+        private void ApplyLiveWorld()
+        {
+            var post = UrpScenePost.Instance;
+            if (post != null)
+            {
+                post.Preset = S.Preset; // gates lens flare (Medium+) / motion blur (High+)
+                post.LensFlareEnabled = S.LensFlare;
+                post.MotionBlurEnabled = S.MotionBlur;
+            }
+
+            var sky = FindAnyObjectByType<Sky>();
+            if (sky != null)
+            {
+                sky.FogEnabled = S.VolumetricFog;
+            }
+
+            var pc = FindAnyObjectByType<PlayerController>();
+            if (pc != null)
+            {
+                pc.MouseSensitivity = S.MouseSensitivity;
+                pc.InvertY = S.InvertY;
+                pc.CameraMotion = S.CameraMotion;
+            }
+
+            FindAnyObjectByType<VisorHud>()?.ApplyPreset(S.Preset, S.ReducedEffects);
         }
 
         private void VolRow(ref float y, string label, System.Func<float> get, System.Action<float> set)
         {
             float v = get();
+            // Apply() right away so the change is audible immediately — important when adjusting the volume from
+            // the in-game pause menu, where waiting until you close settings to hear it feels broken (Severin playtest).
             Stepper(ref y, label, v, 0, 1,
-                () => { set(Mathf.Clamp01(get() - 0.1f)); Rebuild(); },
-                () => { set(Mathf.Clamp01(get() + 0.1f)); Rebuild(); },
+                () => { set(Mathf.Clamp01(get() - 0.1f)); S.Apply(); Rebuild(); },
+                () => { set(Mathf.Clamp01(get() + 0.1f)); S.Apply(); Rebuild(); },
                 Mathf.RoundToInt(v * 100f) + "%");
         }
 
         private void ColorRow(ref float y, string label, Color color, System.Action onNext)
         {
-            UiKit.AddText(_content, _x, y, 200, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddButton(_content, _x + 210, y, _rowW - 210 - 70, 44, L("ui.settings.next_color"), onNext);
+            UiKit.AddText(_content, _x, y, LabelW, 44, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX - 70, 44, L("ui.settings.next_color"), onNext);
             UiKit.AddImage(_content, _x + _rowW - 56, y + 6, 56, 32, UiKit.SolidSprite, color);
             y += 52f;
         }

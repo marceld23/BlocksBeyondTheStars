@@ -74,6 +74,21 @@ namespace BlocksBeyondTheStars.Client
 
         public GameContent Content { get; private set; }
         public Localizer Localizer { get; private set; }
+
+        /// <summary>Switches the LIVE world's language. The world keeps its own <see cref="Localizer"/>
+        /// (created once at bootstrap from the <see cref="German"/> snapshot), so a language change in the
+        /// in-game pause menu's settings would otherwise only show after leaving and re-entering the world
+        /// (Severin playtest follow-up). Reuses the already-loaded <see cref="Content"/> — no content reload,
+        /// which also keeps this cheap on WebGL where StreamingAssets live in a remote-fetched cache. The HUD
+        /// re-reads its keys every frame; windows (Tab menu, dialogs) pick the language up on their next open.</summary>
+        public void SetLanguage(bool german)
+        {
+            German = german;
+            if (Content != null)
+            {
+                Localizer = Content.CreateLocalizer(german ? GameLocale.German : GameLocale.English);
+            }
+        }
         public NetworkClient Network { get; private set; }
         public ClientWorld World { get; private set; }
         public BlockTextureAtlas Atlas { get; private set; }

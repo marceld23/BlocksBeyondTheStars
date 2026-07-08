@@ -1545,10 +1545,11 @@ public sealed class WorldGenerator
         return t < 0.60 ? 0.60 : (t > 0.90 ? 0.90 : t);
     }
 
-    /// <summary>This world's ore-richness multiplier (0.7×..1.4× the planet's vein rarities) — some worlds are
-    /// rich strikes, others lean, so the interior payoff varies even on the same planet type.</summary>
+    /// <summary>This world's ore-richness multiplier (0.85×..1.6× the planet's vein rarities) — some worlds are
+    /// rich strikes, others lean, so the interior payoff varies even on the same planet type. Nudged up from
+    /// 0.7×..1.4× so ore is a bit less scarce for new players who couldn't find any (Severin playtest).</summary>
     private static double PerWorldOreRichness(long seed)
-        => 0.7 + (double)((ulong)(seed ^ 0x0670EL) % 1000UL) / 1000.0 * 0.7;
+        => 0.85 + (double)((ulong)(seed ^ 0x0670EL) % 1000UL) / 1000.0 * 0.75;
 
     private static readonly string[] MantleRocks = { "basalt", "deepslate", "granite" };
 

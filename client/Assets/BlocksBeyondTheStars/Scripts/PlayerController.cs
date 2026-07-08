@@ -1624,9 +1624,10 @@ namespace BlocksBeyondTheStars.Client
                 _camShake = Mathf.Max(_camShake, Mathf.Clamp01(-prevVy / 12f) * 0.7f); // impact kick
 
                 // A hard landing hurts: report the impact speed so the server (which owns health) applies
-                // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Water breaks
-                // the fall (you enter the swim branch instead of becoming grounded), so no splash damage.
-                if (-prevVy > _effSafeFallSpeed)
+                // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Deep water breaks
+                // the fall via the swim branch — but landing in even ONE block of water should cushion it too,
+                // like Minecraft (Severin playtest: shallow water still hurt because the chest wasn't submerged).
+                if (-prevVy > _effSafeFallSpeed && !FeetInWater())
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
                 }
@@ -1638,6 +1639,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when the player's upper body sits in a water block — the cue to switch to swimming
         /// (sampled at chest height, so wading through shallow water still walks; only deep water swims).</summary>
         private bool IsSubmerged() => BlockKeyAt(transform.position + Vector3.up * 1.1f) == "water";
+
+        /// <summary>True when the player's feet touch water on landing — sampled low so even a single block of
+        /// water counts. Used to cushion the fall (no splash damage) the way any depth of water does in Minecraft;
+        /// <see cref="IsSubmerged"/> alone (chest height) missed shallow pools (Severin playtest).</summary>
+        private bool FeetInWater() =>
+            BlockKeyAt(transform.position + Vector3.up * 0.1f) == "water"
+            || BlockKeyAt(transform.position + Vector3.up * 0.6f) == "water";
 
         /// <summary>True when a low (≤1 block) solid bank sits directly ahead of the swimmer — a wall at knee
         /// height with clear space just above it — the cue to mantle out of the water onto land (#131).</summary>

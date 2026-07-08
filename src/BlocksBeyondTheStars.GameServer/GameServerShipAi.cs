@@ -303,6 +303,14 @@ public sealed partial class GameServer
                 ShipAiHintOnce(session, "o2");
             }
 
+            // New players never notice the oxygen system on the deliberately breathable start world — the bar
+            // just sits full and the < 25% warning never fires. Teach it once, the first time they're outside
+            // on foot breathing free air, so the mechanic isn't a nasty surprise off-world (Severin playtest).
+            if (AtmosphereBreathable && !p.AboardShip && !p.InEva && !ShipInteriorContains(p.Position) && !InStation(p.PlayerId))
+            {
+                ShipAiHintOnce(session, "breathe");
+            }
+
             if (p.SuitEnergy < 15f)
             {
                 ShipAiHintOnce(session, "energy");
