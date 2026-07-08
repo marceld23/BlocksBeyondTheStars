@@ -11,7 +11,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-A round of new-player and comfort fixes from a hands-on playtest by **Severin**. (#291–#297)
+_Nothing yet — [v0.7.4](#074--2026-07-08) is the latest release._
+
+## [0.7.4] — 2026-07-08
+
+A round of new-player and comfort fixes from a hands-on playtest by **Severin**, plus Official Worlds & portal polish. (#289, #290, #298, #299)
 
 ### 🎮 Comfort & controls
 - **Pause menu on Esc** — pressing **Esc** in-game now opens a small pause menu (**Resume / Settings / Quit to main menu**) instead of jumping straight to a "leave the game?" prompt. You can finally reach **Settings — and the volume — without leaving your world**, and volume changes are audible immediately. (#291)
