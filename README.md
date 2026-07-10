@@ -52,7 +52,7 @@ One download — every mode. The game client runs on **Windows, Linux and (exper
 
 *   🧑‍🚀 **Singleplayer** — explore the universe at your own pace. No internet connection, no account needed.
 *   🏠 **LAN multiplayer** — host a world right on your PC and play together with family and friends on your home network.
-*   🌐 **Official Worlds (online)** — create a free account at **[play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de/?lang=en)** (no email required), create your own world there and join it in-game via **Main menu → Official Worlds** — online multiplayer with friends without running your own server. *Official Worlds are in beta — download a backup of your world regularly.*
+*   🌐 **Official Worlds (online)** — create a free account at **[play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de/?lang=en)** (no email required) or directly in-game via **Main menu → Official Worlds**, then create your own world — online multiplayer with friends without running your own server. There are **no open public servers**: to play with friends, set a join password and list your world publicly — friends find it under *Official Worlds → Public worlds* and join with your password. *Official Worlds are in beta — download a backup of your world regularly.*
 
 Or skip the download entirely and **[play in your browser](https://play.blocksbeyondthestars.de/?lang=en)** — no install needed. Browser play is **online only** (singleplayer and LAN need the desktop client).
 

@@ -65,6 +65,19 @@ public static class WorldHostPortalPages
         string body = $@"
 <h1>Blocks Beyond the Stars — <span class='o'>{T("Welten", "Worlds")}</span></h1>
 <p class='sub'>{T("Eigene Multiplayer-Welt erstellen und mit Freunden spielen.", "Create your own multiplayer world and play with friends.")}</p>
+<div class='card how'>
+ <h2>{T("So funktioniert's", "How it works")}</h2>
+ <ol>
+  <li>{T("Kostenloses Konto erstellen (keine E-Mail nötig) und deine eigene Welt anlegen.",
+        "Create a free account (no email needed) and create your own world.")}</li>
+  <li>{T("Beitritts-Passwort setzen und mit deinen Freunden teilen.",
+        "Set a join password and share it with your friends.")}</li>
+  <li>{T("Welt öffentlich listen — Freunde finden sie dann in der Weltenliste (hier und im Spiel) und treten mit deinem Passwort bei.",
+        "List your world publicly — friends then find it in the world list (here and in the game) and join with your password.")}</li>
+ </ol>
+ <p class='hint'>{T("Offene Server gibt es nicht: Jede öffentliche Welt ist durch das Passwort ihres Erstellers geschützt.",
+        "There are no open servers: every public world is protected by its creator's password.")}</p>
+</div>
 <div class='kids'>🧒 {T(
         "Frag bitte zuerst deine Eltern, ob es okay ist, dieses Spiel zu spielen.",
         "Please ask your parents first if it is okay for you to play this game.")}</div>
@@ -696,6 +709,7 @@ code{{background:#0a101d;border:1px solid var(--line);border-radius:6px;padding:
 .spin{{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border:2px solid var(--line);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite}}
 @keyframes spin{{to{{transform:rotate(360deg)}}}}
 ul{{line-height:1.6}}
+.how ol{{margin:8px 0 4px;padding-left:22px;line-height:1.6}} .how li{{margin:4px 0}}
 footer{{max-width:860px;margin:28px auto 0;padding-top:12px;border-top:1px solid var(--line);
  color:#9db2cf;font-size:.9rem;text-align:center}}
 footer .lang a{{margin:0 4px}} footer .lang .cur{{color:#dfe9f7;font-weight:700}}

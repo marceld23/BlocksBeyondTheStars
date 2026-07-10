@@ -18,7 +18,8 @@ Last updated: 2026-07-04.
   or `BlocksBeyondTheStars.exe` directly. **Linux:** `./BlocksBeyondTheStars.Launcher.Console` (prints "Loading..."
   to the terminal then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
   From the main menu: **Singleplayer** → pick an existing save or
-  start a **New world** (name + seed), **Host Game** → host a world for friends, or **Join Server**.
+  start a **New world** (name + seed), **Host Game** → host a world for friends, **Join Server**, or
+  **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
   and an optional **join password**. The game starts the bundled server locally and you join immediately;
@@ -26,6 +27,13 @@ Last updated: 2026-07-04.
   name is additionally passed as a server admin). The address friends join is announced in chat and as a
   HUD toast ("Hosting — friends can join at ip:port"). The session ends (and the world saves) when the
   host quits. Friends outside your LAN need a port forward of that UDP port.
+- **Official Worlds (online multiplayer, beta):** the in-game portal for hosted worlds on the official
+  servers — also available in the browser at [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de).
+  Create a free account (no email needed), then create your own world. There are **no open public
+  servers** — every world belongs to a player. To play with friends: set a **join password**, then
+  **list the world publicly** (world's **Manage** dialog → *"List publicly"*; only password-protected
+  worlds can be listed). Friends find it under *Official Worlds → Public worlds* and join with your
+  password. Worlds are private by default and only visible to their owner until listed.
 - **Join Server:** enter your **player name**, the server address, port and (if the server has one) the
   password. **Name verification:** the first join under a name claims it for your installation — later
   joins under that name from other machines are rejected ("name belongs to another player"), and a name

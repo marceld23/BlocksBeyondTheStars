@@ -625,15 +625,19 @@ namespace BlocksBeyondTheStars.Client
                 cp2.contentType = InputField.ContentType.Password;
                 var optional = UiKit.AddText(cDlg, 40f, 222f, 720f, 40f, shell.L("ui.portal.world_password_optional"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
                 optional.horizontalOverflow = HorizontalWrapMode.Wrap;
-                var cWarn = UiKit.AddText(cDlg, 40f, 274f, 720f, 44f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                // In-flow pointer to the friends path (password now, list publicly later via Manage) —
+                // the Manage dialog is the only other place that explains it, and first-timers skip it.
+                var friends = UiKit.AddText(cDlg, 40f, 264f, 720f, 40f, shell.L("ui.portal.create_friends_hint"), 13, UiKit.Cyan, TextAnchor.UpperLeft);
+                friends.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var cWarn = UiKit.AddText(cDlg, 40f, 310f, 720f, 44f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 cWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(cDlg, 40f, 336f, 340f, 54f, shell.L("ui.portal.create"), () =>
+                UiKit.AddButton(cDlg, 40f, 366f, 340f, 54f, shell.L("ui.portal.create"), () =>
                 {
                     if (string.IsNullOrWhiteSpace(worldName[0])) { cWarn.text = shell.L("ui.portal.err_world_name_invalid"); return; }
                     if (pw1[0] != pw2[0]) { cWarn.text = shell.L("ui.portal.err_password_mismatch"); return; }
                     DoCreateWorld(worldName[0].Trim(), pw1[0], cWarn);
                 }, "btn_join");
-                UiKit.AddButton(cDlg, 420f, 336f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+                UiKit.AddButton(cDlg, 420f, 366f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
             }
 
             async void DoSetWorldPassword(string worldId, string password, Text warn)
@@ -1079,18 +1083,22 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!SignedIn())
                 {
+                    // First-contact explainer: the hosted-worlds model (own world + password + optional
+                    // public listing, no open servers) is not obvious — say it before asking for an account.
+                    var intro = UiKit.AddText(oContent, 30f, 18f, 1040f, 48f, shell.L("ui.portal.intro"), 14, UiKit.Cyan, TextAnchor.UpperLeft);
+                    intro.horizontalOverflow = HorizontalWrapMode.Wrap;
                     string[] acc = { shell.Settings.PortalAccountName };
                     string[] pw = { "" };
-                    UiKit.AddText(oContent, 30f, 20f, 1040f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    UiKit.AddInput(oContent, 30f, 46f, 1040f, 38f, acc[0], v => acc[0] = v);
-                    UiKit.AddText(oContent, 30f, 100f, 1040f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-                    var pwInput = UiKit.AddInput(oContent, 30f, 126f, 1040f, 38f, pw[0], v => pw[0] = v);
+                    UiKit.AddText(oContent, 30f, 76f, 1040f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    UiKit.AddInput(oContent, 30f, 102f, 1040f, 38f, acc[0], v => acc[0] = v);
+                    UiKit.AddText(oContent, 30f, 156f, 1040f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    var pwInput = UiKit.AddInput(oContent, 30f, 182f, 1040f, 38f, pw[0], v => pw[0] = v);
                     pwInput.contentType = InputField.ContentType.Password;
-                    UiKit.AddButton(oContent, 30f, 184f, 320f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
-                    UiKit.AddButton(oContent, 370f, 184f, 320f, 54f, shell.L("ui.portal.signup"), OpenSignup, "btn_credits");
-                    var signupHere = UiKit.AddText(oContent, 30f, 260f, 1040f, 44f, shell.L("ui.portal.signup_here"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    UiKit.AddButton(oContent, 30f, 240f, 320f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
+                    UiKit.AddButton(oContent, 370f, 240f, 320f, 54f, shell.L("ui.portal.signup"), OpenSignup, "btn_credits");
+                    var signupHere = UiKit.AddText(oContent, 30f, 316f, 1040f, 44f, shell.L("ui.portal.signup_here"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
                     signupHere.horizontalOverflow = HorizontalWrapMode.Wrap;
-                    UiKit.AddText(oContent, 30f, 310f, 1040f, 24f, PortalBase(), 15, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                    UiKit.AddText(oContent, 30f, 366f, 1040f, 24f, PortalBase(), 15, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                     return;
                 }
 
@@ -1176,8 +1184,11 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddImage(list, 30f, ry, 1016f, 2f, UiKit.SolidSprite, new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.28f));
                 ry += 18f;
 
-                // Section 2 — public worlds shared by other players.
+                // Section 2 — public worlds shared by other players. The intro line always renders:
+                // joiners must learn here (not via a failed Play click) that every listed world needs
+                // the creator's password.
                 SectionHeader(shell.L("ui.portal.public_browse_title"));
+                EmptyHint(shell.L("ui.portal.public_intro"));
                 if (oPublic.Count == 0) { EmptyHint(shell.L("ui.portal.no_public")); }
                 else { foreach (var world in oPublic) { WorldRow(world, owned: false); } }
 

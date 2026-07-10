@@ -5609,6 +5609,20 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-10): hosted-worlds onboarding clarity — explain the model to first-timers
+Analysis found the Realms-style model (no open servers; create your own world, password-gate it, list it
+publicly for friends) was enforced everywhere but explained nowhere a first-time user actually looks.
+- **Client — Official Worlds overlay** (`UiMainMenu.cs`): signed-out view now opens with a model explainer
+  (new `ui.portal.intro`); the previously **orphaned** `ui.portal.public_intro` string ("you need the
+  creator's password to join") now renders above the public list; the create-world dialog gained a
+  friends-path hint (new `ui.portal.create_friends_hint`: password now → list publicly later via Manage);
+  `ui.portal.public_hint` now mentions that listing is how friends find the world. All DE+EN.
+- **Portal landing page** (`WorldHostPortalPages.cs`): a "So funktioniert's / How it works" card with the
+  3 steps (account+world → password → list publicly) and the no-open-servers rule — previously the only
+  copy visible before login was the one-line tagline; every explanation sat behind the `/worlds` login wall.
+- **Docs**: README Official-Worlds bullet + USER_MANUAL §1 now state the no-open-servers model and the
+  friends-join path (password + public listing).
+
 ## ✅ Done (2026-07-06): NPC treasure hints — villagers reveal the wreck and hidden caches on the map
 Wrecks and treasure chests existed but were invisible: not on the map, findable only by stumbling over
 them. Now talking to settlement NPCs is how you learn about them (PR #267).
