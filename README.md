@@ -41,7 +41,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **Deep Crafting:** Mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations.
 *   **Explore & Claim:** Discover rare factories with their own production terminals, salvage fallen ruins and treasure chests — and claim a factory as your own base with a rare access code.
 *   **In-Game Editors:** Design your own ships, stations, and cities block by block.
-*   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio — play solo, host a server for friends on your LAN, or create your own **[hosted world](https://play.blocksbeyondthestars.de/?lang=en)** on our official servers.
+*   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio — play solo, host a server for friends on your LAN, or create your own **[hosted world](https://play.blocksbeyondthestars.de/?lang=en)** on our official servers (set a password, list it publicly, and share it with your friends).
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
 *   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
 *   **Keyboard, mouse & controller:** Play with keyboard + mouse or an Xbox/XInput gamepad — both work at once, and menus are pad-navigable (controller support is experimental).
@@ -361,7 +361,12 @@ Three ways to play together, side by side: **singleplayer** (unchanged), **self-
 above), and **hosted worlds** — a Minecraft-Realms-style option where a player creates a persistent
 multiplayer world online (optionally from a singleplayer save) that runs as one dedicated-server
 container per world behind a control plane ("WorldHost"). The desktop client's **"Official Worlds"**
-menu signs in, lists your worlds and joins with one click; a free web portal manages worlds, community
+menu signs in, lists your worlds and joins with one click. **There are no open public servers — every
+world belongs to a player.** To play with friends you make **your** world public and set a join
+password (in the world's **Manage** dialog: set a password first, then *"List publicly"* — only
+password-protected worlds can be listed); friends find it under *Official Worlds → Public worlds* and
+join with the password you share. That is by design: everyone hosts their own world rather than
+joining a shared public server. A free web portal manages worlds, community
 rules, reports and account deletion. Operators get an `/admin` dashboard (fleet overview, reports,
 bans, live server health) and a public `GET /api/stats` with aggregate player/world counts. Privacy is
 deliberately minimal — a chosen name and a password hash, **no email, no tracking**. This is a **beta in active development** — the public service is live at
