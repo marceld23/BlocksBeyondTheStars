@@ -92,6 +92,7 @@ PUBLISH_DATES = [
     "2026-06-24T19:05:00Z",  # 33 Arcade: 20 Minispiele
     "2026-06-29T17:20:00Z",  # 34 Musik, Sounds und Texturen
     "2026-07-10T17:05:00Z",  # 35 Story-Teaser: Das VEGA-Protokoll (today, after school post)
+    "2026-07-10T21:30:00Z",  # 36 Version 0.7.5 — Official Worlds onboarding + code signing (release day)
 ]
 EN_EXTRA_MINUTES = 5
 
