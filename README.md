@@ -185,14 +185,18 @@ NAS or a VPS (including via Docker) can host a world that players join.
 
 ## Windows security notice
 
-This Windows build is **currently not digitally signed**. Because of that, Windows 11 /
-Microsoft Defender SmartScreen may show a warning such as *"Windows protected your PC"* the
-first time you start the game.
+Windows release builds are digitally **code-signed** using a free code-signing certificate provided
+by the [**SignPath Foundation**](https://signpath.org) — see our
+[Code Signing Policy](CODE_SIGNING.md). Only the installers built by this repository's automated
+GitHub Actions release workflow are signed.
 
-If you downloaded the game from this GitHub page (or from the
-[official releases](https://github.com/marceld23/BlocksBeyondTheStars/releases)) and trust the
-source, you can choose **"More info"** and then **"Run anyway"** to start it. If you do not trust
-the download source, do not run the game.
+> **During onboarding:** while our SignPath certificate is being provisioned, some releases may still
+> be unsigned. Until signing is fully live, Windows 11 / Microsoft Defender SmartScreen may show a
+> warning such as *"Windows protected your PC"* the first time you start the game. If you downloaded
+> the game from this GitHub page (or from the
+> [official releases](https://github.com/marceld23/BlocksBeyondTheStars/releases)) and trust the
+> source, you can choose **"More info"** and then **"Run anyway"** to start it. If you do not trust
+> the download source, do not run the game.
 
 Blocks Beyond the Stars uses a local/server-based multiplayer architecture. On first launch,
 **Windows Defender Firewall** may ask for permission more than once — for example for the game
@@ -412,6 +416,10 @@ network, the AGPL requires you to offer them its source code.
 
 Third-party libraries and bundled assets keep their own (permissive) licenses — see
 [NOTICES.md](NOTICES.md).
+
+**Windows code signing** is generously provided free of charge by the
+[SignPath Foundation](https://signpath.org) through their open-source program — thank you! How
+releases are signed is documented in our [Code Signing Policy](CODE_SIGNING.md).
 
 **Our promise to the community:** we guarantee the GitHub version always stays free,
 AGPL-licensed and current. We (the founders) may additionally license the code commercially

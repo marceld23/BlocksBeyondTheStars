@@ -30,6 +30,12 @@ Things we especially care about:
 The optional AI backend (`ai-backend/`) talks to third-party LLM providers; please report
 anything that could leak credentials or player data.
 
+## Code signing
+
+Windows release binaries are digitally signed via the **SignPath Foundation**. How signing works —
+the official repository, which artifacts are signed, and who may authorize a release — is documented
+in **[CODE_SIGNING.md](CODE_SIGNING.md)**.
+
 ## Supported versions
 
 This is a single actively-developed line of work — security fixes land on `main` and in the
