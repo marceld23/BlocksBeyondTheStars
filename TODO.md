@@ -5609,6 +5609,20 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-10): stop release builds from writing dead tag-scoped Actions caches
+The 10 GB Actions cache budget was 99% full; ~7.7 GB were caches scoped to release tags (four Unity
+Library caches up to 2 GB each + ~60 buildkit blobs). A tag-scoped cache can never be restored by any
+other ref — not even the next release tag — so they sped up nothing and LRU-evicted the useful
+main-scoped caches (the actual cause behind slow Unity CI builds, see unity-build-speedup analysis).
+- **release.yml**: the four "Cache Unity Library" steps (Windows/Linux/macOS/WebGL) switched from
+  `actions/cache` to `actions/cache/restore` — tag runs still restore main's caches via restore-keys
+  but no longer write tag-scoped copies.
+- **docker.yml** (workflow_call'ed by release.yml on tags): `cache-to: type=gha` now only exports on
+  non-tag refs; `cache-from` stays, so tagged image builds still import main's layer cache.
+- Unchanged by design: `webgl-only.yml` / `macos-build.yml` (dispatch-only, run on main — they are the
+  useful main-cache writers) and the three image workflows (main-push only).
+- One-off cleanup already done 2026-07-10: 64 tag caches deleted, 7.7 GB freed (2.23 GB main caches kept).
+
 ## ✅ Done (2026-07-10): hosted-worlds onboarding clarity — explain the model to first-timers
 Analysis found the Realms-style model (no open servers; create your own world, password-gate it, list it
 publicly for friends) was enforced everywhere but explained nowhere a first-time user actually looks.

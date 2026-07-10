@@ -181,8 +181,11 @@ jobs:
         shell: pwsh
         run: ./scripts/publish-local-server.ps1 -Runtime win-x64
 
-      - name: Cache Unity Library
-        uses: actions/cache@v5
+      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
+      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
+      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      - name: Restore Unity Library cache
+        uses: actions/cache/restore@v5
         with:
           path: client/Library
           key: Library-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
@@ -285,8 +288,11 @@ jobs:
       - name: Publish bundled local server (linux-x64)
         run: ./scripts/publish-local-server.sh linux-x64
 
-      - name: Cache Unity Library
-        uses: actions/cache@v5
+      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
+      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
+      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      - name: Restore Unity Library cache
+        uses: actions/cache/restore@v5
         with:
           path: client/Library
           key: Library-Linux-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
@@ -393,8 +399,11 @@ jobs:
       - name: Publish bundled local server (osx-x64)
         run: ./scripts/publish-local-server.sh osx-x64
 
-      - name: Cache Unity Library
-        uses: actions/cache@v5
+      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
+      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
+      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      - name: Restore Unity Library cache
+        uses: actions/cache/restore@v5
         with:
           path: client/Library
           key: Library-macOS-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
@@ -482,8 +491,11 @@ jobs:
       - name: Sync shared libs + content (bash)
         run: ./scripts/sync-client-libs.sh
 
-      - name: Cache Unity Library
-        uses: actions/cache@v5
+      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
+      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
+      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      - name: Restore Unity Library cache
+        uses: actions/cache/restore@v5
         with:
           path: client/Library
           key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}

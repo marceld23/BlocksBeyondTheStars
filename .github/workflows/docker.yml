@@ -90,4 +90,7 @@ jobs:
           push: ${{ inputs.push }}
           tags: ${{ steps.img.outputs.tags }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Only non-tag runs export the layer cache: this workflow is workflow_call'ed by release.yml
+          # on tag refs, and tag-scoped caches are unreadable by every other ref — they only crowded
+          # main's caches out of the 10 GB budget. Tag runs still import via cache-from.
+          cache-to: ${{ startsWith(github.ref, 'refs/tags/') && ' ' || 'type=gha,mode=max' }}
