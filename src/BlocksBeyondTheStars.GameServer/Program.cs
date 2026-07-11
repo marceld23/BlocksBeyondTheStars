@@ -13,7 +13,11 @@ using BlocksBeyondTheStars.Shared.Content;
 string installDir = AppContext.BaseDirectory;
 string configPath = Path.Combine(installDir, "config", "server.json");
 
-var config = ServerConfig.Load(configPath);
+// Normally reads (and first-run auto-creates) config/server.json. With --no-config — which the bundled
+// singleplayer host passes — it uses pure code defaults and touches no file, so a stale server.json left
+// in the read-only, reused-across-rebuilds bundle folder can never override current defaults (e.g. the
+// start planet). See ServerConfig.LoadForStartup.
+var config = ServerConfig.LoadForStartup(args, configPath);
 
 // Configuration precedence: server.json < BBS_* environment variables < command line. The env layer
 // is the container channel (Docker/Compose), the CLI is what the in-game singleplayer host passes.

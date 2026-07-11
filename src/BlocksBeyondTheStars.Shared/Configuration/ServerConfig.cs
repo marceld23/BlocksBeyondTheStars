@@ -221,6 +221,22 @@ public sealed class ServerConfig
         Converters = { new JsonStringEnumConverter() },
     };
 
+    /// <summary>
+    /// Resolves the startup config. Normally this is <see cref="Load"/> (which reads — and on first run
+    /// auto-creates — <c>config/server.json</c> next to the exe, the documented dedicated-server flow).
+    /// When <c>--no-config</c> is present it returns pure in-memory defaults instead and touches no file.
+    ///
+    /// The bundled singleplayer host passes <c>--no-config</c> (see <c>LocalServerLauncher</c>): its server
+    /// exe lives in the read-only, reused-across-rebuilds bundle folder, where a leftover <c>server.json</c>
+    /// from an earlier run/playtest would otherwise be read verbatim and override newer code defaults such
+    /// as the start planet — the exact reason a freshly-built client could still spawn the old "rocky" start
+    /// world. The host relies purely on code defaults plus its explicit CLI overrides, so it is immune to a
+    /// stale bundled config on every install path (local build, installer, portable, Velopack update).
+    /// Dedicated servers omit the flag and keep the auto-generated, editable <c>config/server.json</c>.
+    /// </summary>
+    public static ServerConfig LoadForStartup(string[]? args, string path)
+        => (args is not null && Array.IndexOf(args, "--no-config") >= 0) ? new ServerConfig() : Load(path);
+
     public static ServerConfig Load(string path)
     {
         if (!File.Exists(path))
@@ -292,6 +308,11 @@ public sealed class ServerConfig
                 case "usercontent":
                 case "user-content":
                     UserContentDir = value; applied.Add("usercontent");
+                    break;
+                case "no-config":
+                    // Handled earlier: ServerConfig.LoadForStartup reads --no-config straight from the raw
+                    // args (before Load) to skip the config file entirely. Recognized here only so its value
+                    // token is consumed and can't shadow a following flag; nothing to apply to this config.
                     break;
                 case "database":
                 case "database-provider":

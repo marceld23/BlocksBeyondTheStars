@@ -231,6 +231,72 @@ public sealed class ServerConfigTests
         });
     }
 
+    // --- Startup config resolution (--no-config): the bundled singleplayer host must ignore any stale
+    // config/server.json next to its exe so it always starts from current code defaults (e.g. StartPlanet). ---
+
+    [Fact]
+    public void LoadForStartup_WithNoConfigFlag_IgnoresExistingFileAndUsesDefaults()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bbts_noconfig_" + Guid.NewGuid().ToString("N"), "server.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        // A stale file pinning the OLD start planet — exactly the situation that made a fresh build spawn "rocky".
+        new ServerConfig { StartPlanet = "rocky" }.Save(path);
+        var fileBefore = File.ReadAllText(path);
+
+        try
+        {
+            var config = ServerConfig.LoadForStartup(new[] { "--no-config", "true" }, path);
+
+            Assert.Equal("varied", config.StartPlanet); // code default, NOT the file's "rocky"
+            Assert.Equal(fileBefore, File.ReadAllText(path)); // the file is neither read into effect nor rewritten
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadForStartup_WithNoConfigFlag_DoesNotCreateAFileWhenMissing()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bbts_noconfig_" + Guid.NewGuid().ToString("N"), "server.json");
+
+        var config = ServerConfig.LoadForStartup(new[] { "--no-config", "true" }, path);
+
+        Assert.Equal("varied", config.StartPlanet);
+        Assert.False(File.Exists(path)); // unlike Load(), --no-config never writes a default file
+    }
+
+    [Fact]
+    public void LoadForStartup_WithoutFlag_ReadsTheConfigFile()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bbts_cfg_" + Guid.NewGuid().ToString("N"), "server.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        new ServerConfig { StartPlanet = "ice" }.Save(path);
+
+        try
+        {
+            var config = ServerConfig.LoadForStartup(new[] { "--port", "31550" }, path); // no --no-config
+            Assert.Equal("ice", config.StartPlanet); // the dedicated-server flow still honours the file
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ApplyCommandLine_NoConfigFlagConsumesItsValueWithoutShadowingTheNextFlag()
+    {
+        // --no-config is a valued flag (" --no-config true") so it must not swallow the following --port.
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[] { "--no-config", "true", "--port", "31550" });
+
+        Assert.Equal(31550, config.GameplayPort);
+        Assert.Contains("port", applied);
+        Assert.DoesNotContain("no-config", applied); // recognized no-op, nothing applied to the config
+    }
+
     /// <summary>Sets the given environment variables for the duration of <paramref name="body"/>, then restores them.</summary>
     private static void WithEnvironment(Dictionary<string, string?> vars, Action body)
     {

@@ -79,6 +79,18 @@ if ($compileFail -or -not $succeeded) {
     Write-Error "Build FAILED ($why). See $log"
 }
 
+# Strip any runtime-generated config from the bundled singleplayer server in the build output. The server
+# writes config/server.json next to itself on first run, and this output folder is reused across rebuilds,
+# so a copy left from an earlier playtest (or an old branch) would ship with the build and be read verbatim,
+# overriding current code defaults (e.g. an old "StartPlanet: rocky" pinning the start world). The bundled
+# host also passes --no-config so it ignores such a file at runtime; this keeps the shipped bytes clean too
+# (publish-client-installer.ps1 packs this folder). Safe: the server regenerates config on demand.
+$bundledConfig = Join-Path $project "$Out/BlocksBeyondTheStars_Data/StreamingAssets/server/config"
+if (Test-Path $bundledConfig) {
+    Remove-Item $bundledConfig -Recurse -Force
+    Write-Host "Stripped stale bundled-server config -> $bundledConfig" -ForegroundColor DarkGray
+}
+
 # Front the player with the loading-splash launcher (it shows an instant "Loading…" splash to cover the black
 # pre-engine startup gap, then starts the player and hands off when its window appears). Built self-contained
 # single-file (compressed) so it needs no .NET runtime on the player's machine, then dropped next to the player

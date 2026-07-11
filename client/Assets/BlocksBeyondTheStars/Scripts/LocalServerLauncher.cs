@@ -176,6 +176,11 @@ namespace BlocksBeyondTheStars.Client
             // Solo/host convenience: guarantee a data cube next to the start landing pad (only this bundled
             // launcher sets it; dedicated/shared servers use the normal random scatter).
             const string startCubeArg = " --guarantee-start-cube true";
+            // Ignore any config/server.json next to the bundled exe: use pure code defaults + the CLI
+            // overrides here. The server writes that file on first run, and the read-only bundle folder is
+            // reused across rebuilds — a leftover (e.g. an old "StartPlanet: rocky") would otherwise be read
+            // verbatim and override current defaults, so a fresh build could still spawn the old start world.
+            const string noConfigArg = " --no-config true";
             // "Creative" world options (only set when the player picked them at creation; the server bakes them
             // into the save on first launch, so they persist regardless of later launches).
             string creativeArgs =
@@ -198,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,
