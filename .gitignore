@@ -53,6 +53,9 @@ backups/
 # Local planning / requirement specs (kept out of the repo by request)
 plans/
 
+# Local media production (book manuscript, raw/edited videos, editing assets; kept local by request)
+/media/
+
 # Generated Unity client content (reproduce via scripts/sync-client-libs.ps1).
 # Ignore synced plugin payloads, but keep hand-written WebGL browser plugins versioned.
 client/Assets/Plugins/*
