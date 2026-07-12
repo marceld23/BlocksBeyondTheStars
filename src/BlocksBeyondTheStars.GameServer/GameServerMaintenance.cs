@@ -25,7 +25,7 @@ public sealed partial class GameServer
     /// leaves the transport before it shuts down.</summary>
     private const double MaintenanceStopFlushSeconds = 2.0;
 
-    private readonly object _maintenanceGate = new();
+    private readonly Lock _maintenanceGate = new();
     private MaintenanceNotice? _maintenancePending;
 
     private double _maintenanceRemaining = -1; // < 0 = no countdown active

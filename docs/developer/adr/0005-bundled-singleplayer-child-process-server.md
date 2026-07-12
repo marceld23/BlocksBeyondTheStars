@@ -3,6 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-06-19
 - **Context source:** `CLIENT_COMPLETION.md`, `ARCHITECTURE.md`
+- **Amendment (2026-07-12):** server projects retargeted `net8.0` → `net10.0` (see ADR 0001
+  amendment). The Mono-boundary reasoning below is unchanged — it applies to any modern .NET.
 
 ## Context
 

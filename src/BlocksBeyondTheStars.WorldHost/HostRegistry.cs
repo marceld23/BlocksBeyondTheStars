@@ -78,7 +78,7 @@ public sealed class HostRegistry : IDisposable
 
     private static readonly Regex WorldIdRx = new("^[a-f0-9]{12}$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly SqliteConnection _db;
     private readonly WorldHostConfig _config;
 

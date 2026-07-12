@@ -20,7 +20,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
     private readonly SaveGamePaths _paths;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private SqliteConnection? _connection;
     // True while a RunInTransaction batch is open (manual BEGIN/COMMIT via raw SQL — all the per-row write
     // commands then run inside it at the SQLite level without each needing a SqliteTransaction object).

@@ -45,7 +45,7 @@ public static class BugReportStatus
 /// </summary>
 public sealed class ReportStore : IDisposable
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly SqliteConnection _db;
     private readonly string _screenshotsDir;
 

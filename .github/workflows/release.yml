@@ -129,7 +129,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore + build test projects
         run: |
@@ -161,7 +161,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # StreamingAssets/ (data + web + bundled server) and Plugins/ (shared libs) are gitignored
       # generated content, so they must be produced before the Unity build. pwsh ships on the runner.
@@ -277,7 +277,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Sync shared libs + content (bash)
         run: ./scripts/sync-client-libs.sh
@@ -358,7 +358,7 @@ jobs:
       - name: Re-install .NET (disk-cleanup removed it)
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Build Linux console launcher
         run: |
@@ -388,7 +388,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Sync shared libs + content (bash)
         run: ./scripts/sync-client-libs.sh
@@ -483,7 +483,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # Shared libs + content only: the WebGL build strips the bundled native-server StreamingAssets, so no
       # publish-local-server / Velopack steps. sync-client-libs makes data/ present so the build writes the
@@ -574,7 +574,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install Velopack CLI (pinned)
         run: |
@@ -745,7 +745,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # Self-contained single-file launcher (same flags as scripts/build-client.ps1) so it needs no
       # .NET runtime on the player's machine. -p:Version stamps it with the same release version.

@@ -25,7 +25,7 @@ server, unlock cursor).
 
 **Singleplayer hosting = Option A (bundle the server, child process).** `BlocksBeyondTheStars.Shared` /
 `WorldGeneration` / `Networking` are netstandard2.1 and load in Unity directly, but `GameServer` +
-`Persistence` are net8.0 with native SQLite, so they cannot run in the Mono runtime. Instead the
+`Persistence` are net10.0 with native SQLite, so they cannot run in the Mono runtime. Instead the
 published `GameServer` exe is bundled under `StreamingAssets/server/` (`scripts/publish-local-server.ps1`)
 and `LocalServerLauncher` starts it bound to `127.0.0.1` on a free port, then the normal `NetworkClient`
 connects; it is stopped on quit. This uses the real server unchanged, identical to multiplayer.

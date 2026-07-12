@@ -47,7 +47,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # Shared libs + content only (no publish-local-server / Velopack): the browser build strips the
       # bundled native server and has no auto-updater. sync-client-libs makes data/ present so the build

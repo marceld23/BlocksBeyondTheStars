@@ -10,7 +10,7 @@ namespace BlocksBeyondTheStars.ReportHost;
 /// </summary>
 public sealed class IngestRateLimiter
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, (long WindowMinute, int Count)> _counters = new(StringComparer.Ordinal);
     private readonly int _perMinute;
 

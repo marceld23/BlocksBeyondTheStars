@@ -20,7 +20,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
     private readonly SaveGamePaths _paths;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private NpgsqlConnection? _connection;
     private readonly string _connectionString;
     private readonly string _schemaName;

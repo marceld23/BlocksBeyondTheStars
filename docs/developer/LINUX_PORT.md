@@ -38,7 +38,7 @@ embedding for both targets.
 **Problem:** Windows has a WinForms loading-splash launcher (`src/BlocksBeyondTheStars.Launcher/`) — it
 shows a graphical splash, runs Velopack hooks, then launches the Unity player. WinForms doesn't run on Linux.
 
-**Solution:** A new `src/BlocksBeyondTheStars.Launcher.Console/` project (net8.0, cross-platform) replaces it
+**Solution:** A new `src/BlocksBeyondTheStars.Launcher.Console/` project (net10.0, cross-platform) replaces it
 on Linux:
 
 - **Program.cs:** runs Velopack lifecycle hooks, prints "Loading..." to the terminal, starts the Unity
@@ -67,8 +67,8 @@ The `release.yml` workflow gained two new jobs alongside the existing Windows jo
 - **package-linux:** packages the Linux player with Velopack (`vpk`) into an AppImage + portable zip,
   published to the GitHub Release
 
-The `BlocksBeyondTheStars.CI.slnf` solution filter now includes `Launcher.Console` (it targets plain net8.0
-and builds on Linux, unlike the WinForms launcher which is net8.0-windows).
+The `BlocksBeyondTheStars.CI.slnf` solution filter now includes `Launcher.Console` (it targets plain net10.0
+and builds on Linux, unlike the WinForms launcher which is net10.0-windows).
 
 **Execute-bit fix:** GitHub's `upload-/download-artifact` strips the Unix execute bit, so after the player
 artifact round-trips into `package-linux` the bundled local server (and the player binary) lose `+x`.
@@ -84,7 +84,7 @@ See [DEVELOPER.md](DEVELOPER.md) (§ Building the Linux client) for the full gui
 Quick start:
 
 ```bash
-# Prerequisites: Unity 6000.4.x Linux Editor + .NET 8 SDK
+# Prerequisites: Unity 6000.4.x Linux Editor + .NET 10 SDK
 
 # One-command full build:
 ./scripts/build-client.sh --unity-path /path/to/Unity

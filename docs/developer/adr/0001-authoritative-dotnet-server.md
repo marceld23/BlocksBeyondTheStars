@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-05-30
 - **Context source:** `technische_anforderungen.md`
+- **Amendment (2026-07-12):** all `net8.0` projects retargeted to `net10.0` (LTS; .NET 8
+  support ends Nov 2026). The decision itself is unchanged; ".NET 8" below reflects the
+  version at the time of writing. Shared libraries stay `netstandard2.1`.
 
 ## Context
 

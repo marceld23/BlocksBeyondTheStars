@@ -9,22 +9,24 @@
 #   docker build -f Dockerfile.worldhost -t blocks-beyond-the-stars-worldhost:local .
 
 # ---- build ----
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet publish src/BlocksBeyondTheStars.WorldHost/BlocksBeyondTheStars.WorldHost.csproj -c Release -o /app
 
 # ---- runtime ----
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # WorldHost shells out to the docker CLI (DockerCliLauncher) against the HOST's daemon through the
 # mounted /var/run/docker.sock — so it needs the CLI only, never a daemon of its own.
+# The Docker apt repo is derived from /etc/os-release because the base image distro changes across
+# .NET versions (8.0 = Debian bookworm, 10.0 = Ubuntu noble).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
  && install -m 0755 -d /etc/apt/keyrings \
- && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
  && . /etc/os-release \
- && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list \
+ && curl -fsSL "https://download.docker.com/linux/${ID}/gpg" -o /etc/apt/keyrings/docker.asc \
+ && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends docker-ce-cli \
  && rm -rf /var/lib/apt/lists/*

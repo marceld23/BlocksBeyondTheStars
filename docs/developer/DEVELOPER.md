@@ -66,7 +66,7 @@ tests/BlocksBeyondTheStars.Client.Tests # ClientCore — real NetworkClient ↔ 
 These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. Two deliberate choices:
 
 - **It targets the test projects directly, not `BlocksBeyondTheStars.sln`.** The solution also contains the
-  WinForms launcher (`net8.0-windows`), which cannot build on the Linux runner; building the test projects
+  WinForms launcher (`net10.0-windows`), which cannot build on the Linux runner; building the test projects
   pulls in exactly their dependencies (server/shared/`Client.Core`/`Launcher.Console`) and nothing Windows-only.
 - **Warnings fail the PR.** The build step runs with **`-warnaserror`**, so any compiler or analyzer warning
   breaks the check — even though the local build keeps `TreatWarningsAsErrors=false`

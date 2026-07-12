@@ -12,7 +12,7 @@ runtimes** that share code:
 
 - **The Unity 6 client (`client/`) is presentation and input.** It renders the voxel world,
   the ship, space, the UI and audio, and turns the player's actions into *intents*.
-- **The .NET 8 server (`src/`) is the truth of the game world.** It owns the world, players,
+- **The .NET 10 server (`src/`) is the truth of the game world.** It owns the world, players,
   ships, inventory, crafting, combat, travel and persistence. It validates every intent and
   replies with authoritative *state*. No Unity runtime ever runs on the server.
 
@@ -25,20 +25,20 @@ construction.
 
 The .NET solution `BlocksBeyondTheStars.sln` holds eight projects under `src/` plus the
 xUnit test project. Two projects target **`netstandard2.1`** so the *same compiled code* runs
-both inside Unity and on the server; everything else targets **`net8.0`** (the Launcher
-`net8.0-windows`).
+both inside Unity and on the server; everything else targets **`net10.0`** (the Launcher
+`net10.0-windows`).
 
 | Project | Target | Role |
 |---|---|---|
 | `BlocksBeyondTheStars.Shared` | `netstandard2.1` | Data models, data-driven definitions, geometry, localization, protocol DTOs, game rules, story engine. Depends on nothing in the solution. |
 | `BlocksBeyondTheStars.WorldGeneration` | `netstandard2.1` | Seed-deterministic chunk/galaxy/flora/settlement/creature generation. |
 | `BlocksBeyondTheStars.Networking` | `netstandard2.1` | Transport abstraction + concrete transports, message classes, `NetCodec` registry. Refs LiteNetLib + MessagePack; WebGL uses a JSON envelope at the WebSocket edge. |
-| `BlocksBeyondTheStars.Persistence` | `net8.0` | `IWorldRepository` + SQLite/PostgreSQL implementations, savegame paths/snapshots. Refs Microsoft.Data.Sqlite + Npgsql. |
-| `BlocksBeyondTheStars.GameServer` | `net8.0` (Exe) | Authoritative tick loop + console host. |
-| `BlocksBeyondTheStars.Api` | `net8.0` (Web) | ASP.NET Core minimal-API admin/portal/distribution. |
-| `BlocksBeyondTheStars.Tools` | `net8.0` (Exe) | Backup/export/debug CLI. |
-| `BlocksBeyondTheStars.Launcher` | `net8.0-windows` | WinForms + Velopack instant-splash launcher that starts the Unity exe. |
-| `tests/BlocksBeyondTheStars.Tests` | `net8.0` | xUnit tests across all server-side projects. |
+| `BlocksBeyondTheStars.Persistence` | `net10.0` | `IWorldRepository` + SQLite/PostgreSQL implementations, savegame paths/snapshots. Refs Microsoft.Data.Sqlite + Npgsql. |
+| `BlocksBeyondTheStars.GameServer` | `net10.0` (Exe) | Authoritative tick loop + console host. |
+| `BlocksBeyondTheStars.Api` | `net10.0` (Web) | ASP.NET Core minimal-API admin/portal/distribution. |
+| `BlocksBeyondTheStars.Tools` | `net10.0` (Exe) | Backup/export/debug CLI. |
+| `BlocksBeyondTheStars.Launcher` | `net10.0-windows` | WinForms + Velopack instant-splash launcher that starts the Unity exe. |
+| `tests/BlocksBeyondTheStars.Tests` | `net10.0` | xUnit tests across all server-side projects. |
 
 **Dependency direction (no cycles)** — verified from the `.csproj` `ProjectReference`s:
 

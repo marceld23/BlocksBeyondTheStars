@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
-Architecture: Unity 6 (URP since 2026-06-10) client + authoritative .NET 8 server, everything built in
+Architecture: Unity 6 (URP since 2026-06-10) client + authoritative .NET 10 server, everything built in
 code (no scene authoring). One shared world; MessagePack networking for native clients plus a WebGL JSON
 envelope at the WebSocket edge; deterministic seed world-gen; SQLite default persistence with opt-in PostgreSQL.
 
@@ -876,7 +876,7 @@ New [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every `pull_req
 from the tag-only `release.yml`). On `ubuntu-latest`, **no Unity / no license**: restores, builds and tests the
 two headless suites directly — `tests/BlocksBeyondTheStars.Tests` (Dotnet) + `tests/BlocksBeyondTheStars.Client.Tests`
 (ClientCore) — the same default set as `run-tests.ps1`.
-- **Targets the test projects, not the `.sln`** — the solution's WinForms launcher (`net8.0-windows`) can't build on Linux.
+- **Targets the test projects, not the `.sln`** — the solution's WinForms launcher (`net10.0-windows`) can't build on Linux.
 - **Warnings fail the PR** via `-warnaserror` (local build keeps `TreatWarningsAsErrors=false`; tree is currently 0-warning). `.trx` results uploaded as an artifact.
 - **Docs-only PRs skip the build but stay green** — a `changes` job (`dorny/paths-filter`) gates the `build-test` job; on a docs-only PR (`**/*.md`, `docs/**`, licences, issue/PR templates) `build-test` is skipped and a skipped *required* job counts as a pass, so it never blocks. `data/**` counts as code (it feeds tests). This makes the check **safe to mark required** (unlike a plain `paths-ignore` skip, which would stall a required check).
 - **Unity tiers (`UnityEdit`/`UnityPlay`) stay local** (need the Editor) — run `./scripts/run-tests.ps1 -Suites All` before client-affecting changes.
@@ -949,7 +949,7 @@ Unity-free client logic (`NetworkClient`, `ClientWorld`) was extracted into a ne
 `src/BlocksBeyondTheStars.Client.Core/` so the *same* code runs in the Unity player and in headless tests; the
 Unity layer keeps `UnityEngine.Vector3` call-sites working via `NetworkClientUnityExtensions` (the Core
 `NetworkClient` speaks Shared's `Vector3f`).
-- **Tier 1 — `tests/BlocksBeyondTheStars.Client.Tests/`** (xUnit, net8.0): the real `NetworkClient` drives the
+- **Tier 1 — `tests/BlocksBeyondTheStars.Client.Tests/`** (xUnit, net10.0): the real `NetworkClient` drives the
   real in-process `GameServer` over a `LoopbackLink` (no Unity, no sockets) via `ClientServerHarness` — join,
   chunk streaming, mine→block-change+inventory, craft success, craft-rejected. **5 tests green.**
 - **Tier 1.5 — `client/Assets/Tests/EditMode/`**: in-Editor unit tests — `ClientWorld` round-trips (Unity-safe

@@ -6,7 +6,7 @@
 # the huge Unity client/, bin/obj and .git out of the build).
 
 # ---- build ----
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 
@@ -19,7 +19,7 @@ RUN dotnet publish src/BlocksBeyondTheStars.GameServer/BlocksBeyondTheStars.Game
  && cp -r data /app/data
 
 # ---- runtime ----
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # tini = a proper PID 1 (reaps zombies + forwards signals to the entrypoint). curl = best-effort download
 # of the client downloads from GitHub Releases so the portal's /download (Windows Setup.exe),

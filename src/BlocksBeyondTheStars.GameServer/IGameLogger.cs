@@ -16,7 +16,7 @@ public interface IGameLogger
     Justification = "Process-lifetime logger; the optional log file uses AutoFlush and its handle is released when the host process exits. Making it IDisposable would force a dispose obligation on every long-lived call site without benefit.")]
 public sealed class ConsoleGameLogger : IGameLogger
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly TextWriter? _file;
 
     public ConsoleGameLogger(string? logFilePath = null)

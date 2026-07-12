@@ -12,7 +12,7 @@
 # release — is still covered by all tests. See the Test step below for details.
 #
 # We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
-# WinForms launcher (net8.0-windows), which cannot build on the Linux runner. Building the test
+# WinForms launcher (net10.0-windows), which cannot build on the Linux runner. Building the test
 # projects pulls in exactly their dependencies (server/shared/client.core) and nothing Windows-only.
 #
 # Warnings ARE enforced here: the build runs with -warnaserror so any analyzer/compiler warning fails
@@ -62,7 +62,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore
         run: |
@@ -113,7 +113,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: dotnet format --verify-no-changes
         run: dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes

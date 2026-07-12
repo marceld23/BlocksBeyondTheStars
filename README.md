@@ -24,7 +24,7 @@ Blocks Beyond the Stars is not a traditional indie game—it is an exploration o
 *   **Music & Sound Effects:** Synthesized using AI audio tools.
 *   **Dynamic Storytelling:** Powered by an optional integrated Python LLM backend (FastAPI + LangChain) for real-time NPC/ship-AI dialogue.
 
-**We'd love your help making this game better!** We made this repository Open Source not just to share our AI workflow, but to build it together with you. Whether you're a developer who wants to dig into the Unity 6 / .NET 8 client/server architecture, an artist, a writer, or simply a player with ideas and bug reports — there's a place for you here. Big features, small fixes, balancing tweaks, fresh ideas: all are welcome. Have a look at **[CONTRIBUTING.md](CONTRIBUTING.md)** to get started, or just press **F1** in-game to send feedback. Let's make it great together. 🚀 And if you're not the coding type — no problem at all: a single ⭐ is the easiest way to cheer Justus on and help us grow.
+**We'd love your help making this game better!** We made this repository Open Source not just to share our AI workflow, but to build it together with you. Whether you're a developer who wants to dig into the Unity 6 / .NET 10 client/server architecture, an artist, a writer, or simply a player with ideas and bug reports — there's a place for you here. Big features, small fixes, balancing tweaks, fresh ideas: all are welcome. Have a look at **[CONTRIBUTING.md](CONTRIBUTING.md)** to get started, or just press **F1** in-game to send feedback. Let's make it great together. 🚀 And if you're not the coding type — no problem at all: a single ⭐ is the easiest way to cheer Justus on and help us grow.
 
 ## 🪐 What is it? (The Short Pitch)
 
@@ -181,7 +181,7 @@ NAS or a VPS (including via Docker) can host a world that players join.
   locally. See [SELF_HOSTING.md §10](docs/developer/SELF_HOSTING.md#10-running-in-docker).
 - Lightweight: **no GPU**, modest CPU/RAM. On low-power ARM64 boards prefer an SSD over a
   microSD/eMMC for the world database.
-- From source you only need the **.NET 8 SDK** (see [Build, test, run](#build-test-run)).
+- From source you only need the **.NET 10 SDK** (see [Build, test, run](#build-test-run)).
 
 ## Windows security notice
 
@@ -239,7 +239,7 @@ oxygen, damage, blueprints or travel.
 | Area | Choice |
 |---|---|
 | Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux, experimental macOS) — see [`client/`](client/) |
-| Server | .NET 8, standalone console host (no Unity runtime) |
+| Server | .NET 10, standalone console host (no Unity runtime) |
 | Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
 | Database | SQLite (default, portable); optional PostgreSQL for hosted realms |
 | Realtime net | LiteNetLib UDP + MessagePack for native clients; WebSocket + JSON envelope for WebGL |
@@ -256,8 +256,8 @@ src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           validate/info/backup CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
-src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net8.0-windows)
-src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net8.0, SkiaSharp splash)
+src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net10.0-windows)
+src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net10.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration tests
 client/                         Unity project (scripts + scaffold + Assets/Tests; open in the Unity Editor)
@@ -272,7 +272,7 @@ scripts/                        build-client.ps1 (Windows) + build-client.sh (Li
 
 ## Build, test, run
 
-Requires the **.NET 8 SDK**.
+Requires the **.NET 10 SDK**.
 
 ```powershell
 dotnet build BlocksBeyondTheStars.CI.slnf  # build everything (Linux: use .slnf to skip WinForms launcher)

@@ -42,7 +42,7 @@ only reachable from the Unity tiers (1.5 / 2).
 
 ## Tier 1 — headless client ↔ server (`ClientCore`)
 
-`tests/BlocksBeyondTheStars.Client.Tests/` (net8.0, xUnit). It references `Client.Core` **and** the real
+`tests/BlocksBeyondTheStars.Client.Tests/` (net10.0, xUnit). It references `Client.Core` **and** the real
 `GameServer`, and wires them through one `LoopbackLink` — no Unity, no sockets, same authoritative logic as
 the shipping game.
 

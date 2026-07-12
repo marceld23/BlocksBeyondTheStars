@@ -82,7 +82,7 @@ the bundle).
 ## How to build locally
 
 ```bash
-# Prerequisites: Unity 6000.4.x with the Mac-Mono build module + .NET 8 SDK
+# Prerequisites: Unity 6000.4.x with the Mac-Mono build module + .NET 10 SDK
 ./scripts/sync-client-libs.sh
 ./scripts/sync-velopack-libs.sh
 ./scripts/publish-local-server.sh osx-x64

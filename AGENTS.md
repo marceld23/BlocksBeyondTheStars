@@ -24,12 +24,12 @@ LAN/self-hosting and anti-cheat correct by construction.
 ## Tech stack (decided)
 
 - **Client:** Unity 6 LTS (6000.4.x), C#. Lives in `client/` (open in the Unity Editor). Builds for Windows (WinForms launcher) and Linux (console launcher).
-- **Server:** .NET 8, standalone console host. **No Unity runtime on the server.**
+- **Server:** .NET 10, standalone console host. **No Unity runtime on the server.**
 - **Admin/API:** ASP.NET Core 8 (Minimal API).
 - **DB:** SQLite by default (portable); PostgreSQL later.
 - **Realtime networking:** LiteNetLib (UDP). MessagePack for wire serialization.
 - **Shared/WorldGeneration target `netstandard2.1`** so the *same* code runs in both
-  Unity and the .NET server. Everything else targets `net8.0`.
+  Unity and the .NET server. Everything else targets `net10.0`.
 
 ## Repository layout
 
@@ -42,8 +42,8 @@ src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
-src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net8.0-windows)
-src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net8.0, SkiaSharp splash)
+src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net10.0-windows)
+src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net10.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration (real NetworkClient vs real GameServer)
 client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites)

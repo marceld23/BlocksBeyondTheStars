@@ -29,7 +29,7 @@ This places `BlocksBeyondTheStars.Shared.dll`, `BlocksBeyondTheStars.WorldGenera
 ### Singleplayer hosting (optional but recommended)
 
 "Singleplayer" launches the bundled dedicated server as a child process bound to loopback
-(Option A — `GameServer`/`Persistence` are net8.0 + native SQLite and can't run inside Unity).
+(Option A — `GameServer`/`Persistence` are net10.0 + native SQLite and can't run inside Unity).
 Publish the server into the client once:
 
 ```powershell

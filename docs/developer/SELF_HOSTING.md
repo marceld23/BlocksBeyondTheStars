@@ -13,7 +13,7 @@ Download or build a package for your platform:
 | Linux x64 | `blocks-beyond-the-stars-server-linux-x64.zip` |
 | Linux ARM64 | `blocks-beyond-the-stars-server-linux-arm64.zip` |
 
-Build them yourself from a checkout with the .NET 8 SDK:
+Build them yourself from a checkout with the .NET 10 SDK:
 
 ```powershell
 ./scripts/publish-server.ps1                 # Windows
@@ -138,7 +138,7 @@ loopback bind and shows a warning in the status. Live operations on a *running* 
 
 From a source checkout the same UI runs with
 `dotnet run --project src/BlocksBeyondTheStars.Api`. Note that it then resolves
-`config/server.json` relative to its **own build folder** (`bin/Debug/net8.0/`), not the
+`config/server.json` relative to its **own build folder** (`bin/Debug/net10.0/`), not the
 game server's — for a shared config run both executables from one published install
 directory.
 
@@ -351,7 +351,7 @@ or a VPS. The **game client stays Windows-only** — the container hosts the ser
 installer out via `/download`.
 
 **One image, asymmetric processes.** [`Dockerfile`](../../Dockerfile) publishes the headless projects
-onto the .NET 8 ASP.NET runtime image and runs them through
+onto the .NET 10 ASP.NET runtime image and runs them through
 [`docker/entrypoint.sh`](../../docker/entrypoint.sh) under `tini` (PID 1). The split is deliberate:
 
 - the **game server** is the critical foreground process — it receives the shutdown signal and saves

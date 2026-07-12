@@ -37,7 +37,7 @@ public sealed class CrashReportWriter
     private readonly string _directory;
     private readonly string _worldName;
     private readonly string _version;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private int _seq;
 
     /// <param name="directory">Folder reports are written to (created on demand). Empty disables writing.</param>
