@@ -98,6 +98,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Server-side stack upgraded from .NET 8 to .NET 10 LTS (#309, closes #308, 2026-07-12)
+.NET 8 LTS support ends Nov 2026, so all ten `net8.0` projects (server, hosts, launchers, tests) now target
+`net10.0` — the Unity boundary is untouched (`Shared`/`Networking`/`WorldGeneration`/`Client.Core` stay
+`netstandard2.1`, `System.Text.Json` stays 8.0.5 in Shared). Packages: Microsoft.Data.Sqlite 10.0.9,
+Npgsql 10.0.3, Test.Sdk 18.7.0, coverlet 10.0.1, **plus a direct `SQLitePCLRaw.bundle_e_sqlite3` 3.0.3
+override** — the transitive 2.1.11 native sqlite has a known high-severity CVE (GHSA-2m69-gcr7-jv3q) that
+the .NET 10 SDK's transitive audit turns into NU1903 errors under `-warnaserror`. Code fixes the new SDK
+demanded: 8 `object` lock fields → `System.Threading.Lock` (MA0158) and `KnownNetworks` → `KnownIPNetworks`
+(ASPDEPR005, Api + WorldHost). CI workflows on `dotnet-version: 10.0.x`, Docker images on `sdk/aspnet:10.0`;
+**gotcha:** the 10.0 base image is Ubuntu noble (8.0 was Debian bookworm), so `Dockerfile.worldhost` now
+derives the Docker-CLI apt repo from `/etc/os-release` instead of hardcoding `linux/debian`. No action for
+players (bundled server + launchers are self-contained) or the VPS (pulls rebuilt images); local dev needs
+the .NET 10 SDK. Verified: solution `-warnaserror` clean, 993+118 tests green, all three images build, the
+dedicated-server container and the self-contained singleplayer publish both boot and generate a world.
+
 ### ★ Singleplayer start world no longer pinned by a stale bundled server config (#307, 2026-07-11)
 A freshly-built client could still spawn the pre-#264 **rocky** start world: the bundled server auto-writes
 `config/server.json` next to its exe on first run and reads it verbatim afterwards, and the reused build
