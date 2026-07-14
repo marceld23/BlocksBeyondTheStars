@@ -95,6 +95,7 @@ PUBLISH_DATES = [
     "2026-07-10T22:00:00Z",  # 36 Baumhaus-Prinzip (right after the v0.7.5 news; file order!)
     "2026-07-10T21:30:00Z",  # 37 Version 0.7.5 news (already live; sits after the export section in the md)
     "2026-07-12T20:30:00Z",  # 38 Version 0.7.6 news (already live; posted right after the v0.7.6 release)
+    "2026-07-14T03:57:00Z",  # 39 Version 0.7.7 news (already live; posted right after the v0.7.7 release)
 ]
 EN_EXTRA_MINUTES = 5
 
