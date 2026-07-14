@@ -156,6 +156,68 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(7, verify.LoadMetadata()!.Seed);
     }
 
+    [Fact]
+    public void BlockPalette_RemapsStoredIdsWhenContentShifts()
+    {
+        // Baseline content: steel_wall=5, torch=6, gone_block=7.
+        var paletteA = new Dictionary<ushort, string> { [5] = "steel_wall", [6] = "torch", [7] = "gone_block" };
+        // A new block (algae) sorts first and takes id 5, shifting steel_wall→6 and torch→7; gone_block removed.
+        var paletteB = new Dictionary<ushort, string> { [5] = "algae", [6] = "steel_wall", [7] = "torch" };
+
+        using (var repo = NewRepo())
+        {
+            repo.SetBlock("rocky", new Vector3i(1, 2, 3), 5);  // steel_wall
+            repo.SetBlock("rocky", new Vector3i(2, 2, 3), 6);  // torch
+            repo.SetBlock("rocky", new Vector3i(3, 2, 3), 7);  // gone_block → air after migration
+            repo.SetStructureBlock("ship:p1", new Vector3i(0, 0, 0), 5);
+            repo.SaveFloraRegrow("rocky", new Vector3i(4, 2, 3), 6, 12.0);
+            repo.SaveSpaceStructure(new StoredSpaceStructure
+            {
+                Id = "st1",
+                OwnerId = "p1",
+                Name = "Base",
+                Location = "sys0-p1",
+                Blocks = "0:0:0:5;1:0:0:6;-2:3:0:7",
+            });
+            repo.EnsureBlockPalette(paletteA); // record the baseline palette
+        }
+
+        using (var repo = NewRepo())
+        {
+            repo.EnsureBlockPalette(paletteB); // content shifted → remap every stored id
+        }
+
+        using var reopened = NewRepo();
+        var edits = reopened.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0));
+        ushort BlockAt(int x) => edits.First(e => e.WorldPosition.X == x).Block;
+        Assert.Equal((ushort)6, BlockAt(1)); // steel_wall 5 → 6 (no cascade into torch's remap)
+        Assert.Equal((ushort)7, BlockAt(2)); // torch 6 → 7
+        Assert.Equal((ushort)0, BlockAt(3)); // gone_block 7 → air (key no longer in content)
+
+        Assert.Equal((ushort)6, reopened.LoadStructureEdits("ship:p1").Single().Block);
+        Assert.Equal((ushort)7, reopened.ListFloraRegrow("rocky").Single().Block);
+        Assert.Equal("0:0:0:6;1:0:0:7;-2:3:0:0", reopened.ListSpaceStructures().Single().Blocks);
+    }
+
+    [Fact]
+    public void BlockPalette_LeavesIdsUntouchedWhenUnchanged()
+    {
+        var palette = new Dictionary<ushort, string> { [5] = "steel_wall", [6] = "torch" };
+        using (var repo = NewRepo())
+        {
+            repo.SetBlock("rocky", new Vector3i(1, 2, 3), 5);
+            repo.EnsureBlockPalette(palette);
+        }
+
+        using (var repo = NewRepo())
+        {
+            repo.EnsureBlockPalette(palette); // identical palette → no remap
+        }
+
+        using var reopened = NewRepo();
+        Assert.Equal((ushort)5, reopened.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0)).Single().Block);
+    }
+
     public void Dispose()
     {
         try

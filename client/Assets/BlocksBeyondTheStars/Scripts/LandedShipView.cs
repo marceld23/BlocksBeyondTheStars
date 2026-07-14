@@ -108,7 +108,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (_roots[id] != null)
                 {
-                    Destroy(_roots[id]);
+                    var root = _roots[id];
+                    for (int i = root.transform.childCount - 1; i >= 0; i--)
+                    {
+                        DestroyShipChunk(root.transform.GetChild(i).gameObject); // free the ship's chunk meshes
+                    }
+
+                    Destroy(root);
                 }
 
                 _roots.Remove(id);
@@ -129,6 +135,31 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Destroys a ship-chunk GameObject AND the fresh render + collision meshes ChunkMesher.Build
+        /// allocated for it — Unity does not free a MeshFilter/MeshCollider's sharedMesh with the GameObject, so
+        /// each ship re-mesh or removal would otherwise leak two meshes per chunk.</summary>
+        private void DestroyShipChunk(GameObject go)
+        {
+            if (go == null)
+            {
+                return;
+            }
+
+            var mf = go.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null)
+            {
+                Destroy(mf.sharedMesh);
+            }
+
+            var mc = go.GetComponent<MeshCollider>();
+            if (mc != null && mc.sharedMesh != null)
+            {
+                Destroy(mc.sharedMesh);
+            }
+
+            Destroy(go);
+        }
+
         /// <summary>Meshes one parked ship under its root: the same ChunkMesher + block atlas the world and
         /// flight view use, with the owner's hull colour painted into the mesh (item 32) and a MeshCollider
         /// per voxel chunk so walking, standing inside and the settle-freeze ground probe all work.</summary>
@@ -136,7 +167,7 @@ namespace BlocksBeyondTheStars.Client
         {
             for (int i = root.transform.childCount - 1; i >= 0; i--)
             {
-                Destroy(root.transform.GetChild(i).gameObject);
+                DestroyShipChunk(root.transform.GetChild(i).gameObject); // free the child's fresh meshes too
             }
 
             if (m.Cells.Count == 0 || Game.ChunkMaterial == null || Game.Atlas == null || Game.Content == null)

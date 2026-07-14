@@ -216,6 +216,10 @@ public sealed partial class GameServer
     public void Start()
     {
         _repo.Initialize();
+        // Record the current block-id palette and remap any save written under a different block set BEFORE
+        // world load. Block ids are assigned by key sort order, so adding a block shifts them; without this a
+        // content update would silently decode every stored edit to the wrong block.
+        _repo.EnsureBlockPalette(_content.BlockPalette());
 
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
@@ -912,6 +916,7 @@ public sealed partial class GameServer
         Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
         Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
         Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
+        Guard("TickAiMissions", TickAiMissions); // publish /ai_mission generations finished off-thread
         Guard("TickVegaBanter", TickVegaBanter); // push VEGA's LLM banter lines finished off-thread
 
         Guard("AccumulatePlaytime", deltaSeconds, AccumulatePlaytime);
@@ -1630,6 +1635,10 @@ public sealed partial class GameServer
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
             if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
             {
+                // Move the cursor off the world we're about to drop, back to the (always-resident) default
+                // body. Without this the Unload would target the world the disconnect just made Active and
+                // silently no-op, leaking that world (and leaving the empty server ticking the orphan).
+                SetActiveWorld(_meta.ActiveLocationId);
                 _worlds.Unload(loc); // last player left this body — drop it from memory (edits persisted)
             }
         }
@@ -2173,6 +2182,17 @@ public sealed partial class GameServer
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
         return session;
+    }
+
+    /// <summary>Test seam: simulates a player's connection dropping, running the same disconnect handling a
+    /// real transport close would (session cleanup, save, world unload) — so tests can assert that behaviour
+    /// without a live socket. No-op if the player isn't joined.</summary>
+    public void DisconnectLocalPlayerForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            OnClientDisconnected(session.ConnectionId);
+        }
     }
 
     /// <summary>Runs the authoritative mine validator for a player until the block breaks (used by local
@@ -3098,9 +3118,11 @@ public sealed partial class GameServer
         // Admin content tooling (not a cheat): AI mission generation.
         if (string.Equals(cmd.Command, "ai_mission", StringComparison.OrdinalIgnoreCase))
         {
-            var (ok, message) = TryGenerateAiMission(cmd.StringArg ?? string.Empty);
-            Send(session, new ServerMessage { Text = message });
-            CheatLog(p, ok ? $"generated an AI mission" : $"AI mission request: {message}");
+            // Generation runs off the tick thread (the LLM call blocks up to the backend timeout); the
+            // published/rejected result is pushed to the admin later by TickAiMissions. Acknowledge now.
+            string ack = RequestAiMission(session, cmd.StringArg ?? string.Empty);
+            Send(session, new ServerMessage { Text = ack });
+            CheatLog(p, "requested an AI mission");
             return;
         }
 
@@ -3156,7 +3178,10 @@ public sealed partial class GameServer
 
                     var target = FindSessionByName(cmd.TargetPlayer) ?? session;
                     int amount = System.Math.Max(1, cmd.IntArg);
-                    new MaterialPool(_content, target.State, _ship).Add(cmd.StringArg!, amount);
+                    // Resolve the TARGET's own ship, not the admin's cursor ship (`_ship`): a give to an
+                    // aboard-ship target must spill into that player's cargo, not the admin's.
+                    var targetShip = target.Ships.TryGetValue(target.ActiveShipId, out var ts) ? ts : _noShip;
+                    new MaterialPool(_content, target.State, targetShip).Add(cmd.StringArg!, amount);
                     SendInventory(target);
                     CheatLog(p, $"gave {amount} {cmd.StringArg} to {target.State.Name}");
                     break;

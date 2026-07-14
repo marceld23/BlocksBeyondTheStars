@@ -163,6 +163,14 @@ public interface IWorldRepository : IDisposable
     /// <summary>Opens/creates the database and ensures the schema exists.</summary>
     void Initialize();
 
+    /// <summary>Records the current block-id palette (numeric id → block key) and, if a stored palette from an
+    /// earlier content set is present and differs, remaps every persisted numeric block id (block edits,
+    /// structure edits, flora regrowth, stored space structures) to the current assignment BEFORE any world
+    /// loads. Call once at startup after <see cref="Initialize"/>. This is what stops a content update that
+    /// inserts a block — which shifts the sort-order-assigned ids — from silently decoding every existing
+    /// save's edits to the wrong blocks. A block key no longer in content maps to air (0).</summary>
+    void EnsureBlockPalette(IReadOnlyDictionary<ushort, string> currentPalette);
+
     WorldMetadata? LoadMetadata();
     void SaveMetadata(WorldMetadata metadata);
 

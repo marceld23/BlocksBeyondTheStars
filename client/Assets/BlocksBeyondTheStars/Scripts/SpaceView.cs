@@ -2952,7 +2952,7 @@ namespace BlocksBeyondTheStars.Client
         {
             for (int i = parent.childCount - 1; i >= 0; i--)
             {
-                Destroy(parent.GetChild(i).gameObject);
+                DestroyVoxChunk(parent.GetChild(i).gameObject); // free the child's fresh meshes, not just the GameObject
             }
 
             if (cells == null || cells.Count == 0)
@@ -3009,6 +3009,31 @@ namespace BlocksBeyondTheStars.Client
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
                 go.AddComponent<MeshCollider>().sharedMesh = collider; // S2/S3: hull/ore collision (suit + future)
             }
+        }
+
+        /// <summary>Destroys a vox-chunk GameObject AND the fresh render + collision meshes ChunkMesher.Build
+        /// allocated for it. Unity does not free a MeshFilter/MeshCollider's sharedMesh with the GameObject, so
+        /// without this every ship/asteroid re-mesh (each edit, each hull repaint) leaks two meshes per chunk.</summary>
+        private void DestroyVoxChunk(GameObject go)
+        {
+            if (go == null)
+            {
+                return;
+            }
+
+            var mf = go.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null)
+            {
+                Destroy(mf.sharedMesh);
+            }
+
+            var mc = go.GetComponent<MeshCollider>();
+            if (mc != null && mc.sharedMesh != null)
+            {
+                Destroy(mc.sharedMesh);
+            }
+
+            Destroy(go);
         }
 
         /// <summary>Builds a cell dict + its centre from a structure design message (shared by ship + asteroid).</summary>

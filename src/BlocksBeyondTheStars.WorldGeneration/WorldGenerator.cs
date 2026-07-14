@@ -1739,7 +1739,12 @@ public sealed class WorldGenerator
         }
     }
 
-    private bool _floraResolved;
+    // The planet key the resolved flora state below belongs to (null = not yet resolved). Flora is a
+    // PER-PLANET subset (FloraGenerator.GenerateRoster XORs the planet key into the seed), and this one
+    // generator instance serves every body in the save — so the state must be re-resolved whenever the
+    // requested planet changes, or the first-visited planet's flora would contaminate all others (and the
+    // baseline would depend on visit order instead of the seed).
+    private string? _floraResolvedFor;
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
     // surface block id -> the pool of (this world's active) flora that may grow on it.
@@ -1753,12 +1758,14 @@ public sealed class WorldGenerator
     /// surface or the seas ever go bare).</summary>
     private void ResolveFlora(PlanetType planet)
     {
-        if (_floraResolved)
+        if (_floraResolvedFor == planet.Key)
         {
             return;
         }
 
-        _floraResolved = true;
+        _floraResolvedFor = planet.Key;
+        _floraBySurface.Clear(); // re-resolving for a different planet: drop the previous planet's pools
+        _floraTagByBlock.Clear();
 
         var active = new System.Collections.Generic.HashSet<string>();
         foreach (var fs in FloraGenerator.GenerateRoster(planet, _worldSeed))

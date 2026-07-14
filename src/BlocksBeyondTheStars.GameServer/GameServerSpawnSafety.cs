@@ -20,7 +20,8 @@ public sealed partial class GameServer
     private const int VoidProbeDepth = 24;   // …with no solid block within this many blocks below them
     private const double VoidRescueInterval = 1.0; // how often the runtime void check runs (seconds)
 
-    private double _sinceVoidCheck;
+    // Per-world (routes through the active world) — a shared field would starve the void rescue on all but one world.
+    private double _sinceVoidCheck { get => _worlds.Active.SinceVoidCheck; set => _worlds.Active.SinceVoidCheck = value; }
 
     /// <summary>True if there's a solid block within <paramref name="depth"/> blocks below the position —
     /// something to stand on (terrain, a cave floor, the ship's deck). Reads generate the column as needed.</summary>

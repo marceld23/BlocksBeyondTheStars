@@ -248,6 +248,38 @@ public sealed class TradeTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Trade_UsesEachPartnersOwnShipCargo_WhenAboard()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // Alice joins first (cursor → Alice): stock HER ship's cargo with the item she'll offer.
+            var alice = server.AddLocalPlayer("Alice");
+            server.Ship.Cargo.Add("iron_ore", 10, 99); // server.Ship is the cursor's ship = Alice's here
+            alice.State.AboardShip = true;
+            alice.State.Position = new Vector3f(0, 64, 0);
+
+            // Bob joins last (cursor → Bob): stock HIS ship's cargo with the item he'll offer.
+            var bob = server.AddLocalPlayer("Bob");
+            server.Ship.Cargo.Add("carbon", 5, 99); // now Bob's ship
+            bob.State.AboardShip = true;
+            bob.State.Position = new Vector3f(1, 64, 0); // within trade range
+
+            OpenTrade(server);
+            server.SetTradeOffer("Alice", new[] { new ItemAmount("iron_ore", 4) }); // from Alice's ship cargo
+            server.SetTradeOffer("Bob", new[] { new ItemAmount("carbon", 2) });      // from Bob's ship cargo
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob"); // both ready → commit
+
+            // With the bug (both pools resolved through the confirmer's ship cursor), one side's offer can't be
+            // found in the wrong hold and the whole trade rejects. Fixed: each pool draws from its own cargo.
+            Assert.Null(server.ActiveTrade("Alice"));           // committed
+            Assert.Equal(2, alice.State.Inventory.CountOf("carbon"));   // Alice received Bob's carbon
+            Assert.Equal(4, bob.State.Inventory.CountOf("iron_ore"));   // Bob received Alice's iron_ore
+        }
+    }
+
     public void Dispose()
     {
         try

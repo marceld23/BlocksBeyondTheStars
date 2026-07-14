@@ -17,7 +17,8 @@ public sealed partial class GameServer
 {
     private const double PresenceInterval = 0.1; // ~10 Hz
 
-    private double _sincePresence;
+    // Per-world (routes through the active world) — see LoadedWorld.SincePresence for why a shared field starves worlds.
+    private double _sincePresence { get => _worlds.Active.SincePresence; set => _worlds.Active.SincePresence = value; }
 
     private void HandleSetAppearance(PlayerSession session, SetAppearanceIntent intent)
     {

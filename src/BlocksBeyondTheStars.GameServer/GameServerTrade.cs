@@ -118,7 +118,11 @@ public sealed partial class GameServer
         }
 
         var offer = items.Where(i => i.Count > 0).Select(i => new ItemAmount(i.Item, i.Count)).ToList();
-        var pool = new MaterialPool(_content, s.State, _ship);
+        // Validate against the offering player's OWN ship cargo, not the ship cursor (`_ship`). In normal
+        // message dispatch the cursor already is this player, but keying off their own session removes the
+        // cursor dependency so the check is correct regardless of who the server is currently serving.
+        var ownShip = s.Ships.TryGetValue(s.ActiveShipId, out var sh) ? sh : _noShip;
+        var pool = new MaterialPool(_content, s.State, ownShip);
         if (!pool.Has(offer))
         {
             Reject(s, "trade", "You don't have those items to offer.");
@@ -206,8 +210,14 @@ public sealed partial class GameServer
             return;
         }
 
-        var poolA = new MaterialPool(_content, sa.State, _ship);
-        var poolB = new MaterialPool(_content, sb.State, _ship);
+        // Each side's pool must wrap that side's OWN ship cargo — not the ship cursor (`_ship`), which
+        // points at whoever's message triggered the commit (the confirmer). Using `_ship` for both would
+        // make a partner-aboard trade read/remove items from the confirmer's hold: item dupe/loss. Same
+        // pattern the mission payout uses (GameServerMissions.RewardMissionPoster).
+        var shipA = sa.Ships.TryGetValue(sa.ActiveShipId, out var psa) ? psa : _noShip;
+        var shipB = sb.Ships.TryGetValue(sb.ActiveShipId, out var psb) ? psb : _noShip;
+        var poolA = new MaterialPool(_content, sa.State, shipA);
+        var poolB = new MaterialPool(_content, sb.State, shipB);
 
         // Re-validate both sides still hold their offers (they could have used items meanwhile).
         if (!poolA.Has(session.OfferA) || !poolB.Has(session.OfferB))

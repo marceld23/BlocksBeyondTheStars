@@ -191,6 +191,34 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void LastPlayerLeavingABody_UnloadsItsWorld_AndReturnsCursorToDefault()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Alice");
+            server.AddLocalPlayer("Bob");
+            var alice = server.Sessions.Values.First(s => s.State.PlayerId == "Alice");
+            string origin = alice.CurrentLocationId;
+            alice.Ships[alice.ActiveShipId].Modules.Add("jump_generator");
+
+            var dest = OtherPlanet(server);
+            server.Travel("Alice", dest.Id);
+            Assert.True(server.ResidentWorldCount >= 2);
+            Assert.NotNull(server.WorldAt(dest.Id));
+
+            // Alice is the only player on the destination body. Her disconnect must drop that world from memory
+            // (previously a no-op: the handler made it the Active cursor first, so Unload refused to drop it)
+            // and leave the cursor on the always-resident default body, not stranded on the emptied world.
+            server.DisconnectLocalPlayerForTest("Alice");
+
+            Assert.Null(server.WorldAt(dest.Id));                   // destination world unloaded
+            Assert.NotNull(server.WorldAt(origin));                 // Bob's world stays resident
+            Assert.Equal(server.Metadata.ActiveLocationId, server.ActiveLocationId); // cursor back on default
+        }
+    }
+
+    [Fact]
     public void FlyAndLand_OnSameSystemBody_LandsThere_NoJumpNeeded()
     {
         var server = Started(out var repo, jumpDrive: false); // system-scale flight needs no jump drive

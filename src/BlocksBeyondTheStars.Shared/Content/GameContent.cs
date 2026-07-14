@@ -310,6 +310,21 @@ public sealed class GameContent
     public BlockDefinition? BlockById(BlockId id)
         => id.Value < _blocksById.Length ? _blocksById[id.Value] : null;
 
+    /// <summary>The current block-id palette: numeric id → block key, for every loaded block (incl. air = 0).
+    /// Numeric ids are assigned by key sort order (<see cref="AssignBlockIds"/>), so they shift whenever a
+    /// block is added whose key sorts before existing ones. Persisting this lets a save remap its stored
+    /// edits to the current ids on load instead of silently decoding them to the wrong blocks.</summary>
+    public IReadOnlyDictionary<ushort, string> BlockPalette()
+    {
+        var palette = new Dictionary<ushort, string>(_blocks.Count);
+        foreach (var b in _blocks.Values)
+        {
+            palette[b.NumericId.Value] = b.Key;
+        }
+
+        return palette;
+    }
+
     // Item keys may carry a colour modifier (e.g. "mud#t3f6fb0" for dyed mud). Definition lookups
     // strip it back to the base key — a dyed item shares its base item's definition (max stack,
     // placed block, name, …); the colour lives only in the key + the per-voxel modifier store.

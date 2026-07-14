@@ -147,7 +147,8 @@ public sealed partial class GameServer
     private const float EnemyWanderSpeed = 1.1f;
     private const double EnemySightGiveUpSeconds = 6.0; // out of sight this long → give up the hunt and resume roaming
 
-    private double _enemySyncTimer;
+    // Per-world (routes through the active world) — a shared field would starve enemy syncs on all but one world.
+    private double _enemySyncTimer { get => _worlds.Active.SinceEnemySync; set => _worlds.Active.SinceEnemySync = value; }
     private readonly Dictionary<string, (double Heading, double Until)> _enemyWander = new();
     private readonly Dictionary<string, double> _enemySightSeenAt = new(); // enemy id → uptime it last had line-of-sight to its prey
 

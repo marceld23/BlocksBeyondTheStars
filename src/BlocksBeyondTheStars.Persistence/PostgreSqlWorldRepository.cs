@@ -90,7 +90,8 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 block INTEGER NOT NULL, PRIMARY KEY (structure, x, y, z));
             CREATE TABLE IF NOT EXISTS flora_regrow (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
-                block INTEGER NOT NULL, timer DOUBLE PRECISION NOT NULL, PRIMARY KEY (planet, x, y, z));");
+                block INTEGER NOT NULL, timer DOUBLE PRECISION NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);");
         // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
         // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -101,6 +102,142 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         // Migrate older saves to carry the per-voxel shape descriptor (non-cube building forms). Same pattern:
         // harmlessly ignored on a fresh DB where the CREATE already added the column.
         TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS shape INTEGER NOT NULL DEFAULT 0;");
+    }
+
+    // --- Block-id palette (content-shift migration) ---
+
+    public void EnsureBlockPalette(IReadOnlyDictionary<ushort, string> currentPalette)
+    {
+        Dictionary<ushort, string> stored;
+        lock (_gate)
+        {
+            Execute("CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);");
+            stored = ReadBlockPalette();
+        }
+
+        if (stored.Count == 0)
+        {
+            // Fresh save, or the first load after this feature shipped: no recorded mapping to remap FROM, so
+            // adopt the current assignment as the baseline. From here on, any content change that shifts ids is
+            // detected and remapped on the next load.
+            WriteBlockPalette(currentPalette);
+            return;
+        }
+
+        var remap = BlockPaletteMigration.BuildRemap(stored, currentPalette);
+        if (remap.Count == 0)
+        {
+            WriteBlockPalette(currentPalette);
+            return;
+        }
+
+        // Atomic: remap every persisted id AND rewrite the palette in one transaction.
+        RunInTransaction(() =>
+        {
+            RemapBlockColumn("block_edit", remap);
+            RemapBlockColumn("structure_edit", remap);
+            RemapBlockColumn("flora_regrow", remap);
+            RemapSpaceStructureBlocks(remap);
+            WriteBlockPaletteLocked(currentPalette);
+        });
+    }
+
+    private Dictionary<ushort, string> ReadBlockPalette()
+    {
+        var result = new Dictionary<ushort, string>();
+        using var cmd = Connection.CreateCommand();
+        cmd.CommandText = "SELECT numeric_id, key FROM block_palette;";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            result[(ushort)reader.GetInt32(0)] = reader.GetString(1);
+        }
+
+        return result;
+    }
+
+    private void WriteBlockPalette(IReadOnlyDictionary<ushort, string> palette)
+        => RunInTransaction(() => WriteBlockPaletteLocked(palette));
+
+    private void WriteBlockPaletteLocked(IReadOnlyDictionary<ushort, string> palette)
+    {
+        Execute("DELETE FROM block_palette;");
+        foreach (var kv in palette)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO block_palette (numeric_id, key) VALUES (@id, @k);";
+            cmd.Parameters.AddWithValue("@id", (int)kv.Key);
+            cmd.Parameters.AddWithValue("@k", kv.Value);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Remaps the <c>block</c> column of a table via a single CASE over the ORIGINAL value, so every
+    /// row is translated atomically. Only changed ids appear; all values are server-side ushorts, so inlining
+    /// them is injection-safe.</summary>
+    private void RemapBlockColumn(string table, IReadOnlyDictionary<ushort, ushort> remap)
+    {
+        if (remap.Count == 0)
+        {
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("UPDATE ").Append(table).Append(" SET block = CASE block");
+        foreach (var kv in remap)
+        {
+            sb.Append(" WHEN ").Append(kv.Key).Append(" THEN ").Append(kv.Value);
+        }
+
+        sb.Append(" ELSE block END WHERE block IN (");
+        bool first = true;
+        foreach (var kv in remap)
+        {
+            if (!first)
+            {
+                sb.Append(',');
+            }
+
+            sb.Append(kv.Key);
+            first = false;
+        }
+
+        sb.Append(");");
+        Execute(sb.ToString());
+    }
+
+    private void RemapSpaceStructureBlocks(IReadOnlyDictionary<ushort, ushort> remap)
+    {
+        if (remap.Count == 0)
+        {
+            return;
+        }
+
+        var rows = new List<(string Id, string Blocks)>();
+        using (var read = Connection.CreateCommand())
+        {
+            read.CommandText = "SELECT id, blocks FROM space_structure;";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        foreach (var (id, blocks) in rows)
+        {
+            string remapped = BlockPaletteMigration.RemapCellString(blocks, remap);
+            if (remapped == blocks)
+            {
+                continue;
+            }
+
+            using var upd = Connection.CreateCommand();
+            upd.CommandText = "UPDATE space_structure SET blocks = @b WHERE id = @id;";
+            upd.Parameters.AddWithValue("@b", remapped);
+            upd.Parameters.AddWithValue("@id", id);
+            upd.ExecuteNonQuery();
+        }
     }
 
     // --- Metadata ---

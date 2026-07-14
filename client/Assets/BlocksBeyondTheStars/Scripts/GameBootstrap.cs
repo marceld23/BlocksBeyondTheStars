@@ -1384,9 +1384,9 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < _unloadScratch.Count; i++)
             {
                 var coord = _unloadScratch[i];
-                if (_chunkObjects.TryGetValue(coord, out var view) && view?.Go != null)
+                if (_chunkObjects.TryGetValue(coord, out var view))
                 {
-                    Destroy(view.Go);
+                    DestroyChunkView(view); // frees the chunk's meshes too, not just the GameObject
                 }
 
                 _chunkObjects.Remove(coord);
@@ -1462,6 +1462,33 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The active world changed (travel): drop all chunks/meshes so the new planet streams in.</summary>
+        /// <summary>Destroys a chunk's GameObject AND its procedurally-built render + collision meshes. Unity
+        /// does NOT free a MeshFilter/MeshCollider's sharedMesh when the GameObject is destroyed, so without
+        /// this every unloaded chunk (far-chunk eviction, world reset) orphans two per-chunk meshes — native
+        /// memory that is never reclaimed and grows across a long session.</summary>
+        private void DestroyChunkView(ChunkView view)
+        {
+            if (view == null)
+            {
+                return;
+            }
+
+            if (view.Filter != null && view.Filter.sharedMesh != null)
+            {
+                Destroy(view.Filter.sharedMesh);
+            }
+
+            if (view.Collider != null && view.Collider.sharedMesh != null)
+            {
+                Destroy(view.Collider.sharedMesh);
+            }
+
+            if (view.Go != null)
+            {
+                Destroy(view.Go);
+            }
+        }
+
         private void OnWorldReset(BlocksBeyondTheStars.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
@@ -1480,8 +1507,9 @@ namespace BlocksBeyondTheStars.Client
                     // the *old* world this frame, "find ground", release early, and drop the player into the
                     // void before the new world's floor chunk has streamed in (the station-boarding fall).
                     view.Go.SetActive(false);
-                    Destroy(view.Go);
                 }
+
+                DestroyChunkView(view); // frees the chunk's render + collision meshes, not just the GameObject
             }
 
             _chunkObjects.Clear();
@@ -1846,9 +1874,11 @@ namespace BlocksBeyondTheStars.Client
             var mcol = view!.Collider;
             if (collider == null)
             {
-                if (mcol != null)
+                if (mcol != null && mcol.sharedMesh != null)
                 {
+                    var stale = mcol.sharedMesh; // chunk became all-fluid/air — free the outgoing collision mesh
                     mcol.sharedMesh = null;
+                    Destroy(stale);
                 }
             }
             else
@@ -1859,7 +1889,12 @@ namespace BlocksBeyondTheStars.Client
                 // frame, so the spawn ground-check raycast finds footing and the player never falls through.
                 if (mcol != null)
                 {
+                    var oldWebgl = mcol.sharedMesh; // freshly cooked each remesh — free the previous one (leak otherwise)
                     mcol.sharedMesh = collider;
+                    if (oldWebgl != null && oldWebgl != collider)
+                    {
+                        Destroy(oldWebgl);
+                    }
                 }
 #else
                 var meshId = collider.GetEntityId();
@@ -1898,7 +1933,13 @@ namespace BlocksBeyondTheStars.Client
                     var mc = view.Collider;
                     if (mc != null)
                     {
+                        var old = mc.sharedMesh; // collider meshes are always freshly cooked (never reused) —
                         mc.sharedMesh = baked.Collider; // cook cached by BakeMesh → cheap assign, no main-thread stall
+                        if (old != null && old != baked.Collider)
+                        {
+                            Destroy(old); // …so the outgoing one is orphaned unless we free it (leak on every remesh)
+                        }
+
                         assigned = true;
                     }
                 }

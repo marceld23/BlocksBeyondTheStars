@@ -160,6 +160,32 @@ public sealed class FloraVarietyTests
 
     [Fact]
     [Trait("Category", "Slow")]
+    public void Worldgen_FloraIsPerPlanet_NotContaminatedByFirstWorldVisited()
+    {
+        var jungle = _content.GetPlanet("jungle")!;
+        var alpine = _content.GetPlanet("highland")!;
+        var floraIds = FloraIds();
+
+        HashSet<ushort> JungleFlora(WorldGenerator gen)
+            => CountArea(gen, jungle, chunksXZ: 4).Keys.Where(floraIds.Contains).ToHashSet();
+
+        // Jungle generated with a fresh generator — the correct, seed-only baseline.
+        var baseline = JungleFlora(new WorldGenerator(2026, _content));
+
+        // The same jungle, but this generator first produced a DIFFERENT planet (alpine). Flora is a per-planet
+        // subset, so resolving it once for the first-visited planet would make the jungle grow alpine's plants.
+        var contaminated = new WorldGenerator(2026, _content);
+        CountArea(contaminated, alpine, chunksXZ: 2); // visit alpine first
+        var afterAlpine = JungleFlora(contaminated);
+
+        Assert.NotEmpty(baseline);
+        Assert.True(baseline.SetEquals(afterAlpine),
+            $"jungle flora changed after visiting alpine first — baseline={string.Join(",", baseline.OrderBy(x => x))}, "
+            + $"after={string.Join(",", afterAlpine.OrderBy(x => x))}");
+    }
+
+    [Fact]
+    [Trait("Category", "Slow")]
     public void Worldgen_ConiferWorld_GrowsPines_NotBroadleafCrowns()
     {
         var planet = _content.GetPlanet("highland")!; // alpine theme → conifers only

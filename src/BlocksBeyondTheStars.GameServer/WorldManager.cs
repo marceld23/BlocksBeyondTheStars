@@ -137,6 +137,12 @@ internal sealed class LoadedWorld
     public double EnemySpawnTimer { get; set; }
     public double SinceFluid { get; set; }
     public double SinceFire { get; set; }
+    // These three run once per occupied world each tick, so their accumulate-and-reset throttles MUST be
+    // per-world — a single shared field lets whichever world is iterated first reset it before the others
+    // reach their interval, starving every world but one of presence/enemy syncs and the void rescue.
+    public double SincePresence { get; set; }
+    public double SinceEnemySync { get; set; }
+    public double SinceVoidCheck { get; set; }
     public double NpcBroadcastTimer { get; set; }
     public int NextNpcId { get; set; } = 1;
     public int NextDoorId { get; set; } = 1;
@@ -282,12 +288,40 @@ internal sealed class WorldManager
     }
 
     /// <summary>Drops a resident world from memory (its chunk edits are already persisted by the repo).
-    /// No-op if it isn't loaded or is still the active cursor.</summary>
-    public void Unload(string locationId)
+    /// No-op if it isn't loaded. If it is the active cursor, the cursor is first repointed to another
+    /// resident world so the world under the cursor is never dropped; if it is the ONLY resident world it
+    /// is kept (there must always be an active world). Returns whether the world was dropped.</summary>
+    public bool Unload(string locationId)
     {
-        if (_loaded.TryGetValue(locationId, out var w) && !ReferenceEquals(w, Active))
+        if (!_loaded.TryGetValue(locationId, out var w))
         {
-            _loaded.Remove(locationId);
+            return false;
         }
+
+        if (ReferenceEquals(w, Active))
+        {
+            // Never drop the world under the cursor (that silently no-ops and leaks it). Repoint to any
+            // other resident world first; if this is the only one, keep it — callers guarantee they never
+            // unload the default/occupied world, so this branch only guards against a stuck cursor.
+            LoadedWorld? other = null;
+            foreach (var kv in _loaded)
+            {
+                if (!ReferenceEquals(kv.Value, w))
+                {
+                    other = kv.Value;
+                    break;
+                }
+            }
+
+            if (other is null)
+            {
+                return false;
+            }
+
+            Active = other;
+        }
+
+        _loaded.Remove(locationId);
+        return true;
     }
 }
