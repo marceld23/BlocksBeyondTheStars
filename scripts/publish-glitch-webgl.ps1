@@ -139,23 +139,23 @@ if ([string]::IsNullOrWhiteSpace($env:GLITCH_DEPLOY_TOKEN)) {
     Write-Error 'GLITCH_DEPLOY_TOKEN is not set (create a deploy token on the glitch.fun tokens page).'
 }
 
-# Deploy via Glitch's deployments API directly (presigned S3 PUT + confirm) — no external CLI.
-# Same flow as scripts/upload-glitch-webgl.sh, which the release pipeline uses.
+# Deploy via the OFFICIAL Glitch CLI (glitch-deploy-basic: plain POSIX shell, runs under Git Bash —
+# no Node/npm needed). Same pinned commit as the release pipeline's publish-glitch job.
+$cliDir = Join-Path $repo 'artifacts/glitch-cli'
+$cliPin = '71e6e7c6b2e159502c43cae62f9cbc4b332009d3'
+if (-not (Test-Path (Join-Path $cliDir 'bin/glitch-deploy-basic'))) {
+    Write-Host 'Fetching the Glitch deploy CLI (pinned) ...' -ForegroundColor Cyan
+    git clone --no-checkout https://github.com/Glitch-Gaming-Platform/Glitch-Cli-Deploy.git $cliDir
+}
+git -C $cliDir checkout $cliPin --quiet
+
+$bash = (Get-Command bash -ErrorAction SilentlyContinue)?.Source
+if (-not $bash) { Write-Error 'bash not found (Git Bash is required for glitch-deploy-basic).' }
+
 $titleId = if ($env:GLITCH_TITLE_ID) { $env:GLITCH_TITLE_ID } else { '80f5dc18-dc0f-45de-9a57-8599e08669ed' }
-$api = 'https://api.glitch.fun/api'
-$headers = @{ Authorization = "Bearer $($env:GLITCH_DEPLOY_TOKEN)"; Accept = 'application/json' }
-
-Write-Host "Requesting S3 upload slot for title $titleId ..." -ForegroundColor Cyan
-$presigned = Invoke-RestMethod -Method Post -Uri "$api/titles/$titleId/deployments/presigned-url" -Headers $headers
-$uploadUrl = if ($presigned.upload_url) { $presigned.upload_url } else { $presigned.data.upload_url }
-$filePath = if ($presigned.file_path) { $presigned.file_path } else { $presigned.data.file_path }
-if (-not $uploadUrl -or -not $filePath) { Write-Error "Unexpected presigned-url response: $($presigned | ConvertTo-Json -Depth 4)" }
-
-Write-Host ("Uploading {0:N0} MB to S3 ..." -f ((Get-Item $zip).Length / 1MB)) -ForegroundColor Cyan
-Invoke-RestMethod -Method Put -Uri $uploadUrl -InFile $zip -ContentType 'application/zip' | Out-Null
-
-Write-Host "Confirming deployment (version $Version, entry index.html) ..." -ForegroundColor Cyan
-$confirm = Invoke-RestMethod -Method Post -Uri "$api/titles/$titleId/deployments/confirm" -Headers $headers `
-    -ContentType 'application/json' -Body (@{ file_path = $filePath; version_string = $Version; entry_point = 'index.html' } | ConvertTo-Json)
-Write-Host ("Glitch answered: {0}" -f ($confirm | ConvertTo-Json -Depth 4 -Compress)) -ForegroundColor Green
-Write-Host "Deployed WebGL v$Version to glitch.fun (Glitch unzips to its CDN: processing -> ready)." -ForegroundColor Green
+Write-Host "Deploying v$Version to glitch.fun via glitch-deploy-basic ..." -ForegroundColor Cyan
+& $bash (Join-Path $cliDir 'bin/glitch-deploy-basic') deploy $zip `
+    --title $titleId --token $env:GLITCH_DEPLOY_TOKEN `
+    --version $Version --entry index.html --type wasm --build-type production --wait
+if ($LASTEXITCODE -ne 0) { Write-Error "Glitch deploy failed (exit $LASTEXITCODE)." }
+Write-Host "Deployed WebGL v$Version to glitch.fun." -ForegroundColor Green

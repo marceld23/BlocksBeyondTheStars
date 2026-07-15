@@ -741,40 +741,49 @@ jobs:
           files: artifacts/webgl/*.zip
           generate_release_notes: false
 
-  # Mirror the SAME WebGL build to glitch.fun (deployments API: presigned S3 PUT + confirm — see
-  # scripts/upload-glitch-webgl.sh). One artifact serves the fleet's /play and the Glitch store; the
-  # Glitch-only bits are dormant without Glitch's ?install_id= URL param. Gated exactly like the
-  # itch.io mirror: publishes only on real tags, skips cleanly when the deploy token is absent, and
-  # `needs: test` keeps unreviewed builds off the store. A hiccup here never blocks the GitHub Release.
+  # Mirror the SAME WebGL build to glitch.fun via the OFFICIAL Glitch deploy CLI (the no-Node
+  # `glitch-deploy-basic` shell variant: plain curl/awk, no npm dependency tree near the secret;
+  # the clone is pinned to a reviewed commit). One artifact serves the fleet's /play and the Glitch
+  # store; the Glitch-only bits are dormant without Glitch's ?install_id= URL param. Gated exactly
+  # like the itch.io mirror: publishes only on real tags, skips cleanly when the deploy token is
+  # absent, and `needs: test` keeps unreviewed builds off the store. A hiccup here never blocks the
+  # GitHub Release.
   publish-glitch:
     name: Publish to glitch.fun (WebGL)
     needs: [version, build-player-webgl, test, create-release]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
       - name: Download WebGL player artifact
         uses: actions/download-artifact@v7
         with:
           name: player-webgl
           path: player-webgl
 
-      # Zip the CONTENTS — Glitch's deploy engine requires index.html at the ZIP root.
-      - name: Zip the WebGL build for Glitch
+      - name: Get the Glitch deploy CLI (pinned)
         run: |
-          ( cd player-webgl && zip -ry "$GITHUB_WORKSPACE/bbs-webgl-glitch.zip" . )
+          git clone --no-checkout https://github.com/Glitch-Gaming-Platform/Glitch-Cli-Deploy.git glitch-cli
+          git -C glitch-cli checkout 71e6e7c6b2e159502c43cae62f9cbc4b332009d3
+          chmod +x glitch-cli/bin/glitch-deploy-basic
 
       - name: Upload to glitch.fun
         env:
-          GLITCH_DEPLOY_TOKEN: ${{ secrets.GLITCH_DEPLOY_TOKEN }}
-          GLITCH_TITLE_ID: ${{ secrets.GLITCH_TITLE_ID }}
+          GLITCH_TITLE_TOKEN: ${{ secrets.GLITCH_DEPLOY_TOKEN }}
+          GLITCH_TITLE_ID_SECRET: ${{ secrets.GLITCH_TITLE_ID }}
         run: |
-          if [ -z "$GLITCH_DEPLOY_TOKEN" ]; then
+          if [ -z "$GLITCH_TITLE_TOKEN" ]; then
             echo "GLITCH_DEPLOY_TOKEN not set — skipping the glitch.fun mirror."
             exit 0
           fi
-          ./scripts/upload-glitch-webgl.sh bbs-webgl-glitch.zip "${{ needs.version.outputs.version }}"
+          export GLITCH_TITLE_ID="${GLITCH_TITLE_ID_SECRET:-80f5dc18-dc0f-45de-9a57-8599e08669ed}"
+          ./glitch-cli/bin/glitch-deploy-basic deploy ./player-webgl \
+            --title "$GLITCH_TITLE_ID" \
+            --token "$GLITCH_TITLE_TOKEN" \
+            --version "${{ needs.version.outputs.version }}" \
+            --entry index.html \
+            --type wasm \
+            --build-type production \
+            --wait
 
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only
   # needs the resolved version (from the lightweight `version` job, NOT the Unity player), so it starts

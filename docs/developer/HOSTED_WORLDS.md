@@ -377,10 +377,12 @@ Operational notes:
 - Build/publish: **the release pipeline mirrors every tagged release to glitch.fun automatically**
   (`release.yml` job `publish-glitch`): the one CI WebGL build gets `Enabled` + `PortalUrl` baked
   from the `GLITCH_PORTAL_URL` secret (dormant without Glitch's `?install_id=` param, so the same
-  artifact serves `/play`), then `scripts/upload-glitch-webgl.sh` pushes it through Glitch's
-  deployments API (presigned S3 PUT + confirm; `GLITCH_DEPLOY_TOKEN` secret; skips cleanly when
-  unset). Local/manual path: `scripts/publish-glitch-webgl.ps1` (same API via `-Deploy`, or ZIP
-  for the Deploy Page).
+  artifact serves `/play`), then the OFFICIAL Glitch deploy CLI uploads it — the no-Node
+  `glitch-deploy-basic` shell variant from
+  [Glitch-Cli-Deploy](https://github.com/Glitch-Gaming-Platform/Glitch-Cli-Deploy), pinned to a
+  reviewed commit (`GLITCH_DEPLOY_TOKEN` secret; skips cleanly when unset; `--wait` until the CDN
+  reports ready). Local/manual path: `scripts/publish-glitch-webgl.ps1` (same CLI via `-Deploy`
+  under Git Bash, or ZIP for the Deploy Page).
 
 ## Version policy (fleet)
 
