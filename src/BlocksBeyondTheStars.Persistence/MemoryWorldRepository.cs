@@ -179,8 +179,14 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             snapshot.BlockEdits.Add(new BlockEditRow
             {
-                Planet = kv.Key.Planet, X = kv.Key.X, Y = kv.Key.Y, Z = kv.Key.Z,
-                Block = kv.Value.Block, Tint = kv.Value.Tint, Glow = kv.Value.Glow, Shape = kv.Value.Shape,
+                Planet = kv.Key.Planet,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Block = kv.Value.Block,
+                Tint = kv.Value.Tint,
+                Glow = kv.Value.Glow,
+                Shape = kv.Value.Shape,
             });
         }
 
@@ -188,8 +194,12 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             snapshot.FloraRegrow.Add(new FloraRegrowRow
             {
-                Planet = kv.Key.Planet, X = kv.Key.X, Y = kv.Key.Y, Z = kv.Key.Z,
-                Block = kv.Value.Block, Timer = kv.Value.Timer,
+                Planet = kv.Key.Planet,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Block = kv.Value.Block,
+                Timer = kv.Value.Timer,
             });
         }
 
@@ -197,7 +207,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             snapshot.StructureEdits.Add(new StructureEditRow
             {
-                StructureId = kv.Key.StructureId, X = kv.Key.X, Y = kv.Key.Y, Z = kv.Key.Z, Block = kv.Value,
+                StructureId = kv.Key.StructureId,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Block = kv.Value,
             });
         }
 
@@ -279,7 +293,9 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _alliances[(alliance.PlayerA, alliance.PlayerB)] = new StoredAlliance
             {
-                PlayerA = alliance.PlayerA, PlayerB = alliance.PlayerB, FormedUtc = alliance.FormedUtc,
+                PlayerA = alliance.PlayerA,
+                PlayerB = alliance.PlayerB,
+                FormedUtc = alliance.FormedUtc,
             };
         }
 
@@ -697,7 +713,9 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _alliances[(alliance.PlayerA, alliance.PlayerB)] = new StoredAlliance
             {
-                PlayerA = alliance.PlayerA, PlayerB = alliance.PlayerB, FormedUtc = alliance.FormedUtc,
+                PlayerA = alliance.PlayerA,
+                PlayerB = alliance.PlayerB,
+                FormedUtc = alliance.FormedUtc,
             };
         }
     }
