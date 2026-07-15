@@ -78,7 +78,7 @@ namespace BlocksBeyondTheStars.Client
             // re-requests an arcade session instead of dialing the meaningless default host (which
             // built an empty, serverless world rig), and the manual server picker stays hidden.
             bool onGlitch = GlitchIntegration.ArcadeInstallId.Length > 0 && GlitchIntegration.PortalUrl.Length > 0;
-            UiKit.AddButton(root, bx, wby, bw, bh, shell.L("ui.menu.play"), () =>
+            UiKit.AddButton(root, bx, wby, bw, bh, shell.L(onGlitch ? "ui.menu.arcade" : "ui.menu.play"), () =>
             {
                 if (string.IsNullOrWhiteSpace(webName[0]))
                 {

@@ -23,8 +23,9 @@ A small launch-day patch for the glitch.fun edition, straight from the first liv
 - **The arcade never sleeps:** the pool worlds now run permanently — woken at startup, never idle-exiting, re-woken automatically if one crashes — so a store visitor lands in a running world instead of waiting out a cold world generation. (`BBS_WH_GLITCH_KEEP_AWAKE=false` opts tight hosts out.) (#336)
 - Fleet side (no download needed): the arcade gateway env passthrough was fixed in deployment, so the gateway is actually switched on. (#330)
 
-### 🕹️ glitch.fun: the menu never offers server picking anymore
-- On glitch.fun the arcade join runs automatically when the page loads, so the menu only ever appears when that join failed. That menu still offered the generic browser actions: **Play** dialed a meaningless default host and dropped the player into an empty, serverless void, and **"Connect to a server…"** suggested picking a server — which on Glitch is never the player's job. In the Glitch context, Play now simply retries the arcade join and the manual picker is gone. (#331)
+### 🕹️ glitch.fun: pick your mode — arcade or singleplayer
+- The page used to jump straight into the shared arcade world, so nobody ever learned that a full **browser singleplayer** exists. glitch.fun now lands on the menu with two clear choices: **Play Online (Arcade)** and **Singleplayer** — still one click to play, but a chosen one. (#340)
+- That menu also stops offering the generic browser actions that made no sense on Glitch: **Play** used to dial a meaningless default host and drop the player into an empty, serverless void, and **"Connect to a server…"** suggested picking a server — never the player's job on Glitch. The arcade button requests a session properly and the manual picker is gone. (#331)
 
 ## [0.8.0] — 2026-07-15
 

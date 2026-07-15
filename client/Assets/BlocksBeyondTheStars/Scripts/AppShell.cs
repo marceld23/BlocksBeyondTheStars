@@ -159,12 +159,11 @@ namespace BlocksBeyondTheStars.Client
                 // ?singleplayer=1 deep-link: straight into the in-browser world once content is ready.
                 _autoSingleplayerWhenReady = true;
             }
-            else if (GlitchIntegration.ArcadeSessionRequested)
-            {
-                // glitch.fun arcade: Glitch injects only an install_id — the join grant (world, name,
-                // token) comes from our portal's session gateway, then rides the same auto-join path.
-                StartCoroutine(RequestArcadeJoin());
-            }
+
+            // glitch.fun deliberately does NOT auto-join anymore: the menu offers the choice between
+            // the shared arcade worlds and the in-browser singleplayer — jumping straight into
+            // multiplayer hid that singleplayer exists (first live feedback). The menu's arcade
+            // button calls RetryArcadeJoin(); still one click, but a chosen one.
 #endif
         }
 
