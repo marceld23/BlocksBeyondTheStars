@@ -84,11 +84,11 @@ public sealed class ServerConfig
     /// (BBTS_AI_TIMEOUT, default 30 s) so the backend's template fallback beats this deadline.</summary>
     public int AiTimeoutSeconds { get; set; } = 35;
 
-    /// <summary>Endpoint the server POSTs automatic crash reports to — the website's bug-report function, shared
+    /// <summary>Endpoint the server POSTs automatic crash reports to — the ReportHost bug-report inbox, shared
     /// with player feedback + client crashes (server reports are shaped to the same contract). Uploading stays
     /// OFF until <see cref="CrashReportApiKey"/> is also set, so a self-hosted server never phones home unless
     /// its operator opts in; reports are written to the local <c>crashreports/</c> folder regardless.</summary>
-    public string CrashReportEndpoint { get; set; } = "https://www.blocksbeyondthestars.com/_functions/bugreport";
+    public string CrashReportEndpoint { get; set; } = "https://reports.blocksbeyondthestars.de/api/bugreport";
 
     /// <summary>Spam-gate key sent with an automatic crash report (the <c>x-bugreport-key</c> header). Empty
     /// (the default) leaves crash uploading disabled regardless of the endpoint — official builds inject it.</summary>

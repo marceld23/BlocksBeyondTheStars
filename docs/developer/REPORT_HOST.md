@@ -96,9 +96,10 @@ reports.example.com {
   `BBS_CRASH_REPORT_KEY=<write key>` (or `CrashReportEndpoint`/`CrashReportApiKey` in `server.json`).
   Self-hosters can run their own inbox this way; the default stays **off** (no phone-home).
 - **Client F1 feedback** — the endpoint is the `FeedbackUploader.DefaultEndpoint` constant (by design
-  the client always reports to the *official* inbox, from any server). Switching the official inbox
-  from Wix to a ReportHost deployment is a one-line release change plus the CI key secret — planned as
-  its own small PR once the public deployment exists.
+  the client always reports to the *official* inbox, from any server). Since the cutover it points at
+  `https://reports.blocksbeyondthestars.de/api/bugreport`; the CI secret `BBS_BUGREPORT_API_KEY`
+  (release environment) must hold that deployment's `BBS_REPORTS_WRITE_KEY`. Builds released before
+  the cutover keep posting to the legacy Wix endpoint until players update.
 - Smoke test: `scripts/test-feedback-endpoint.ps1` can be pointed at
   `http://localhost:31418/api/bugreport` with the write key.
 

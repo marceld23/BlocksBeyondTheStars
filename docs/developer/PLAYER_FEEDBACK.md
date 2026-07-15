@@ -2,8 +2,9 @@
 
 The **F1** hotkey lets any player send a bug report **or** a feature wish — one
 form, no type distinction: a title, a description, an optional e-mail, and a short note that game data plus
-a screenshot are attached. On send the client posts the report to the website API and also fires the
-existing `/bump` snapshot. (F1 is advertised in the on-foot HUD controls hint, `ui.hud.hint`.)
+a screenshot are attached. On send the client posts the report to the official report inbox (the
+ReportHost on the VPS — see [REPORT_HOST](REPORT_HOST.md)) and also fires the existing `/bump`
+snapshot. (F1 is advertised in the on-foot HUD controls hint, `ui.hud.hint`.)
 
 This is deliberately **player-facing** and separate from the developer `/bump` chat command (which still
 exists and produces the rich local diagnostic snapshot — see [BUG_REPORTS](BUG_REPORTS.md) if present, or
@@ -17,7 +18,7 @@ F1
    ▼
 FeedbackUi dialog  (title, description, optional e-mail, privacy hint)
    │  Send
-   ├──────────────► FeedbackUploader.Upload()  ──HTTPS POST──►  www.blocksbeyondthestars.com/_functions/bugreport
+   ├──────────────► FeedbackUploader.Upload()  ──HTTPS POST──►  reports.blocksbeyondthestars.de/api/bugreport
    │                (client-direct; reaches the devs on ANY server)
    └──────────────► NetworkClient.SendBumpReport()  ──►  GameServer  (rich local snapshot on own/SP server)
 ```
@@ -50,8 +51,10 @@ a background `Task`; the report (which reads Unity APIs) is built on the main th
 ## The API key (spam gate, not a secret)
 
 The key only gates spam/abuse for the alpha — it ships inside the client and can be extracted, so the
-website endpoint must accept feedback **only**, cap payload size, and rate-limit. See the requirements
-document for the Wix/Velo backend (`http-functions.js`, the `BugReports` CMS collection, media upload).
+endpoint must accept feedback **only**, cap payload size, and rate-limit. The ReportHost does exactly
+that (see [REPORT_HOST](REPORT_HOST.md)); the CI secret's value is its `BBS_REPORTS_WRITE_KEY`.
+(Historical: the original inbox was a Wix/Velo function at `www.blocksbeyondthestars.com/_functions/bugreport`
+on the same wire contract — builds released before the cutover still post there.)
 
 `BugReportBuildSecrets.ApiKey` is empty in committed/dev builds (so dev builds never post to production;
 the dialog then reports `sent_local` after writing the `/bump` snapshot). A release build injects the real
@@ -63,14 +66,14 @@ client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs   
 
 ### CI step (release builds)
 
-Add to the release workflow, using a GitHub **Environment secret** `WIX_BUGREPORT_API_KEY` (scoped to the
-`release` environment / `v*` tags) — and never echo it:
+The release workflows write the partial from the GitHub **Environment secret** `BBS_BUGREPORT_API_KEY`
+(scoped to the `release` environment / `v*` tags) — never echo it:
 
 ```yaml
 - name: Generate feedback API-key secret
   shell: pwsh
   env:
-    WIX_BUGREPORT_API_KEY: ${{ secrets.WIX_BUGREPORT_API_KEY }}
+    BBS_BUGREPORT_API_KEY: ${{ secrets.BBS_BUGREPORT_API_KEY }}
   run: |
     $path = "client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs"
     @"
@@ -78,7 +81,7 @@ Add to the release workflow, using a GitHub **Environment secret** `WIX_BUGREPOR
     {
         public static partial class BugReportBuildSecrets
         {
-            static partial void ApplyApiKey(ref string key) => key = "$env:WIX_BUGREPORT_API_KEY";
+            static partial void ApplyApiKey(ref string key) => key = "$env:BBS_BUGREPORT_API_KEY";
         }
     }
     "@ | Set-Content $path
@@ -86,7 +89,7 @@ Add to the release workflow, using a GitHub **Environment secret** `WIX_BUGREPOR
 
 ## Open items
 
-- Stand up the Wix/Velo endpoint (`/_functions/bugreport`) per the requirements doc, then wire the CI step
-  above and the `WIX_BUGREPORT_API_KEY` secret.
-- Optional: keep a local copy of a feedback report when the upload fails, for a later retry.
+- Set the `BBS_BUGREPORT_API_KEY` Environment secret to the deployed ReportHost's write key (the old
+  `WIX_BUGREPORT_API_KEY` secret is obsolete after the cutover).
+- Keep the legacy Wix endpoint accepting until pre-cutover builds have died out, then retire its key.
 - Confirm the GDPR/privacy note on the website matches `ui.feedback.hint`.

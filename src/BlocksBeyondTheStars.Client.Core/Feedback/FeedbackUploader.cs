@@ -27,7 +27,7 @@ namespace BlocksBeyondTheStars.Client.Feedback
     }
 
     /// <summary>
-    /// Posts a <see cref="FeedbackReport"/> (JSON + optional base64 screenshot) to the website API. Uses
+    /// Posts a <see cref="FeedbackReport"/> (JSON + optional base64 screenshot) to the report inbox. Uses
     /// <see cref="HttpClient"/> rather than UnityWebRequest so the exact same code runs inside the Unity
     /// player AND inside the headless test suite, which points it at a local <see cref="System.Net.HttpListener"/>
     /// ("simulierte lokale Schnittstelle"). The call is synchronous (blocking); the Unity layer runs it on a
@@ -38,10 +38,11 @@ namespace BlocksBeyondTheStars.Client.Feedback
     /// </summary>
     public sealed class FeedbackUploader
     {
-        /// <summary>Production endpoint (Wix/Velo HTTP function).</summary>
-        public const string DefaultEndpoint = "https://www.blocksbeyondthestars.com/_functions/bugreport";
+        /// <summary>Production endpoint — the ReportHost inbox on the VPS (docs/developer/REPORT_HOST.md).</summary>
+        public const string DefaultEndpoint = "https://reports.blocksbeyondthestars.de/api/bugreport";
 
-        /// <summary>Header carrying the spam-gate key (matches the Wix backend's <c>x-bugreport-key</c>).</summary>
+        /// <summary>Header carrying the spam-gate key (the ReportHost's <c>x-bugreport-key</c>; the same
+        /// header the original Wix backend used, so old and new inbox share one wire contract).</summary>
         public const string ApiKeyHeader = "x-bugreport-key";
 
         /// <summary>Upper bound for the base64 screenshot length; larger shots are dropped (the report is

@@ -4,7 +4,7 @@
   so you can verify the live Wix/Velo endpoint (and the API key) end to end.
 
 .DESCRIPTION
-  Resolves the API key in this order: -ApiKey arg → $env:WIX_BUGREPORT_API_KEY → the local git-ignored
+  Resolves the API key in this order: -ApiKey arg → $env:BBS_BUGREPORT_API_KEY → the local git-ignored
   BugReportBuildSecrets.Generated.cs (so it "just works" after a local build setup, without putting the key
   in this script). Posts the payload and prints the HTTP status + response body.
 
@@ -13,10 +13,10 @@
 .EXAMPLE
   ./scripts/test-feedback-endpoint.ps1
   ./scripts/test-feedback-endpoint.ps1 -BadKey
-  ./scripts/test-feedback-endpoint.ps1 -ApiKey "..." -Url "https://www.blocksbeyondthestars.com/_functions/bugreport"
+  ./scripts/test-feedback-endpoint.ps1 -ApiKey "..." -Url "https://reports.blocksbeyondthestars.de/api/bugreport"
 #>
 param(
-    [string]$Url = "https://www.blocksbeyondthestars.com/_functions/bugreport",
+    [string]$Url = "https://reports.blocksbeyondthestars.de/api/bugreport",
     [string]$ApiKey = "",
     [switch]$BadKey,
     [switch]$NoScreenshot
@@ -26,7 +26,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 
 # --- Resolve the API key --------------------------------------------------------------------------------
-if ([string]::IsNullOrWhiteSpace($ApiKey)) { $ApiKey = $env:WIX_BUGREPORT_API_KEY }
+if ([string]::IsNullOrWhiteSpace($ApiKey)) { $ApiKey = $env:BBS_BUGREPORT_API_KEY }
 if ([string]::IsNullOrWhiteSpace($ApiKey)) {
     $gen = Join-Path $repo 'client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs'
     if (Test-Path $gen) {
@@ -35,7 +35,7 @@ if ([string]::IsNullOrWhiteSpace($ApiKey)) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($ApiKey)) {
-    throw "No API key. Pass -ApiKey, set WIX_BUGREPORT_API_KEY, or create BugReportBuildSecrets.Generated.cs."
+    throw "No API key. Pass -ApiKey, set BBS_BUGREPORT_API_KEY, or create BugReportBuildSecrets.Generated.cs."
 }
 if ($BadKey) { $ApiKey = "definitely-wrong-key" }
 
