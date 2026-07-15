@@ -11,9 +11,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-_Nothing yet — [v0.8.1](#081--2026-07-15) is the latest release._
+_Nothing yet — [v0.8.1](#081--2026-07-16) is the latest release._
 
-## [0.8.1] — 2026-07-15
+## [0.8.1] — 2026-07-16
 
 The glitch.fun edition's launch-day round: the first live tests turned up several arcade rough edges (all fixed here), and in-game feedback now works in the browser and flows to our own inbox.
 
