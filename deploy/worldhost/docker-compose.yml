@@ -57,6 +57,15 @@ services:
       BBS_WH_INSTANCE_MEMORY: ${BBS_WH_INSTANCE_MEMORY:-768m}
       BBS_WH_INSTANCE_CPUS: ${BBS_WH_INSTANCE_CPUS:-2}
       BBS_WH_MAX_ACTIVE: ${BBS_WH_MAX_ACTIVE:-10}
+      # glitch.fun arcade gateway (v0.8.0): off without the title credentials. The title token is
+      # server-side only by design — it never ships inside the WebGL build.
+      BBS_WH_GLITCH_ENABLED: ${BBS_WH_GLITCH_ENABLED:-false}
+      BBS_WH_GLITCH_TITLE_ID: ${BBS_WH_GLITCH_TITLE_ID:-}
+      BBS_WH_GLITCH_TITLE_TOKEN: ${BBS_WH_GLITCH_TITLE_TOKEN:-}
+      BBS_WH_GLITCH_WORLDS: ${BBS_WH_GLITCH_WORLDS:-2}
+      BBS_WH_GLITCH_MAX_PLAYERS: ${BBS_WH_GLITCH_MAX_PLAYERS:-8}
+      BBS_WH_GLITCH_ALLOWED_ORIGINS: ${BBS_WH_GLITCH_ALLOWED_ORIGINS:-}
+      BBS_WH_GLITCH_SAVES_PER_HOUR: ${BBS_WH_GLITCH_SAVES_PER_HOUR:-40}
     labels:
       # Portal + API domain. Worlds announce their own w-<id> subdomains via labels WorldHost puts on
       # each instance container.
