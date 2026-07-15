@@ -4,7 +4,8 @@ The **F1** hotkey lets any player send a bug report **or** a feature wish — on
 form, no type distinction: a title, a description, an optional e-mail, and a short note that game data plus
 a screenshot are attached. On send the client posts the report to the official report inbox (the
 ReportHost on the VPS — see [REPORT_HOST](REPORT_HOST.md)) and also fires the existing `/bump`
-snapshot. (F1 is advertised in the on-foot HUD controls hint, `ui.hud.hint`.)
+snapshot. (F1 is advertised in the on-foot HUD controls hint, `ui.hud.hint`, and in the space-flight
+cruise hint, `ui.space.controls` — it works in both modes; only menus/chat/death-prompt block it.)
 
 This is deliberately **player-facing** and separate from the developer `/bump` chat command (which still
 exists and produces the rich local diagnostic snapshot — see [BUG_REPORTS](BUG_REPORTS.md) if present, or
@@ -17,9 +18,13 @@ F1
    │  capture full-frame JPG  (HUD visible, dialog NOT yet shown)
    ▼
 FeedbackUi dialog  (title, description, optional e-mail, privacy hint)
-   │  Send
-   ├──────────────► FeedbackUploader.Upload()  ──HTTPS POST──►  reports.blocksbeyondthestars.de/api/bugreport
-   │                (client-direct; reaches the devs on ANY server)
+   │  Send  (body serialized ONCE on the main thread)
+   ├──────────────► HTTPS POST ──►  reports.blocksbeyondthestars.de/api/bugreport
+   │                desktop: FeedbackUploader.UploadRawJson on a background Task
+   │                WebGL:   UnityWebRequest coroutine (no HttpClient/threads in WASM;
+   │                         the ReportHost answers the CORS preflight)
+   │                on failure ──► FeedbackSpool (persistentDataPath/feedback) — retried on later
+   │                              session starts, max 5 attempts, then parked in givenup/
    └──────────────► NetworkClient.SendBumpReport()  ──►  GameServer  (rich local snapshot on own/SP server)
 ```
 
@@ -36,7 +41,9 @@ server, the server still writes its rich snapshot (inventory, position, surround
 |---|---|
 | Payload model | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackReport.cs` |
 | HTTP uploader (testable, no Unity) | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackUploader.cs` |
+| Bounded offline retry queue | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackSpool.cs` |
 | Tests (local `HttpListener` endpoint) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackUploaderTests.cs` |
+| Tests (spool life cycle) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackSpoolTests.cs` |
 | UI + capture + dual send | `client/Assets/BlocksBeyondTheStars/Scripts/FeedbackUi.cs` |
 | Wired into the world | `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` |
 | API key (build secret) | `client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.cs` |
@@ -46,7 +53,15 @@ server, the server still writes its rich snapshot (inventory, position, surround
 The uploader lives in the Unity-free `Client.Core` assembly and uses `System.Net.Http.HttpClient` (not
 `UnityWebRequest`) so the **exact same code** runs in the Unity player and in the headless test suite, which
 points it at a local `HttpListener` ("simulierte lokale Schnittstelle"). Only the blocking HTTP POST runs on
-a background `Task`; the report (which reads Unity APIs) is built on the main thread first.
+a background `Task`; the report (which reads Unity APIs) is built and serialized on the main thread first.
+**Exception: WebGL** — WASM has neither sockets nor threads, so `FeedbackUi` posts the identical serialized
+body via a `UnityWebRequest` coroutine instead (same endpoint + `x-bugreport-key` header; the ReportHost's
+CORS answer on `/api/bugreport` makes the cross-origin call possible from play.* / glitch.fun pages).
+
+A failed upload is never lost: the body is queued in `FeedbackSpool` (`persistentDataPath/feedback`,
+IndexedDB-backed on WebGL) and retried on later session starts — bounded to `MaxAttempts = 5` per report
+(counted in the file name), after which the file is parked in `givenup/` for a manual send. The player sees
+`ui.feedback.queued` instead of an error.
 
 ## The API key (spam gate, not a secret)
 

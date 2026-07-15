@@ -99,6 +99,27 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ F1 feedback: VPS ReportHost cutover, works in space flight + WebGL, offline spool (2026-07-15, local branch feat/feedback-vps-cutover)
+The F1 player feedback now goes to **our own inbox**: `FeedbackUploader.DefaultEndpoint` (and the server's
+`CrashReportEndpoint` default) point at `https://reports.blocksbeyondthestars.de/api/bugreport` (ReportHost,
+[docs/developer/REPORT_HOST.md](docs/developer/REPORT_HOST.md)) instead of the legacy Wix function; the CI secret
+was renamed `WIX_BUGREPORT_API_KEY` → **`BBS_BUGREPORT_API_KEY`** (its value must be the deployed ReportHost's
+`BBS_REPORTS_WRITE_KEY`). And "F1 always works, wherever technically possible":
+- **Space flight**: `canLaunch` no longer excludes `SpaceViewActive` (cruise hint advertises F1, DE+EN); the
+  dialog restores the pre-open cursor state on close (landing-pad chooser safe).
+- **WebGL**: the upload is serialized once on the main thread and posted via `UnityWebRequest` on a coroutine
+  (WASM has no HttpClient/threads — the browser build could never deliver F1 feedback before); the ReportHost
+  answers the CORS preflight on `/api/bugreport`.
+- **Offline spool**: a failed upload is queued in `persistentDataPath/feedback` and retried on later session
+  starts with **bounded attempts** ([FeedbackSpool.cs](src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackSpool.cs),
+  `MaxAttempts=5`, exhausted reports parked in `givenup/`, accepted in `sent/`); new key `ui.feedback.queued`
+  (DE+EN); [FeedbackSpoolTests.cs](tests/BlocksBeyondTheStars.Client.Tests/FeedbackSpoolTests.cs).
+- **Open (ops, before the release ships)**: Cloudflare A record `reports.blocksbeyondthestars.de` → VPS
+  (DNS-only, no proxy — cert is HTTP-01 via the shared Caddy); `/opt/bbs/reports/.env` (write/read keys, admin
+  creds) + `deploy.yml service=reports`; create the `BBS_BUGREPORT_API_KEY` Environment secret (without it,
+  release builds ship with feedback disabled); keep the legacy Wix endpoint alive for pre-cutover builds.
+  **NEEDS Unity build check** (client/Assets changed) + a WebGL smoke test of the F1 dialog.
+
 ### ★ Server-side stack upgraded from .NET 8 to .NET 10 LTS (#309, closes #308, 2026-07-12)
 .NET 8 LTS support ends Nov 2026, so all ten `net8.0` projects (server, hosts, launchers, tests) now target
 `net10.0` — the Unity boundary is untouched (`Shared`/`Networking`/`WorldGeneration`/`Client.Core` stay
