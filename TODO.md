@@ -5679,6 +5679,21 @@ index.html at root for Glitch's deploy engine, optional CLI deploy). Docs: HOSTE
 Known v0.7.8 limitation: in-game `/report` is portal-session-bound and silently unavailable for
 arcade guests (documented). The public Baumhaus amendment ships as a devblog follow-up with launch.
 
+## ✅ Done (2026-07-15): glitch.fun store page filled + `tools/glitch-media` uploader
+
+The glitch.fun store page for the title is now fully populated via a new API tool,
+[tools/glitch-media/upload_media.py](tools/glitch-media/upload_media.py) (uv script; login via
+git-ignored `.env`, JWT lives at `token.access_token` in the login response): main image
+(`start_screen.png`), banner (`space_flight.png`), gallery = full EN trailer + the 13 EN press
+screenshots (`docs/screenshots/en`), gameplay instructions (`instructions.md`), genres
+(Adventure, Sandbox, Survival, OpenWorld, Voxel — replaced the lone wrong "MMO") and all
+deep-dive fields (`deep_dive.json`: tagline, mechanics, narrative, style, multiplayer, DLC,
+system requirements, key features). `critical_reception`/`age_rating`/`release_date`/`pricing`
+deliberately left empty. The 12 pre-existing gallery items (a WRONG game's video+screenshot,
+outdated low-res DE-UI shots, old DE trailer) were removed after a full local backup
+(`media/glitch-store-backup-2026-07-15/`, git-ignored). Flags: `--list/--main-image/--banner/`
+`--media/--defaults/--attach/--remove/--instructions-file/--genres/--update-json/--dry-run`.
+
 ## ✅ Done (2026-07-10): stop release builds from writing dead tag-scoped Actions caches
 The 10 GB Actions cache budget was 99% full; ~7.7 GB were caches scoped to release tags (four Unity
 Library caches up to 2 GB each + ~60 buildkit blobs). A tag-scoped cache can never be restored by any
