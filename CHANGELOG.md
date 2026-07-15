@@ -15,7 +15,13 @@ _Nothing yet — [v0.8.1](#081--2026-07-15) is the latest release._
 
 ## [0.8.1] — 2026-07-15
 
-A small launch-day patch for the glitch.fun edition, straight from the first live test. (#332)
+The glitch.fun edition's launch-day round: the first live tests turned up several arcade rough edges (all fixed here), and in-game feedback now works in the browser and flows to our own inbox.
+
+### 📮 In-game feedback (F1): works in the browser, lands in our own inbox
+- **The F1 feedback key now works in the WebGL player.** Browsers have neither the HTTP client nor the threads the old uploader used, so the browser build could never actually send feedback — it now posts through the proper browser path. (#342)
+- **F1 works during space flight too** — it was silently blocked in the flight view; the dialog also restores your cursor cleanly on close (matters for the landing-pad picker). (#342)
+- **Feedback never gets lost:** a failed send is spooled locally and retried on your next launches (a handful of times, then quietly parked — never deleted), with a clear "saved, will retry" note. (#342)
+- Under the hood, player feedback and crash reports now go to **our own report service** (`reports.blocksbeyondthestars.de`) instead of the old third-party endpoint. Already-installed builds keep using the old one for now. (#342)
 
 ### 🕹️ glitch.fun: arcade joins actually work now
 - The arcade session gateway validated a visitor's install **before** registering it with Glitch — but Glitch's contract requires create-then-validate, so every fresh browser session was rejected with "could not be verified" and nobody could enter the arcade worlds. The gateway now follows the required call order (create/resume first, then validate), with a regression test pinning the sequence. (#334)
