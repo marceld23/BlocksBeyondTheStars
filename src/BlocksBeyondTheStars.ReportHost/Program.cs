@@ -122,6 +122,27 @@ object ToItem(BugReportRecord r)
     };
 }
 
+// CORS, ingest only: the WebGL client posts feedback cross-origin (from play.* / glitch.fun pages),
+// which needs the OPTIONS preflight answered and the POST response readable. Any origin is fine —
+// the endpoint already requires the write key and rate-limits, so this widens nothing else.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path == "/api/bugreport")
+    {
+        ctx.Response.Headers.AccessControlAllowOrigin = "*";
+        if (HttpMethods.IsOptions(ctx.Request.Method))
+        {
+            ctx.Response.Headers.AccessControlAllowMethods = "POST, OPTIONS";
+            ctx.Response.Headers.AccessControlAllowHeaders = "content-type, x-bugreport-key";
+            ctx.Response.Headers.AccessControlMaxAge = "86400";
+            ctx.Response.StatusCode = StatusCodes.Status204NoContent;
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.MapGet("/healthz", () => Results.Text("ok\n"));
 app.MapGet("/", () => Results.Redirect("/admin"));
 
