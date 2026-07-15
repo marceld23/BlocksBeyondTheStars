@@ -11,7 +11,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-_Nothing yet — [v0.8.0](#080--2026-07-15) is the latest release._
+_Nothing yet — [v0.8.1](#081--2026-07-15) is the latest release._
+
+## [0.8.1] — 2026-07-15
+
+A small launch-day patch for the glitch.fun edition, straight from the first live test. (#332)
+
+### 🕹️ glitch.fun: the menu never offers server picking anymore
+- On glitch.fun the arcade join runs automatically when the page loads, so the menu only ever appears when that join failed. That menu still offered the generic browser actions: **Play** dialed a meaningless default host and dropped the player into an empty, serverless void, and **"Connect to a server…"** suggested picking a server — which on Glitch is never the player's job. In the Glitch context, Play now simply retries the arcade join and the manual picker is gone. (#331)
+- Fleet side (no download needed): the arcade gateway env passthrough was fixed in deployment, so the shared arcade worlds actually accept players. (#330)
 
 ## [0.8.0] — 2026-07-15
 
@@ -397,7 +405,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.7...v0.8.0
 [0.7.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.6...v0.7.7
 [0.7.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.5...v0.7.6
