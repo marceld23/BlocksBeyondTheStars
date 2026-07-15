@@ -1148,7 +1148,7 @@
   "ui.tab.space": "Space",
   "ui.space.enter": "Launch into space",
   "ui.space.leave": "Return to surface",
-  "ui.space.controls": "WASD/mouse fly · 1–9 system · LMB use · V view · E land/dock · L return · F enter ship",
+  "ui.space.controls": "WASD/mouse fly · 1–9 system · LMB use · V view · E land/dock · L return · F enter ship · F1 feedback",
   "ui.space.controls_pad": "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
   "ui.space.sys_laser": "Laser",
   "ui.space.sys_tractor": "Tractor",

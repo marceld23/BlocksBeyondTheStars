@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Player feedback ("Spieler Feedback"): the F1 hotkey opens a modal dialog where any player can send a bug
     /// report OR a feature wish — one form, no type distinction: a title, a description, an optional e-mail and a
-    /// short note that game data + a screenshot are attached. (F1 is advertised in the on-foot HUD controls hint.)
+    /// short note that game data + a screenshot are attached. (F1 is advertised in the on-foot HUD controls hint
+    /// and in the space-flight cruise hint; it works in both modes.)
     ///
     /// On send we grab a full-frame screenshot WITH the HUD but WITHOUT this dialog (captured at the moment the
     /// dialog opens, while the live HUD is still on screen), gather a small client-side diagnostic snapshot,
@@ -46,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _open;
         private bool _sending;
+        private bool _cursorWasLocked = true; // cursor state before the dialog opened, restored on close
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
 
@@ -65,9 +67,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // F1 opens feedback only during normal on-foot play (not in menus, flight, chat or the death prompt)
-            // — matching when the HUD (and its controls hint) is up.
-            bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm && !Game.SpaceViewActive;
+            // F1 opens feedback during normal play — on foot AND in space flight (both HUDs advertise it);
+            // not while a menu/chat modal or the death prompt already owns the screen.
+            bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm;
 
             if (!_open && canLaunch && Input.GetKeyDown(KeyCode.F1))
             {
@@ -117,7 +119,10 @@ namespace BlocksBeyondTheStars.Client
             ResetFields();
             _dialog.SetActive(true);
 
-            // Modal: free the cursor + pause on-foot control (mirrors GameMenu / BeamPadUi).
+            // Modal: free the cursor + pause player/flight control (mirrors GameMenu / BeamPadUi; SpaceView
+            // holds position while MenuOpen). Remember the cursor state so closing restores it — in flight
+            // sub-screens like the landing-pad chooser the cursor was already free, not locked.
+            _cursorWasLocked = Cursor.lockState == CursorLockMode.Locked;
             Game.MenuOpen = true;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -134,8 +139,8 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.MenuOpen = false;
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                Cursor.lockState = _cursorWasLocked ? CursorLockMode.Locked : CursorLockMode.None;
+                Cursor.visible = !_cursorWasLocked;
             }
         }
 

@@ -1149,7 +1149,7 @@
   "ui.tab.space": "Weltraum",
   "ui.space.enter": "In den Weltraum starten",
   "ui.space.leave": "Zur Oberfläche zurück",
-  "ui.space.controls": "WASD/Maus fliegen · 1–9 System · LMB nutzen · V Ansicht · E landen/andocken · L zurück · F ins Schiff",
+  "ui.space.controls": "WASD/Maus fliegen · 1–9 System · LMB nutzen · V Ansicht · E landen/andocken · L zurück · F ins Schiff · F1 Feedback",
   "ui.space.controls_pad": "Linker Stick fliegen · Rechter Stick steuern · RB feuern · (X) landen/andocken · (Y) Ansicht",
   "ui.space.sys_laser": "Laser",
   "ui.space.sys_tractor": "Traktor",
