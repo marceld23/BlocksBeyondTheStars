@@ -2,7 +2,8 @@
 
 Engineering and design documentation for **Blocks Beyond the Stars**. Player-facing operation lives in
 [../user/USER_MANUAL.md](../user/USER_MANUAL.md); the live Done/Open status is [../../TODO.md](../../TODO.md);
-the hard contributor rules are in [../../AGENTS.md](../../AGENTS.md).
+the hard contributor rules are in [../../AGENTS.md](../../AGENTS.md); the project strategy
+(vision · mission · roadmap) is in [../strategy/](../strategy/vision.md).
 
 These are *how it works* / *why it is built this way* references — not pre-implementation checklists (status
 belongs in TODO.md). Each doc states its own status near the top. Last reorganised 2026-06-19.

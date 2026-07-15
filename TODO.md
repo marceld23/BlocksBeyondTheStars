@@ -1,7 +1,8 @@
 # Blocks Beyond the Stars — Project Status
 
 The single source of truth for **what is built** and **what is still open**. Design notes and deep
-plans live under [docs/](docs/) (committed); this file is the high-level status. Player-facing operation
+plans live under [docs/](docs/) (committed); the long-range direction is the strategy trio in
+[docs/strategy/](docs/strategy/vision.md) (vision · mission · roadmap); this file is the high-level status. Player-facing operation
 (controls, mechanics, editors, commands) is documented in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md) —
 keep it current when controls/features change. Last consolidated 2026-06-04.
 

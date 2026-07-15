@@ -4,7 +4,13 @@ Thanks for your interest! **Blocks Beyond the Stars** is a family project that w
 opening up to the community — and we would love your help. There are three ways to join
 in, from "no setup at all" to "write some code".
 
-Everyone is welcome here. Please be kind — see our short
+Everyone is welcome here — players who tell us what's confusing, hobby and professional
+programmers, and experts from every craft (graphics, music, game design, UX, translation …).
+Feedback-only contributions count fully; if you want to know what you'd be joining, the project's
+[vision](docs/strategy/vision.md), [mission](docs/strategy/mission.md) and
+[roadmap](docs/strategy/roadmap.md) are short reads.
+
+Please be kind — see our short
 [Code of Conduct](CODE_OF_CONDUCT.md) (it's basically "be nice to one another").
 
 > Repository: <https://github.com/marceld23/BlocksBeyondTheStars>

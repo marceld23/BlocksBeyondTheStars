@@ -135,7 +135,8 @@ Community contributions we're grateful for:
 
 Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
-> **Status & docs:** [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in
+> **Status & docs:** the project strategy (vision · mission · roadmap) lives in
+> [docs/strategy/](docs/strategy/vision.md); [TODO.md](TODO.md) is the single Done/Open status doc; player operation is in
 > [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md); building and verifying builds is in
 > [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md); the system overview is in
 > [docs/developer/ARCHITECTURE.md](docs/developer/ARCHITECTURE.md) and every developer doc is indexed in
