@@ -17,9 +17,12 @@ _Nothing yet — [v0.8.1](#081--2026-07-15) is the latest release._
 
 A small launch-day patch for the glitch.fun edition, straight from the first live test. (#332)
 
+### 🕹️ glitch.fun: arcade joins actually work now
+- The arcade session gateway validated a visitor's install **before** registering it with Glitch — but Glitch's contract requires create-then-validate, so every fresh browser session was rejected with "could not be verified" and nobody could enter the arcade worlds. The gateway now follows the required call order (create/resume first, then validate), with a regression test pinning the sequence. (#334)
+- Fleet side (no download needed): the arcade gateway env passthrough was fixed in deployment, so the gateway is actually switched on. (#330)
+
 ### 🕹️ glitch.fun: the menu never offers server picking anymore
 - On glitch.fun the arcade join runs automatically when the page loads, so the menu only ever appears when that join failed. That menu still offered the generic browser actions: **Play** dialed a meaningless default host and dropped the player into an empty, serverless void, and **"Connect to a server…"** suggested picking a server — which on Glitch is never the player's job. In the Glitch context, Play now simply retries the arcade join and the manual picker is gone. (#331)
-- Fleet side (no download needed): the arcade gateway env passthrough was fixed in deployment, so the shared arcade worlds actually accept players. (#330)
 
 ## [0.8.0] — 2026-07-15
 

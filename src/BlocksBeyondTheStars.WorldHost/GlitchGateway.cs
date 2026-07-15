@@ -608,6 +608,27 @@ public sealed class GlitchGateway
 
         try
         {
+            // Glitch's REQUIRED call order: create/resume the install FIRST (POST /installs — the
+            // same idempotent route the heartbeat uses), THEN validate. Validating an install the
+            // platform has never seen answers 403 — which is exactly what a fresh browser session
+            // is until this call.
+            using (var create = new HttpRequestMessage(HttpMethod.Post, InstallsUrl()))
+            {
+                create.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.GlitchTitleToken);
+                create.Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string>
+                    {
+                        ["user_install_id"] = installId,
+                        ["platform"] = "web",
+                    }),
+                    Encoding.UTF8, "application/json");
+                using var createResponse = await _glitchApi.SendAsync(create).ConfigureAwait(false);
+                if (!createResponse.IsSuccessStatusCode)
+                {
+                    return (false, string.Empty);
+                }
+            }
+
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{InstallsUrl()}/{Uri.EscapeDataString(installId)}/validate");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.GlitchTitleToken);
             request.Content = new StringContent("{}", Encoding.UTF8, "application/json");

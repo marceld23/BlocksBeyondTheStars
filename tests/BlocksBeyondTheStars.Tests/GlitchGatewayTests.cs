@@ -162,6 +162,23 @@ public sealed class GlitchGatewayTests : IDisposable
     }
 
     [Fact]
+    public async Task Session_CreatesTheInstallBeforeValidating_GlitchRequiredCallOrderAsync()
+    {
+        // Glitch's documented call order: create/resume the install FIRST, then validate — validating
+        // an install the platform has never seen answers 403 (the launch-day arcade join failure).
+        var (gateway, _, api, _) = NewGateway();
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.True(result.Ok, result.Error);
+        int createIndex = api.Requests.FindIndex(r => r.Url.EndsWith("/installs", StringComparison.Ordinal));
+        int validateIndex = api.Requests.FindIndex(r => r.Url.EndsWith("/validate", StringComparison.Ordinal));
+        Assert.True(createIndex >= 0, "the install create/resume call must happen");
+        Assert.True(validateIndex > createIndex, "create/resume must precede validate");
+        Assert.Contains("\"user_install_id\":\"" + Install + "\"", api.Requests[createIndex].Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Session_StableIdentity_SameInstallGetsTheSameNameEveryVisitAsync()
     {
         var (gateway, _, _, _) = NewGateway();
