@@ -72,6 +72,12 @@ namespace BlocksBeyondTheStars.Client
             var webWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             float wby = by + 112f;
+
+            // glitch.fun context (install_id in the URL): the player NEVER picks a server here — the
+            // arcade auto-join runs on page load, so the menu only appears when it failed. Play then
+            // re-requests an arcade session instead of dialing the meaningless default host (which
+            // built an empty, serverless world rig), and the manual server picker stays hidden.
+            bool onGlitch = GlitchIntegration.ArcadeInstallId.Length > 0 && GlitchIntegration.PortalUrl.Length > 0;
             UiKit.AddButton(root, bx, wby, bw, bh, shell.L("ui.menu.play"), () =>
             {
                 if (string.IsNullOrWhiteSpace(webName[0]))
@@ -83,7 +89,14 @@ namespace BlocksBeyondTheStars.Client
                 shell.PlayerName = webName[0].Trim();
                 shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
                 shell.Settings.Save();
-                shell.StartJoin();
+                if (onGlitch)
+                {
+                    shell.RetryArcadeJoin();
+                }
+                else
+                {
+                    shell.StartJoin();
+                }
             }, "btn_join");
 
             // In-browser singleplayer: the REAL authoritative server runs in-process (LoopbackTransport,
@@ -105,10 +118,10 @@ namespace BlocksBeyondTheStars.Client
             }, "btn_singleplayer");
 
             // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
-            // players arriving through the portal already have host/port preconfigured, so the extra
-            // choice is just noise for them (#221).
+            // players arriving through the portal already have host/port preconfigured, and on
+            // glitch.fun there is nothing to pick at all (#221).
             float wextra = 0f;
-            if (!GlitchIntegration.TryGetConfiguredServer(out _, out _, out _))
+            if (!onGlitch && !GlitchIntegration.TryGetConfiguredServer(out _, out _, out _))
             {
                 UiKit.AddButton(root, bx, wby + gap * 2f, bw, bh, shell.L("ui.menu.connect_manual"), () =>
                 {

@@ -171,6 +171,15 @@ namespace BlocksBeyondTheStars.Client
         private bool _autoSingleplayerWhenReady;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>Menu retry for the glitch.fun arcade: the auto-join runs on page load, but when it
+        /// fails (gateway hiccup, full worlds) the menu's Play button re-requests a session instead of
+        /// dialing the meaningless default host — on Glitch the player never picks a server.</summary>
+        public void RetryArcadeJoin()
+        {
+            MenuNotice = "";
+            StartCoroutine(RequestArcadeJoin());
+        }
+
         private IEnumerator RequestArcadeJoin()
         {
             yield return GlitchIntegration.RequestArcadeSession((session, error) =>
