@@ -38,12 +38,26 @@ and community stay safe by design.
 - **On the platforms we grew up with** — the game on **Xbox** (and Steam) is a heart goal: not for
   revenue, but because seeing our own game on the console shelf is the point of making it.
 
-### An open project people can join
+### Carried by a community, not just by us
 
-The source stays open, the content stays data-driven (JSON in `data/`), and contributing a new
-item, recipe, language, ship design or playtest report is something a motivated teenager can do.
-Community issues ("design a village", "add a language", playtests) are real invitations, and the
-devblog tells the story honestly — including the failures.
+The game grows a community that supports it from every side — and there is a real seat at the
+table for each of them:
+
+- **People who play and make us better.** Players — kids, parents, friends — who report what's
+  confusing, what's too dark, what's boring, and what they'd love next. Playtesting is a
+  first-class contribution: the standing playtest issues, the in-game report flow and the devblog
+  comment threads are how the game actually improves.
+- **People who build on GitHub.** From the one-line locale fix to a whole platform port (the
+  Linux client was our first community contribution) — the source stays open, the content stays
+  data-driven (JSON in `data/`), and adding an item, recipe, language or ship design is something
+  a motivated teenager can do. Hobby programmers are as welcome as professionals.
+- **Experts from every craft.** Graphic artists, musicians, sound designers, game designers,
+  UX reviewers, translators, engine specialists — the "expertise wanted" issues invite exactly
+  this: feedback-only contributions count fully, no code required.
+
+Every contribution is credited (in-game and in the repo), invitations stay concrete and honest
+("design a village", "review our crafting UX", "is the audio balanced?"), and the devblog tells
+the story openly — including the failures — so people know what they are joining.
 
 ## What we are deliberately NOT
 
@@ -59,6 +73,8 @@ devblog tells the story honestly — including the failures.
 ## How we know we are getting closer
 
 - Playtesters (especially kids) finish their first session without help and want to come back.
+- Contributions arrive from beyond the two of us — code and non-code alike (playtest reports,
+  art, music, translations, design feedback) — and repeat contributors stick around.
 - Zero known "does nothing" mechanics in a release; the open-bug list trends short and young.
 - A stock Raspberry Pi hosts a family world for 4+ players at stable tick rate.
 - The game is live and healthy on glitch.fun, itch.io and our portal from one release pipeline —
