@@ -128,10 +128,15 @@ namespace BlocksBeyondTheStars.Client
             // the WebGL menu never grows a server picker).
             UiKit.AddButton(root, bx, wby + wextra + gap * 2f, bw, bh, shell.L("ui.menu.my_worlds"), () =>
             {
-                string portalUrl = System.Uri.TryCreate(Application.absoluteURL, System.UriKind.Absolute, out var page)
-                    && page.Scheme != System.Uri.UriSchemeFile
-                    ? page.GetLeftPart(System.UriPartial.Authority)
-                    : PortalClient.DefaultPortalUrl; // local file test builds → the official portal
+                // Prefer the baked portal origin: on glitch.fun the page origin is play.glitch.fun,
+                // where /worlds does not exist — and pointing arcade players at OUR portal is exactly
+                // the intended "create your own world with friends" funnel.
+                string portalUrl = GlitchIntegration.PortalUrl.Length > 0
+                    ? GlitchIntegration.PortalUrl
+                    : System.Uri.TryCreate(Application.absoluteURL, System.UriKind.Absolute, out var page)
+                        && page.Scheme != System.Uri.UriSchemeFile
+                        ? page.GetLeftPart(System.UriPartial.Authority)
+                        : PortalClient.DefaultPortalUrl; // local file test builds → the official portal
                 Application.OpenURL(portalUrl + "/worlds");
             }, "btn_credits");
             UiKit.AddButton(root, bx, wby + wextra + gap * 3f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
