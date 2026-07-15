@@ -9,6 +9,10 @@ using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
 using UnityEngine;
 using UnityEngine.UI;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using System.Text;
+using UnityEngine.Networking;
+#endif
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -21,8 +25,9 @@ namespace BlocksBeyondTheStars.Client
     /// On send we grab a full-frame screenshot WITH the HUD but WITHOUT this dialog (captured at the moment the
     /// dialog opens, while the live HUD is still on screen), gather a small client-side diagnostic snapshot,
     /// and fire BOTH paths:
-    ///   • a client-direct HTTPS POST to the website API (<see cref="FeedbackUploader"/>) — reaches the devs on
-    ///     any server, even someone else's dedicated server;
+    ///   • a client-direct HTTPS POST to the report inbox (<see cref="FeedbackUploader"/>; UnityWebRequest on
+    ///     WebGL, where HttpClient/threads don't exist) — reaches the devs on any server, even someone else's
+    ///     dedicated server;
     ///   • the existing <c>/bump</c> message (<see cref="NetworkClient.SendBumpReport"/>) so the server also
     ///     writes its rich local snapshot (inventory/position/surroundings) when on an own/singleplayer server.
     ///
@@ -233,10 +238,18 @@ namespace BlocksBeyondTheStars.Client
             string serverNote = string.IsNullOrEmpty(title) ? desc : title + " — " + desc;
             Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>());
 
-            // Path B — client-direct upload to the website API, off the game thread.
+            // Path B — client-direct upload to the report inbox. The body is serialized ONCE here on the
+            // main thread; only the POST leaves the game loop.
             if (_uploader != null && _uploader.IsConfigured)
             {
-                _uploadTask = Task.Run(() => _uploader.Upload(report, jpg));
+                string json = FeedbackUploader.Serialize(report, jpg);
+#if UNITY_WEBGL && !UNITY_EDITOR
+                // WASM has neither sockets nor threads — HttpClient/Task.Run can't run in the browser, so
+                // the WebGL player posts the identical body via UnityWebRequest on a coroutine.
+                StartCoroutine(PostJsonWebGl(json, OnUploadFinished));
+#else
+                _uploadTask = Task.Run(() => _uploader.UploadRawJson(json));
+#endif
             }
             else
             {
@@ -294,6 +307,39 @@ namespace BlocksBeyondTheStars.Client
             };
             return report;
         }
+
+        // --- WebGL transport ---------------------------------------------------------------------------------
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>Browser upload: posts an already-serialized report body via <see cref="UnityWebRequest"/>
+        /// (the WebGL stand-in for <see cref="FeedbackUploader.UploadRawJson"/> — same endpoint, header and
+        /// never-throws contract). Runs on the main thread as a coroutine; WebGL requests are async under the
+        /// hood, so nothing blocks. Calls <paramref name="done"/> with the outcome.</summary>
+        private IEnumerator PostJsonWebGl(string json, Action<FeedbackUploadResult> done)
+        {
+            using (var req = new UnityWebRequest(FeedbackUploader.DefaultEndpoint, UnityWebRequest.kHttpVerbPOST))
+            {
+                req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json)) { contentType = "application/json" };
+                req.downloadHandler = new DownloadHandlerBuffer();
+                req.SetRequestHeader(FeedbackUploader.ApiKeyHeader, BugReportBuildSecrets.ApiKey);
+                req.timeout = 15; // mirrors the HttpClient timeout
+
+                yield return req.SendWebRequest();
+
+                var result = new FeedbackUploadResult
+                {
+                    StatusCode = (int)req.responseCode,
+                    Ok = req.result == UnityWebRequest.Result.Success,
+                };
+                if (!result.Ok)
+                {
+                    result.Error = result.StatusCode > 0 ? "http_" + result.StatusCode : (req.error ?? "network");
+                }
+
+                done?.Invoke(result);
+            }
+        }
+#endif
 
         // --- Screenshot ------------------------------------------------------------------------------------
 
