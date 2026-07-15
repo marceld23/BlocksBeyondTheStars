@@ -1122,6 +1122,24 @@ app.MapGet("/api/worlds/{id}/save", (HttpContext ctx, string id) =>
 
 // Reconcile registry vs Docker every 30 s: instances that exited themselves (idle shutdown — the normal
 // sleep path) get marked stopped so the next join wakes them and world lists stay truthful.
+// Keep-awake arcade worlds: wake the pool once at startup (fire-and-forget — worldgen on a fresh
+// pool can take a minute per world) so the first glitch.fun visitor lands in a RUNNING world.
+if (config.GlitchKeepAwake && glitch.Enabled)
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            int woken = await glitch.WakePoolAsync();
+            log.LogInformation("glitch.fun keep-awake: {Count} arcade world(s) woken at startup.", woken);
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning(ex, "glitch.fun keep-awake startup pass failed (the reaper retries).");
+        }
+    });
+}
+
 var reaper = Task.Run(async () =>
 {
     using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
@@ -1134,6 +1152,14 @@ var reaper = Task.Run(async () =>
             if (reaped > 0)
             {
                 log.LogInformation("Reaper: {Count} idle-stopped world(s) marked stopped.", reaped);
+            }
+
+            // Keep-awake arcade worlds: re-wake anything the reaper just found dead (crash/OOM/host
+            // reboot) — with idle shutdown off these should never stop on their own.
+            int rewoken = await glitch.WakePoolAsync();
+            if (rewoken > 0)
+            {
+                log.LogInformation("glitch.fun keep-awake: {Count} arcade world(s) re-woken.", rewoken);
             }
 
             // Archive sweep once an hour (120 × 30 s): long-inactive stopped worlds move to the archive.

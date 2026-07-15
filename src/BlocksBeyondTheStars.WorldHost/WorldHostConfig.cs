@@ -220,11 +220,20 @@ public sealed class WorldHostConfig
     public int GlitchMaxPlayers { get; set; } = 8;
 
     /// <summary>Origins allowed to call the /api/glitch endpoints cross-origin
-    /// (BBS_WH_GLITCH_ALLOWED_ORIGINS, comma-separated) — the Glitch-hosted WebGL build's origins.</summary>
+    /// (BBS_WH_GLITCH_ALLOWED_ORIGINS, comma-separated). Note the S3 origin: Glitch serves the
+    /// actual game files from its content bucket, so THAT is the page origin the browser sends —
+    /// not play.glitch.fun (launch-day lesson: every preflight failed without it).</summary>
     public List<string> GlitchAllowedOrigins { get; set; } = new()
     {
         "https://play.glitch.fun", "https://glitch.fun", "https://www.glitch.fun",
+        "https://glitch-game-content.s3.amazonaws.com",
     };
+
+    /// <summary>Keep the arcade pool awake permanently (BBS_WH_GLITCH_KEEP_AWAKE, default true):
+    /// pool worlds never idle-exit and are woken at WorldHost startup + re-woken by the reaper, so
+    /// a store visitor never waits out a cold worldgen. Costs GlitchWorldCount × InstanceMemory of
+    /// standing RAM; disable for tight hosts.</summary>
+    public bool GlitchKeepAwake { get; set; } = true;
 
     /// <summary>Glitch platform API base (BBS_WH_GLITCH_API_URL) — overridable so tests can point the
     /// gateway at a fake.</summary>
@@ -315,6 +324,7 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_GLITCH_API_URL") is { } gApi) { c.GlitchApiBaseUrl = gApi; }
         if (Env("BBS_WH_GLITCH_SESSIONS_PER_MINUTE") is { } gspStr && int.TryParse(gspStr, out var gsp)) { c.GlitchSessionsPerMinutePerIp = gsp; }
         if (Env("BBS_WH_GLITCH_SAVES_PER_HOUR") is { } gsvStr && int.TryParse(gsvStr, out var gsv)) { c.GlitchSavesPerHourPerInstall = gsv; }
+        if (Env("BBS_WH_GLITCH_KEEP_AWAKE") is { } gkaStr && bool.TryParse(gkaStr, out var gka)) { c.GlitchKeepAwake = gka; }
 
         return c;
     }

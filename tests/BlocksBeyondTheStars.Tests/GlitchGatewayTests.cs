@@ -508,10 +508,11 @@ public sealed class GlitchGatewayTests : IDisposable
     }
 
     [Fact]
-    public void BuildRunArgs_GlitchWorldsGetTheArcadePlayerCap()
+    public void BuildRunArgs_GlitchWorldsGetTheArcadePlayerCap_AndKeepAwakeDisablesIdleExit()
     {
         var config = NewConfig();
         config.MaxPlayersPerWorld = 12;
+        config.IdleShutdownMinutes = 20;
         var registry = NewRegistry(config);
         var arcade = registry.CreateGlitchWorld("Glitch Arcade 1").World!;
         var (_, _, accountId, _) = registry.CreateAccount("Owner", "super-secret-1", acceptedTermsVersion: 1);
@@ -522,6 +523,37 @@ public sealed class GlitchGatewayTests : IDisposable
 
         Assert.Contains("BBS_MAX_PLAYERS=2", arcadeArgs);
         Assert.Contains("BBS_MAX_PLAYERS=12", portalArgs);
+        Assert.Contains("BBS_IDLE_SHUTDOWN_MINUTES=0", arcadeArgs);  // kept awake: never self-exits
+        Assert.Contains("BBS_IDLE_SHUTDOWN_MINUTES=20", portalArgs); // portal worlds keep sleeping
+
+        // Tight hosts can opt out — arcade worlds then idle-exit like everyone else.
+        config.GlitchKeepAwake = false;
+        Assert.Contains("BBS_IDLE_SHUTDOWN_MINUTES=20", DockerCliLauncher.BuildRunArgs(config, arcade, "saves"));
+    }
+
+    [Fact]
+    public async Task WakePool_CreatesAndWakesEveryArcadeWorld_AndIsIdempotentAsync()
+    {
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = new WorldOrchestrator(config, registry, launcher,
+            w => Task.FromResult(launcher.IsRunning(w.ContainerId)));
+        var gateway = new GlitchGateway(config, registry, orchestrator, new FakeGlitchApi(),
+            statusReader: _ => Task.FromResult<string?>(null));
+
+        Assert.Equal(2, await gateway.WakePoolAsync()); // fresh pool: both created + woken
+        Assert.Equal(2, launcher.StartCount);
+        Assert.All(registry.ListWorldsByChannel(WorldChannel.Glitch), w => Assert.Equal(WorldStatus.Running, w.Status));
+
+        Assert.Equal(0, await gateway.WakePoolAsync()); // already running: nothing to do
+        Assert.Equal(2, launcher.StartCount);
+
+        // Keep-awake off → the pass is a no-op even with stopped worlds.
+        config.GlitchKeepAwake = false;
+        launcher.Running.Clear();
+        orchestrator.Reap();
+        Assert.Equal(0, await gateway.WakePoolAsync());
     }
 
     public void Dispose()

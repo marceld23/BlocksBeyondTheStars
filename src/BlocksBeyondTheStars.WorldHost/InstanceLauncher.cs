@@ -84,7 +84,9 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             "-e", $"BBS_SERVER_NAME={world.DisplayName}",
             // glitch.fun arcade worlds get their own (smaller) player cap; applied on container start.
             "-e", $"BBS_MAX_PLAYERS={(world.Channel == WorldChannel.Glitch ? config.GlitchMaxPlayers : config.MaxPlayersPerWorld)}",
-            "-e", $"BBS_IDLE_SHUTDOWN_MINUTES={config.IdleShutdownMinutes}",
+            // Kept-awake arcade worlds never self-exit (0 = idle shutdown off) — a store visitor
+            // should land in a running world, not wait out a cold worldgen.
+            "-e", $"BBS_IDLE_SHUTDOWN_MINUTES={(world.Channel == WorldChannel.Glitch && config.GlitchKeepAwake ? 0 : config.IdleShutdownMinutes)}",
             "-e", $"BBS_JOIN_TOKEN_SECRET={world.JoinSecret}",
             "-e", $"BBS_WORLD_OWNER={world.OwnerAccountId}",
             "-e", "BBS_ENABLE_WEBSOCKET=true",

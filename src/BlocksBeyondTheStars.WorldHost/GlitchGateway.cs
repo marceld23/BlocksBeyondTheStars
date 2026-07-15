@@ -516,6 +516,35 @@ public sealed class GlitchGateway
         }
     }
 
+    /// <summary>Keep-awake pass (GlitchKeepAwake): creates the pool if needed and wakes every arcade
+    /// world that is not running, so a store visitor never waits out a cold worldgen. Called once at
+    /// WorldHost startup and again from the reaper loop (which also re-wakes a crashed instance —
+    /// the containers run with idle shutdown off, so a healthy one never stops by itself). Returns
+    /// the number of worlds woken.</summary>
+    public async Task<int> WakePoolAsync()
+    {
+        if (!Enabled || !_config.GlitchKeepAwake)
+        {
+            return 0;
+        }
+
+        EnsurePool();
+        int woken = 0;
+        foreach (var world in _registry.ListWorldsByChannel(WorldChannel.Glitch))
+        {
+            if (world.Status != WorldStatus.Running)
+            {
+                var (running, _) = await _orchestrator.EnsureRunningAsync(world.Id).ConfigureAwait(false);
+                if (running is not null)
+                {
+                    woken++;
+                }
+            }
+        }
+
+        return woken;
+    }
+
     /// <summary>Picks the arcade world for the next guest: a running world with player headroom first
     /// (probed live), then a sleeping one to wake on demand. Racy by design — the instance's own
     /// BBS_MAX_PLAYERS cap is the hard fence; a lost race answers "Server is full" client-side.</summary>
