@@ -17,6 +17,7 @@ var registry = new HostRegistry(config);
 IInstanceLauncher launcher = new DockerCliLauncher(config);
 var metrics = new WorldHostMetrics();
 var orchestrator = new WorldOrchestrator(config, registry, launcher, metrics: metrics);
+var glitch = new GlitchGateway(config, registry, orchestrator);
 
 // Abuse limits (Phase 3). Signup/login key on the caller IP (real one via X-Forwarded-For — Caddy
 // fronts this service), uploads/reports on the account. See WorldHostConfig for the operator knobs.
@@ -25,6 +26,7 @@ var loginLimit = new RateLimiter(config.LoginPerMinutePerIp, TimeSpan.FromMinute
 var uploadLimit = new RateLimiter(config.UploadsPerHourPerAccount, TimeSpan.FromHours(1));
 var reportLimit = new RateLimiter(config.ReportsPerHourPerAccount, TimeSpan.FromHours(1));
 var statsLimit = new RateLimiter(config.StatsPerMinutePerIp, TimeSpan.FromMinutes(1));
+var glitchSessionLimit = new RateLimiter(config.GlitchSessionsPerMinutePerIp, TimeSpan.FromMinutes(1));
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
@@ -79,6 +81,10 @@ static string? CodeFor(string error) => error switch
         or "This database is not a Blocks Beyond the Stars world save."
         or "The save file could not be read." => "save_invalid",
     "This world has no save yet (it was never started)." => "save_missing",
+    _ when error.StartsWith("This player is banned", StringComparison.Ordinal) => "banned",
+    "The glitch.fun gateway is disabled." => "glitch_disabled",
+    "This install could not be verified with glitch.fun." => "glitch_invalid_install",
+    "All arcade worlds are full right now — please try again in a few minutes." => "glitch_full",
     _ => null,
 };
 
@@ -151,20 +157,9 @@ IResult? GuardAdminUi(HttpContext ctx)
     return Results.Text("Unauthorized.", statusCode: StatusCodes.Status401Unauthorized);
 }
 
-// Extracts joinedPlayers from an instance's /status JSON; null when unreadable — callers show "?"
-// (admin page) or count 0 (aggregates) rather than fail.
-static int? ParseJoinedPlayers(string statusJson)
-{
-    try
-    {
-        using var doc = System.Text.Json.JsonDocument.Parse(statusJson);
-        return doc.RootElement.TryGetProperty("joinedPlayers", out var jp) ? jp.GetInt32() : null;
-    }
-    catch
-    {
-        return null;
-    }
-}
+// Extracts joinedPlayers from an instance's /status JSON (shared with the glitch gateway's world
+// pick); null when unreadable — callers show "?" (admin page) or count 0 (aggregates) rather than fail.
+static int? ParseJoinedPlayers(string statusJson) => GlitchGateway.ParseJoinedPlayers(statusJson);
 
 // Sum of players currently on running instances, probed in parallel. Callers are throttled (the
 // admin page and the CACHED public snapshot) — never wire this to an uncached public path.
@@ -211,7 +206,8 @@ async Task<IResult> RenderAdminAsync(HttpContext ctx)
 
     return Results.Content(WorldHostAdminPages.Index(
         config, rows, registry.ListOpenReports(), registry.ListBannedAccounts(),
-        lookupQuery is null ? null : registry.FindAccountByName(lookupQuery), lookupQuery),
+        lookupQuery is null ? null : registry.FindAccountByName(lookupQuery), lookupQuery,
+        registry.ListGlitchGuests(), registry.ListGlitchBans()),
         "text/html; charset=utf-8");
 }
 
@@ -361,6 +357,73 @@ app.MapGet("/ask", (string? domain) =>
     }
 
     return Results.NotFound();
+});
+
+// ---------------- glitch.fun arcade gateway ----------------
+// The Glitch-hosted WebGL build calls these two endpoints cross-origin, so they are the ONLY /api
+// routes with CORS — echoing exactly the configured Glitch origins, never *. Everything else about
+// the arcade lives in GlitchGateway; disabled deployments answer 404 (and never leak why).
+
+void ApplyGlitchCors(HttpContext ctx)
+{
+    if (glitch.ResolveCorsOrigin(ctx.Request.Headers.Origin) is { } origin)
+    {
+        ctx.Response.Headers.AccessControlAllowOrigin = origin;
+        ctx.Response.Headers.Vary = "Origin";
+        ctx.Response.Headers.AccessControlAllowMethods = "POST, OPTIONS";
+        ctx.Response.Headers.AccessControlAllowHeaders = "Content-Type";
+        ctx.Response.Headers.AccessControlMaxAge = "3600";
+    }
+}
+
+// The JSON POSTs from the Glitch origin always preflight — answer it for every /api/glitch route.
+app.MapMethods("/api/glitch/{**rest}", new[] { "OPTIONS" }, (HttpContext ctx) =>
+{
+    ApplyGlitchCors(ctx);
+    return Results.NoContent();
+});
+
+app.MapPost("/api/glitch/session", async (HttpContext ctx, GlitchSessionRequest req) =>
+{
+    ApplyGlitchCors(ctx);
+    if (!glitch.Enabled)
+    {
+        return Results.NotFound();
+    }
+
+    if (!glitchSessionLimit.TryPass(CallerIp(ctx)))
+    {
+        return RateLimited();
+    }
+
+    var result = await glitch.SessionAsync(req.InstallId, req.PlayerName);
+    if (!result.Ok)
+    {
+        int status = CodeFor(result.Error) switch
+        {
+            "banned" or "glitch_invalid_install" => StatusCodes.Status403Forbidden,
+            _ => StatusCodes.Status503ServiceUnavailable, // glitch_full, no_capacity, wake failures
+        };
+        return ApiError(result.Error, status);
+    }
+
+    log.LogInformation("glitch.fun session: {Player} → arcade world {World}.", LogSafe(result.PlayerName), result.WorldId);
+    return Results.Json(new
+    {
+        worldId = result.WorldId,
+        worldName = result.WorldName,
+        playerName = result.PlayerName,
+        wssUrl = result.WssUrl,
+        joinToken = result.JoinToken,
+        tokenExpiresUnix = result.TokenExpiresUnix,
+    });
+});
+
+app.MapPost("/api/glitch/heartbeat", async (HttpContext ctx, GlitchHeartbeatRequest req) =>
+{
+    ApplyGlitchCors(ctx);
+    var (status, body) = await glitch.RelayHeartbeatAsync(req.InstallId, req.SessionId, req.Platform, req.GameVersion);
+    return Results.Text(body, "application/json; charset=utf-8", statusCode: status);
 });
 
 // ---------------- Accounts ----------------
@@ -627,6 +690,28 @@ app.MapPost("/admin/worlds/{id}/stop", (HttpContext ctx, string id) =>
     {
         orchestrator.StopWorld(world);
         log.LogInformation("Admin UI: world {Id} stopped.", world.Id);
+    }
+
+    return Results.Redirect("/admin");
+});
+
+// Ban/unban a glitch.fun install id (the arcade channel's ban lever — guests have no account). A ban
+// takes effect on the guest's NEXT session grant and next heartbeat (the relay answers 403, which the
+// client treats as "stop the game"), so no instance restart is involved.
+app.MapPost("/admin/glitch/ban", async (HttpContext ctx) =>
+{
+    if (GuardAdminUi(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    var form = await ctx.Request.ReadFormAsync();
+    string installId = form["installId"].ToString().Trim();
+    bool banned = form["banned"].ToString() == "true";
+    if (installId.Length > 0)
+    {
+        registry.SetGlitchBanned(installId, banned, form["reason"].ToString(), form["playerName"].ToString());
+        log.LogInformation("Admin UI: glitch install {Action} ({Reason}).", banned ? "BANNED" : "unbanned", LogSafe(form["reason"].ToString()));
     }
 
     return Results.Redirect("/admin");
@@ -1050,5 +1135,15 @@ log.LogInformation(
     "WorldHost up on {Bind}:{Port} — domain {Domain}, image {Image}, quotas: {Worlds} worlds/account, {Players} players, idle {Idle} min.",
     config.BindAddress, config.Port, config.BaseDomain, config.ServerImage,
     config.MaxWorldsPerAccount, config.MaxPlayersPerWorld, config.IdleShutdownMinutes);
+
+if (config.GlitchEnabled && !config.GlitchConfigured)
+{
+    log.LogWarning("BBS_WH_GLITCH_ENABLED is set but the title id/token are missing — the glitch.fun gateway stays OFF.");
+}
+else if (glitch.Enabled)
+{
+    log.LogInformation("glitch.fun arcade gateway ON — {Worlds} pool world(s), {Players} players each.",
+        config.GlitchWorldCount, config.GlitchMaxPlayers);
+}
 
 app.Run();

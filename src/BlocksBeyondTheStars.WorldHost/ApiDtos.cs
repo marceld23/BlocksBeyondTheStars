@@ -37,3 +37,11 @@ public sealed record ReportRequest(string ReportedName, string Category, string?
 public sealed record CloseReportRequest(string Status);
 
 public sealed record BanRequest(string AccountId, bool Banned, string? Reason = null);
+
+/// <summary>glitch.fun arcade session grant: the install id Glitch injected into the build's URL, plus
+/// an optional preferred display name (the gateway falls back to the Glitch account name).</summary>
+public sealed record GlitchSessionRequest(string InstallId, string? PlayerName = null);
+
+/// <summary>glitch.fun heartbeat relay body — mirrors Glitch's install/heartbeat contract so the title
+/// token can stay server-side (the client never talks to api.glitch.fun directly).</summary>
+public sealed record GlitchHeartbeatRequest(string InstallId, string? SessionId = null, string? Platform = null, string? GameVersion = null);

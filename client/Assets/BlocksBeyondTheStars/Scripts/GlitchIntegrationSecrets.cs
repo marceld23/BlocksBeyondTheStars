@@ -93,6 +93,19 @@ namespace BlocksBeyondTheStars.Build
             }
         }
 
+        /// <summary>WorldHost portal origin for the glitch.fun arcade build (e.g.
+        /// <c>https://play.blocksbeyondthestars.de</c>). When set, the client requests its arcade
+        /// session and relays heartbeats through the portal — so no title token ships in the build.</summary>
+        public static string PortalUrl
+        {
+            get
+            {
+                string value = string.Empty;
+                ApplyPortalUrl(ref value);
+                return value;
+            }
+        }
+
         static partial void ApplyEnabled(ref bool enabled);
         static partial void ApplyTitleId(ref string value);
         static partial void ApplyTitleToken(ref string value);
@@ -101,5 +114,6 @@ namespace BlocksBeyondTheStars.Build
         static partial void ApplyServerHost(ref string value);
         static partial void ApplyServerPort(ref string value);
         static partial void ApplyServerPassword(ref string value);
+        static partial void ApplyPortalUrl(ref string value);
     }
 }

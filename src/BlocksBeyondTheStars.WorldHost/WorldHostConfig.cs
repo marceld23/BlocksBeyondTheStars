@@ -193,6 +193,50 @@ public sealed class WorldHostConfig
     /// shows a friendly "not installed" notice.</summary>
     public string WebGlDir { get; set; } = "webgl";
 
+    // --- glitch.fun arcade (all optional; the whole gateway stays off without the credentials).
+    // A small pool of persistent multiplayer worlds that exist ONLY for the glitch.fun platform:
+    // hidden from every portal listing, joinable solely through POST /api/glitch/session. The
+    // published Baumhaus rule is amended publicly for this channel (separate arcade context under
+    // Glitch's platform accounts/rules) — see the hosted-worlds doc. ---
+
+    /// <summary>Master switch (BBS_WH_GLITCH_ENABLED). Effective only when the title id + token are
+    /// also configured — see <see cref="GlitchConfigured"/>.</summary>
+    public bool GlitchEnabled { get; set; }
+
+    /// <summary>This game's title UUID on glitch.fun (BBS_WH_GLITCH_TITLE_ID).</summary>
+    public string GlitchTitleId { get; set; } = string.Empty;
+
+    /// <summary>Server-side Glitch title token (BBS_WH_GLITCH_TITLE_TOKEN) used for install
+    /// validation and the heartbeat relay. Lives ONLY here — it is deliberately never baked into the
+    /// public WebGL build (the client heartbeats through our relay instead).</summary>
+    public string GlitchTitleToken { get; set; } = string.Empty;
+
+    /// <summary>Size of the arcade world pool (BBS_WH_GLITCH_WORLDS); the gateway lazily creates
+    /// missing pool worlds on first use. Sized small on purpose — arcade wakes share BBS_WH_MAX_ACTIVE.</summary>
+    public int GlitchWorldCount { get; set; } = 2;
+
+    /// <summary>Player cap per arcade world (BBS_WH_GLITCH_MAX_PLAYERS), passed to the instance as
+    /// BBS_MAX_PLAYERS. Applied on the next container start.</summary>
+    public int GlitchMaxPlayers { get; set; } = 8;
+
+    /// <summary>Origins allowed to call the /api/glitch endpoints cross-origin
+    /// (BBS_WH_GLITCH_ALLOWED_ORIGINS, comma-separated) — the Glitch-hosted WebGL build's origins.</summary>
+    public List<string> GlitchAllowedOrigins { get; set; } = new()
+    {
+        "https://play.glitch.fun", "https://glitch.fun", "https://www.glitch.fun",
+    };
+
+    /// <summary>Glitch platform API base (BBS_WH_GLITCH_API_URL) — overridable so tests can point the
+    /// gateway at a fake.</summary>
+    public string GlitchApiBaseUrl { get; set; } = "https://api.glitch.fun";
+
+    /// <summary>Per-IP session-grant limit for POST /api/glitch/session (BBS_WH_GLITCH_SESSIONS_PER_MINUTE).</summary>
+    public int GlitchSessionsPerMinutePerIp { get; set; } = 10;
+
+    /// <summary>True when the arcade gateway is switched on AND has its credentials.</summary>
+    public bool GlitchConfigured =>
+        GlitchEnabled && GlitchTitleId.Length > 0 && GlitchTitleToken.Length > 0;
+
     /// <summary>Loads config from BBS_WH_* environment variables over the defaults.</summary>
     public static WorldHostConfig FromEnvironment()
     {
@@ -253,6 +297,18 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_ADMIN_USER") is { } adminUser) { c.AdminUser = adminUser; }
         if (Env("BBS_WH_ADMIN_PASSWORD") is { } adminPassword) { c.AdminPassword = adminPassword; }
         if (Env("BBS_WH_WEBGL_DIR") is { } webglDir) { c.WebGlDir = webglDir; }
+        if (Env("BBS_WH_GLITCH_ENABLED") is { } geStr && bool.TryParse(geStr, out var ge)) { c.GlitchEnabled = ge; }
+        if (Env("BBS_WH_GLITCH_TITLE_ID") is { } gTitleId) { c.GlitchTitleId = gTitleId; }
+        if (Env("BBS_WH_GLITCH_TITLE_TOKEN") is { } gTitleToken) { c.GlitchTitleToken = gTitleToken; }
+        if (Env("BBS_WH_GLITCH_WORLDS") is { } gwStr && int.TryParse(gwStr, out var gw)) { c.GlitchWorldCount = gw; }
+        if (Env("BBS_WH_GLITCH_MAX_PLAYERS") is { } gmpStr && int.TryParse(gmpStr, out var gmp)) { c.GlitchMaxPlayers = gmp; }
+        if (Env("BBS_WH_GLITCH_ALLOWED_ORIGINS") is { } gOrigins)
+        {
+            c.GlitchAllowedOrigins = gOrigins.Split(',').Select(o => o.Trim().TrimEnd('/')).Where(o => o.Length > 0).ToList();
+        }
+
+        if (Env("BBS_WH_GLITCH_API_URL") is { } gApi) { c.GlitchApiBaseUrl = gApi; }
+        if (Env("BBS_WH_GLITCH_SESSIONS_PER_MINUTE") is { } gspStr && int.TryParse(gspStr, out var gsp)) { c.GlitchSessionsPerMinutePerIp = gsp; }
 
         return c;
     }

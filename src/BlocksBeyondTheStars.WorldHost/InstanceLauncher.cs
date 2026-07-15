@@ -82,7 +82,8 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             "-v", $"{savesDir}:/app/saves",
             "-e", $"BBS_WORLD={world.Id}",
             "-e", $"BBS_SERVER_NAME={world.DisplayName}",
-            "-e", $"BBS_MAX_PLAYERS={config.MaxPlayersPerWorld}",
+            // glitch.fun arcade worlds get their own (smaller) player cap; applied on container start.
+            "-e", $"BBS_MAX_PLAYERS={(world.Channel == WorldChannel.Glitch ? config.GlitchMaxPlayers : config.MaxPlayersPerWorld)}",
             "-e", $"BBS_IDLE_SHUTDOWN_MINUTES={config.IdleShutdownMinutes}",
             "-e", $"BBS_JOIN_TOKEN_SECRET={world.JoinSecret}",
             "-e", $"BBS_WORLD_OWNER={world.OwnerAccountId}",

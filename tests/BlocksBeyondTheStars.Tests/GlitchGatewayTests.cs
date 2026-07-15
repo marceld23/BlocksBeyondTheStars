@@ -1,0 +1,396 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Net;
+using System.Text;
+using BlocksBeyondTheStars.Shared.Security;
+using BlocksBeyondTheStars.WorldHost;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Data.Sqlite;
+using Xunit;
+
+namespace BlocksBeyondTheStars.Tests;
+
+/// <summary>
+/// The glitch.fun arcade gateway: install validation against a faked Glitch API, stable suffixed guest
+/// names, lazy pool creation, capacity-aware world picking, install bans, the heartbeat relay (title
+/// token stays server-side; bans answer 403) and the CORS origin gate.
+/// </summary>
+public sealed class GlitchGatewayTests : IDisposable
+{
+    private const string Install = "17d0c5b6-d1e4-4cdf-ab2a-ae9854da9339";
+
+    private readonly string _root;
+    private readonly List<HostRegistry> _registries = new();
+
+    public GlitchGatewayTests()
+    {
+        _root = Path.Combine(Path.GetTempPath(), "bbts_glitch_gw_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_root);
+    }
+
+    private static WorldHostConfig NewConfig() => new()
+    {
+        GlitchEnabled = true,
+        GlitchTitleId = "title-1",
+        GlitchTitleToken = "token-1",
+        GlitchWorldCount = 2,
+        GlitchMaxPlayers = 2,
+        WakeTimeoutSeconds = 5,
+    };
+
+    private HostRegistry NewRegistry(WorldHostConfig config)
+    {
+        var registry = new HostRegistry(config, Path.Combine(_root, Guid.NewGuid().ToString("N") + ".db"));
+        _registries.Add(registry);
+        return registry;
+    }
+
+    private sealed class FakeLauncher : IInstanceLauncher
+    {
+        public int StartCount;
+        public readonly HashSet<string> Running = new(StringComparer.Ordinal);
+
+        public string Start(WorldRecord world)
+        {
+            StartCount++;
+            string id = "container-" + StartCount;
+            Running.Add(id);
+            return id;
+        }
+
+        public void Stop(string containerId) => Running.Remove(containerId);
+
+        public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
+
+        public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
+    }
+
+    /// <summary>Canned Glitch API: answers /validate per install id (default: valid with a user name)
+    /// and records every request incl. the Authorization header.</summary>
+    private sealed class FakeGlitchApi : HttpMessageHandler
+    {
+        public readonly List<(string Url, string? Auth, string Body)> Requests = new();
+        public readonly Dictionary<string, (HttpStatusCode Status, string Body)> ValidateByInstall = new();
+        public (HttpStatusCode Status, string Body) HeartbeatAnswer = (HttpStatusCode.OK, """{"data":{"id":"x"}}""");
+        public bool ThrowOnSend;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            string body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            Requests.Add((request.RequestUri!.ToString(), request.Headers.Authorization?.ToString(), body));
+            if (ThrowOnSend)
+            {
+                throw new HttpRequestException("no route to glitch");
+            }
+
+            (HttpStatusCode Status, string Body) answer;
+            if (request.RequestUri!.AbsolutePath.EndsWith("/validate", StringComparison.Ordinal))
+            {
+                string installId = request.RequestUri.Segments[^2].TrimEnd('/');
+                answer = ValidateByInstall.TryGetValue(installId, out var configured)
+                    ? configured
+                    : (HttpStatusCode.OK, """{"valid":true,"user_name":"Gamer123"}""");
+            }
+            else
+            {
+                answer = HeartbeatAnswer;
+            }
+
+            return new HttpResponseMessage(answer.Status)
+            {
+                Content = new StringContent(answer.Body, Encoding.UTF8, "application/json"),
+            };
+        }
+    }
+
+    private (GlitchGateway Gateway, HostRegistry Registry, FakeGlitchApi Api, WorldHostConfig Config) NewGateway(
+        WorldHostConfig? config = null, Func<WorldRecord, Task<string?>>? statusReader = null)
+    {
+        config ??= NewConfig();
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = new WorldOrchestrator(config, registry, launcher,
+            w => Task.FromResult(launcher.IsRunning(w.ContainerId)));
+        var api = new FakeGlitchApi();
+        var gateway = new GlitchGateway(config, registry, orchestrator, api,
+            statusReader: statusReader ?? (_ => Task.FromResult<string?>(null)));
+        return (gateway, registry, api, config);
+    }
+
+    // ---------------- Session grants ----------------
+
+    [Fact]
+    public async Task Session_HappyPath_CreatesPool_MintsGuestToken_AndRecordsTheGuestAsync()
+    {
+        var (gateway, registry, api, _) = NewGateway();
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.True(result.Ok, result.Error);
+        Assert.StartsWith("Gamer123-", result.PlayerName, StringComparison.Ordinal); // Glitch user_name + stable suffix
+        Assert.NotEmpty(result.JoinToken);
+        Assert.StartsWith("wss://w-", result.WssUrl, StringComparison.Ordinal);
+
+        // The pool was lazily created; the world the guest landed on is an arcade world.
+        var pool = registry.ListWorldsByChannel(WorldChannel.Glitch);
+        Assert.Equal(2, pool.Count);
+        var world = pool.Single(w => w.Id == result.WorldId);
+
+        // The token names the synthetic guest identity — the instance-side gate accepts it as-is.
+        Assert.True(HostedJoinToken.TryValidate(world.JoinSecret, world.Id, result.JoinToken,
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(), out string accountId, out string playerName, out string error), error);
+        Assert.Equal("glitch:" + Install, accountId);
+        Assert.Equal(result.PlayerName, playerName);
+
+        // The validate call went out with the server-side title token; the guest is on the ban-target list.
+        Assert.Contains(api.Requests, r => r.Url.Contains("/validate") && r.Auth == "Bearer token-1");
+        Assert.Equal(Install, Assert.Single(registry.ListGlitchGuests()).InstallId);
+    }
+
+    [Fact]
+    public async Task Session_StableIdentity_SameInstallGetsTheSameNameEveryVisitAsync()
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        var first = await gateway.SessionAsync(Install);
+        var second = await gateway.SessionAsync(Install);
+
+        Assert.True(first.Ok && second.Ok);
+        Assert.Equal(first.PlayerName, second.PlayerName);
+    }
+
+    [Fact]
+    public async Task Session_DisabledGateway_RefusesAsync()
+    {
+        var config = NewConfig();
+        config.GlitchTitleToken = string.Empty; // enabled flag without credentials = off
+        var (gateway, _, _, _) = NewGateway(config);
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.False(result.Ok);
+        Assert.Equal("The glitch.fun gateway is disabled.", result.Error);
+    }
+
+    [Fact]
+    public async Task Session_InvalidInstall_RefusedWithoutTouchingThePoolAsync()
+    {
+        var (gateway, registry, api, _) = NewGateway();
+        api.ValidateByInstall[Install] = (HttpStatusCode.Forbidden, """{"valid":false,"reason":"LICENSE_EXPIRED"}""");
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.False(result.Ok);
+        Assert.Equal("This install could not be verified with glitch.fun.", result.Error);
+        Assert.Empty(registry.ListWorldsByChannel(WorldChannel.Glitch)); // no pool for invalid installs
+        Assert.Empty(registry.ListGlitchGuests());
+    }
+
+    [Fact]
+    public async Task Session_MalformedInstallId_RefusedWithoutCallingGlitchAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+
+        var result = await gateway.SessionAsync("nope !"); // spaces/short — not an install id
+
+        Assert.False(result.Ok);
+        Assert.Equal("This install could not be verified with glitch.fun.", result.Error);
+        Assert.Empty(api.Requests);
+    }
+
+    [Fact]
+    public async Task Session_BannedInstall_RefusedWithTheReasonAsync()
+    {
+        var (gateway, registry, _, _) = NewGateway();
+        registry.SetGlitchBanned(Install, banned: true, reason: "griefing");
+
+        var result = await gateway.SessionAsync(Install);
+
+        Assert.False(result.Ok);
+        Assert.Equal("This player is banned: griefing", result.Error);
+    }
+
+    [Fact]
+    public async Task Session_PoolCreationIsIdempotentAsync()
+    {
+        var (gateway, registry, _, _) = NewGateway();
+
+        Assert.True((await gateway.SessionAsync(Install)).Ok);
+        Assert.True((await gateway.SessionAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8")).Ok);
+
+        Assert.Equal(2, registry.ListWorldsByChannel(WorldChannel.Glitch).Count);
+    }
+
+    [Fact]
+    public async Task Session_PicksRunningWorldWithHeadroom_ThenWakesSleeping_ThenReportsFullAsync()
+    {
+        // Status reader script: world with headroom → joined 1/2; full world → 2/2.
+        var full = new HashSet<string>(StringComparer.Ordinal);
+        Task<string?> StatusAsync(WorldRecord w) =>
+            Task.FromResult<string?>(full.Contains(w.Id) ? """{"joinedPlayers":2}""" : """{"joinedPlayers":1}""");
+
+        var (gateway, registry, _, _) = NewGateway(statusReader: StatusAsync);
+
+        // First guest wakes Arcade 1 (pool created on demand, nothing running yet).
+        var first = await gateway.SessionAsync(Install);
+        Assert.True(first.Ok, first.Error);
+
+        // Second guest: Arcade 1 is running with headroom (1/2) → reuse, no second wake.
+        var second = await gateway.SessionAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8");
+        Assert.True(second.Ok, second.Error);
+        Assert.Equal(first.WorldId, second.WorldId);
+
+        // Arcade 1 fills up → the next guest wakes Arcade 2.
+        full.Add(first.WorldId);
+        var third = await gateway.SessionAsync("11111111-2222-3333-4444-555555555555");
+        Assert.True(third.Ok, third.Error);
+        Assert.NotEqual(first.WorldId, third.WorldId);
+
+        // Both running and full → the friendly arcade-full answer.
+        full.Add(third.WorldId);
+        var fourth = await gateway.SessionAsync("66666666-7777-8888-9999-000000000000");
+        Assert.False(fourth.Ok);
+        Assert.Equal("All arcade worlds are full right now — please try again in a few minutes.", fourth.Error);
+    }
+
+    // ---------------- Player names ----------------
+
+    [Theory]
+    [InlineData("Justus")]      // developer-reserved
+    [InlineData("hurensohn99")] // blocked word
+    [InlineData("")]            // nothing usable
+    public void ResolvePlayerName_FallsBackToExplorer(string requested)
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        string name = gateway.ResolvePlayerName(requested, glitchUserName: null, Install);
+
+        Assert.StartsWith("Explorer-", name, StringComparison.Ordinal);
+        Assert.Equal("Explorer-".Length + 3, name.Length); // stable 3-hex-char suffix
+    }
+
+    [Fact]
+    public void ResolvePlayerName_PrefersRequested_ThenGlitchName_AndStaysStablePerInstall()
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        Assert.StartsWith("Maxi-", gateway.ResolvePlayerName("Maxi", "Gamer123", Install), StringComparison.Ordinal);
+        Assert.StartsWith("Gamer123-", gateway.ResolvePlayerName(null, "Gamer123", Install), StringComparison.Ordinal);
+        Assert.Equal(
+            gateway.ResolvePlayerName(null, "Gamer123", Install),
+            gateway.ResolvePlayerName(null, "Gamer123", Install));
+
+        // Overlong/dirty Glitch names are trimmed so the suffix still fits the 24-char instance limit.
+        string longName = gateway.ResolvePlayerName(null, new string('x', 60) + "\n", Install);
+        Assert.True(longName.Length <= 24, longName);
+    }
+
+    // ---------------- Heartbeat relay ----------------
+
+    [Fact]
+    public async Task Heartbeat_RelaysWithTheServerSideTokenAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+
+        var (status, body) = await gateway.RelayHeartbeatAsync(Install, "sess-1", "web", "0.7.8");
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.Contains("\"ok\":true", body, StringComparison.Ordinal);
+        var sent = Assert.Single(api.Requests);
+        Assert.EndsWith("/installs", sent.Url, StringComparison.Ordinal);
+        Assert.Equal("Bearer token-1", sent.Auth);
+        Assert.Contains("\"user_install_id\":\"" + Install + "\"", sent.Body, StringComparison.Ordinal);
+        Assert.Contains("\"session_id\":\"sess-1\"", sent.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Heartbeat_BannedInstall_Answers403WithoutRelayingAsync()
+    {
+        var (gateway, registry, api, _) = NewGateway();
+        registry.SetGlitchBanned(Install, banned: true, reason: "griefing");
+
+        var (status, body) = await gateway.RelayHeartbeatAsync(Install, null, "web", "0.7.8");
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Contains("banned", body, StringComparison.Ordinal);
+        Assert.Empty(api.Requests); // never even talks to Glitch for a banned install
+    }
+
+    [Fact]
+    public async Task Heartbeat_GlitchRefusal_PassesTheStatusThrough_ButUnreachableIs503Async()
+    {
+        var (gateway, _, api, _) = NewGateway();
+
+        api.HeartbeatAnswer = (HttpStatusCode.Forbidden, """{"error":"license expired"}""");
+        Assert.Equal(StatusCodes.Status403Forbidden, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
+
+        // Glitch being down must not read as a revoked license.
+        api.ThrowOnSend = true;
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
+    }
+
+    [Fact]
+    public async Task Heartbeat_RateLimit_KeysOnTheInstallAsync()
+    {
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = new WorldOrchestrator(config, registry, launcher, w => Task.FromResult(true));
+        var api = new FakeGlitchApi();
+        var gateway = new GlitchGateway(config, registry, orchestrator, api,
+            heartbeatLimit: new RateLimiter(1, TimeSpan.FromMinutes(1)), statusReader: _ => Task.FromResult<string?>(null));
+
+        Assert.Equal(StatusCodes.Status200OK, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
+        Assert.Equal(StatusCodes.Status429TooManyRequests, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
+        Assert.Equal(StatusCodes.Status200OK, (await gateway.RelayHeartbeatAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8", null, "web", "1")).Status);
+    }
+
+    // ---------------- CORS + container shape ----------------
+
+    [Fact]
+    public void ResolveCorsOrigin_EchoesOnlyConfiguredGlitchOrigins()
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        Assert.Equal("https://play.glitch.fun", gateway.ResolveCorsOrigin("https://play.glitch.fun"));
+        Assert.Equal("https://glitch.fun/", gateway.ResolveCorsOrigin("https://glitch.fun/")); // trailing slash tolerated
+        Assert.Null(gateway.ResolveCorsOrigin("https://evil.example"));
+        Assert.Null(gateway.ResolveCorsOrigin(null));
+    }
+
+    [Fact]
+    public void BuildRunArgs_GlitchWorldsGetTheArcadePlayerCap()
+    {
+        var config = NewConfig();
+        config.MaxPlayersPerWorld = 12;
+        var registry = NewRegistry(config);
+        var arcade = registry.CreateGlitchWorld("Glitch Arcade 1").World!;
+        var (_, _, accountId, _) = registry.CreateAccount("Owner", "super-secret-1", acceptedTermsVersion: 1);
+        var portal = registry.CreateWorld(accountId, "Family World").World!;
+
+        var arcadeArgs = DockerCliLauncher.BuildRunArgs(config, arcade, "saves");
+        var portalArgs = DockerCliLauncher.BuildRunArgs(config, portal, "saves");
+
+        Assert.Contains("BBS_MAX_PLAYERS=2", arcadeArgs);
+        Assert.Contains("BBS_MAX_PLAYERS=12", portalArgs);
+    }
+
+    public void Dispose()
+    {
+        foreach (var registry in _registries)
+        {
+            registry.Dispose();
+        }
+
+        SqliteConnection.ClearAllPools();
+        try
+        {
+            Directory.Delete(_root, recursive: true);
+        }
+        catch
+        {
+            // best effort — temp cleanup only
+        }
+    }
+}

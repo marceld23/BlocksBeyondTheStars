@@ -26,7 +26,8 @@ public sealed record WorldRecord(
     long CreatedUnix,
     long LastStartedUnix,
     string PasswordHash = "",
-    bool IsPublic = false)
+    bool IsPublic = false,
+    string Channel = WorldChannel.Portal)
 {
     /// <summary>The public routing label: <c>w-&lt;id&gt;.&lt;BaseDomain&gt;</c> resolves to this world's instance.</summary>
     public string Subdomain => "w-" + Id;
@@ -34,6 +35,33 @@ public sealed record WorldRecord(
     /// <summary>True when the creator protected this world with a join password (#250).</summary>
     public bool HasPassword => PasswordHash.Length > 0;
 }
+
+/// <summary>Which storefront a world belongs to. Portal worlds ('') follow the Baumhaus rules
+/// (player-created, password-gated, listed on the portal); glitch worlds exist ONLY for the
+/// glitch.fun arcade — they never appear in the public browser or any account's world list, and are
+/// joinable solely through the glitch session gateway's tokens.</summary>
+public static class WorldChannel
+{
+    public const string Portal = "";
+    public const string Glitch = "glitch";
+}
+
+/// <summary>A glitch.fun visitor seen by the session gateway — the admin UI's ban targets. The
+/// install id is Glitch's pseudonymous per-player UUID; no further identity is stored.</summary>
+public sealed record GlitchGuestRecord(
+    string InstallId,
+    string PlayerName,
+    long FirstSeenUnix,
+    long LastSeenUnix,
+    long Sessions);
+
+/// <summary>An install-id ban for the glitch.fun arcade (accounts don't exist on that channel, so
+/// bans key on Glitch's install id instead).</summary>
+public sealed record GlitchBanRecord(
+    string InstallId,
+    string PlayerName,
+    string Reason,
+    long CreatedUnix);
 
 /// <summary>A filed player report awaiting (or after) operator review.</summary>
 public sealed record ReportRecord(
@@ -132,6 +160,17 @@ public sealed class HostRegistry : IDisposable
                 message TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'open',
                 created_unix INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS glitch_guest(
+                install_id TEXT PRIMARY KEY,
+                player_name TEXT NOT NULL DEFAULT '',
+                first_seen_unix INTEGER NOT NULL,
+                last_seen_unix INTEGER NOT NULL,
+                sessions INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS glitch_ban(
+                install_id TEXT PRIMARY KEY,
+                player_name TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                created_unix INTEGER NOT NULL);
             """);
 
         // Tolerant upgrades for registries created before newer account columns existed (pre-deployment
@@ -146,6 +185,7 @@ public sealed class HostRegistry : IDisposable
             "ALTER TABLE world ADD COLUMN last_active_unix INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE world ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';", // #250: creator-set join password
             "ALTER TABLE world ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;", // public world browser (opt-in, requires password)
+            "ALTER TABLE world ADD COLUMN channel TEXT NOT NULL DEFAULT '';", // world channel ('' portal, 'glitch' arcade)
         })
         {
             try
@@ -385,7 +425,7 @@ public sealed class HostRegistry : IDisposable
         {
             using var cmd = Cmd("""
                 SELECT w.id, w.owner_account_id, w.display_name, w.join_secret, w.host_port, w.status,
-                       w.container_id, w.created_unix, w.last_started_unix, a.name
+                       w.container_id, w.created_unix, w.last_started_unix, w.channel, a.name
                 FROM world w LEFT JOIN account a ON a.id = w.owner_account_id
                 ORDER BY CASE w.status WHEN 'running' THEN 0 WHEN 'starting' THEN 1 WHEN 'stopped' THEN 2 ELSE 3 END,
                          w.last_started_unix DESC
@@ -396,9 +436,12 @@ public sealed class HostRegistry : IDisposable
             var list = new List<(WorldRecord, string)>();
             while (reader.Read())
             {
+                string channel = reader.GetString(9);
+                string ownerName = !reader.IsDBNull(10) ? reader.GetString(10)
+                    : channel == WorldChannel.Glitch ? "glitch.fun" : "(deleted)";
                 list.Add((new WorldRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2),
                     reader.GetString(3), reader.GetInt32(4), reader.GetString(5), reader.GetString(6),
-                    reader.GetInt64(7), reader.GetInt64(8)), reader.IsDBNull(9) ? "(deleted)" : reader.GetString(9)));
+                    reader.GetInt64(7), reader.GetInt64(8), Channel: channel), ownerName));
             }
 
             return list;
@@ -612,6 +655,183 @@ public sealed class HostRegistry : IDisposable
         }
     }
 
+    /// <summary>Creates one world of the glitch.fun arcade pool (channel 'glitch'). Unlike
+    /// <see cref="CreateWorld"/> there is no owning account (a fixed synthetic owner id), no per-account
+    /// quota and no join password — arcade worlds are joinable exclusively through the glitch session
+    /// gateway's HMAC tokens and never surface in any portal listing. The display name is
+    /// operator/gateway-authored, so only basic validation applies.</summary>
+    public (bool Ok, string Error, WorldRecord? World) CreateGlitchWorld(string displayName)
+    {
+        displayName = (displayName ?? string.Empty).Trim();
+        if (displayName.Length is < 1 or > 40 || displayName.Any(char.IsControl))
+        {
+            return (false, "World name must be 1-40 printable characters.", null);
+        }
+
+        lock (_gate)
+        {
+            int? port = NextFreePortLocked();
+            if (port is null)
+            {
+                return (false, "No capacity available right now — please try again later.", null);
+            }
+
+            var world = new WorldRecord(
+                Id: RandomHex(6),
+                OwnerAccountId: WorldChannel.Glitch,
+                DisplayName: displayName,
+                JoinSecret: RandomHex(32),
+                HostPort: port.Value,
+                Status: WorldStatus.Stopped,
+                ContainerId: string.Empty,
+                CreatedUnix: NowUnix(),
+                LastStartedUnix: 0,
+                Channel: WorldChannel.Glitch);
+
+            using var ins = Cmd("""
+                INSERT INTO world(id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, channel)
+                VALUES($i, $o, $d, $s, $p, $st, '', $c, 0, $ch)
+                """);
+            ins.Parameters.AddWithValue("$i", world.Id);
+            ins.Parameters.AddWithValue("$o", world.OwnerAccountId);
+            ins.Parameters.AddWithValue("$d", world.DisplayName);
+            ins.Parameters.AddWithValue("$s", world.JoinSecret);
+            ins.Parameters.AddWithValue("$p", world.HostPort);
+            ins.Parameters.AddWithValue("$st", world.Status);
+            ins.Parameters.AddWithValue("$c", world.CreatedUnix);
+            ins.Parameters.AddWithValue("$ch", world.Channel);
+            ins.ExecuteNonQuery();
+
+            return (true, string.Empty, world);
+        }
+    }
+
+    /// <summary>All worlds of one channel, oldest first — the glitch gateway's stable pool listing.</summary>
+    public IReadOnlyList<WorldRecord> ListWorldsByChannel(string channel)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd(SelectWorld + " WHERE channel = $ch ORDER BY created_unix");
+            cmd.Parameters.AddWithValue("$ch", channel ?? string.Empty);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<WorldRecord>();
+            while (reader.Read())
+            {
+                list.Add(ReadWorld(reader));
+            }
+
+            return list;
+        }
+    }
+
+    // ---------------- glitch.fun guests & install bans ----------------
+
+    /// <summary>Records a session grant for a glitch.fun install id (upsert): the guest list the admin
+    /// UI bans from. Stores only Glitch's pseudonymous install id + the assigned player name.</summary>
+    public void TouchGlitchGuest(string installId, string playerName)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                INSERT INTO glitch_guest(install_id, player_name, first_seen_unix, last_seen_unix, sessions)
+                VALUES($i, $n, $now, $now, 1)
+                ON CONFLICT(install_id) DO UPDATE SET
+                    player_name = $n, last_seen_unix = $now, sessions = sessions + 1
+                """);
+            cmd.Parameters.AddWithValue("$i", installId);
+            cmd.Parameters.AddWithValue("$n", playerName ?? string.Empty);
+            cmd.Parameters.AddWithValue("$now", NowUnix());
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Most recently seen glitch.fun guests (ban targets for the admin UI).</summary>
+    public IReadOnlyList<GlitchGuestRecord> ListGlitchGuests(int limit = 50)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                SELECT install_id, player_name, first_seen_unix, last_seen_unix, sessions
+                FROM glitch_guest ORDER BY last_seen_unix DESC LIMIT $l
+                """);
+            cmd.Parameters.AddWithValue("$l", limit);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<GlitchGuestRecord>();
+            while (reader.Read())
+            {
+                list.Add(new GlitchGuestRecord(reader.GetString(0), reader.GetString(1),
+                    reader.GetInt64(2), reader.GetInt64(3), reader.GetInt64(4)));
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>Bans (or unbans) a glitch.fun install id. A banned install gets no more session grants
+    /// and its heartbeat relay answers 403, which the client treats as "stop the game" — the arcade
+    /// twin of the account ban (arcade guests have no account).</summary>
+    public void SetGlitchBanned(string installId, bool banned, string reason, string playerName = "")
+    {
+        installId = (installId ?? string.Empty).Trim();
+        if (installId.Length == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            if (!banned)
+            {
+                using var del = Cmd("DELETE FROM glitch_ban WHERE install_id = $i");
+                del.Parameters.AddWithValue("$i", installId);
+                del.ExecuteNonQuery();
+                return;
+            }
+
+            using var cmd = Cmd("""
+                INSERT INTO glitch_ban(install_id, player_name, reason, created_unix)
+                VALUES($i, $n, $r, $now)
+                ON CONFLICT(install_id) DO UPDATE SET player_name = $n, reason = $r
+                """);
+            cmd.Parameters.AddWithValue("$i", installId);
+            cmd.Parameters.AddWithValue("$n", playerName ?? string.Empty);
+            cmd.Parameters.AddWithValue("$r", reason ?? string.Empty);
+            cmd.Parameters.AddWithValue("$now", NowUnix());
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>The ban entry for a glitch.fun install id, or null when not banned.</summary>
+    public GlitchBanRecord? GetGlitchBan(string installId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("SELECT install_id, player_name, reason, created_unix FROM glitch_ban WHERE install_id = $i");
+            cmd.Parameters.AddWithValue("$i", (installId ?? string.Empty).Trim());
+            using var reader = cmd.ExecuteReader();
+            return reader.Read()
+                ? new GlitchBanRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3))
+                : null;
+        }
+    }
+
+    /// <summary>All currently banned glitch.fun installs, for the admin UI.</summary>
+    public IReadOnlyList<GlitchBanRecord> ListGlitchBans()
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("SELECT install_id, player_name, reason, created_unix FROM glitch_ban ORDER BY created_unix DESC");
+            using var reader = cmd.ExecuteReader();
+            var list = new List<GlitchBanRecord>();
+            while (reader.Read())
+            {
+                list.Add(new GlitchBanRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt64(3)));
+            }
+
+            return list;
+        }
+    }
+
     /// <summary>Sets, changes or removes (empty password) a world's join password (#250). The caller has
     /// already verified ownership; validation happens here so every write path shares it.</summary>
     public (bool Ok, string Error) SetWorldPassword(string worldId, string? password)
@@ -674,8 +894,9 @@ public sealed class HostRegistry : IDisposable
     {
         lock (_gate)
         {
-            // running (2) → starting (1) → everything else (0), then alphabetical.
-            using var cmd = Cmd(SelectWorld + @" WHERE is_public = 1
+            // running (2) → starting (1) → everything else (0), then alphabetical. Portal channel only:
+            // glitch arcade worlds must never surface in the portal's public browser.
+            using var cmd = Cmd(SelectWorld + @" WHERE is_public = 1 AND channel = ''
                 ORDER BY CASE status WHEN 'running' THEN 2 WHEN 'starting' THEN 1 ELSE 0 END DESC,
                          display_name COLLATE NOCASE");
             using var reader = cmd.ExecuteReader();
@@ -693,7 +914,9 @@ public sealed class HostRegistry : IDisposable
     {
         lock (_gate)
         {
-            using var cmd = Cmd(SelectWorld + " WHERE owner_account_id = $o ORDER BY created_unix");
+            // Portal channel only (defense in depth: the glitch pool's synthetic owner id is not an
+            // account, but no account listing should ever surface an arcade world either way).
+            using var cmd = Cmd(SelectWorld + " WHERE owner_account_id = $o AND channel = '' ORDER BY created_unix");
             cmd.Parameters.AddWithValue("$o", ownerAccountId);
             using var reader = cmd.ExecuteReader();
             var list = new List<WorldRecord>();
@@ -844,11 +1067,12 @@ public sealed class HostRegistry : IDisposable
     // ---------------- Internals ----------------
 
     private const string SelectWorld =
-        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash, is_public FROM world";
+        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash, is_public, channel FROM world";
 
     private static WorldRecord ReadWorld(SqliteDataReader r) => new(
         r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt32(4),
-        r.GetString(5), r.GetString(6), r.GetInt64(7), r.GetInt64(8), r.GetString(9), r.GetInt64(10) != 0);
+        r.GetString(5), r.GetString(6), r.GetInt64(7), r.GetInt64(8), r.GetString(9), r.GetInt64(10) != 0,
+        r.GetString(11));
 
     /// <summary>Smallest unused port in the configured range. Ports stay allocated for a world's lifetime
     /// (they are its stable native-UDP endpoint), so a deleted world's port returns to the pool.</summary>

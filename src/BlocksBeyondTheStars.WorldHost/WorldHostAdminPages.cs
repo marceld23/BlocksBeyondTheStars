@@ -42,8 +42,12 @@ public static class WorldHostAdminPages
         IReadOnlyList<ReportRecord> openReports,
         IReadOnlyList<AccountRecord> banned,
         AccountRecord? lookedUp,
-        string? lookupQuery)
+        string? lookupQuery,
+        IReadOnlyList<GlitchGuestRecord>? glitchGuests = null,
+        IReadOnlyList<GlitchBanRecord>? glitchBans = null)
     {
+        glitchGuests ??= Array.Empty<GlitchGuestRecord>();
+        glitchBans ??= Array.Empty<GlitchBanRecord>();
         int active = worlds.Count(w => w.World.Status is WorldStatus.Running or WorldStatus.Starting);
         var playerReports = openReports.Where(r => r.Category != "feedback").ToList();
         var feedback = openReports.Where(r => r.Category == "feedback").ToList();
@@ -69,14 +73,16 @@ public static class WorldHostAdminPages
             foreach (var row in worlds)
             {
                 var w = row.World;
+                int maxPlayers = w.Channel == WorldChannel.Glitch ? config.GlitchMaxPlayers : config.MaxPlayersPerWorld;
+                string badge = w.Channel == WorldChannel.Glitch ? " <span class='st'>glitch</span>" : string.Empty;
                 string players = w.Status == WorldStatus.Running
-                    ? (row.JoinedPlayers is { } n ? $"{n}/{config.MaxPlayersPerWorld}" : "?")
+                    ? (row.JoinedPlayers is { } n ? $"{n}/{maxPlayers}" : "?")
                     : "—";
                 string action = w.Status is WorldStatus.Running or WorldStatus.Starting
                     ? $"<form method='post' action='/admin/worlds/{w.Id}/restart' style='display:inline'><button title='warn players, then stop after a 10-minute countdown'>restart in 10 min</button></form> " +
                       $"<form method='post' action='/admin/worlds/{w.Id}/stop' style='display:inline'><button class='danger' title='stop immediately, players get no warning'>stop</button></form>"
                     : $"<form method='post' action='/admin/worlds/{w.Id}/wake'><button>wake</button></form>";
-                sb.Append($"<tr><td><b>{E(w.DisplayName)}</b><br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
+                sb.Append($"<tr><td><b>{E(w.DisplayName)}</b>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
                           $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span></td><td>{players}</td>" +
                           $"<td>{w.HostPort}</td><td>{Ago(w.LastStartedUnix)}</td><td>{action}</td></tr>");
             }
@@ -193,6 +199,49 @@ public static class WorldHostAdminPages
         }
 
         sb.Append("</div>");
+
+        // ---- glitch.fun arcade guests & install bans (only when the channel is in use) ----
+        if (glitchGuests.Count > 0 || glitchBans.Count > 0)
+        {
+            sb.Append("<div class='card'><h2>glitch.fun arcade</h2>");
+            if (glitchGuests.Count > 0)
+            {
+                sb.Append("<table><tr><th>Player</th><th>Install id</th><th>Last seen</th><th>Sessions</th><th></th></tr>");
+                foreach (var g in glitchGuests)
+                {
+                    bool isBanned = glitchBans.Any(b => b.InstallId == g.InstallId);
+                    string action = isBanned
+                        ? "<span class='st'>banned</span>"
+                        : $"<form method='post' action='/admin/glitch/ban' style='display:inline'>" +
+                          $"<input type='hidden' name='installId' value='{E(g.InstallId)}'>" +
+                          $"<input type='hidden' name='playerName' value='{E(g.PlayerName)}'>" +
+                          "<input type='hidden' name='banned' value='true'>" +
+                          "<input name='reason' placeholder='reason' size='14'>" +
+                          "<button class='danger'>ban install</button></form>";
+                    sb.Append($"<tr><td><b>{E(g.PlayerName)}</b></td><td><code>{E(g.InstallId)}</code></td>" +
+                              $"<td>{Ago(g.LastSeenUnix)}</td><td>{g.Sessions}</td><td>{action}</td></tr>");
+                }
+
+                sb.Append("</table>");
+            }
+
+            if (glitchBans.Count > 0)
+            {
+                sb.Append("<h2>Banned installs</h2><table><tr><th>Player</th><th>Install id</th><th>Reason</th><th></th></tr>");
+                foreach (var b in glitchBans)
+                {
+                    sb.Append($"<tr><td>{E(b.PlayerName)}</td><td><code>{E(b.InstallId)}</code></td><td>{E(b.Reason)}</td><td>" +
+                              $"<form method='post' action='/admin/glitch/ban'><input type='hidden' name='installId' value='{E(b.InstallId)}'>" +
+                              "<input type='hidden' name='banned' value='false'><button>unban</button></form></td></tr>");
+                }
+
+                sb.Append("</table>");
+            }
+
+            sb.Append("<p class='hint'>Bans key on Glitch's install id (arcade guests have no account). A banned install gets no new " +
+                      "session and its next heartbeat answers 403 — the client stops the game on that.</p></div>");
+        }
+
         sb.Append("<p><a href='/'>← Portal</a></p>");
         sb.Append("<style>table{width:100%;border-collapse:collapse} th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} form{margin:0}</style>");
 

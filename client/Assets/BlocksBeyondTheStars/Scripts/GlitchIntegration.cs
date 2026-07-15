@@ -30,6 +30,10 @@ namespace BlocksBeyondTheStars.Client
         private bool _paused;
         private bool _online;
 
+        /// <summary>Relay mode (arcade builds): heartbeats go to our WorldHost, which forwards them to
+        /// Glitch server-to-server — no title token in the build. Direct mode needs the baked token.</summary>
+        private bool _relay;
+
         public static bool IsConfigured => TryReadConfig(out _, out _, out _, out _, out _);
         public static bool IsOnline => _instance != null && _instance._online;
         public static string InstallId => _instance == null ? string.Empty : _instance._installId;
@@ -60,6 +64,100 @@ namespace BlocksBeyondTheStars.Client
                 ReadQueryValue(Application.absoluteURL, "world_id"),
                 ReadQueryValue(Application.absoluteURL, "bbs_world_id"),
                 GetEnv("BBS_HOSTED_WORLD_ID"));
+
+        // ---------------- glitch.fun arcade (Glitch-hosted build → our WorldHost gateway) ----------------
+
+        /// <summary>WorldHost portal origin baked into arcade builds (or GLITCH_PORTAL_URL). When set,
+        /// the client fetches its arcade session and relays heartbeats through the portal, so the Glitch
+        /// title token never ships inside the public WebGL build.</summary>
+        public static string PortalUrl
+            => FirstNonEmpty(GlitchIntegrationSecrets.PortalUrl, GetEnv("GLITCH_PORTAL_URL")).TrimEnd('/');
+
+        /// <summary>The install id Glitch injects into the page URL — the arcade guest's identity.</summary>
+        public static string ArcadeInstallId
+            => FirstNonEmpty(
+                ReadQueryValue(Application.absoluteURL, "install_id"),
+                ReadQueryValue(Application.absoluteURL, "glitch_install_id"));
+
+        /// <summary>Glitch's per-visit session id (grouping for their playtime accounting), when present.</summary>
+        public static string ArcadeSessionId
+            => FirstNonEmpty(ReadQueryValue(Application.absoluteURL, "session_id"), GetEnv("GLITCH_SESSION_ID"));
+
+        /// <summary>True when this page load should self-provision an arcade world join: launched by
+        /// Glitch (install id present), an arcade portal is configured, and no explicit hosted-worlds
+        /// deep-link token overrides it.</summary>
+        public static bool ArcadeSessionRequested
+            => PortalUrl.Length > 0
+               && ArcadeInstallId.Length > 0
+               && string.IsNullOrEmpty(AutoJoinHostedToken);
+
+        /// <summary>Set when the heartbeat relay answers 403 (install banned / license revoked) —
+        /// AppShell consumes this to leave the game and show the notice.</summary>
+        public static bool AccessRevoked { get; private set; }
+
+        /// <summary>Returns true exactly once after access was revoked.</summary>
+        public static bool ConsumeAccessRevoked()
+        {
+            if (!AccessRevoked)
+            {
+                return false;
+            }
+
+            AccessRevoked = false;
+            return true;
+        }
+
+        /// <summary>The arcade session grant returned by the portal's /api/glitch/session.</summary>
+        [Serializable]
+        public sealed class ArcadeSession
+        {
+            public string worldId;
+            public string worldName;
+            public string playerName;
+            public string wssUrl;
+            public string joinToken;
+        }
+
+        /// <summary>Requests an arcade session from the configured portal. Reports (session, null) on
+        /// success or (null, error) on failure — run via StartCoroutine from AppShell.</summary>
+        public static IEnumerator RequestArcadeSession(Action<ArcadeSession, string> done)
+        {
+            string url = PortalUrl + "/api/glitch/session";
+            string body = "{\"installId\":\"" + JsonEscape(ArcadeInstallId) + "\"}";
+            using (var request = new UnityWebRequest(url, "POST"))
+            {
+                request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Accept", "application/json");
+                request.timeout = 120; // a sleeping arcade world may need its wake budget (up to 90 s)
+                yield return request.SendWebRequest();
+
+                if (!IsSuccess(request))
+                {
+                    done?.Invoke(null, DescribeFailure(request));
+                    yield break;
+                }
+
+                ArcadeSession session = null;
+                try
+                {
+                    session = JsonUtility.FromJson<ArcadeSession>(request.downloadHandler.text);
+                }
+                catch (Exception)
+                {
+                    // fall through to the error report below
+                }
+
+                if (session == null || string.IsNullOrEmpty(session.wssUrl) || string.IsNullOrEmpty(session.joinToken))
+                {
+                    done?.Invoke(null, "Malformed arcade session response.");
+                    yield break;
+                }
+
+                done?.Invoke(session, null);
+            }
+        }
 
         public static bool TryGetConfiguredServer(out string host, out string port, out string password)
         {
@@ -206,6 +304,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Prefer the relay whenever a portal is configured and no title token is baked (the
+            // arcade build shape); direct mode remains for token-baked deployments.
+            _relay = string.IsNullOrWhiteSpace(_titleToken) && PortalUrl.Length > 0;
             _installId = ResolveInstallId(testInstallId);
             if (string.IsNullOrWhiteSpace(_installId))
             {
@@ -227,7 +328,12 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool CanUseApi(Action<bool, string> onComplete)
         {
-            if (_instance != null && _instance.enabled && !string.IsNullOrWhiteSpace(_instance._installId))
+            // The title-API features (scores, leaderboards, cloud saves) authenticate with the baked
+            // title token — relay builds don't carry one, so these stay off there.
+            if (_instance != null && _instance.enabled
+                && !string.IsNullOrWhiteSpace(_instance._installId)
+                && !string.IsNullOrWhiteSpace(_instance._titleToken)
+                && !string.IsNullOrWhiteSpace(_instance._apiBaseUrl))
             {
                 return true;
             }
@@ -239,7 +345,12 @@ namespace BlocksBeyondTheStars.Client
         private IEnumerator HeartbeatLoop()
         {
             yield return SendHeartbeat();
-            yield return ValidateInstall();
+            if (!_relay)
+            {
+                // Relay builds skip the direct validate: the portal already validated the install when
+                // it granted the arcade session, and a relayed 403 heartbeat covers later revocation.
+                yield return ValidateInstall();
+            }
 
             while (enabled)
             {
@@ -259,16 +370,45 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator SendHeartbeat()
         {
-            string body = BuildHeartbeatJson();
-            using (var request = CreateJsonRequest(TitleUrl("installs"), "POST", body))
+            string url = _relay ? PortalUrl + "/api/glitch/heartbeat" : TitleUrl("installs");
+            string body = _relay ? BuildRelayHeartbeatJson() : BuildHeartbeatJson();
+            using (var request = CreateJsonRequest(url, "POST", body))
             {
                 yield return request.SendWebRequest();
                 _online = IsSuccess(request);
-                if (!_online)
+                if (_relay && request.responseCode == 403)
+                {
+                    // The portal answers 403 for banned installs / revoked licenses — stop heartbeating
+                    // and let AppShell pull the player out of the world.
+                    AccessRevoked = true;
+                    enabled = false;
+                    Debug.LogWarning("[Glitch] Arcade access revoked (heartbeat 403).");
+                }
+                else if (!_online)
                 {
                     Debug.LogWarning("[Glitch] Install heartbeat failed: " + DescribeFailure(request));
                 }
             }
+        }
+
+        /// <summary>Relay body (camelCase — our WorldHost DTO), carrying what Glitch's contract needs.</summary>
+        private string BuildRelayHeartbeatJson()
+        {
+            var sb = new StringBuilder();
+            sb.Append('{');
+            AppendStringProperty(sb, "installId", _installId);
+            if (!string.IsNullOrWhiteSpace(_sessionId))
+            {
+                sb.Append(',');
+                AppendStringProperty(sb, "sessionId", _sessionId);
+            }
+
+            sb.Append(',');
+            AppendStringProperty(sb, "platform", PlatformName());
+            sb.Append(',');
+            AppendStringProperty(sb, "gameVersion", AppShell.Version);
+            sb.Append('}');
+            return sb.ToString();
         }
 
         private IEnumerator ValidateInstall()
@@ -356,7 +496,12 @@ namespace BlocksBeyondTheStars.Client
                 timeout = 15,
             };
             request.SetRequestHeader("Accept", "application/json");
-            request.SetRequestHeader("Authorization", "Bearer " + _titleToken);
+            if (!string.IsNullOrWhiteSpace(_titleToken))
+            {
+                // Relay builds carry no title token — the portal authenticates to Glitch server-side.
+                request.SetRequestHeader("Authorization", "Bearer " + _titleToken);
+            }
+
             return request;
         }
 
@@ -381,10 +526,13 @@ namespace BlocksBeyondTheStars.Client
             sessionId = FirstNonEmpty(ReadQueryValue(Application.absoluteURL, "session_id"), GetEnv("GLITCH_SESSION_ID"));
 
             bool enabled = GlitchIntegrationSecrets.Enabled || IsTruthy(GetEnv("GLITCH_ENABLE_AEGIS")) || IsTruthy(GetEnv("GLITCH_ENABLE_GLITCH"));
-            return enabled
-                && !string.IsNullOrWhiteSpace(apiBaseUrl)
+            bool direct = !string.IsNullOrWhiteSpace(apiBaseUrl)
                 && !string.IsNullOrWhiteSpace(titleId)
                 && !string.IsNullOrWhiteSpace(titleToken);
+
+            // Arcade/relay builds are configured with just the portal origin — heartbeats go through
+            // our WorldHost and the title token stays server-side.
+            return enabled && (direct || PortalUrl.Length > 0);
         }
 
         private static string ResolveInstallId(string testInstallId)

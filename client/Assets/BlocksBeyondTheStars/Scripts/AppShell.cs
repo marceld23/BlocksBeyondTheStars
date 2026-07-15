@@ -150,8 +150,35 @@ namespace BlocksBeyondTheStars.Client
                 HostedToken = hostedToken.Trim();
                 HostedWorldId = (GlitchIntegration.AutoJoinHostedWorldId ?? "").Trim();
             }
+            else if (GlitchIntegration.ArcadeSessionRequested)
+            {
+                // glitch.fun arcade: Glitch injects only an install_id — the join grant (world, name,
+                // token) comes from our portal's session gateway, then rides the same auto-join path.
+                StartCoroutine(RequestArcadeJoin());
+            }
 #endif
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private IEnumerator RequestArcadeJoin()
+        {
+            yield return GlitchIntegration.RequestArcadeSession((session, error) =>
+            {
+                if (session == null)
+                {
+                    Debug.LogWarning($"[Glitch] Arcade session failed: {error}");
+                    MenuNotice = L("ui.glitch.arcade_failed");
+                    return;
+                }
+
+                PlayerName = session.playerName;
+                Host = session.wssUrl;
+                HostedToken = session.joinToken;
+                HostedWorldId = session.worldId;
+                _autoJoinWhenReady = true; // the Update() gate joins once content + menu are ready
+            });
+        }
+#endif
 
         private void ApplyGlitchServerDefaults()
         {
@@ -800,6 +827,19 @@ namespace BlocksBeyondTheStars.Client
             {
                 _autoJoinWhenReady = false;
                 StartJoin();
+            }
+
+            // glitch.fun arcade ban/license revocation (heartbeat relay answered 403): leave the world
+            // and tell the player why — the operator's live kick lever for account-less arcade guests.
+            if (GlitchIntegration.ConsumeAccessRevoked())
+            {
+                if (Phase == ShellPhase.InGame)
+                {
+                    ReturnToMenu();
+                }
+
+                _autoJoinWhenReady = false;
+                MenuNotice = L("ui.glitch.access_revoked");
             }
 
             // The main menu + loading are uGUI (M27): spawn each for its phase, tear it down otherwise.
