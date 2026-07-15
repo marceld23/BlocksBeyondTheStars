@@ -45,3 +45,12 @@ public sealed record GlitchSessionRequest(string InstallId, string? PlayerName =
 /// <summary>glitch.fun heartbeat relay body — mirrors Glitch's install/heartbeat contract so the title
 /// token can stay server-side (the client never talks to api.glitch.fun directly).</summary>
 public sealed record GlitchHeartbeatRequest(string InstallId, string? SessionId = null, string? Platform = null, string? GameVersion = null);
+
+/// <summary>Browser-singleplayer cloud-save upload (relayed to Glitch Cloud Save slot 0): the gzip'd
+/// world snapshot as base64 plus the last cloud version the client synced from (0 = new slot) —
+/// Glitch's optimistic concurrency; a stale base version answers 409 with the conflict ids.</summary>
+public sealed record GlitchSaveStoreRequest(string InstallId, string Payload, int BaseVersion = 0);
+
+/// <summary>Explicit cloud-save conflict resolution (Glitch's 409 flow): keep_server discards the
+/// local state, use_client overwrites the cloud with it.</summary>
+public sealed record GlitchSaveResolveRequest(string InstallId, string SaveId, string ConflictId, string Choice);

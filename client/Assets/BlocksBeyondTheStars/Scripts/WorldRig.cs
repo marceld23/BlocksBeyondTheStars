@@ -27,6 +27,9 @@ namespace BlocksBeyondTheStars.Client
             var linkGo = new GameObject("Server Link");
             linkGo.transform.SetParent(root.transform);
             var boot = linkGo.AddComponent<GameBootstrap>();
+            // In-process singleplayer: hand the running loopback wire over — GameBootstrap then talks
+            // to the in-browser server directly instead of opening any socket.
+            boot.Loopback = shell.BrowserServer != null && shell.BrowserServer.Running ? shell.BrowserServer.Link : null;
             boot.Host = shell.Host;
             boot.Port = int.TryParse(shell.Port, out var p) && p > 0 ? p : 31415;
             boot.PlayerName = string.IsNullOrWhiteSpace(shell.PlayerName) ? "Pilot" : shell.PlayerName;

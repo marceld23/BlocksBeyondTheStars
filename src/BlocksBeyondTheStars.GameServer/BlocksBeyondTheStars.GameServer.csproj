@@ -7,11 +7,20 @@
     <ProjectReference Include="..\BlocksBeyondTheStars.Networking\BlocksBeyondTheStars.Networking.csproj" />
   </ItemGroup>
 
+  <!-- Two flavors of the same sources: the net10.0 EXE is the dedicated/bundled server host; the
+       netstandard2.1 LIBRARY is the authoritative simulation consumed by the Unity client for the
+       in-browser (WebGL) singleplayer — same code, driven by an external Tick() pump over the
+       LoopbackTransport instead of Run()+sockets. The console host shell stays net10-only. -->
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
+    <OutputType Condition="'$(TargetFramework)' == 'net10.0'">Exe</OutputType>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <Compile Remove="Program.cs" />
+  </ItemGroup>
 
 </Project>

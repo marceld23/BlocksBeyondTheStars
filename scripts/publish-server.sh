@@ -23,7 +23,8 @@ for RID in "${RUNTIMES[@]}"; do
     COMMON=(-c Release -r "$RID" -p:SelfContained=true -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true -o "$OUT")
 
-    dotnet publish "$REPO/src/BlocksBeyondTheStars.GameServer" "${COMMON[@]}"
+    # GameServer is multi-target since the WebGL in-process singleplayer — pin the exe framework.
+    dotnet publish "$REPO/src/BlocksBeyondTheStars.GameServer" -f net10.0 "${COMMON[@]}"
     dotnet publish "$REPO/src/BlocksBeyondTheStars.Api" "${COMMON[@]}"
     dotnet publish "$REPO/src/BlocksBeyondTheStars.Tools" "${COMMON[@]}"
 

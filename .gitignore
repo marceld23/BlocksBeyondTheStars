@@ -63,6 +63,8 @@ client/Assets/Plugins/*
 !client/Assets/Plugins/BbsWebSocket.jslib.meta
 !client/Assets/Plugins/BbsTextPrompt.jslib
 !client/Assets/Plugins/BbsTextPrompt.jslib.meta
+!client/Assets/Plugins/BbsFileSync.jslib
+!client/Assets/Plugins/BbsFileSync.jslib.meta
 client/Assets/Plugins.meta
 client/Assets/StreamingAssets/
 client/Assets/StreamingAssets.meta

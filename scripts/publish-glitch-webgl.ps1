@@ -95,13 +95,17 @@ namespace BlocksBeyondTheStars.Build
     $log = Join-Path $project 'build-webgl.log'
     Write-Host "Building WebGL player for glitch.fun (portal $PortalUrl, v$Version — this takes a while)..." -ForegroundColor Cyan
     try {
-        & $UnityPath -batchmode -quit -nographics `
-            -projectPath $project `
-            -executeMethod BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL `
-            -buildOut 'Build/WebGL' `
-            -buildVersion $Version `
-            -logFile $log
-        $unityExit = $LASTEXITCODE
+        # Start-Process -Wait, NOT `&`: Unity.exe is a GUI-subsystem binary, so the call operator can
+        # return immediately without an exit code — which once deleted the secrets partial while the
+        # build was still importing the project.
+        $unity = Start-Process -FilePath $UnityPath -PassThru -Wait -WindowStyle Hidden -ArgumentList @(
+            '-batchmode', '-quit', '-nographics',
+            '-projectPath', $project,
+            '-executeMethod', 'BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL',
+            '-buildOut', 'Build/WebGL',
+            '-buildVersion', $Version,
+            '-logFile', $log)
+        $unityExit = $unity.ExitCode
     }
     finally {
         Remove-Item $secretsFile -Force -ErrorAction SilentlyContinue

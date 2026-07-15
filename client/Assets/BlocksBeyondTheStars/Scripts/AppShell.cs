@@ -75,6 +75,10 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
         private bool _hostLocal;
+
+        /// <summary>The in-process singleplayer host (browser builds; usable in the editor for testing).
+        /// Null until the first browser-singleplayer start; survives returns to the menu stopped.</summary>
+        public BrowserLocalServer BrowserServer { get; private set; }
         private bool _serverPending;                          // prepared, waiting to spawn once the screen is up
         private System.Threading.Tasks.Task _serverLaunch;    // the off-thread spawn (so Process.Start can't freeze us)
         private GameObject _gameRoot;
@@ -150,6 +154,11 @@ namespace BlocksBeyondTheStars.Client
                 HostedToken = hostedToken.Trim();
                 HostedWorldId = (GlitchIntegration.AutoJoinHostedWorldId ?? "").Trim();
             }
+            else if (GlitchIntegration.SingleplayerRequested)
+            {
+                // ?singleplayer=1 deep-link: straight into the in-browser world once content is ready.
+                _autoSingleplayerWhenReady = true;
+            }
             else if (GlitchIntegration.ArcadeSessionRequested)
             {
                 // glitch.fun arcade: Glitch injects only an install_id — the join grant (world, name,
@@ -158,6 +167,8 @@ namespace BlocksBeyondTheStars.Client
             }
 #endif
         }
+
+        private bool _autoSingleplayerWhenReady;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         private IEnumerator RequestArcadeJoin()
@@ -506,6 +517,69 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.Loading;
         }
 
+        /// <summary>In-process singleplayer for browser builds: WebGL cannot spawn the bundled server
+        /// process, so the REAL authoritative server runs inside this client (LoopbackTransport +
+        /// MemoryWorldRepository), pumped by <see cref="BrowserLocalServer"/>. One persistent world per
+        /// browser (IndexedDB blob), cloud-synced on glitch.fun for logged-in accounts.</summary>
+        public void StartBrowserSingleplayer()
+        {
+            MenuNotice = "";
+            HostedToken = "";
+            HostedWorldId = "";
+            Password = "";
+            HostInfo = "";
+            _hostLocal = false;
+            _serverPending = false;
+            Host = "loopback"; // GameBootstrap picks the loopback transport off shell.BrowserServer.Link
+            _loading.MinShow = 1.2f;
+            Phase = ShellPhase.Loading;
+            StartCoroutine(BootBrowserSingleplayer());
+        }
+
+        private IEnumerator BootBrowserSingleplayer()
+        {
+            // Two frames so the loading screen is actually visible before the synchronous initial
+            // worldgen blocks the (single) thread.
+            yield return null;
+            yield return null;
+
+            if (BrowserServer == null)
+            {
+                var go = new GameObject("BrowserLocalServer");
+                DontDestroyOnLoad(go);
+                BrowserServer = go.AddComponent<BrowserLocalServer>();
+            }
+            else if (BrowserServer.Running)
+            {
+                BrowserServer.StopAndSave(); // restart cleanly (menu → SP → menu → SP)
+            }
+
+            byte[] blob = BrowserLocalServer.LoadLocalBlob();
+
+            // glitch.fun cloud save: a newer cloud snapshot wins over the local blob (continuing on
+            // another device). Guests and non-Glitch hosts skip this silently — local-only then.
+            if (GlitchCloudSaves.Enabled)
+            {
+                yield return GlitchCloudSaves.FetchLatest(cloudBlob =>
+                {
+                    if (cloudBlob != null)
+                    {
+                        blob = cloudBlob;
+                    }
+                });
+            }
+
+            long freshSeed = (long)UnityEngine.Random.Range(1, int.MaxValue) << 16 ^ System.DateTime.UtcNow.Ticks;
+            if (!BrowserServer.StartServer(Content, blob, freshSeed))
+            {
+                ReturnToMenu();
+                MenuNotice = L("ui.sp.browser_failed");
+                yield break;
+            }
+
+            GlitchCloudSaves.Attach(this, BrowserServer); // upload each durable save (no-op off glitch.fun)
+        }
+
         /// <summary>The machine's LAN IPv4 (the address friends on the same network join), or loopback.</summary>
         private static string LocalLanIp()
         {
@@ -645,6 +719,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             StopLocalServer();
+            if (BrowserServer != null && BrowserServer.Running)
+            {
+                BrowserServer.StopAndSave(); // in-process SP: drain + save + persist the blob
+            }
+
             EnsureMenuBackground();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -827,6 +906,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 _autoJoinWhenReady = false;
                 StartJoin();
+            }
+
+            if (_autoSingleplayerWhenReady && ContentReady && Phase == ShellPhase.MainMenu)
+            {
+                _autoSingleplayerWhenReady = false;
+                if (string.IsNullOrWhiteSpace(PlayerName))
+                {
+                    PlayerName = "Explorer"; // the deep-link skips the menu's name gate — save identity needs one
+                }
+
+                StartBrowserSingleplayer();
             }
 
             // glitch.fun arcade ban/license revocation (heartbeat relay answered 403): leave the world

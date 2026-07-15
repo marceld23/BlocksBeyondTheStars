@@ -67,7 +67,9 @@ internal static class BlockPaletteMigration
             if (ushort.TryParse(cell.AsSpan(lastColon + 1), out ushort b)
                 && remap.TryGetValue(b, out ushort nb) && nb != b)
             {
-                cells[i] = string.Concat(cell.AsSpan(0, lastColon + 1), nb.ToString());
+                // Substring instead of span Concat (absent from netstandard2.1, the Unity flavor) —
+                // this is the rare palette-migration path, the allocation is irrelevant.
+                cells[i] = cell.Substring(0, lastColon + 1) + nb;
                 changed = true;
             }
         }

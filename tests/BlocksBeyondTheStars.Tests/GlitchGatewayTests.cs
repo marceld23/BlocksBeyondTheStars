@@ -66,13 +66,17 @@ public sealed class GlitchGatewayTests : IDisposable
         public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
     }
 
-    /// <summary>Canned Glitch API: answers /validate per install id (default: valid with a user name)
-    /// and records every request incl. the Authorization header.</summary>
+    /// <summary>Canned Glitch API: answers /validate per install id (default: valid with a user name),
+    /// the cloud-save routes (list/store/resolve) and the install heartbeat; records every request
+    /// incl. the Authorization header.</summary>
     private sealed class FakeGlitchApi : HttpMessageHandler
     {
         public readonly List<(string Url, string? Auth, string Body)> Requests = new();
         public readonly Dictionary<string, (HttpStatusCode Status, string Body)> ValidateByInstall = new();
         public (HttpStatusCode Status, string Body) HeartbeatAnswer = (HttpStatusCode.OK, """{"data":{"id":"x"}}""");
+        public (HttpStatusCode Status, string Body) SavesListAnswer = (HttpStatusCode.OK, """{"data":[]}""");
+        public (HttpStatusCode Status, string Body) SaveStoreAnswer = (HttpStatusCode.Created, """{"data":{"version":1}}""");
+        public (HttpStatusCode Status, string Body) SaveResolveAnswer = (HttpStatusCode.OK, """{"data":{"version":2}}""");
         public bool ThrowOnSend;
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -84,13 +88,22 @@ public sealed class GlitchGatewayTests : IDisposable
                 throw new HttpRequestException("no route to glitch");
             }
 
+            string path = request.RequestUri!.AbsolutePath;
             (HttpStatusCode Status, string Body) answer;
-            if (request.RequestUri!.AbsolutePath.EndsWith("/validate", StringComparison.Ordinal))
+            if (path.EndsWith("/validate", StringComparison.Ordinal))
             {
                 string installId = request.RequestUri.Segments[^2].TrimEnd('/');
                 answer = ValidateByInstall.TryGetValue(installId, out var configured)
                     ? configured
                     : (HttpStatusCode.OK, """{"valid":true,"user_name":"Gamer123"}""");
+            }
+            else if (path.EndsWith("/resolve", StringComparison.Ordinal))
+            {
+                answer = SaveResolveAnswer;
+            }
+            else if (path.Contains("/saves", StringComparison.Ordinal))
+            {
+                answer = request.Method == HttpMethod.Get ? SavesListAnswer : SaveStoreAnswer;
             }
             else
             {
@@ -344,6 +357,124 @@ public sealed class GlitchGatewayTests : IDisposable
         Assert.Equal(StatusCodes.Status200OK, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
         Assert.Equal(StatusCodes.Status429TooManyRequests, (await gateway.RelayHeartbeatAsync(Install, null, "web", "1")).Status);
         Assert.Equal(StatusCodes.Status200OK, (await gateway.RelayHeartbeatAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8", null, "web", "1")).Status);
+    }
+
+    // ---------------- Cloud-save relay (browser singleplayer) ----------------
+
+    [Fact]
+    public async Task LoadSave_ReturnsSlotZeroVersionAndPayload_Or404WhenEmptyAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+
+        // No saves yet → the friendly 404.
+        Assert.Equal(StatusCodes.Status404NotFound, (await gateway.LoadSaveAsync(Install)).Status);
+
+        // Slot 0 exists (a slot-3 decoy proves the slot filter) → 200 with version + payload.
+        string payload = Convert.ToBase64String(Encoding.UTF8.GetBytes("world-bytes"));
+        api.SavesListAnswer = (HttpStatusCode.OK,
+            $$"""{"data":[{"slot_index":3,"version":9,"payload":"zzzz"},{"slot_index":0,"version":5,"payload":"{{payload}}"}]}""");
+        var (status, body) = await gateway.LoadSaveAsync(Install);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.Contains("\"version\":5", body, StringComparison.Ordinal);
+        Assert.Contains(payload, body, StringComparison.Ordinal);
+        Assert.Contains(api.Requests, r => r.Url.Contains("include_payload=1") && r.Auth == "Bearer token-1");
+    }
+
+    [Fact]
+    public async Task LoadSave_GuestInstall_PassesThe403ThroughAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+        api.SavesListAnswer = (HttpStatusCode.Forbidden, """{"error":"GUEST_NOT_ALLOWED"}""");
+
+        var (status, body) = await gateway.LoadSaveAsync(Install);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Contains("glitch_guest_saves", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StoreSave_ComputesTheChecksumOverDecodedBytes_AndReturnsTheNewVersionAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+        byte[] raw = Encoding.UTF8.GetBytes("world-bytes");
+        string expectedChecksum = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(raw)).ToLowerInvariant();
+        api.SaveStoreAnswer = (HttpStatusCode.Created, """{"data":{"version":7}}""");
+
+        var (status, body) = await gateway.StoreSaveAsync(Install, Convert.ToBase64String(raw), baseVersion: 6);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.Contains("\"version\":7", body, StringComparison.Ordinal);
+        var sent = Assert.Single(api.Requests, r => r.Url.EndsWith("/saves", StringComparison.Ordinal));
+        Assert.Contains($"\"checksum\":\"{expectedChecksum}\"", sent.Body, StringComparison.Ordinal); // over DECODED bytes
+        Assert.Contains("\"slot_index\":0", sent.Body, StringComparison.Ordinal);
+        Assert.Contains("\"base_version\":6", sent.Body, StringComparison.Ordinal);
+        Assert.Contains("\"save_type\":\"auto\"", sent.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StoreSave_Conflict409_SurfacesTheConflictIdsForTheExplicitResolveAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+        api.SaveStoreAnswer = ((HttpStatusCode)409,
+            """{"status":"conflict","save_id":"SAVE-1","conflict_id":"CONF-1","server_version":9,"your_base_version":5}""");
+
+        var (status, body) = await gateway.StoreSaveAsync(Install, Convert.ToBase64String(new byte[] { 1 }), baseVersion: 5);
+
+        Assert.Equal(StatusCodes.Status409Conflict, status);
+        Assert.Contains("\"saveId\":\"SAVE-1\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"conflictId\":\"CONF-1\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"serverVersion\":9", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StoreSave_RejectsGarbageAndOversizeBeforeTouchingGlitchAsync()
+    {
+        var (gateway, registry, api, _) = NewGateway();
+
+        Assert.Equal(StatusCodes.Status400BadRequest, (await gateway.StoreSaveAsync(Install, "not base64!!", 0)).Status);
+        Assert.Equal(StatusCodes.Status400BadRequest, (await gateway.StoreSaveAsync(Install, string.Empty, 0)).Status);
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge,
+            (await gateway.StoreSaveAsync(Install, Convert.ToBase64String(new byte[10 * 1024 * 1024 + 1]), 0)).Status);
+        Assert.Empty(api.Requests);
+
+        // Banned installs can't push saves either.
+        registry.SetGlitchBanned(Install, banned: true, reason: "griefing");
+        Assert.Equal(StatusCodes.Status403Forbidden,
+            (await gateway.StoreSaveAsync(Install, Convert.ToBase64String(new byte[] { 1 }), 0)).Status);
+    }
+
+    [Fact]
+    public async Task StoreSave_RateLimit_KeysOnTheInstallAsync()
+    {
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var orchestrator = new WorldOrchestrator(config, registry, new FakeLauncher(), w => Task.FromResult(true));
+        var gateway = new GlitchGateway(config, registry, orchestrator, new FakeGlitchApi(),
+            statusReader: _ => Task.FromResult<string?>(null), saveLimit: new RateLimiter(1, TimeSpan.FromHours(1)));
+        string payload = Convert.ToBase64String(new byte[] { 1 });
+
+        Assert.Equal(StatusCodes.Status200OK, (await gateway.StoreSaveAsync(Install, payload, 0)).Status);
+        Assert.Equal(StatusCodes.Status429TooManyRequests, (await gateway.StoreSaveAsync(Install, payload, 0)).Status);
+        Assert.Equal(StatusCodes.Status200OK,
+            (await gateway.StoreSaveAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8", payload, 0)).Status);
+    }
+
+    [Fact]
+    public async Task ResolveSave_ForwardsTheChoice_AndRejectsMalformedInputAsync()
+    {
+        var (gateway, _, api, _) = NewGateway();
+
+        var (status, body) = await gateway.ResolveSaveAsync(Install, "SAVE-1", "CONF-1", "use_client");
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.Contains("\"version\":2", body, StringComparison.Ordinal);
+        var sent = Assert.Single(api.Requests, r => r.Url.EndsWith("/saves/SAVE-1/resolve", StringComparison.Ordinal));
+        Assert.Contains("\"choice\":\"use_client\"", sent.Body, StringComparison.Ordinal);
+        Assert.Contains("\"conflict_id\":\"CONF-1\"", sent.Body, StringComparison.Ordinal);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, (await gateway.ResolveSaveAsync(Install, "SAVE-1", "CONF-1", "wipe_everything")).Status);
+        Assert.Equal(StatusCodes.Status400BadRequest, (await gateway.ResolveSaveAsync(Install, "", "CONF-1", "keep_server")).Status);
     }
 
     // ---------------- CORS + container shape ----------------

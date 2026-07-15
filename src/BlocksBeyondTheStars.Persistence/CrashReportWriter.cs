@@ -196,7 +196,11 @@ public sealed class CrashReportWriter
         {
             string sentDir = Path.Combine(_directory, "sent");
             Directory.CreateDirectory(sentDir);
-            File.Move(path, Path.Combine(sentDir, Path.GetFileName(path)), overwrite: true);
+            // Copy+delete instead of File.Move(overwrite:) — the 3-arg Move is net5+, and this file
+            // also compiles in the netstandard2.1 flavor (Unity in-process server).
+            string target = Path.Combine(sentDir, Path.GetFileName(path));
+            File.Copy(path, target, overwrite: true);
+            File.Delete(path);
         }
         catch
         {

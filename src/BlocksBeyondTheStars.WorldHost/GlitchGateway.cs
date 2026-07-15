@@ -50,11 +50,18 @@ public sealed class GlitchGateway
     // their side doesn't lock everyone out.
     private static readonly Regex InstallIdRx = new("^[A-Za-z0-9_-]{8,64}$", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
+    /// <summary>Glitch's Cloud Save cap: 10 MB DECODED per slot; the base64 wire form is ~4/3 of that.</summary>
+    private const long MaxSaveBytesDecoded = 10 * 1024 * 1024;
+
+    /// <summary>The one slot the browser singleplayer uses (one world per player).</summary>
+    private const int SaveSlotIndex = 0;
+
     private readonly WorldHostConfig _config;
     private readonly HostRegistry _registry;
     private readonly WorldOrchestrator _orchestrator;
     private readonly HttpClient _glitchApi;
     private readonly RateLimiter _heartbeatLimit;
+    private readonly RateLimiter _saveLimit;
     private readonly Func<WorldRecord, Task<string?>> _statusReader;
     private readonly Lock _poolGate = new();
     private readonly ConcurrentDictionary<string, (long ExpiresUnix, string UserName)> _validateCache = new();
@@ -65,15 +72,17 @@ public sealed class GlitchGateway
         WorldOrchestrator orchestrator,
         HttpMessageHandler? glitchHttpHandler = null,
         RateLimiter? heartbeatLimit = null,
-        Func<WorldRecord, Task<string?>>? statusReader = null)
+        Func<WorldRecord, Task<string?>>? statusReader = null,
+        RateLimiter? saveLimit = null)
     {
         _config = config;
         _registry = registry;
         _orchestrator = orchestrator;
         _glitchApi = glitchHttpHandler is null
-            ? new HttpClient { Timeout = TimeSpan.FromSeconds(5) }
-            : new HttpClient(glitchHttpHandler) { Timeout = TimeSpan.FromSeconds(5) };
+            ? new HttpClient { Timeout = TimeSpan.FromSeconds(15) } // save payloads are MBs, not the 5s probe class
+            : new HttpClient(glitchHttpHandler) { Timeout = TimeSpan.FromSeconds(15) };
         _heartbeatLimit = heartbeatLimit ?? new RateLimiter(HeartbeatsPerMinutePerInstall, TimeSpan.FromMinutes(1));
+        _saveLimit = saveLimit ?? new RateLimiter(config.GlitchSavesPerHourPerInstall, TimeSpan.FromHours(1));
         _statusReader = statusReader ?? orchestrator.ReadInstanceStatusAsync; // injectable for capacity tests
     }
 
@@ -227,6 +236,266 @@ public sealed class GlitchGateway
             return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun is unreachable right now.","code":"glitch_unreachable"}""");
         }
     }
+
+    // ---------------- Cloud-save relay (browser singleplayer) ----------------
+    // The browser singleplayer's world snapshot lives in Glitch's per-player Cloud Save (slot 0);
+    // relaying keeps the title token server-side and lets us enforce size + rate limits. Glitch's
+    // rules honored here: base64 payload, SHA-256 of the DECODED bytes, 10 MB decoded cap, and the
+    // 409 optimistic-concurrency conflict flow (never silently overwritten — resolve is explicit).
+    // Guests get GUEST_NOT_ALLOWED from Glitch; we pass that through as 403/glitch_guest_saves and
+    // the client stays local-only (IndexedDB).
+
+    /// <summary>Common gate for every save-relay call: enabled, well-formed install id, not banned.
+    /// Null = pass; otherwise the (status, body) to answer with.</summary>
+    private (int Status, string Body)? SaveGate(ref string? installId)
+    {
+        if (!Enabled)
+        {
+            return (StatusCodes.Status404NotFound, """{"error":"The glitch.fun gateway is disabled.","code":"glitch_disabled"}""");
+        }
+
+        installId = (installId ?? string.Empty).Trim();
+        if (!InstallIdRx.IsMatch(installId))
+        {
+            return (StatusCodes.Status422UnprocessableEntity, """{"error":"This install could not be verified with glitch.fun.","code":"glitch_invalid_install"}""");
+        }
+
+        if (_registry.GetGlitchBan(installId) is not null)
+        {
+            return (StatusCodes.Status403Forbidden, """{"error":"This player is banned.","code":"banned"}""");
+        }
+
+        return null;
+    }
+
+    /// <summary>Fetches the latest browser-singleplayer save (slot 0) for an install from Glitch's
+    /// Cloud Save. 200 {version, payload} | 404 none yet | 403 guest (Cloud Save needs a logged-in
+    /// Glitch account) | 503 Glitch unreachable.</summary>
+    public async Task<(int Status, string Body)> LoadSaveAsync(string? installId)
+    {
+        if (SaveGate(ref installId) is { } refused)
+        {
+            return refused;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{InstallsUrl()}/{Uri.EscapeDataString(installId!)}/saves?include_payload=1");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.GlitchTitleToken);
+            using var response = await _glitchApi.SendAsync(request).ConfigureAwait(false);
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return (StatusCodes.Status403Forbidden, """{"error":"Cloud saves need a logged-in Glitch account.","code":"glitch_guest_saves"}""");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun is unreachable right now.","code":"glitch_unreachable"}""");
+            }
+
+            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (FindSlotSave(doc.RootElement) is not { } save)
+            {
+                return (StatusCodes.Status404NotFound, """{"error":"No cloud save yet.","code":"glitch_no_save"}""");
+            }
+
+            int version = save.TryGetProperty("version", out var v) ? v.GetInt32() : 0;
+            string payload = save.TryGetProperty("payload", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.String
+                ? p.GetString() ?? string.Empty
+                : string.Empty;
+            if (payload.Length == 0)
+            {
+                return (StatusCodes.Status404NotFound, """{"error":"No cloud save yet.","code":"glitch_no_save"}""");
+            }
+
+            return (StatusCodes.Status200OK,
+                System.Text.Json.JsonSerializer.Serialize(new { version, payload }));
+        }
+        catch (Exception)
+        {
+            return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun is unreachable right now.","code":"glitch_unreachable"}""");
+        }
+    }
+
+    /// <summary>Stores a browser-singleplayer save into Glitch's Cloud Save (slot 0), computing the
+    /// required SHA-256 over the DECODED bytes server-side. 200 {version} | 409 conflict
+    /// {saveId, conflictId, serverVersion} (resolve explicitly) | 403 guest | 413 too large.</summary>
+    public async Task<(int Status, string Body)> StoreSaveAsync(string? installId, string? payloadBase64, int baseVersion)
+    {
+        if (SaveGate(ref installId) is { } refused)
+        {
+            return refused;
+        }
+
+        if (!_saveLimit.TryPass(installId!))
+        {
+            return (StatusCodes.Status429TooManyRequests, """{"error":"Too many requests — please wait a bit and try again.","code":"rate_limited"}""");
+        }
+
+        byte[] decoded;
+        try
+        {
+            decoded = Convert.FromBase64String(payloadBase64 ?? string.Empty);
+        }
+        catch (FormatException)
+        {
+            return (StatusCodes.Status400BadRequest, """{"error":"The save payload is not valid base64.","code":"save_invalid"}""");
+        }
+
+        if (decoded.Length == 0)
+        {
+            return (StatusCodes.Status400BadRequest, """{"error":"Empty upload.","code":"upload_empty"}""");
+        }
+
+        if (decoded.Length > MaxSaveBytesDecoded)
+        {
+            return (StatusCodes.Status413PayloadTooLarge, """{"error":"The save exceeds the 10 MB cloud-save limit.","code":"upload_too_large"}""");
+        }
+
+        string checksum = Convert.ToHexString(SHA256.HashData(decoded)).ToLowerInvariant();
+        var body = new Dictionary<string, object?>
+        {
+            ["slot_index"] = SaveSlotIndex,
+            ["payload"] = payloadBase64,
+            ["checksum"] = checksum,
+            ["save_type"] = "auto",
+            ["client_timestamp"] = DateTimeOffset.UtcNow.ToString("o"),
+            ["base_version"] = Math.Max(0, baseVersion),
+            ["slot_name"] = "Browser World",
+            ["platform"] = "web",
+        };
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                $"{InstallsUrl()}/{Uri.EscapeDataString(installId!)}/saves");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.GlitchTitleToken);
+            request.Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            using var response = await _glitchApi.SendAsync(request).ConfigureAwait(false);
+            string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            if (response.StatusCode == (System.Net.HttpStatusCode)409)
+            {
+                using var conflict = System.Text.Json.JsonDocument.Parse(responseBody);
+                return (StatusCodes.Status409Conflict, System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    code = "glitch_save_conflict",
+                    saveId = ReadString(conflict.RootElement, "save_id"),
+                    conflictId = ReadString(conflict.RootElement, "conflict_id"),
+                    serverVersion = ReadInt(conflict.RootElement, "server_version"),
+                }));
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                return (StatusCodes.Status403Forbidden, """{"error":"Cloud saves need a logged-in Glitch account.","code":"glitch_guest_saves"}""");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun refused the save.","code":"glitch_unreachable"}""");
+            }
+
+            return (StatusCodes.Status200OK,
+                System.Text.Json.JsonSerializer.Serialize(new { version = ExtractVersion(responseBody) }));
+        }
+        catch (Exception)
+        {
+            return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun is unreachable right now.","code":"glitch_unreachable"}""");
+        }
+    }
+
+    /// <summary>Resolves a cloud-save conflict (Glitch's explicit optimistic-concurrency flow).
+    /// Choice: keep_server discards the local state, use_client overwrites the cloud.</summary>
+    public async Task<(int Status, string Body)> ResolveSaveAsync(string? installId, string? saveId, string? conflictId, string? choice)
+    {
+        if (SaveGate(ref installId) is { } refused)
+        {
+            return refused;
+        }
+
+        if (choice is not ("keep_server" or "use_client") || string.IsNullOrWhiteSpace(saveId) || string.IsNullOrWhiteSpace(conflictId))
+        {
+            return (StatusCodes.Status400BadRequest, """{"error":"Malformed conflict resolution.","code":"save_invalid"}""");
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                $"{InstallsUrl()}/{Uri.EscapeDataString(installId!)}/saves/{Uri.EscapeDataString(saveId)}/resolve");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.GlitchTitleToken);
+            request.Content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string> { ["conflict_id"] = conflictId, ["choice"] = choice }),
+                Encoding.UTF8, "application/json");
+            using var response = await _glitchApi.SendAsync(request).ConfigureAwait(false);
+            string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun refused the resolution.","code":"glitch_unreachable"}""");
+            }
+
+            return (StatusCodes.Status200OK,
+                System.Text.Json.JsonSerializer.Serialize(new { version = ExtractVersion(responseBody) }));
+        }
+        catch (Exception)
+        {
+            return (StatusCodes.Status503ServiceUnavailable, """{"error":"glitch.fun is unreachable right now.","code":"glitch_unreachable"}""");
+        }
+    }
+
+    /// <summary>Finds slot 0 in Glitch's list-saves response — tolerant of {data:[...]} or a bare array.</summary>
+    private static System.Text.Json.JsonElement? FindSlotSave(System.Text.Json.JsonElement root)
+    {
+        var list = root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("data", out var data)
+            ? data
+            : root;
+        if (list.ValueKind != System.Text.Json.JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var save in list.EnumerateArray())
+        {
+            if (save.TryGetProperty("slot_index", out var slot) && slot.GetInt32() == SaveSlotIndex)
+            {
+                return save;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Pulls the stored save's new version out of Glitch's response — {data:{version}} or {version}.</summary>
+    private static int ExtractVersion(string responseBody)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(responseBody);
+            var root = doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("data", out var data)
+                ? data
+                : doc.RootElement;
+            return root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("version", out var v)
+                ? v.GetInt32()
+                : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string ReadString(System.Text.Json.JsonElement root, string name)
+        => root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.String
+            ? p.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static int ReadInt(System.Text.Json.JsonElement root, string name)
+        => root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.Number
+            ? p.GetInt32()
+            : 0;
 
     /// <summary>Lazily creates missing arcade pool worlds up to the configured count. Idempotent;
     /// serialized so two first sessions can't double-create.</summary>

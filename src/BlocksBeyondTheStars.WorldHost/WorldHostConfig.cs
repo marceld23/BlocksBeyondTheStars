@@ -233,6 +233,11 @@ public sealed class WorldHostConfig
     /// <summary>Per-IP session-grant limit for POST /api/glitch/session (BBS_WH_GLITCH_SESSIONS_PER_MINUTE).</summary>
     public int GlitchSessionsPerMinutePerIp { get; set; } = 10;
 
+    /// <summary>Per-install limit for cloud-save relay writes (BBS_WH_GLITCH_SAVES_PER_HOUR). The browser
+    /// singleplayer uploads on its ~2-min durable-save cadence plus tab-hide saves; 40/h leaves headroom
+    /// without letting a script hammer Glitch through us.</summary>
+    public int GlitchSavesPerHourPerInstall { get; set; } = 40;
+
     /// <summary>True when the arcade gateway is switched on AND has its credentials.</summary>
     public bool GlitchConfigured =>
         GlitchEnabled && GlitchTitleId.Length > 0 && GlitchTitleToken.Length > 0;
@@ -309,6 +314,7 @@ public sealed class WorldHostConfig
 
         if (Env("BBS_WH_GLITCH_API_URL") is { } gApi) { c.GlitchApiBaseUrl = gApi; }
         if (Env("BBS_WH_GLITCH_SESSIONS_PER_MINUTE") is { } gspStr && int.TryParse(gspStr, out var gsp)) { c.GlitchSessionsPerMinutePerIp = gsp; }
+        if (Env("BBS_WH_GLITCH_SAVES_PER_HOUR") is { } gsvStr && int.TryParse(gsvStr, out var gsv)) { c.GlitchSavesPerHourPerInstall = gsv; }
 
         return c;
     }

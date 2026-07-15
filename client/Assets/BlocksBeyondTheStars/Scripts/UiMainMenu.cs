@@ -86,13 +86,31 @@ namespace BlocksBeyondTheStars.Client
                 shell.StartJoin();
             }, "btn_join");
 
+            // In-browser singleplayer: the REAL authoritative server runs in-process (LoopbackTransport,
+            // MemoryWorldRepository) — one persistent world per browser, synced to the Glitch cloud when
+            // the build runs on glitch.fun with a logged-in account. A name is still required: it is the
+            // player identity the save keys on.
+            UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.singleplayer"), () =>
+            {
+                if (string.IsNullOrWhiteSpace(webName[0]))
+                {
+                    webWarn.text = shell.L("ui.webgl.need_name");
+                    return;
+                }
+
+                shell.PlayerName = webName[0].Trim();
+                shell.Settings.PlayerName = shell.PlayerName;
+                shell.Settings.Save();
+                shell.StartBrowserSingleplayer();
+            }, "btn_singleplayer");
+
             // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
             // players arriving through the portal already have host/port preconfigured, so the extra
             // choice is just noise for them (#221).
             float wextra = 0f;
             if (!GlitchIntegration.TryGetConfiguredServer(out _, out _, out _))
             {
-                UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.connect_manual"), () =>
+                UiKit.AddButton(root, bx, wby + gap * 2f, bw, bh, shell.L("ui.menu.connect_manual"), () =>
                 {
                     if (connect != null)
                     {
@@ -108,7 +126,7 @@ namespace BlocksBeyondTheStars.Client
             // The portal's Play button deep-links back into /play, which closes the round-trip; the
             // portal page itself stays the browser home for signup/create/manage (HOSTED_WORLDS.md:
             // the WebGL menu never grows a server picker).
-            UiKit.AddButton(root, bx, wby + wextra + gap, bw, bh, shell.L("ui.menu.my_worlds"), () =>
+            UiKit.AddButton(root, bx, wby + wextra + gap * 2f, bw, bh, shell.L("ui.menu.my_worlds"), () =>
             {
                 string portalUrl = System.Uri.TryCreate(Application.absoluteURL, System.UriKind.Absolute, out var page)
                     && page.Scheme != System.Uri.UriSchemeFile
@@ -116,8 +134,8 @@ namespace BlocksBeyondTheStars.Client
                     : PortalClient.DefaultPortalUrl; // local file test builds → the official portal
                 Application.OpenURL(portalUrl + "/worlds");
             }, "btn_credits");
-            UiKit.AddButton(root, bx, wby + wextra + gap * 2f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
-            UiKit.AddButton(root, bx, wby + wextra + gap * 3f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+            UiKit.AddButton(root, bx, wby + wextra + gap * 3f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, wby + wextra + gap * 4f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
 #else
             // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent
             // "Pilot" default meant nobody ever picked one and multiplayer names collided. The value is

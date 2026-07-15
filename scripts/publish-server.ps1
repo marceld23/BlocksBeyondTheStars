@@ -34,7 +34,8 @@ foreach ($rid in $Runtimes) {
         '-o', $out
     )
 
-    dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') @common
+    # GameServer is multi-target since the WebGL in-process singleplayer — pin the exe framework.
+    dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') -f net10.0 @common
     dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.Api') @common
     dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.Tools') @common
 

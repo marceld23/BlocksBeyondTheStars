@@ -5,6 +5,13 @@
 - **Context source:** `CLIENT_COMPLETION.md`, `ARCHITECTURE.md`
 - **Amendment (2026-07-12):** server projects retargeted `net8.0` → `net10.0` (see ADR 0001
   amendment). The Mono-boundary reasoning below is unchanged — it applies to any modern .NET.
+- **Amendment (2026-07-15):** Option B shipped — for the BROWSER. `GameServer` and `Persistence`
+  are now multi-target (`net10.0` exe/SQLite + `netstandard2.1` library); WebGL runs the REAL
+  server in-process (`BrowserLocalServer` pumps `Tick()` over the `LoopbackTransport`) on the fully
+  managed `MemoryWorldRepository` (gzip'd JSON snapshot blob → IndexedDB + optional Glitch Cloud
+  Save). **Desktop single-player deliberately KEEPS the child process below** — native SQLite saves,
+  process isolation and the LAN-host path all favor it; in-process is the answer where a child
+  process is impossible (browsers), not a replacement.
 
 ## Context
 

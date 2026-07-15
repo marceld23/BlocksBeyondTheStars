@@ -180,6 +180,19 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             {
                 Debug.Log("BBS_WEBGL_FAST_LOCAL enabled: WebGL build compression disabled for local browser verification.");
             }
+
+            // Debug aid: BBS_WEBGL_DEBUG_EXCEPTIONS=1 builds with full managed stack traces, so a
+            // browser-console exception names its real call site instead of an IL2CPP one-liner
+            // (shared generic bodies otherwise mis-attribute frames). Never for release: slower + bigger.
+            bool debugExceptions = string.Equals(Environment.GetEnvironmentVariable("BBS_WEBGL_DEBUG_EXCEPTIONS"), "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Environment.GetEnvironmentVariable("BBS_WEBGL_DEBUG_EXCEPTIONS"), "true", StringComparison.OrdinalIgnoreCase);
+            PlayerSettings.WebGL.exceptionSupport = debugExceptions
+                ? WebGLExceptionSupport.FullWithStacktrace
+                : WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            if (debugExceptions)
+            {
+                Debug.Log("BBS_WEBGL_DEBUG_EXCEPTIONS enabled: WebGL build carries full managed stack traces.");
+            }
         }
 
         private static void EnsureStreamingAssetsManifest()

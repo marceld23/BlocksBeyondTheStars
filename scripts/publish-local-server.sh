@@ -20,7 +20,7 @@ mkdir -p "$OUT"
 
 echo "==> Publishing dedicated server ($RUNTIME) into the client ..."
 dotnet publish "$REPO/src/BlocksBeyondTheStars.GameServer" \
-    -c Release -r "$RUNTIME" --self-contained true \
+    -c Release -f net10.0 -r "$RUNTIME" --self-contained true \
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$OUT" >/dev/null
 

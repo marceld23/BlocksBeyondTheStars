@@ -968,6 +968,20 @@ public sealed partial class GameServer
     /// <summary>Test helper kept explicit so tests can drive one authoritative server tick.</summary>
     public void TickForTest(double deltaSeconds) => Tick(deltaSeconds);
 
+    /// <summary>Saves everything durably NOW, outside the autosave cadence — the same guarded path the
+    /// periodic autosave takes. The browser singleplayer host calls this when the tab loses focus
+    /// (visibility change): a WebGL page gets no reliable shutdown callback, so waiting out the autosave
+    /// interval would risk losing up to that many minutes on a tab close.</summary>
+    public void SaveNow()
+    {
+        _sinceAutoSave = 0;
+        if (Guard("SaveNow", SaveAll))
+        {
+            _repo.Flush(); // durable now — the browser host persists its snapshot blob on this signal
+            _log.Info("On-demand save complete.");
+        }
+    }
+
     private void TickEnvironment(double dt)
     {
         if (ReconcileSpeeders()) // materialise present owners' speeders / despawn departed owners' (hover vehicles)
@@ -2029,11 +2043,26 @@ public sealed partial class GameServer
         _log.Info($"Player '{name}' joined (connection {connectionId}).");
     }
 
-    /// <summary>SHA-256 hex of a join token; empty/missing token → empty hash (name stays unclaimed).</summary>
+    /// <summary>SHA-256 hex of a join token; empty/missing token → empty hash (name stays unclaimed).
+    /// Instance-based SHA256 + manual hex: works on net10 AND the netstandard2.1 (Unity/WebGL) flavor,
+    /// where the static HashData/Convert.ToHexString helpers don't exist.</summary>
     private static string HashNameToken(string? token)
-        => string.IsNullOrEmpty(token)
-            ? string.Empty
-            : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
+    {
+        if (string.IsNullOrEmpty(token))
+        {
+            return string.Empty;
+        }
+
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        byte[] hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
+        var sb = new System.Text.StringBuilder(hash.Length * 2);
+        foreach (byte b in hash)
+        {
+            sb.Append(b.ToString("X2"));
+        }
+
+        return sb.ToString();
+    }
 
     private PlayerState CreateNewPlayer(string name)
     {

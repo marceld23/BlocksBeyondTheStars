@@ -89,7 +89,16 @@ namespace BlocksBeyondTheStars.Client
         public static bool ArcadeSessionRequested
             => PortalUrl.Length > 0
                && ArcadeInstallId.Length > 0
-               && string.IsNullOrEmpty(AutoJoinHostedToken);
+               && string.IsNullOrEmpty(AutoJoinHostedToken)
+               && !SingleplayerRequested;
+
+        /// <summary>Deep-link straight into the in-browser singleplayer (<c>?singleplayer=1</c>) —
+        /// used by store deep-links and the automated browser smoke test. Wins over the arcade
+        /// auto-join; a hosted-worlds token still wins over both.</summary>
+        public static bool SingleplayerRequested
+            => IsTruthy(FirstNonEmpty(
+                ReadQueryValue(Application.absoluteURL, "singleplayer"),
+                ReadQueryValue(Application.absoluteURL, "bbs_singleplayer")));
 
         /// <summary>Set when the heartbeat relay answers 403 (install banned / license revoked) —
         /// AppShell consumes this to leave the game and show the notice.</summary>

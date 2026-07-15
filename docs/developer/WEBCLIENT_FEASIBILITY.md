@@ -96,9 +96,23 @@ server using PostgreSQL. Provider-specific deployment wiring is intentionally le
   server.
 - Longer production browser soak on the official hosting target.
 
+## In-browser singleplayer (added 2026-07-15)
+
+The "multiplayer-only" constraint below is lifted: WebGL now ALSO runs the real authoritative
+server **in-process**. `GameServer` + `Persistence` are multi-target (`netstandard2.1` library
+flavors synced into `client/Assets/Plugins`); `BrowserLocalServer` pumps `GameServer.Tick()` from
+Unity's Update loop over the in-memory `LoopbackTransport` (the harness model from
+`ClientServerHarness`, shipped). Persistence is the managed `MemoryWorldRepository` — no native
+SQLite — whose whole world state round-trips as a gzip'd JSON snapshot blob: saved to
+`persistentDataPath` (IndexedDB, `BbsFileSync.jslib` syncfs) every 2 min/on tab-hide/on exit, and
+synced to **Glitch Cloud Save** through the WorldHost relay for logged-in glitch.fun players
+(guests stay local-only). AI level is forced Off in-browser (template texts — the LLM backend is
+internal-only). Menu: the WebGL main menu grew a Singleplayer button. Perf note: initial worldgen
+runs synchronously behind the loading screen; chunk generation is on-demand thereafter.
+
 ## Bottom line
 
 Treat the browser client as a **hosted Lite** path, not a replacement for the native desktop build. The largest
 unknowns are no longer basic networking or IL2CPP serialization; they are production browser polish: download
-size, memory limits, longer play sessions, deployment versioning, and accepting that WebGL is multiplayer/server
-hosted rather than in-browser singleplayer.
+size, memory limits, longer play sessions, deployment versioning. Multiplayer is hosted/server-side; since
+2026-07-15 singleplayer additionally runs fully in-browser (see above).

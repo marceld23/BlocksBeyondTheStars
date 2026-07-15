@@ -426,6 +426,29 @@ app.MapPost("/api/glitch/heartbeat", async (HttpContext ctx, GlitchHeartbeatRequ
     return Results.Text(body, "application/json; charset=utf-8", statusCode: status);
 });
 
+// Browser-singleplayer cloud saves, relayed to Glitch Cloud Save slot 0 (title token stays here;
+// checksum computed server-side over the decoded bytes; 10 MB + rate caps enforced before Glitch).
+app.MapGet("/api/glitch/save", async (HttpContext ctx, string? installId) =>
+{
+    ApplyGlitchCors(ctx);
+    var (status, body) = await glitch.LoadSaveAsync(installId);
+    return Results.Text(body, "application/json; charset=utf-8", statusCode: status);
+});
+
+app.MapPost("/api/glitch/save", async (HttpContext ctx, GlitchSaveStoreRequest req) =>
+{
+    ApplyGlitchCors(ctx);
+    var (status, body) = await glitch.StoreSaveAsync(req.InstallId, req.Payload, req.BaseVersion);
+    return Results.Text(body, "application/json; charset=utf-8", statusCode: status);
+});
+
+app.MapPost("/api/glitch/save/resolve", async (HttpContext ctx, GlitchSaveResolveRequest req) =>
+{
+    ApplyGlitchCors(ctx);
+    var (status, body) = await glitch.ResolveSaveAsync(req.InstallId, req.SaveId, req.ConflictId, req.Choice);
+    return Results.Text(body, "application/json; charset=utf-8", statusCode: status);
+});
+
 // ---------------- Accounts ----------------
 
 // Current community-rules version + plain text (DE/EN), anonymous: the desktop client shows the rules

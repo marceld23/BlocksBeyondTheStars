@@ -29,7 +29,7 @@ New-Item -ItemType Directory -Force $out | Out-Null
 
 Write-Host "Publishing dedicated server ($Runtime) into the client ..." -ForegroundColor Cyan
 dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') `
-    -c Release -r $Runtime --self-contained true `
+    -c Release -f net10.0 -r $Runtime --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -o $out | Out-Null
 

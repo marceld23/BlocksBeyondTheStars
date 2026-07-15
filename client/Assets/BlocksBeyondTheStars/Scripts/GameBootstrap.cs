@@ -27,6 +27,12 @@ namespace BlocksBeyondTheStars.Client
         public string PlayerName = "Pilot";
         public string Password = "";
 
+        /// <summary>In-process singleplayer wire (browser builds): when set, the client talks to the
+        /// in-process <see cref="BrowserLocalServer"/> over this in-memory link — no sockets at all.
+        /// Null for every networked join. Not serialized: handed over by WorldRig at build time.</summary>
+        [System.NonSerialized]
+        public BlocksBeyondTheStars.Networking.Transport.LoopbackLink Loopback;
+
         /// <summary>Per-install name-verification secret (see <see cref="ClientSettings.PlayerToken"/>).</summary>
         public string Token = "";
 
@@ -929,11 +935,20 @@ namespace BlocksBeyondTheStars.Client
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
 
+            if (Loopback != null)
+            {
+                // In-process singleplayer: the server lives in THIS process (BrowserLocalServer) — the
+                // in-memory loopback pair replaces every socket, on WebGL and in the editor alike.
+                Network = new NetworkClient(new BlocksBeyondTheStars.Networking.Transport.LoopbackClientTransport(Loopback));
+            }
+            else
+            {
 #if UNITY_WEBGL && !UNITY_EDITOR
-            Network = new NetworkClient(new BrowserWebSocketClientTransport());
+                Network = new NetworkClient(new BrowserWebSocketClientTransport());
 #else
-            Network = new NetworkClient();
+                Network = new NetworkClient();
 #endif
+            }
             Network.JoinAccepted += m =>
             {
                 LocalPlayerId = m.PlayerId;

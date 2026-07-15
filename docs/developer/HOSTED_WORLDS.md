@@ -352,6 +352,16 @@ Flow (mirrors Glitch's Aegis contract; the WebGL build is uploaded to and served
    world and shows a notice (the operator's live kick lever), while an unreachable Glitch answers
    503 and the client just keeps playing.
 
+**Cloud-save relay (browser singleplayer):** the WebGL build's in-process singleplayer world (see
+`WEBCLIENT_FEASIBILITY.md`) syncs its snapshot blob to Glitch's per-player **Cloud Save** (slot 0)
+through three relayed routes, so the title token stays server-side: `GET /api/glitch/save?installId=`
+(latest version + payload; 404 = none, 403 = guest — Cloud Save needs a logged-in Glitch account),
+`POST /api/glitch/save` (base64 payload + `baseVersion`; the relay computes Glitch's required
+SHA-256 over the DECODED bytes, enforces the 10 MB decoded cap and `BBS_WH_GLITCH_SAVES_PER_HOUR`
+per install; a stale base answers 409 with `saveId`/`conflictId`) and `POST /api/glitch/save/resolve`
+(`keep_server` | `use_client` — Glitch's explicit optimistic-concurrency flow; nothing is silently
+overwritten, losing states stay in the slot's version history).
+
 Operational notes:
 
 - `/api/glitch/*` are the only CORS-enabled API routes; they echo exactly the configured Glitch

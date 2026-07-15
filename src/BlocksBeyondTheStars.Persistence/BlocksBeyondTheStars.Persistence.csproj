@@ -4,15 +4,25 @@
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- Native/database backends exist only in the net10.0 flavor. The netstandard2.1 flavor (consumed
+       by the Unity client for the in-browser singleplayer server) carries the repository abstraction,
+       the snapshot DTOs and the managed MemoryWorldRepository — WASM can never load native SQLite. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <!-- Override the transitive SQLitePCLRaw 2.1.11 bundle: its native e_sqlite3 has a known CVE (GHSA-2m69-gcr7-jv3q, NU1903). -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <Compile Remove="SqliteWorldRepository.cs" />
+    <Compile Remove="PostgreSqlWorldRepository.cs" />
+    <Compile Remove="WorldRepositoryFactory.cs" />
+  </ItemGroup>
+
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>

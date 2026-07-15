@@ -23,7 +23,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 public sealed class ClientServerHarness : IDisposable
 {
     private readonly string _root;
-    private readonly SqliteWorldRepository _repo;
+    private readonly IWorldRepository _repo;
+    private readonly bool _ownsRepo;
     private readonly LoopbackLink _link;
 
     public SvGameServer Server { get; }
@@ -41,7 +42,10 @@ public sealed class ClientServerHarness : IDisposable
     /// <summary>The client-side world view, fed from the captured chunk + block-change messages.</summary>
     public ClientWorld World { get; } = new();
 
-    public ClientServerHarness(GameContent content, Action<ServerConfig>? configure = null)
+    /// <summary>Builds the full in-process stack. <paramref name="repository"/> lets a test swap the
+    /// persistence backend (e.g. the browser singleplayer's <see cref="MemoryWorldRepository"/>); the
+    /// caller keeps ownership of an injected repository — the default SQLite one is disposed here.</summary>
+    public ClientServerHarness(GameContent content, Action<ServerConfig>? configure = null, IWorldRepository? repository = null)
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_client_" + Guid.NewGuid().ToString("N"));
 
@@ -57,7 +61,8 @@ public sealed class ClientServerHarness : IDisposable
         };
         configure?.Invoke(config);
 
-        _repo = new SqliteWorldRepository(new SaveGamePaths(_root, config.WorldName));
+        _ownsRepo = repository is null;
+        _repo = repository ?? new SqliteWorldRepository(new SaveGamePaths(_root, config.WorldName));
         _link = new LoopbackLink();
         Server = new SvGameServer(config, content, new LoopbackServerTransport(_link), _repo);
         Server.Start();
@@ -125,7 +130,7 @@ public sealed class ClientServerHarness : IDisposable
     {
         try { Client.Dispose(); } catch { /* ignore */ }
         try { Server.Stop(); } catch { /* ignore */ }
-        try { _repo.Dispose(); } catch { /* ignore */ }
+        try { if (_ownsRepo) { _repo.Dispose(); } } catch { /* ignore */ }
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try
         {

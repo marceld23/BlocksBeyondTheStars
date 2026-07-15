@@ -5637,6 +5637,27 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-15): in-browser singleplayer with Glitch cloud saves (targets v0.7.8)
+
+WebGL now runs the REAL authoritative server **in-process** — ADR 0001's original in-process vision,
+shipped where the child process is impossible (ADR 0005 amendment; desktop keeps its bundled exe).
+Retarget: `GameServer` + `Persistence` are **multi-target** (`net10.0` exe/SQLite + `netstandard2.1`
+sim library; only 4 API fixes across 26.5k lines — `Lock`/`required` shims, span-Concat, File.Move,
+SHA helpers), publish scripts/Dockerfile pin `-f net10.0`, `sync-client-libs` ships both libraries
+into `client/Assets/Plugins` (asmdef + link.xml wired). New fully managed **`MemoryWorldRepository`**
+mirrors every SQLite table in dictionaries and round-trips the whole world as a gzip'd JSON
+**snapshot blob** (`MemoryWorldSnapshot`, palette remap included); `ClientServerHarness` gained a
+repository parameter and `BrowserSingleplayerPersistenceTests` proves the full mine→save→blob→reload
+loop on the real server+client. Client: **`BrowserLocalServer`** pumps `GameServer.Tick()` (fixed-dt
+accumulator, max 5 steps/frame) over the existing `LoopbackTransport`; `GameServer.SaveNow()` (new)
+drives a 2-min durable-save cadence + tab-hide saves → blob → IndexedDB (`BbsFileSync.jslib`
+syncfs) → **Glitch Cloud Save** via the WorldHost relay (`GET/POST /api/glitch/save`,
+`/api/glitch/save/resolve`): checksum server-side over decoded bytes, 10 MB cap,
+`BBS_WH_GLITCH_SAVES_PER_HOUR`, explicit 409 conflict flow (live session resolves `use_client`;
+Glitch keeps version history). Guests (Cloud Save 403) stay local-only with a console hint. WebGL
+menu grew the Singleplayer button (name required — it keys the save identity); AI is forced Off
+in-browser (template texts). Suite: +7 relay tests (31 glitch total) and +4 persistence tests.
+
 ## ✅ Done (2026-07-15): glitch.fun arcade channel — instant multiplayer worlds for Glitch (targets v0.7.8)
 
 Persistent multiplayer worlds that exist ONLY for glitch.fun (Devin Dixon's browser-first platform,
