@@ -374,9 +374,13 @@ Operational notes:
   portal session) — known v0.7.8 limitation.
 - Guest bookkeeping stores only Glitch's pseudonymous install id + the assigned player name
   (`glitch_guest`/`glitch_ban` tables); bans are managed on `/admin`.
-- Build/publish: `scripts/publish-glitch-webgl.ps1` (bakes `Enabled` + `PortalUrl` into the
-  git-ignored secrets partial, builds WebGL, zips with `index.html` at the ZIP root, optional
-  `-Deploy` via the external Glitch CLI with `GLITCH_DEPLOY_TOKEN`).
+- Build/publish: **the release pipeline mirrors every tagged release to glitch.fun automatically**
+  (`release.yml` job `publish-glitch`): the one CI WebGL build gets `Enabled` + `PortalUrl` baked
+  from the `GLITCH_PORTAL_URL` secret (dormant without Glitch's `?install_id=` param, so the same
+  artifact serves `/play`), then `scripts/upload-glitch-webgl.sh` pushes it through Glitch's
+  deployments API (presigned S3 PUT + confirm; `GLITCH_DEPLOY_TOKEN` secret; skips cleanly when
+  unset). Local/manual path: `scripts/publish-glitch-webgl.ps1` (same API via `-Deploy`, or ZIP
+  for the Deploy Page).
 
 ## Version policy (fleet)
 

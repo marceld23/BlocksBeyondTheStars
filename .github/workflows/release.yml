@@ -530,6 +530,33 @@ jobs:
           } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
           echo "Injected feedback API key into the build."
 
+      # glitch.fun wiring (optional): bake the WorldHost portal origin into the build so the SAME
+      # WebGL artifact serves the fleet's /play AND glitch.fun. The baked bits stay dormant without
+      # Glitch's ?install_id= URL param (portal players never trigger them); deliberately NO title
+      # token is baked — heartbeats/cloud saves go through the WorldHost relay. Forks without the
+      # secret build a plain open-source player.
+      - name: Inject Glitch portal config
+        env:
+          GLITCH_PORTAL_URL: ${{ secrets.GLITCH_PORTAL_URL }}
+        run: |
+          if [ -z "$GLITCH_PORTAL_URL" ]; then
+            echo "GLITCH_PORTAL_URL not set — Glitch arcade/cloud-save wiring stays disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the GLITCH_PORTAL_URL secret — not committed. No title token here:'
+            echo '// the client talks to the WorldHost relay; the token stays server-side.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class GlitchIntegrationSecrets'
+            echo '    {'
+            echo '        static partial void ApplyEnabled(ref bool enabled) => enabled = true;'
+            echo "        static partial void ApplyPortalUrl(ref string value) => value = \"$GLITCH_PORTAL_URL\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs
+          echo "Injected Glitch portal origin into the build."
+
       - name: Build WebGL player
         uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
         env:
@@ -713,6 +740,41 @@ jobs:
         with:
           files: artifacts/webgl/*.zip
           generate_release_notes: false
+
+  # Mirror the SAME WebGL build to glitch.fun (deployments API: presigned S3 PUT + confirm — see
+  # scripts/upload-glitch-webgl.sh). One artifact serves the fleet's /play and the Glitch store; the
+  # Glitch-only bits are dormant without Glitch's ?install_id= URL param. Gated exactly like the
+  # itch.io mirror: publishes only on real tags, skips cleanly when the deploy token is absent, and
+  # `needs: test` keeps unreviewed builds off the store. A hiccup here never blocks the GitHub Release.
+  publish-glitch:
+    name: Publish to glitch.fun (WebGL)
+    needs: [version, build-player-webgl, test, create-release]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download WebGL player artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: player-webgl
+          path: player-webgl
+
+      # Zip the CONTENTS — Glitch's deploy engine requires index.html at the ZIP root.
+      - name: Zip the WebGL build for Glitch
+        run: |
+          ( cd player-webgl && zip -ry "$GITHUB_WORKSPACE/bbs-webgl-glitch.zip" . )
+
+      - name: Upload to glitch.fun
+        env:
+          GLITCH_DEPLOY_TOKEN: ${{ secrets.GLITCH_DEPLOY_TOKEN }}
+          GLITCH_TITLE_ID: ${{ secrets.GLITCH_TITLE_ID }}
+        run: |
+          if [ -z "$GLITCH_DEPLOY_TOKEN" ]; then
+            echo "GLITCH_DEPLOY_TOKEN not set — skipping the glitch.fun mirror."
+            exit 0
+          fi
+          ./scripts/upload-glitch-webgl.sh bbs-webgl-glitch.zip "${{ needs.version.outputs.version }}"
 
   # Optional dedicated-server Docker image. Reuses .github/workflows/docker.yml (workflow_call). It only
   # needs the resolved version (from the lightweight `version` job, NOT the Unity player), so it starts

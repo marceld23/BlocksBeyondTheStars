@@ -131,7 +131,7 @@ Compress-Archive -Path (Join-Path $outDir '*') -DestinationPath $zip
 Write-Host ("ZIP ready: {0} ({1:N0} MB)" -f $zip, ((Get-Item $zip).Length / 1MB)) -ForegroundColor Green
 
 if (-not $Deploy) {
-    Write-Host 'No -Deploy: upload the ZIP manually on the glitch.fun Deploy Page (index.html must be at the ZIP root — it is).' -ForegroundColor Yellow
+    Write-Host 'No -Deploy: upload the ZIP manually on the glitch.fun Deploy Page, or let the release pipeline do it (publish-glitch job).' -ForegroundColor Yellow
     exit 0
 }
 
@@ -139,18 +139,23 @@ if ([string]::IsNullOrWhiteSpace($env:GLITCH_DEPLOY_TOKEN)) {
     Write-Error 'GLITCH_DEPLOY_TOKEN is not set (create a deploy token on the glitch.fun tokens page).'
 }
 
-# Prefer an explicit CLI entry script (run through node), else glitch-deploy on PATH.
-if ($env:GLITCH_DEPLOY_CLI) {
-    Write-Host "Deploying via node $($env:GLITCH_DEPLOY_CLI) ..." -ForegroundColor Cyan
-    & node $env:GLITCH_DEPLOY_CLI deploy $outDir --version $Version --entry index.html --type wasm --build-type production
-}
-elseif (Get-Command glitch-deploy -ErrorAction SilentlyContinue) {
-    Write-Host 'Deploying via glitch-deploy ...' -ForegroundColor Cyan
-    & glitch-deploy deploy $outDir --version $Version --entry index.html --type wasm --build-type production
-}
-else {
-    Write-Error 'Glitch CLI not found: put glitch-deploy on PATH or set GLITCH_DEPLOY_CLI to its entry script. (The ZIP is ready for a manual Deploy Page upload either way.)'
-}
+# Deploy via Glitch's deployments API directly (presigned S3 PUT + confirm) — no external CLI.
+# Same flow as scripts/upload-glitch-webgl.sh, which the release pipeline uses.
+$titleId = if ($env:GLITCH_TITLE_ID) { $env:GLITCH_TITLE_ID } else { '80f5dc18-dc0f-45de-9a57-8599e08669ed' }
+$api = 'https://api.glitch.fun/api'
+$headers = @{ Authorization = "Bearer $($env:GLITCH_DEPLOY_TOKEN)"; Accept = 'application/json' }
 
-if ($LASTEXITCODE -ne 0) { Write-Error "Glitch deploy failed (exit $LASTEXITCODE)." }
-Write-Host "Deployed WebGL v$Version to glitch.fun." -ForegroundColor Green
+Write-Host "Requesting S3 upload slot for title $titleId ..." -ForegroundColor Cyan
+$presigned = Invoke-RestMethod -Method Post -Uri "$api/titles/$titleId/deployments/presigned-url" -Headers $headers
+$uploadUrl = if ($presigned.upload_url) { $presigned.upload_url } else { $presigned.data.upload_url }
+$filePath = if ($presigned.file_path) { $presigned.file_path } else { $presigned.data.file_path }
+if (-not $uploadUrl -or -not $filePath) { Write-Error "Unexpected presigned-url response: $($presigned | ConvertTo-Json -Depth 4)" }
+
+Write-Host ("Uploading {0:N0} MB to S3 ..." -f ((Get-Item $zip).Length / 1MB)) -ForegroundColor Cyan
+Invoke-RestMethod -Method Put -Uri $uploadUrl -InFile $zip -ContentType 'application/zip' | Out-Null
+
+Write-Host "Confirming deployment (version $Version, entry index.html) ..." -ForegroundColor Cyan
+$confirm = Invoke-RestMethod -Method Post -Uri "$api/titles/$titleId/deployments/confirm" -Headers $headers `
+    -ContentType 'application/json' -Body (@{ file_path = $filePath; version_string = $Version; entry_point = 'index.html' } | ConvertTo-Json)
+Write-Host ("Glitch answered: {0}" -f ($confirm | ConvertTo-Json -Depth 4 -Compress)) -ForegroundColor Green
+Write-Host "Deployed WebGL v$Version to glitch.fun (Glitch unzips to its CDN: processing -> ready)." -ForegroundColor Green
