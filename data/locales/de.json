@@ -755,6 +755,7 @@
   "ui.feedback.sent": "Danke! Dein Feedback wurde gesendet.",
   "ui.feedback.sent_local": "Danke! Dein Feedback wurde lokal gespeichert.",
   "ui.feedback.failed": "Senden fehlgeschlagen. Bitte versuche es später erneut.",
+  "ui.feedback.queued": "Gerade keine Verbindung — dein Feedback ist gespeichert und wird später automatisch gesendet.",
   "ui.menu.singleplayer": "Einzelspieler / Lokale Welt",
   "ui.save.title": "WELT WÄHLEN",
   "ui.save.subtitle": "Eine gespeicherte Welt fortsetzen oder eine neue zum Testen starten.",

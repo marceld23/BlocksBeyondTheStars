@@ -4,6 +4,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
@@ -41,7 +42,9 @@ namespace BlocksBeyondTheStars.Client
         private const float W = 1920f, H = 1080f;
 
         private FeedbackUploader _uploader;
+        private FeedbackSpool _spool;
         private string _sessionId = string.Empty;
+        private string _pendingJson; // the in-flight dialog send's body, spooled if the upload fails
 
         // Dialog (built lazily on first open).
         private Canvas _dialogCanvas;
@@ -63,6 +66,12 @@ namespace BlocksBeyondTheStars.Client
             // A random id groups several reports from one sitting (varies per session; no Unity-restricted Date use).
             _sessionId = Guid.NewGuid().ToString("N");
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
+            _spool = new FeedbackSpool(Path.Combine(Application.persistentDataPath, "feedback"));
+
+            if (_uploader.IsConfigured)
+            {
+                FlushSpool(); // deliver what an earlier session couldn't (bounded attempts, see FeedbackSpool)
+            }
         }
 
         private void Update()
@@ -243,6 +252,7 @@ namespace BlocksBeyondTheStars.Client
             if (_uploader != null && _uploader.IsConfigured)
             {
                 string json = FeedbackUploader.Serialize(report, jpg);
+                _pendingJson = json;
 #if UNITY_WEBGL && !UNITY_EDITOR
                 // WASM has neither sockets nor threads — HttpClient/Task.Run can't run in the browser, so
                 // the WebGL player posts the identical body via UnityWebRequest on a coroutine.
@@ -264,11 +274,22 @@ namespace BlocksBeyondTheStars.Client
         private void OnUploadFinished(FeedbackUploadResult result)
         {
             _sending = false;
+            string body = _pendingJson;
+            _pendingJson = null;
+
             if (result != null && result.Ok)
             {
                 if (_status != null) { _status.text = L("ui.feedback.sent"); _status.color = UiKit.Ok; }
                 Game?.ShowMessage(L("ui.feedback.sent"));
                 Invoke(nameof(Close), 1.2f);
+            }
+            else if (_spool != null && !string.IsNullOrEmpty(body) && _spool.Write(body) != null)
+            {
+                // Offline / inbox down: the report is queued on disk and retried on later sessions with
+                // bounded attempts — nothing to re-type, so tell the player and close.
+                if (_status != null) { _status.text = L("ui.feedback.queued"); _status.color = UiKit.Ok; }
+                Game?.ShowMessage(L("ui.feedback.queued"));
+                Invoke(nameof(Close), 1.6f);
             }
             else
             {
@@ -307,6 +328,78 @@ namespace BlocksBeyondTheStars.Client
             };
             return report;
         }
+
+        // --- Spool retry -------------------------------------------------------------------------------------
+
+        /// <summary>Retries reports queued by earlier sessions whose upload failed. Each report gets a
+        /// bounded number of attempts (<see cref="FeedbackSpool.MaxAttempts"/>); on the first failure the
+        /// rest wait for the next session — the inbox is likely down or we're offline.</summary>
+        private void FlushSpool()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(FlushSpoolWebGl());
+#else
+            var spool = _spool;
+            var uploader = _uploader;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    foreach (var path in spool.ListPending())
+                    {
+                        string json = spool.Read(path);
+                        if (string.IsNullOrEmpty(json))
+                        {
+                            continue;
+                        }
+
+                        var result = uploader.UploadRawJson(json);
+                        if (result != null && result.Ok)
+                        {
+                            spool.MarkSent(path);
+                        }
+                        else
+                        {
+                            spool.RegisterFailedAttempt(path);
+                            break;
+                        }
+                    }
+                }
+                catch
+                {
+                    // best-effort startup catch-up — never disturb the game
+                }
+            });
+#endif
+        }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>WebGL flavor of <see cref="FlushSpool"/>: one UnityWebRequest at a time on a coroutine
+        /// (persistentDataPath is IndexedDB-backed in the browser, so the queue survives page reloads).</summary>
+        private IEnumerator FlushSpoolWebGl()
+        {
+            foreach (var path in _spool.ListPending())
+            {
+                string json = _spool.Read(path);
+                if (string.IsNullOrEmpty(json))
+                {
+                    continue;
+                }
+
+                FeedbackUploadResult result = null;
+                yield return PostJsonWebGl(json, r => result = r);
+                if (result != null && result.Ok)
+                {
+                    _spool.MarkSent(path);
+                }
+                else
+                {
+                    _spool.RegisterFailedAttempt(path);
+                    yield break;
+                }
+            }
+        }
+#endif
 
         // --- WebGL transport ---------------------------------------------------------------------------------
 
