@@ -9,6 +9,9 @@ A block-based 3D space crafting game for Windows and Linux. The player starts wi
 spaceship, explores procedurally generated planets, mines resources, crafts gear,
 researches blueprints, and grows the ship. The current status (Done/Open) lives in
 [TODO.md](TODO.md); player-facing operation in [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md).
+For product/priority/design decisions, follow the strategy trio in [docs/strategy/](docs/strategy/vision.md)
+— its decision rules (fix before feature; kid-friendly and small-hardware performance as hard
+constraints; no monetization; new content must connect to existing loops) bind agents too.
 (The original German requirement specs under `plans/` were consolidated and removed.)
 
 ## Golden architecture rule
@@ -235,4 +238,5 @@ run through this checklist:
 
 ## Roadmap
 
-See [TODO.md](TODO.md) for the current Done/Open status (the single status doc).
+See [TODO.md](TODO.md) for the current Done/Open status (the single status doc); the long-range
+horizons and their ordering live in [docs/strategy/roadmap.md](docs/strategy/roadmap.md).
