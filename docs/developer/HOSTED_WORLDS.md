@@ -248,6 +248,16 @@ aligned (`BBTS_AI_TIMEOUT` 30 s < `BBS_AI_TIMEOUT_SECONDS` 35 s) so the backend'
 always beats the server's deadline. Official fleet model: Mistral Small on OVHcloud AI Endpoints
 (EU; ~0.5 s per line — Qwen3.5 was measured unusable there: forced reasoning, no think-off switch).
 
+## Fleet crash reports (optional)
+
+When `BBS_WH_CRASH_REPORT_KEY` is set (the ReportHost deployment's write key), WorldHost forwards it
+into every world instance as `BBS_CRASH_REPORT_KEY`, so a crashed world uploads its queued crash
+reports to the bug-report inbox (docs/developer/REPORT_HOST.md) on its next start. The endpoint
+defaults to the official inbox inside the server; a self-hosted fleet sets
+`BBS_WH_CRASH_REPORT_ENDPOINT` to point at its own ReportHost. Empty key (default) = crash upload
+off — the usual no-phone-home stance. Like the announce token, running worlds only pick the key up
+on their next wake.
+
 ## Operator admin UI
 
 `/admin` on the portal domain (Basic Auth via `BBS_WH_ADMIN_USER`/`_PASSWORD`; off when unset — the

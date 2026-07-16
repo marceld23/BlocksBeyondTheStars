@@ -95,6 +95,10 @@ reports.example.com {
   `BBS_CRASH_REPORT_ENDPOINT=https://reports.example.com/api/bugreport` and
   `BBS_CRASH_REPORT_KEY=<write key>` (or `CrashReportEndpoint`/`CrashReportApiKey` in `server.json`).
   Self-hosters can run their own inbox this way; the default stays **off** (no phone-home).
+- **Hosted-worlds fleet** (#363) — WorldHost forwards its `BBS_WH_CRASH_REPORT_KEY` (and the optional
+  `BBS_WH_CRASH_REPORT_ENDPOINT` override) into every world container as the two variables above, so
+  fleet crashes land in the inbox too. Worlds pick the key up on their next wake. Empty = off, same
+  no-phone-home default as everywhere else.
 - **Client F1 feedback** — the endpoint is the `FeedbackUploader.DefaultEndpoint` constant (by design
   the client always reports to the *official* inbox, from any server). Since the cutover it points at
   `https://reports.blocksbeyondthestars.de/api/bugreport`; the CI secret `BBS_BUGREPORT_API_KEY`

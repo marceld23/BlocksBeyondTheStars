@@ -40,6 +40,11 @@ services:
       # Maintenance announcements (#249): shared secret forwarded to each world as BBS_ANNOUNCE_TOKEN;
       # worlds only pick it up on their next wake. Empty = announcements off.
       BBS_WH_ANNOUNCE_TOKEN: ${BBS_WH_ANNOUNCE_TOKEN:-}
+      # Server crash reports (#363): the ReportHost write key, forwarded to each world as
+      # BBS_CRASH_REPORT_KEY (picked up on the next wake). Empty = crash upload off. The endpoint
+      # override is only for fleets with their own ReportHost — the server default is the official inbox.
+      BBS_WH_CRASH_REPORT_KEY: ${BBS_WH_CRASH_REPORT_KEY:-}
+      BBS_WH_CRASH_REPORT_ENDPOINT: ${BBS_WH_CRASH_REPORT_ENDPOINT:-}
       # Legal pages (Impressum/Datenschutz); empty = "not configured" notice on those pages.
       BBS_WH_LEGAL_NAME: ${BBS_WH_LEGAL_NAME:-}
       BBS_WH_LEGAL_ADDRESS: ${BBS_WH_LEGAL_ADDRESS:-}

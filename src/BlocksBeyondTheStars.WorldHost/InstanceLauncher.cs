@@ -115,6 +115,18 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             args.AddRange(new[] { "-e", $"BBS_ANNOUNCE_TOKEN={config.AnnounceToken}" });
         }
 
+        // Server crash reports (#363): with the write key set, a crashed instance uploads its queued
+        // crash reports on its next start. The endpoint stays the server's built-in default (the
+        // official ReportHost inbox) unless a self-hosted fleet overrides it.
+        if (!string.IsNullOrEmpty(config.CrashReportKey))
+        {
+            args.AddRange(new[] { "-e", $"BBS_CRASH_REPORT_KEY={config.CrashReportKey}" });
+            if (!string.IsNullOrEmpty(config.CrashReportEndpoint))
+            {
+                args.AddRange(new[] { "-e", $"BBS_CRASH_REPORT_ENDPOINT={config.CrashReportEndpoint}" });
+            }
+        }
+
         // Optional fleet AI: the instance reaches the internal-only ai container by name on the shared
         // network. Level TextOnly = NPC lines + board flavour, no auto-published AI missions.
         if (!string.IsNullOrEmpty(config.AiBackendUrl))

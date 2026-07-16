@@ -99,6 +99,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Fleet crash reports: WorldHost forwards the ReportHost write key to world instances (#363, 2026-07-16)
+Hosted worlds never uploaded crash reports: the dedicated server has supported
+`BBS_CRASH_REPORT_ENDPOINT`/`BBS_CRASH_REPORT_KEY` since the ReportHost cutover (endpoint even defaults to the
+official inbox), but `DockerCliLauncher.BuildRunArgs` builds a fixed env list and never passed a key — so fleet
+crashes stayed in each container's local queue. New operator settings `BBS_WH_CRASH_REPORT_KEY` (= the ReportHost's
+`BBS_REPORTS_WRITE_KEY`; empty = off, no-phone-home default) and optional `BBS_WH_CRASH_REPORT_ENDPOINT` (self-hosted
+fleets with their own inbox) are forwarded into every world container, picked up on the next wake — same mechanics as
+the announce token. Compose/.env.example passthrough + docs (HOSTED_WORLDS.md, REPORT_HOST.md) + `BuildRunArgs` tests.
+No game release needed (worldhost-image.yml builds on push to main). **Ops after merge**: pin `WORLDHOST_TAG`, set
+`BBS_WH_CRASH_REPORT_KEY` in `/opt/bbs/worldhost/.env`, add the two passthrough lines to the VPS compose, recreate
+worldhost, recycle running worlds.
+
 ### ★ F1 feedback: VPS ReportHost cutover, works in space flight + WebGL, offline spool (2026-07-15, local branch feat/feedback-vps-cutover)
 The F1 player feedback now goes to **our own inbox**: `FeedbackUploader.DefaultEndpoint` (and the server's
 `CrashReportEndpoint` default) point at `https://reports.blocksbeyondthestars.de/api/bugreport` (ReportHost,

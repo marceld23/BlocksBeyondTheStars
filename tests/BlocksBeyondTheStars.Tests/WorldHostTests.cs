@@ -524,7 +524,34 @@ public sealed class WorldHostTests : IDisposable
         Assert.DoesNotContain("--memory", joined);
         Assert.DoesNotContain("--cpus", joined);
         Assert.DoesNotContain("BBS_AI_BACKEND_URL", joined);
+        Assert.DoesNotContain("BBS_CRASH_REPORT", joined); // no key configured = no crash-report env at all
         Assert.Contains("--pids-limit 256", joined); // the pids fence is unconditional
+    }
+
+    [Fact]
+    public void BuildRunArgs_ForwardsCrashReportKey_AndOptionalEndpointOverride()
+    {
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+
+        // Key only (the fleet case): the endpoint stays the server's built-in default.
+        var keyOnly = new WorldHostConfig { CrashReportKey = "write-key" };
+        string joined = string.Join(" ", DockerCliLauncher.BuildRunArgs(keyOnly, world, "/tmp/saves"));
+        Assert.Contains("BBS_CRASH_REPORT_KEY=write-key", joined);
+        Assert.DoesNotContain("BBS_CRASH_REPORT_ENDPOINT", joined);
+
+        // Key + endpoint override (self-hosted fleet with its own ReportHost).
+        var selfHosted = new WorldHostConfig
+        {
+            CrashReportKey = "write-key",
+            CrashReportEndpoint = "https://reports.example.com/api/bugreport",
+        };
+        joined = string.Join(" ", DockerCliLauncher.BuildRunArgs(selfHosted, world, "/tmp/saves"));
+        Assert.Contains("BBS_CRASH_REPORT_KEY=write-key", joined);
+        Assert.Contains("BBS_CRASH_REPORT_ENDPOINT=https://reports.example.com/api/bugreport", joined);
+
+        // An endpoint WITHOUT a key must not leak through — upload is off without the key anyway.
+        var endpointOnly = new WorldHostConfig { CrashReportEndpoint = "https://reports.example.com/api/bugreport" };
+        Assert.DoesNotContain("BBS_CRASH_REPORT", string.Join(" ", DockerCliLauncher.BuildRunArgs(endpointOnly, world, "/tmp/saves")));
     }
 
     // ---------------- Fleet capacity gate ----------------

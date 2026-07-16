@@ -154,6 +154,21 @@ public sealed class WorldHostConfig
     /// on POST /announce. Empty (default) = announcements off (both sides keep the endpoint disabled).</summary>
     public string AnnounceToken { get; set; } = string.Empty;
 
+    // --- Server crash reports (optional). The dedicated server queues crash reports locally and only
+    // uploads them when it has an API key (ServerConfig.CrashReportApiKey — deliberate no-phone-home
+    // default). With the key set here, every world instance receives it as BBS_CRASH_REPORT_KEY, so
+    // fleet crashes land in the ReportHost inbox (docs/developer/REPORT_HOST.md). ---
+
+    /// <summary>Crash-report write key forwarded to world instances as BBS_CRASH_REPORT_KEY
+    /// (BBS_WH_CRASH_REPORT_KEY) — the ReportHost's <c>BBS_REPORTS_WRITE_KEY</c>. Empty (default) =
+    /// crash upload stays off in the instances.</summary>
+    public string CrashReportKey { get; set; } = string.Empty;
+
+    /// <summary>Optional crash-report endpoint override forwarded as BBS_CRASH_REPORT_ENDPOINT
+    /// (BBS_WH_CRASH_REPORT_ENDPOINT). Empty (default) keeps the server's built-in default (the
+    /// official inbox) — a self-hosted fleet points this at ITS OWN ReportHost.</summary>
+    public string CrashReportEndpoint { get; set; } = string.Empty;
+
     // --- Per-instance resource limits. One runaway world must never take down the host: each world
     // container gets a hard memory cap (which .NET's cgroup-aware GC also uses to apply pressure
     // BEFORE the OOM kill), a CPU ceiling and a pids cap. The capacity gate bounds the SUM. ---
@@ -302,6 +317,8 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_LEGAL_ADDRESS") is { } legalAddress) { c.LegalAddress = legalAddress; }
         if (Env("BBS_WH_LEGAL_EMAIL") is { } legalEmail) { c.LegalEmail = legalEmail; }
         if (Env("BBS_WH_ANNOUNCE_TOKEN") is { } announceToken) { c.AnnounceToken = announceToken; }
+        if (Env("BBS_WH_CRASH_REPORT_KEY") is { } crashKey) { c.CrashReportKey = crashKey; }
+        if (Env("BBS_WH_CRASH_REPORT_ENDPOINT") is { } crashEndpoint) { c.CrashReportEndpoint = crashEndpoint; }
         if (Env("BBS_WH_AI_BACKEND_URL") is { } aiUrl) { c.AiBackendUrl = aiUrl; }
         if (Env("BBS_WH_AI_LEVEL") is { } aiLevel) { c.AiLevel = aiLevel; }
         if (Env("BBS_WH_INSTANCE_MEMORY") is { } mem) { c.InstanceMemory = mem == "none" ? string.Empty : mem; }
