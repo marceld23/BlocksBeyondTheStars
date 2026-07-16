@@ -108,7 +108,12 @@ and restored so probe runs never change real settings. Output: JSON + txt (`-per
 when done. First baselines (Ryzen 9 7940HS / RTX 2000 Ada laptop, v-dev): High/VD8 42 FPS + **~25 GC/s** in
 walk (47 frames >33 ms/min); Medium/VD4 48–53 FPS, ~11 GC/s; Low/VD4 72–75 FPS, ~8 GC/s, zero hitches →
 GC/alloc churn confirmed as the top CPU lever (#354), preset step Low→Medium is expensive (SSAO/depth
-textures), MSAA/HDR not preset-gated (#357). Full numbers in issue #353. Browser baseline still open.
+textures), MSAA/HDR not preset-gated (#357). Browser baseline (headed Playwright Chromium, real GPU, local
+fast-local WebGL build, `?singleplayer=1`): idle 46 FPS / walk 37 FPS with a bimodal profile — p50 16.7 ms
+but p95 ~50 ms; during traversal 22% of frames >33 ms and >10% of wall time in main-thread long tasks
+(single-threaded mesh/collider/JSON path → #354/#355); worst case capped at 150 ms (one frame >100 ms in
+90 s — the #351 stream budget works). Startup logs 3 truncated `ERROR: Shader` lines — investigate. Full
+numbers in issue #353. Headless/SwiftShader is useless for frame times (~1 FPS software rendering).
 
 ### ★ Performance quick wins: HUD throttle, mobile DPR cap, browser-SP stream budget, per-frame alloc cleanup (#349–#352, 2026-07-16, branch perf/quick-wins)
 First slice of the 2026-07-16 performance analysis (full backlog: issues #349–#362, `performance` label).
