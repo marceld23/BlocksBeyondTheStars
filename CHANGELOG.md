@@ -11,7 +11,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-_Nothing yet — [v0.8.1](#081--2026-07-16) is the latest release._
+_Nothing yet — [v0.8.2](#082--2026-07-16) is the latest release._
+
+## [0.8.2] — 2026-07-16
+
+A small arcade-identity patch for glitch.fun, straight from the first post-launch live tests.
+
+### 🕹️ glitch.fun: your arcade identity now survives updates
+- Returning visitors were rejected with "The name '…' belongs to another player" — over their **own** name: the name-verification claim keyed on browser-local storage, which Glitch effectively resets with every deployment (each release is served from a fresh content path). The claim is now derived from the Glitch install itself, so the same install keeps its identity in every browser and across every update — no more lockouts after a release. (#345)
+- The player-name field in the menu now actually does something on glitch.fun: the requested name is sent along to the arcade gateway (which keeps the stable 3-character install suffix, so custom names stay unique), instead of being silently ignored and overwritten. (#346)
 
 ## [0.8.1] — 2026-07-16
 
@@ -417,7 +425,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.7...v0.8.0
 [0.7.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.6...v0.7.7
