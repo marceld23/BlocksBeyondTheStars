@@ -179,11 +179,15 @@ namespace BlocksBeyondTheStars.Client
         // instead of Input.GetAxis / GetButton / GetMouseButton. The touch source is zero unless a touch UI
         // is live, so on desktop these equal the keyboard/mouse (+ pad) behaviour exactly.
 
+        /// <summary>Scripted locomotion injected by automation (PerfProbe traversal). Zero in normal play;
+        /// additive like the other sources, so a real key press still wins the clamp.</summary>
+        public static Vector2 ScriptedMove;
+
         /// <summary>Strafe axis, −1..1 — replaces <c>Input.GetAxis("Horizontal")</c>.</summary>
-        public static float MoveX() => Mathf.Clamp(_desktop.MoveX() + _pad.MoveX() + _touch.MoveX(), -1f, 1f);
+        public static float MoveX() => Mathf.Clamp(_desktop.MoveX() + _pad.MoveX() + _touch.MoveX() + ScriptedMove.x, -1f, 1f);
 
         /// <summary>Forward axis, −1..1 — replaces <c>Input.GetAxis("Vertical")</c>.</summary>
-        public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY() + _touch.MoveY(), -1f, 1f);
+        public static float MoveY() => Mathf.Clamp(_desktop.MoveY() + _pad.MoveY() + _touch.MoveY() + ScriptedMove.y, -1f, 1f);
 
         /// <summary>Yaw look delta (caller still multiplies by sensitivity) — replaces <c>GetAxis("Mouse X")</c>.</summary>
         public static float LookX() => _desktop.LookX() + _pad.LookX() + _touch.LookX();

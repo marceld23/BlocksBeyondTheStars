@@ -99,6 +99,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ PerfProbe: automated desktop performance baselines (#353, 2026-07-17, branch perf/profiling-baseline)
+New `-perfProbe` flag (pattern: ScreenshotDirector): starts a fixed-seed singleplayer world and records
+frame-time/GC stats over an **idle** (30 s standing) and a **walk** phase (60 s scripted straight-line
+traversal via the new additive `InputMap.ScriptedMove` source, so chunk streaming/meshing churns). Optional
+`-perfPreset`/`-perfVd` overrides for comparable runs — the player's `client_settings.json` is snapshotted
+and restored so probe runs never change real settings. Output: JSON + txt (`-perfOut <dir>`); process exits
+when done. First baselines (Ryzen 9 7940HS / RTX 2000 Ada laptop, v-dev): High/VD8 42 FPS + **~25 GC/s** in
+walk (47 frames >33 ms/min); Medium/VD4 48–53 FPS, ~11 GC/s; Low/VD4 72–75 FPS, ~8 GC/s, zero hitches →
+GC/alloc churn confirmed as the top CPU lever (#354), preset step Low→Medium is expensive (SSAO/depth
+textures), MSAA/HDR not preset-gated (#357). Full numbers in issue #353. Browser baseline still open.
+
 ### ★ Performance quick wins: HUD throttle, mobile DPR cap, browser-SP stream budget, per-frame alloc cleanup (#349–#352, 2026-07-16, branch perf/quick-wins)
 First slice of the 2026-07-16 performance analysis (full backlog: issues #349–#362, `performance` label).
 **HUD (#349)** — the text-heavy `HudUi.Refresh()` now runs at ~10 Hz instead of every frame (dozens of
