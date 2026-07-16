@@ -316,6 +316,37 @@ public sealed class GlitchGatewayTests : IDisposable
         Assert.True(longName.Length <= 24, longName);
     }
 
+    [Fact]
+    public void ResolvePlayerName_DoesNotStackTheOwnSuffix()
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        // The menu echoes the assigned name back into the name field, so a retry resends the already
+        // suffixed name — resolving it again must yield the same identity, not "Maxi-abc-abc".
+        string assigned = gateway.ResolvePlayerName("Maxi", "Gamer123", Install);
+        Assert.Equal(assigned, gateway.ResolvePlayerName(assigned, "Gamer123", Install));
+    }
+
+    [Fact]
+    public async Task Session_ReturnsTheInstallDerivedNameToken_StableAcrossDeploymentsAsync()
+    {
+        var (gateway, _, _, _) = NewGateway();
+
+        var first = await gateway.SessionAsync(Install);
+        var second = await gateway.SessionAsync(Install);
+
+        // The name claim must NOT depend on browser-local state (which resets with every Glitch
+        // deployment): the gateway hands out the same install-derived token on every visit.
+        Assert.True(first.Ok, first.Error);
+        Assert.NotEmpty(first.NameToken);
+        Assert.Equal(first.NameToken, second.NameToken);
+        Assert.Equal(GlitchGateway.DeriveNameToken(Install), first.NameToken);
+
+        // ...and it is per-install: another guest gets a different claim.
+        var other = await gateway.SessionAsync("5f9dd262-840c-4df8-a30b-366fc0c7e1d8");
+        Assert.NotEqual(first.NameToken, other.NameToken);
+    }
+
     // ---------------- Heartbeat relay ----------------
 
     [Fact]

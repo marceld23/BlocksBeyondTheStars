@@ -34,7 +34,11 @@ namespace BlocksBeyondTheStars.Client
             boot.Port = int.TryParse(shell.Port, out var p) && p > 0 ? p : 31415;
             boot.PlayerName = string.IsNullOrWhiteSpace(shell.PlayerName) ? "Pilot" : shell.PlayerName;
             boot.Password = shell.Password ?? "";
-            boot.Token = shell.Settings.PlayerToken ?? "";
+            // Arcade sessions claim their name with the install-derived gateway token — the browser-local
+            // PlayerToken resets with every Glitch deployment and would lock returning guests out.
+            boot.Token = !string.IsNullOrEmpty(shell.ArcadeNameToken)
+                ? shell.ArcadeNameToken
+                : shell.Settings.PlayerToken ?? "";
             boot.HostedToken = shell.HostedToken ?? ""; // official-worlds join grant (empty for SP/LAN/self-host)
             boot.HostedWorldId = shell.HostedWorldId ?? ""; // which official world — attached to player reports
             boot.PortalUrl = shell.Settings.PortalUrl ?? "";

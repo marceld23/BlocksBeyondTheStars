@@ -18,7 +18,8 @@ public sealed record GlitchSessionResult(
     string PlayerName = "",
     string WssUrl = "",
     string JoinToken = "",
-    long TokenExpiresUnix = 0);
+    long TokenExpiresUnix = 0,
+    string NameToken = "");
 
 /// <summary>
 /// The glitch.fun arcade gateway: instant, account-less entry into a small pool of persistent
@@ -175,7 +176,8 @@ public sealed class GlitchGateway
             PlayerName: playerName,
             WssUrl: grant.WssUrl,
             JoinToken: grant.JoinToken,
-            TokenExpiresUnix: grant.TokenExpiresUnix);
+            TokenExpiresUnix: grant.TokenExpiresUnix,
+            NameToken: DeriveNameToken(installId));
     }
 
     /// <summary>Relays a client heartbeat to Glitch's install endpoint (their playtime/payout signal),
@@ -575,6 +577,17 @@ public sealed class GlitchGateway
         return (null, "All arcade worlds are full right now — please try again in a few minutes.");
     }
 
+    /// <summary>Derives the guest's name-verification token from the install id. The instance's name
+    /// claim must NOT key on the client's browser-local PlayerToken: Unity WebGL storage is scoped to
+    /// the page URL path and Glitch serves every deployment from a new content path, so each release
+    /// would present a fresh random token against the persisted claim and lock every returning guest
+    /// out of their own name. The install id is already the credential that authorizes the session, so
+    /// deriving the claim from it adds no new attack surface — and gives the same install the same
+    /// claim in every browser and across every deployment.</summary>
+    public static string DeriveNameToken(string installId)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("bbs-glitch-name-claim:" + installId)))
+            .ToLowerInvariant();
+
     /// <summary>Resolves the guest's in-game name: the requested name, else the Glitch account name,
     /// else "Explorer" — reserved/blocked base names fall back too — plus a stable 3-hex-char suffix
     /// derived from the install id. The suffix gives every install the SAME identity on every visit
@@ -594,6 +607,14 @@ public sealed class GlitchGateway
 
         string suffix = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(installId)))
             .ToLowerInvariant().Substring(0, 3);
+
+        // The menu echoes the assigned (already suffixed) name back into the name field, so a retry
+        // resends it as the requested name — strip our own suffix instead of stacking "-abc-abc".
+        if (baseName.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) && baseName.Length > suffix.Length + 1)
+        {
+            baseName = baseName.Substring(0, baseName.Length - suffix.Length - 1);
+        }
+
         return baseName + "-" + suffix;
     }
 

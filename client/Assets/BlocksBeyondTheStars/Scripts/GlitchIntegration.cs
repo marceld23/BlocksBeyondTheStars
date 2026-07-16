@@ -125,14 +125,19 @@ namespace BlocksBeyondTheStars.Client
             public string playerName;
             public string wssUrl;
             public string joinToken;
+            public string nameToken; // install-derived name-claim token — stable across deployments
         }
 
         /// <summary>Requests an arcade session from the configured portal. Reports (session, null) on
-        /// success or (null, error) on failure — run via StartCoroutine from AppShell.</summary>
-        public static IEnumerator RequestArcadeSession(Action<ArcadeSession, string> done)
+        /// success or (null, error) on failure — run via StartCoroutine from AppShell. The menu's
+        /// player name rides along as the requested name; the gateway sanitizes it and keeps the
+        /// stable per-install suffix.</summary>
+        public static IEnumerator RequestArcadeSession(string requestedName, Action<ArcadeSession, string> done)
         {
             string url = PortalUrl + "/api/glitch/session";
-            string body = "{\"installId\":\"" + JsonEscape(ArcadeInstallId) + "\"}";
+            string body = string.IsNullOrWhiteSpace(requestedName)
+                ? "{\"installId\":\"" + JsonEscape(ArcadeInstallId) + "\"}"
+                : "{\"installId\":\"" + JsonEscape(ArcadeInstallId) + "\",\"playerName\":\"" + JsonEscape(requestedName.Trim()) + "\"}";
             using (var request = new UnityWebRequest(url, "POST"))
             {
                 request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));

@@ -53,6 +53,12 @@ namespace BlocksBeyondTheStars.Client
         /// attached to in-game player reports. Must stay empty for singleplayer/LAN/self-host joins.</summary>
         public string HostedWorldId = "";
 
+        /// <summary>Name-claim token for a glitch.fun arcade session (install-derived, from the session
+        /// gateway). Overrides the browser-local <see cref="ClientSettings.PlayerToken"/> for the join,
+        /// because that storage resets with every Glitch deployment and would lock returning guests out
+        /// of their own claimed name. Must stay empty for every non-arcade join.</summary>
+        public string ArcadeNameToken = "";
+
         /// <summary>One-shot notice shown on the main menu (e.g. why the last join was refused).</summary>
         public string MenuNotice = "";
 
@@ -181,7 +187,7 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator RequestArcadeJoin()
         {
-            yield return GlitchIntegration.RequestArcadeSession((session, error) =>
+            yield return GlitchIntegration.RequestArcadeSession(PlayerName, (session, error) =>
             {
                 if (session == null)
                 {
@@ -194,6 +200,7 @@ namespace BlocksBeyondTheStars.Client
                 Host = session.wssUrl;
                 HostedToken = session.joinToken;
                 HostedWorldId = session.worldId;
+                ArcadeNameToken = session.nameToken ?? "";
                 _autoJoinWhenReady = true; // the Update() gate joins once content + menu are ready
             });
         }
@@ -534,6 +541,7 @@ namespace BlocksBeyondTheStars.Client
             MenuNotice = "";
             HostedToken = "";
             HostedWorldId = "";
+            ArcadeNameToken = "";
             Password = "";
             HostInfo = "";
             _hostLocal = false;

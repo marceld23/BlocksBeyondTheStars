@@ -416,6 +416,7 @@ app.MapPost("/api/glitch/session", async (HttpContext ctx, GlitchSessionRequest 
         wssUrl = result.WssUrl,
         joinToken = result.JoinToken,
         tokenExpiresUnix = result.TokenExpiresUnix,
+        nameToken = result.NameToken,
     });
 });
 
