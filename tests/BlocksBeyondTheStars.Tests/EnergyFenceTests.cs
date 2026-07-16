@@ -179,6 +179,7 @@ public sealed class EnergyFenceTests : IDisposable
     // ---------------- Fauna behaviour through real ticks ----------------
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void AWildCreature_StaysInside_AFencedPen()
     {
         var server = Started("jungle", out var repo); // jungle always has a species roster
@@ -204,6 +205,7 @@ public sealed class EnergyFenceTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void ACompanion_StaysInsideThePen_WhileItsOwnerWalksOut()
     {
         var server = Started("jungle", out var repo);
@@ -245,6 +247,7 @@ public sealed class EnergyFenceTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public void APlanetEnemy_CannotCross_AFenceLine()
     {
         var server = Started("rocky", out var repo);

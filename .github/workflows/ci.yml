@@ -8,8 +8,12 @@
 #
 # TWO-TIER TEST GATE: pull requests run only the fast tier (--filter Category!=Slow); pushes to main run
 # the full suite, and release.yml re-runs the full suite on the tagged commit before publishing anything.
-# So a PR check is fast (~6 min instead of ~13), while every commit that lands on main — and every
-# release — is still covered by all tests. See the Test step below for details.
+# So a PR check stays fast, while every commit that lands on main — and every release — is still covered
+# by all tests. Two things keep the fast tier fast (it once decayed from ~6 to ~15 min unnoticed):
+#   * tests build/run in Release (worldgen/sim tests are CPU-bound and much faster than in Debug), and
+#   * a duration guardrail (scripts/check-test-durations.py) fails a PR when any non-Slow test exceeds
+#     its budget, so new heavies must either get the Slow trait or a real fix.
+# See the Test step below for details.
 #
 # We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
 # WinForms launcher (net10.0-windows), which cannot build on the Linux runner. Building the test
@@ -70,23 +74,34 @@ jobs:
           dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
 
       # -warnaserror promotes every compiler/analyzer warning to a build error for the PR gate.
+      # Release configuration: the suite is dominated by CPU-bound worldgen/sim tests, which run far
+      # faster optimized — the correctness gate is the same tests, just not on a Debug-slowed engine.
       - name: Build (treat warnings as errors)
         run: |
-          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -warnaserror
-          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -warnaserror
+          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release -warnaserror
+          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release -warnaserror
 
-      # Two-tier test gate: PRs skip the ~31 tests marked [Trait("Category", "Slow")] — the statistical
-      # worldgen/simulation heavies (10 s–320 s each) that make up ~55% of the suite's CPU time — cutting
-      # the PR check from ~13 min to ~6 min. Full coverage is still guaranteed twice downstream: every
-      # push to main runs the COMPLETE suite here (empty filter), and release.yml runs it again on the
-      # tagged commit before anything is published.
+      # Two-tier test gate: PRs skip the tests marked [Trait("Category", "Slow")] — the statistical
+      # worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
+      # guaranteed twice downstream: every push to main runs the COMPLETE suite here (empty filter),
+      # and release.yml runs it again on the tagged commit before anything is published.
       - name: Test
         env:
           # xUnit maps [Trait("Category", ...)] to the vstest Category property.
           FILTER: ${{ github.event_name == 'pull_request' && 'Category!=Slow' || '' }}
         run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+
+      # Fast-tier duration guardrail (PRs only — the full run on main legitimately contains Slow tests):
+      # fail when any non-Slow test exceeds the per-test budget, so the fast tier cannot silently decay
+      # again. Offenders belong in the Slow tier or need a real fix. The budget is deliberately loose:
+      # trx durations are wall-clock, and parallel CPU-heavy tests inflate innocent awaiting tests via
+      # thread-pool contention (a 9 ms test has measured 37 s inside the full suite) — 120 s only trips
+      # on order-of-magnitude offenders, which is exactly the decay this guards against.
+      - name: Check fast-tier test durations
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/check-test-durations.py --max-seconds 120 TestResults/*.trx
 
       # Keep the .trx results even when a suite fails, so failures are inspectable from the run page.
       - name: Upload test results

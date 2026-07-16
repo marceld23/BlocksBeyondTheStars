@@ -7,8 +7,9 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1034 server + 129 client passing** (2026-07-16). Locale parity (en/de) is enforced by a test.
-CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~6 min gate); pushes to `main` and the release workflow run the full suite.
+**Test:** `./scripts/run-tests.sh` — currently **1034 server + 129 client passing** (2026-07-17). Locale parity (en/de) is enforced by a test.
+CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
+tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -5686,6 +5687,19 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-07-17): fast PR test gate again — Release tests, Slow-tier hygiene, duration guardrail
+
+The PR gate had silently decayed from its designed ~6 min back to ~15 min: new CPU-heavy tests were
+never tagged `Slow`, and their thread-pool contention inflated innocent async tests to 400+ s (a 9 ms
+test measured 454 s in CI). Fixes: CI/release workflows now build and run the suites in **Release**
+(the worldgen/sim-dominated suite is far faster optimized; `-warnaserror` stays); the three
+EnergyFence wandering sims joined the Slow tier; the maintenance-countdown tests ride shorter
+countdowns (61 s marks run / cancel at 30 s) and the idle-shutdown guard covers its 120 s span in
+10 s ticks — same assertions, ~10× fewer full server ticks. New guardrail `scripts/check-test-durations.py`
+(PR runs only) fails the gate when any non-Slow test exceeds 120 s, so the fast tier can't decay
+unnoticed again. Full suite still runs on every push to `main` and on the release tag. Local
+fast tier after the change: 999 server tests in 1 m 36 s + 122 client tests in 6 s.
 
 ## ✅ Done (2026-07-15): in-browser singleplayer with Glitch cloud saves (targets v0.7.8)
 

@@ -104,13 +104,14 @@ public sealed class MaintenanceAnnounceTests : IDisposable
     {
         var (server, _, client, notices) = Start("maint_countdown");
 
-        Assert.True(server.EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, "New version!", 121));
-        TickAndPoll(server, client, 0.1); // apply + initial broadcast (121 s)
+        Assert.True(server.EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, "New version!", 61));
+        TickAndPoll(server, client, 0.1); // apply + initial broadcast (61 s)
 
-        TickAndPoll(server, client, 1.0, times: 125); // ride the countdown past zero + the 2 s flush
+        TickAndPoll(server, client, 1.0, times: 65); // ride the countdown past zero + the 2 s flush
 
-        // Initial (121) + the 120/60/30/10 marks + the final "restarting now" (0).
-        Assert.Equal(new[] { 121, 120, 60, 30, 10, 0 }, notices.Select(n => n.SecondsRemaining).ToArray());
+        // Initial (61) + the 60/30/10 marks + the final "restarting now" (0); the marks above the start
+        // (600/300/120) are skipped by ApplyMaintenance.
+        Assert.Equal(new[] { 61, 60, 30, 10, 0 }, notices.Select(n => n.SecondsRemaining).ToArray());
         Assert.All(notices, n => Assert.Equal(MaintenanceNotice.KindRestartCountdown, n.Kind));
         Assert.All(notices, n => Assert.Equal("New version!", n.Text));
         Assert.Equal("ui.maint.restart_in", notices[0].MessageKey);
@@ -124,7 +125,7 @@ public sealed class MaintenanceAnnounceTests : IDisposable
     {
         var (server, _, client, notices) = Start("maint_cancel");
 
-        server.EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, null, 600);
+        server.EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, null, 30);
         TickAndPoll(server, client, 1.0, times: 5);
         server.EnqueueMaintenance(MaintenanceNotice.KindCancelled, null, -1);
         TickAndPoll(server, client, 1.0);
@@ -132,7 +133,7 @@ public sealed class MaintenanceAnnounceTests : IDisposable
         Assert.Equal(MaintenanceNotice.KindCancelled, notices[^1].Kind);
         Assert.Equal(-1, server.MaintenanceSecondsRemaining);
 
-        TickAndPoll(server, client, 1.0, times: 700); // way past the original 600 s
+        TickAndPoll(server, client, 1.0, times: 40); // way past the original 30 s
         Assert.False(server.MaintenanceStopTriggered);
     }
 

@@ -171,10 +171,11 @@ public sealed class HostedWorldsFoundationTests : IDisposable
     public void IdleShutdown_NeverFires_WhileAPlayerIsJoined_OrWhenDisabled()
     {
         // Disabled (the default 0): a long-empty server keeps running — self-hosting behaves as before.
+        // The idle clock is a plain "+= deltaSeconds", so big ticks cover the same 120 s span cheaply.
         var (idleForever, _) = NewServer("idle_off", new LoopbackLink());
-        for (int i = 0; i < 120; i++)
+        for (int i = 0; i < 12; i++)
         {
-            idleForever.Tick(1.0);
+            idleForever.Tick(10.0);
         }
 
         Assert.False(idleForever.IdleShutdownTriggered);
@@ -182,9 +183,9 @@ public sealed class HostedWorldsFoundationTests : IDisposable
         // Enabled but occupied: a joined player pins the server up (and keeps resetting the countdown).
         var (occupied, _) = NewServer("idle_occupied", new LoopbackLink(), c => c.IdleShutdownMinutes = 1);
         occupied.AddLocalPlayer("Keeper");
-        for (int i = 0; i < 120; i++)
+        for (int i = 0; i < 12; i++)
         {
-            occupied.Tick(1.0);
+            occupied.Tick(10.0);
         }
 
         Assert.False(occupied.IdleShutdownTriggered);
