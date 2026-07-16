@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **998 server + 118 client passing** (2026-07-14). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1034 server + 129 client passing** (2026-07-16). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the 31 tests marked `[Trait("Category", "Slow")]` (~6 min gate); pushes to `main` and the release workflow run the full suite.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -98,6 +98,22 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Performance quick wins: HUD throttle, mobile DPR cap, browser-SP stream budget, per-frame alloc cleanup (#349–#352, 2026-07-16, branch perf/quick-wins)
+First slice of the 2026-07-16 performance analysis (full backlog: issues #349–#362, `performance` label).
+**HUD (#349)** — the text-heavy `HudUi.Refresh()` now runs at ~10 Hz instead of every frame (dozens of
+interpolated strings were per-frame GC churn); the compass stays per-frame (blips counter-rotate with the
+camera, with the distance string rebuilt only on value change) and a hotbar selection change forces an
+immediate refresh. **WebGL mobile (#350)** — the template caps `config.devicePixelRatio = 1` for phone/tablet
+user agents (DPR 2–3 meant 4–9× the pixels on the weakest GPUs); desktop browsers keep native DPR.
+**Browser singleplayer (#351)** — new `ServerConfig.ChunkStreamBudgetMs` (0 = off): a wall-clock budget that
+cuts a `StreamChunks` pass short once spent (≥1 chunk always streams; nearest-first order unchanged);
+`BrowserLocalServer` sets 6 ms so synchronous first-visit chunk generation can no longer stall the frame
+(the tick shares the render thread there). Dedicated servers are unaffected. Test:
+`StreamTimeBudget_CutsAStreamingPassShort_ButAlwaysMakesProgress`. **Entity views (#352)** — CreatureView,
+WorldEntities, SpeederView and SpaceView.SyncEntities reuse scratch `HashSet`/`List` fields instead of
+allocating per frame. Verified: 1034 server + 129 client tests green, format clean, local Unity build green.
+Open (tracked): profiling baselines #353; medium tier #354–#358; large tier #359–#362.
 
 ### ★ Fleet crash reports: WorldHost forwards the ReportHost write key to world instances (#363, 2026-07-16)
 Hosted worlds never uploaded crash reports: the dedicated server has supported

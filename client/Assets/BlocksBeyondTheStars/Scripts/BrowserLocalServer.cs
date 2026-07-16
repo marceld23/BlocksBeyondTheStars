@@ -96,6 +96,13 @@ namespace BlocksBeyondTheStars.Client
                     EnableWebSocket = false,   // the loopback IS the wire; no gateway, no sockets
                     IdleShutdownMinutes = 0,   // the tab's lifetime is the session; never self-exit
                     AiLevel = AiLevel.Off,     // the LLM backend is unreachable from a browser (internal-only)
+
+                    // The tick runs ON the render thread here, and each first-visit chunk generates
+                    // synchronously inside StreamChunks — up to ChunkStreamPerTick (16) gens in one frame,
+                    // multiplied by the MaxTicksPerFrame catch-up, is the main browser-SP hitch source.
+                    // A wall-clock budget keeps cheap ticks streaming at full speed but cuts generation
+                    // bursts off mid-loop (rest resumes next tick, nearest-first order unchanged).
+                    ChunkStreamBudgetMs = 6.0,
                 };
 
 #if UNITY_WEBGL && !UNITY_EDITOR

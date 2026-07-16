@@ -56,10 +56,15 @@ namespace BlocksBeyondTheStars.Client
             DrainFx();
         }
 
+        // Reused across frames — Reconcile runs every Update; fresh sets/lists there are steady GC churn.
+        private readonly HashSet<string> _liveScratch = new HashSet<string>();
+        private readonly List<string> _staleScratch = new List<string>();
+
         private void Reconcile()
         {
             // Build the set of ids the server currently reports.
-            var live = new HashSet<string>();
+            var live = _liveScratch;
+            live.Clear();
             foreach (var s in Game.Speeders)
             {
                 if (s != null && !string.IsNullOrEmpty(s.Id))
@@ -69,7 +74,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Drop speeders that are gone (packed up, destroyed, owner left, world switch).
-            var stale = new List<string>();
+            var stale = _staleScratch;
+            stale.Clear();
             foreach (var kv in _objs)
             {
                 if (!live.Contains(kv.Key))

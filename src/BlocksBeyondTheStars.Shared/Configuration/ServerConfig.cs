@@ -50,6 +50,13 @@ public sealed class ServerConfig
     /// a host seeing tick overruns on weak hardware can lower it; a strong host can raise it for snappier fill.</summary>
     public int ChunkStreamPerTick { get; set; } = 16;
 
+    /// <summary>Optional wall-clock budget (milliseconds) for chunk streaming per tick; 0 = off. When set,
+    /// StreamChunks stops sending once the budget is spent — remaining chunks come next tick, nearest-first
+    /// order unchanged. Meant for hosts where the tick shares a thread with rendering (the in-browser
+    /// singleplayer): a cheap tick still streams the full ChunkStreamPerTick, but a burst of expensive
+    /// first-visit generations can't stall the frame. Dedicated servers leave this off.</summary>
+    public double ChunkStreamBudgetMs { get; set; }
+
     public string Difficulty { get; set; } = "normal";
     public bool AllowGuests { get; set; } = true;
 

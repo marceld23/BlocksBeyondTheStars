@@ -38,6 +38,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private readonly Dictionary<string, Entry> _enemies = new();
+
+        // Reused across frames — per-Update allocations are steady-state GC churn (worst on WebGL).
+        private readonly HashSet<string> _seenScratch = new();
+        private readonly List<string> _staleScratch = new();
         private bool _subscribed;
         private WeaponFx _weapons; // shared VFX layer (laser beams), resolved lazily
         private static Material _hideMat, _hideDarkMat, _eyeMat, _clawMat;
@@ -59,7 +63,8 @@ namespace BlocksBeyondTheStars.Client
                 _subscribed = true;
             }
 
-            var seen = new HashSet<string>();
+            var seen = _seenScratch;
+            seen.Clear();
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
@@ -140,7 +145,8 @@ namespace BlocksBeyondTheStars.Client
             // Remove enemies whose entity is gone (killed / out of range).
             if (_enemies.Count > seen.Count)
             {
-                var stale = new List<string>();
+                var stale = _staleScratch;
+                stale.Clear();
                 foreach (var id in _enemies.Keys)
                 {
                     if (!seen.Contains(id))

@@ -42,6 +42,11 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
 
+        // Reused across frames: allocating these per Update is steady-state GC churn (worst on WebGL,
+        // where all garbage lands on the single thread).
+        private readonly HashSet<string> _seenScratch = new HashSet<string>();
+        private readonly List<string> _staleScratch = new List<string>();
+
         private void Update()
         {
             if (Game == null)
@@ -49,7 +54,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var seen = new HashSet<string>();
+            var seen = _seenScratch;
+            seen.Clear();
             foreach (var c in Game.Creatures)
             {
                 seen.Add(c.Id);
@@ -170,7 +176,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (_creatures.Count > seen.Count)
             {
-                var stale = new List<string>();
+                var stale = _staleScratch;
+                stale.Clear();
                 foreach (var id in _creatures.Keys)
                 {
                     if (!seen.Contains(id))

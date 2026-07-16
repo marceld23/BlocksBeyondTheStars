@@ -72,6 +72,14 @@ namespace BlocksBeyondTheStars.Client
 
         private int _lastSelSlot = -1; // hotbar selection tick state
 
+        // Perf: the text-heavy HUD refresh runs at ~10 Hz, not every frame — rebuilding dozens of strings
+        // per frame is pure GC churn and the readouts (vitals, clock, prompts) don't change faster than
+        // that anyway. Motion-coupled elements (compass blips) still update per frame, and a hotbar
+        // selection change forces an immediate refresh so input feedback never lags.
+        private const float RefreshInterval = 0.1f;
+        private float _refreshTimer;
+        private int _lastCompassDist = int.MinValue;
+
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
         private Canvas _flyCanvas; // own overlay canvas so the visor distortion can't bend the fly-ins
@@ -96,7 +104,15 @@ namespace BlocksBeyondTheStars.Client
 
             if (show)
             {
-                Refresh();
+                RefreshCompass(); // per frame: blips counter-rotate with the camera, throttling would judder
+
+                _refreshTimer -= Time.deltaTime;
+                bool force = Game.SelectedHotbarSlot != _lastSelSlot;
+                if (force || _refreshTimer <= 0f)
+                {
+                    _refreshTimer = RefreshInterval;
+                    Refresh();
+                }
             }
         }
 
@@ -503,7 +519,6 @@ namespace BlocksBeyondTheStars.Client
             _vitalsPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(226, ship ? 196 : 116);
 
             RefreshHotbar(loc);
-            RefreshCompass();
             RefreshTimeOfDay(loc);
             RefreshPlaytime(loc);
 
@@ -744,7 +759,14 @@ namespace BlocksBeyondTheStars.Client
             const float radius = 44f;
             PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
-            _compassDist.text = Game.ShipPosition.HasValue ? $"{Mathf.RoundToInt(dist)} m" : string.Empty;
+
+            // This runs per frame, so only rebuild the distance string when the rounded value changed.
+            int distNow = Game.ShipPosition.HasValue ? Mathf.RoundToInt(dist) : -1;
+            if (distNow != _lastCompassDist)
+            {
+                _lastCompassDist = distNow;
+                _compassDist.text = distNow >= 0 ? $"{distNow} m" : string.Empty;
+            }
 
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
             var beacons = Game.Beacons;

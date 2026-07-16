@@ -28,7 +28,7 @@ public sealed class ChunkStreamingTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private int ChunksLoadedAfterOneTick(string name, int budget)
+    private int ChunksLoadedAfterOneTick(string name, int budget, double timeBudgetMs = 0)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -40,6 +40,7 @@ public sealed class ChunkStreamingTests : IDisposable
             PlaceStarterShip = false,
             ViewDistanceChunks = 4,
             ChunkStreamPerTick = budget,
+            ChunkStreamBudgetMs = timeBudgetMs,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -61,6 +62,20 @@ public sealed class ChunkStreamingTests : IDisposable
 
         Assert.True(small <= 4, $"one tick must not stream more than the budget (got {small} for budget 4)");
         Assert.True(large > small, $"a larger budget should fill faster (large={large}, small={small})");
+    }
+
+    [Fact]
+    public void StreamTimeBudget_CutsAStreamingPassShort_ButAlwaysMakesProgress()
+    {
+        // The wall-clock budget exists for hosts whose tick shares the render thread (in-browser
+        // singleplayer): a burst of synchronous first-visit generations must not stall the frame. A
+        // near-zero budget is spent after the first send, so exactly one guaranteed chunk goes out —
+        // while the same count budget without a time budget streams the full per-tick allowance.
+        int unbudgeted = ChunksLoadedAfterOneTick("timebudget_off", 16);
+        int budgeted = ChunksLoadedAfterOneTick("timebudget_on", 16, timeBudgetMs: 0.000001);
+
+        Assert.True(budgeted >= 1, "a spent time budget must still stream at least one chunk (no starvation)");
+        Assert.True(budgeted < unbudgeted, $"the time budget should cut the pass short (budgeted={budgeted}, unbudgeted={unbudgeted})");
     }
 
     [Fact]

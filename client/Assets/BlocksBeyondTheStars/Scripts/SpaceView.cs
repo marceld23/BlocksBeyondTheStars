@@ -206,6 +206,9 @@ namespace BlocksBeyondTheStars.Client
         private int _appliedHullRgb = -1; // last hull colour applied (cube material tint or voxel re-mesh), to detect live changes
         private AudioSource _engine;
         private readonly Dictionary<string, GameObject> _entities = new Dictionary<string, GameObject>();
+        // Reused by the per-frame SyncEntities pass (same pattern as _remoteSeen/_remoteRemove below).
+        private readonly HashSet<string> _entitySeen = new HashSet<string>();
+        private readonly List<string> _entityRemove = new List<string>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
         private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; }
@@ -3369,7 +3372,8 @@ namespace BlocksBeyondTheStars.Client
         private void SyncEntities()
         {
             var space = Game.Space;
-            var seen = new HashSet<string>();
+            var seen = _entitySeen;
+            seen.Clear();
             if (space != null)
             {
                 foreach (var e in space.Entities)
@@ -3414,7 +3418,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (_entities.Count > seen.Count)
             {
-                var stale = new List<string>();
+                var stale = _entityRemove;
+                stale.Clear();
                 foreach (var id in _entities.Keys)
                 {
                     if (!seen.Contains(id))

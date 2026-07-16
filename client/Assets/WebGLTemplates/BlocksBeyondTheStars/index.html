@@ -106,6 +106,9 @@
         meta.name = 'viewport';
         meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
         document.getElementsByTagName('head')[0].appendChild(meta);
+        // Phone/tablet GPUs can't afford the native devicePixelRatio (2-3 → 4-9× the pixels of a laptop
+        // for the same CSS size): render at 1:1 CSS pixels. Desktop keeps native DPR so text stays crisp.
+        config.devicePixelRatio = 1;
       }
       // Desktop and mobile alike fill the whole browser client area (the CSS pins the canvas to the
       // viewport); Unity keeps the render target matched to the DOM size, so no manual resize handling.

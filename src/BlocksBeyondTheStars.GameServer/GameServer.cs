@@ -1421,6 +1421,13 @@ public sealed partial class GameServer
     {
         int perTickBudget = System.Math.Max(1, _config.ChunkStreamPerTick);
 
+        // Optional wall-clock budget (browser singleplayer: the tick shares the render thread). Started
+        // before any generation so a burst of expensive first-visit gens is cut off mid-loop; at least one
+        // chunk per tick always goes out so streaming can never starve entirely.
+        var streamTimer = _config.ChunkStreamBudgetMs > 0
+            ? System.Diagnostics.Stopwatch.StartNew()
+            : null;
+
         // Chunk band the build height maps to — the streamed column is clamped into it so a spoofed player
         // position can't make the server generate/cache chunks at arbitrary heights (memory DoS). See MinBuildY.
         int minChunkY = WorldConstants.WorldToChunk(MinBuildY);
@@ -1491,6 +1498,12 @@ public sealed partial class GameServer
             foreach (var (coord, _) in pending)
             {
                 if (sent >= perTickBudget)
+                {
+                    break;
+                }
+
+                // Time budget spent (see above) — but only after at least one send, so progress is guaranteed.
+                if (streamTimer != null && sent > 0 && streamTimer.Elapsed.TotalMilliseconds >= _config.ChunkStreamBudgetMs)
                 {
                     break;
                 }
