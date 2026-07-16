@@ -19,6 +19,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// mid-countdown joiners receive the active notice; the world admin's announce commands work even with
 /// cheats disabled; and the gateway's POST /announce is token-gated.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // the /announce HTTP round-trips starve in the parallel suite
 public sealed class MaintenanceAnnounceTests : IDisposable
 {
     private readonly string _root;

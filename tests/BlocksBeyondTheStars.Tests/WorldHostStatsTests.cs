@@ -15,6 +15,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// "Server health" card, and the TTL/single-flight cache that makes the public /api/stats endpoint safe.
 /// All pure logic — no docker, no /proc, no web host needed.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // the async cache hand-offs starve in the parallel suite
 public sealed class WorldHostStatsTests
 {
     // ---------------- /proc parsers ----------------

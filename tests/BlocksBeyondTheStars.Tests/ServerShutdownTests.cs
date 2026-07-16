@@ -15,6 +15,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// can be requested while startup worldgen is still running — Run() must honor that pre-latched request
 /// and go straight to the drain + save instead of re-arming the loop and running forever.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // real-time Run() loops starve in the parallel suite
 public sealed class ServerShutdownTests : IDisposable
 {
     private readonly string _root;
