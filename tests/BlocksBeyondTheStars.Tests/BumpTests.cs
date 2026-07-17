@@ -84,6 +84,68 @@ public sealed class BumpTests : IDisposable
         Assert.Contains(Path.GetFileName(jpgFiles[0]), json);
     }
 
+    [Fact]
+    public void BumpReport_WithConfiguredSink_ForwardsSnapshotWithoutImage()
+    {
+        var (server, client, _) = StartWorld();
+        var sink = new ForwardSink();
+        server.CrashUploader = sink;
+
+        var image = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 9, 8, 7, 6, 5 };
+        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] jetpack stuck in ceiling", Image = image }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        // The send runs on a background task — wait for the sink, not a fixed sleep.
+        Assert.True(sink.Sent.Wait(TimeSpan.FromSeconds(10)), "bump was not forwarded to the sink");
+
+        string json = sink.LastJson!;
+        Assert.Contains("[feedback] jetpack stuck in ceiling", json);       // description up front
+        Assert.Contains("\"platform\":\"server\"", json);                   // wire shape matches crash reports
+        using (var doc = System.Text.Json.JsonDocument.Parse(json))
+        {
+            var reportJson = doc.RootElement.GetProperty("reportJson");
+            Assert.Equal("bump", reportJson.GetProperty("reportType").GetString());
+            // No reportJson.kind — the ReportHost triages any kind as category "crash", and a bump
+            // must stay category "feedback" (source "server").
+            Assert.False(reportJson.TryGetProperty("kind", out _));
+            Assert.Equal("server", reportJson.GetProperty("source").GetString());
+        }
+        Assert.Contains("inventory", json);                                  // rich snapshot rides in reportJson
+        Assert.DoesNotContain(Convert.ToBase64String(image), json);          // image is never forwarded
+
+        // The local snapshot is still written — forwarding is an addition, not a replacement.
+        Assert.Equal(1, server.BumpsWritten);
+    }
+
+    [Fact]
+    public void BumpCommand_WithoutSink_StillWritesLocalSnapshotOnly()
+    {
+        var (server, client, _) = StartWorld();
+        Assert.Null(server.CrashUploader); // default: nothing configured, nothing sent
+
+        client.Send(NetCodec.Encode(new ChatIntent { Text = "/bump no sink here" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.Equal(1, server.BumpsWritten);
+    }
+
+    /// <summary>Captures the forwarded wire JSON and signals the test thread (the send is fire-and-forget
+    /// on a background task, so the test waits on the semaphore instead of sleeping).</summary>
+    private sealed class ForwardSink : ICrashReportSink
+    {
+        public string? LastJson;
+        public System.Threading.SemaphoreSlim Sent { get; } = new(0);
+
+        public bool IsConfigured => true;
+
+        public bool Send(string json)
+        {
+            LastJson = json;
+            Sent.Release();
+            return true;
+        }
+    }
+
     private (SvGameServer server, LoopbackClientTransport client, SaveGamePaths paths) StartWorld()
     {
         var paths = new SaveGamePaths(_root, _world);

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Geometry;
@@ -294,6 +295,13 @@ public sealed partial class GameServer
 
             _log.Info($"Bump #{_bumpCount} captured for {p.Name}: \"{description}\"{(hasImage ? " (+screenshot)" : string.Empty)} -> {file}");
             Send(session, new ServerMessage { Text = $"Debug snapshot #{_bumpCount} saved: {Path.GetFileName(file)}" });
+
+            // Forward the snapshot (without the image — the client's F1 path uploads the screenshot itself,
+            // and its base64 would triple the payload) to the report inbox when a crash-upload sink is
+            // configured: singleplayer gets the key from the bundled launcher, fleet worlds from the
+            // WorldHost. The local file above stays the source of truth; this send is one best-effort
+            // attempt with no retry queue.
+            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot);
         }
         catch (Exception e)
         {
@@ -301,6 +309,68 @@ public sealed partial class GameServer
             Send(session, new ServerMessage { Text = "Bump failed: " + e.Message });
         }
     }
+
+    /// <summary>Wraps a bump snapshot in the report inbox's wire shape (the same contract as
+    /// <see cref="BlocksBeyondTheStars.Persistence.CrashReportWriter"/> uses for crashes — title/description
+    /// up front, the snapshot verbatim in <c>reportJson</c>) and posts it through <see cref="CrashUploader"/>
+    /// on a background task. No-op when no sink is configured; never throws into the tick.</summary>
+    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot)
+    {
+        var sink = CrashUploader;
+        if (sink is null || !sink.IsConfigured)
+        {
+            return;
+        }
+
+        try
+        {
+            var wire = new
+            {
+                title = TruncateWire($"Bump [{_meta.WorldName}]: {(string.IsNullOrEmpty(description) ? playerName : description)}", 110),
+                description = string.IsNullOrEmpty(description) ? "(no description)" : description,
+                email = string.Empty,
+                gameVersion = ServerVersionString,
+                buildNumber = string.Empty,
+                playerId = playerId ?? string.Empty,
+                playerName = playerName ?? string.Empty,
+                sessionId = string.Empty,
+                platform = "server",
+                clientTimestamp = DateTime.UtcNow.ToString("o"),
+                // No "kind" here on purpose: the ReportHost triages any reportJson.kind as category
+                // "crash"; a bump is player feedback context, so it stays category "feedback" with
+                // source "server" and the reportType marker for filtering.
+                reportJson = new
+                {
+                    schemaVersion = 1,
+                    reportType = "bump",
+                    source = "server",
+                    world = _meta.WorldName,
+                    serverVersion = ServerVersionString,
+                    snapshot,
+                },
+            };
+
+            string json = JsonSerializer.Serialize(wire);
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    sink.Send(json);
+                }
+                catch
+                {
+                    // one best-effort attempt; the local bump file remains the source of truth
+                }
+            });
+        }
+        catch
+        {
+            // forwarding must never break the local bump write or the tick
+        }
+    }
+
+    private static string TruncateWire(string value, int max)
+        => value.Length <= max ? value : value.Substring(0, max);
 
     /// <summary>Flattens an inventory's non-empty slots into a serialisable list (slot index + item + count).</summary>
     private static List<object> ItemList(BlocksBeyondTheStars.Shared.State.Inventory inv)

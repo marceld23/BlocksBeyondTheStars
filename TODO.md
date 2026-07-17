@@ -100,6 +100,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Singleplayer feedback reaches the VPS: SP crash-report key + /bump snapshot forwarding (#372, 2026-07-17, PR #373)
+Two gaps closed so singleplayer feedback fully reaches the report inbox. (The F1 dialog itself already
+posted client-direct from SP in release builds — what never arrived was the rich server context.)
+**A — SP crash reports:** `LocalServerLauncher` now passes the client's baked-in feedback key to the
+bundled server as `BBS_CRASH_REPORT_KEY` (release builds only; dev builds keep the empty key = local-only),
+so the SP server's queued crash reports upload automatically via the existing 60 s flush. **B — `/bump`
+snapshot forwarding:** `GameServer.HandleBump` additionally posts each snapshot (inventory, surroundings,
+30 s history — WITHOUT the image; the client's own POST already carries the screenshot) through the
+`CrashUploader` sink, wire-shaped like a crash report but deliberately without `reportJson.kind`, so the
+inbox files it as category *feedback* / `source: "server"` / `reportType: "bump"`. Local `bumps/` file
+stays the source of truth; one best-effort background send, no retry queue. Also active on the fleet
+(worlds already carry the key since #363). `CrashUploader` promoted internal→public for host/test wiring.
+Tests: `BumpReport_WithConfiguredSink_ForwardsSnapshotWithoutImage`, `BumpCommand_WithoutSink_…`.
+Docs: PLAYER_FEEDBACK.md + REPORT_HOST.md.
+
 ### ★ RLE chunk payload (#356, 2026-07-17, branch perf/rle-chunk-payload)
 `ChunkDataMessage` gains `BlocksRle` (flat value/run-length ushort pairs, new `ChunkBlocksRle` codec in
 Networking); the server ships whichever representation is smaller (terrain almost always RLE — a

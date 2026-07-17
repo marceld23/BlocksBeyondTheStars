@@ -118,8 +118,9 @@ public sealed partial class GameServer
     private int _crashFlushRunning; // 0/1 guard so only one background flush runs at a time (Interlocked)
 
     /// <summary>The optional uploader for automatic crash sending, set by the host once it has read config.
-    /// Null / not-configured ⇒ reports just accumulate on disk (the source of truth) for a manual send.</summary>
-    internal ICrashReportSink? CrashUploader { get; set; }
+    /// Null / not-configured ⇒ reports just accumulate on disk (the source of truth) for a manual send.
+    /// Also carries <c>/bump</c> snapshots to the report inbox (see <c>GameServerBump</c>).</summary>
+    public ICrashReportSink? CrashUploader { get; set; }
 
     /// <summary>Once per <see cref="CrashFlushIntervalSeconds"/>, hands the on-disk queue to a background task
     /// so live faults reach the website within the same session — WITHOUT blocking the single-threaded tick on

@@ -26,6 +26,8 @@ FeedbackUi dialog  (title, description, optional e-mail, privacy hint)
    │                on failure ──► FeedbackSpool (persistentDataPath/feedback) — retried on later
    │                              session starts, max 5 attempts, then parked in givenup/
    └──────────────► NetworkClient.SendBumpReport()  ──►  GameServer  (rich local snapshot on own/SP server)
+                                                            │  when a crash-upload sink is configured
+                                                            └──► same snapshot (minus image) ──► report inbox
 ```
 
 ### Why client-direct for the web upload
@@ -34,6 +36,21 @@ The web POST is sent **from the client**, not relayed through the game server, s
 developers even when the player is on someone else's dedicated server. It is fully decoupled from the game
 protocol. The parallel `/bump` message is kept so that, when the player *is* on their own / singleplayer
 server, the server still writes its rich snapshot (inventory, position, surroundings, 30 s history).
+
+### Server-side snapshot forwarding (singleplayer + fleet)
+
+The rich `/bump` snapshot no longer stays local-only: when the server has a crash-upload sink configured
+(`CrashReportEndpoint` + `CrashReportApiKey`, see [REPORT_HOST](REPORT_HOST.md)), `GameServer` also posts
+the snapshot to the inbox — wrapped in the same wire shape as crash reports (`reportJson.reportType:
+"bump"`, `source: "server"`, deliberately **no** `reportJson.kind` so the inbox files it under category
+*feedback*, not *crash*). The screenshot is never re-sent (the client's own POST already carries it) and
+the send is one best-effort background attempt; the on-disk `bumps/` file remains the source of truth.
+
+Who has a sink: **singleplayer** — `LocalServerLauncher` hands the client's baked-in feedback key to the
+bundled server as `BBS_CRASH_REPORT_KEY` (release builds only; dev builds have an empty key and stay
+local-only). This also means SP server **crash reports** now upload automatically. **Hosted fleet** —
+world instances get the key from the WorldHost (`BBS_WH_CRASH_REPORT_KEY`, #363). **Self-hosted
+dedicated servers** — off by default (no phone-home), opt-in via the config/env above.
 
 ## Code map
 

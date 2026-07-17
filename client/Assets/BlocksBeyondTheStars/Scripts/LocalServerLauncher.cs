@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using BlocksBeyondTheStars.Build;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -210,6 +211,18 @@ namespace BlocksBeyondTheStars.Client
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
+
+            // Hand the client's baked-in feedback key to the bundled server so its crash reports and /bump
+            // snapshots reach the report inbox too (ServerConfig reads BBS_CRASH_REPORT_KEY; the endpoint
+            // default already points at the ReportHost). Release builds only — dev builds have an empty key
+            // and keep the local-only behavior. The key is the same spam-gate the client itself ships, so
+            // passing it to the child process on the same machine exposes nothing new.
+            string crashKey = BugReportBuildSecrets.ApiKey;
+            if (!string.IsNullOrEmpty(crashKey))
+            {
+                _pendingPsi.EnvironmentVariables["BBS_CRASH_REPORT_KEY"] = crashKey;
+            }
+
             return true;
 #endif
         }
