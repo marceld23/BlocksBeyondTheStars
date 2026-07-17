@@ -56,9 +56,16 @@ namespace BlocksBeyondTheStars.Client
         [System.ThreadStatic] private static Vector3[] _greebleQuadScratch;
         [System.ThreadStatic] private static Vector2[] _uvCornersScratch;
 
+        // Collider greedy pass scratch: bit f of a cell records "the main loop emitted a collider face in
+        // direction f here"; EmitGreedyColliderFaces then merges those bits into maximal rectangles per
+        // direction + slice. Keeping the MAIN LOOP as the single source of which faces exist guarantees the
+        // merged collider covers exactly the same surface as the per-face one did.
+        [System.ThreadStatic] private static byte[] _colliderFaceScratch;
+        [System.ThreadStatic] private static bool[] _colliderMaskScratch;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
-        /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.
+        /// glass/force-fields still block. The collider carries its own greedy-merged vertices (no normals/uvs).
         /// Convenience wrapper that builds the geometry and immediately uploads it to Unity meshes on the
         /// CALLING (main) thread — used by the one-shot ship/speeder meshers.</summary>
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
@@ -94,7 +101,8 @@ namespace BlocksBeyondTheStars.Client
             var verts = data.Verts;
             var tris = data.OpaqueTris;           // submesh 0: opaque blocks
             var trisT = data.TransparentTris;     // submesh 1: see-through blocks (glass / force fields)
-            var colliderTris = data.ColliderTris; // solid faces only (no fluids) → the collision mesh
+            var colliderTris = data.ColliderTris;   // solid faces only (no fluids) → the collision mesh
+            var colliderVerts = data.ColliderVerts; // the collision mesh's OWN vertices (greedy-merged rects + shaped blocks)
             var colors = data.Colors;
             var uvs = data.Uvs;
             var skyUv = data.SkyUv; // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint, 3 player dye)
@@ -111,6 +119,13 @@ namespace BlocksBeyondTheStars.Client
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
+
+            // Collider faces are collected as per-cell direction bits and greedy-merged AFTER the main loop:
+            // the collider mesh carries no UVs/AO, so merging coplanar faces into big rectangles is lossless —
+            // and fewer collider tris cut exactly the costs that hurt most (the synchronous MeshCollider cook
+            // on WebGL and Physics.BakeMesh time on desktop).
+            var colliderFaces = _colliderFaceScratch ??= new byte[n * n * n];
+            System.Array.Clear(colliderFaces, 0, colliderFaces.Length);
 
             // Coloured block-light field: a per-channel flood-fill from nearby light sources (placed glow
             // blocks + dedicated light blocks), baked per-vertex so placed lights actually illuminate their
@@ -440,7 +455,7 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
                     Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
                     float flMode = dyed ? 3f : isFlora ? 1f : 0f;
-                    AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                    AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         SolidFloraShape(collKey), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir);
                     continue;
@@ -458,7 +473,7 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 shBlDir = BlockLightDirAt(wx, wy + 1, wz);
                     Color shTint = dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
                     float shTintMode = dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
-                    AddShapedBlock(verts, tris, colliderTris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                    AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z), uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
                     continue;
@@ -545,14 +560,15 @@ namespace BlocksBeyondTheStars.Client
                     // Bevel cubes inset each exposed convex edge of the face by BevelAmount (edges against a
                     // solid neighbour stay flush → no gap); the chamfer strips + corners are added after the loop.
                     Vector3[] bevelQuad = bevel ? BevelInsetQuad(new Vector3(x, y, z), f, openMask) : null;
-                    int faceBase = verts.Count;
                     AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
                         c0, c1, c2, c3, uv,
                         dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation
                     if (collidable)
                     {
-                        colliderTris.Add(faceBase); colliderTris.Add(faceBase + 1); colliderTris.Add(faceBase + 2);
-                        colliderTris.Add(faceBase); colliderTris.Add(faceBase + 2); colliderTris.Add(faceBase + 3);
+                        // Recorded as a direction bit; the greedy pass after the loop merges these into big
+                        // rectangles. Uses the FULL unit face (not the bevel-inset quad the render mesh may
+                        // use) — the bevel is render-only decoration, the block still occupies its whole cell.
+                        colliderFaces[WorldConstants.LocalIndex(x, y, z)] |= (byte)(1 << f);
                     }
 
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
@@ -625,6 +641,12 @@ namespace BlocksBeyondTheStars.Client
             // reproduces what Mesh.RecalculateNormals did for this mesh). Doing it as pure data, instead
             // of the main-thread-only Mesh.RecalculateNormals/RecalculateBounds, both saves that work and
             // lets the whole build move onto a worker thread later (A2).
+            // Collider greedy pass: merge the recorded per-cell face bits into maximal rectangles per
+            // direction + slice, emitted into the collider's OWN vertex list. Because the bits were set at
+            // exactly the spots the old code emitted a per-face collider quad, the merged mesh covers the
+            // identical surface — just with far fewer triangles to cook/bake.
+            EmitGreedyColliderFaces(colliderFaces, colliderVerts, colliderTris, n);
+
             var normals = data.Normals;
             for (int i = 0; i < verts.Count; i++)
             {
@@ -634,9 +656,127 @@ namespace BlocksBeyondTheStars.Client
             AccumulateFlatNormals(verts, tris, normals);
             AccumulateFlatNormals(verts, trisT, normals);
             data.Bounds = ComputeBounds(verts, n);
+            data.ColliderBounds = ComputeBounds(colliderVerts, n);
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
             return data;
+        }
+
+        /// <summary>Greedy-merges the recorded collider face bits into maximal axis-aligned rectangles, one
+        /// direction + slice at a time (classic voxel greedy meshing — but collider-only: the collision mesh
+        /// carries no UVs/AO, so merging is lossless there while the render mesh keeps its per-face attributes).
+        /// Corner order per direction mirrors <see cref="FaceQuad"/>, so windings/outward normals match the
+        /// per-face quads this replaces.</summary>
+        private static void EmitGreedyColliderFaces(byte[] faces, List<Vector3> colliderVerts, List<int> colliderTris, int n)
+        {
+            var mask = _colliderMaskScratch ??= new bool[n * n];
+            for (int f = 0; f < 6; f++)
+            for (int a = 0; a < n; a++)
+            {
+                // Slice mask over the two in-plane axes: u/v = (x,z) for ±Y, (y,z) for ±X, (x,y) for ±Z.
+                bool any = false;
+                for (int v = 0; v < n; v++)
+                for (int u = 0; u < n; u++)
+                {
+                    int x = f < 2 ? u : f < 4 ? a : u;
+                    int y = f < 2 ? a : f < 4 ? u : v;
+                    int z = f < 4 ? v : a;
+                    bool set = (faces[WorldConstants.LocalIndex(x, y, z)] & (1 << f)) != 0;
+                    mask[u + v * n] = set;
+                    any |= set;
+                }
+
+                if (!any)
+                {
+                    continue;
+                }
+
+                for (int v = 0; v < n; v++)
+                for (int u = 0; u < n; u++)
+                {
+                    if (!mask[u + v * n])
+                    {
+                        continue;
+                    }
+
+                    // Grow the widest run along u, then extend it down v while every row stays full.
+                    int w = 1;
+                    while (u + w < n && mask[u + w + v * n])
+                    {
+                        w++;
+                    }
+
+                    int h = 1;
+                    while (v + h < n)
+                    {
+                        bool full = true;
+                        for (int k = 0; k < w; k++)
+                        {
+                            if (!mask[u + k + (v + h) * n])
+                            {
+                                full = false;
+                                break;
+                            }
+                        }
+
+                        if (!full)
+                        {
+                            break;
+                        }
+
+                        h++;
+                    }
+
+                    for (int dv = 0; dv < h; dv++)
+                    for (int du = 0; du < w; du++)
+                    {
+                        mask[u + du + (v + dv) * n] = false;
+                    }
+
+                    EmitColliderRect(colliderVerts, colliderTris, f, a, u, v, w, h);
+                    u += w - 1; // the whole run is consumed
+                }
+            }
+        }
+
+        /// <summary>Emits one merged collider rectangle: cells [u,u+w)×[v,v+h) of slice <paramref name="a"/>
+        /// in face direction <paramref name="f"/>. Corner order matches <see cref="FaceQuad"/> for the unit
+        /// case, so the geometric normal points outward exactly like the per-face quads did.</summary>
+        private static void EmitColliderRect(List<Vector3> colliderVerts, List<int> colliderTris, int f, int a, int u, int v, int w, int h)
+        {
+            float u0 = u, u1 = u + w, v0 = v, v1 = v + h;
+            float p = a + (f == 0 || f == 2 || f == 4 ? 1f : 0f); // positive directions sit on the far cell plane
+            int baseIdx = colliderVerts.Count;
+            switch (f)
+            {
+                case 0: // +Y (u=x, v=z)
+                    colliderVerts.Add(new Vector3(u0, p, v0)); colliderVerts.Add(new Vector3(u0, p, v1));
+                    colliderVerts.Add(new Vector3(u1, p, v1)); colliderVerts.Add(new Vector3(u1, p, v0));
+                    break;
+                case 1: // -Y (u=x, v=z)
+                    colliderVerts.Add(new Vector3(u0, p, v1)); colliderVerts.Add(new Vector3(u0, p, v0));
+                    colliderVerts.Add(new Vector3(u1, p, v0)); colliderVerts.Add(new Vector3(u1, p, v1));
+                    break;
+                case 2: // +X (u=y, v=z)
+                    colliderVerts.Add(new Vector3(p, u0, v0)); colliderVerts.Add(new Vector3(p, u1, v0));
+                    colliderVerts.Add(new Vector3(p, u1, v1)); colliderVerts.Add(new Vector3(p, u0, v1));
+                    break;
+                case 3: // -X (u=y, v=z)
+                    colliderVerts.Add(new Vector3(p, u0, v1)); colliderVerts.Add(new Vector3(p, u1, v1));
+                    colliderVerts.Add(new Vector3(p, u1, v0)); colliderVerts.Add(new Vector3(p, u0, v0));
+                    break;
+                case 4: // +Z (u=x, v=y)
+                    colliderVerts.Add(new Vector3(u1, v0, p)); colliderVerts.Add(new Vector3(u1, v1, p));
+                    colliderVerts.Add(new Vector3(u0, v1, p)); colliderVerts.Add(new Vector3(u0, v0, p));
+                    break;
+                default: // -Z (u=x, v=y)
+                    colliderVerts.Add(new Vector3(u0, v0, p)); colliderVerts.Add(new Vector3(u0, v1, p));
+                    colliderVerts.Add(new Vector3(u1, v1, p)); colliderVerts.Add(new Vector3(u1, v0, p));
+                    break;
+            }
+
+            colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 1); colliderTris.Add(baseIdx + 2);
+            colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 2); colliderTris.Add(baseIdx + 3);
         }
 
         /// <summary>Writes flat per-face normals into <paramref name="normals"/>: every face emitted by the
@@ -750,8 +890,8 @@ namespace BlocksBeyondTheStars.Client
         /// per-vertex streams as a cube face so it textures, tints + lights identically. Per-face shade
         /// (vertex colour .b) comes from the face normal — top-bright/bottom-dark like cube faces — while the
         /// lit atlas shader does the main directional shading from the per-face normals.</summary>
-        private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Color> colors,
-            List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
+        private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Vector3> colliderVerts,
+            List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir)
         {
@@ -776,11 +916,16 @@ namespace BlocksBeyondTheStars.Client
                 var tan = new Vector4(tanDir.x, tanDir.y, tanDir.z, hand);
 
                 int baseIdx = verts.Count;
+                // The collision mesh has its own vertex list (the cube faces in it are greedy-merged rects),
+                // so shaped blocks append their vertices to BOTH streams with independent base indices.
+                int collBase = colliderVerts.Count;
                 int n = face.IsQuad ? 4 : 3;
                 verts.Add(a); verts.Add(b); verts.Add(c);
+                colliderVerts.Add(a); colliderVerts.Add(b); colliderVerts.Add(c);
                 if (face.IsQuad)
                 {
                     verts.Add(d);
+                    colliderVerts.Add(d);
                     uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMin, uv.yMax));
                     uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.xMax, uv.yMin));
                 }
@@ -800,11 +945,11 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
-                colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 1); colliderTris.Add(baseIdx + 2);
+                colliderTris.Add(collBase); colliderTris.Add(collBase + 1); colliderTris.Add(collBase + 2);
                 if (face.IsQuad)
                 {
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
-                    colliderTris.Add(baseIdx); colliderTris.Add(baseIdx + 2); colliderTris.Add(baseIdx + 3);
+                    colliderTris.Add(collBase); colliderTris.Add(collBase + 2); colliderTris.Add(collBase + 3);
                 }
             }
         }
@@ -1466,7 +1611,9 @@ namespace BlocksBeyondTheStars.Client
         public readonly List<Vector3> BlockLightDir = new List<Vector3>();// TEXCOORD4: dominant block-light direction
         public readonly List<Vector4> Tangents = new List<Vector4>();
         public readonly List<Vector3> Normals = new List<Vector3>();  // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
+        public readonly List<Vector3> ColliderVerts = new List<Vector3>(); // the collision mesh's own vertices (greedy rects + shaped blocks)
         public Bounds Bounds;
+        public Bounds ColliderBounds;
         public readonly List<Vector4> Scatter = new List<Vector4>();  // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
 
         // Small bounded pool: builds run on worker threads while Release happens on the main thread, so access
@@ -1505,10 +1652,11 @@ namespace BlocksBeyondTheStars.Client
                     return; // double-release, or the pool is full — let the GC take it
                 }
 
-                Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); ColliderTris.Clear();
+                Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
                 Bounds = default;
+                ColliderBounds = default;
                 _pooled = true;
                 Pool.Push(this);
             }
@@ -1544,14 +1692,16 @@ namespace BlocksBeyondTheStars.Client
             mesh.SetNormals(Normals);
             mesh.bounds = Bounds;
 
-            // Collision mesh: same vertices, but only the solid (non-fluid) faces, so water/lava are passable.
+            // Collision mesh: its OWN vertex list (greedy-merged solid faces + shaped-block geometry, fluids
+            // excluded so water is passable) — far fewer verts/tris than the render mesh, which is exactly
+            // what makes the WebGL cook and the desktop Physics.BakeMesh cheap.
             Mesh collider = null;
             if (ColliderTris.Count > 0)
             {
                 collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-                collider.SetVertices(Verts);
+                collider.SetVertices(ColliderVerts);
                 collider.SetTriangles(ColliderTris, 0);
-                collider.bounds = Bounds;
+                collider.bounds = ColliderBounds;
             }
 
             return (mesh, collider);

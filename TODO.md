@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Collider-only greedy meshing (#355, 2026-07-17, branch perf/collider-greedy — LOCAL, not yet PR'd)
+The collision mesh gets its own vertex list and its cube faces are greedy-merged into maximal rectangles
+per direction + slice. The main loop stays the single source of which faces exist (it records per-cell
+direction bits wherever it used to emit a per-face collider quad), so the merged collider covers the
+IDENTICAL surface — render geometry, AO, and all special cases (fluids, shapes, cross plants) unchanged.
+Fewer collider tris cut the synchronous WebGL `MeshCollider` cook and desktop `Physics.BakeMesh` directly.
+One deliberate delta: collider quads use the FULL unit face instead of the render mesh's 0.06 bevel-inset
+corners (the bevel is render-only decoration). PerfProbe High/VD8 walk after #354+#355: 48 FPS, max frame
+26.2 ms, ZERO >33 ms frames (baseline: 41 FPS, max 61.3, 47 frames >33 ms), GC ~0.9/s (was ~25/s).
+Verified: 1035 + 129 tests green, local Unity build green, 60 s scripted-walk collision smoke via PerfProbe.
+
 ### ★ Mesher buffer pooling: chunk builds stop allocating (#354, 2026-07-17, branch perf/mesher-pooling)
 `ChunkMeshData` is rented from a small bounded pool and released after the main-thread upload (or on the
 superseded/world-epoch discard paths in `DrainBuiltChunks`), so the ~13 geometry lists keep their large
