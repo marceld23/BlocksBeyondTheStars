@@ -11,7 +11,35 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-_Nothing yet — [v0.8.2](#082--2026-07-16) is the latest release._
+_Nothing yet — [v0.8.3](#083--2026-07-17) is the latest release._
+
+## [0.8.3] — 2026-07-17
+
+The performance release: a measured pass over the whole stack — meshing, physics, graphics presets and the network wire. Every claim below comes from automated before/after captures on the same reference laptop (Ryzen 9 7940HS / RTX 2000 Ada); the tool that produced them ships in this release too.
+
+### ⚡ Exploring no longer stutters
+- **Chunk meshing stopped allocating.** Building a chunk's mesh used to create fresh geometry buffers every time — the garbage collector ran ~25 times per second during a walk on High, each one a small stop-the-world pause. The buffers are now pooled and reused (~1 collection/s), and the worst frame in a full minute of walking dropped from 61 ms to 26 ms — **zero frames above 33 ms remain**. (#368)
+- **The collision mesh is greedy-merged:** coplanar block faces collapse into large rectangles (collision-only — the rendered world is untouched, and collision behaves identically). Far fewer triangles to cook means cheaper physics baking on desktop and a lighter single-threaded collider build in the browser. (#369)
+- The HUD stopped rebuilding its texts every frame, and the entity views stopped allocating per frame. (#365)
+- Net effect on High/VD8: **41 → 48 FPS** in the walking benchmark, with the hitches gone entirely.
+
+### 🎚️ Quality presets that actually scale (Low: +35%)
+- MSAA 4x and HDR were silently on for **every** preset — Potato and the browser included. Now they scale: MSAA off on Potato/Low, 2x on Medium, 4x on High; HDR off on Potato; Potato additionally renders the 3D view at 75% resolution while the UI stays pixel-crisp. (#370)
+- The holographic visor HUD rendered a second full-screen camera into a texture every frame — on every preset. That pipeline now only runs on Medium+ with visor effects enabled; below that the HUD is the same clean flat overlay it always falls back to. Flipping the setting or preset in the pause menu switches live. (#370)
+- Measured on the Low preset: **72 → 97 FPS** in the same walk, zero hitch frames.
+
+### 🌐 Browser: world data ~20x smaller on the wire
+- Terrain chunks now travel **run-length encoded**: the browser's JSON wire path shrinks from ~15–25 KB per chunk to usually a few hundred bytes, and an initial view fill drops from several megabytes to a fraction — faster arcade joins on glitch.fun, a faster first picture in browser singleplayer, and lighter server egress. Native clients get smaller payloads too. The server always sends whichever encoding is smaller, so worst-case terrain costs nothing extra. (#371)
+- Browser singleplayer already streams world data under a per-frame time budget, and phone/tablet browsers render at a capped pixel density since this cycle's quick-wins round. (#365)
+- ⚠️ **Compatibility:** the network protocol version moves to 2. Updated servers reject older game versions at join with a clear "please update" message — the desktop launcher updates automatically, and browser players always run the latest build. Singleplayer is unaffected (client and bundled server always match).
+
+### 📮 Singleplayer feedback finally reaches us
+- Crash reports from the bundled singleplayer server and the rich F1-feedback snapshots now flow to our own report inbox (release builds only — dev builds stay local), so "it broke in singleplayer" no longer disappears into a folder nobody sees. Your screenshot is only ever sent once, and the local file remains the source of truth. (#373)
+- Fleet worlds forward the crash-report key to every world instance, so a crashed hosted world reports itself on its next start. (#364)
+
+### 🔬 For the curious
+- **PerfProbe** — the automated benchmark behind this release's numbers: `-perfProbe` boots a fixed-seed world, records a standing and a scripted-walk phase and writes frame-time/GC stats, so every future perf claim is one command away. (#367)
+- The pull-request CI gate is back under five minutes. (#366)
 
 ## [0.8.2] — 2026-07-16
 
@@ -425,7 +453,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.7.7...v0.8.0
