@@ -34,6 +34,28 @@ namespace BlocksBeyondTheStars.Client
         /// faces are hidden, so it has no convex edges). Set to 0 to disable the whole bevel pass. Tunable.</summary>
         public const float BevelAmount = 0.06f;
 
+        // Per-build scratch caches, reused across builds instead of freshly allocated each time. Thread-static
+        // because desktop geometry builds run on thread-pool workers (each thread runs at most one build at a
+        // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
+        // needed. On WebGL everything runs on the single main thread — same invariant, one buffer set.
+        [System.ThreadStatic] private static Dictionary<long, int> _colTopScratch;
+        [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), Vector4> _waterCellsScratch;
+        [System.ThreadStatic] private static Dictionary<(int, int, int), bool> _aoOccScratch;
+        [System.ThreadStatic] private static List<(int X, int Y, int Z, Vector3 Col)> _lightSourcesScratch;
+        [System.ThreadStatic] private static Dictionary<(int, int, int), bool> _lightOpaqueScratch;
+        [System.ThreadStatic] private static Dictionary<(int, int, int), Vector3> _lightFieldScratch;
+        [System.ThreadStatic] private static Dictionary<(int, int, int), Vector3> _lightResultScratch;
+        [System.ThreadStatic] private static Queue<(int, int, int)> _lightQueueScratch;
+
+        // Per-face quad/UV scratch (one 4-element array per CALL SITE, so two live quads never alias): the
+        // mesher touches these thousands of times per chunk, and a fresh array per face was a real share of
+        // the per-build garbage.
+        [System.ThreadStatic] private static Vector3[] _faceAoQuadScratch;
+        [System.ThreadStatic] private static Vector3[] _addFaceQuadScratch;
+        [System.ThreadStatic] private static Vector3[] _bevelQuadScratch;
+        [System.ThreadStatic] private static Vector3[] _greebleQuadScratch;
+        [System.ThreadStatic] private static Vector2[] _uvCornersScratch;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. Both share vertex positions; the collider has no normals/uvs.
@@ -43,7 +65,12 @@ namespace BlocksBeyondTheStars.Client
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null)
-            => BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape).ToMeshes();
+        {
+            var data = BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape);
+            var meshes = data.ToMeshes();
+            data.Release();
+            return meshes;
+        }
 
         /// <summary>Builds ONLY the chunk geometry (vertex/index/attribute lists + flat normals + bounds) as
         /// plain data — NO Unity Mesh API calls, so it is safe to run on a worker thread; call
@@ -58,23 +85,29 @@ namespace BlocksBeyondTheStars.Client
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null)
         {
-            var verts = new List<Vector3>();
-            var tris = new List<int>();   // submesh 0: opaque blocks
-            var trisT = new List<int>();  // submesh 1: see-through blocks (glass / force fields)
-            var colliderTris = new List<int>(); // solid faces only (no fluids) → the collision mesh
-            var colors = new List<Color>();
-            var uvs = new List<Vector2>();
-            var skyUv = new List<Vector2>(); // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint, 3 player dye)
+            // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
+            // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
+            // the dominant GC-pressure source on desktop and main-thread garbage on WebGL. The rented
+            // ChunkMeshData travels to the main thread and MUST be returned via ChunkMeshData.Release()
+            // once uploaded or discarded.
+            var data = ChunkMeshData.Rent();
+            var verts = data.Verts;
+            var tris = data.OpaqueTris;           // submesh 0: opaque blocks
+            var trisT = data.TransparentTris;     // submesh 1: see-through blocks (glass / force fields)
+            var colliderTris = data.ColliderTris; // solid faces only (no fluids) → the collision mesh
+            var colors = data.Colors;
+            var uvs = data.Uvs;
+            var skyUv = data.SkyUv; // x = skylight (1 = sees sky); y = tint mode (1 flora, 2 hull paint, 3 player dye)
             // x = foliage flag (1 = clip the tile's alpha → cutout leaves); yzw = the face's tint RGB —
             // per-species flora colour (mode 1; black = the shader falls back to the global planet hue),
             // the ship's hull paint (mode 2) or the player's dye colour (mode 3).
-            var leafUv = new List<Vector4>();
-            var blockLight = new List<Vector3>(); // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
-            var blockLightDir = new List<Vector3>(); // TEXCOORD4: dominant block-light direction (toward source), 0 = none
-            var tangents = new List<Vector4>(); // per-face tangents for normal mapping
+            var leafUv = data.LeafUv;
+            var blockLight = data.BlockLight; // TEXCOORD3: propagated coloured block-light at each vertex (0..1 rgb)
+            var blockLightDir = data.BlockLightDir; // TEXCOORD4: dominant block-light direction (toward source), 0 = none
+            var tangents = data.Tangents; // per-face tangents for normal mapping
             // Ground-detail scatter points (not part of the mesh): xyz = local cell-top position, w = type
             // (0 = grass tuft, 1 = pebble). GroundScatter draws them GPU-instanced, culled + quality-gated.
-            var scatter = new List<Vector4>();
+            var scatter = data.Scatter;
 
             var origin = WorldConstants.ChunkOrigin(chunk.Coord);
             int n = WorldConstants.ChunkSize;
@@ -114,7 +147,8 @@ namespace BlocksBeyondTheStars.Client
             // above its column's top (so caves, building/ship interiors and overhang undersides go dark,
             // while open ground + cliff faces stay sunlit). The sun/sky terms are scaled by this in the
             // block shader; the headlamp + emissive blocks light regardless, so caves need a lamp/lights.
-            var colTop = new Dictionary<long, int>();
+            var colTop = _colTopScratch ??= new Dictionary<long, int>();
+            colTop.Clear();
             int Top(int wx, int wz)
             {
                 long key = ((long)(uint)wx) | ((long)wz << 32);
@@ -167,7 +201,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Per-cell water classification cache for this build (each cell is sampled by up to four
             // corners; classify it once).
-            var waterCells = new Dictionary<(int X, int Y, int Z), Vector4>();
+            var waterCells = _waterCellsScratch ??= new Dictionary<(int X, int Y, int Z), Vector4>();
+            waterCells.Clear();
             Vector4 WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
                 var key = (cwx, cwy, cwz);
@@ -213,7 +248,8 @@ namespace BlocksBeyondTheStars.Client
             // the blocky world reads far more grounded/organic. Baked into vertex-colour .b, which the atlas
             // shader already multiplies into the lighting — no shader change. Air, glass, water + plants don't
             // occlude; opaque solids do. The outward-cell probes are cached for the chunk.
-            var aoOcc = new Dictionary<(int, int, int), bool>();
+            var aoOcc = _aoOccScratch ??= new Dictionary<(int, int, int), bool>();
+            aoOcc.Clear();
             bool AoOccluder(int ax, int ay, int az)
             {
                 var key = (ax, ay, az);
@@ -237,7 +273,7 @@ namespace BlocksBeyondTheStars.Client
                 var dir = Faces[f];
                 int cx = bx + dir.X, cy = by + dir.Y, cz = bz + dir.Z; // the outward (air) layer
                 int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;          // normal axis (contributes no offset)
-                var q = FaceQuad(Vector3.zero, f);
+                var q = FaceQuad(Vector3.zero, f, ref _faceAoQuadScratch);
                 var res = Vector4.one;
                 for (int i = 0; i < 4; i++)
                 {
@@ -589,36 +625,25 @@ namespace BlocksBeyondTheStars.Client
             // reproduces what Mesh.RecalculateNormals did for this mesh). Doing it as pure data, instead
             // of the main-thread-only Mesh.RecalculateNormals/RecalculateBounds, both saves that work and
             // lets the whole build move onto a worker thread later (A2).
-            var normals = new Vector3[verts.Count];
+            var normals = data.Normals;
+            for (int i = 0; i < verts.Count; i++)
+            {
+                normals.Add(default);
+            }
+
             AccumulateFlatNormals(verts, tris, normals);
             AccumulateFlatNormals(verts, trisT, normals);
-            var bounds = ComputeBounds(verts, n);
+            data.Bounds = ComputeBounds(verts, n);
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
-            return new ChunkMeshData
-            {
-                Verts = verts,
-                OpaqueTris = tris,
-                TransparentTris = trisT,
-                ColliderTris = colliderTris,
-                Colors = colors,
-                Uvs = uvs,
-                SkyUv = skyUv,
-                LeafUv = leafUv,
-                BlockLight = blockLight,
-                BlockLightDir = blockLightDir,
-                Tangents = tangents,
-                Normals = normals,
-                Bounds = bounds,
-                Scatter = scatter,
-            };
+            return data;
         }
 
         /// <summary>Writes flat per-face normals into <paramref name="normals"/>: every face emitted by the
         /// mesher owns its own (unwelded) vertices, so a vertex's normal is simply its triangle's geometric
         /// normal. This reproduces Mesh.RecalculateNormals for this mesh exactly, but as plain data so the
         /// build can run off the main thread (no Mesh API calls).</summary>
-        private static void AccumulateFlatNormals(List<Vector3> verts, List<int> tris, Vector3[] normals)
+        private static void AccumulateFlatNormals(List<Vector3> verts, List<int> tris, List<Vector3> normals)
         {
             for (int t = 0; t + 2 < tris.Count; t += 3)
             {
@@ -804,7 +829,7 @@ namespace BlocksBeyondTheStars.Client
             const float insetT = 0.26f, raise = 0.02f;
             var dir = Faces[face];
             var nrm = new Vector3(dir.X, dir.Y, dir.Z);
-            var q = FaceQuad(cell, face);
+            var q = FaceQuad(cell, face, ref _greebleQuadScratch);
             Vector3 c = (q[0] + q[1] + q[2] + q[3]) * 0.25f;
             Vector3 off = nrm * raise;
             Vector3 p0 = Vector3.Lerp(q[0], c, insetT) + off;
@@ -1045,7 +1070,8 @@ namespace BlocksBeyondTheStars.Client
             ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock,
             Vector3i origin, int n, IReadOnlyList<(Vector3i Pos, int Rgb)> lights)
         {
-            var sources = new List<(int X, int Y, int Z, Vector3 Col)>();
+            var sources = _lightSourcesScratch ??= new List<(int X, int Y, int Z, Vector3 Col)>();
+            sources.Clear();
             if (lights != null)
             {
                 int loX = origin.X - LightRadius, hiX = origin.X + n + LightRadius;
@@ -1091,8 +1117,10 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            var field = new Dictionary<(int, int, int), Vector3>();
-            var opaqueCache = new Dictionary<(int, int, int), bool>();
+            var field = _lightFieldScratch ??= new Dictionary<(int, int, int), Vector3>();
+            field.Clear();
+            var opaqueCache = _lightOpaqueScratch ??= new Dictionary<(int, int, int), bool>();
+            opaqueCache.Clear();
             bool Opaque(int wx, int wy, int wz)
             {
                 var key = (wx, wy, wz);
@@ -1107,7 +1135,8 @@ namespace BlocksBeyondTheStars.Client
                 return res;
             }
 
-            var queue = new Queue<(int, int, int)>();
+            var queue = _lightQueueScratch ??= new Queue<(int, int, int)>();
+            queue.Clear();
             foreach (var s in sources)
             {
                 var key = (s.X, s.Y, s.Z);
@@ -1155,7 +1184,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float inv = 1f / LightRadius;
-            var result = new Dictionary<(int, int, int), Vector3>(field.Count);
+            // Thread-static like the other scratch: the caller consumes the field within the SAME build on the
+            // same thread; the next build on this thread clears it here before refilling.
+            var result = _lightResultScratch ??= new Dictionary<(int, int, int), Vector3>();
+            result.Clear();
             foreach (var kv in field)
             {
                 result[kv.Key] = kv.Value * inv; // normalise 0..1
@@ -1227,7 +1259,7 @@ namespace BlocksBeyondTheStars.Client
         private static void AddFace(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, Vector3 p, int face, Color col0, Color col1, Color col2, Color col3, Rect uv, int uvRot = 0, Vector3[] quad = null)
         {
             int baseIndex = verts.Count;
-            Vector3[] q = quad ?? FaceQuad(p, face);
+            Vector3[] q = quad ?? FaceQuad(p, face, ref _addFaceQuadScratch);
             verts.Add(q[0]); verts.Add(q[1]); verts.Add(q[2]); verts.Add(q[3]);
             // Per-corner colours (AO in .b) in the same q0..q3 order as the verts/uvs below.
             colors.Add(col0); colors.Add(col1); colors.Add(col2); colors.Add(col3);
@@ -1246,7 +1278,8 @@ namespace BlocksBeyondTheStars.Client
             // 90°-step UV rotation: cycle the corner order (uvRot 0..3).
             Vector2 c0 = new(uv.xMin, uv.yMin), c1 = new(uv.xMin, uv.yMax);
             Vector2 c2 = new(uv.xMax, uv.yMax), c3 = new(uv.xMax, uv.yMin);
-            var corners = new[] { c0, c1, c2, c3 };
+            var corners = _uvCornersScratch ??= new Vector2[4];
+            corners[0] = c0; corners[1] = c1; corners[2] = c2; corners[3] = c3;
             uvs.Add(corners[uvRot & 3]);
             uvs.Add(corners[(uvRot + 1) & 3]);
             uvs.Add(corners[(uvRot + 2) & 3]);
@@ -1255,17 +1288,23 @@ namespace BlocksBeyondTheStars.Client
             tris.Add(baseIndex); tris.Add(baseIndex + 2); tris.Add(baseIndex + 3);
         }
 
-        private static Vector3[] FaceQuad(Vector3 p, int face)
+        /// <summary>Fills (and returns) the caller's thread-static 4-corner scratch array instead of allocating —
+        /// each call site passes its OWN scratch field so two quads that are alive at the same time never alias.
+        /// Callers may mutate the returned array; it is only valid until their next FaceQuad call.</summary>
+        private static Vector3[] FaceQuad(Vector3 p, int face, ref Vector3[] scratch)
         {
+            var q = scratch ??= new Vector3[4];
             switch (face)
             {
-                case 0: return new[] { p + new Vector3(0, 1, 0), p + new Vector3(0, 1, 1), p + new Vector3(1, 1, 1), p + new Vector3(1, 1, 0) }; // +Y
-                case 1: return new[] { p + new Vector3(0, 0, 1), p + new Vector3(0, 0, 0), p + new Vector3(1, 0, 0), p + new Vector3(1, 0, 1) }; // -Y
-                case 2: return new[] { p + new Vector3(1, 0, 0), p + new Vector3(1, 1, 0), p + new Vector3(1, 1, 1), p + new Vector3(1, 0, 1) }; // +X
-                case 3: return new[] { p + new Vector3(0, 0, 1), p + new Vector3(0, 1, 1), p + new Vector3(0, 1, 0), p + new Vector3(0, 0, 0) }; // -X
-                case 4: return new[] { p + new Vector3(1, 0, 1), p + new Vector3(1, 1, 1), p + new Vector3(0, 1, 1), p + new Vector3(0, 0, 1) }; // +Z
-                default: return new[] { p + new Vector3(0, 0, 0), p + new Vector3(0, 1, 0), p + new Vector3(1, 1, 0), p + new Vector3(1, 0, 0) }; // -Z
+                case 0: q[0] = p + new Vector3(0, 1, 0); q[1] = p + new Vector3(0, 1, 1); q[2] = p + new Vector3(1, 1, 1); q[3] = p + new Vector3(1, 1, 0); break; // +Y
+                case 1: q[0] = p + new Vector3(0, 0, 1); q[1] = p + new Vector3(0, 0, 0); q[2] = p + new Vector3(1, 0, 0); q[3] = p + new Vector3(1, 0, 1); break; // -Y
+                case 2: q[0] = p + new Vector3(1, 0, 0); q[1] = p + new Vector3(1, 1, 0); q[2] = p + new Vector3(1, 1, 1); q[3] = p + new Vector3(1, 0, 1); break; // +X
+                case 3: q[0] = p + new Vector3(0, 0, 1); q[1] = p + new Vector3(0, 1, 1); q[2] = p + new Vector3(0, 1, 0); q[3] = p + new Vector3(0, 0, 0); break; // -X
+                case 4: q[0] = p + new Vector3(1, 0, 1); q[1] = p + new Vector3(1, 1, 1); q[2] = p + new Vector3(0, 1, 1); q[3] = p + new Vector3(0, 0, 1); break; // +Z
+                default: q[0] = p + new Vector3(0, 0, 0); q[1] = p + new Vector3(0, 1, 0); q[2] = p + new Vector3(1, 1, 0); q[3] = p + new Vector3(1, 0, 0); break; // -Z
             }
+
+            return q;
         }
 
         /// <summary>The <see cref="Faces"/> index for a signed axis (axis 0=X,1=Y,2=Z; sign ±1) — maps an
@@ -1286,7 +1325,7 @@ namespace BlocksBeyondTheStars.Client
         /// solid neighbour stay flush, so beveled and unbeveled cubes still tile without gaps.</summary>
         private static Vector3[] BevelInsetQuad(Vector3 cell, int face, int openMask)
         {
-            var q = FaceQuad(cell, face);
+            var q = FaceQuad(cell, face, ref _bevelQuadScratch);
             var dir = Faces[face];
             int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;
             for (int i = 0; i < 4; i++)
@@ -1409,23 +1448,71 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>The plain-data result of <see cref="ChunkMesher.BuildGeometry"/>: the vertex/index/attribute
     /// lists plus precomputed flat normals and bounds, holding NO Unity Mesh objects — so it can be produced on
     /// a worker thread and uploaded later. <see cref="ToMeshes"/> performs the (main-thread-only) Mesh API
-    /// calls to turn it into the render + collision meshes.</summary>
+    /// calls to turn it into the render + collision meshes.
+    /// POOLED: instances come from <see cref="Rent"/> and the consumer MUST call <see cref="Release"/> once the
+    /// data has been uploaded or discarded — the lists (and their large backing arrays) are then reused by the
+    /// next build instead of becoming per-remesh garbage.</summary>
     public sealed class ChunkMeshData
     {
-        public List<Vector3> Verts;
-        public List<int> OpaqueTris;       // submesh 0 (BlockAtlas)
-        public List<int> TransparentTris;  // submesh 1 (BlockAtlasTransparent — glass / force fields)
-        public List<int> ColliderTris;     // solid faces only (fluids excluded) → the collision mesh
-        public List<Color> Colors;
-        public List<Vector2> Uvs;
-        public List<Vector2> SkyUv;        // TEXCOORD1: skylight in .x, tint mode in .y
-        public List<Vector4> LeafUv;       // TEXCOORD2: foliage cutout flag in .x, flora/hull/dye/bark tint in .yzw
-        public List<Vector3> BlockLight;   // TEXCOORD3: propagated coloured block-light
-        public List<Vector3> BlockLightDir;// TEXCOORD4: dominant block-light direction
-        public List<Vector4> Tangents;
-        public Vector3[] Normals;          // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
+        public readonly List<Vector3> Verts = new List<Vector3>();
+        public readonly List<int> OpaqueTris = new List<int>();       // submesh 0 (BlockAtlas)
+        public readonly List<int> TransparentTris = new List<int>();  // submesh 1 (BlockAtlasTransparent — glass / force fields)
+        public readonly List<int> ColliderTris = new List<int>();     // solid faces only (fluids excluded) → the collision mesh
+        public readonly List<Color> Colors = new List<Color>();
+        public readonly List<Vector2> Uvs = new List<Vector2>();
+        public readonly List<Vector2> SkyUv = new List<Vector2>();    // TEXCOORD1: skylight in .x, tint mode in .y
+        public readonly List<Vector4> LeafUv = new List<Vector4>();   // TEXCOORD2: foliage cutout flag in .x, flora/hull/dye/bark tint in .yzw
+        public readonly List<Vector3> BlockLight = new List<Vector3>();   // TEXCOORD3: propagated coloured block-light
+        public readonly List<Vector3> BlockLightDir = new List<Vector3>();// TEXCOORD4: dominant block-light direction
+        public readonly List<Vector4> Tangents = new List<Vector4>();
+        public readonly List<Vector3> Normals = new List<Vector3>();  // flat per-face normals (see ChunkMesher.AccumulateFlatNormals)
         public Bounds Bounds;
-        public List<Vector4> Scatter;      // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
+        public readonly List<Vector4> Scatter = new List<Vector4>();  // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
+
+        // Small bounded pool: builds run on worker threads while Release happens on the main thread, so access
+        // is lock-guarded (a handful of ops per frame — contention is negligible). The cap bounds how much list
+        // capacity idles here; an over-cap Release simply drops the instance to the GC (= the old behaviour).
+        private const int MaxPooled = 8;
+        private static readonly Stack<ChunkMeshData> Pool = new Stack<ChunkMeshData>();
+        private bool _pooled;
+
+        /// <summary>A cleared instance from the pool (or a fresh one). Pair every Rent with a
+        /// <see cref="Release"/> on the consuming side.</summary>
+        public static ChunkMeshData Rent()
+        {
+            lock (Pool)
+            {
+                if (Pool.Count > 0)
+                {
+                    var d = Pool.Pop();
+                    d._pooled = false;
+                    return d;
+                }
+            }
+
+            return new ChunkMeshData();
+        }
+
+        /// <summary>Returns the buffers to the pool. Call exactly once, after <see cref="ToMeshes"/> (the Mesh
+        /// owns a copy of everything) or when the build is discarded; the instance and its lists must not be
+        /// touched afterwards.</summary>
+        public void Release()
+        {
+            lock (Pool)
+            {
+                if (_pooled || Pool.Count >= MaxPooled)
+                {
+                    return; // double-release, or the pool is full — let the GC take it
+                }
+
+                Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); ColliderTris.Clear();
+                Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
+                BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
+                Bounds = default;
+                _pooled = true;
+                Pool.Push(this);
+            }
+        }
 
         /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
         /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).</summary>

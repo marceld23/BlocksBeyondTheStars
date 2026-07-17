@@ -1824,10 +1824,14 @@ namespace BlocksBeyondTheStars.Client
                 if (built.Epoch != WorldEpoch
                     || !_meshGen.TryGetValue(built.Coord, out var gen) || gen != built.Gen)
                 {
-                    continue; // superseded by a newer edit / a world change
+                    built.Data.Release(); // superseded by a newer edit / a world change — recycle the buffers
+                    continue;
                 }
 
                 ApplyChunkMesh(built.Coord, built.Data);
+                // The upload copied everything into the Unity meshes (+ GroundScatter's matrices), so the
+                // pooled geometry buffers can go back for the next build.
+                built.Data.Release();
             }
         }
 
