@@ -100,6 +100,15 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Mesher buffer pooling: chunk builds stop allocating (#354, 2026-07-17, branch perf/mesher-pooling)
+`ChunkMeshData` is rented from a small bounded pool and released after the main-thread upload (or on the
+superseded/world-epoch discard paths in `DrainBuiltChunks`), so the ~13 geometry lists keep their large
+backing arrays across builds instead of becoming per-remesh garbage — the top measured lever behind the
+~25 GC/s desktop walk baseline (#353) and single-thread garbage on WebGL. All per-build scratch (column-top
+cache, water classification, AO occluders, the block-light flood fill) is `[ThreadStatic]` + `Clear()`;
+`FaceQuad`/UV-corner quads fill per-call-site thread-static arrays (~3 fewer allocations per emitted face).
+Verified: 1035 + 129 tests green, local Unity build green. Next perf slice: collider-only greedy meshing (#355).
+
 ### ★ PerfProbe: automated desktop performance baselines (#353, 2026-07-17, branch perf/profiling-baseline)
 New `-perfProbe` flag (pattern: ScreenshotDirector): starts a fixed-seed singleplayer world and records
 frame-time/GC stats over an **idle** (30 s standing) and a **walk** phase (60 s scripted straight-line
