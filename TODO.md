@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Preset GPU tiers: MSAA/HDR/renderScale + VisorHud gate (#357+#358, 2026-07-17, branch perf/gpu-preset-tiers — LOCAL, not yet PR'd, stacked on perf/collider-greedy)
+The single URP asset had MSAA 4x + HDR baked on for EVERY preset (Potato and WebGL included).
+`ClientSettings.Apply()` now scales them: MSAA off on Potato/Low, 2x Medium, 4x High; HDR off on Potato;
+Potato renders 3D at 75% URP renderScale (UI stays crisp, unlike a DPR cap). The VisorHud RT pipeline
+(second full-screen camera into a screen-sized RT + composite, previously always on) only runs when
+VisorEffects is on AND preset ≥ Medium; below that the existing flat-overlay path serves the HUD, and the
+pause-menu toggles engage/tear the pipeline down live (new `UiKit.RetargetDiegeticCanvases()` moves
+existing canvases between camera and overlay mode). PerfProbe vs #353 baseline: Low/VD4 walk 72→97 FPS
+(idle 75→98), zero >33 ms frames; Medium within noise (GPU-bound on SSAO/depth); High unchanged (keeps
+the full look). Verified: 1035+129 tests green, local Unity build green.
+
 ### ★ Collider-only greedy meshing (#355, 2026-07-17, branch perf/collider-greedy — LOCAL, not yet PR'd)
 The collision mesh gets its own vertex list and its cube faces are greedy-merged into maximal rectangles
 per direction + slice. The main loop stays the single source of which faces exist (it records per-cell

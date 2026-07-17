@@ -196,16 +196,56 @@ namespace BlocksBeyondTheStars.Client
         public static Canvas CreateDiegeticCanvas(string name, float refW = 1920f, float refH = 1080f)
         {
             var canvas = CreateCanvas(name, refW, refH);
+            DiegeticCanvases.Add(canvas);
+            ApplyDiegeticTarget(canvas);
+            return canvas;
+        }
+
+        // Live diegetic canvases, so the visor pipeline can re-target them when it engages/tears down at
+        // RUNTIME (the preset/visor toggle in the pause menu). Destroyed canvases go stale in here and are
+        // pruned on the next retarget.
+        private static readonly System.Collections.Generic.List<Canvas> DiegeticCanvases
+            = new System.Collections.Generic.List<Canvas>();
+
+        /// <summary>Points one diegetic canvas at the CURRENT visor state: through the HUD camera when the
+        /// visor RT pipeline is up, else a plain screen-space overlay (the flat-HUD fallback path).</summary>
+        private static void ApplyDiegeticTarget(Canvas canvas)
+        {
             if (HudCamera != null && HudLayer >= 0)
             {
                 canvas.renderMode = RenderMode.ScreenSpaceCamera;
                 canvas.worldCamera = HudCamera;
                 canvas.planeDistance = 1f;
                 canvas.gameObject.layer = HudLayer;
-                canvas.gameObject.AddComponent<HudLayerEnforcer>().Layer = HudLayer;
+                if (canvas.gameObject.GetComponent<HudLayerEnforcer>() == null)
+                {
+                    canvas.gameObject.AddComponent<HudLayerEnforcer>().Layer = HudLayer;
+                }
             }
+            else
+            {
+                // Overlay mode draws the canvas directly (no camera involved), so a canvas that keeps its
+                // HUD layer + enforcer from an earlier visor phase still shows correctly.
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.worldCamera = null;
+            }
+        }
 
-            return canvas;
+        /// <summary>Re-points every live diegetic canvas at the current visor state. Called by
+        /// <see cref="VisorHud"/> when its RT pipeline engages or tears down at runtime.</summary>
+        public static void RetargetDiegeticCanvases()
+        {
+            for (int i = DiegeticCanvases.Count - 1; i >= 0; i--)
+            {
+                var canvas = DiegeticCanvases[i];
+                if (canvas == null)
+                {
+                    DiegeticCanvases.RemoveAt(i); // canvas was destroyed (world teardown)
+                    continue;
+                }
+
+                ApplyDiegeticTarget(canvas);
+            }
         }
 
         // The HUD canvases use a smaller reference than the 1920×1080 menus, so ScaleWithScreenSize draws the

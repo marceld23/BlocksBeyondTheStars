@@ -426,6 +426,20 @@ namespace BlocksBeyondTheStars.Client
                     _ => 90f,
                 };
 
+                // MSAA / HDR / render scale live in the same single URP asset, so without this they were baked
+                // on for EVERY preset (4x MSAA + HDR even on Potato and WebGL). Scale them with the preset:
+                // MSAA off on Potato/Low, 2x on Medium, the tuned 4x on High; HDR off on Potato only (bloom/
+                // grading fall back to LDR there); Potato additionally renders the 3D view at 75% resolution
+                // via URP renderScale — unlike a devicePixelRatio cap this keeps the UI text crisp.
+                urp.msaaSampleCount = Preset switch
+                {
+                    QualityPreset.Potato or QualityPreset.Low => 1,
+                    QualityPreset.Medium => 2,
+                    _ => 4,
+                };
+                urp.supportsHDR = Preset > QualityPreset.Potato;
+                urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : 1f;
+
                 // Depth + opaque copies feed the screen-space effects (volumetric fog, SSR, water refraction).
                 // They cost a prepass + a colour copy, so the two weakest presets turn them off entirely —
                 // which also disables every dependent effect for free (the features early-out without the textures).

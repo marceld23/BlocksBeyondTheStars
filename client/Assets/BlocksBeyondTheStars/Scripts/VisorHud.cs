@@ -11,8 +11,11 @@ namespace BlocksBeyondTheStars.Client
     /// camera into a render texture; a fullscreen <c>BlocksBeyondTheStars/Visor</c> pass then composites that over
     /// the post-processed world with barrel curvature, chromatic fringing, scanlines, a fresnel rim glow,
     /// glow and a faint reflection — so the HUD reads as projected onto the inside of the suit visor.
-    /// Always on. Degrades safely: if the layer or shader is unavailable the HUD stays a normal
-    /// screen-space overlay (<see cref="UiKit.HudCamera"/> stays null), so it is never lost.
+    /// GATED by cost: the RT camera + composite only run when the visor effect is enabled AND the preset is
+    /// Medium+ — a second full-screen camera into a screen-sized RT every frame is constant fill-rate the
+    /// weak presets (and WebGL's Low first-run default) cannot afford. Below that (or if the layer/shader is
+    /// unavailable) the HUD stays a normal screen-space overlay (<see cref="UiKit.HudCamera"/> stays null),
+    /// so it is never lost; the pause-menu toggles engage/tear the pipeline down live.
     /// </summary>
     public sealed class VisorHud : MonoBehaviour
     {
@@ -49,6 +52,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private int _layer = -1;
+        private Shader _shader;
+
+        /// <summary>The RT pipeline only earns its constant fill-rate cost when the player wants the visor
+        /// look AND the preset can afford it. Off (or on Potato/Low) the flat overlay path serves the HUD.</summary>
+        private bool PipelineWanted()
+            => Settings == null || (Settings.VisorEffects && Settings.Preset >= QualityPreset.Medium);
+
         private void Start()
         {
             if (MainCamera == null)
@@ -59,21 +70,31 @@ namespace BlocksBeyondTheStars.Client
 
             // Prefer the named layer (nice in the Editor) but fall back to a fixed free index: a batch build
             // doesn't always bake a freshly-added layer NAME, yet the index works the same for cull masks.
-            int layer = LayerMask.NameToLayer("VisorHud");
-            if (layer < 0)
+            _layer = LayerMask.NameToLayer("VisorHud");
+            if (_layer < 0)
             {
-                layer = HudLayerIndex;
+                _layer = HudLayerIndex;
             }
 
-            var shader = Shader.Find("BlocksBeyondTheStars/Visor");
-            if (shader == null)
+            _shader = Shader.Find("BlocksBeyondTheStars/Visor");
+            if (_shader == null)
             {
                 Debug.LogWarning("[VisorHud] disabled — BlocksBeyondTheStars/Visor shader not found; flat HUD fallback.");
                 enabled = false;
                 return;
             }
 
-            UiKit.HudLayer = layer;
+            if (PipelineWanted())
+            {
+                EngagePipeline();
+            }
+        }
+
+        /// <summary>Builds the RT + HUD camera + composite. Safe to call again after
+        /// <see cref="DisengagePipeline"/> (the pause-menu preset/visor toggles flip it live).</summary>
+        private void EngagePipeline()
+        {
+            UiKit.HudLayer = _layer;
             CreateRt();
 
             var camGo = new GameObject("HUD Camera");
@@ -81,7 +102,7 @@ namespace BlocksBeyondTheStars.Client
             _hudCam = camGo.AddComponent<Camera>();
             _hudCam.clearFlags = CameraClearFlags.SolidColor;
             _hudCam.backgroundColor = new Color(0f, 0f, 0f, 0f); // transparent: only the HUD ends up in the RT
-            _hudCam.cullingMask = 1 << layer;
+            _hudCam.cullingMask = 1 << _layer;
             _hudCam.nearClipPlane = 0.1f;
             _hudCam.farClipPlane = 100f;
             _hudCam.depth = MainCamera.depth - 1; // render the HUD RT before the main camera composites it
@@ -91,27 +112,68 @@ namespace BlocksBeyondTheStars.Client
             _hudCam.targetTexture = _rt;
 
             // Keep the diegetic HUD out of the main camera's image so only the visor pass shows it.
-            MainCamera.cullingMask &= ~(1 << layer);
+            MainCamera.cullingMask &= ~(1 << _layer);
 
             if (GraphicsSettings.currentRenderPipeline != null)
             {
                 // URP: composite via a render-graph blit pass after post (OnRenderImage never runs under URP).
-                _urp = new VisorUrpCompositor(MainCamera, shader);
+                _urp = new VisorUrpCompositor(MainCamera, _shader);
             }
             else
             {
                 _composite = MainCamera.gameObject.AddComponent<VisorComposite>();
-                _composite.VisorShader = shader;
+                _composite.VisorShader = _shader;
                 _composite.Hud = _rt;
                 _composite.Intensity = _intensity;
                 _composite.Effects = Settings == null || Settings.VisorEffects;
             }
 
             UiKit.HudCamera = _hudCam; // diegetic canvases created from here on target this camera
+            UiKit.RetargetDiegeticCanvases(); // canvases built while the pipeline was down move onto it
             _lastEuler = MainCamera.transform.eulerAngles;
             _active = true;
-            Debug.Log($"[VisorHud] engaged — holographic HUD on layer {layer}, RT {_w}x{_h}, pipeline: "
+            Debug.Log($"[VisorHud] engaged — holographic HUD on layer {_layer}, RT {_w}x{_h}, pipeline: "
                       + (GraphicsSettings.currentRenderPipeline != null ? "URP (render graph)" : "Built-in (OnRenderImage)") + ".");
+        }
+
+        /// <summary>Tears the RT pipeline down and returns every diegetic canvas to the flat screen-space
+        /// overlay path — the HUD itself never disappears, only the visor stylisation does.</summary>
+        private void DisengagePipeline()
+        {
+            _active = false;
+            if (UiKit.HudCamera == _hudCam)
+            {
+                UiKit.HudCamera = null;
+            }
+
+            if (MainCamera != null)
+            {
+                MainCamera.cullingMask |= 1 << _layer; // restore (the layer only ever holds HUD canvases)
+            }
+
+            if (_composite != null)
+            {
+                Destroy(_composite);
+                _composite = null;
+            }
+
+            _urp?.Dispose();
+            _urp = null;
+
+            if (_hudCam != null)
+            {
+                Destroy(_hudCam.gameObject);
+                _hudCam = null;
+            }
+
+            if (_rt != null)
+            {
+                _rt.Release();
+                Destroy(_rt);
+                _rt = null;
+            }
+
+            UiKit.RetargetDiegeticCanvases(); // existing canvases fall back to the plain overlay
         }
 
         private void CreateRt()
@@ -133,6 +195,21 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
+            // Live gate: the player can flip VisorEffects or change the preset in the pause menu at any
+            // time — engage or tear down the RT pipeline on the spot (canvases are re-targeted either way).
+            bool want = PipelineWanted();
+            if (want != _active)
+            {
+                if (want)
+                {
+                    EngagePipeline();
+                }
+                else
+                {
+                    DisengagePipeline();
+                }
+            }
+
             if (!_active)
             {
                 return;
@@ -214,6 +291,7 @@ namespace BlocksBeyondTheStars.Client
             if (_composite != null)
             {
                 Destroy(_composite);
+                _composite = null;
             }
 
             _urp?.Dispose();
@@ -223,6 +301,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _rt.Release();
                 Destroy(_rt);
+                _rt = null;
             }
         }
     }
