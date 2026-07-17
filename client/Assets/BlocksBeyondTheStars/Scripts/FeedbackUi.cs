@@ -18,10 +18,11 @@ using UnityEngine.Networking;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Player feedback ("Spieler Feedback"): the F1 hotkey opens a modal dialog where any player can send a bug
-    /// report OR a feature wish — one form, no type distinction: a title, a description, an optional e-mail and a
-    /// short note that game data + a screenshot are attached. (F1 is advertised in the on-foot HUD controls hint
-    /// and in the space-flight cruise hint; it works in both modes.)
+    /// Player feedback ("Spieler Feedback"): the <see cref="Hotkey"/> (F1 on desktop, F2 in browsers — F1 is the
+    /// browser's own help key) opens a modal dialog where any player can send a bug report OR a feature wish — one
+    /// form, no type distinction: a title, a description, an optional e-mail and a short note that game data + a
+    /// screenshot are attached. (The key is advertised in the on-foot HUD controls hint and in the space-flight
+    /// cruise hint via the <c>{feedback_key}</c> placeholder; it works in both modes.)
     ///
     /// On send we grab a full-frame screenshot WITH the HUD but WITHOUT this dialog (captured at the moment the
     /// dialog opens, while the live HUD is still on screen), gather a small client-side diagnostic snapshot,
@@ -59,6 +60,15 @@ namespace BlocksBeyondTheStars.Client
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
 
+        /// <summary>The key that opens the feedback dialog: F2 in browser builds (F1 would fight the browser's
+        /// own help shortcut), F1 everywhere else.</summary>
+        public static KeyCode Hotkey =>
+            Application.platform == RuntimePlatform.WebGLPlayer ? KeyCode.F2 : KeyCode.F1;
+
+        /// <summary>Player-visible name of <see cref="Hotkey"/> — substituted for the <c>{feedback_key}</c>
+        /// placeholder in locale hint strings.</summary>
+        public static string HotkeyName => Hotkey == KeyCode.F2 ? "F2" : "F1";
+
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
         private void Start()
@@ -81,11 +91,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // F1 opens feedback during normal play — on foot AND in space flight (both HUDs advertise it);
-            // not while a menu/chat modal or the death prompt already owns the screen.
+            // The hotkey opens feedback during normal play — on foot AND in space flight (both HUDs advertise
+            // it); not while a menu/chat modal or the death prompt already owns the screen.
             bool canLaunch = !Game.MenuOpen && !Game.ChatTyping && !Game.AwaitingRespawnConfirm;
 
-            if (!_open && canLaunch && Input.GetKeyDown(KeyCode.F1))
+            if (!_open && canLaunch && Input.GetKeyDown(Hotkey))
             {
                 Open();
             }
@@ -109,7 +119,7 @@ namespace BlocksBeyondTheStars.Client
 
         // --- Open / close ----------------------------------------------------------------------------------
 
-        /// <summary>Opens the feedback dialog (the F1 hotkey's target). Captures the gameplay frame first — HUD
+        /// <summary>Opens the feedback dialog (the <see cref="Hotkey"/>'s target). Captures the gameplay frame first — HUD
         /// visible, dialog not yet shown — then dims the screen and shows the form.</summary>
         public void Open()
         {
@@ -282,6 +292,13 @@ namespace BlocksBeyondTheStars.Client
                 if (_status != null) { _status.text = L("ui.feedback.sent"); _status.color = UiKit.Ok; }
                 Game?.ShowMessage(L("ui.feedback.sent"));
                 Invoke(nameof(Close), 1.2f);
+            }
+            else if (result != null && result.StatusCode >= 400 && result.StatusCode < 500)
+            {
+                // The inbox actively rejected this body (bad key, validation, too large) — retrying the identical
+                // payload can never succeed, so don't spool it and don't show a reassuring "queued".
+                if (_status != null) { _status.text = L("ui.feedback.failed"); _status.color = UiKit.Warn; }
+                SetSendInteractable(true);
             }
             else if (_spool != null && !string.IsNullOrEmpty(body) && _spool.Write(body) != null)
             {

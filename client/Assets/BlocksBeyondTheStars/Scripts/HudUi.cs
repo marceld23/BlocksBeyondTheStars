@@ -529,7 +529,7 @@ namespace BlocksBeyondTheStars.Client
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
                 InputDeviceKind.Gamepad => loc.Get("ui.hud.hint_pad"),
-                _ => loc.Get("ui.hud.hint"),
+                _ => loc.Get("ui.hud.hint").Replace("{feedback_key}", FeedbackUi.HotkeyName),
             };
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak

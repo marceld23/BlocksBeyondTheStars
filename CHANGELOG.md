@@ -11,7 +11,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-_Nothing yet — [v0.8.3](#083--2026-07-17) is the latest release._
+### 🐛 Browser feedback fixes
+- **Feedback in the browser no longer needs F1** — F1 opens the browser's own help, so the in-game feedback dialog now opens with **F2** in WebGL builds (F1 stays on desktop). The HUD and flight hints show the right key per platform. (#376)
+- **Raw `ui.*` keys no longer stick in the browser UI.** On WebGL the locale files load asynchronously, so a screen built during that window (e.g. the main menu) could show untranslated resource keys and never refresh. Cached shell screens are now rebuilt once the language finishes loading, and the missing `ui.feedback.send` label was added. (#377)
+- **Browser feedback actually reaches the inbox now.** The WebGL build was uploading an empty `{}` body (IL2CPP stripped the report type's metadata), so reports were silently dropped while the game said "queued". The type is now preserved, and a server rejection shows a real error instead of a false "saved, will retry". (#378)
+- **The two admin inboxes now point at each other** — the fleet admin and the ReportHost admin each note what the other one holds, so in-game feedback isn't hunted for on the wrong page. (#379)
 
 ## [0.8.3] — 2026-07-17
 

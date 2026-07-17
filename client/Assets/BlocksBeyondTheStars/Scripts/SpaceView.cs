@@ -3902,7 +3902,8 @@ namespace BlocksBeyondTheStars.Client
                     InputDeviceKind.Touch => string.Empty,
                     InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.controls_pad")
                         : "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
-                    _ => loc != null ? loc.Get("ui.space.controls") : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
+                    _ => loc != null ? loc.Get("ui.space.controls").Replace("{feedback_key}", FeedbackUi.HotkeyName)
+                        : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
                 };
                 if (Game.AiCoreTier >= 2 && InputMap.ActiveDevice != InputDeviceKind.Touch)
                 {

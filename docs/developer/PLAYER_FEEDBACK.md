@@ -1,11 +1,13 @@
 # Player Feedback ("Spieler Feedback")
 
-The **F1** hotkey lets any player send a bug report **or** a feature wish — one
+The **F1** hotkey (**F2** in browser builds — F1 is the browser's own help key, see
+`FeedbackUi.Hotkey`) lets any player send a bug report **or** a feature wish — one
 form, no type distinction: a title, a description, an optional e-mail, and a short note that game data plus
 a screenshot are attached. On send the client posts the report to the official report inbox (the
 ReportHost on the VPS — see [REPORT_HOST](REPORT_HOST.md)) and also fires the existing `/bump`
-snapshot. (F1 is advertised in the on-foot HUD controls hint, `ui.hud.hint`, and in the space-flight
-cruise hint, `ui.space.controls` — it works in both modes; only menus/chat/death-prompt block it.)
+snapshot. (The key is advertised in the on-foot HUD controls hint, `ui.hud.hint`, and in the space-flight
+cruise hint, `ui.space.controls`, via the `{feedback_key}` placeholder — it works in both modes;
+only menus/chat/death-prompt block it.)
 
 This is deliberately **player-facing** and separate from the developer `/bump` chat command (which still
 exists and produces the rich local diagnostic snapshot — see [BUG_REPORTS](BUG_REPORTS.md) if present, or
@@ -14,7 +16,7 @@ exists and produces the rich local diagnostic snapshot — see [BUG_REPORTS](BUG
 ## Flow
 
 ```
-F1
+F1  (F2 on WebGL)
    │  capture full-frame JPG  (HUD visible, dialog NOT yet shown)
    ▼
 FeedbackUi dialog  (title, description, optional e-mail, privacy hint)

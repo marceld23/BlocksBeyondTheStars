@@ -1259,7 +1259,7 @@ namespace BlocksBeyondTheStars.Client
 
             Para(82f, 44f, shell.L("ui.contribute.intro"), 18, UiKit.TextCol);
             // Player feedback first (for everyone, in-game) — highlighted; then play, then the GitHub paths.
-            Para(138f, 70f, "1.  " + shell.L("ui.contribute.feedback"), 17, UiKit.Ok);
+            Para(138f, 70f, "1.  " + shell.L("ui.contribute.feedback").Replace("{feedback_key}", FeedbackUi.HotkeyName), 17, UiKit.Ok);
             Para(212f, 50f, "2.  " + shell.L("ui.contribute.play"), 17, UiKit.TextCol);
             Para(266f, 70f, "3.  " + shell.L("ui.contribute.bugs"), 17, UiKit.TextCol);
             Para(340f, 50f, "4.  " + shell.L("ui.contribute.dev"), 17, UiKit.TextCol);

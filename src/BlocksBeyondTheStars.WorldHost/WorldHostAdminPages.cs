@@ -161,7 +161,9 @@ public static class WorldHostAdminPages
             sb.Append("</table>");
         }
 
-        sb.Append("</div>");
+        sb.Append("<p class='hint'>This card lists the portal website's “Feedback &amp; ideas” form only. " +
+                  "In-game feedback (the F1/F2 dialog), crash reports and /bump snapshots go to the separate " +
+                  "ReportHost inbox — <code>reports.&lt;your domain&gt;/admin</code>.</p></div>");
 
         // ---- Ban management ----
         sb.Append("<div class='card'><h2>Accounts &amp; bans</h2>");

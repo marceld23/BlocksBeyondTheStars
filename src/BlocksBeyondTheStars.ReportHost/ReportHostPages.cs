@@ -27,6 +27,11 @@ public static class ReportHostPages
 
         sb.Append("</span></h1>");
 
+        // Operators keep confusing the two inboxes — say explicitly what lands here vs. in the fleet admin (#379).
+        sb.Append("<p class='hint'>This inbox receives in-game feedback (the F1/F2 dialog), crash reports and " +
+                  "/bump snapshots. Player reports and the portal website's feedback form live in the fleet " +
+                  "admin — <code>play.&lt;your domain&gt;/admin</code>.</p>");
+
         sb.Append("<form method='get' action='/admin' class='filters'>");
         sb.Append("<select name='status'><option value=''>all statuses</option>");
         foreach (var s in new[] { BugReportStatus.New, BugReportStatus.Triaged, BugReportStatus.Done })

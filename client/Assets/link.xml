@@ -2,6 +2,9 @@
   <assembly fullname="BlocksBeyondTheStars.Shared" preserve="all" />
   <assembly fullname="BlocksBeyondTheStars.Networking" preserve="all" />
   <assembly fullname="BlocksBeyondTheStars.Client" preserve="all" />
+  <!-- Feedback/crash reports serialize FeedbackReport via reflection-based System.Text.Json; without this
+       IL2CPP stripping removes the property metadata and the WebGL player uploads an empty {} body (#378). -->
+  <assembly fullname="BlocksBeyondTheStars.Client.Core" preserve="all" />
   <!-- In-browser singleplayer: the simulation + managed persistence run in-process under IL2CPP; the
        snapshot save format uses reflection-based System.Text.Json, so nothing may be stripped. -->
   <assembly fullname="BlocksBeyondTheStars.GameServer" preserve="all" />

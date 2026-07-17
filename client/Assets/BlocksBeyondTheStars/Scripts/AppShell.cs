@@ -390,6 +390,21 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_quitDialog);
                 _quitDialog = null;
             }
+
+            // Same for the cached uGUI shell screens: on WebGL the locale files arrive asynchronously, so the
+            // main menu can be built while Localizer is still null and would otherwise show raw ui.* keys until
+            // the next phase change (#377). Dropping them here makes Update() rebuild them localized.
+            if (_uiMenu != null)
+            {
+                Destroy(_uiMenu);
+                _uiMenu = null;
+            }
+
+            if (_uiLoading != null)
+            {
+                Destroy(_uiLoading);
+                _uiLoading = null;
+            }
         }
 
         /// <summary>Localize, falling back to the key before content is loaded.</summary>
