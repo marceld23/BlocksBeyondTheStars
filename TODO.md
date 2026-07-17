@@ -100,7 +100,7 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ RLE chunk payload (#356, 2026-07-17, branch perf/rle-chunk-payload — LOCAL, not yet PR'd, stacked on perf/gpu-preset-tiers)
+### ★ RLE chunk payload (#356, 2026-07-17, branch perf/rle-chunk-payload)
 `ChunkDataMessage` gains `BlocksRle` (flat value/run-length ushort pairs, new `ChunkBlocksRle` codec in
 Networking); the server ships whichever representation is smaller (terrain almost always RLE — a
 checkerboard-degenerate chunk stays dense), the client + test harness decode both via
@@ -112,7 +112,7 @@ join-time check keeps old clients off newer servers; fleet pins versions in lock
 local Unity build green, PerfProbe walk = live socket streaming smoke. OPEN: browser smoke on the next
 WebGL deploy (the biggest beneficiary).
 
-### ★ Preset GPU tiers: MSAA/HDR/renderScale + VisorHud gate (#357+#358, 2026-07-17, branch perf/gpu-preset-tiers — LOCAL, not yet PR'd, stacked on perf/collider-greedy)
+### ★ Preset GPU tiers: MSAA/HDR/renderScale + VisorHud gate (#357+#358, 2026-07-17, PR #370)
 The single URP asset had MSAA 4x + HDR baked on for EVERY preset (Potato and WebGL included).
 `ClientSettings.Apply()` now scales them: MSAA off on Potato/Low, 2x Medium, 4x High; HDR off on Potato;
 Potato renders 3D at 75% URP renderScale (UI stays crisp, unlike a DPR cap). The VisorHud RT pipeline
@@ -123,7 +123,7 @@ existing canvases between camera and overlay mode). PerfProbe vs #353 baseline: 
 (idle 75→98), zero >33 ms frames; Medium within noise (GPU-bound on SSAO/depth); High unchanged (keeps
 the full look). Verified: 1035+129 tests green, local Unity build green.
 
-### ★ Collider-only greedy meshing (#355, 2026-07-17, branch perf/collider-greedy — LOCAL, not yet PR'd)
+### ★ Collider-only greedy meshing (#355, 2026-07-17, PR #369)
 The collision mesh gets its own vertex list and its cube faces are greedy-merged into maximal rectangles
 per direction + slice. The main loop stays the single source of which faces exist (it records per-cell
 direction bits wherever it used to emit a per-face collider quad), so the merged collider covers the
