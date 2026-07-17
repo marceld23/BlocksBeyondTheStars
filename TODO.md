@@ -100,6 +100,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ RLE chunk payload (#356, 2026-07-17, branch perf/rle-chunk-payload — LOCAL, not yet PR'd, stacked on perf/gpu-preset-tiers)
+`ChunkDataMessage` gains `BlocksRle` (flat value/run-length ushort pairs, new `ChunkBlocksRle` codec in
+Networking); the server ships whichever representation is smaller (terrain almost always RLE — a
+checkerboard-degenerate chunk stays dense), the client + test harness decode both via
+`ChunkDataMessage.DecodeBlocks` (malformed RLE → chunk dropped, same as a wrong-length dense payload).
+Decisive on the browser JSON path: ~15-25 KB of JSON numbers per chunk → usually a few hundred bytes
+(glitch.fun join time + VPS egress); native MessagePack payloads shrink too. Protocol.Version 1→2 (the
+join-time check keeps old clients off newer servers; fleet pins versions in lockstep). Verified:
+1039+129 tests green (4 new: round-trip, degenerate fallback, malformed-stream rejection, wire-size),
+local Unity build green, PerfProbe walk = live socket streaming smoke. OPEN: browser smoke on the next
+WebGL deploy (the biggest beneficiary).
+
 ### ★ Preset GPU tiers: MSAA/HDR/renderScale + VisorHud gate (#357+#358, 2026-07-17, branch perf/gpu-preset-tiers — LOCAL, not yet PR'd, stacked on perf/collider-greedy)
 The single URP asset had MSAA 4x + HDR baked on for EVERY preset (Potato and WebGL included).
 `ClientSettings.Apply()` now scales them: MSAA off on Potato/Low, 2x Medium, 4x High; HDR off on Potato;

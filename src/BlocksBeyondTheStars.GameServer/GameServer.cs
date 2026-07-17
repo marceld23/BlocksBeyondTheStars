@@ -1514,13 +1514,26 @@ public sealed partial class GameServer
                 }
 
                 var chunk = _world.GetOrLoadChunk(coord);
+                var dense = chunk.ToArray();
+                // Ship the run-length-encoded payload when it is smaller (terrain almost always is; a rare
+                // unrunnable chunk goes dense). Decisive on the browser JSON path — ~15-25 KB of JSON
+                // numbers per chunk shrink to usually a few hundred bytes — and it trims native payloads
+                // and VPS egress too. The client accepts both representations (ChunkDataMessage.DecodeBlocks).
+                var rle = ChunkBlocksRle.Encode(dense);
                 var msg = new ChunkDataMessage
                 {
                     Cx = coord.X,
                     Cy = coord.Y,
                     Cz = coord.Z,
-                    Blocks = chunk.ToArray(),
                 };
+                if (rle.Length < dense.Length)
+                {
+                    msg.BlocksRle = rle;
+                }
+                else
+                {
+                    msg.Blocks = dense;
+                }
                 PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
                 Send(session, msg);
                 session.SentChunks.Add(coord);

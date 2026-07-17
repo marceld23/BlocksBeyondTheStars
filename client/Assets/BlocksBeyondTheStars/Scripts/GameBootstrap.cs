@@ -1419,16 +1419,19 @@ namespace BlocksBeyondTheStars.Client
             // Reject a malformed/short chunk payload: ChunkData.FromRaw requires exactly BlocksPerChunk cells and
             // throws otherwise, which would bubble out of the network dispatch. Drop + warn instead, so a bad
             // packet can neither crash the client nor be stored as solid terrain (which the player would read as
-            // a floor and then fall through). A normal chunk is ~8-25 KB of JSON — well under the codec cap, so
-            // this only fires on a genuinely truncated/dropped payload; the warning is the diagnostic to watch.
+            // a floor and then fall through). DecodeBlocks handles both representations the server may send —
+            // the RLE payload (usual) or the dense array — and returns null for an undecodable RLE stream, so
+            // this only fires on a genuinely truncated/corrupt payload; the warning is the diagnostic to watch.
             int expected = WorldConstants.BlocksPerChunk;
-            if (m.Blocks == null || m.Blocks.Length != expected)
+            var blocks = m.DecodeBlocks(expected);
+            if (blocks == null || blocks.Length != expected)
             {
-                Debug.LogWarning($"[Chunk] Dropped malformed chunk {coord}: expected {expected} blocks, got {(m.Blocks?.Length ?? 0)}.");
+                Debug.LogWarning($"[Chunk] Dropped malformed chunk {coord}: expected {expected} blocks, got "
+                    + (m.BlocksRle != null && m.BlocksRle.Length > 0 ? $"an undecodable RLE payload ({m.BlocksRle.Length} entries)" : $"{blocks?.Length ?? 0}") + ".");
                 return;
             }
 
-            World.StoreChunk(coord, m.Blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
+            World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
             MarkChunkAndNeighborsDirty(coord);
         }
 

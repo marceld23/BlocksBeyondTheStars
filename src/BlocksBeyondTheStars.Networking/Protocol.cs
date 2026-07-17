@@ -6,8 +6,10 @@ namespace BlocksBeyondTheStars.Networking;
 /// <summary>Shared protocol constants for client/server compatibility.</summary>
 public static class Protocol
 {
-    /// <summary>Bumped whenever the wire format or message set changes incompatibly.</summary>
-    public const int Version = 1;
+    /// <summary>Bumped whenever the wire format or message set changes incompatibly.
+    /// v2: ChunkDataMessage carries the run-length-encoded BlocksRle payload (older clients
+    /// cannot decode it, so the join-time version check keeps them off newer servers).</summary>
+    public const int Version = 2;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

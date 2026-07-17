@@ -559,7 +559,20 @@ public sealed class ChunkDataMessage
     public int Cx { get; set; }
     public int Cy { get; set; }
     public int Cz { get; set; }
+
+    /// <summary>Dense per-cell block ids. Empty when <see cref="BlocksRle"/> carries the payload instead —
+    /// the server sends whichever representation is smaller (a rare unrunnable chunk ships dense).</summary>
     public ushort[] Blocks { get; set; } = System.Array.Empty<ushort>();
+
+    /// <summary>Run-length-encoded block payload as flat (value, runLength) pairs — terrain chunks are
+    /// highly runnable, and on the browser JSON path this shrinks ~15-25 KB of numbers per chunk to
+    /// usually a few hundred bytes (join time + VPS egress). Empty when <see cref="Blocks"/> is set.</summary>
+    public ushort[] BlocksRle { get; set; } = System.Array.Empty<ushort>();
+
+    /// <summary>The dense cell array, whichever representation this message carries. Null when an RLE
+    /// payload is malformed — callers drop the chunk (same handling as a wrong-length dense array).</summary>
+    public ushort[]? DecodeBlocks(int expectedLength)
+        => BlocksRle.Length > 0 ? ChunkBlocksRle.Decode(BlocksRle, expectedLength) : Blocks;
 
     // Sparse per-voxel colour modifiers (dyed surface tint / glow light colour), parallel arrays
     // keyed by local cell index. Empty for the overwhelming majority of chunks (no colour edits).
