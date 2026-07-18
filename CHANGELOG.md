@@ -11,26 +11,47 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🌅 Distant terrain no longer pops in
+## [0.8.4] — 2026-07-18
+
+The visual-fidelity release: a real twilight, name-tagged ships, and an end to the "black silhouette / see-through floor" rendering bugs — plus the Medium-preset ambient-occlusion work and the browser-feedback fixes from this cycle.
+
+### 🌗 Day & night now flow through a real twilight / golden hour
+- Crossing the day/night terminator on a planet — or just standing still while the local day advances — used to **snap** almost instantly to a dark, starry sky, with no visible dusk or dawn. `Sky.cs` now computes a smoothstepped twilight weight that peaks with the sun on the horizon: a warm golden-hour horizon glow (which the distance fog inherits) plus a warm amber cast on the block light, sun disc and god-rays at low sun angles. Because it's driven by sun **height**, the dusk length scales with each planet's `DayLengthSeconds` on its own — long day → long lazy dusk, short day → quick one, no per-planet tuning. Stars now **rise as the sun sinks past the horizon** instead of popping on a still-bright sky. Airless / space-sky bodies keep a hard terminator (no atmosphere → no scattering), which also sets those worlds apart. Client-visual only. (#393)
+
+### 🏷️ Ships now show their pilot's name in flight
+- Other pilots in a space instance were rendered as ships / EVA suits but carried **no name label**, so you couldn't tell who was who. A floating nameplate now rides over each ship or suit via the shared screen-label layer — the same path as the ground remote-players, with a radar-scale distance fade (90 → 140 m). Synthetic NPC-trader poses have empty names and get no plate. Client-only; the name was already on the wire. (#386)
+
+### 🎨 A sweep of rendering fixes — colour is back
+- **Creatures no longer render as flat black silhouettes** — wild or tamed, flying or ground. The species colour arrived correct on the client but was crushed to ~15% of its true value by a stack of multipliers (grayscale hide-tile × the 0.35 ambient floor × the 0.6 asleep-dim, worst in linear space). `LitColor` gains per-material `_Floor` / `_Fill` (defaults leave every other user — avatars, doors, ships, stations, held items — byte-identical), only `CreatureBuilder` raises them, and creature hide tiles are lifted toward near-white on load (they're multiply-tint detail maps, not dark albedo). Detail is preserved; only shadows rise. (#396)
+- **Sky bodies no longer render as black discs by day.** From a planet surface the sun and every visible body share the upper hemisphere, so the camera sees the body's unlit far side ("new moon") — a dark disc against the bright day sky. A new `_DayLight` blend in `SkyBodyPhase.shader`, driven by the day factor, lifts back-lit bodies toward a fully front-lit disc by day (limb darkening keeps their round depth); at night and twilight the true crescent/phase is preserved. Defaults to 0, so space view and the menu background are unchanged. (#399)
+- **Flora no longer shows a see-through "transparent floor".** The ground under cross-plant flora and at the base of solid flora (puffballs, cacti, crystal domes) showed a hole to the sky. The mesher was culling the ground-top face because `IsTransparent` lists only glass/fluids/fields — not flora/foliage — so the sealed face left a gap the thin billboard couldn't cover. Flora and foliage neighbours are now treated as non-occluding, mirroring the AO occluder exactly; tree crowns stay a thin shell. Render-only; verified across biomes with a regression test. (#382)
+- **Edge-bevel corners stopped rendering white.** The render-only T0 edge bevel drew white triangles at exposed convex corners because every chamfer vertex shared one zero-area UV (`uv.center`), which samples a near-white cross-tile average on the mipmapped, gutter-less block atlas. Each bevel vertex now gets a real per-vertex UV projected onto the block's own tile, so the chamfer samples the block's own, correctly-lit texel. (#382)
+
+### 🌅 Distant terrain no longer pops in at the horizon
 - **The horizon stopped popping.** Distant terrain used to appear abruptly at the view edge because the fog ended *past* the streamed terrain (up to 1.6× the view radius) and the haze was capped at 60–75% opacity — so the outermost chunks were always partly visible when they streamed in. The fog now saturates fully at the view edge, and the server streams **one extra chunk ring beyond the fog line**, so the last ring is already loaded-and-hazed and simply fades in as you walk instead of materializing from nothing. (#388)
 - **The world no longer assembles in front of you after loading.** The loading screen used to lift as soon as the single chunk under your feet had loaded, while the rest of the view was still streaming and meshing — so you watched the landscape build itself for a few seconds. It now holds until the streamed view has actually finished arriving and meshing (with the same hard time cap so it can never feel stuck). (#390)
 
-### 🐛 Reports show the right version
-- Bug reports and feedback in the report inbox showed the game version `1.0.0` for reports that came in through the server (a `/bump`, its feedback forward, or a server crash), because the dedicated-server build never stamped its version and defaulted to `1.0.0`. The server build now bakes in the release version, and a `/bump` additionally carries the reporting player's own client build so the inbox shows the player's version rather than the server's. (#389)
+### 🤖 Walking ground robots actually spawn now
+- The planet Guardian machines come in two variants — a flying scan-drone and a walking three-eyed ground robot — but only drones ever appeared in playtests. The spawn mix keyed off the raw live count while the spawn guard only fires below the cap, so at the default cap the count was always 0 or 1 at decision time and every slot filled as a drone; robots only showed at Frequent/Extreme or with 2+ players. The mix now keys off how many drones are already alive, guaranteeing a walking robot even at cap 2 (steady state: 1 drone + 1 robot) while still converging on the intended ~2-in-5 drone ratio at larger caps. Server-only. (#398)
 
-### 🐛 Browser feedback fixes
-- **Feedback in the browser no longer needs F1** — F1 opens the browser's own help, so the in-game feedback dialog now opens with **F2** in WebGL builds (F1 stays on desktop). The HUD and flight hints show the right key per platform. (#376)
-- **Raw `ui.*` keys no longer stick in the browser UI.** On WebGL the locale files load asynchronously, so a screen built during that window (e.g. the main menu) could show untranslated resource keys and never refresh. Cached shell screens are now rebuilt once the language finishes loading, and the missing `ui.feedback.send` label was added. (#377)
-- **Browser feedback actually reaches the inbox now.** The WebGL build was uploading an empty `{}` body (IL2CPP stripped the report type's metadata), so reports were silently dropped while the game said "queued". The type is now preserved, and a server rejection shows a real error instead of a false "saved, will retry". (#378)
-- **The two admin inboxes now point at each other** — the fleet admin and the ReportHost admin each note what the other one holds, so in-game feedback isn't hunted for on the wrong page. (#379)
+### 💾 Singleplayer quit saves your live position
+- Native singleplayer quit hard-killed the bundled server before its graceful drain + save could run, so everything since the last 5-minute autosave was lost — and on reload you reappeared at the last **durable** checkpoint (often the landing pad at the ship's heal-tank), a few blocks above your ship, falling onto the hull. Quit now closes the server's stdin and the server drains + saves your live position on the tick thread (up to a 5 s wait) before exit, mirroring the existing SIGINT → save path; it falls back to a hard kill only if the server wedges. Flag-guarded, so dedicated/docker hosts are untouched, and WebGL (in-process) is unaffected. (#401)
 
 ### ⚡ Medium preset: ambient occlusion at half the cost
 - Itemised the Medium preset's GPU cost on the reference laptop (Ryzen 9 7940HS / RTX 2000 Ada) with a new per-feature probe: **SSAO was the entire Low→Medium frame-time cliff** — everything else Medium switches on (depth/opaque copies, SMAA, ground scatter) sat within measurement noise. Medium now runs **SSAO at half resolution**: it keeps ambient occlusion but roughly halves the pass cost (~2.8 ms vs ~4–7 ms full-res across runs), recovering a few milliseconds per frame. **High is unchanged** (full-res SSAO). (#374)
 - The main-light shadowmap also drops 4096 → 2048 below High — free on the reference GPU, a small win on weaker ones; High keeps 4096. (#374)
 - The PerfProbe harness gained per-feature toggles (`-perfFeature ssao=off|half|full,depth=off,smaa=off,scatter=off,shadowmap=…,shadowdist=…`) so one preset feature's cost can be isolated in a single thermal session, plus an optional dense night scene (`-perfDense`: Extreme creature abundance at forced midnight) to measure the glowing-entity light cost for a future pass. (#374)
-
-### 🌐 Fleet: bounded worldgen per tick
 - Hosted worlds now cap chunk streaming — and the first-visit worldgen that happens inside it — at a per-tick wall-clock budget (default **25 ms**), so one player's fresh join or fast flight over new terrain can no longer stall the shared tick for everyone else in that world. At least one chunk always streams; the rest resume the next tick, nearest-first. Tunable via `BBS_WH_CHUNK_STREAM_BUDGET_MS` (0 = off); dedicated servers can set it directly with `--chunk-stream-budget-ms` / `BBS_CHUNK_STREAM_BUDGET_MS`. (#360)
+
+### 🐛 Reports show the right version
+- Bug reports and feedback in the report inbox showed the game version `1.0.0` for reports that came in through the server (a `/bump`, its feedback forward, or a server crash), because the dedicated-server build never stamped its version and defaulted to `1.0.0`. The server build now bakes in the release version, and a `/bump` additionally carries the reporting player's own client build so the inbox shows the player's version rather than the server's. (#389)
+- The server-side `/bump` forward now also carries the **screenshot** into the report inbox (top-level base64 node matching the F1 wire contract), so a graphics-feedback bump no longer arrives image-less — a reliable path for the picture even on older/native builds where the client-direct upload may not run. (#381)
+
+### 📮 Browser feedback fixes
+- **Feedback in the browser no longer needs F1** — F1 opens the browser's own help, so the in-game feedback dialog now opens with **F2** in WebGL builds (F1 stays on desktop). The HUD and flight hints show the right key per platform. (#376)
+- **Raw `ui.*` keys no longer stick in the browser UI.** On WebGL the locale files load asynchronously, so a screen built during that window (e.g. the main menu) could show untranslated resource keys and never refresh. Cached shell screens are now rebuilt once the language finishes loading, and the missing `ui.feedback.send` label was added. (#377)
+- **Browser feedback actually reaches the inbox now.** The WebGL build was uploading an empty `{}` body (IL2CPP stripped the report type's metadata), so reports were silently dropped while the game said "queued". The type is now preserved, and a server rejection shows a real error instead of a false "saved, will retry". (#378)
+- **The two admin inboxes now point at each other** — the fleet admin and the ReportHost admin each note what the other one holds, so in-game feedback isn't hunted for on the wrong page. (#379)
 
 ## [0.8.3] — 2026-07-17
 
@@ -472,7 +493,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.0...v0.8.1
