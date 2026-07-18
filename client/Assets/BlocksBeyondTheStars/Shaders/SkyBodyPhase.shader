@@ -16,6 +16,12 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
         _Earthshine ("Night-side floor", Range(0, 0.4)) = 0.12
         _TermSoft ("Terminator softness", Range(0.001, 0.4)) = 0.07
         _LimbDark ("Limb darkening", Range(0, 1)) = 0.35
+        // 0 = pure sun-lit phase (space view + night surface). 1 = fully front-lit visible disc. The surface sky
+        // (SkyBodiesView) ramps this up with daylight: by day the sun and every visible body share the upper
+        // hemisphere, so the pure phase shows only the unlit far side ("new moon") and reads as a black
+        // silhouette against the bright sky. Front-lighting it by day keeps the body a visible feature; the
+        // true crescent/phase is preserved at night/twilight where it looks right. Default 0 → space view unchanged.
+        _DayLight ("Daytime front-lit blend", Range(0, 1)) = 0
     }
 
     // ---------------- URP ----------------
@@ -40,6 +46,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _Earthshine;
             float _TermSoft;
             float _LimbDark;
+            float _DayLight;
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -65,6 +72,10 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float lit = smoothstep(-_TermSoft, _TermSoft, ndl);
                 float wrap = saturate(ndl * 0.5 + 0.5);
                 float shade = max(lit, wrap * wrap * 0.35);
+                // Daytime: lift the sun-lit phase toward a fully front-lit disc so a back-lit body is a visible
+                // lit disc (limb darkening still gives it round depth) instead of a black silhouette. At night
+                // (_DayLight → 0) the crisp phase is untouched.
+                shade = lerp(shade, 1.0, _DayLight);
                 float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
                 float3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * shade);
                 // Limb darkening via the world-space view direction: bright at the disc centre (normal toward the
@@ -99,6 +110,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _Earthshine;
             float _TermSoft;
             float _LimbDark;
+            float _DayLight;
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -121,6 +133,9 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float lit = smoothstep(-_TermSoft, _TermSoft, ndl);
                 float wrap = saturate(ndl * 0.5 + 0.5);
                 float shade = max(lit, wrap * wrap * 0.35);
+                // Daytime front-lit lift (see URP pass) so back-lit bodies read as a lit disc, not a black
+                // silhouette; the night phase (_DayLight → 0) is untouched.
+                shade = lerp(shade, 1.0, _DayLight);
                 fixed3 tex = tex2D(_MainTex, i.uv).rgb;
                 fixed3 col = _Color.rgb * tex * (_Earthshine + (1.0 - _Earthshine) * shade);
                 float3 Vw = normalize(_WorldSpaceCameraPos - i.wp);

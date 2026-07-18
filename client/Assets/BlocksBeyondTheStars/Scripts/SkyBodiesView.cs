@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly int SunDirId = Shader.PropertyToID("_Sc_SunDir");
         private static readonly int PhaseSunDirId = Shader.PropertyToID("_PhaseSunDir");
+        private static readonly int DayLightId = Shader.PropertyToID("_DayLight");
 
         private readonly List<SkyBody> _bodies = new();
         private string _builtFor = "\0"; // ActiveLocationId the current set was built for
@@ -181,6 +182,11 @@ namespace BlocksBeyondTheStars.Client
                 // now just an overall dim: bodies dominate the dark night sky and wash out toward day, fading at
                 // the horizon. (The lit/unlit split across the disc is the phase, handled in the shader.)
                 b.Mat.SetVector(PhaseSunDirId, sunDir);
+                // Daytime the sun and every visible body share the upper sky, so the pure sun-lit phase only shows
+                // the body's unlit far side ("new moon") — a black silhouette against the bright day sky. Ramp the
+                // shader from its true phase (night) toward a fully front-lit disc (day) so bodies stay a visible
+                // feature; the crescent/phase still reads at twilight and night. `day` is 0 at night → 1 at noon.
+                b.Mat.SetFloat(DayLightId, day);
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
                 // Overall dim: bodies dominate the night sky and fade toward day — but keep a higher day-time floor
                 // so they don't wash to black against the bright ACES-tonemapped daytime sky (they're a feature).
