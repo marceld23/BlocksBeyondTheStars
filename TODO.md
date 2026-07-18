@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Edge-bevel corners/edges no longer render white (#382, 2026-07-18)
+The render-only T0 edge bevel (`ChunkMesher.EmitBevel`) drew small white triangles at exposed convex block
+corners/edges — most visible on bottom corners, and independent of the block's own texture (sand, stone and
+the red `data_cache` all showed the same white). Root cause: every chamfer/corner vertex was written with a
+single shared UV (`uv.center`), giving each polygon a **zero-area UV footprint**. On the mipmapped, gutter-less
+block atlas that samples a coarse cross-tile average which resolves to near-white. Fix: give each bevel vertex a
+**real per-vertex UV** — project its cell-local position onto the plane perpendicular to the polygon's dominant
+axis and map it across the block's own tile (clamped to the tile rect). The chamfer now samples the block's own
+texel, correctly lit. Render-only, no collider/data/wire change; unbeveled geometry (flora, glass, fluids,
+shaped blocks) untouched.
+
 ### ★ Bump/F1 screenshot forwarded to the report inbox (#381, 2026-07-18)
 Follow-up to #372: the server-side `/bump` forward now carries the screenshot too, so it shows in the
 ReportHost admin detail view. `GameServer.HandleBump` passes the JPG bytes into `ForwardBumpSnapshot`,

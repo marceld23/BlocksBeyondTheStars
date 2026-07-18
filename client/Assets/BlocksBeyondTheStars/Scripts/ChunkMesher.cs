@@ -1506,7 +1506,6 @@ namespace BlocksBeyondTheStars.Client
             float sky, Vector3 bl, Vector3 blDir)
         {
             float b = BevelAmount;
-            Vector2 uvC = uv.center;
             bool Open(int axis, int sign) => (openMask & (1 << FaceIndexFor(axis, sign))) != 0;
 
             void AddPoly(Vector3 a, Vector3 v1, Vector3 v2, bool isQuad, Vector3 v3, Vector3 outward)
@@ -1525,9 +1524,22 @@ namespace BlocksBeyondTheStars.Client
                 var tan = new Vector4(tan3.x, tan3.y, tan3.z, -1f);
                 int baseIdx = verts.Count;
 
+                // Per-vertex UVs: project each vertex's cell-local position onto the plane perpendicular to
+                // the polygon's dominant axis and map it across the block's tile. A single shared UV (uv.center)
+                // gave every chamfer/corner a zero-area UV footprint, which on the mipmapped, gutter-less atlas
+                // sampled a coarse cross-tile average that resolved to near-white — the "white corners" bug. A
+                // real (non-degenerate) footprint makes the chamfer sample the block's own texel, correctly lit.
+                Vector3 nAbs = new Vector3(Mathf.Abs(outward.x), Mathf.Abs(outward.y), Mathf.Abs(outward.z));
+                int domAxis = nAbs.x >= nAbs.y && nAbs.x >= nAbs.z ? 0 : (nAbs.y >= nAbs.z ? 1 : 2);
+                int uAxis = domAxis == 0 ? 1 : 0;
+                int vAxis = domAxis == 2 ? 1 : 2;
+
                 void Push(Vector3 p)
                 {
-                    verts.Add(p); colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                    Vector3 loc = p - cell;
+                    var uvv = new Vector2(uv.xMin + Mathf.Clamp01(loc[uAxis]) * uv.width,
+                                          uv.yMin + Mathf.Clamp01(loc[vAxis]) * uv.height);
+                    verts.Add(p); colors.Add(col); uvs.Add(uvv); tangents.Add(tan);
                     skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
                 }
 
