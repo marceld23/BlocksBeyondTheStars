@@ -204,7 +204,13 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
+            // Wait until the world has FULLY revealed — the loading curtain has faded — not merely WorldReady, which
+            // defaults true and can pass this instant before the load flips it false, catching the cockpit shot on
+            // the black "Loading world" veil. Gating on the veil implicitly waits for WorldReady (the veil needs it
+            // to fade), and is robust to that default-true race.
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
+            var overlay = FindAnyObjectByType<WorldLoadingOverlay>();
+            yield return WaitUntil(() => overlay == null || !overlay.VeilActive, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
             // 3) Cockpit HUD — a fresh world starts the player INSIDE the ship (the onboarding cockpit), so just
@@ -241,25 +247,55 @@ namespace BlocksBeyondTheStars.Client
             yield return Capture(Path.Combine(dir, "space_flight.png"));
 
             // 5) Planet surface — land back on the home world, then step the on-foot player OUT of the ship onto
-            //    open terrain. No-arg LeaveSpace lands but keeps you inside the hull in the PLANET world, so the
-            //    capture-pose step works (no input → the on-foot player can't move otherwise); gravity settles
-            //    the player onto the ground, looking back at the landed ship.
+            //    open terrain WELL AWAY from the hull. No-arg LeaveSpace lands but keeps you inside the hull in the
+            //    PLANET world, so the capture-pose step works (no input → the on-foot player can't move otherwise).
             boot.Network.SendLeaveSpace();
             yield return WaitUntil(() => !boot.InSpace, 25f);
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
+            // Terrain-aware placement (a good distance back from the ship, on solid/open/dry ground) and shoot only
+            // once the player has actually settled on the surface — so the landed ship reads as a background element
+            // instead of the hull/door filling the frame. Falls back to a blind offset if no near chunk collider is
+            // ready in time, so we still write a frame. See PlayerController.PlaceForCaptureNear.
             var pc = FindAnyObjectByType<PlayerController>();
             if (pc != null)
             {
                 var p = boot.PlayerPosition;
-                pc.SetCapturePose(new Vector3(p.x + 16f, p.y + 1f, p.z + 16f), 225f, 4f);
+                var anchor = new Vector3(p.x, p.y, p.z);
+                bool placed = false;
+                float t = 0f;
+                while (t < CaptureReadyTimeout)
+                {
+                    if (!placed)
+                    {
+                        placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                    }
+
+                    bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;
+                    if (placed && pc.IsCaptureGrounded && !pc.IsHeadUnderwater() && alive)
+                    {
+                        break;
+                    }
+
+                    t += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                if (!placed)
+                {
+                    // Blind fallback: step out diagonally and look AWAY from the ship (yaw 45° = toward +x/+z, the
+                    // same corner we stepped to) so we still write a frame if no chunk collider was ready in time.
+                    Debug.LogWarning("[Capture] planet_surface: terrain-aware placement failed — using blind fallback pose.");
+                    pc.SetCapturePose(new Vector3(p.x + 16f, p.y + 1f, p.z + 16f), 45f, 4f);
+                }
             }
 
-            // Pin clear-weather noon so the on-foot shot is bright regardless of the home world's time/weather.
+            // Pin clear-weather noon so the on-foot shot is bright regardless of the home world's time/weather. The
+            // player is already placed, so its longitude offset is final.
             boot.SetCaptureEnvironment(0.5f);
 
-            yield return new WaitForSecondsRealtime(ChunkSettle);
+            yield return new WaitForSecondsRealtime(PoseSettle);
             yield return Capture(Path.Combine(dir, "planet_surface.png"));
 
             Debug.Log("[Capture] Done.");
@@ -267,9 +303,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Surface-only capture for one forced planet type (<c>-planet &lt;key&gt;</c>): start a fresh world
-        /// pinned to that planet type, then step the on-foot player out of the spawn hull onto open terrain and
-        /// shoot <c>surface_&lt;key&gt;.png</c>. A fresh world spawns the player INSIDE the ship hull on the surface
-        /// (not a void interior), so no EnterSpace/LeaveSpace round-trip is needed — just SetCapturePose out.</summary>
+        /// pinned to that planet type, take off and land straight back on it (to get out of the onboarding cockpit
+        /// seat), then step the on-foot player out of the hull onto open terrain and shoot <c>surface_&lt;key&gt;.png</c>.
+        /// The fresh world spawns the player SEATED at the helm, whose pilot view re-locks the camera to the cockpit
+        /// every frame — so a bare placement can't leave it. The short EnterSpace→LeaveSpace round-trip (same as the
+        /// main planet_surface shot) drops the player "inside the hull" on the surface, out of the seat.</summary>
         private IEnumerator CapturePlanetSurface(AppShell shell, string dir)
         {
             // A distinct world name per planet so each run is its own fresh save (no leftover state between types).
@@ -289,6 +327,31 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
+            // Get out of the onboarding cockpit seat: take off and land straight back on THIS planet, exactly like the
+            // main planet_surface shot. Without this the pilot view keeps the camera locked to the helm and the shot
+            // comes out as the cockpit interior even though placement moved the transform. LeaveSpace drops the player
+            // "inside the hull" on the surface, out of the seat, so the terrain-aware placement below can step out.
+            // Only needed when we actually spawned aboard: a REUSED save resumes wherever the previous run left the
+            // player — on foot outside since #401 (quit saves the live position) — and EnterSpace is refused on foot
+            // (the "board your ship first" toast), so the round-trip must be skipped there. The Aboard flag arrives
+            // with a later PlayerState packet, so give it a moment rather than sampling it once — a fresh world read
+            // false here and skipped the round-trip, leaving the camera seat-locked (the ocean cockpit frame).
+            yield return WaitUntil(() => boot.Aboard, 8f);
+            if (boot.Aboard)
+            {
+                boot.Network.SendEnterSpace();
+                yield return WaitUntil(() => boot.InSpace, 25f);
+                yield return new WaitForSecondsRealtime(ChunkSettle);
+                boot.Network.SendLeaveSpace();
+                yield return WaitUntil(() => !boot.InSpace, 25f);
+                yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
+                yield return new WaitForSecondsRealtime(ChunkSettle);
+            }
+            else
+            {
+                Debug.Log($"[Capture] {_planet}: resumed on foot (not aboard) — skipping the take-off round-trip.");
+            }
+
             // Step the on-foot player out of the hull onto REAL terrain near the ship, facing back at it. The
             // terrain-aware placement raycasts down to the actual surface (no blind offset), so the player isn't
             // dropped through the floor / off a floating island / into water — the exact failures that wrecked the
@@ -302,8 +365,12 @@ namespace BlocksBeyondTheStars.Client
                 yield break;
             }
 
+            // Anchor on the SHIP, not the player: on a reused save the player resumes wherever the previous run
+            // placed them (out on the terrain), and anchoring there would drift the shot another ring further out
+            // every regeneration. ShipPosition comes from the landed-ship placement; player position is the
+            // fallback for a fresh world where it hasn't arrived yet (the player is inside the hull there anyway).
             var p = boot.PlayerPosition;
-            var anchor = new Vector3(p.x, p.y, p.z);
+            var anchor = boot.ShipPosition ?? new Vector3(p.x, p.y, p.z);
 
             bool placed = false;
             bool ready = false;
@@ -328,6 +395,7 @@ namespace BlocksBeyondTheStars.Client
                 yield return null;
             }
 
+            Debug.Log($"[Capture] {_planet}: ready={ready} placed={placed} aboard={boot.Aboard} grounded={pc.IsCaptureGrounded}");
             if (!ready)
             {
                 Debug.LogWarning($"[Capture] {_planet}: no safe dry footing near the ship (placed={placed}) — skipping shot.");
@@ -362,6 +430,9 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator Capture(string path)
         {
+            // Never catch the VEGA onboarding/greeting dialog in a frame — a fresh world queues her intro
+            // lines right at spawn. (No-op on the menu, where no panel exists yet.)
+            FindAnyObjectByType<VegaPanel>()?.DismissSpeechForCapture();
             yield return new WaitForEndOfFrame(); // let the pipeline finish the frame before reading it back
             Texture2D tex = null;
             try

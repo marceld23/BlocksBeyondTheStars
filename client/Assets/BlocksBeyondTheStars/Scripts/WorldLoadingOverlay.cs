@@ -23,6 +23,10 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): true while the loading curtain is on screen, so
+        /// a screenshot run can wait for the world to fully reveal instead of shooting through the veil.</summary>
+        public bool VeilActive => _active;
+
         private const int DotCount = 12;       // spinner dots around the ring
         private const float Ring = 30f;        // spinner radius (reference units)
         private const float MinShow = 3.0f;    // always hold the screen long enough to read it (planet + station)

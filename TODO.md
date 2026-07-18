@@ -100,6 +100,29 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Marketing screenshots regenerated; capture director survives the #401 live-position save (2026-07-19, branch docs/screenshots-regen)
+The README/marketing screenshots (docs/screenshots/en, 13 shots) were regenerated against the v0.8.4
+engine — and the unattended capture run was broken in four independent ways, several caused by recent
+engine changes. (1) Since **#401** a quit saves the live player position, so a reused `MarketingShots*`
+save resumes with the player **on foot outside** where the last run left them — the cockpit shots showed
+terrain and `EnterSpace` was refused ("board your ship first"). The wrapper now deletes the main-sequence
+save before each run, and the per-planet path skips the take-off round-trip when not aboard (waiting up
+to 8 s for the late-arriving `Aboard` PlayerState flag — sampling it once mis-read a fresh world) and
+anchors placement on `boot.ShipPosition` instead of the player (no ring-drift across regenerations).
+(2) A fresh world spawns the player **seated at the helm**, whose pilot view re-locks the camera every
+frame — surface shots came out as the cockpit interior; the per-planet path now does the same short
+EnterSpace→LeaveSpace round-trip as the main sequence to step out of the seat. (3) The ship's glass
+skylight has no collider, so `PlaceForCaptureNear`'s open-sky probe passed **inside** the hull and posed
+the player in front of the Workshop door; a 4-side enclosure check (≥3 walls at head height ⇒ indoors)
+now rejects interior spots, and the pose faces **away** from the ship so shots show the landscape.
+(4) `WorldReady` defaults true, so the cockpit shot could race the loading curtain and capture the black
+"Loading world" veil (the telltale 49 KB PNG); the director now also waits for the new
+`WorldLoadingOverlay.VeilActive` capture hook. VEGA's intro lines are dismissed before every shot
+(`VegaPanel.DismissSpeechForCapture`), retiring the "one throwaway run after deleting a save" ritual.
+Ocean joins jungle/lava as a hand-picked seed (`-Seed 555555`; the default framed a near-black thicket).
+All hooks are `-captureShots`-only — normal gameplay untouched. Client-only + docs; DE set intentionally
+left for a later run (README gallery links the EN set).
+
 ### ★ Walking ground robots now actually spawn on planets — not only flying drones (#398, 2026-07-18)
 Two variants of the planet "Guardian machines" are meant to appear on the surface: the flying scan-drone and
 the walking three-eyed ground robots. In playtests only the drones ever showed up. Not a client/render bug

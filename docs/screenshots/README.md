@@ -23,7 +23,7 @@ Gallery shows the English set (`en/`); a matching German set lives in `de/`.
     <td width="50%"><img src="en/space_flight.png" width="100%" alt="Space flight"><br><sub><b>space_flight.png</b> — Space flight: ship + flight HUD, asteroids and a planet behind</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="en/planet_surface.png" width="100%" alt="Planet surface"><br><sub><b>planet_surface.png</b> — Player view on a planet surface, the landed ship behind</sub></td>
+    <td width="50%"><img src="en/planet_surface.png" width="100%" alt="Planet surface"><br><sub><b>planet_surface.png</b> — Player view on a planet surface, looking out over the terrain</sub></td>
     <td width="50%"></td>
   </tr>
 </table>
@@ -48,18 +48,19 @@ variety. Each is a separate run that spawns a fresh world pinned to that type
     <td width="50%"><img src="en/surface_skylands.png" width="100%" alt="Skylands surface"><br><sub><b>surface_skylands.png</b> — Floating skylands world</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="en/surface_ocean.png" width="100%" alt="Ocean surface"><br><sub><b>surface_ocean.png</b> — Ocean world (water-dominated, so the view is mostly sea)</sub></td>
+    <td width="50%"><img src="en/surface_ocean.png" width="100%" alt="Ocean surface"><br><sub><b>surface_ocean.png</b> — Ocean world (algae mats over shallow water)</sub></td>
     <td width="50%"><img src="en/surface_desert.png" width="100%" alt="Desert surface"><br><sub><b>surface_desert.png</b> — Arid/forested world</sub></td>
   </tr>
 </table>
 
 > **Placement** is terrain-aware (`PlayerController.PlaceForCaptureNear`): the director probes a ring
-> of spots around the landed ship and only stands on a SOLID, DRY one with OPEN SKY above (a downward
-> ray for the surface, an upward ray to reject the ship hull / caves / overhangs), then waits until the
-> player is grounded, alive and not submerged before the shot — otherwise it skips that type rather
-> than writing a broken frame. This fixed the earlier fungal/skylands fall-throughs and the ocean
-> submersion. **ocean** is an honest water-world view (mostly sea); **desert** spawned right against a
-> tree — both are candidates for a nicer reshoot.
+> of spots around the landed ship and only stands on a SOLID, DRY one with OPEN SKY above and NOT
+> boxed in by walls (the enclosure check — the ship's glass skylight lets the plain open-sky ray pass
+> even *inside* the hull), then waits until the player is grounded, alive and not submerged before the
+> shot — otherwise it skips that type rather than writing a broken frame. The player stands well back
+> from the ship and faces AWAY from it, so each shot shows the planet's landscape (the ship stays
+> behind the camera). On water-dominated **ocean** worlds no dry footing may exist near the ship — the
+> run then skips the shot and keeps the previous PNG.
 
 ## How to regenerate
 
@@ -107,12 +108,16 @@ because some state can't be reached without input during an unattended run:
 **Determinism:** a fixed world (`MarketingShots`) + a fixed seed (`-seed`, default `424242`) make
 every run reproducible, so the set can be regenerated after any game change.
 
-Two planet surfaces use hand-picked seeds because the default seed framed them badly (jungle: camera
-against a tree trunk; lava: dark, no lava in view): **jungle = `-Seed 133742`**, **lava = `-Seed 8080`**.
+Three planet surfaces use hand-picked seeds because the default seed framed them badly (jungle: camera
+against a tree trunk; lava: dark, no lava in view; ocean: a dark thicket wall): **jungle = `-Seed 133742`**,
+**lava = `-Seed 8080`**, **ocean = `-Seed 555555`**.
 Note that the per-planet worlds are persisted saves (`singleplayer-saves/MarketingShots_<type>`) — a
 re-run reuses the existing world and ignores `-seed`; delete the save to regenerate from a new seed.
-The very first run on a fresh world catches the VEGA intro dialog in the frame, so after deleting a
-save do one throwaway run before the real capture.
+The MAIN-sequence world (`MarketingShots`) is deleted automatically by the wrapper before each run:
+since #401 a quit saves the live player position, so a reused save would resume the player on foot
+outside the ship, breaking the cockpit shots and the take-off. The director dismisses VEGA's intro
+lines before every shot (`VegaPanel.DismissSpeechForCapture`), so fresh worlds no longer need a
+throwaway run.
 
 ### Tuning
 

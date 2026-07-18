@@ -1225,10 +1225,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float half = _controller.height * 0.5f + _controller.skinWidth;
-            // Start clear of the hull (~16), then nearer (for small floating islands) and a little farther; every
-            // candidate is gated by the open-sky check below, so a too-near one that lands inside the hull is
-            // rejected rather than shot.
-            float[] dists = { 16f, 13f, 19f, 11f, 22f, 25f };
+            // Stand a good way BACK from the ship on OPEN terrain, then face AWAY from the hull so the shot shows the
+            // planet's landscape (the world-variety point) instead of the ship's wall/door filling the frame. The
+            // spawn sits the player INSIDE the ship interior, whose glass skylight leaves "open sky" overhead — so the
+            // sky check alone can't tell inside-the-hull from outside; the enclosure check below (walls on most sides →
+            // indoors) is what reliably rejects an interior spot. Radii stay within the streamed-in chunk ring around
+            // spawn (a far spot lands over an unbaked chunk and the down-ray simply misses); nearer radii are fallbacks
+            // for small floating islands.
+            float[] dists = { 20f, 17f, 24f, 14f, 28f, 12f, 32f };
             for (int di = 0; di < dists.Length; di++)
             {
                 for (int a = 0; a < 8; a++)
@@ -1259,15 +1263,38 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    // Open sky overhead? A hit means a ceiling above us (ship hull / cave / overhang) → indoors.
+                    // Open sky overhead? A hit means a solid ceiling above us (cave / overhang / hull under a solid
+                    // roof) → indoors. (The ship's glass skylight has no collider, so this passes for an interior spot
+                    // under it — the enclosure check below is what catches those.)
                     if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, ~0, QueryTriggerInteraction.Ignore)
                         && up.collider != _controller)
                     {
                         continue;
                     }
 
+                    // Boxed in by walls? Cast head-height rays outward on all four sides; a spot inside the ship's
+                    // interior room hits a wall on (almost) every side within a couple of blocks, while an outdoor
+                    // spot sees open space (a single hit — e.g. the hull on the ship-facing side — is fine). This is
+                    // the check that keeps the shot OUTSIDE, since the skylight fools the open-sky test above.
+                    Vector3 eye = stand + Vector3.up * (half * 0.8f);
+                    int walls = 0;
+                    Vector3[] sides = { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
+                    foreach (var s in sides)
+                    {
+                        if (Physics.Raycast(eye, s, out var w, 5f, ~0, QueryTriggerInteraction.Ignore) && w.collider != _controller)
+                        {
+                            walls++;
+                        }
+                    }
+                    if (walls >= 3)
+                    {
+                        continue; // enclosed on three+ sides → inside the hull, not out on the surface
+                    }
+
                     SnapTo(stand);
-                    Vector3 d = anchor - transform.position;
+                    // Face AWAY from the ship (from hull → player), so the camera looks out over the terrain and the
+                    // ship falls behind the player, out of frame.
+                    Vector3 d = transform.position - anchor;
                     float yaw = (Mathf.Abs(d.x) + Mathf.Abs(d.z) > 0.01f)
                         ? Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg
                         : transform.eulerAngles.y;
@@ -1278,10 +1305,12 @@ namespace BlocksBeyondTheStars.Client
                         Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
                     }
 
+                    Debug.Log($"[Capture] PlaceForCaptureNear: placed at dist={dists[di]} ang={a * 45}° walls={walls} y={stand.y:F1}");
                     return true;
                 }
             }
 
+            Debug.LogWarning("[Capture] PlaceForCaptureNear: no open outdoor spot found around the ship.");
             return false;
         }
 

@@ -80,6 +80,19 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
+        /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): drop any queued VEGA speech and hide the
+        /// panel, so an unattended screenshot run never catches the onboarding/greeting dialog in the frame.
+        /// (Previously a fresh world needed a throwaway run just to get past the intro lines.)</summary>
+        public void DismissSpeechForCapture()
+        {
+            _queue.Clear();
+            _current = string.Empty;
+            if (_speech != null)
+            {
+                _speech.SetActive(false);
+            }
+        }
+
         private void OnLine(ShipAiLine m)
         {
             _objectiveKey = m.ObjectiveKey ?? string.Empty;

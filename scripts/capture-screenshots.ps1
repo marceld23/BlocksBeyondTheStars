@@ -77,6 +77,16 @@ foreach ($l in $langs) {
     $out = Join-Path $OutRoot $l
 
     if (-not $SkipMain) {
+        # Start the main sequence from a FRESH world every time: since #401 a quit saves the live player
+        # position, so a reused save resumes wherever the last run left the player (on foot outside) — and the
+        # cockpit shots / EnterSpace assume the fresh-world spawn at the helm. Only the main world is deleted;
+        # the per-planet saves (MarketingShots_<type>) keep their hand-picked framings and are resume-safe.
+        $mainSave = Join-Path $env:USERPROFILE "AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\singleplayer-saves\MarketingShots"
+        if (Test-Path $mainSave) {
+            Remove-Item $mainSave -Recurse -Force
+            Write-Host "Deleted main-sequence save (fresh cockpit spawn) → $mainSave" -ForegroundColor DarkGray
+        }
+
         Write-Host "Capturing main sequence '$l' → $out" -ForegroundColor Cyan
         Invoke-Capture -OutDir $out -ExtraArgs @("-lang", $l) -Label "main/$l"
     }
