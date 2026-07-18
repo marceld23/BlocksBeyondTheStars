@@ -12,6 +12,14 @@ Shader "BlocksBeyondTheStars/LitColor"
     {
         _Color ("Color", Color) = (1, 1, 1, 1)
         _MainTex ("Texture", 2D) = "white" {}
+        // Per-material ambient floor (the unlit/backlit brightness). Default 0.35 keeps every existing user
+        // (avatars, doors, ships, stations…) byte-identical; creatures raise it (CreatureBuilder) because their
+        // dark, textured, camera-away belly/back faces otherwise sink to a black silhouette against the sky.
+        _Floor ("Ambient floor", Range(0, 1)) = 0.35
+        // Per-material fill light from the side opposite the fixed key. Default 0 = single key light (every
+        // existing user unchanged); creatures raise it so the flank facing away from the key no longer stays
+        // at the floor and reads dark. Unshadowed, so it only lifts — never darkens.
+        _Fill ("Fill light", Range(0, 1)) = 0
     }
 
     // ---------------- URP ----------------
@@ -35,6 +43,8 @@ Shader "BlocksBeyondTheStars/LitColor"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             float4 _MainTex_ST;
             float4 _Color;
+            float _Floor;
+            float _Fill;
             float4 _Sc_LampPos;
             float4 _Sc_LampDir;
             float4 _Sc_LampColor;
@@ -59,8 +69,9 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float3 L = normalize(float3(0.4, 0.7, -0.55)); // fixed key light (sun-independent, like the preview)
                 float ndl = saturate(dot(N, L));
                 float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
+                float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
                 float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
-                float3 col = _Color.rgb * tex * (0.35 + 0.75 * ndl * shadow);
+                float3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
 
                 if (_Sc_LampColor.a > 0.5)
                 {
@@ -130,6 +141,8 @@ Shader "BlocksBeyondTheStars/LitColor"
             #include "UnityCG.cginc"
 
             fixed4 _Color;
+            float _Floor;
+            float _Fill;
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
@@ -167,8 +180,9 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float3 N = normalize(i.wn);
                 float3 L = normalize(float3(0.4, 0.7, -0.55));
                 float ndl = saturate(dot(N, L));
+                float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
                 fixed3 tex = tex2D(_MainTex, i.uv).rgb;
-                fixed3 col = _Color.rgb * tex * (0.35 + 0.75 * ndl);
+                fixed3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
 
                 // Headlamp / flashlight (shared global with the block shader).
                 if (_Sc_LampColor.a > 0.5)

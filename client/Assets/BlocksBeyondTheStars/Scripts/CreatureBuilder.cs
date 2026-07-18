@@ -47,7 +47,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (c.Asleep)
             {
-                baseColor *= 0.6f;
+                baseColor *= 0.85f; // a gentle dim only — the "z z z" already reads sleep; 0.6 crushed the (already tile+floor-dimmed) body to black
             }
 
             // Tamed companions read with a gentle friendly green-cyan cast (never the hostile red) so you can
@@ -416,10 +416,42 @@ namespace BlocksBeyondTheStars.Client
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
             };
-            tex.LoadRawTextureData(asset.bytes);
+            tex.LoadRawTextureData(Brighten(asset.bytes));
             tex.Apply();
             return tex;
         }
+
+        // The hide tiles are authored dark (~0.3 mean grey) but the body uses them as a MULTIPLY over the
+        // species colour (colour * tile) — a multiply-tint workflow needs near-white maps, or the tile alone
+        // eats ~70% of the brightness and the body reads black. Lift each tile toward white so it modulates as
+        // gentle DETAIL instead of a darkener: v' = 1 - (1 - v) * TileDetail (white stays white; only the
+        // shadows rise, so the pattern survives). Alpha is left alone (LitColor is opaque).
+        private const float TileDetail = 0.45f; // 0 = flat white, 1 = original (too dark). Tunable.
+
+        private static byte[] Brighten(byte[] raw)
+        {
+            var outp = new byte[raw.Length];
+            for (int p = 0; p < raw.Length; p += 4)
+            {
+                outp[p] = (byte)(255f - (255 - raw[p]) * TileDetail);
+                outp[p + 1] = (byte)(255f - (255 - raw[p + 1]) * TileDetail);
+                outp[p + 2] = (byte)(255f - (255 - raw[p + 2]) * TileDetail);
+                outp[p + 3] = raw[p + 3];
+            }
+
+            return outp;
+        }
+
+        // Ambient floor for creature bodies. Higher than the LitColor default (0.35) because a creature's
+        // textured, camera-away faces (a flier's belly seen from below, a back turned to the fixed key light)
+        // sit at the floor and otherwise sink to a black silhouette against a bright sky. Only creatures raise
+        // it — every other LitColor user keeps the 0.35 shader default.
+        private const float CreatureFloor = 0.62f;
+
+        // Fill light from the flank opposite the fixed key. The single key light leaves the away-facing side of
+        // a creature at the floor, so it still read dark; this unshadowed fill lifts that flank. Only creatures
+        // set it — every other LitColor user keeps the 0 default (single key light, unchanged).
+        private const float CreatureFill = 0.3f;
 
         private static Material Lit(Color color, Texture2D tex)
         {
@@ -428,6 +460,12 @@ namespace BlocksBeyondTheStars.Client
             if (tex != null)
             {
                 m.mainTexture = tex;
+            }
+
+            if (m.HasProperty("_Floor"))
+            {
+                m.SetFloat("_Floor", CreatureFloor); // no-op on the Unlit/Color fallback
+                m.SetFloat("_Fill", CreatureFill);
             }
 
             return m;
