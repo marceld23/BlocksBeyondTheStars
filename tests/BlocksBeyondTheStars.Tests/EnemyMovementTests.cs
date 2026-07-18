@@ -122,6 +122,30 @@ public sealed class EnemyMovementTests : IDisposable
     }
 
     [Fact]
+    public void PlanetEnemies_IncludeWalkingRobots_NotOnlyDrones()
+    {
+        // Regression (#398): at the default Normal activity a single player's cap is 2, and the old drone-mix
+        // keyed off the raw spawn count (`count % 5 < 2`) while the guard only spawns below the cap — so BOTH
+        // slots filled as flying scan-drones and the walking three-eyed ground robots were never reached.
+        // The live population must contain at least one walking robot (a non-drone kind).
+        var server = Started("robotmix", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Prey");
+            pilot.State.AboardShip = false; // on foot on the surface — a valid enemy target
+
+            // Fill to the cap (Normal + solo = 2). The spawner is interval-driven (5 s), so tick generously.
+            for (int i = 0; i < 200 && server.PlanetEnemies.Count < 2; i++)
+            {
+                server.Tick(0.5);
+            }
+
+            Assert.Equal(2, server.PlanetEnemies.Count);
+            Assert.Contains(server.PlanetEnemies, e => e.Kind != CombatEntityKind.ScanDrone);
+        }
+    }
+
+    [Fact]
     public void PlanetEnemies_IgnoreAPlayerWhoFledAboardTheShip()
     {
         // Regression: fleeing into the ship must break off the hunt entirely — the machine neither chases

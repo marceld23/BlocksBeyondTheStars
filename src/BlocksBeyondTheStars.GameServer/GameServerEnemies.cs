@@ -72,7 +72,17 @@ public sealed partial class GameServer
             _enemySpawnTimer = 0;
             // A fraction (~2 in 5) of the population spawns as the flying scan-drone variant (P4), the rest as
             // walking three-eyed ground robots — both within the same PlanetEnemies cap (count unchanged).
-            bool asDrone = Rules.PlanetDrones && (_planetEnemies.Count % 5) < 2;
+            // Key the mix off how many drones are ALREADY alive, not the raw spawn count: keying off the count
+            // (`count % 5 < 2`) front-loaded both slots as drones at the default cap (Normal + solo = 2, and the
+            // guard only spawns while count < 2), so the walking robots were never reached (#398). Spawning a
+            // drone only while drones stay a minority (< 2/5) of the live population guarantees a robot appears
+            // even at the smallest cap, while still converging on the ~2-in-5 drone ratio at larger caps.
+            int droneCount = 0;
+            foreach (var e in _planetEnemies)
+            {
+                if (e.Kind == CombatEntityKind.ScanDrone) { droneCount++; }
+            }
+            bool asDrone = Rules.PlanetDrones && droneCount * 5 < (_planetEnemies.Count + 1) * 2;
             SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
             BroadcastPlanetEnemies();
         }

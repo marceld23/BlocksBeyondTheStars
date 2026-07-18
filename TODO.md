@@ -100,6 +100,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Walking ground robots now actually spawn on planets — not only flying drones (#398, 2026-07-18)
+Two variants of the planet "Guardian machines" are meant to appear on the surface: the flying scan-drone and
+the walking three-eyed ground robots. In playtests only the drones ever showed up. Not a client/render bug
+(the client renders both kinds). Root cause was in the spawn loop
+([GameServerEnemies.cs](src/BlocksBeyondTheStars.GameServer/GameServerEnemies.cs)): the drone/robot mix keyed
+off the **raw live count** (`count % 5 < 2`), and the spawn guard only fires while `count < cap`. At the
+default cap (`PlanetEnemies = Normal` → `ActivityCount = 2`, single player → `cap = 2`) the count is always 0
+or 1 at decision time, so `asDrone` was **always true** — both slots filled as drones and the robot slots
+(`count % 5` in {2,3,4}) were never reached. Robots only appeared at Frequent/Extreme or with 2+ players.
+**Fix:** key the mix off how many drones are **already alive** — spawn a drone only while drones stay a
+minority (`droneCount*5 < (count+1)*2`) of the live population. Guarantees a walking robot even at cap 2
+(steady state 1 drone + 1 robot) while still converging on the ~2-in-5 drone ratio at larger caps. Server-only
+(no Unity build needed). Regression test `PlanetEnemies_IncludeWalkingRobots_NotOnlyDrones` added; full server
+suite green (1047, 0 warnings).
+
 ### ★ Singleplayer quit now saves your live position (2026-07-18, branch fix/sp-quit-graceful-save)
 Quitting a native singleplayer session (to the menu or by closing the game) discarded everything since the
 last 5-minute autosave: `LocalServerLauncher.Stop()` **hard-killed** the bundled server process with
