@@ -296,12 +296,13 @@ public sealed partial class GameServer
             _log.Info($"Bump #{_bumpCount} captured for {p.Name}: \"{description}\"{(hasImage ? " (+screenshot)" : string.Empty)} -> {file}");
             Send(session, new ServerMessage { Text = $"Debug snapshot #{_bumpCount} saved: {Path.GetFileName(file)}" });
 
-            // Forward the snapshot (without the image — the client's F1 path uploads the screenshot itself,
-            // and its base64 would triple the payload) to the report inbox when a crash-upload sink is
-            // configured: singleplayer gets the key from the bundled launcher, fleet worlds from the
-            // WorldHost. The local file above stays the source of truth; this send is one best-effort
-            // attempt with no retry queue.
-            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot);
+            // Forward the snapshot to the report inbox when a crash-upload sink is configured: singleplayer
+            // gets the key from the bundled launcher, fleet worlds from the WorldHost. The image rides along
+            // as base64 so it shows in the ReportHost admin detail view — the client's F1 client-direct path
+            // (#380) is best-effort and may not run for older/native builds, so this is the only reliable way
+            // the picture reaches the inbox. The local file above stays the source of truth; this send is one
+            // best-effort attempt with no retry queue.
+            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot, hasImage ? image : null, imageName);
         }
         catch (Exception e)
         {
@@ -313,8 +314,10 @@ public sealed partial class GameServer
     /// <summary>Wraps a bump snapshot in the report inbox's wire shape (the same contract as
     /// <see cref="BlocksBeyondTheStars.Persistence.CrashReportWriter"/> uses for crashes — title/description
     /// up front, the snapshot verbatim in <c>reportJson</c>) and posts it through <see cref="CrashUploader"/>
-    /// on a background task. No-op when no sink is configured; never throws into the tick.</summary>
-    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot)
+    /// on a background task. When an <paramref name="image"/> is present it travels as a top-level
+    /// <c>screenshot</c> node (base64 JPG), which the ReportHost decodes and stores like any F1 screenshot so
+    /// it shows in the admin detail view. No-op when no sink is configured; never throws into the tick.</summary>
+    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot, byte[]? image, string? imageName)
     {
         var sink = CrashUploader;
         if (sink is null || !sink.IsConfigured)
@@ -336,6 +339,14 @@ public sealed partial class GameServer
                 sessionId = string.Empty,
                 platform = "server",
                 clientTimestamp = DateTime.UtcNow.ToString("o"),
+                // The screenshot (when the client sent one) as base64, matching the F1 wire contract the
+                // ReportHost already decodes (ReportIngest.ExtractScreenshot reads screenshot.base64 +
+                // mimeType). Null when there is no image → the ingest simply skips it. Oversized shots were
+                // already dropped upstream (2 MB cap in HandleBumpReport); the ReportHost drops anything past
+                // its own base64 cap, keeping the report either way.
+                screenshot = image is { Length: > 0 }
+                    ? new { fileName = imageName ?? "bump.jpg", mimeType = "image/jpeg", base64 = Convert.ToBase64String(image) }
+                    : null,
                 // No "kind" here on purpose: the ReportHost triages any reportJson.kind as category
                 // "crash"; a bump is player feedback context, so it stays category "feedback" with
                 // source "server" and the reportType marker for filtering.

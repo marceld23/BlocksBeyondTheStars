@@ -45,8 +45,10 @@ The rich `/bump` snapshot no longer stays local-only: when the server has a cras
 (`CrashReportEndpoint` + `CrashReportApiKey`, see [REPORT_HOST](REPORT_HOST.md)), `GameServer` also posts
 the snapshot to the inbox — wrapped in the same wire shape as crash reports (`reportJson.reportType:
 "bump"`, `source: "server"`, deliberately **no** `reportJson.kind` so the inbox files it under category
-*feedback*, not *crash*). The screenshot is never re-sent (the client's own POST already carries it) and
-the send is one best-effort background attempt; the on-disk `bumps/` file remains the source of truth.
+*feedback*, not *crash*). When the client attached a screenshot it rides along as a top-level `screenshot`
+node (base64 JPG) so the inbox stores + shows it like an F1 screenshot — this is the reliable path for the
+picture, since the client-direct F1 upload may not run on older/native builds. The send is one best-effort
+background attempt; the on-disk `bumps/` file remains the source of truth.
 
 Who has a sink: **singleplayer** — `LocalServerLauncher` hands the client's baked-in feedback key to the
 bundled server as `BBS_CRASH_REPORT_KEY` (release builds only; dev builds have an empty key and stay

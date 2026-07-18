@@ -103,9 +103,13 @@ reports.example.com {
   server as `BBS_CRASH_REPORT_KEY` (release builds only; dev builds carry an empty key), so SP server
   crashes upload automatically. No new exposure: it is the same spam-gate key the client already ships.
 - **`/bump` snapshots** — any server with a configured sink (SP, fleet, opted-in self-hosts) also
-  forwards each `/bump`/F1 snapshot (without the screenshot) to the inbox, wire-shaped like a crash
-  report but **without** `reportJson.kind` so it is filed under category *feedback* with
-  `source: "server"` and `reportJson.reportType: "bump"`. The local `bumps/` file stays authoritative.
+  forwards each `/bump`/F1 snapshot to the inbox, wire-shaped like a crash report but **without**
+  `reportJson.kind` so it is filed under category *feedback* with `source: "server"` and
+  `reportJson.reportType: "bump"`. When the client sent a screenshot it rides along as a top-level
+  `screenshot` node (base64 JPG), so it stores + shows in the admin detail view exactly like an F1
+  screenshot — the server forward is the reliable path for it, since the client-direct F1 upload may not
+  run on older builds. Oversized shots are dropped upstream (2 MB cap) / by the ReportHost base64 cap,
+  keeping the report either way. The local `bumps/` file stays authoritative.
 - **Client F1 feedback** — the endpoint is the `FeedbackUploader.DefaultEndpoint` constant (by design
   the client always reports to the *official* inbox, from any server). Since the cutover it points at
   `https://reports.blocksbeyondthestars.de/api/bugreport`; the CI secret `BBS_BUGREPORT_API_KEY`

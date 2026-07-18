@@ -85,7 +85,7 @@ public sealed class BumpTests : IDisposable
     }
 
     [Fact]
-    public void BumpReport_WithConfiguredSink_ForwardsSnapshotWithoutImage()
+    public void BumpReport_WithConfiguredSink_ForwardsSnapshotWithScreenshot()
     {
         var (server, client, _) = StartWorld();
         var sink = new ForwardSink();
@@ -109,11 +109,35 @@ public sealed class BumpTests : IDisposable
             // must stay category "feedback" (source "server").
             Assert.False(reportJson.TryGetProperty("kind", out _));
             Assert.Equal("server", reportJson.GetProperty("source").GetString());
+
+            // The screenshot travels as a top-level node in the ReportHost's F1 wire shape (base64 JPG +
+            // mimeType), so ReportIngest.ExtractScreenshot stores it and the admin detail view shows it.
+            var shot = doc.RootElement.GetProperty("screenshot");
+            Assert.Equal("image/jpeg", shot.GetProperty("mimeType").GetString());
+            Assert.Equal(Convert.ToBase64String(image), shot.GetProperty("base64").GetString());
         }
         Assert.Contains("inventory", json);                                  // rich snapshot rides in reportJson
-        Assert.DoesNotContain(Convert.ToBase64String(image), json);          // image is never forwarded
 
         // The local snapshot is still written — forwarding is an addition, not a replacement.
+        Assert.Equal(1, server.BumpsWritten);
+    }
+
+    [Fact]
+    public void BumpCommand_WithoutImage_ForwardsNullScreenshot()
+    {
+        var (server, client, _) = StartWorld();
+        var sink = new ForwardSink();
+        server.CrashUploader = sink;
+
+        // A plain /bump (chat command) carries no screenshot — the forwarded wire must still be valid and
+        // simply carry a null screenshot node, which the ReportHost ingest skips.
+        client.Send(NetCodec.Encode(new ChatIntent { Text = "/bump no picture here" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.True(sink.Sent.Wait(TimeSpan.FromSeconds(10)), "bump was not forwarded to the sink");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(sink.LastJson!);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, doc.RootElement.GetProperty("screenshot").ValueKind);
         Assert.Equal(1, server.BumpsWritten);
     }
 

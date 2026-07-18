@@ -100,6 +100,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Bump/F1 screenshot forwarded to the report inbox (#381, 2026-07-18)
+Follow-up to #372: the server-side `/bump` forward now carries the screenshot too, so it shows in the
+ReportHost admin detail view. `GameServer.HandleBump` passes the JPG bytes into `ForwardBumpSnapshot`,
+which adds a top-level `screenshot` node (base64 + `mimeType: image/jpeg`) matching the F1 wire contract
+the ReportHost already decodes (`ReportIngest.ExtractScreenshot`) and displays — **no ReportHost change**.
+Null node when there is no image (ingest skips it). Rationale: the client-direct F1 upload (#380) is
+best-effort and may not run on older/native builds, so the server forward is the reliable path for the
+picture; oversized shots are dropped upstream (2 MB cap) / by the ReportHost base64 cap, keeping the
+report either way. Real-world trigger: report `eff679…` (Halon-11 graphics feedback) arrived image-less.
+Tests: `BumpReport_WithConfiguredSink_ForwardsSnapshotWithScreenshot`, `BumpCommand_WithoutImage_ForwardsNullScreenshot`.
+Docs: PLAYER_FEEDBACK.md + REPORT_HOST.md.
+
 ### ★ Singleplayer feedback reaches the VPS: SP crash-report key + /bump snapshot forwarding (#372, 2026-07-17, PR #373)
 Two gaps closed so singleplayer feedback fully reaches the report inbox. (The F1 dialog itself already
 posted client-direct from SP in release builds — what never arrived was the rich server context.)
