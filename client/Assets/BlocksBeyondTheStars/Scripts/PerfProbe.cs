@@ -7,23 +7,31 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Automated performance baseline capture (issue #353). When the player is launched with
     /// <c>-perfProbe</c>, this self-installs (same pattern as <see cref="ScreenshotDirector"/>), starts a
-    /// fixed-seed singleplayer world and records frame-time / GC statistics over two phases:
+    /// fixed-seed singleplayer world and records frame-time / GC statistics over these phases:
     /// <list type="number">
     ///   <item><b>idle</b> — standing still after the spawn area has fully meshed (steady-state cost)</item>
     ///   <item><b>walk</b> — scripted straight-line traversal via <see cref="InputMap.ScriptedMove"/>, so
     ///   chunk streaming + meshing churn continuously (the historical stutter scenario)</item>
+    ///   <item><b>dense</b> (only with <c>-perfDense</c>) — Extreme creature abundance at forced visual midnight,
+    ///   so the glowing-entity point-light cost (#361) is exercised instead of the sparse baseline walk</item>
     /// </list>
     /// Results go to <c>&lt;out&gt;/perf_baseline_&lt;platform&gt;.json</c> plus a human-readable .txt and the
     /// log; the process exits when done, so a script can run this end-to-end. Flags: <c>-perfProbe</c>,
-    /// <c>-perfOut &lt;dir&gt;</c>, <c>-seed &lt;n&gt;</c>, <c>-perfIdle &lt;sec&gt;</c>, <c>-perfWalk &lt;sec&gt;</c>.
+    /// <c>-perfOut &lt;dir&gt;</c>, <c>-seed &lt;n&gt;</c>, <c>-perfIdle &lt;sec&gt;</c>, <c>-perfWalk &lt;sec&gt;</c>,
+    /// <c>-perfPreset &lt;name&gt;</c>, <c>-perfVd &lt;n&gt;</c>, and <c>-perfFeature "ssao=off|half|full,depth=off,
+    /// smaa=off,scatter=off,shadowmap=2048,shadowdist=40"</c> (isolate one preset feature's cost — see #374).
     /// The numbers are a coarse CPU/GC baseline (wall-clock frame times), not a GPU profile — for the deep
-    /// dive attach the Unity Profiler to a development build.
+    /// dive attach the Unity Profiler to a development build. When the preset is GPU-bound (the Medium cliff
+    /// in #374), the wall-clock frame time still moves with each feature toggle, so a <c>-perfFeature</c>
+    /// sweep at fixed preset/VD gives a usable first-order cost split without a GPU capture.
     /// </summary>
     public sealed class PerfProbe : MonoBehaviour
     {
@@ -41,6 +49,23 @@ namespace BlocksBeyondTheStars.Client
         private string _presetOverride;   // -perfPreset Potato|Low|Medium|High; null = keep the player's settings
         private int _vdOverride = -1;     // -perfVd 1..8; -1 = keep
 
+        // -perfFeature "ssao=off,depth=off,smaa=off,scatter=off,shadowmap=2048,shadowdist=40": after the preset
+        // is applied, force individual cost-bearing features off (or to a value) so a run isolates ONE feature's
+        // frame-time contribution. This is how the Medium-preset cost split (#374) gets itemized: hold the preset
+        // at Medium and toggle one feature per run. Null/empty = no per-feature override.
+        private string _featureSpec;
+        private string _featureTag;       // sanitized summary of what the override actually changed (for the filename)
+
+        // -perfDense: adds a third "dense" phase (settlement/creature-pack-at-night stand-in for #361). The world
+        // is created with Extreme creature abundance on a breathable planet so fauna auto-spawns in the 18–45 block
+        // ring around the player; the phase then forces visual midnight (SetCaptureEnvironment) so the glowing
+        // entities' point lights dominate a dark frame. Caveat: this pins the CLIENT visual clock only — the server
+        // clock stays daytime, so strictly nocturnal glow species may be under-represented; cathemeral/passive
+        // species and the raw entity-view density still populate the scene. A first dense probe, refine later.
+        private bool _dense;
+        private const float DenseSettle = 12f; // extra settle so the creature ring fills toward its cap before sampling
+        private const string DensePlanet = "jungle"; // breathable + vegetated ⇒ dense fauna (incl. glowers)
+
         // The player's real settings file, snapshotted before any override — AppShell paths call
         // Settings.Save(), so an in-memory override could otherwise clobber the user's persisted settings.
         private byte[] _settingsBackup;
@@ -57,6 +82,8 @@ namespace BlocksBeyondTheStars.Client
             float idle = 30f, walk = 60f;
             string preset = null;
             int vd = -1;
+            string feature = null;
+            bool dense = false;
             for (int i = 0; i < args.Length; i++)
             {
                 string a = args[i];
@@ -88,6 +115,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     walk = Mathf.Clamp(fw, 5f, 600f);
                 }
+                else if (string.Equals(a, "-perfFeature", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    feature = args[i + 1];
+                }
+                else if (string.Equals(a, "-perfDense", StringComparison.OrdinalIgnoreCase))
+                {
+                    dense = true;
+                }
             }
 
             if (!on)
@@ -104,6 +139,8 @@ namespace BlocksBeyondTheStars.Client
             p._walkSeconds = walk;
             p._presetOverride = preset;
             p._vdOverride = vd;
+            p._featureSpec = feature;
+            p._dense = dense;
         }
 
         private void Start() => StartCoroutine(Run());
@@ -140,8 +177,14 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.Apply();
             }
 
-            Debug.Log($"[PerfProbe] Starting world (seed {_seed}, preset {shell.Settings.Preset}, view distance {shell.Settings.ViewDistanceChunks}).");
-            shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false);
+            // Dense scene (#361): Extreme creature abundance on a breathable, vegetated planet so a heavy
+            // creature pack (incl. glowers) auto-spawns around the player. Baseline runs pass no options.
+            WorldCreationOptions worldOptions = _dense
+                ? new WorldCreationOptions { Creatures = 4 /* Extreme */, StartPlanetType = DensePlanet }
+                : null;
+
+            Debug.Log($"[PerfProbe] Starting world (seed {_seed}, preset {shell.Settings.Preset}, view distance {shell.Settings.ViewDistanceChunks}{(_dense ? ", dense scene" : "")}).");
+            shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false, worldOptions);
 
             yield return WaitForPhase(shell, ShellPhase.InGame, WorldLoadTimeout);
             var boot = shell.CurrentBoot;
@@ -155,19 +198,37 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
-            var phases = new List<PhaseResult>
+            // Per-feature overrides run AFTER the preset is applied and the gameplay camera exists (so the SSAO
+            // renderer / SMAA choice on ActiveCameraData is live), isolating one feature's cost for #374.
+            _featureTag = ApplyFeatureOverrides();
+            if (_featureTag != null)
             {
-                null, // idle, filled below
-                null, // walk
-            };
+                Debug.Log($"[PerfProbe] Feature overrides applied: {_featureTag}");
+            }
+
+            var phases = new List<PhaseResult>();
 
             // Phase 1: idle — steady-state cost with the spawn area fully streamed.
-            yield return Sample("idle", _idleSeconds, r => phases[0] = r);
+            PhaseResult r = null;
+            yield return Sample("idle", _idleSeconds, x => r = x);
+            phases.Add(r);
 
             // Phase 2: walk — scripted forward traversal; fresh chunks stream/mesh the whole time.
             InputMap.ScriptedMove = new Vector2(0f, 1f);
-            yield return Sample("walk", _walkSeconds, r => phases[1] = r);
+            yield return Sample("walk", _walkSeconds, x => r = x);
             InputMap.ScriptedMove = Vector2.zero;
+            phases.Add(r);
+
+            // Phase 3 (optional): dense — force visual midnight and stand among the Extreme creature pack so the
+            // glowing entities' point lights dominate the frame (#361). Walking first left a filled ring; a short
+            // extra settle lets it top up before sampling.
+            if (_dense)
+            {
+                boot.SetCaptureEnvironment(0f); // midnight — see the DensePlanet/caveat note on the field above
+                yield return new WaitForSecondsRealtime(DenseSettle);
+                yield return Sample("dense", _idleSeconds, x => r = x);
+                phases.Add(r);
+            }
 
             WriteResults(shell, phases);
             RestoreSettingsFile();
@@ -216,6 +277,79 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnApplicationQuit() => RestoreSettingsFile(); // belt & braces if the run is aborted
 
+        /// <summary>Applies the <c>-perfFeature</c> overrides on top of the active preset, mutating the same
+        /// runtime knobs <see cref="ClientSettings.Apply"/> owns (URP asset + the gameplay camera's URP data +
+        /// the ground-scatter gate). Returns a short sanitized tag of what actually changed (for the output
+        /// filename), or null when nothing was overridden. The process exits after the run, so this leaves no
+        /// lasting state — no restore needed.</summary>
+        private string ApplyFeatureOverrides()
+        {
+            if (string.IsNullOrEmpty(_featureSpec))
+            {
+                return null;
+            }
+
+            var urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            var cam = ClientSettings.ActiveCameraData;
+            var tags = new List<string>();
+
+            foreach (var raw in _featureSpec.Split(','))
+            {
+                var token = raw.Trim();
+                if (token.Length == 0)
+                {
+                    continue;
+                }
+
+                var parts = token.Split('=');
+                string key = parts[0].Trim().ToLowerInvariant();
+                string val = parts.Length > 1 ? parts[1].Trim() : "off";
+
+                switch (key)
+                {
+                    case "ssao":
+                        // Force a specific SSAO tier by renderer index so full/half/off can be compared in ONE
+                        // thermal session (the SSAO cost split for #374): 0 = full-res, 2 = half-res, 1 = off.
+                        if (cam != null)
+                        {
+                            switch (val)
+                            {
+                                case "full": cam.SetRenderer(0); tags.Add("ssaoFull"); break;
+                                case "half": cam.SetRenderer(2); tags.Add("ssaoHalf"); break;
+                                default: cam.SetRenderer(1); tags.Add("ssaoOff"); break;
+                            }
+                        }
+                        break;
+                    case "depth":
+                    case "depthopaque":
+                        // Drop the depth prepass + opaque colour copy (and tell the shaders they're gone, so
+                        // water/fog fall back cleanly instead of sampling unbound textures).
+                        if (urp != null) { urp.supportsCameraDepthTexture = false; urp.supportsCameraOpaqueTexture = false; }
+                        Shader.SetGlobalFloat("_Sc_ScreenFx", 0f);
+                        tags.Add("depthOff");
+                        break;
+                    case "smaa":
+                        if (cam != null) { cam.antialiasing = AntialiasingMode.None; tags.Add("smaaOff"); }
+                        break;
+                    case "scatter":
+                        GroundScatter.Enabled = false;
+                        tags.Add("scatterOff");
+                        break;
+                    case "shadowmap":
+                        if (urp != null && int.TryParse(val, out var sm) && sm > 0) { urp.mainLightShadowmapResolution = sm; tags.Add($"sm{sm}"); }
+                        break;
+                    case "shadowdist":
+                        if (urp != null && float.TryParse(val, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sd) && sd >= 0f) { urp.shadowDistance = sd; tags.Add($"sd{sd:0}"); }
+                        break;
+                    default:
+                        Debug.LogWarning($"[PerfProbe] Unknown -perfFeature token '{token}' ignored.");
+                        break;
+                }
+            }
+
+            return tags.Count > 0 ? string.Join("-", tags) : null;
+        }
+
         [Serializable]
         private sealed class PhaseResult
         {
@@ -246,6 +380,7 @@ namespace BlocksBeyondTheStars.Client
             public int viewDistanceChunks;
             public long seed;
             public string device;
+            public string featureOverride; // null unless -perfFeature changed something (the itemization run)
             public PhaseResult[] phases;
         }
 
@@ -314,18 +449,25 @@ namespace BlocksBeyondTheStars.Client
                 viewDistanceChunks = shell.Settings.ViewDistanceChunks,
                 seed = _seed,
                 device = $"{SystemInfo.processorType} / {SystemInfo.graphicsDeviceName} / {SystemInfo.systemMemorySize} MB",
+                featureOverride = _featureTag,
                 phases = phases.ToArray(),
             };
 
             string dir = !string.IsNullOrEmpty(_outDir) ? _outDir : Path.Combine(Application.persistentDataPath, "perf");
             Directory.CreateDirectory(dir);
-            string baseName = $"perf_baseline_{Application.platform}_{result.qualityPreset}_vd{result.viewDistanceChunks}";
+            string featureSuffix = string.IsNullOrEmpty(_featureTag) ? "" : $"_{_featureTag}";
+            string denseSuffix = _dense ? "_dense" : "";
+            string baseName = $"perf_baseline_{Application.platform}_{result.qualityPreset}_vd{result.viewDistanceChunks}{denseSuffix}{featureSuffix}";
             string jsonPath = Path.Combine(dir, baseName + ".json");
             File.WriteAllText(jsonPath, JsonUtility.ToJson(result, prettyPrint: true));
 
             var txt = new StringBuilder();
             txt.AppendLine($"Perf baseline — {result.capturedUtc} UTC — v{result.appVersion} — {result.platform}");
             txt.AppendLine($"Preset {result.qualityPreset}, view distance {result.viewDistanceChunks}, seed {result.seed}");
+            if (!string.IsNullOrEmpty(result.featureOverride))
+            {
+                txt.AppendLine($"Feature override: {result.featureOverride}");
+            }
             txt.AppendLine(result.device);
             foreach (var ph in result.phases)
             {

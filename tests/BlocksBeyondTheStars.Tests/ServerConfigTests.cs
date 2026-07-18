@@ -43,6 +43,59 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_MapsChunkStreamBudgetAndPerTick()
+    {
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[]
+        {
+            "--chunk-stream-per-tick", "24",
+            "--chunk-stream-budget-ms", "12.5", // invariant decimal point, must parse regardless of host locale
+        });
+
+        Assert.Equal(24, config.ChunkStreamPerTick);
+        Assert.Equal(12.5, config.ChunkStreamBudgetMs);
+        Assert.Contains("chunk-stream-per-tick", applied);
+        Assert.Contains("chunk-stream-budget-ms", applied);
+    }
+
+    [Fact]
+    public void ApplyCommandLine_RejectsInvalidChunkStreamValues()
+    {
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[]
+        {
+            "--chunk-stream-per-tick", "0",     // must be >= 1
+            "--chunk-stream-budget-ms", "-3",   // must be >= 0
+        });
+
+        Assert.Equal(16, config.ChunkStreamPerTick);     // untouched default
+        Assert.Equal(0.0, config.ChunkStreamBudgetMs);   // untouched default (off)
+        Assert.DoesNotContain("chunk-stream-per-tick", applied);
+        Assert.DoesNotContain("chunk-stream-budget-ms", applied);
+    }
+
+    [Fact]
+    public void ApplyEnvironment_MapsChunkStreamBudgetAndPerTick()
+    {
+        var vars = new Dictionary<string, string?>
+        {
+            ["BBS_CHUNK_STREAM_PER_TICK"] = "20",
+            ["BBS_CHUNK_STREAM_BUDGET_MS"] = "25",
+        };
+
+        WithEnvironment(vars, () =>
+        {
+            var config = new ServerConfig();
+            var applied = config.ApplyEnvironment();
+
+            Assert.Equal(20, config.ChunkStreamPerTick);
+            Assert.Equal(25.0, config.ChunkStreamBudgetMs);
+            Assert.Contains("BBS_CHUNK_STREAM_PER_TICK", applied);
+            Assert.Contains("BBS_CHUNK_STREAM_BUDGET_MS", applied);
+        });
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesSpaceRules()
     {
         var config = new ServerConfig();

@@ -48,6 +48,16 @@ public sealed class WorldHostConfig
     /// saves and exits after this long; the reaper then marks it stopped in the registry.</summary>
     public int IdleShutdownMinutes { get; set; } = 20;
 
+    /// <summary>Per-tick wall-clock budget (ms) each hosted world spends streaming chunks, forwarded as
+    /// <c>BBS_CHUNK_STREAM_BUDGET_MS</c> (<c>BBS_WH_CHUNK_STREAM_BUDGET_MS</c>). A hosted world runs its tick
+    /// on a single thread with no render loop, so a burst of cold first-visit worldgen (a fresh join, fast
+    /// flight over new terrain) would otherwise run all ChunkStreamPerTick generations in one tick and push
+    /// it over the ~66 ms tick window — stalling simulation for the OTHER players in that world. This caps
+    /// that: at least one chunk always streams, the rest resume next tick (nearest-first order unchanged).
+    /// The default 25 ms is generous headroom under the tick window — it only trims pathological bursts, not
+    /// normal fill. 0 = off (unbounded, the historical behaviour).</summary>
+    public double ChunkStreamBudgetMs { get; set; } = 25.0;
+
     /// <summary>How long a join request waits for a woken instance to answer its /status probe.</summary>
     public int WakeTimeoutSeconds { get; set; } = 90;
 
@@ -288,6 +298,7 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_MAX_WORLDS_PER_ACCOUNT") is { } mwStr && int.TryParse(mwStr, out var mw)) { c.MaxWorldsPerAccount = mw; }
         if (Env("BBS_WH_MAX_PLAYERS") is { } mpStr && int.TryParse(mpStr, out var mp)) { c.MaxPlayersPerWorld = mp; }
         if (Env("BBS_WH_IDLE_MINUTES") is { } idleStr && int.TryParse(idleStr, out var idle)) { c.IdleShutdownMinutes = idle; }
+        if (Env("BBS_WH_CHUNK_STREAM_BUDGET_MS") is { } csbStr && double.TryParse(csbStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { c.ChunkStreamBudgetMs = csb; }
         if (Env("BBS_WH_WAKE_TIMEOUT_SECONDS") is { } wtStr && int.TryParse(wtStr, out var wt)) { c.WakeTimeoutSeconds = wt; }
         if (Env("BBS_WH_SESSION_DAYS") is { } sdStr && int.TryParse(sdStr, out var sd)) { c.SessionDays = sd; }
         if (Env("BBS_WH_RESERVED_NAMES") is { } reserved)

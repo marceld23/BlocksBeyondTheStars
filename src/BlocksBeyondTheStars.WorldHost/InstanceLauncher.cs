@@ -108,6 +108,14 @@ public sealed class DockerCliLauncher : IInstanceLauncher
 
         args.AddRange(new[] { "--pids-limit", "256" });
 
+        // Per-tick chunk-stream budget (#360): a hosted world's tick is single-threaded, so a cold-worldgen
+        // burst would otherwise stall simulation for everyone in that world. Forward the operator's budget so
+        // the instance caps gen+send time per tick (>=1 chunk still streams, the rest resume next tick). 0 = off.
+        if (config.ChunkStreamBudgetMs > 0)
+        {
+            args.AddRange(new[] { "-e", $"BBS_CHUNK_STREAM_BUDGET_MS={config.ChunkStreamBudgetMs.ToString(System.Globalization.CultureInfo.InvariantCulture)}" });
+        }
+
         // Maintenance announcements (#249): the shared secret the control plane presents on the instance's
         // POST /announce. Without it neither side enables the endpoint.
         if (!string.IsNullOrEmpty(config.AnnounceToken))

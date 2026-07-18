@@ -45,6 +45,10 @@ services:
       # override is only for fleets with their own ReportHost — the server default is the official inbox.
       BBS_WH_CRASH_REPORT_KEY: ${BBS_WH_CRASH_REPORT_KEY:-}
       BBS_WH_CRASH_REPORT_ENDPOINT: ${BBS_WH_CRASH_REPORT_ENDPOINT:-}
+      # Per-tick chunk-stream budget (ms) forwarded to every world as BBS_CHUNK_STREAM_BUDGET_MS (#360):
+      # bounds cold-worldgen bursts so one player's fresh join/fast-flight can't stall the world's tick for
+      # everyone else. Default 25 (generous headroom under the ~66 ms tick); 0 = off (unbounded).
+      BBS_WH_CHUNK_STREAM_BUDGET_MS: ${BBS_WH_CHUNK_STREAM_BUDGET_MS:-25}
       # Legal pages (Impressum/Datenschutz); empty = "not configured" notice on those pages.
       BBS_WH_LEGAL_NAME: ${BBS_WH_LEGAL_NAME:-}
       BBS_WH_LEGAL_ADDRESS: ${BBS_WH_LEGAL_ADDRESS:-}

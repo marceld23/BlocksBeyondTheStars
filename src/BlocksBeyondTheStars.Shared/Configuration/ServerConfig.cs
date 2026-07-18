@@ -345,6 +345,13 @@ public sealed class ServerConfig
                 case "view-distance-chunks":
                     if (int.TryParse(value, out var vd)) { ViewDistanceChunks = vd; applied.Add("view-distance"); }
                     break;
+                case "chunk-stream-per-tick":
+                    if (int.TryParse(value, out var cspt) && cspt >= 1) { ChunkStreamPerTick = cspt; applied.Add("chunk-stream-per-tick"); }
+                    break;
+                case "chunk-stream-budget-ms":
+                case "chunk-budget-ms":
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("chunk-stream-budget-ms"); }
+                    break;
                 case "free-flight":
                     if (bool.TryParse(value, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("free-flight"); }
                     break;
@@ -541,6 +548,8 @@ public sealed class ServerConfig
         if (Env("BBS_START_PLANET") is { } startPlanet) { StartPlanet = startPlanet.Trim(); applied.Add("BBS_START_PLANET"); }
         if (Env("BBS_TICK_RATE") is { } tickStr && int.TryParse(tickStr, out var tick)) { TickRate = tick; applied.Add("BBS_TICK_RATE"); }
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
+        if (Env("BBS_CHUNK_STREAM_PER_TICK") is { } csptStr && int.TryParse(csptStr, out var cspt) && cspt >= 1) { ChunkStreamPerTick = cspt; applied.Add("BBS_CHUNK_STREAM_PER_TICK"); }
+        if (Env("BBS_CHUNK_STREAM_BUDGET_MS") is { } csbStr && double.TryParse(csbStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("BBS_CHUNK_STREAM_BUDGET_MS"); }
         if (Env("BBS_FREE_FLIGHT") is { } ffStr && bool.TryParse(ffStr, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("BBS_FREE_FLIGHT"); }
         if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }
         if (Env("BBS_SHIP_WEAPONS") is { } swStr && Enum.TryParse<ShipWeaponMode>(swStr, ignoreCase: true, out var sw)) { Rules.ShipWeapons = sw; applied.Add("BBS_SHIP_WEAPONS"); }

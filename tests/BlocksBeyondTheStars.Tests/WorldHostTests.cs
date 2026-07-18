@@ -554,6 +554,20 @@ public sealed class WorldHostTests : IDisposable
         Assert.DoesNotContain("BBS_CRASH_REPORT", string.Join(" ", DockerCliLauncher.BuildRunArgs(endpointOnly, world, "/tmp/saves")));
     }
 
+    [Fact]
+    public void BuildRunArgs_ForwardsChunkStreamBudget_AndOmitsWhenOff()
+    {
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+
+        // Default (25 ms): bounds cold-worldgen bursts so one player's fresh join can't stall the world's tick.
+        var on = new WorldHostConfig();
+        Assert.Contains("BBS_CHUNK_STREAM_BUDGET_MS=25", string.Join(" ", DockerCliLauncher.BuildRunArgs(on, world, "/tmp/saves")));
+
+        // Explicitly off (0): no env forwarded — the instance keeps the unbounded historical behaviour.
+        var off = new WorldHostConfig { ChunkStreamBudgetMs = 0 };
+        Assert.DoesNotContain("BBS_CHUNK_STREAM_BUDGET_MS", string.Join(" ", DockerCliLauncher.BuildRunArgs(off, world, "/tmp/saves")));
+    }
+
     // ---------------- Fleet capacity gate ----------------
 
     [Fact]

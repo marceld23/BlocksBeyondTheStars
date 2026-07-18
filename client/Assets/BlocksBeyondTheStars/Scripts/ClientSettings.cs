@@ -440,6 +440,12 @@ namespace BlocksBeyondTheStars.Client
                 urp.supportsHDR = Preset > QualityPreset.Potato;
                 urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : 1f;
 
+                // The shared asset bakes a 4096 main-light shadowmap for every level, but only High reaches far
+                // enough (90 m) to justify it — Medium and below cover 70 m or less, where 2048 is visually
+                // indistinguishable yet halves the shadow render cost. Keep High on 4096, drop the rest to 2048
+                // (irrelevant on Potato, which turns shadows off via shadowDistance 0 above).
+                urp.mainLightShadowmapResolution = Preset >= QualityPreset.High ? 4096 : 2048;
+
                 // Depth + opaque copies feed the screen-space effects (volumetric fog, SSR, water refraction).
                 // They cost a prepass + a colour copy, so the two weakest presets turn them off entirely —
                 // which also disables every dependent effect for free (the features early-out without the textures).
@@ -463,7 +469,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Pushes the per-camera look settings to the gameplay camera: post-processing on (the global
         /// Volume — bloom/tonemap/grade — and SMAA both need it), SMAA from <see cref="Smaa"/> (Medium+), and the
-        /// renderer choice — index 0 carries SSAO, index 1 (Potato/Low) drops it for the frame-time budget.</summary>
+        /// renderer choice — index 0 = full-res SSAO (High), index 2 = half-res SSAO (Medium), index 1 = SSAO-free
+        /// (Potato/Low). SSAO was the measured Low→Medium frame-time cliff (#374).</summary>
         public void ApplyCameraLook()
         {
             var cd = ActiveCameraData;
@@ -473,7 +480,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             cd.renderPostProcessing = true;
-            cd.SetRenderer(Preset >= QualityPreset.Medium ? 0 : 1);
+            // Renderer index carries the SSAO cost tier: 0 = full-resolution SSAO (High), 2 = half-resolution
+            // SSAO (Medium — Downsample renderer), 1 = SSAO-free (Potato/Low). Measured (#374): SSAO was the
+            // whole Low→Medium frame-time cliff on the reference laptop, so Medium keeps ambient occlusion but
+            // at half resolution — most of the look, ~half the cost — while High stays untouched at full res.
+            cd.SetRenderer(Preset switch
+            {
+                QualityPreset.High => 0,
+                QualityPreset.Medium => 2,
+                _ => 1,
+            });
 
             bool smaa = Smaa && Preset >= QualityPreset.Medium;
             cd.antialiasing = smaa ? AntialiasingMode.SubpixelMorphologicalAntiAliasing : AntialiasingMode.None;

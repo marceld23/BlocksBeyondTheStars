@@ -17,6 +17,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **Browser feedback actually reaches the inbox now.** The WebGL build was uploading an empty `{}` body (IL2CPP stripped the report type's metadata), so reports were silently dropped while the game said "queued". The type is now preserved, and a server rejection shows a real error instead of a false "saved, will retry". (#378)
 - **The two admin inboxes now point at each other** — the fleet admin and the ReportHost admin each note what the other one holds, so in-game feedback isn't hunted for on the wrong page. (#379)
 
+### ⚡ Medium preset: ambient occlusion at half the cost
+- Itemised the Medium preset's GPU cost on the reference laptop (Ryzen 9 7940HS / RTX 2000 Ada) with a new per-feature probe: **SSAO was the entire Low→Medium frame-time cliff** — everything else Medium switches on (depth/opaque copies, SMAA, ground scatter) sat within measurement noise. Medium now runs **SSAO at half resolution**: it keeps ambient occlusion but roughly halves the pass cost (~2.8 ms vs ~4–7 ms full-res across runs), recovering a few milliseconds per frame. **High is unchanged** (full-res SSAO). (#374)
+- The main-light shadowmap also drops 4096 → 2048 below High — free on the reference GPU, a small win on weaker ones; High keeps 4096. (#374)
+- The PerfProbe harness gained per-feature toggles (`-perfFeature ssao=off|half|full,depth=off,smaa=off,scatter=off,shadowmap=…,shadowdist=…`) so one preset feature's cost can be isolated in a single thermal session, plus an optional dense night scene (`-perfDense`: Extreme creature abundance at forced midnight) to measure the glowing-entity light cost for a future pass. (#374)
+
+### 🌐 Fleet: bounded worldgen per tick
+- Hosted worlds now cap chunk streaming — and the first-visit worldgen that happens inside it — at a per-tick wall-clock budget (default **25 ms**), so one player's fresh join or fast flight over new terrain can no longer stall the shared tick for everyone else in that world. At least one chunk always streams; the rest resume the next tick, nearest-first. Tunable via `BBS_WH_CHUNK_STREAM_BUDGET_MS` (0 = off); dedicated servers can set it directly with `--chunk-stream-budget-ms` / `BBS_CHUNK_STREAM_BUDGET_MS`. (#360)
+
 ## [0.8.3] — 2026-07-17
 
 The performance release: a measured pass over the whole stack — meshing, physics, graphics presets and the network wire. Every claim below comes from automated before/after captures on the same reference laptop (Ryzen 9 7940HS / RTX 2000 Ada); the tool that produced them ships in this release too.

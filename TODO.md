@@ -115,6 +115,31 @@ stays the source of truth; one best-effort background send, no retry queue. Also
 Tests: `BumpReport_WithConfiguredSink_ForwardsSnapshotWithoutImage`, `BumpCommand_WithoutSink_…`.
 Docs: PLAYER_FEEDBACK.md + REPORT_HOST.md.
 
+### ★ Medium preset SSAO retune + PerfProbe itemization + fleet worldgen budget (#374, #360, 2026-07-18, branch perf/medium-preset-server-budget)
+Three of the four open large-tier perf issues, code-verified and measured on the reference laptop
+(Ryzen 9 7940HS / RTX 2000 Ada). **PerfProbe tooling (enabler):** new `-perfFeature` toggles
+(`ssao=off|half|full,depth=off,smaa=off,scatter=off,shadowmap=N,shadowdist=N`) apply on top of the active
+preset so ONE feature's frame-time contribution is isolable in a single thermal session, plus `-perfDense`
+(Extreme creature abundance via `WorldCreationOptions` + forced visual midnight via `SetCaptureEnvironment(0f)`
+on a breathable `jungle` planet) adds a third *dense* phase for the glowing-entity light cost (#361, measured
+later). **#374 — Medium GPU cliff itemized:** at Medium/VD4, SSAO was the WHOLE Low→Medium cost — walk p50
+SSAO full 29.6 / half 25.3 / off 22.5 ms (same session); depth/opaque copies, SMAA and ground scatter all
+sat within thermal-drift noise (~±1.7 ms); the shadowmap 4096→2048 change measured **0 ms** on this GPU
+(kept anyway — free, helps weak iGPUs). Retune = a NEW `BlocksBeyondTheStarsURP_Renderer_Medium.asset`
+(index 2, SSAO `Downsample: 1`) selected by Medium only; High stays index 0 (full-res), Potato/Low index 1
+(off). Half-res keeps AO at ~half the cost. Shadowmap scaled per-preset in `ClientSettings.Apply`
+(High 4096, ≤Medium 2048). GOTCHA relearned: absolute PerfProbe FPS is NOT comparable across runs (thermal
+throttling — a hot session read 25 ms where a cool one read 18 ms); only same-session adjacent deltas are
+trustworthy, which is exactly why the `ssao=full|half|off` tokens exist. Visual check: jungle Medium
+screenshot renders correctly, AO present. **#360 — fleet worldgen budget:** `ServerConfig.ChunkStreamBudgetMs`
+(+ `ChunkStreamPerTick`) gained CLI (`--chunk-stream-budget-ms`) + env (`BBS_CHUNK_STREAM_BUDGET_MS`) mappings
+(previously unreachable on the fleet — the issue's "one config change" was wrong); `WorldHostConfig`
+forwards a default 25 ms to every hosted world via `InstanceLauncher` (`BBS_WH_CHUNK_STREAM_BUDGET_MS`, 0 = off),
+so a cold-worldgen burst can't stall a shared world's tick. Budget-first only — the risky worker-pool
+(shared mutable generator state + single-conn SQLite) stays deferred. Verified: server build 0 warnings,
+**1045 server tests green** (+4 new), local Unity build green ×4, format clean. Deliberately NOT touched:
+#359 (measure-first, gated on a post-deploy browser trace), #361 light budget (gated on the new dense probe).
+
 ### ★ RLE chunk payload (#356, 2026-07-17, branch perf/rle-chunk-payload)
 `ChunkDataMessage` gains `BlocksRle` (flat value/run-length ushort pairs, new `ChunkBlocksRle` codec in
 Networking); the server ships whichever representation is smaller (terrain almost always RLE — a
