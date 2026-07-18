@@ -84,7 +84,15 @@ namespace BlocksBeyondTheStars.Client
             bool hardSky = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.StationName)
                            || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
             float target = TargetBrightness();
-            _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * 0.7f);
+
+            // Follow rate for the planet dusk/dawn fade. On a planet the target already ramps gradually across
+            // twilight (it tracks the sun height, so its speed scales with the world's day length), and this rate
+            // only needs to smooth jitter and ease a sudden jump — crossing the terminator on a speeder, or a
+            // teleport. Scale it to the day length so a short-day world's quicker dusk still keeps its stars in
+            // step, while a long-day world eases in gently; clamped so it never snaps and never crawls.
+            float dayLen = Game.Environment != null ? Mathf.Max(30f, Game.Environment.DayLengthSeconds) : 600f;
+            float rate = Mathf.Clamp(240f / dayLen, 0.25f, 1.0f);
+            _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * rate);
             _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
         }
 
@@ -100,10 +108,13 @@ namespace BlocksBeyondTheStars.Client
                 return 1f;
             }
 
-            // Match Sky's day curve so stars track the same dusk/dawn the lighting uses.
+            // Stars come up as the sun sinks past the horizon and fill in through nautical dusk — matched to Sky's
+            // twilight so they rise as the warm horizon glow fades rather than popping on above a still-bright sky.
+            // They begin to show just before the sun reaches the horizon (0.12) and reach full once it is ~24° down
+            // (-0.4), smoothstepped for a soft wash. Symmetric at dawn: they sink back as the sun climbs out.
             float sunHeight = Mathf.Sin((Game.LocalTimeOfDay - 0.25f) * Mathf.PI * 2f);
-            float day = Mathf.Clamp01(sunHeight * 0.5f + 0.5f);
-            return Mathf.Clamp01(1f - day * 1.4f); // gone by mid-morning, full after dusk
+            float t = Mathf.Clamp01((0.12f - sunHeight) / 0.52f);
+            return t * t * (3f - 2f * t); // full deep-night, gone by well after sunrise
         }
 
         /// <summary>A soft round dot (bright core → transparent rim) used for every star sprite.</summary>

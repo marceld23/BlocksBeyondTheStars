@@ -100,6 +100,24 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Smooth day↔night transition — real twilight/golden-hour dusk & dawn (#391, 2026-07-18)
+Crossing the day/night terminator on a planet — and standing still while the local day advances — snapped
+almost instantly to a dark, starry sky: there was no visible dusk/dawn. The cycle only lerped the sky
+`nightSky→daySky` by the day fraction (no warm colour), the light stayed bright then dropped to the night
+floor at the last moment, and the stars faded on a **fixed** 1.4 s rate decoupled from the sky and the planet's
+day length — so they popped on. Fix (client-visual only, no server/network change):
+- **`Sky.cs`** now computes a smoothstepped **twilight** weight that peaks with the sun on the horizon and is a
+  function of sun *height*, so its real-time length scales with each planet's `DayLengthSeconds` automatically
+  (a long day → a long, lazy dusk; a short day → a quick one). It drives a warm **golden-hour horizon glow**
+  (star-hue biased, washed out by heavy weather) blended into the sky colour — which the distance fog inherits —
+  and a **warm amber cast** on the block light + sun disc + god-rays at low sun angles. Airless / `SpaceSky`
+  bodies keep a **hard** terminator (no atmosphere → no scattering), which also sets them apart.
+- **`Starfield.cs`** stars now rise as the sun sinks past the horizon (matched to Sky's twilight) instead of on a
+  still-bright sky, smoothstepped; the follow rate is scaled to the planet's day length (clamped) so short-day
+  worlds keep their stars in step and long-day worlds ease in — no more pop. Works both standing still and when
+  crossing the terminator on foot/speeder. Verified: Unity Windows player compiles clean (0 errors) against the
+  warm main-repo Library; visual sign-off pending a playtest.
+
 ### ★ Reports show version 1.0.0 → real build version (#389, 2026-07-18)
 The report inbox (`reports.blocksbeyondthestars.de`) showed game version **1.0.0** for reports that arrived
 through the server — a `/bump`, its F1/F2 feedback forward (`GameServerBump.ForwardBumpSnapshot`), or a server

@@ -40,6 +40,11 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
         private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
 
+        /// <summary>Twilight band half-width in sun-height units: dusk/dawn is active while the sun is within this
+        /// of the horizon (|sin(sunAngle)| ≤ band). 0.34 ≈ the sun within ~20° of the horizon — a civil+nautical
+        /// dusk wide enough to read as a real sunset. Larger = a longer, softer golden hour.</summary>
+        private const float TwilightBand = 0.34f;
+
         private Light _sun;
         private Transform _sunDisc;     // visible glowing sun billboard in the sky
         private Material _sunDiscMat;
@@ -231,8 +236,26 @@ namespace BlocksBeyondTheStars.Client
             float brightness = constantLight ? 1f : Mathf.Lerp(0.35f, 1f, dayLit); // night floor → noon
             float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.65f, weatherIntensity); // storms darken
 
+            // Twilight (golden hour): peaks with the sun sitting on the horizon (sunHeight → 0) and fades out by
+            // full day / deep night. Off in airless (space) skies — no atmosphere means no scattering, so there the
+            // terminator IS a hard line (which also sets airless worlds apart). Because it's a function of the sun
+            // HEIGHT, its real-time length scales with each planet's day length on its own: a long day gets a long,
+            // lazy dusk, a short day a quick one — no per-planet tuning needed. Smoothstepped into a soft ramp so
+            // there's no hard edge where the band begins.
+            float twilight = spaceSky ? 0f : Mathf.Clamp01(1f - Mathf.Abs(sunHeight) / TwilightBand);
+            twilight = twilight * twilight * (3f - 2f * twilight);
+
+            // Star hue (the sun colour normalised to a pure hue, brightness removed) — reused for the daytime sky
+            // tint and the dusk glow so a red star burns a redder sunset and a blue-white star a cooler one.
+            float sunMax = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
+            Color sunHue = sunMax > 0.001f ? new Color(sunColor.r / sunMax, sunColor.g / sunMax, sunColor.b / sunMax) : Color.white;
+
+            // The star warms toward amber as it nears the horizon — the whole world (block light, sun disc, god-rays)
+            // takes on the golden-hour cast, then cools back to its true colour high in the sky. Kept off on stations.
+            Color warmSun = constantLight ? sunColor : Color.Lerp(sunColor, sunColor * new Color(1f, 0.72f, 0.5f), twilight * 0.7f);
+
             // Stations use a clean neutral interior light (not the system sun's tint).
-            Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : sunColor * (brightness * weatherDim);
+            Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : warmSun * (brightness * weatherDim);
             tint.a = 1f; // marks the global as "set" for the shaders
             Shader.SetGlobalColor(LightId, ShaderColor.Srgb(tint));
 
@@ -262,17 +285,22 @@ namespace BlocksBeyondTheStars.Client
                 Color daySky = Color.Lerp(skyBase, new Color(0.6f, 0.62f, 0.68f), weatherIntensity);
 
                 // Tint the daytime sky a touch toward the system star's hue, so a warm / red star gives a warmer
-                // sky and a blue-white star a cooler one (B37). Normalise the sun colour to a pure hue first so
-                // only its tint shifts the sky, not its brightness. Kept light (0.2) so the per-world atmosphere
+                // sky and a blue-white star a cooler one (B37). Kept light (0.2) so the per-world atmosphere
                 // colour above reads through. The directional sun light + block diffuse already use the star colour.
-                float sm = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
-                Color sunHue = sm > 0.001f ? new Color(sunColor.r / sm, sunColor.g / sm, sunColor.b / sm) : Color.white;
                 daySky = Color.Lerp(daySky, daySky * sunHue, 0.2f);
 
                 // Night sky: a dark base nudged toward the world's atmosphere hue, so a green/red-skied world also
                 // tints its night instead of always reading the same blue-black.
                 Color nightSky = Color.Lerp(new Color(0.03f, 0.04f, 0.09f), skyBase * 0.12f, 0.5f);
                 sky = Color.Lerp(nightSky, daySky, day);
+
+                // Golden-hour horizon glow: a warm sunset amber (star-hue biased), washed out by heavy weather.
+                // Blended over the day/night lerp so dusk and dawn read as a real colour change that lifts the sky
+                // through the fast darkening at the terminator — turning the old snap-to-black into a sunset. The
+                // fog below inherits this `sky`, so the far horizon warms with it too.
+                Color glow = new Color(1f, 0.45f, 0.22f);
+                glow = Color.Lerp(glow, glow * sunHue, 0.5f);
+                sky = Color.Lerp(sky, glow, twilight * 0.6f * (1f - weatherIntensity));
             }
             sky.a = 1f;
             // The shader global gets the linear value; the engine-managed consumers below (ambient, camera
@@ -296,14 +324,14 @@ namespace BlocksBeyondTheStars.Client
 
             if (_sun != null)
             {
-                _sun.color = sunColor;
+                _sun.color = warmSun;
                 _sun.intensity = brightness;
                 _sun.transform.rotation = Quaternion.Euler(time * 360f - 90f, 160f, 0f);
                 // The lit block shader reads the sun direction from this global (direction TO the sun).
                 Shader.SetGlobalVector(SunDirId, -_sun.transform.forward);
             }
 
-            UpdateSunDisc(sunHeight, sunColor, spaceSky);
+            UpdateSunDisc(sunHeight, warmSun, spaceSky);
             SetGrade(Game?.Environment?.Biome, sunColor);
         }
 
