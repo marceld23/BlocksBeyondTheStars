@@ -211,7 +211,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<string> _entityRemove = new List<string>();
 
         // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; }
+        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; }
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
@@ -3297,6 +3297,7 @@ namespace BlocksBeyondTheStars.Client
                         _remotePlayers[rp.PlayerId] = av;
                     }
 
+                    av.Name = rp.Name ?? string.Empty; // shown as a floating nameplate (item 385); NPC traders arrive with an empty name and get no plate
                     av.Root.transform.localPosition = new Vector3(rp.X, rp.Y, rp.Z);
                     av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
 
@@ -3969,6 +3970,36 @@ namespace BlocksBeyondTheStars.Client
 
             // Ship-systems quick-bar: icon cells, the selected one bright + scaled (same look as the hotbar).
             RefreshSystemSlots();
+
+            // Floating nameplates over the other pilots so you can tell who is who out here (item 385).
+            if (_phase == Phase.Cruise)
+            {
+                DrawRemoteNameplates();
+            }
+        }
+
+        /// <summary>Draws a floating name label over each other pilot's ship/suit — the flight-view counterpart to
+        /// the ground nameplates (<see cref="RemotePlayers"/>). Names fade with distance (roughly radar range) so
+        /// nearby mates stay identifiable without cluttering the far field. Empty names — the synthetic NPC-trader
+        /// poses that ride the same remote-ship path — are skipped by <see cref="ScreenLabelLayer"/>.</summary>
+        private void DrawRemoteNameplates()
+        {
+            if (Camera == null || _remotePlayers.Count == 0)
+            {
+                return;
+            }
+
+            var labels = ScreenLabelLayer.Instance;
+            foreach (var av in _remotePlayers.Values)
+            {
+                if (av.Root == null || string.IsNullOrEmpty(av.Name))
+                {
+                    continue;
+                }
+
+                // ~2 m above the hull clears both the half-scale flight ship and a floating EVA suit.
+                labels.World(Camera, av.Root.transform.position + Vector3.up * 2f, av.Name, UiKit.TextCol, false, 90f, 140f);
+            }
         }
 
         /// <summary>Draws the ship-systems quick-bar as icon cells (laser / tractor / …) matching the on-foot

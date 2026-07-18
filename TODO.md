@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Player nameplates on ships in space flight (#385, 2026-07-18)
+On the ground every remote player carries a floating nameplate, but in the flight view the other pilots'
+ships/EVA suits showed **no name** — you couldn't tell who was who. The data was already on the wire
+(`NetSpacePlayer.Name`, filled by `OtherPlayersInSpace`); only the client render was missing. Fix (client-only,
+no server/network change): `SpaceView.SyncRemotePlayers` now caches `rp.Name` on the `RemoteAvatar`, and a new
+`DrawRemoteNameplates` (called from `LateUpdate` during the cruise phase) pushes a floating label over each
+ship/suit via the shared `ScreenLabelLayer` — the same mechanism as the ground `RemotePlayers`, with the flight
+camera and radar-scale distance fade (90→140 m). Empty names (the synthetic NPC-trader poses on the same
+remote-ship path) are skipped by the label layer, so traders get no plate. The in-space `Stealthed` marker
+(orbiters hidden on the ground so no ghost avatar lingers on the pad) is unchanged.
+
 ### ★ Edge-bevel corners/edges no longer render white (#382, 2026-07-18)
 The render-only T0 edge bevel (`ChunkMesher.EmitBevel`) drew small white triangles at exposed convex block
 corners/edges — most visible on bottom corners, and independent of the block's own texture (sand, stone and
