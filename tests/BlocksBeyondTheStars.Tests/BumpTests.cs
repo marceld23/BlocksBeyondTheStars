@@ -92,7 +92,7 @@ public sealed class BumpTests : IDisposable
         server.CrashUploader = sink;
 
         var image = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 9, 8, 7, 6, 5 };
-        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] jetpack stuck in ceiling", Image = image }), DeliveryMode.ReliableOrdered);
+        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] jetpack stuck in ceiling", Image = image, ClientVersion = "0.8.3" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         // The send runs on a background task — wait for the sink, not a fixed sleep.
@@ -103,6 +103,10 @@ public sealed class BumpTests : IDisposable
         Assert.Contains("\"platform\":\"server\"", json);                   // wire shape matches crash reports
         using (var doc = System.Text.Json.JsonDocument.Parse(json))
         {
+            // gameVersion is the reporter's client build (not the server's), so the inbox shows the
+            // player's version — the whole point of BumpReport.ClientVersion (issue #389).
+            Assert.Equal("0.8.3", doc.RootElement.GetProperty("gameVersion").GetString());
+
             var reportJson = doc.RootElement.GetProperty("reportJson");
             Assert.Equal("bump", reportJson.GetProperty("reportType").GetString());
             // No reportJson.kind — the ReportHost triages any kind as category "crash", and a bump
@@ -138,6 +142,9 @@ public sealed class BumpTests : IDisposable
 
         using var doc = System.Text.Json.JsonDocument.Parse(sink.LastJson!);
         Assert.Equal(System.Text.Json.JsonValueKind.Null, doc.RootElement.GetProperty("screenshot").ValueKind);
+        // A text-only /bump (ChatIntent) carries no client version, so gameVersion falls back to the
+        // server's version — never left empty.
+        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("gameVersion").GetString()));
         Assert.Equal(1, server.BumpsWritten);
     }
 

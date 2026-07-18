@@ -180,7 +180,7 @@ jobs:
 
       - name: Publish bundled local server (win-x64)
         shell: pwsh
-        run: ./scripts/publish-local-server.ps1 -Runtime win-x64
+        run: ./scripts/publish-local-server.ps1 -Runtime win-x64 -Version ${{ needs.version.outputs.version }}
 
       # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
       # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
@@ -288,7 +288,7 @@ jobs:
         run: ./scripts/sync-velopack-libs.sh
 
       - name: Publish bundled local server (linux-x64)
-        run: ./scripts/publish-local-server.sh linux-x64
+        run: ./scripts/publish-local-server.sh linux-x64 ${{ needs.version.outputs.version }}
 
       # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
       # other ref (not even the next release tag) — writing them only evicted the useful main-scoped

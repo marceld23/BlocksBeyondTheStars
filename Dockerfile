@@ -10,14 +10,20 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 
+# The release version to bake into the server assemblies (passed by docker.yml from the release tag).
+# Defaults to a dev marker for hand-built images. Without this the assemblies carry the .NET default
+# 1.0.0, which the server then stamps onto /bump-forwarded and crash reports (GameServer.ServerVersionString).
+# .git is excluded by .dockerignore, so InformationalVersion stays a clean string with no +sha suffix.
+ARG VERSION=0.0.0-dev
+
 # Publish the three headless server projects into one folder, framework-dependent (the runtime image
 # already ships the .NET + ASP.NET runtime). We publish the projects individually on purpose: the .sln
 # also contains the net8.0-windows WinForms launcher, which cannot build on Linux.
 # GameServer is multi-target (net10.0 exe + netstandard2.1 sim library for the Unity/WebGL
 # in-process singleplayer) — publish needs the explicit framework since the split.
-RUN dotnet publish src/BlocksBeyondTheStars.GameServer/BlocksBeyondTheStars.GameServer.csproj -c Release -f net10.0 -o /app \
- && dotnet publish src/BlocksBeyondTheStars.Api/BlocksBeyondTheStars.Api.csproj               -c Release -o /app \
- && dotnet publish src/BlocksBeyondTheStars.Tools/BlocksBeyondTheStars.Tools.csproj           -c Release -o /app \
+RUN dotnet publish src/BlocksBeyondTheStars.GameServer/BlocksBeyondTheStars.GameServer.csproj -c Release -f net10.0 -o /app -p:InformationalVersion="$VERSION" \
+ && dotnet publish src/BlocksBeyondTheStars.Api/BlocksBeyondTheStars.Api.csproj               -c Release -o /app -p:InformationalVersion="$VERSION" \
+ && dotnet publish src/BlocksBeyondTheStars.Tools/BlocksBeyondTheStars.Tools.csproj           -c Release -o /app -p:InformationalVersion="$VERSION" \
  && cp -r data /app/data
 
 # ---- runtime ----

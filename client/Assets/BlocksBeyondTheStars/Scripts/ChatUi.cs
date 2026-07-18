@@ -248,7 +248,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (jpg != null && jpg.Length > 0)
             {
-                Game.Network.SendBumpReport(description, jpg);
+                Game.Network.SendBumpReport(description, jpg, AppShell.Version);
             }
             else
             {

@@ -1464,6 +1464,12 @@ public sealed class BumpReport
     /// <summary>JPG-encoded screenshot, or empty when the client could not capture one (the server then
     /// falls back to a snapshot without an image).</summary>
     public byte[] Image { get; set; } = System.Array.Empty<byte>();
+
+    /// <summary>The reporting client's build version (<c>Application.version</c>). The server stamps this
+    /// onto the forwarded report's <c>gameVersion</c> so the inbox shows the player's build, not the
+    /// server's. Empty from older clients (and the text-only <c>/bump</c>), in which case the server falls
+    /// back to its own version. MessagePack is contractless, so this extra field is backward compatible.</summary>
+    public string ClientVersion { get; set; } = string.Empty;
 }
 
 /// <summary>A broadcast chat line (server→clients).</summary>

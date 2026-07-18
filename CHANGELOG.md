@@ -11,6 +11,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🐛 Reports show the right version
+- Bug reports and feedback in the report inbox showed the game version `1.0.0` for reports that came in through the server (a `/bump`, its feedback forward, or a server crash), because the dedicated-server build never stamped its version and defaulted to `1.0.0`. The server build now bakes in the release version, and a `/bump` additionally carries the reporting player's own client build so the inbox shows the player's version rather than the server's. (#389)
+
 ### 🐛 Browser feedback fixes
 - **Feedback in the browser no longer needs F1** — F1 opens the browser's own help, so the in-game feedback dialog now opens with **F2** in WebGL builds (F1 stays on desktop). The HUD and flight hints show the right key per platform. (#376)
 - **Raw `ui.*` keys no longer stick in the browser UI.** On WebGL the locale files load asynchronously, so a screen built during that window (e.g. the main menu) could show untranslated resource keys and never refresh. Cached shell screens are now rebuilt once the language finishes loading, and the missing `ui.feedback.send` label was added. (#377)

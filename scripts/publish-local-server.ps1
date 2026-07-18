@@ -15,9 +15,13 @@
 .EXAMPLE
   ./scripts/publish-local-server.ps1
   ./scripts/publish-local-server.ps1 -Runtime win-x64
+  ./scripts/publish-local-server.ps1 -Runtime win-x64 -Version 0.8.3
 #>
 param(
-    [string] $Runtime = 'win-x64'
+    [string] $Runtime = 'win-x64',
+    # Baked into the server assembly so its reports (e.g. a server crash) carry the release version instead
+    # of the .NET default 1.0.0 (release.yml passes the resolved tag). Defaults to a dev marker locally.
+    [string] $Version = '0.0.0-dev'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,10 +31,11 @@ $out = Join-Path $repo 'client/Assets/StreamingAssets/server'
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Force $out | Out-Null
 
-Write-Host "Publishing dedicated server ($Runtime) into the client ..." -ForegroundColor Cyan
+Write-Host "Publishing dedicated server ($Runtime, v$Version) into the client ..." -ForegroundColor Cyan
 dotnet publish (Join-Path $repo 'src/BlocksBeyondTheStars.GameServer') `
     -c Release -f net10.0 -r $Runtime --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:InformationalVersion=$Version `
     -o $out | Out-Null
 
 Write-Host "Bundled local server into $out" -ForegroundColor Green

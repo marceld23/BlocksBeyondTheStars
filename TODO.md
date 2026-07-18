@@ -100,6 +100,20 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Reports show version 1.0.0 → real build version (#389, 2026-07-18)
+The report inbox (`reports.blocksbeyondthestars.de`) showed game version **1.0.0** for reports that arrived
+through the server — a `/bump`, its F1/F2 feedback forward (`GameServerBump.ForwardBumpSnapshot`), or a server
+crash report. Cause: `GameServer.ServerVersionString` reads the assembly's `AssemblyInformationalVersion`, but
+the dedicated-server build never stamped a version, so it defaulted to `1.0.0`. The client-direct F1/F2 upload
+path was always correct (`FeedbackUi` uses `AppShell.Version`). Two-part fix: **(1)** bake the release version
+into the server assemblies at publish time — `Dockerfile` `ARG VERSION` → `-p:InformationalVersion` on the three
+publishes, wired from `docker.yml` (`build-args: VERSION=<tag>`) and the bundled-server scripts
+(`publish-local-server.ps1/.sh` gained a version arg, passed from `release.yml`); **(2)** `BumpReport` now
+carries the reporter's `ClientVersion` (MessagePack contractless → backward compatible, no new codec id), which
+the server stamps onto the forwarded report's `gameVersion` so a player-filed bump shows the *player's* build,
+falling back to the server version for older clients and the text-only `/bump`. Tests in `BumpTests` assert both
+the client-version passthrough and the server-version fallback.
+
 ### ★ Player nameplates on ships in space flight (#385, 2026-07-18)
 On the ground every remote player carries a floating nameplate, but in the flight view the other pilots'
 ships/EVA suits showed **no name** — you couldn't tell who was who. The data was already on the wire

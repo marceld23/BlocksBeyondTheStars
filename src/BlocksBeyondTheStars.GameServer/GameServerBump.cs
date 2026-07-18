@@ -99,7 +99,7 @@ public sealed partial class GameServer
             image = null;
         }
 
-        HandleBump(session, SanitizeBumpDescription(report.Description), image);
+        HandleBump(session, SanitizeBumpDescription(report.Description), image, report.ClientVersion);
     }
 
     /// <summary>Bounds + cleans a client-supplied bump description before it is written to the log and a
@@ -124,7 +124,7 @@ public sealed partial class GameServer
         return sb.ToString().Trim();
     }
 
-    private void HandleBump(PlayerSession session, string description, byte[]? image = null)
+    private void HandleBump(PlayerSession session, string description, byte[]? image = null, string clientVersion = "")
     {
         var p = session.State;
         var (systemName, planetName) = ActiveLocationNames();
@@ -302,7 +302,7 @@ public sealed partial class GameServer
             // (#380) is best-effort and may not run for older/native builds, so this is the only reliable way
             // the picture reaches the inbox. The local file above stays the source of truth; this send is one
             // best-effort attempt with no retry queue.
-            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot, hasImage ? image : null, imageName);
+            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot, hasImage ? image : null, imageName, clientVersion);
         }
         catch (Exception e)
         {
@@ -316,14 +316,19 @@ public sealed partial class GameServer
     /// up front, the snapshot verbatim in <c>reportJson</c>) and posts it through <see cref="CrashUploader"/>
     /// on a background task. When an <paramref name="image"/> is present it travels as a top-level
     /// <c>screenshot</c> node (base64 JPG), which the ReportHost decodes and stores like any F1 screenshot so
-    /// it shows in the admin detail view. No-op when no sink is configured; never throws into the tick.</summary>
-    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot, byte[]? image, string? imageName)
+    /// it shows in the admin detail view. No-op when no sink is configured; never throws into the tick.
+    /// The report's <c>gameVersion</c> is the reporter's client build (<paramref name="clientVersion"/>) when
+    /// the client sent one — so the inbox shows the player's build, not the server's — and falls back to the
+    /// server version for older clients / the text-only <c>/bump</c>.</summary>
+    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot, byte[]? image, string? imageName, string clientVersion = "")
     {
         var sink = CrashUploader;
         if (sink is null || !sink.IsConfigured)
         {
             return;
         }
+
+        string reportVersion = string.IsNullOrWhiteSpace(clientVersion) ? ServerVersionString : clientVersion;
 
         try
         {
@@ -332,7 +337,7 @@ public sealed partial class GameServer
                 title = TruncateWire($"Bump [{_meta.WorldName}]: {(string.IsNullOrEmpty(description) ? playerName : description)}", 110),
                 description = string.IsNullOrEmpty(description) ? "(no description)" : description,
                 email = string.Empty,
-                gameVersion = ServerVersionString,
+                gameVersion = reportVersion,
                 buildNumber = string.Empty,
                 playerId = playerId ?? string.Empty,
                 playerName = playerName ?? string.Empty,

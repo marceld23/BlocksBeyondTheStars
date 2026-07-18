@@ -237,9 +237,16 @@ namespace BlocksBeyondTheStars.Client
             => Send(new VoiceFrame { Opus = opus ?? Array.Empty<byte>(), Sequence = sequence }, DeliveryMode.Unreliable);
 
         /// <summary>Sends a <c>/bump</c> bug report with an optional in-game screenshot (JPG bytes). The server
-        /// persists a rich snapshot of the reporter's situation and writes the image alongside it.</summary>
-        public void SendBumpReport(string description, byte[] image)
-            => Send(new BumpReport { Description = description ?? string.Empty, Image = image ?? Array.Empty<byte>() });
+        /// persists a rich snapshot of the reporter's situation and writes the image alongside it. The
+        /// caller passes the client's build version so a forwarded report shows the reporter's build rather
+        /// than the server's (see <see cref="BumpReport.ClientVersion"/>).</summary>
+        public void SendBumpReport(string description, byte[] image, string clientVersion = "")
+            => Send(new BumpReport
+            {
+                Description = description ?? string.Empty,
+                Image = image ?? Array.Empty<byte>(),
+                ClientVersion = clientVersion ?? string.Empty,
+            });
 
         // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).
         public void SendAdminCommand(string command, string? stringArg = null, int intArg = 0,

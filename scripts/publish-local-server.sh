@@ -11,6 +11,9 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 RUNTIME="${1:-linux-x64}"
+# Baked into the server assembly so its reports (e.g. a server crash) carry the release version instead of
+# the .NET default 1.0.0 (release.yml passes the resolved tag). Defaults to a dev marker locally.
+VERSION="${2:-0.0.0-dev}"
 OUT="$REPO/client/Assets/StreamingAssets/server"
 
 if [ -d "$OUT" ]; then
@@ -18,10 +21,11 @@ if [ -d "$OUT" ]; then
 fi
 mkdir -p "$OUT"
 
-echo "==> Publishing dedicated server ($RUNTIME) into the client ..."
+echo "==> Publishing dedicated server ($RUNTIME, v$VERSION) into the client ..."
 dotnet publish "$REPO/src/BlocksBeyondTheStars.GameServer" \
     -c Release -f net10.0 -r "$RUNTIME" --self-contained true \
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+    -p:InformationalVersion="$VERSION" \
     -o "$OUT" >/dev/null
 
 echo "Bundled local server into $OUT"

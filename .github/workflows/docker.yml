@@ -89,6 +89,10 @@ jobs:
           platforms: ${{ inputs.platforms }}
           push: ${{ inputs.push }}
           tags: ${{ steps.img.outputs.tags }}
+          # Bake the version into the server assemblies so /bump-forwarded and crash reports carry the
+          # release version instead of the .NET default 1.0.0 (release.yml passes the tag as `tag`).
+          build-args: |
+            VERSION=${{ inputs.tag }}
           cache-from: type=gha
           # Only non-tag runs export the layer cache: this workflow is workflow_call'ed by release.yml
           # on tag refs, and tag-scoped caches are unreadable by every other ref — they only crowded

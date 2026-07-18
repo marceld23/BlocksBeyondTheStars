@@ -255,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Path A — rich server snapshot via the existing /bump pipeline (meaningful on own/SP servers).
             string serverNote = string.IsNullOrEmpty(title) ? desc : title + " — " + desc;
-            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>());
+            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>(), AppShell.Version);
 
             // Path B — client-direct upload to the report inbox. The body is serialized ONCE here on the
             // main thread; only the POST leaves the game loop.
