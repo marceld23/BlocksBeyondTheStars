@@ -819,6 +819,18 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
 
+        // When the last chunk arrived from the server. The loading veil uses "no new chunk for a moment" (plus a
+        // drained mesh queue) as the "initial view is fully streamed + meshed" signal so it doesn't lift mid-fill
+        // (#390). During streaming the ≥1-chunk-per-tick guarantee keeps this fresh; the gap only opens once the
+        // server has nothing left to send for the (frozen) spawn view.
+        private float _lastChunkArrivalTime;
+
+        /// <summary>Seconds since the last chunk streamed in — grows only once the server has finished the view.</summary>
+        public float TimeSinceLastChunk => Time.time - _lastChunkArrivalTime;
+
+        /// <summary>Chunks still queued to be (re)meshed — the client-side mesh backlog.</summary>
+        public int PendingMeshCount => _dirty.Count;
+
         // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
         // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
         // the rest stay queued in _dirty. Tunable — raise for less pop-in, lower for smoother frame times.
@@ -966,6 +978,7 @@ namespace BlocksBeyondTheStars.Client
 
                 RebuildFloraTints(); // per-species flora colours for this world (seed + location)
                 WorldReady = false;          // hold the loading overlay until we settle onto the first world
+                _lastChunkArrivalTime = Time.time; // reset the view-settle gate so it can't pass before this world streams (#390)
                 WorldLoadStarted?.Invoke();
             };
             Network.JoinRejected += m =>
@@ -1433,6 +1446,7 @@ namespace BlocksBeyondTheStars.Client
 
             World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
             MarkChunkAndNeighborsDirty(coord);
+            _lastChunkArrivalTime = Time.time; // feed the view-settle gate (#390)
         }
 
         /// <summary>Marks a chunk AND its six neighbours for re-meshing. A freshly stored/resynced chunk

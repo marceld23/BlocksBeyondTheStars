@@ -159,11 +159,12 @@ public sealed class ChunkStreamingTests : IDisposable
         // A chunk 2 east is inside the client's radius-3 view but outside the host's radius-1 default — it is
         // resident only because the client's requested view distance drove the streaming radius.
         var withinClientView = new ChunkCoord(center.X + 2, center.Y, center.Z);
-        // A chunk 5 east is beyond even the client's radius — it must never have been streamed.
+        // A chunk 5 east is beyond the client's radius-3 view AND its one-ring load-ahead margin (radius+1 = 4),
+        // so it must never have been streamed. (#388's load-ahead reaches +4, not +5.)
         var beyondClientView = new ChunkCoord(center.X + 5, center.Y, center.Z);
 
         Assert.True(server.World.IsChunkLoaded(withinClientView), "client's wider view distance should stream terrain past the host default");
-        Assert.False(server.World.IsChunkLoaded(beyondClientView), "nothing beyond the client's requested radius should stream");
+        Assert.False(server.World.IsChunkLoaded(beyondClientView), "nothing beyond the client's requested radius (plus the one-ring load-ahead) should stream");
     }
 
     [Fact]

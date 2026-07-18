@@ -83,6 +83,13 @@ namespace BlocksBeyondTheStars.Client
         private bool _settling;
         private float _settleTimer; // how long we've been frozen at spawn waiting for the floor to stream
         private bool _worldRevealed; // settle: has the loading overlay been dismissed for this spawn yet
+
+        // View-settle gate (#390): hold the reveal until the streamed view has finished arriving AND meshing, so
+        // the world doesn't visibly assemble after the veil lifts. "No new chunk for this long" is the reliable
+        // "server finished the frozen spawn view" signal (streaming keeps chunks arriving every tick); the backlog
+        // check confirms those last arrivals are meshed. The 8 s spawn grace below still hard-caps the wait.
+        private const float ViewSettleQuietSeconds = 0.6f;
+        private const int ViewSettleBacklog = 6; // ~a frame's worth of the mesh budget (MeshChunksPerFrame)
         private bool _wasGrounded = true;
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
@@ -214,11 +221,18 @@ namespace BlocksBeyondTheStars.Client
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
                                    && gHit.collider != _controller;
 
-                // Reveal the world + release control TOGETHER — as soon as there is real ground under the spawn,
-                // or after a short grace (then the server's void-rescue recovers a still-streaming spawn chunk by
-                // teleporting onto the ship). Tying reveal to release means you never see a "loaded" world you
-                // can't move in; the short grace means the veil never lingers and feels stuck either.
-                if (!awaitingConfirm && (groundBelow || _settleTimer > 8f))
+                // The streamed view has finished arriving AND meshing — so the reveal shows a populated world
+                // instead of one that visibly assembles over the next few seconds (#390). While the server is
+                // still streaming, chunks keep arriving each tick and reset TimeSinceLastChunk; the gap only opens
+                // once the frozen spawn view is complete, and the backlog check confirms the last ones are meshed.
+                bool viewSettled = Game.TimeSinceLastChunk >= ViewSettleQuietSeconds
+                                   && Game.PendingMeshCount <= ViewSettleBacklog;
+
+                // Reveal the world + release control TOGETHER — once there is real ground under the spawn AND the
+                // view has settled, or after a short grace (then the server's void-rescue recovers a still-streaming
+                // spawn chunk by teleporting onto the ship). Tying reveal to release means you never see a "loaded"
+                // world you can't move in; the grace hard-caps the wait so the veil never lingers or feels stuck.
+                if (!awaitingConfirm && ((groundBelow && viewSettled) || _settleTimer > 8f))
                 {
                     if (!_worldRevealed)
                     {

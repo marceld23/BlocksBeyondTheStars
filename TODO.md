@@ -163,6 +163,29 @@ stays the source of truth; one best-effort background send, no retry queue. Also
 Tests: `BumpReport_WithConfiguredSink_ForwardsSnapshotWithoutImage`, `BumpCommand_WithoutSink_…`.
 Docs: PLAYER_FEEDBACK.md + REPORT_HOST.md.
 
+### ★ Distant-terrain horizon pop-in + initial-fill loading fixes (#388, #390, 2026-07-18, branch fix/terrain-horizon-popin)
+Two user-reported horizon bugs, code-verified via Explore. **#388 pop-in (fog):** voxels are unlit so Unity
+fog is dead on them — the visible haze is a shader blend on the `_Sc_Fog` global set in `Sky.cs ApplyFog`.
+Two bugs: fogEnd ran to `renderDist * Lerp(1.6,1.0)` (PAST the streamed edge → last ring un-hazed) and maxHaze
+capped at 0.6–0.75 (`Sky.cs:410`, never fully hid the edge). Fix: `far = renderDist * Lerp(1.0,0.85)` (fogEnd
+never past the view edge), `maxHaze = 1f` (full coverage), startFactor 0.72→0.78 (keep more crisp near-field).
+PLUS a real server load-ahead: `GameServer.StreamChunks` streams `radius + LoadAheadRings(1)` (the extra ring
+is past `NearFullColumnRadius`, so cheap thin-band; within sweep keepRadius+4) — the corner geometry only
+buffers diagonals, but the player walks the AXES and a chunk is 16 blocks deep, so an actual extra ring is
+needed so the edge is loaded+hazed and FADES in rather than pops. **#390 initial fill (loading veil):** the
+veil lifted on `WorldReady`, which flips as soon as the player's OWN floor chunk raycast hits
+(`PlayerController.cs:213`) — NOT on the view being meshed, so ~500 view chunks streamed/meshed AFTER the
+curtain lifted (visible assembly). Fix: `GameBootstrap` exposes `TimeSinceLastChunk` + `PendingMeshCount`;
+the settle gate reveals on `groundBelow && viewSettled` where viewSettled = no new chunk for 0.6 s AND
+backlog ≤6. KEY INSIGHT: `_dirty.Count` alone is NOT a reliable "view complete" signal (meshing can keep
+pace with arrival), but "no new chunk arrived recently" is — the ≥1-chunk/tick guarantee keeps chunks
+arriving during streaming, so the gap only opens when the server has finished the frozen spawn view. Existing
+8 s spawn grace kept as the hard cap; self-adjusts for respawn (already-loaded → gate passes on ground).
+Verified: server build 0 warnings, **1046 server tests green**, streaming tests updated (+5 east still out at
+radius+loadahead), fog build green + rocky/ice/jungle screenshots show haze engaging. CLIENT MonoBehaviour
+changes (Sky/PlayerController/GameBootstrap) need the local Unity build to verify — DEFERRED until a parallel
+worker's Unity build finished (user rule: no concurrent Unity builds).
+
 ### ★ Medium preset SSAO retune + PerfProbe itemization + fleet worldgen budget (#374, #360, 2026-07-18, branch perf/medium-preset-server-budget)
 Three of the four open large-tier perf issues, code-verified and measured on the reference laptop
 (Ryzen 9 7940HS / RTX 2000 Ada). **PerfProbe tooling (enabler):** new `-perfFeature` toggles

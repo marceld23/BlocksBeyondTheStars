@@ -364,11 +364,14 @@ namespace BlocksBeyondTheStars.Client
             // render edge → invisible) and softly hides the chunk pop-in at the boundary.
             float renderDist = Mathf.Max(32f, ViewChunks * 16f);
 
-            // Per-world air thickness sets where the haze sits: thin air fogs near the far edge, soupy air hazes
-            // well inside the view. Kept well within the render distance so the haze is actually visible and masks
-            // the chunk pop-in at the edge (tuned aggressive for now; raise the factors to push the haze farther).
+            // Per-world air thickness sets where the haze sits: thin air fogs right at the far edge, soupy air hazes
+            // well inside the view. The multiplier is capped at 1.0 so fogEnd NEVER sits past the streamed terrain
+            // edge (renderDist = the client's view radius): the old 1.0–1.6 range pushed the haze beyond the loaded
+            // chunks, so the outermost ring streamed in un-hazed and popped (#388). Paired with the load-ahead ring
+            // the server streams one chunk beyond this basis (GameServer.StreamChunks), the last VISIBLE ring is
+            // fully hazed before it materializes and fades in as the player approaches.
             float airDensity = Game?.Environment?.AtmosphereDensity ?? 0.4f;
-            float far = renderDist * Mathf.Lerp(1.6f, 1.0f, Mathf.Clamp01(airDensity));
+            float far = renderDist * Mathf.Lerp(1.0f, 0.85f, Mathf.Clamp01(airDensity));
 
             far *= Mathf.Lerp(1f, 0.8f, weatherIntensity); // storms haze in a bit more
             far *= Mathf.Lerp(0.9f, 1f, day);                // night a touch hazier than day
@@ -399,16 +402,17 @@ namespace BlocksBeyondTheStars.Client
             // closer in (low start). This keeps the per-planet/per-atmosphere character while letting a clear
             // world actually show the farther terrain the (now larger) view distance streams. Weather that already
             // crushed `far` keeps its near, dense look — a small `far` lands the haze close even at a high factor.
-            float startFactor = Mathf.Lerp(0.72f, 0.5f, Mathf.Clamp01(airDensity));
+            float startFactor = Mathf.Lerp(0.78f, 0.55f, Mathf.Clamp01(airDensity));
             float fogStart = far * startFactor;
             RenderSettings.fogStartDistance = fogStart;
             RenderSettings.fogEndDistance = far;
 
             // The actual visible haze: an explicit distance blend the block shader applies (Unity's MixFog is dead
-            // on the unlit voxels). Strong toward the sky at the far edge so it masks chunk pop-in; a touch thinner
-            // on clear worlds so distant terrain reads through; faded out indoors via _indoor so the cabin never hazes.
-            float hazeStrength = Mathf.Lerp(0.6f, 0.75f, Mathf.Clamp01(airDensity));
-            float maxHaze = (FogEnabled ? hazeStrength : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
+            // on the unlit voxels). Reaches FULL opacity at fogEnd (was capped at 0.6–0.75, which left the far edge
+            // 25–40% visible → the pop). At full strength the last ring dissolves completely into the sky colour
+            // before it appears; per-world character now lives in WHERE the haze sits (fogStart/fogEnd above), not
+            // how opaque it gets. Faded out indoors via _indoor so the cabin never hazes.
+            float maxHaze = (FogEnabled ? 1f : 0f) * (1f - _indoor); // 0 indoors or when the player disabled fog
             Shader.SetGlobalVector(FogId, new Vector4(fogStart, far, maxHaze, FogEnabled ? 1f : 0f));
         }
 

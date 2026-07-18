@@ -87,10 +87,10 @@ public sealed class JoinAndStreamingTests
         foreach (var key in h.Chunks.Keys)
         {
             if (key.Item1 == center.X + 2) gotWithinClientView = true;
-            if (key.Item1 == center.X + 5) gotBeyondClientView = true; // beyond radius 3 — must never stream
+            if (key.Item1 == center.X + 5) gotBeyondClientView = true; // beyond radius 3 + the one-ring load-ahead (4) — must never stream
         }
 
         Assert.True(gotWithinClientView, "client's radius-3 view should stream terrain past the host's radius-1 default");
-        Assert.False(gotBeyondClientView, "nothing beyond the client's requested radius should stream");
+        Assert.False(gotBeyondClientView, "nothing beyond the client's requested radius (plus the one-ring load-ahead) should stream");
     }
 }

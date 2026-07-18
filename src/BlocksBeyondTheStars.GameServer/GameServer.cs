@@ -1410,6 +1410,13 @@ public sealed partial class GameServer
     private const int FarSurfaceBandBelow = 1;
     private const int FarSurfaceBandAbove = 1;
 
+    /// <summary>Extra chunk rings streamed BEYOND the player's view radius (and beyond the client's fog edge, which
+    /// sits at the view radius). This terrain loads while it is still fully hazed, so as the player walks forward the
+    /// newly-revealed edge is already meshed and simply fades in through the fog instead of popping in from nothing
+    /// (#388). The extra ring is always past <see cref="NearFullColumnRadius"/>, so it streams only the cheap far
+    /// surface band, and stays within the sweep's keepRadius (maxViewRadius + 4) so it is not immediately evicted.</summary>
+    private const int LoadAheadRings = 1;
+
     /// <summary>This player's streaming radius in chunks: their requested view distance (clamped to the slider
     /// range) when they sent one, otherwise the host's configured default.</summary>
     private int EffectiveViewRadius(PlayerSession session)
@@ -1436,6 +1443,7 @@ public sealed partial class GameServer
         foreach (var session in JoinedInActiveWorld())
         {
             int radius = EffectiveViewRadius(session); // per-player: honour the client's View Distance slider
+            int streamRadius = radius + LoadAheadRings; // load one hazed ring past the fog edge so it fades in, not pops (#388)
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
             center = new ChunkCoord(center.X, System.Math.Clamp(center.Y, minChunkY, maxChunkY), center.Z);
 
@@ -1453,8 +1461,8 @@ public sealed partial class GameServer
             // player's own altitude still streams its visible shell.
             var planet = _world.Planet;
             var pending = new List<(ChunkCoord Coord, int DistSq)>();
-            for (int dx = -radius; dx <= radius; dx++)
-                for (int dz = -radius; dz <= radius; dz++)
+            for (int dx = -streamRadius; dx <= streamRadius; dx++)
+                for (int dz = -streamRadius; dz <= streamRadius; dz++)
                 {
                     int loDy, hiDy;
                     if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz)) <= NearFullColumnRadius)
