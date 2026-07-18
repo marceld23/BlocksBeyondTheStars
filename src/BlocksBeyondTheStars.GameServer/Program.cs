@@ -154,6 +154,42 @@ Console.CancelKeyPress += (_, e) =>
     server.RequestStop();
 };
 
+// Graceful stop via stdin, for the bundled singleplayer host (--stdin-stop). The in-game client can't send
+// SIGINT to this child process on Windows, and Process.Kill() would tear us down BEFORE the drain + save —
+// so a plain quit would lose everything since the last autosave (the player reloads at a stale spawn). The
+// client instead closes our redirected stdin on quit (or dies, which the OS turns into a stdin EOF); this
+// reader picks that up and RequestStop()s, taking the same drain + save path as SIGINT. Guarded by the flag
+// so the dedicated/docker hosts — which stop via SIGTERM/SIGINT and may have no stdin — never start it.
+if (Array.IndexOf(args, "--stdin-stop") >= 0)
+{
+    var stdinWatcher = new Thread(() =>
+    {
+        try
+        {
+            // ReadLine returns null on stdin EOF (the parent closed the pipe / exited) — either way, stop.
+            while (Console.In.ReadLine() is { } line)
+            {
+                if (line.Trim().Equals("stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+            }
+        }
+        catch
+        {
+            // stdin unreadable → treat as closed and fall through to the graceful stop below.
+        }
+
+        logger.Info("Shutdown requested (host stdin closed)...");
+        server.RequestStop();
+    })
+    {
+        IsBackground = true, // never keep the process alive on its own
+        Name = "stdin-stop-watcher",
+    };
+    stdinWatcher.Start();
+}
+
 server.Start();
 
 // Automatic crash upload — opt-in. When config supplies an endpoint + key, the server sends queued reports

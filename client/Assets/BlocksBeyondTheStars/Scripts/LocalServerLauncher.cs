@@ -204,12 +204,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\"" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                // Redirected so Stop() can close it as a graceful-shutdown signal (--stdin-stop): the server
+                // drains + saves the live player position instead of dying mid-session to Process.Kill().
+                RedirectStandardInput = true,
             };
 
             // Hand the client's baked-in feedback key to the bundled server so its crash reports and /bump
@@ -277,8 +280,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!_process.HasExited)
                 {
-                    _process.Kill();
-                    _process.WaitForExit(2000);
+                    // Ask the server to shut down GRACEFULLY first: closing its redirected stdin trips the
+                    // --stdin-stop watcher, which drains + saves (the live player position, ship, world) on the
+                    // tick thread before exiting. A hard Kill() here would lose everything since the last
+                    // autosave — the player would reload at a stale spawn (e.g. floating above their ship).
+                    try { _process.StandardInput.Close(); } catch { /* stdin already gone */ }
+
+                    // Give the drain + save a moment; Kill() only as a last resort if it wedges.
+                    if (!_process.WaitForExit(5000) && !_process.HasExited)
+                    {
+                        _process.Kill();
+                        _process.WaitForExit(2000);
+                    }
                 }
             }
             catch

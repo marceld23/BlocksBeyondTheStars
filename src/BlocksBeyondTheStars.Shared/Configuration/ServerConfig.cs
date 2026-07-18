@@ -321,6 +321,11 @@ public sealed class ServerConfig
                     // args (before Load) to skip the config file entirely. Recognized here only so its value
                     // token is consumed and can't shadow a following flag; nothing to apply to this config.
                     break;
+                case "stdin-stop":
+                    // Handled in Program.cs (reads --stdin-stop straight from the raw args to arm the stdin
+                    // graceful-shutdown watcher for the bundled singleplayer host). Recognized here only so its
+                    // value token is consumed and can't shadow a following flag; nothing to apply to this config.
+                    break;
                 case "database":
                 case "database-provider":
                     DatabaseProvider = value; applied.Add("database-provider");

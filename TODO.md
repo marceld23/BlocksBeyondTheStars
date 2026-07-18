@@ -100,6 +100,21 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Singleplayer quit now saves your live position (2026-07-18, branch fix/sp-quit-graceful-save)
+Quitting a native singleplayer session (to the menu or by closing the game) discarded everything since the
+last 5-minute autosave: `LocalServerLauncher.Stop()` **hard-killed** the bundled server process with
+`Process.Kill()`, so its graceful drain + `SaveAll()` never ran. On reload the server restored the last
+*durably* saved position — often the landing checkpoint, which stamps the player at the ship's heal-tank —
+so you'd reappear a few blocks **above your ship and fall onto the hull**, wherever you'd actually walked.
+Fix: a graceful stdin shutdown that mirrors the server's existing SIGINT→`RequestStop()`→`SaveAll()` path.
+The bundled host now passes `--stdin-stop`; the server arms a stdin watcher that calls `RequestStop()` when
+the client closes its redirected stdin on quit (or dies → OS stdin EOF), draining + saving the live player
+position on the tick thread before exit. `Stop()` closes stdin and waits (up to 5 s) for the clean save,
+falling back to `Kill()` only if the server wedges. Flag-guarded so dedicated/docker hosts (SIGTERM) are
+untouched; `--stdin-stop` gets a placeholder case in `ServerConfig.ApplyCommandLine` so the positional
+parser doesn't swallow the next flag (same pattern as `--no-config`). WebGL is unaffected (in-process
+`BrowserServer.StopAndSave()`). Reaches players with the next Velopack release.
+
 ### ★ Flora no longer renders a see-through "transparent floor" (#382, 2026-07-18)
 On planets the ground **under** cross-plant flora and at the **base** of solid flora (puffball/cactus/crystal
 domes) showed a see-through hole to the bright sky/fog — a "weißer/transparenter Boden". Mip-independent
