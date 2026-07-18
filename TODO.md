@@ -100,6 +100,26 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Flora no longer renders a see-through "transparent floor" (#382, 2026-07-18)
+On planets the ground **under** cross-plant flora and at the **base** of solid flora (puffball/cactus/crystal
+domes) showed a see-through hole to the bright sky/fog — a "weißer/transparenter Boden". Mip-independent
+(confirmed still present with the atlas mipmaps disabled). This is the **second, separate cause** behind
+#382's "white plant floor" symptom — the #384 edge-bevel-UV fix resolved the chamfer/corner white but not
+this, so the plant floor persisted and #382 was reopened. Root cause was a git-confirmed **regression**: the
+mesher's
+face-cull (`ChunkMesher.BuildGeometry` `drawFace`) sealed an opaque block's face against **any**
+non-air/non-transparent neighbour, and `IsTransparent` lists only glass/force_field/water/fire/energy_fence/
+energy_gate — **not flora/foliage**. So the ground-top face under every flora cell was culled, while flora
+renders only a thin billboard / rounded shaped block → a hole. `AoOccluder` already excluded flora/foliage;
+the face-cull had diverged when batch `27afca87` dropped the `IsFoliageBlock` term that `46a8a7f8` (B6) added
+(and it never covered **solid** flora at all). Fix (client-render only, no collider/data/wire change): the
+opaque branch now treats **both** `IsFloraBlock` (all `flora_*`, incl. solid flora) and `IsFoliageBlock`
+neighbours as non-occluding — mirroring `AoOccluder` exactly — so ground/walls under and beside plants keep
+their faces; a dedicated `foliage` branch preserves the tree-crown thin-shell look untouched. Biome-agnostic
+(any opaque ground). Verified via a local Unity build across biomes; EditMode regression test asserts the
+ground top under a cross-plant flora AND a solid-flora neighbour is emitted while a genuine opaque neighbour
+still culls.
+
 ### ★ Smooth day↔night transition — real twilight/golden-hour dusk & dawn (#391, 2026-07-18)
 Crossing the day/night terminator on a planet — and standing still while the local day advances — snapped
 almost instantly to a dark, starry sky: there was no visible dusk/dawn. The cycle only lerped the sky

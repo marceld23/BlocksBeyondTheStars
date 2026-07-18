@@ -511,7 +511,19 @@ namespace BlocksBeyondTheStars.Client
                     // Foliage is meshed as a thin shell (culled against its own kind), so the cutout holes in
                     // the near leaf faces show the sky/world BEHIND the tree — a clearly see-through crown,
                     // not a dense volume whose holes just reveal more leaves.
-                    bool drawFace = transparent ? nb.IsAir : (nb.IsAir || IsTransparent(content, nb));
+                    //
+                    // A FLORA/FOLIAGE neighbour never seals an opaque block's face: cross-plants are thin
+                    // billboards, tree crowns are cutout shells, and SOLID flora (cactus/puffball/crystal) is a
+                    // rounded shaped block that doesn't fill the cell's corners — none of them cover the ground/
+                    // wall behind. Dropping this (batch 27afca87) culled the ground top UNDER every plant →
+                    // see-through white holes ("the transparent plant floor"; solid-flora domes left white
+                    // corner slivers). Mirror AoOccluder's non-occluder set exactly (flora + foliage). Foliage's
+                    // OWN faces stay a thin shell — the `foliage` branch draws toward air/glass only, so it still
+                    // culls against opaque AND its own kind. (Solid flora meshes its own shape and never reaches
+                    // this loop, so it needs no branch here — only its opaque NEIGHBOURS must keep their faces.)
+                    bool drawFace = transparent ? nb.IsAir
+                        : foliage ? (nb.IsAir || IsTransparent(content, nb))
+                        : (nb.IsAir || IsTransparent(content, nb) || IsFloraBlock(content, nb) || IsFoliageBlock(content, nb));
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
