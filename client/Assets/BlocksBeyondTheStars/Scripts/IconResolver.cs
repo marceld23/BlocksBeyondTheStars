@@ -19,6 +19,17 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Texture2D> _itemTex = new Dictionary<string, Texture2D>();
 
+        /// <summary>Drops every cached sprite/texture. Called from <see cref="GameBootstrap"/>'s teardown:
+        /// the sprites wrap THAT session's atlas texture, so keeping them across sessions would pin the
+        /// destroyed atlas (stale tiles on a server with different content) and blank the icons once the
+        /// atlas is freed (#423). The unreferenced sprites are then swept by the return-to-menu
+        /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
+        public static void ClearCache()
+        {
+            _sprites.Clear();
+            _itemTex.Clear();
+        }
+
         /// <summary>The best icon sprite for an item / ship-module / blueprint key, or null if none.</summary>
         public static Sprite Resolve(string key, GameBootstrap game)
         {

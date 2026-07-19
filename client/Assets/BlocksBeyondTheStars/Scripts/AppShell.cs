@@ -766,6 +766,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Phase = ShellPhase.MainMenu; // leaving the game returns to the main menu
+            StartCoroutine(UnloadDestroyedWorldAssets());
+        }
+
+        /// <summary>Sweeps the destroyed world's procedural assets (sky/starfield meshes+materials, chunk
+        /// render meshes, icon sprites, the previous MenuBackground's leftovers). This is a single-scene game,
+        /// so nothing else ever frees them — without this pass every menu↔world cycle leaks ~20 MB+, enough
+        /// to OOM a WebGL tab after repeated world-hopping (#423). Deferred one frame so the
+        /// <see cref="UnityEngine.Object.Destroy"/> calls above (end-of-frame) have actually released their
+        /// references; GameBootstrap.OnDestroy clears the static caches that would otherwise pin the atlas.</summary>
+        private IEnumerator UnloadDestroyedWorldAssets()
+        {
+            yield return null;
+            Resources.UnloadUnusedAssets();
         }
 
         private bool _confirmQuit; // showing the "quit to menu?" confirmation over the game

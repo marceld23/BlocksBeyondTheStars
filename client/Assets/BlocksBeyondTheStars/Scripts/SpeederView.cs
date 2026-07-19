@@ -210,7 +210,12 @@ namespace BlocksBeyondTheStars.Client
                 chunk.Set(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value);
             }
 
-            var (mesh, _) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint);
+            var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint);
+            if (collider != null)
+            {
+                Destroy(collider); // render-only hull — the cooked collider mesh is never used (#423)
+            }
+
             if (mesh.vertexCount > 0)
             {
                 var go = new GameObject("SpeederHull");
@@ -218,6 +223,11 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.localPosition = MeshOffset;
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
+                go.AddComponent<OwnedProceduralMesh>(); // freed by the child teardown on the next recolor/rebuild
+            }
+            else
+            {
+                Destroy(mesh); // empty grid — free the mesh instead of orphaning it
             }
 
             // Engine glow at the rear (design z=0 → root-local z = -2 after centring).

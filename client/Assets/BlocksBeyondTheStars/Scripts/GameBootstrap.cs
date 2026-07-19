@@ -943,6 +943,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
+                Atlas.Destroy(); // free the just-built textures — nothing will ever sample them
                 Atlas = null; // no atlas shader → fall back to the flat palette + vertex-colour material
             }
 
@@ -2016,6 +2017,33 @@ namespace BlocksBeyondTheStars.Client
             return dx * dx + dy * dy + dz * dz;
         }
 
-        private void OnDestroy() => Network?.Dispose();
+        /// <summary>Frees the session's procedural assets alongside the network. Unity never garbage-collects
+        /// assets created via <c>new</c> (Texture2D/Material/Mesh), so without this every menu↔world cycle
+        /// leaks both atlas textures + the chunk materials (#423). The static icon caches and the
+        /// <see cref="HeldItem.BlockTileResolver"/> delegate MUST be cleared first — they wrap/pin this
+        /// session's atlas (and the whole GameBootstrap object graph) across sessions. Everything else the
+        /// world created (sky/starfield meshes+materials, chunk render meshes, icon sprites) becomes
+        /// unreferenced with the world root and is swept by AppShell.ReturnToMenu's
+        /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
+        private void OnDestroy()
+        {
+            Network?.Dispose();
+
+            IconResolver.ClearCache();
+            ShapeIconFactory.ClearCache();
+            HeldItem.BlockTileResolver = null;
+
+            if (ChunkMaterial != null)
+            {
+                Destroy(ChunkMaterial);
+            }
+
+            if (ChunkMaterialTransparent != null)
+            {
+                Destroy(ChunkMaterialTransparent);
+            }
+
+            Atlas?.Destroy();
+        }
     }
 }

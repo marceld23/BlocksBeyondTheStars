@@ -31,6 +31,23 @@ namespace BlocksBeyondTheStars.Client
         /// diffuse for texture-scale depth.</summary>
         public Texture2D NormalTexture { get; private set; }
 
+        /// <summary>Frees the atlas textures. Unity never garbage-collects <c>Texture2D</c>s created via
+        /// <c>new</c>, so the owner (GameBootstrap / MenuBackground) must call this when it is destroyed —
+        /// otherwise every menu↔world cycle permanently leaks both full atlases (#423).</summary>
+        public void Destroy()
+        {
+            if (Texture != null)
+            {
+                UnityEngine.Object.Destroy(Texture);
+            }
+
+            if (NormalTexture != null)
+            {
+                UnityEngine.Object.Destroy(NormalTexture);
+                NormalTexture = null;
+            }
+        }
+
         public BlockTextureAtlas(GameContent content)
         {
             Texture = new Texture2D(Cols * Tile, Rows * Tile, TextureFormat.RGBA32, mipChain: true)

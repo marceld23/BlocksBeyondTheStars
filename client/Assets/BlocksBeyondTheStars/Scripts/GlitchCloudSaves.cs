@@ -30,6 +30,7 @@ namespace BlocksBeyondTheStars.Client
         private static bool _uploadInFlight;
         private static float _lastUploadTime = float.NegativeInfinity;
         private static byte[] _pending;
+        private static BrowserLocalServer _attachedHost; // the persistent host we already subscribed to (#423)
 
         /// <summary>True when this build can sync: served by Glitch (install id present) with a portal baked in.</summary>
         public static bool Enabled
@@ -133,14 +134,17 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Hooks the host's durable saves: every persisted blob is queued for upload (throttled;
-        /// silently off for guests/non-Glitch hosts).</summary>
+        /// silently off for guests/non-Glitch hosts). The host is a DontDestroyOnLoad singleton but Attach is
+        /// called on EVERY menu → browser-SP boot — subscribe once per host, or after N sessions each save
+        /// fires N stacked handlers and a stale duplicate blob can be re-uploaded (#423).</summary>
         public static void Attach(AppShell shell, BrowserLocalServer host)
         {
-            if (!Enabled)
+            if (!Enabled || host == _attachedHost)
             {
                 return;
             }
 
+            _attachedHost = host;
             host.BlobPersisted += blob =>
             {
                 if (_blocked)

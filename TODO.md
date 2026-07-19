@@ -100,6 +100,26 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Client no longer leaks ~20 MB+ of procedural assets per menu↔world cycle (#423, 2026-07-19, branch fix/423-client-memory-leaks)
+Unity never garbage-collects assets created via `new` (Texture2D/Material/Mesh), this is a
+single-scene game, and `Resources.UnloadUnusedAssets` was never called — so every enter-world /
+return-to-menu cycle permanently leaked both 1024² atlas textures + chunk materials, a full second
+atlas from the recreated MenuBackground, and every sky/starfield/chunk mesh (audit findings M11/N7/
+N9/N8; on WebGL's fixed heap this is an OOM tab crash after repeated world-hopping). Fixes, layered:
+**(M11)** `GameBootstrap.OnDestroy` + a new `MenuBackground.OnDestroy` destroy their atlas textures
+(`BlockTextureAtlas.Destroy()`) and chunk materials; `AppShell.ReturnToMenu` then runs a one-frame-
+deferred `Resources.UnloadUnusedAssets()` sweep that collects everything else the dead world left
+behind. **(N7)** The static `IconResolver`/`ShapeIconFactory` caches and the static
+`HeldItem.BlockTileResolver` delegate are cleared first in `GameBootstrap.OnDestroy` — they wrapped
+the old world's atlas (stale tiles on content-differing servers) and pinned the whole GameBootstrap
+graph, which would have blanked icons / defeated the sweep. **(N9)** Display-only ship/speeder
+meshers now destroy the cooked collider mesh they always discarded, free empty meshes on the
+skip path, and attach a new `OwnedProceduralMesh` component so every preview/transit/recolor rebuild
+frees its render mesh with its GameObject (previously one leaked Mesh per chunk per build).
+**(N8)** `GlitchCloudSaves.Attach` subscribes once per persistent host instead of stacking one
+anonymous `BlobPersisted` handler per browser-SP session (stale duplicate re-uploads). Client-only;
+reaches players with the next release.
+
 ### ★ Wrecked ships stay wrecked across a restart — Downed flag persisted (#419, 2026-07-19, branch fix/419-downed-not-persisted)
 Under `KeepShipOnDeath=false` a ship lost in combat is downed (hull 0, grounded until repaired) — but
 `ShipSnapshot` never carried the `Downed` flag, and `RecomputeShipCombatStats` clamps a hull ≤ 0 back

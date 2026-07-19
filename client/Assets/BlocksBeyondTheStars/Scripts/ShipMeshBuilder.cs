@@ -144,9 +144,15 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, _) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint);
+                var (mesh, collider) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint);
+                if (collider != null)
+                {
+                    Object.Destroy(collider); // display-only build — the cooked collider mesh is never used (#423)
+                }
+
                 if (mesh.vertexCount == 0)
                 {
+                    Object.Destroy(mesh); // all-air chunk cell — free the empty mesh instead of orphaning it
                     continue;
                 }
 
@@ -155,6 +161,24 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.localPosition = new Vector3(origin.X, origin.Y, origin.Z) - centre;
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
+                go.AddComponent<OwnedProceduralMesh>(); // the mesh dies with the chunk object (paint re-mesh, transit end, …)
+            }
+        }
+    }
+
+    /// <summary>Destroys the <see cref="MeshFilter"/>'s procedural mesh together with its GameObject. Unity
+    /// never garbage-collects Mesh assets, so display meshers (ship previews, transits, speeder hulls) attach
+    /// this to every object whose mesh they own — teardown paths only destroy GameObjects, which would leak
+    /// one mesh per rebuild otherwise (#423). Attach ONLY where the mesh is exclusive to this object — never
+    /// on primitives, whose sharedMesh is the shared built-in asset.</summary>
+    public sealed class OwnedProceduralMesh : MonoBehaviour
+    {
+        private void OnDestroy()
+        {
+            var filter = GetComponent<MeshFilter>();
+            if (filter != null && filter.sharedMesh != null)
+            {
+                Destroy(filter.sharedMesh);
             }
         }
     }

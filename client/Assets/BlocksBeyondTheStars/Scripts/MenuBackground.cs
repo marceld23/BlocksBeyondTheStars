@@ -198,6 +198,25 @@ namespace BlocksBeyondTheStars.Client
             Shader.SetGlobalVector("_Sc_Fog", new Vector4(0f, 1f, 0f, 0f)); // distance haze off
         }
 
+        /// <summary>Frees the menu's own procedural atlas + chunk materials — the backdrop is recreated on
+        /// every return to the menu, so without this each cycle leaks a full second atlas (#423). The sun
+        /// glow materials and other per-build assets become unreferenced with this GameObject and are swept
+        /// by the return-to-menu <c>Resources.UnloadUnusedAssets</c> pass.</summary>
+        private void OnDestroy()
+        {
+            if (_chunkMat != null)
+            {
+                Destroy(_chunkMat);
+            }
+
+            if (_chunkMatT != null)
+            {
+                Destroy(_chunkMatT);
+            }
+
+            _atlas?.Destroy();
+        }
+
         /// <summary>Builds the block texture atlas + chunk materials once for the menu (same recipe as
         /// GameBootstrap), so the real voxel ship can be meshed. No-op without content or the atlas shader.</summary>
         private void BuildRenderContext()
