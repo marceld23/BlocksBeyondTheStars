@@ -990,7 +990,25 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string dataDir = StreamingAssetsCache.DataDir;
-            Content = ContentLoader.LoadFromDirectory(dataDir);
+            try
+            {
+                Content = ContentLoader.LoadFromDirectory(dataDir);
+            }
+            catch (System.Exception e)
+            {
+                // A malformed data file must not strand the player in a half-built world (#422 M8):
+                // surface it through the same bail-out AppShell already watches for failed connects —
+                // back to the menu with a reason. The shell's own content snapshot is still in memory,
+                // so its localizer is available for the message.
+                Debug.LogError($"Content re-load on world entry failed from '{dataDir}': {e}");
+                var shell = FindAnyObjectByType<AppShell>();
+                ConnectFailedReason = shell != null && shell.Localizer != null
+                    ? shell.L("ui.content.load_failed")
+                    : "Game content failed to load — the install may be damaged.";
+                enabled = false;
+                return;
+            }
+
             Localizer = Content.CreateLocalizer(German ? GameLocale.German : GameLocale.English);
             World = new ClientWorld();
             // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.

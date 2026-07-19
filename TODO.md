@@ -100,6 +100,29 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Touch naming modal, content-load dead-ends, teleport snap channel (#408/#422/#414, 2026-07-19, branch fix/audit-408-422-414)
+Three community-facing audit issues in one pass. **(#408, critical)** The beacon/beam naming modal
+could only be closed with a physical Enter/Esc — and while it is open every on-screen touch control
+is hidden, so tablet/touch-browser players (play.glitch.fun) were soft-locked until a page reload.
+The modal now builds on-screen Confirm/Cancel buttons (deliberately NO `onEndEdit` auto-confirm: on
+touch it fires on the pointer-down that deselects the field, i.e. also when tapping Cancel — it
+would commit the name before the Cancel click lands). **(#422 M8)** One malformed data file in
+`StreamingAssets/data` threw out of `ContentLoader.LoadFromDirectory` before `_splash`/`_studio`/
+`_loading` existed → per-frame NRE storm, frozen shell, zero explanation. All three call sites are
+now guarded: `AppShell.LoadLocalizer` catches and (cold start) raises a blocking DE/EN error overlay
+with a Retry button — hardcoded texts, the locale files themselves are the content that failed —
+while a mid-session re-load failure keeps the working in-memory snapshot; `GameBootstrap.Start`
+routes the failure through the existing `ConnectFailedReason` bail-out (menu + localized notice, new
+key `ui.content.load_failed`); `AppShell.Update` also null-guards the screens. **(#422 M9)** A failed
+WebGL content download left a dead menu with raw `ui.*` keys forever; the same overlay now offers
+Retry, which re-runs the (re-entrant) `StreamingAssetsCache.EnsureReady` download. **(#414 M7/N17)**
+Every server-side position set that rode a plain `PlayerStateUpdate` was discarded by the client and
+then reverted by its client-authoritative move stream: admin `teleport_to_location`/`teleport_to_player`
+and the suit teleporter now send a `RespawnNotice` snap (`Died=false` → no death flash, same channel
+as the void-fall rescue), and the craftable `suit_teleporter` finally got its client trigger —
+right-click the held item recalls to the ship (server validates device/energy/cooldown). New tests:
+admin-teleport + suit-teleport RespawnNotice snaps (position, `Died=false`).
+
 ### ★ Server infra hardening & polish — bounded caches, WS teardown, docking gates, atomic crash-writer init (#426, 2026-07-19, branch fix/421-terrain-hole-webgl-telemetry)
 Four audit findings (S15–S18). **(S15)** `RateLimiter._windows` and the GlitchGateway `_validateCache`
 grew one entry per unique visitor until process restart; the limiter now amortizes a sweep (≥ 2 idle

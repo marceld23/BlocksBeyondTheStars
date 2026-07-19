@@ -1020,6 +1020,7 @@
   "ui.settings.reset_defaults": "Deine Einstellungsdatei war beschaedigt und wurde zurueckgesetzt - bitte pruefe deinen Namen und deine Optionen in den Einstellungen.",
   "ui.sp.server_failed": "Der Welt-Server konnte nicht gestartet werden - vielleicht wurde er vom Virenschutz blockiert oder ein anderes Programm benutzt seinen Port. Bitte versuch es noch einmal oder starte das Spiel neu, wenn es wieder passiert.",
   "ui.connect.failed": "Keine Verbindung zum Server moeglich - bitte pruefe Adresse und Port und versuch es noch einmal.",
+  "ui.content.load_failed": "Die Spielinhalte konnten nicht geladen werden - die Installation ist vielleicht beschaedigt. Bitte versuch es noch einmal oder installiere das Spiel neu, wenn es wieder passiert.",
   "ui.host.title": "WELT HOSTEN",
   "ui.host.subtitle": "Eine Welt für Freunde hosten: eine gespeicherte Welt wählen oder neu erstellen, dann die im Spiel angezeigte Adresse teilen.",
   "ui.host.max_players": "Max. Spieler",

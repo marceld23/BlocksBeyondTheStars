@@ -111,6 +111,52 @@ public sealed class AdminCheatTests : IDisposable
     }
 
     [Fact]
+    public void Teleport_ToLocation_SendsRespawnSnap()
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpsnap");
+
+        // Without the RespawnNotice snap the client discards the new position and its next MoveIntent
+        // reverts the teleport server-side — /tp silently does nothing (#414 M7).
+        RespawnNotice? snap = null;
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is RespawnNotice r) snap = r; };
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_location", X = 100, Y = 70, Z = -50 }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(snap);
+        Assert.Equal(100f, snap!.X);
+        Assert.Equal(70f, snap.Y);
+        Assert.Equal(-50f, snap.Z);
+        Assert.False(snap.Died); // a relocation, not a death — must not trigger the death flash/prompt
+    }
+
+    [Fact]
+    public void Teleport_ToPlayer_SendsRespawnSnap()
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpplayer");
+
+        var target = server.AddLocalPlayer("Target");
+        target.State.Position = new Shared.Geometry.Vector3f(321, 70, 123);
+
+        RespawnNotice? snap = null;
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is RespawnNotice r) snap = r; };
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_player", TargetPlayer = "Target" }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(snap);
+        Assert.Equal(321f, snap!.X);
+        Assert.Equal(123f, snap.Z);
+        Assert.False(snap.Died);
+    }
+
+    [Fact]
     public void GodMode_PreventsDeath()
     {
         var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };

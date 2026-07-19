@@ -69,10 +69,7 @@ namespace BlocksBeyondTheStars.Client
             if (Time.frameCount != _openFrame &&
                 (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
-                string label = _input.text?.Trim() ?? string.Empty;
-                var cb = _onConfirm;
-                Close();
-                cb?.Invoke(label);
+                Confirm();
                 return;
             }
 
@@ -81,6 +78,19 @@ namespace BlocksBeyondTheStars.Client
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close(); // cancel — no callback, nothing placed/renamed
             }
+        }
+
+        private void Confirm()
+        {
+            if (!_open)
+            {
+                return; // Enter + onEndEdit can both fire for the same submit — first one wins
+            }
+
+            string label = _input.text?.Trim() ?? string.Empty;
+            var cb = _onConfirm;
+            Close();
+            cb?.Invoke(label);
         }
 
         private void Close()
@@ -110,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
             // Centred card.
-            const float w = 460f, h = 190f;
+            const float w = 460f, h = 236f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
             UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
 
@@ -121,8 +131,20 @@ namespace BlocksBeyondTheStars.Client
             _input.characterLimit = 24;
             _input.lineType = InputField.LineType.SingleLine;
 
-            UiKit.AddText(root, x + 24, y + 128, w - 48, 26, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
+            // Deliberately NO auto-confirm on onEndEdit: on touch it fires on the pointer-DOWN that
+            // deselects the field — i.e. also when tapping the Cancel button — which would commit the
+            // name before the Cancel click lands. The on-screen buttons below are the touch path (#408).
+            UiKit.AddText(root, x + 24, y + 122, w - 48, 24, L("ui.beacon.confirm") + " — Enter   ·   " + L("ui.beacon.cancel") + " — Esc",
                 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+
+            // On-screen Confirm/Cancel: the only way to close the modal without a physical keyboard —
+            // while it is open every touch control is hidden, so it must be self-sufficient (#408).
+            UiKit.AddButton(root, x + 24, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.confirm"), Confirm);
+            UiKit.AddButton(root, x + 36 + (w - 60f) * 0.5f, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.cancel"), () =>
+            {
+                Game?.MarkMenuInputHandled();
+                Close();
+            });
 
             _canvas.gameObject.SetActive(false);
             _built = true;

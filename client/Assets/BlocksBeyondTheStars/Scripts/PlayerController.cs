@@ -1873,6 +1873,15 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // Right-click the held suit teleporter → recall to the ship. The item was craftable but
+                // had no client-side trigger at all (#414 N17); the server validates ownership, suit
+                // energy and the cooldown, and answers with a RespawnNotice snap (or a reject toast).
+                if (held == "suit_teleporter")
+                {
+                    Game.Network?.SendTeleportToShip();
+                    return;
+                }
+
                 // Right-click the camera → photograph the current view (HUD-free), saved to disk locally.
                 // Handled entirely on the client (no server round-trip), so it's intercepted before the
                 // generic gadget path below.

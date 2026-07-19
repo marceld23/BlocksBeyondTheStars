@@ -3320,6 +3320,10 @@ public sealed partial class GameServer
 
             case "teleport_to_location":
                 p.Position = new Vector3f(cmd.X, cmd.Y, cmd.Z);
+                // A plain PlayerStateUpdate position is ignored by the client and then reverted by its
+                // client-authoritative move stream — every server-side teleport must go through the
+                // RespawnNotice snap channel or it silently does nothing (#414 M7).
+                Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "Teleported." });
                 SendPlayerState(session);
                 CheatLog(p, $"teleported to ({cmd.X:0.#}, {cmd.Y:0.#}, {cmd.Z:0.#})");
                 break;
@@ -3334,6 +3338,8 @@ public sealed partial class GameServer
                     }
 
                     p.Position = target.State.Position;
+                    // Same snap-channel rule as teleport_to_location (#414 M7).
+                    Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = $"Teleported to {target.State.Name}." });
                     SendPlayerState(session);
                     CheatLog(p, $"teleported to player {target.State.Name}");
                     break;

@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -72,6 +74,44 @@ public sealed class TeleportTests : IDisposable
             server.TeleportToShip("Spacer");
 
             Assert.Equal(200f, p.State.Position.X); // unchanged
+        }
+    }
+
+    [Fact]
+    public void Teleport_SendsRespawnSnap_NotJustAStateUpdate()
+    {
+        // The recall must ride the RespawnNotice snap channel: a plain PlayerStateUpdate position is
+        // discarded by the client, whose next MoveIntent then reverts the teleport server-side (#414 N17).
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "tpsnap"));
+        using (repo)
+        {
+            var link = new LoopbackLink();
+            var st = new LoopbackServerTransport(link);
+            var client = new LoopbackClientTransport(link);
+            var config = new ServerConfig { WorldName = "tpsnap", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            client.Connect("loopback", 0);
+            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Spacer" }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+
+            var p = server.Sessions[1];
+            p.State.RespawnPoint = new Vector3f(5, 70, 5);
+            p.State.Position = new Vector3f(200, 64, 200);
+            p.State.AboardShip = false;
+            p.State.SuitEnergy = 100f;
+            p.State.Inventory.Add("suit_teleporter", 1, 1);
+
+            RespawnNotice? snap = null;
+            client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is RespawnNotice r) snap = r; };
+
+            server.TeleportToShip(p.State.PlayerId);
+            client.Poll();
+
+            Assert.NotNull(snap);
+            Assert.Equal(5f, snap!.X);
+            Assert.Equal(70f, snap.Y);
+            Assert.False(snap.Died); // a recall, not a death — no death feedback on the client
         }
     }
 

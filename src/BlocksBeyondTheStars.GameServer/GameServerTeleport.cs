@@ -58,8 +58,18 @@ public sealed partial class GameServer
         p.AboardShip = true;
         _teleportCooldown[playerId] = TeleportCooldownSeconds;
 
+        // The snap must ride the RespawnNotice channel (Died=false → no death feedback): a plain
+        // PlayerStateUpdate position is discarded by the client, whose next MoveIntent would then
+        // revert this teleport server-side — "aboard" per server, still standing outside per client
+        // (#414 N17). Same pattern as the void-fall rescue in GameServerSpawnSafety.
+        Send(session, new RespawnNotice
+        {
+            X = p.RespawnPoint.X,
+            Y = p.RespawnPoint.Y,
+            Z = p.RespawnPoint.Z,
+            Reason = "Teleported back to your ship.",
+        });
         SendPlayerState(session);
-        Send(session, new ServerMessage { Text = "Teleported back to your ship." });
     }
 
     /// <summary>Counts down a player's teleporter cooldown (called from the environment tick).</summary>

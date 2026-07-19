@@ -1019,6 +1019,7 @@
   "ui.settings.reset_defaults": "Your settings file was damaged and has been reset to defaults - please check your name and options in Settings.",
   "ui.sp.server_failed": "The world server could not be started - it may have been blocked by your antivirus or another program is using its port. Please try again, or restart the game if it keeps happening.",
   "ui.connect.failed": "Could not connect to the server - please check the address and port and try again.",
+  "ui.content.load_failed": "The game content could not be loaded - the install may be damaged. Please try again, or reinstall the game if it keeps happening.",
   "ui.host.title": "HOST A WORLD",
   "ui.host.subtitle": "Host a world for friends: pick any saved world or create a new one, then share the address shown in-game.",
   "ui.host.max_players": "Max players",

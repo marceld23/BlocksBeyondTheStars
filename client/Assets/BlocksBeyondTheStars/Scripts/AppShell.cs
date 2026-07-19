@@ -91,6 +91,10 @@ namespace BlocksBeyondTheStars.Client
 
         public bool ContentReady { get; private set; }
 
+        /// <summary>Non-empty after a failed content load (malformed local file) or a failed WebGL content
+        /// download — drives the blocking error+retry overlay instead of a dead shell (#422 M8/M9).</summary>
+        public string ContentLoadError { get; private set; } = "";
+
         private bool _splashSoundDone;
         private bool _autoJoinWhenReady;
 
@@ -231,7 +235,11 @@ namespace BlocksBeyondTheStars.Client
             yield return StreamingAssetsCache.EnsureReady(ex => failure = ex);
             if (failure != null)
             {
+                // One failed download of the ~20 data files (CDN hiccup, flaky mobile network) must not
+                // leave a dead menu with raw ui.* keys forever — surface it with a Retry instead (#422 M9).
+                // EnsureReady is re-entrant, so RetryContentLoad can simply run this coroutine again.
                 Debug.LogError($"Content startup failed: {failure.Message}");
+                ContentLoadError = failure.Message;
                 yield break;
             }
 
@@ -374,7 +382,28 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string dataDir = StreamingAssetsCache.DataDir;
-            Content = ContentLoader.LoadFromDirectory(dataDir);
+            GameContent loaded;
+            try
+            {
+                loaded = ContentLoader.LoadFromDirectory(dataDir);
+            }
+            catch (System.Exception e)
+            {
+                // One malformed data file (corrupted install, interrupted patch, AV lock) must not escape
+                // Awake and brick the shell with per-frame NREs (#422 M8). With content already loaded
+                // (e.g. a re-load via Settings→CloseSettings) keep the working in-memory snapshot; on a
+                // cold start the error+retry overlay takes over.
+                Debug.LogError($"Content load from '{dataDir}' failed: {e}");
+                if (!ContentReady)
+                {
+                    ContentLoadError = e.Message;
+                }
+
+                return;
+            }
+
+            Content = loaded;
+            ContentLoadError = "";
             Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             var locale = Settings.Language == "de" ? GameLocale.German : GameLocale.English;
             Localizer = Content.CreateLocalizer(locale);
@@ -404,6 +433,25 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_uiLoading);
                 _uiLoading = null;
+            }
+        }
+
+        /// <summary>Retries a failed content load: re-runs the WebGL download when the remote cache never
+        /// became ready, else re-reads the local data directory. Wired to the error overlay's button (#422).</summary>
+        public void RetryContentLoad()
+        {
+            ContentLoadError = "";
+            if (StreamingAssetsCache.UsesRemoteStreamingAssets && !StreamingAssetsCache.IsReady)
+            {
+                StartCoroutine(LoadContentForStartup());
+            }
+            else
+            {
+                LoadLocalizer();
+                if (ContentReady)
+                {
+                    EnsureMenuBackground();
+                }
             }
         }
 
@@ -786,6 +834,41 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _uiCredits;
         private GameObject _uiEditors;
         private GameObject _uiSaveSelect;
+        private GameObject _uiContentError;
+
+        /// <summary>Blocking "content failed to load" overlay with a Retry button (#422 M8/M9). Texts are
+        /// hardcoded DE/EN pairs — the locale files themselves are part of the content that failed.</summary>
+        private GameObject BuildContentErrorUi()
+        {
+            bool de = Settings?.Language == "de";
+            var canvas = UiKit.CreateCanvas("ContentErrorUI");
+            canvas.sortingOrder = 90; // above every shell screen — the shell is unusable without content
+            var root = canvas.transform;
+
+            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.75f));
+            const float w = 720f, h = 320f;
+            float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
+            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+
+            var title = UiKit.AddText(root, x + 32, y + 28, w - 64, 34,
+                de ? "Inhalte konnten nicht geladen werden" : "Content failed to load",
+                26, UiKit.TextCol, TextAnchor.MiddleLeft);
+            title.fontStyle = FontStyle.Bold;
+
+            UiKit.AddText(root, x + 32, y + 80, w - 64, 84,
+                de
+                    ? "Das Laden der Spieldaten ist fehlgeschlagen. Prüfe deine Internetverbindung bzw. die Installation und versuche es dann erneut."
+                    : "Loading the game data failed. Check your internet connection or the install, then try again.",
+                18, UiKit.TextCol, TextAnchor.UpperLeft);
+
+            UiKit.AddText(root, x + 32, y + 168, w - 64, 60, ContentLoadError ?? string.Empty,
+                14, UiKit.CyanDim, TextAnchor.UpperLeft);
+
+            UiKit.AddButton(root, x + (w - 280f) * 0.5f, y + h - 82, 280, 56,
+                de ? "Erneut versuchen" : "Retry", RetryContentLoad);
+
+            return canvas.gameObject;
+        }
         private GameObject _editorRoot;
 
         /// <summary>Opens the standalone ship-type editor (build a ship design + save it).</summary>
@@ -918,6 +1001,26 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            // A failed content load/download shows the blocking retry overlay (#422) — handled before
+            // anything else so it appears no matter which shell phase the failure hit.
+            bool contentError = !ContentReady && !string.IsNullOrEmpty(ContentLoadError);
+            if (contentError && _uiContentError == null)
+            {
+                _uiContentError = BuildContentErrorUi();
+            }
+            else if (!contentError && _uiContentError != null)
+            {
+                Destroy(_uiContentError);
+                _uiContentError = null;
+            }
+
+            // Belt-and-braces (#422 M8): should Awake ever abort before these exist, a per-frame NRE
+            // storm would freeze the shell with zero explanation — skip instead.
+            if (_studio == null || _splash == null || _loading == null)
+            {
+                return;
+            }
+
             _studio.Update();
             _splash.Update();
             _loading.Update();
