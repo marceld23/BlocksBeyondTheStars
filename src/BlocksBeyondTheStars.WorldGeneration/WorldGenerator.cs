@@ -34,30 +34,38 @@ public sealed class WorldGenerator
     /// <summary>The circumference this generator is currently producing terrain for.</summary>
     public int Circumference => _circumference;
 
-    /// <summary>Sets the world circumference for subsequent generation/queries (the server calls this when the
-    /// active world changes, so terrain, surface-height and flora all wrap at the right size).</summary>
-    public void SetCircumference(int circumference) => _circumference = circumference;
-
     // True when the active body is an airless moon (item 33): its terrain is cratered even though its planet
     // TYPE may carry an atmosphere on a full-size planet. The asteroid type carries Cratered in data instead,
-    // so it craters everywhere (incl. standalone queries). Set beside SetCircumference at world-load.
+    // so it craters everywhere (incl. standalone queries). Set via SetWorldMode at world-load.
     private bool _crateredWorld;
-
-    /// <summary>Marks the active world as cratered regardless of its planet type (used for airless moons).</summary>
-    public void SetCratered(bool cratered) => _crateredWorld = cratered;
 
     /// <summary>The current cratered-world flag (so a caller can save/restore it around a transient query
     /// for a different body, e.g. computing another body's landing pads).</summary>
     public bool Cratered => _crateredWorld;
 
     // The active world's planned landing pads. Pad terrain is FLATTENED at generation time (the landed
-    // ship is a placed structure object, not stamped blocks — it needs level, clear ground). Set beside
-    // SetCircumference whenever the active world changes; empty = no flattening (void worlds, tests).
+    // ship is a placed structure object, not stamped blocks — it needs level, clear ground). Set via
+    // SetWorldMode whenever the active world changes; empty = no flattening (void worlds, tests).
     private IReadOnlyList<LandingPadFlatten> _landingPads = System.Array.Empty<LandingPadFlatten>();
 
-    /// <summary>Sets the active world's landing pads so <see cref="Generate"/> levels their terrain.</summary>
-    public void SetLandingPads(IReadOnlyList<LandingPadFlatten> pads)
-        => _landingPads = pads ?? System.Array.Empty<LandingPadFlatten>();
+    /// <summary>The active world's landing pads (so a caller can save/restore them like <see cref="Cratered"/>).</summary>
+    public IReadOnlyList<LandingPadFlatten> LandingPads => _landingPads;
+
+    /// <summary>
+    /// Configures ALL per-world mode state (circumference, airless-moon cratering, landing-pad flattening)
+    /// in one call. This generator instance is shared across every resident world, and #424 S13 showed the
+    /// old individual setters invited asymmetric configuration — one path set circumference + pads but not
+    /// cratered, another circumference + cratered but not pads, so correctness rested entirely on the
+    /// single-active-world invariant. One all-or-nothing setter makes a full re-configure the only option.
+    /// Callers re-apply it before every generate/query batch for a body (chunk gen itself stays on the
+    /// single tick thread — this method is about complete state, not thread-safety).
+    /// </summary>
+    public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads)
+    {
+        _circumference = circumference;
+        _crateredWorld = cratered;
+        _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
+    }
 
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)

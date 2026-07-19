@@ -20,6 +20,16 @@ public sealed class WebSocketServerTransport : IServerTransport
 {
     private const int MaxReceiveFrameBytes = NetCodec.MaxJsonPayloadBytes;
 
+    /// <summary>Default cap on concurrent WebSocket connections (#424 S9). Unlike the native transport
+    /// (LiteNetLib rejects past maxConnections), an uncapped WS gateway would hold a socket + buffers +
+    /// a receive task for every idler that never joins — MaxPlayers only counts JOINED sessions.</summary>
+    public const int DefaultMaxConnections = 64;
+
+    /// <summary>Default window a fresh connection gets to send its first complete message (the join
+    /// handshake, #424 S9). A real client sends JoinRequest immediately; a slow-loris connection that
+    /// just idles is dropped when the window expires.</summary>
+    public static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(15);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
         Justification = "Per-connection holder; the socket is torn down when the receive loop ends or the listener stops, and SendLock is used only for WaitAsync/Release (no WaitHandle is ever allocated), so there is nothing requiring deterministic disposal.")]
     private sealed class Client
@@ -59,8 +69,18 @@ public sealed class WebSocketServerTransport : IServerTransport
     /// <summary>Shared secret required by <c>POST /announce</c>; empty disables the endpoint.</summary>
     public string AnnounceToken { get; set; } = string.Empty;
 
+    private readonly int _maxConnections;
+    private readonly TimeSpan _handshakeTimeout;
+
     /// <param name="bindHost">Host for the HTTP prefix; "localhost" for dev/LAN, "+" for all interfaces (may need elevation on Windows).</param>
-    public WebSocketServerTransport(string bindHost = "localhost") => _bindHost = bindHost;
+    /// <param name="maxConnections">Cap on concurrent WebSocket connections; further upgrades are answered 503.</param>
+    /// <param name="handshakeTimeout">How long a fresh connection may idle before its first complete message.</param>
+    public WebSocketServerTransport(string bindHost = "localhost", int maxConnections = DefaultMaxConnections, TimeSpan? handshakeTimeout = null)
+    {
+        _bindHost = bindHost;
+        _maxConnections = maxConnections;
+        _handshakeTimeout = handshakeTimeout ?? DefaultHandshakeTimeout;
+    }
 
     public void Start(int port)
     {
@@ -198,6 +218,24 @@ public sealed class WebSocketServerTransport : IServerTransport
 
     private async Task HandleClientAsync(HttpListenerContext ctx)
     {
+        // Connection cap (#424 S9): reject BEFORE the upgrade so an idler flood can't pile up sockets,
+        // receive tasks and buffers. Racing handshakes may overshoot by a few — the bound still holds.
+        if (_clients.Count >= _maxConnections)
+        {
+            LogWarning($"Rejected browser WebSocket connection: {_clients.Count}/{_maxConnections} connections in use.");
+            try
+            {
+                ctx.Response.StatusCode = 503;
+                ctx.Response.Close();
+            }
+            catch
+            {
+                // the connection is already gone — nothing left to answer
+            }
+
+            return;
+        }
+
         WebSocketContext wsCtx;
         try
         {
@@ -225,6 +263,13 @@ public sealed class WebSocketServerTransport : IServerTransport
 
         var buffer = new byte[8192];
         using var ms = new System.IO.MemoryStream();
+
+        // Handshake window (#424 S9): until the FIRST complete message arrives (a real client's
+        // JoinRequest, sent immediately), receives run under a deadline — a connection that only idles
+        // (slow-loris) is dropped instead of holding its socket + receive task forever. After the first
+        // message the connection is the session layer's to manage and receives wait indefinitely again.
+        var handshakeClock = System.Diagnostics.Stopwatch.StartNew(); // netstandard2.1: no Environment.TickCount64
+        bool firstMessageReceived = false;
         try
         {
             while (client.Socket.State == WebSocketState.Open && !_cts.IsCancellationRequested)
@@ -233,7 +278,35 @@ public sealed class WebSocketServerTransport : IServerTransport
                 WebSocketReceiveResult result;
                 do
                 {
-                    result = await client.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token).ConfigureAwait(false);
+                    if (!firstMessageReceived)
+                    {
+                        long remainingMs = (long)(_handshakeTimeout - handshakeClock.Elapsed).TotalMilliseconds;
+                        if (remainingMs <= 0)
+                        {
+                            LogWarning($"Dropped browser WebSocket connection {id}: no message within the handshake window.");
+                            await client.Socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Handshake timeout", CancellationToken.None)
+                                .ConfigureAwait(false);
+                            return;
+                        }
+
+                        using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                        handshakeCts.CancelAfter((int)System.Math.Min(remainingMs, int.MaxValue));
+                        try
+                        {
+                            result = await client.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), handshakeCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
+                        {
+                            LogWarning($"Dropped browser WebSocket connection {id}: no message within the handshake window.");
+                            client.Socket.Abort(); // the pending receive was cancelled — a graceful close can't complete
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        result = await client.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token).ConfigureAwait(false);
+                    }
+
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         break;
@@ -259,6 +332,7 @@ public sealed class WebSocketServerTransport : IServerTransport
                 }
 
                 _events.Enqueue((EventKind.Payload, id, ms.ToArray()));
+                firstMessageReceived = true;
             }
         }
         catch

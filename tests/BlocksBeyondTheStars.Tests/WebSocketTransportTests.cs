@@ -133,6 +133,56 @@ public sealed class WebSocketTransportTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
     }
 
+    [Fact]
+    public async Task Gateway_RejectsConnectionsBeyondTheCapAsync()
+    {
+        int port = FreeTcpPort();
+        using var transport = new WebSocketServerTransport("127.0.0.1", maxConnections: 2);
+        transport.Start(port);
+
+        using var ws1 = new ClientWebSocket();
+        using var ws2 = new ClientWebSocket();
+        await ws1.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None);
+        await ws2.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None);
+
+        // #424 S9: connection 3 must be refused BEFORE the upgrade — an idler flood would otherwise hold
+        // a socket + receive task + buffers each without ever counting against MaxPlayers.
+        using var ws3 = new ClientWebSocket();
+        await Assert.ThrowsAsync<WebSocketException>(
+            () => ws3.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None));
+
+        ws1.Abort();
+        ws2.Abort();
+    }
+
+    [Fact]
+    public async Task Gateway_DropsAConnectionThatNeverSendsAsync()
+    {
+        int port = FreeTcpPort();
+        using var transport = new WebSocketServerTransport("127.0.0.1", handshakeTimeout: TimeSpan.FromMilliseconds(500));
+        transport.Start(port);
+
+        // A slow-loris connection: upgrade completes but no message ever follows. The server must close
+        // it once the handshake window expires (#424 S9) instead of parking a receive task forever.
+        using var ws = new ClientWebSocket();
+        await ws.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None);
+
+        var buffer = new byte[256];
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        bool closedByServer;
+        try
+        {
+            var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+            closedByServer = result.MessageType == WebSocketMessageType.Close;
+        }
+        catch (WebSocketException)
+        {
+            closedByServer = true; // an abortive teardown counts too — the connection is gone either way
+        }
+
+        Assert.True(closedByServer, "an idle pre-join connection must be dropped after the handshake window");
+    }
+
     private static async Task ReceiveLoopAsync(ClientWebSocket ws, ConcurrentQueue<byte[]> received, CancellationToken token)
     {
         var buffer = new byte[16 * 1024];

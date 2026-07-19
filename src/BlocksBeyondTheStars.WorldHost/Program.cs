@@ -157,8 +157,7 @@ IResult? GuardAccount(AccountRecord account)
 }
 
 bool IsAdmin(HttpContext ctx)
-    => !string.IsNullOrEmpty(config.AdminToken)
-       && string.Equals(ctx.Request.Headers["X-Admin-Token"].ToString(), config.AdminToken, StringComparison.Ordinal);
+    => BasicAuth.TokenEquals(ctx.Request.Headers["X-Admin-Token"].ToString(), config.AdminToken);
 
 // Browser admin UI gate (Basic Auth — browsers can't send X-Admin-Token). Returns the 401 challenge
 // to send, or null when authorized. Off until BBS_WH_ADMIN_USER + _PASSWORD are configured.

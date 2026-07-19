@@ -146,6 +146,12 @@ public sealed class MaintenanceAnnounceTests : IDisposable
         server.EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, "Heads up", 300);
         TickAndPoll(server, client, 1.0, times: 5);
 
+        // The creator leaves before the latecomer joins: the loopback link has a single connection id,
+        // and a JoinRequest on an already-joined connection is dropped since #424 S8 (re-join guard) —
+        // the countdown itself is server-global and survives the world being empty.
+        client.Disconnect();
+        server.Tick(0.1);
+
         var (_, lateNotices) = JoinAndListen(server, link, "Latecomer");
 
         var notice = Assert.Single(lateNotices);
@@ -184,6 +190,12 @@ public sealed class MaintenanceAnnounceTests : IDisposable
     {
         var (server, link, client, _) = Start("maint_guard");
         TickAndPoll(server, client, 0.1);
+
+        // The admin creator leaves, then a guest joins on the freed loopback connection (a second
+        // JoinRequest on a live joined connection is dropped since #424 S8). The creator's WorldAdmin
+        // role is persisted on THEIR player record — the guest joins as a plain player.
+        client.Disconnect();
+        server.Tick(0.1);
 
         ActionRejected? rejected = null;
         var guest = new LoopbackClientTransport(link);

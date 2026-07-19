@@ -183,9 +183,20 @@ public sealed class DockerCliLauncher : IInstanceLauncher
         return exitCode == 0 ? HostStats.ParseDockerStats(stdout) : Array.Empty<ContainerStat>();
     }
 
+    private const int CliTimeoutMs = 120_000;
+
     private static (int ExitCode, string Stdout, string Stderr) Run(List<string> args)
+        => RunProcess("docker", args, CliTimeoutMs);
+
+    /// <summary>Runs a CLI process with a hard timeout (#424 S11). The old blocking
+    /// <c>StandardOutput.ReadToEnd()</c> had none — a hung docker daemon (CLI that never exits or never
+    /// closes its pipes) wedged the caller forever, and this runs on the join path AND the reaper loop.
+    /// Both streams drain concurrently (a large stderr can no longer deadlock the stdout read either);
+    /// on expiry the CLI process tree is killed and the call reports failure (exit -1).
+    /// Public (like <see cref="BuildRunArgs"/>) so the timeout/kill behavior is unit-testable without Docker.</summary>
+    public static (int ExitCode, string Stdout, string Stderr) RunProcess(string fileName, List<string> args, int timeoutMs)
     {
-        var psi = new ProcessStartInfo("docker")
+        var psi = new ProcessStartInfo(fileName)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -196,10 +207,41 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             psi.ArgumentList.Add(a);
         }
 
-        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start docker CLI.");
-        string stdout = proc.StandardOutput.ReadToEnd();
-        string stderr = proc.StandardError.ReadToEnd();
-        proc.WaitForExit(120_000);
-        return (proc.HasExited ? proc.ExitCode : -1, stdout, stderr);
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException($"Failed to start {fileName} CLI.");
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+        if (!proc.WaitForExit(timeoutMs))
+        {
+            try
+            {
+                proc.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+                // already exited in the race, or access denied — either way we stop waiting on it
+            }
+
+            proc.WaitForExit(5_000);
+            return (-1, DrainOrEmpty(stdoutTask), DrainOrEmpty(stderrTask));
+        }
+
+        // Exited: the pipes are closed (or close imminently), so the reads complete promptly.
+        return (proc.ExitCode, DrainOrEmpty(stdoutTask), DrainOrEmpty(stderrTask));
+    }
+
+    /// <summary>Best-effort result of a stream drain; empty when it cannot finish in bounded time
+    /// (a killed process may leave a pipe held open by an orphaned grandchild).</summary>
+    private static string DrainOrEmpty(Task<string> read)
+    {
+#pragma warning disable VSTHRD002 // Bounded wait on a background pipe drain in a deliberately synchronous CLI wrapper (no SynchronizationContext) — cannot deadlock.
+        try
+        {
+            return read.Wait(5_000) ? read.Result : string.Empty;
+        }
+        catch (AggregateException)
+        {
+            return string.Empty;
+        }
+#pragma warning restore VSTHRD002
     }
 }

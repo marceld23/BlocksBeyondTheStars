@@ -412,12 +412,14 @@ public sealed partial class GameServer
 
         var world = _worlds.GetOrCreate(planet, locationId, circumference, out bool isNew);
         world.SizeClass = sizeClass; // remembered for the per-world gravity band seeded in InitWeather
-        _generator.SetCircumference(world.World.Circumference); // active world's size for direct gen queries
         // Airless MOONS get cratered regolith too (item 33) — even when their planet type normally has air on a
         // full planet. The asteroid type carries Cratered in data, so it's handled by the planet type itself.
         bool airlessMoon = worldBody?.Kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        _generator.SetCratered(airlessMoon);
+        world.World.Cratered = airlessMoon; // stamped on the world so chunk gen re-configures fully (#424 S13)
+        // Configure the shared generator for this body's direct gen queries (size, cratering, pads —
+        // LandingPadFlats is still empty for a brand-new world; BuildLandingPads below refills it).
+        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats);
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits
@@ -1662,6 +1664,7 @@ public sealed partial class GameServer
 
     private void OnClientDisconnected(int connectionId)
     {
+        _joinGates.Remove(connectionId); // transport connection ids may be reused — a new connection starts fresh
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
             ClearDocking(session.State.PlayerId);
@@ -1708,6 +1711,24 @@ public sealed partial class GameServer
 
         if (message is JoinRequest join)
         {
+            // Re-join guard (#424 S8): a joined connection re-sending JoinRequest would reload the player
+            // from the DB (rolling back progress since the last autosave) and re-run the full ~40-message
+            // join burst — an asymmetric amplifier. A legitimate client never re-joins on a live
+            // connection, so drop it without a reply (an answer would feed the amplifier).
+            if (_sessions.TryGetValue(connectionId, out var existing) && existing.Joined)
+            {
+                _log.Warn($"Connection {connectionId} sent a JoinRequest while already joined — dropped.");
+                return;
+            }
+
+            // Flood gate for the join path (#424 S8): joins arrive before a session (and its token bucket)
+            // exists, so they get their own per-connection bucket. Even a rejected join does DB/crypto work,
+            // and an accepted one is the most expensive message the server has.
+            if (!AllowJoinAttempt(connectionId))
+            {
+                return;
+            }
+
             HandleJoin(connectionId, join);
             return;
         }
@@ -1748,6 +1769,47 @@ public sealed partial class GameServer
     // with a 400-token burst never throttles real play but caps a scripted flood cheaply.
     private const double MsgRatePerSecond = 200.0;
     private const double MsgBurst = 400.0;
+
+    // Join-attempt gate (#424 S8): a client joins once per connection; retries after a rejection are
+    // human-paced. 1/s with a burst of 5 never throttles a real client but caps a scripted join flood.
+    private const double JoinRatePerSecond = 1.0;
+    private const double JoinBurst = 5.0;
+
+    private sealed class JoinGate
+    {
+        public double Budget = JoinBurst;
+        public int LastRefillTick;
+    }
+
+    // Per-connection pre-join token buckets; entries are dropped when the connection closes.
+    private readonly Dictionary<int, JoinGate> _joinGates = new();
+
+    /// <summary>Same token-bucket scheme as <see cref="AllowMessage"/> but for pre-session join attempts,
+    /// keyed by connection id. Returns false when the connection's join budget is exhausted (drop it).</summary>
+    private bool AllowJoinAttempt(int connectionId)
+    {
+        if (!_joinGates.TryGetValue(connectionId, out var gate))
+        {
+            _joinGates[connectionId] = gate = new JoinGate { LastRefillTick = Environment.TickCount };
+        }
+
+        int now = Environment.TickCount;
+        int elapsedMs = unchecked(now - gate.LastRefillTick);
+        if (elapsedMs is < 0 or > 60_000)
+        {
+            elapsedMs = 0; // clock wrap or a long gap — just don't over-refill
+        }
+
+        gate.LastRefillTick = now;
+        gate.Budget = System.Math.Min(JoinBurst, gate.Budget + (elapsedMs / 1000.0 * JoinRatePerSecond));
+        if (gate.Budget < 1.0)
+        {
+            return false;
+        }
+
+        gate.Budget -= 1.0;
+        return true;
+    }
 
     /// <summary>Refills the session's token bucket by elapsed wall time and consumes one token. Returns
     /// false when the bucket is empty (drop the message).</summary>
@@ -1896,7 +1958,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!string.IsNullOrEmpty(_config.ServerPassword) && join.Password != _config.ServerPassword)
+        if (!string.IsNullOrEmpty(_config.ServerPassword)
+            && !Shared.Security.SecretCompare.FixedTimeEquals(join.Password, _config.ServerPassword))
         {
             SendTo(connectionId, new JoinRejected { Reason = "Invalid server password." });
             return;

@@ -120,6 +120,31 @@ frees its render mesh with its GameObject (previously one leaked Mesh per chunk 
 anonymous `BlobPersisted` handler per browser-SP session (stale duplicate re-uploads). Client-only;
 reaches players with the next release.
 
+### ★ Protocol/join/transport hardening — join flood gate, untrusted MessagePack, slow-loris, docker timeout, timing leaks (#424, 2026-07-19, branch fix-424-protocol-hardening)
+Six audit findings (S8–S14), one theme: the server's untrusted edges. **(S8)** `JoinRequest` was handled
+BEFORE the per-session token-bucket flood gate and `HandleJoin` never checked for an existing joined
+session — an already-connected client looping joins forced a DB load + world load + ~40 outbound
+messages per cheap packet (asymmetric amplifier) and rolled its own progress back to the last autosave.
+Joins now have their own per-connection token bucket (1/s, burst 5, cleared on disconnect) and a re-join
+on a live connection is dropped without a reply. **(S10)** `NetCodec` decoded attacker-controlled
+MessagePack with the default `TrustedData` security level; decode options now set `UntrustedData`
+(depth limits + hash-collision-resistant map handling; empirically the 1M-deep-nesting skip vector was
+already benign in MessagePack 2.5.302, so this is belt-and-suspenders). **(S9)** The browser WS gateway
+accepted unlimited connections and waited forever for a first message — a slow-loris fleet of idle
+sockets held buffers + receive tasks without ever counting against `MaxPlayers`. Now: connection cap
+(default 64, scaled `MaxPlayers*4`, 503 past it) + a 15 s first-message handshake window after which an
+idle connection is dropped. **(S11)** `DockerCliLauncher.Run`'s blocking `ReadToEnd()` had no timeout —
+a hung docker daemon wedged the join path AND the reaper; streams now drain async (large stderr can no
+longer deadlock either) and on the 120 s expiry the CLI process tree is killed. **(S14)** WorldHost's
+`X-Admin-Token`, ReportHost's read/write keys and the game `ServerPassword` were compared with ordinal
+equality (timing leak); all now fixed-time (`BasicAuth.TokenEquals` / shared `SecretCompare`).
+**(S13)** The shared `WorldGenerator`'s per-world mode state was set asymmetrically (one path set
+circumference+pads, another circumference+cratered) — correct only while a single world generates. The
+three setters are replaced by one all-or-nothing `SetWorldMode(circumference, cratered, pads)`;
+`ServerWorld` carries its `Cratered` flag and fully re-configures the generator before every chunk
+generation. Server-only; regression tests for each finding in `ProtocolHardeningTests` + WS transport
+cap/timeout tests.
+
 ### ★ Wrecked ships stay wrecked across a restart — Downed flag persisted (#419, 2026-07-19, branch fix/419-downed-not-persisted)
 Under `KeepShipOnDeath=false` a ship lost in combat is downed (hull 0, grounded until repaired) — but
 `ShipSnapshot` never carried the `Downed` flag, and `RecomputeShipCombatStats` clamps a hull ≤ 0 back

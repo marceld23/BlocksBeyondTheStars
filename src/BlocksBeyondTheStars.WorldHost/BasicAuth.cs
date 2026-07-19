@@ -45,4 +45,21 @@ public static class BasicAuth
         bool equal = CryptographicOperations.FixedTimeEquals(presented, sameLength ? expected : presented);
         return sameLength && equal;
     }
+
+    /// <summary>Fixed-time compare of a request-supplied secret (header value) against a configured one
+    /// (#424 S14 — an ordinal <c>string.Equals</c> leaks secret length/prefix via response timing). An
+    /// empty configured secret never matches, so an unconfigured gate stays closed.</summary>
+    public static bool TokenEquals(string? presented, string configured)
+    {
+        if (string.IsNullOrEmpty(configured))
+        {
+            return false;
+        }
+
+        byte[] presentedBytes = Encoding.UTF8.GetBytes(presented ?? string.Empty);
+        byte[] configuredBytes = Encoding.UTF8.GetBytes(configured);
+        bool sameLength = presentedBytes.Length == configuredBytes.Length;
+        bool equal = CryptographicOperations.FixedTimeEquals(presentedBytes, sameLength ? configuredBytes : presentedBytes);
+        return sameLength && equal;
+    }
 }

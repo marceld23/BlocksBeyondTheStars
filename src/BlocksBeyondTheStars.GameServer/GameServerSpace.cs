@@ -109,10 +109,12 @@ public sealed partial class GameServer
     {
         int savedCirc = _generator.Circumference;
         bool savedCratered = _generator.Cratered;
-        _generator.SetCircumference(circ);
+        var savedPads = _generator.LandingPads;
         bool airlessMoon = kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
-        _generator.SetCratered(airlessMoon);
+        // Full mode swap for the target body (#424 S13) — no pads: this computes WHERE the pads go, so
+        // flattening must not apply, and the active world's pads must not leak into the noise queries.
+        _generator.SetWorldMode(circ, airlessMoon, null);
 
         try
         {
@@ -155,8 +157,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _generator.SetCircumference(savedCirc);
-            _generator.SetCratered(savedCratered);
+            _generator.SetWorldMode(savedCirc, savedCratered, savedPads);
         }
     }
 

@@ -43,6 +43,10 @@ public sealed class ServerWorld
     /// any pad-area chunk generates — and re-applied to the shared generator per chunk generation.</summary>
     public List<LandingPadFlatten> LandingPadFlats { get; } = new();
 
+    /// <summary>Whether this body generates with airless-moon cratering (item 33). Stamped by the server
+    /// at world-load so every chunk generation can fully re-configure the shared generator (#424 S13).</summary>
+    public bool Cratered { get; set; }
+
     public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet, string locationId, int circumference)
     {
         _content = content;
@@ -71,8 +75,10 @@ public sealed class ServerWorld
             return cached;
         }
 
-        _generator.SetCircumference(Circumference); // generate this world at its own size
-        _generator.SetLandingPads(LandingPadFlats); // level this world's planned pads (ship-as-object)
+        // Fully re-configure the SHARED generator for THIS world before generating (#424 S13): size,
+        // airless-moon cratering and pad flattening together — a partial set here previously left the
+        // cratered flag of whatever world was configured last (wrong terrain once several worlds are hot).
+        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats);
         var chunk = _generator.Generate(Planet, coord);
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {

@@ -26,8 +26,13 @@ public static class NetCodec
     public const int MaxPacketBytes = 1024 * 1024;
     private const int MaxJsonDepth = 64;
 
+    // UntrustedData (#424 S10): every decoded payload is attacker-controlled, so deserialization must be
+    // depth-limited (a ~5-byte header can declare an absurdly nested/huge structure inside the 1 MB cap)
+    // and allocation-clamped. Security options only affect reading — the encode path is unchanged.
     private static readonly MessagePackSerializerOptions Options =
-        MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance);
+        MessagePackSerializerOptions.Standard
+            .WithResolver(ContractlessStandardResolver.Instance)
+            .WithSecurity(MessagePackSecurity.UntrustedData);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

@@ -60,7 +60,7 @@ IResult? GuardReadKey(HttpContext ctx)
         return Results.Json(new { error = "read_api_disabled" }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
-    return string.Equals(ctx.Request.Headers["x-report-read-key"].ToString(), config.ReadKey, StringComparison.Ordinal)
+    return BasicAuth.TokenEquals(ctx.Request.Headers["x-report-read-key"].ToString(), config.ReadKey)
         ? null
         : Results.Json(new { error = "forbidden" }, statusCode: StatusCodes.Status403Forbidden);
 }
@@ -155,7 +155,7 @@ app.MapPost("/api/bugreport", async (HttpContext ctx) =>
         return Results.Json(new { error = "ingest_not_configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
-    if (!string.Equals(ctx.Request.Headers["x-bugreport-key"].ToString(), config.WriteKey, StringComparison.Ordinal))
+    if (!BasicAuth.TokenEquals(ctx.Request.Headers["x-bugreport-key"].ToString(), config.WriteKey))
     {
         return Results.Json(new { error = "forbidden" }, statusCode: StatusCodes.Status403Forbidden);
     }

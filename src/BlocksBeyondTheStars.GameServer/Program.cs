@@ -67,7 +67,12 @@ logger.Info($"Persistence backend: {WorldRepositoryFactory.DisplayName(config)}.
 // Native UDP for the Windows client; optionally also WebSocket for browser clients
 // (same protocol, same authoritative server). Both share the gameplay port number.
 var native = new LiteNetLibServerTransport(config.MaxPlayers);
-var webSocket = config.EnableWebSocket ? new WebSocketServerTransport(config.WebSocketBindAddress) : null;
+// Connection cap (#424 S9): scaled off MaxPlayers with generous headroom for handshakes/reconnects,
+// but never below the default — a small world still tolerates a burst of browser tabs.
+var webSocket = config.EnableWebSocket
+    ? new WebSocketServerTransport(config.WebSocketBindAddress,
+        maxConnections: Math.Max(WebSocketServerTransport.DefaultMaxConnections, config.MaxPlayers * 4))
+    : null;
 using IServerTransport transport = webSocket != null
     ? new CompositeServerTransport(native, webSocket)
     : native;
