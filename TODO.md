@@ -100,6 +100,24 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Ghost entities/players/doors no longer persist across world transitions (#412, 2026-07-19, branch fix/412-ghost-entities-world-transitions)
+Three audit findings (M5/M6/S12), one failure shape: a world change left stale state rendering and
+interacting. **(M5)** `GameBootstrap.OnWorldReset` now clears every world-scoped entity list
+(enemies, creatures, NPCs, containers, beacons, beams, bases, factories, data cubes, net fragments,
+speeders + queued speeder FX) — the new world re-sends only the lists it *has*, so a peaceful
+destination never overwrote the old world's `PlanetEnemyList` and its robots kept growling/firing,
+with stale map markers and ghost speeder prompts to match. The views prune ids missing from these
+arrays, so clearing despawns the stale objects. **(M6)** `RemotePlayers` wipes remote avatars on
+`WorldResetReceived` (mirrors `NpcView`) — no more frozen ghost players with live trade/dock
+prompts; the new world's ~10 Hz presence stream repopulates. The face cache is deliberately kept
+(faces are per-player and only sent on join/change — a cleared cache could never refill).
+**(S12)** server `RegisterDoors()` now ends with `BroadcastDoors()`: `TickDoors` only re-broadcasts
+on open/close changes, so a launched ship's hatch floated as a ghost door (and a fresh ship's hatch
+stayed missing) for everyone else until some other door toggled; covers ship place/remove and
+settlement stamps. Regression test (RecordingTransport, two co-located players) asserts the launch
+pushes the rebuilt `DoorList` without the departed hatch. Client fixes reach players with the next
+release; the two-client end-to-end check stays a manual playtest item.
+
 ### ★ Client no longer leaks ~20 MB+ of procedural assets per menu↔world cycle (#423, 2026-07-19, branch fix/423-client-memory-leaks)
 Unity never garbage-collects assets created via `new` (Texture2D/Material/Mesh), this is a
 single-scene game, and `Resources.UnloadUnusedAssets` was never called — so every enter-world /
