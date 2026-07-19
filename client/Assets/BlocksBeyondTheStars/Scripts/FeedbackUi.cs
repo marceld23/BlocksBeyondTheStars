@@ -10,10 +10,6 @@ using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
 using UnityEngine;
 using UnityEngine.UI;
-#if UNITY_WEBGL && !UNITY_EDITOR
-using System.Text;
-using UnityEngine.Networking;
-#endif
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -259,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
 #if UNITY_WEBGL && !UNITY_EDITOR
                 // WASM has neither sockets nor threads — HttpClient/Task.Run can't run in the browser, so
                 // the WebGL player posts the identical body via UnityWebRequest on a coroutine.
-                StartCoroutine(PostJsonWebGl(json, OnUploadFinished));
+                StartCoroutine(FeedbackWebGlTransport.PostJson(json, OnUploadFinished));
 #else
                 _uploadTask = Task.Run(() => _uploader.UploadRawJson(json));
 #endif
@@ -397,7 +393,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 FeedbackUploadResult result = null;
-                yield return PostJsonWebGl(json, r => result = r);
+                yield return FeedbackWebGlTransport.PostJson(json, r => result = r);
                 if (result != null && result.Ok)
                 {
                     _spool.MarkSent(path);
@@ -407,39 +403,6 @@ namespace BlocksBeyondTheStars.Client
                     _spool.RegisterFailedAttempt(path);
                     yield break;
                 }
-            }
-        }
-#endif
-
-        // --- WebGL transport ---------------------------------------------------------------------------------
-
-#if UNITY_WEBGL && !UNITY_EDITOR
-        /// <summary>Browser upload: posts an already-serialized report body via <see cref="UnityWebRequest"/>
-        /// (the WebGL stand-in for <see cref="FeedbackUploader.UploadRawJson"/> — same endpoint, header and
-        /// never-throws contract). Runs on the main thread as a coroutine; WebGL requests are async under the
-        /// hood, so nothing blocks. Calls <paramref name="done"/> with the outcome.</summary>
-        private IEnumerator PostJsonWebGl(string json, Action<FeedbackUploadResult> done)
-        {
-            using (var req = new UnityWebRequest(FeedbackUploader.DefaultEndpoint, UnityWebRequest.kHttpVerbPOST))
-            {
-                req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json)) { contentType = "application/json" };
-                req.downloadHandler = new DownloadHandlerBuffer();
-                req.SetRequestHeader(FeedbackUploader.ApiKeyHeader, BugReportBuildSecrets.ApiKey);
-                req.timeout = 15; // mirrors the HttpClient timeout
-
-                yield return req.SendWebRequest();
-
-                var result = new FeedbackUploadResult
-                {
-                    StatusCode = (int)req.responseCode,
-                    Ok = req.result == UnityWebRequest.Result.Success,
-                };
-                if (!result.Ok)
-                {
-                    result.Error = result.StatusCode > 0 ? "http_" + result.StatusCode : (req.error ?? "network");
-                }
-
-                done?.Invoke(result);
             }
         }
 #endif

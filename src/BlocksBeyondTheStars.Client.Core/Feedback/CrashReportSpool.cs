@@ -10,13 +10,24 @@ namespace BlocksBeyondTheStars.Client.Feedback
     /// <summary>
     /// The durable local queue for client crash reports: each fault is written to disk FIRST (it survives a
     /// crash-on-exit or an offline session, which an HTTP POST can't) and only then sent. A report whose upload
-    /// the website accepts is moved into a <c>sent/</c> subfolder — never deleted — so what remains in the top
-    /// level is exactly the retry queue, and a player who declines automatic sending can attach those files to a
-    /// bug report by hand. Stores opaque JSON strings (the same body the uploader posts); Unity-free + best
-    /// effort (never throws), so it runs in the player and in the headless tests.
+    /// the website accepts is moved into a <c>sent/</c> subfolder, so what remains in the top level is exactly
+    /// the retry queue, and a player who declines automatic sending can attach those files to a bug report by
+    /// hand. Both folders are capped (<see cref="MaxPending"/>/<see cref="MaxSent"/>, oldest pruned first) so
+    /// an install that can never upload doesn't grow the spool forever (#421 M14). Stores opaque JSON strings
+    /// (the same body the uploader posts); Unity-free + best effort (never throws), so it runs in the player
+    /// and in the headless tests.
     /// </summary>
     public sealed class CrashReportSpool
     {
+        /// <summary>Upper bound on queued (unsent) reports; <see cref="Write"/> prunes the oldest beyond it.
+        /// Keeps a player who can never reach the inbox (offline installs, and formerly the whole WebGL
+        /// population, #421 M14) from growing the spool forever — on WebGL it lives in IndexedDB.</summary>
+        public const int MaxPending = 50;
+
+        /// <summary>Upper bound on the <c>sent/</c> archive; <see cref="MarkSent"/> prunes the oldest beyond
+        /// it. Sent reports are kept only as a local reference, so a small tail is enough.</summary>
+        public const int MaxSent = 50;
+
         private const string FilePrefix = "crash_";
 
         private readonly string _directory;
@@ -55,6 +66,7 @@ namespace BlocksBeyondTheStars.Client.Feedback
                 string stem = $"{FilePrefix}{Sanitize(timestampStem)}_{n:D3}";
                 string file = Path.Combine(_directory, stem + ".json");
                 File.WriteAllText(file, json);
+                Prune(_directory, MaxPending); // file names lead with the UTC timestamp → oldest sorts first
                 return file;
             }
             catch
@@ -113,6 +125,32 @@ namespace BlocksBeyondTheStars.Client.Feedback
                 }
 
                 File.Move(path, target);
+                Prune(sentDir, MaxSent);
+            }
+            catch
+            {
+                // best-effort
+            }
+        }
+
+        /// <summary>Deletes the oldest report files beyond <paramref name="keep"/> in one folder. Names sort
+        /// chronologically (timestamp stem), so ordinal order is age order. Best-effort; never throws — a
+        /// pending file deleted while an upload loop holds its path just reads back null and is skipped.</summary>
+        private static void Prune(string directory, int keep)
+        {
+            try
+            {
+                var files = Directory.GetFiles(directory, FilePrefix + "*.json");
+                if (files.Length <= keep)
+                {
+                    return;
+                }
+
+                Array.Sort(files, StringComparer.Ordinal);
+                for (int i = 0; i < files.Length - keep; i++)
+                {
+                    File.Delete(files[i]);
+                }
             }
             catch
             {

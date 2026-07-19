@@ -9,6 +9,9 @@ using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
 using BlocksBeyondTheStars.Shared.Diagnostics;
 using UnityEngine;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using System.Collections;
+#endif
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -18,7 +21,8 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="LogType.Exception"/> entries (handled <c>LogError</c>s are noise), de-dups + rate-limits them
     /// (<see cref="CrashReportThrottle"/>) so a per-frame fault can't flood anything, writes each to a durable
     /// local queue FIRST (<see cref="CrashReportSpool"/> under <c>persistentDataPath/crashreports</c>) and then
-    /// uploads it off the main thread via the existing <see cref="FeedbackUploader"/>. No dialog — unlike F1
+    /// uploads it off the main thread via the existing <see cref="FeedbackUploader"/> (on WebGL, which has no
+    /// threads, via <see cref="FeedbackWebGlTransport"/> coroutines instead). No dialog — unlike F1
     /// feedback this is silent. On start it also retries whatever a previous session couldn't send (a
     /// crash-on-exit, or an offline run). When no API key is configured (dev builds) reports still accumulate
     /// locally for a manual send; the local file is the source of truth either way.
@@ -43,6 +47,16 @@ namespace BlocksBeyondTheStars.Client
         private string _platform = string.Empty;
         private string _buildGuid = string.Empty;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // WebGL ships without threads (webGLThreadsSupport:0), so the Task.Run upload bodies below never
+        // execute in the browser — telemetry would only ever pile up in the IndexedDB-backed spool. Uploads
+        // therefore run as one-at-a-time UnityWebRequest coroutines on the main thread instead (#421 M14);
+        // this queue feeds the pump. Single-threaded platform: the log callback fires on the main thread too,
+        // so plain fields need no locking.
+        private readonly Queue<(string Path, string Json)> _webglUploads = new Queue<(string Path, string Json)>();
+        private bool _webglPumpRunning;
+#endif
+
         private void Awake()
         {
             DontDestroyOnLoad(gameObject);
@@ -64,9 +78,13 @@ namespace BlocksBeyondTheStars.Client
                 return; // dev build / no key: leave the queue on disk for a manual send
             }
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(FlushPendingWebGl());
+#else
             var spool = _spool;
             var uploader = _uploader;
             _ = Task.Run(() => FlushPending(spool, uploader));
+#endif
         }
 
         private void OnDestroy()
@@ -94,6 +112,13 @@ namespace BlocksBeyondTheStars.Client
 
                 if (path != null && _uploader.IsConfigured)
                 {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                    _webglUploads.Enqueue((path, json));
+                    if (!_webglPumpRunning)
+                    {
+                        StartCoroutine(PumpWebGlUploads());
+                    }
+#else
                     var spool = _spool;
                     var uploader = _uploader;
                     string body = json;
@@ -113,6 +138,7 @@ namespace BlocksBeyondTheStars.Client
                             // leave it queued; the next session's Start() retries it
                         }
                     });
+#endif
                 }
             }
             catch
@@ -211,5 +237,50 @@ namespace BlocksBeyondTheStars.Client
                 // best-effort startup catch-up
             }
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>WebGL flavor of the per-report upload: drains <see cref="_webglUploads"/> one
+        /// UnityWebRequest at a time. A failed send stays queued on disk (IndexedDB-backed
+        /// persistentDataPath) and is retried by <see cref="FlushPendingWebGl"/> next session.</summary>
+        private IEnumerator PumpWebGlUploads()
+        {
+            _webglPumpRunning = true;
+            while (_webglUploads.Count > 0)
+            {
+                var (path, json) = _webglUploads.Dequeue();
+                FeedbackUploadResult result = null;
+                yield return FeedbackWebGlTransport.PostJson(json, r => result = r);
+                if (result != null && result.Ok)
+                {
+                    _spool.MarkSent(path);
+                }
+            }
+
+            _webglPumpRunning = false;
+        }
+
+        /// <summary>WebGL flavor of <see cref="FlushPending"/>: retries the on-disk queue on a coroutine,
+        /// stopping at the first failure (a down/offline endpoint) so the rest wait for the next launch.</summary>
+        private IEnumerator FlushPendingWebGl()
+        {
+            foreach (var path in _spool.ListPending())
+            {
+                string json = _spool.Read(path);
+                if (string.IsNullOrEmpty(json))
+                {
+                    continue;
+                }
+
+                FeedbackUploadResult result = null;
+                yield return FeedbackWebGlTransport.PostJson(json, r => result = r);
+                if (result == null || !result.Ok)
+                {
+                    yield break;
+                }
+
+                _spool.MarkSent(path);
+            }
+        }
+#endif
     }
 }

@@ -948,8 +948,17 @@ namespace BlocksBeyondTheStars.Client
         // _meshGen + WorldEpoch discard a build superseded by a newer edit / world change (same pattern as the
         // collider bake above).
         private readonly Dictionary<ChunkCoord, int> _meshGen = new Dictionary<ChunkCoord, int>();
-        private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)> _builtChunks
-            = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch)>();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch, string Error)> _builtChunks
+            = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch, string Error)>();
+
+        // Failed-build retry bookkeeping (#421 M10): a build that faulted on the worker re-enters _dirty (the
+        // coord was already removed at dispatch, so dropping it silently would leave a permanent un-meshed,
+        // collider-less 16³ hole). Bounded per chunk so a deterministic mesher fault on one chunk's data can't
+        // burn the dispatch budget every frame forever; the counter resets when a build for that chunk succeeds.
+        private const int MaxMeshBuildRetries = 5;
+        private const float MeshFailLogIntervalSeconds = 5f;
+        private readonly Dictionary<ChunkCoord, int> _meshFailCounts = new Dictionary<ChunkCoord, int>();
+        private float _lastMeshFailLogTime = float.NegativeInfinity;
 
         // WebGL ships without worker threads (ProjectSettings webGLThreadsSupport:0), so Task.Run bodies never
         // execute there — the two heavy per-chunk steps above (geometry build + Physics.BakeMesh) would never
@@ -1501,6 +1510,7 @@ namespace BlocksBeyondTheStars.Client
                 _dirty.Remove(coord);
                 _colliderGen.Remove(coord);
                 _meshGen.Remove(coord);
+                _meshFailCounts.Remove(coord);
                 World.RemoveChunk(coord);
             }
         }
@@ -1649,6 +1659,7 @@ namespace BlocksBeyondTheStars.Client
             // instead of landing on the new world's chunks.
             _colliderGen.Clear();
             _meshGen.Clear();
+            _meshFailCounts.Clear();
             World.Clear();
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
@@ -1878,16 +1889,20 @@ namespace BlocksBeyondTheStars.Client
             void Build()
             {
                 ChunkMeshData data = null;
+                string error = null;
                 try
                 {
                     data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape);
                 }
-                catch
+                catch (System.Exception ex)
                 {
-                    // A snapshot read could still race teardown; drop this build — the chunk stays/again dirty.
+                    // Carry the fault back to the main thread: DrainBuiltChunks re-dirties the chunk (it left
+                    // _dirty at dispatch — swallowing here made a failed chunk a permanent hole, #421 M10) and
+                    // logs rate-limited. A teardown race is filtered there by the epoch/gen guards.
+                    error = ex.ToString();
                 }
 
-                _builtChunks.Enqueue((capturedCoord, data, gen, epoch));
+                _builtChunks.Enqueue((capturedCoord, data, gen, epoch, error));
             }
 
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -1933,7 +1948,31 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (built.Data == null)
                 {
-                    continue; // build failed / was dropped on the worker
+                    // Failed build (#421 M10): the coord already left _dirty at dispatch, so dropping it here
+                    // means the chunk never re-meshes — a permanent hole with no collider. Re-dirty it so the
+                    // budgeted dispatch loop retries, unless the world changed / a newer build for this chunk is
+                    // already in flight (the teardown-race case the old silent drop was guarding against).
+                    if (built.Epoch == WorldEpoch
+                        && _meshGen.TryGetValue(built.Coord, out var failedGen) && failedGen == built.Gen)
+                    {
+                        int fails = (_meshFailCounts.TryGetValue(built.Coord, out var f) ? f : 0) + 1;
+                        _meshFailCounts[built.Coord] = fails;
+                        if (fails <= MaxMeshBuildRetries)
+                        {
+                            _dirty.Add(built.Coord);
+                        }
+
+                        // Rate-limited: one line per interval however many chunks fail, plus one final line for
+                        // a chunk we give up on. LogError (not LogException) — diagnostics, not a crash report.
+                        if (fails > MaxMeshBuildRetries || Time.unscaledTime - _lastMeshFailLogTime >= MeshFailLogIntervalSeconds)
+                        {
+                            _lastMeshFailLogTime = Time.unscaledTime;
+                            string give = fails > MaxMeshBuildRetries ? $" — giving up after {MaxMeshBuildRetries} retries (permanent hole)" : $" — retrying ({fails}/{MaxMeshBuildRetries})";
+                            Debug.LogError($"[Chunk] Mesh build failed for {built.Coord}{give}: {built.Error ?? "unknown"}");
+                        }
+                    }
+
+                    continue;
                 }
 
                 if (built.Epoch != WorldEpoch
@@ -1943,6 +1982,7 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                _meshFailCounts.Remove(built.Coord); // healthy again — a later transient fault gets fresh retries
                 ApplyChunkMesh(built.Coord, built.Data);
                 // The upload copied everything into the Unity meshes (+ GroundScatter's matrices), so the
                 // pooled geometry buffers can go back for the next build.

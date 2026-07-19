@@ -9,7 +9,8 @@ using Xunit;
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>The local crash spool is the durable retry queue: it writes report bodies to disk, lists the
-/// unsent ones, and relocates accepted ones to <c>sent/</c> (never deletes). Best-effort and never throws.</summary>
+/// unsent ones, and relocates accepted ones to <c>sent/</c>. Both folders are capped, oldest pruned first
+/// (#421 M14 — a never-uploading install must not grow the spool forever). Best-effort and never throws.</summary>
 public sealed class CrashReportSpoolTests : IDisposable
 {
     private readonly string _dir;
@@ -48,6 +49,38 @@ public sealed class CrashReportSpoolTests : IDisposable
         string sent = Path.Combine(_dir, "sent");
         Assert.True(Directory.Exists(sent));
         Assert.Single(Directory.GetFiles(sent));                     // ...into sent/, not deleted
+    }
+
+    [Fact]
+    public void Write_BeyondMaxPending_PrunesOldestFirst()
+    {
+        var spool = new CrashReportSpool(_dir);
+        string? oldest = spool.Write("{\"n\":0}", "20260628_000000");
+        Assert.NotNull(oldest);
+        for (int i = 1; i <= CrashReportSpool.MaxPending + 4; i++)
+        {
+            Assert.NotNull(spool.Write($"{{\"n\":{i}}}", $"20260628_{i:D6}"));
+        }
+
+        Assert.Equal(CrashReportSpool.MaxPending, spool.CountPending());
+        Assert.False(File.Exists(oldest));                           // the oldest reports made room...
+        Assert.Contains(spool.ListPending(),
+            p => Path.GetFileName(p).Contains($"_{CrashReportSpool.MaxPending + 4:D6}_")); // ...the newest survives
+    }
+
+    [Fact]
+    public void MarkSent_BeyondMaxSent_PrunesSentArchive()
+    {
+        var spool = new CrashReportSpool(_dir);
+        for (int i = 0; i < CrashReportSpool.MaxSent + 3; i++)
+        {
+            string? path = spool.Write($"{{\"n\":{i}}}", $"20260628_{i:D6}");
+            Assert.NotNull(path);
+            spool.MarkSent(path!);
+        }
+
+        Assert.Equal(0, spool.CountPending());
+        Assert.Equal(CrashReportSpool.MaxSent, Directory.GetFiles(Path.Combine(_dir, "sent")).Length);
     }
 
     [Fact]
