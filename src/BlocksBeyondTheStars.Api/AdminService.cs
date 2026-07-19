@@ -124,7 +124,9 @@ public sealed class AdminService
 
         if (!status.AdminPasswordSet)
         {
-            string adminWarning = "No admin password is set. Keep the admin port bound to localhost/LAN only.";
+            string adminWarning = AdminAuth.IsLoopbackBind(config.AdminBindAddress)
+                ? "No admin password is set. The admin UI is only reachable from this machine (loopback bind)."
+                : "No admin password is set — the /api admin endpoints are disabled on this non-loopback bind. Set BBS_ADMIN_PASSWORD (or adminPassword in server_config.json).";
             status.Warning = string.IsNullOrEmpty(status.Warning) ? adminWarning : status.Warning + " " + adminWarning;
         }
 

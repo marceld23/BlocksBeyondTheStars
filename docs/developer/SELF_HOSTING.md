@@ -417,6 +417,11 @@ Configure with the `BBS_*` environment variables (see §3). At minimum set `BBS_
 exposing the admin port. Ports: **31415/udp** (native client), **31415/tcp** (browser WebSocket, only
 when `BBS_ENABLE_WEBSOCKET=true`), **31416/tcp** (admin + portal + download).
 
+> **Fail closed:** the container binds the admin UI to `0.0.0.0`. Without `BBS_ADMIN_PASSWORD` the
+> `/api` admin endpoints (config, backups, missions, content packs, logs) answer **401** on such a
+> non-loopback bind — only the public pages (`/portal`, `/play`, `/download*`, `/updates`) stay up.
+> Set the password (env var or `adminPassword` in `server_config.json`) to enable the dashboard.
+
 ### Or plain `docker run`
 
 ```bash

@@ -100,6 +100,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Admin /api endpoints fail closed without a password on public binds (#411, 2026-07-19, branch fix/411-admin-api-fail-closed)
+The `/api` auth middleware only enforced the admin password **when one was configured** — with
+`BBS_ADMIN_PASSWORD` unset (the default) every admin route ran unauthenticated, including
+`PUT /api/config`, backups, missions, content packs and logs. Harmless on the loopback default bind,
+but the Docker image forces `BBS_ADMIN_BIND=0.0.0.0` and the TLS compose profile reverse-proxies
+`/api` publicly → full config takeover on password-less public deploys (audit finding S2). Now the
+policy lives in `AdminAuth` (unit-tested): no password ⇒ /api answers **401 on any non-loopback
+bind** (fail closed, matching WorldHost/ReportHost) and stays open only on loopback; a configured
+password is enforced with a fixed-time comparison. Public surfaces (`/portal`, `/play`,
+`/download*`, `/updates`) are unaffected. Startup log + `/api/status` warning explain the state;
+SELF_HOSTING.md documents it. Server-only — reaches the VPS via an image redeploy, no client release.
+
 ### ★ Marketing screenshots regenerated; capture director survives the #401 live-position save (2026-07-19, branch docs/screenshots-regen)
 The README/marketing screenshots (docs/screenshots/en, 13 shots) were regenerated against the v0.8.4
 engine — and the unattended capture run was broken in four independent ways, several caused by recent

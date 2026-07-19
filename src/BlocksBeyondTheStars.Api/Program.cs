@@ -35,23 +35,34 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Admin authentication: when an admin password is configured, every /api request must
-// present it via the X-Admin-Password header. With no password set we rely on the bind
-// address (localhost/LAN) and surface a warning in the status.
+// Admin authentication (issue #411): every /api request must present the configured password via the
+// X-Admin-Password header. Without a configured password the endpoints FAIL CLOSED unless the UI is
+// bound to loopback only — the Docker image binds 0.0.0.0, so a public deploy without
+// BBS_ADMIN_PASSWORD must not expose PUT /api/config & friends to the world. The bind address is
+// fixed at startup, so the loopback decision is too; the password itself is re-read per request so a
+// password set later via the config file takes effect without a restart.
+bool loopbackBind = AdminAuth.IsLoopbackBind(startupConfig.AdminBindAddress);
+if (!loopbackBind && string.IsNullOrEmpty(startupConfig.AdminPassword))
+{
+    Console.WriteLine(
+        $"[api] WARNING: admin UI is bound to {startupConfig.AdminBindAddress} with no admin password — " +
+        "the /api admin endpoints are DISABLED until one is set (BBS_ADMIN_PASSWORD or adminPassword " +
+        "in server_config.json). Portal, downloads and /play remain available.");
+}
+
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/api"))
     {
         var password = app.Services.GetRequiredService<AdminService>().LoadConfig().AdminPassword;
-        if (!string.IsNullOrEmpty(password))
+        var provided = context.Request.Headers["X-Admin-Password"].ToString();
+        if (!AdminAuth.IsAuthorized(password, provided, loopbackBind))
         {
-            var provided = context.Request.Headers["X-Admin-Password"].ToString();
-            if (provided != password)
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsync("Unauthorized");
-                return;
-            }
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync(string.IsNullOrEmpty(password)
+                ? "Unauthorized — admin endpoints are disabled: no admin password is configured. Set BBS_ADMIN_PASSWORD (or adminPassword in server_config.json) and retry."
+                : "Unauthorized");
+            return;
         }
     }
 
