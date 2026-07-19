@@ -114,6 +114,10 @@ namespace BlocksBeyondTheStars.Client
         /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
         public void SetMenuOpen(bool open) => SetOpen(open);
 
+        /// <summary>Whether the Tab menu is currently open — read by <see cref="PlayerInteractions"/> to
+        /// decide who owns the cursor when its dock/trade modal closes (#407).</summary>
+        public bool IsOpen => _open;
+
         /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.</summary>
         public void OpenWiki() { _browser = BrowserScreen.Wiki; SetOpen(true); }
 

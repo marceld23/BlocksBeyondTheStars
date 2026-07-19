@@ -20,6 +20,7 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
         public RemotePlayers Remotes;
+        public GameMenu Menu; // Tab menu — cursor-ownership arbitration on modal close (#407)
 
         public float InteractRange = 6f;
 
@@ -33,20 +34,30 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Our windows are modal: while one is up, free the cursor and pause on-foot control.
+            // Level-triggered (like RespawnPrompt), not edge-triggered: a dock/trade request can
+            // arrive while the Tab menu is open, and GameMenu re-locks the cursor unconditionally
+            // on close — re-asserting every frame keeps the modal clickable instead of leaving the
+            // session with a permanently locked cursor (#407).
             bool modal = Game.TradeActive || !string.IsNullOrEmpty(Game.PendingDockFrom);
-            if (modal && !_managedCursor)
+            if (modal)
             {
                 Game.MenuOpen = true;
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
                 _managedCursor = true;
             }
-            else if (!modal && _managedCursor)
+            else if (_managedCursor)
             {
-                Game.MenuOpen = false;
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
                 _managedCursor = false;
+                // Hand the cursor back to gameplay — unless the Tab menu is still open above us
+                // (the modal resolved remotely under it); then the menu keeps cursor ownership
+                // and re-locks on its own close.
+                if (Menu == null || !Menu.IsOpen)
+                {
+                    Game.MenuOpen = false;
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
             }
 
             if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping)

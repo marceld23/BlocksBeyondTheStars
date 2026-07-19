@@ -100,6 +100,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Dock/trade modal no longer permanently locks the cursor under the Tab menu (#407, 2026-07-19, branch fix-407-dock-modal-cursor)
+A dock/trade request arriving **while the Tab menu was open** locked the cursor for the rest of the
+session: PlayerInteractions freed the cursor only on the modal's *rising edge*, and GameMenu's close
+re-locks unconditionally — so once the edge was consumed under the menu, nothing ever unlocked again
+(audit finding C1, the worst case of the systemic #413). The modal cursor manager is now
+**level-triggered** like RespawnPrompt: while a dock/trade modal is up it re-asserts
+`MenuOpen` + a free cursor every frame, so closing the Tab menu reveals a clickable Accept/Decline
+panel instead of a dead session. On modal close the cursor is handed back to gameplay **unless the
+Tab menu is still open** (modal resolved remotely under it) — then the menu keeps ownership and
+re-locks on its own close (fixes stacking scenario (a) of M2 for this pair). Client-only; the
+broader cursor-ownership refactor stays with #413.
+
 ### ★ Failed local-server launch no longer strands the player in a silent void world (#409, 2026-07-19, branch fix/409-server-launch-swallowed)
 When the bundled singleplayer server failed to start (AV/SmartScreen block on a fresh install, broken
 update, port already bound) the client sailed on regardless: `LaunchPrepared()`'s bool result was never
