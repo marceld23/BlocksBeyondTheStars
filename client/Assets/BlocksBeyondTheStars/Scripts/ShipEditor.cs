@@ -37,15 +37,19 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell (export source)
         private EditorVoxelChunkView _view;                                // chunked combined-mesh renderer
 
-        private struct Pal { public string Id, Label, Kind; public Color Color; }
-        private Pal[] _palette;
+        private BlockTextureAtlas _atlas;                                  // editor-local atlas for palette icons + cell colours
+        private EditorPaletteKit.Entry[] _palette;
         private int _selected;
 
         // Brush: dye/glow colour + shape + orientation applied to newly placed BLOCK cells (elements +
         // stations ignore them), mirroring the in-game dye + shape + place-orientation. 0 = none / cube.
         private int _brushTint, _brushGlow, _brushShape, _brushOrient;
         private string _search = string.Empty;
-        private static readonly string[] ShapeNames = { "Cube", "Slab", "Pyramid", "Dome", "Sphere", "Ramp", "Stairs", "Cone", "Cylinder" };
+
+        /// <summary>The 9 in-game block shapes (index = BlockShape enum; localized via <c>ui.shape.*</c>).</summary>
+        private static readonly string[] ShapeSlugs = { "cube", "slab", "pyramid", "dome", "sphere", "ramp", "stairs", "cone", "cylinder" };
+
+        private string ShapeName(int i) => L("ui.shape." + ShapeSlugs[Mathf.Clamp(i, 0, ShapeSlugs.Length - 1)]);
 
         // --- editable metadata ---
         private string _key = "my_ship";
@@ -70,6 +74,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
+            // Editor-local block atlas: gives the palette (and the placed cells) the real material look.
+            _atlas = Shell != null && Shell.Content != null ? new BlockTextureAtlas(Shell.Content) : null;
             _palette = BuildPalette();
 
             var camGo = new GameObject("EditorCamera");
@@ -89,63 +95,43 @@ namespace BlocksBeyondTheStars.Client
             BuildUi();
         }
 
-        private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
-
         private string L(string key) => Shell != null ? Shell.L(key) : key;
 
-        /// <summary>The ship palette: the special ship elements + stations + weapons, followed by every
-        /// placeable block from the loaded content (so all materials — dyeable, shapeable, light/glowing —
-        /// are available to author with). Built once from <see cref="AppShell.Content"/>.</summary>
-        private Pal[] BuildPalette()
+        /// <summary>A ship element/station palette entry: localized via <c>ui.part.*</c>, grouped under "parts".</summary>
+        private EditorPaletteKit.Entry P(string id, string kind, Color c) => new EditorPaletteKit.Entry
         {
-            var list = new List<Pal>
+            Id = id, Label = L("ui.part." + id), Kind = kind, Group = "parts", Color = c,
+        };
+
+        /// <summary>The ship palette: the special ship elements + stations + weapons, followed by every
+        /// placeable block from the loaded content — localized, category-grouped and iconed with its real
+        /// atlas tile (see <see cref="EditorPaletteKit"/>). Built once from <see cref="AppShell.Content"/>.</summary>
+        private EditorPaletteKit.Entry[] BuildPalette()
+        {
+            var list = new List<EditorPaletteKit.Entry>
             {
-                P("light", "Light", "element", new Color(1f, 0.95f, 0.55f)),
-                P("headlight", "Headlight", "element", new Color(0.95f, 0.97f, 1f)),
-                P("light_red", "Port Light (red)", "element", new Color(1f, 0.3f, 0.3f)),
-                P("light_green", "Starboard Light (green)", "element", new Color(0.3f, 1f, 0.4f)),
-                P("engine", "Engine", "element", new Color(1f, 0.55f, 0.2f)),
-                P("hatch", "Hatch", "element", new Color(0.7f, 0.5f, 0.3f)),
-                P("door_slide", "Sliding Door", "element", new Color(0.4f, 0.85f, 0.95f)),
-                P("door_hinge", "Hinged Door", "element", new Color(0.55f, 0.8f, 0.7f)),
-                P("cockpit", "Cockpit", "station", new Color(0.3f, 0.6f, 0.95f)),
-                P("reactor", "Reactor", "station", new Color(0.9f, 0.35f, 0.3f)),
-                P("life_support", "Life Support", "station", new Color(0.4f, 0.85f, 0.55f)),
-                P("workshop", "Workshop", "station", new Color(0.75f, 0.65f, 0.4f)),
-                P("medbay", "Medbay (Heal-Tank)", "station", new Color(0.9f, 0.95f, 1f)),
-                P("quarters", "Quarters", "station", new Color(0.6f, 0.45f, 0.8f)),
-                P("cargo", "Cargo Hold", "station", new Color(0.7f, 0.6f, 0.45f)),
-                P("hangar", "Hangar", "station", new Color(0.35f, 0.4f, 0.46f)),
-                P("ship_laser_basic", "Laser Cannon", "station", new Color(0.45f, 1f, 1f)),
-                P("ship_cannon_1", "Ship Cannon", "station", new Color(0.95f, 0.55f, 0.4f)),
+                P("light", "element", new Color(1f, 0.95f, 0.55f)),
+                P("headlight", "element", new Color(0.95f, 0.97f, 1f)),
+                P("light_red", "element", new Color(1f, 0.3f, 0.3f)),
+                P("light_green", "element", new Color(0.3f, 1f, 0.4f)),
+                P("engine", "element", new Color(1f, 0.55f, 0.2f)),
+                P("hatch", "element", new Color(0.7f, 0.5f, 0.3f)),
+                P("door_slide", "element", new Color(0.4f, 0.85f, 0.95f)),
+                P("door_hinge", "element", new Color(0.55f, 0.8f, 0.7f)),
+                P("cockpit", "station", new Color(0.3f, 0.6f, 0.95f)),
+                P("reactor", "station", new Color(0.9f, 0.35f, 0.3f)),
+                P("life_support", "station", new Color(0.4f, 0.85f, 0.55f)),
+                P("workshop", "station", new Color(0.75f, 0.65f, 0.4f)),
+                P("medbay", "station", new Color(0.9f, 0.95f, 1f)),
+                P("quarters", "station", new Color(0.6f, 0.45f, 0.8f)),
+                P("cargo", "station", new Color(0.7f, 0.6f, 0.45f)),
+                P("hangar", "station", new Color(0.35f, 0.4f, 0.46f)),
+                P("ship_laser_basic", "station", new Color(0.45f, 1f, 1f)),
+                P("ship_cannon_1", "station", new Color(0.95f, 0.55f, 0.4f)),
             };
 
-            var content = Shell != null ? Shell.Content : null;
-            if (content != null)
-            {
-                var keys = new List<string>(content.Blocks.Keys);
-                keys.Sort(StringComparer.Ordinal);
-                foreach (var key in keys)
-                {
-                    if (key == "air")
-                    {
-                        continue;
-                    }
-
-                    var def = content.GetBlock(key);
-                    list.Add(P(key, def != null ? L(def.NameKey) : key, "block", BlockSwatch(key)));
-                }
-            }
-
+            list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas));
             return list.ToArray();
-        }
-
-        private static Color BlockSwatch(string key)
-        {
-            int h = 0;
-            foreach (char c in key) h = h * 31 + c;
-            float hue = ((h & 0x7FFFFFFF) % 360) / 360f;
-            return Color.HSVToRGB(hue, 0.32f, 0.78f);
         }
 
         private void BuildRoom()
@@ -220,9 +206,10 @@ namespace BlocksBeyondTheStars.Client
 
             // Place (LMB) / remove (MMB) when not flying and not over a uGUI panel.
             _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            if (_blocksLabel != null)
+            if (_blocksLabel != null && _lastPlaced != _design.Count)
             {
-                _blocksLabel.text = $"Blocks placed: {_design.Count}";
+                _lastPlaced = _design.Count;
+                _blocksLabel.text = string.Format(L("ui.ed.placed"), _design.Count);
             }
 
             UpdateGhost(flying || _mouseOverUi);
@@ -348,7 +335,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void PlaceCell(Vector3i cell, Pal pal)
+        private void PlaceCell(Vector3i cell, EditorPaletteKit.Entry pal)
         {
             var data = new CellData { Id = pal.Id, Kind = pal.Kind };
             if (pal.Kind == "block")
@@ -362,7 +349,7 @@ namespace BlocksBeyondTheStars.Client
             PlaceCellData(cell, pal, data);
         }
 
-        private void PlaceCellData(Vector3i cell, Pal pal, CellData data)
+        private void PlaceCellData(Vector3i cell, EditorPaletteKit.Entry pal, CellData data)
         {
             // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch
             // (mirrors the in-game look). The chunked view bakes the directional shading + face culling.
@@ -390,11 +377,9 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _form;
         private Text _statusLabel;
         private Text _blocksLabel;
-        private Text _shapeLabel;
-        private Text _orientLabel;
         private Transform _palListParent;
-        private readonly List<Image> _palButtons = new();
-        private readonly List<int> _rowToPaletteIndex = new();
+        private PaletteListUi _palList;
+        private int _lastPlaced = -1;
         private readonly List<CostUi> _costPool = new();
 
         private sealed class CostUi
@@ -408,6 +393,8 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             _view?.Dispose();
+            _atlas?.Destroy(); // palette sprites reference this texture; the editor owns it (#423 lesson)
+            _atlas = null;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
@@ -420,26 +407,30 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
-            // Left: block/part palette (elements + stations + every placeable block) with a search filter.
+            // Left: block/part palette (elements + stations + every placeable block), grouped by
+            // category, with a search filter.
             var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
-            UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, "BLOCKS & PARTS", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; RebuildPaletteRows(); });
+            UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, L("ui.ship.palette"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, L("ui.pal.search"));
             _palListParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, PanelH - 90f);
-            RebuildPaletteRows();
+            _palList = new PaletteListUi(Shell, _palListParent, _palette, _selected);
+            _palList.OnSelected = i => _selected = i;
+            _palList.Rebuild(_search);
 
             // Right: ship metadata + stats + cost (anchored to the top-right so it hugs the edge).
             var meta = RightPanel(root, 380f, PanelH);
-            UiKit.AddText(meta, 16f, 12f, 348f, 26f, "SHIP TYPE", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(meta, 16f, 12f, 348f, 26f, L("ui.ship.title"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 116f, 3f);
+            _form = UiKit.ScrollList(meta, 8f, 48f, 364f, PanelH - 48f - 164f, 3f);
             BuildForm();
 
-            // Pinned footer: status + save + back.
-            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 112f, 356f, 44f, string.Empty, 14, UiKit.Ok);
+            // Pinned footer: status, then save on a full-width row of its own (so the label never has
+            // to shrink), then load + back sharing the row below.
+            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 160f, 356f, 46f, string.Empty, 14, UiKit.Ok);
             _statusLabel.alignment = TextAnchor.UpperLeft;
-            UiKit.AddButton(meta, 12f, PanelH - 62f, 150f, 38f, "SAVE / EXPORT", Export);
-            UiKit.AddButton(meta, 168f, PanelH - 62f, 96f, 38f, "LOAD", OpenLoadPicker);
-            UiKit.AddButton(meta, 270f, PanelH - 62f, 98f, 38f, "← Back", () => Shell?.CloseShipEditor());
+            UiKit.AddButton(meta, 12f, PanelH - 110f, 356f, 42f, L("ui.struct.save"), Export);
+            UiKit.AddButton(meta, 12f, PanelH - 62f, 172f, 38f, L("ui.struct.load"), OpenLoadPicker);
+            UiKit.AddButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
 
             // Bottom-centre controls hint.
             var hintGo = new GameObject("Hint", typeof(RectTransform));
@@ -456,118 +447,52 @@ namespace BlocksBeyondTheStars.Client
             hint.alignment = TextAnchor.MiddleCenter;
             hint.horizontalOverflow = HorizontalWrapMode.Overflow;
             hint.raycastTarget = false;
-            hint.text = "Hold RIGHT-MOUSE to look · WASD + Q/E (or Space/Ctrl) to fly · Shift = faster · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu";
+            hint.text = L("ui.struct.hint");
         }
 
         private void BuildForm()
         {
-            FormLabel("Key (unique, slug)");
+            FormLabel(L("ui.struct.key"));
             InputRow(_key, v => _key = v);
-            FormLabel("Name");
+            FormLabel(L("ui.struct.name"));
             InputRow(_shipName, v => _shipName = v);
-            FormLabel("Description");
+            FormLabel(L("ui.ship.desc"));
             InputRow(_desc, v => _desc = v);
-            FormLabel("Required blueprint (blank = always)");
+            FormLabel(L("ui.ship.blueprint"));
             InputRow(_requiredBlueprint, v => _requiredBlueprint = v);
 
-            FormHeader("STATS");
-            Stepper("Base hull", () => _hull, v => _hull = v, 20f, 500f, 10f, "0");
-            Stepper("Base shield", () => _shield, v => _shield = v, 0f, 300f, 10f, "0");
-            Stepper("Flight speed", () => _flightSpeed, v => _flightSpeed = v, 0.4f, 2.5f, 0.05f, "0.00");
-            Stepper("Handling", () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
-            Stepper("Cargo slots", () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
+            FormHeader(L("ui.ship.stats"));
+            Stepper(L("ui.ship.hull"), () => _hull, v => _hull = v, 20f, 500f, 10f, "0");
+            Stepper(L("ui.ship.shield"), () => _shield, v => _shield = v, 0f, 300f, 10f, "0");
+            Stepper(L("ui.ship.speed"), () => _flightSpeed, v => _flightSpeed = v, 0.4f, 2.5f, 0.05f, "0.00");
+            Stepper(L("ui.ship.handling"), () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
+            Stepper(L("ui.ship.cargo"), () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
 
             // Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells
             // (every block is dyeable + shapeable in-game; shaped blocks orient at placement).
-            FormHeader("DYE / SHAPE BRUSH");
-            FormLabel("Dye colour (hex RRGGBB, blank = none)");
+            FormHeader(L("ui.ship.brush"));
+            FormLabel(L("ui.ship.dye_hex"));
             InputRow(HexOf(_brushTint), v => _brushTint = ParseHex(v));
-            FormLabel("Glow colour (hex RRGGBB, blank = none)");
+            FormLabel(L("ui.ship.glow_hex"));
             InputRow(HexOf(_brushGlow), v => _brushGlow = ParseHex(v));
-            Stepper("Shape (0=Cube…8=Cylinder)", () => _brushShape, v => _brushShape = Mathf.Clamp(Mathf.RoundToInt(v), 0, 8), 0f, 8f, 1f, "0");
-            Stepper("Orientation (×90°, key R)", () => _brushOrient, v => _brushOrient = Mathf.RoundToInt(v) & 3, 0f, 3f, 1f, "0");
+            Stepper(L("ui.struct.shape"), () => _brushShape, v => _brushShape = Mathf.Clamp(Mathf.RoundToInt(v), 0, 8), 0f, 8f, 1f, "0",
+                v => ShapeName(Mathf.RoundToInt(v)));
+            Stepper(L("ui.struct.orient"), () => _brushOrient, v => _brushOrient = Mathf.RoundToInt(v) & 3, 0f, 3f, 1f, "0",
+                v => (Mathf.RoundToInt(v) * 90) + "°");
 
-            _blocksLabel = FormLabel("Blocks placed: 0");
+            _lastPlaced = _design.Count;
+            _blocksLabel = FormLabel(string.Format(L("ui.ed.placed"), _design.Count));
 
             // CRAFT COST is the last section so its dynamic rows can simply append to the form.
             var head = Row(_form, 28f);
-            UiKit.AddText(head, 4f, 0f, 240f, 28f, "CRAFT COST", 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(head, 252f, 0f, 104f, 26f, "+ add", () =>
+            UiKit.AddText(head, 4f, 0f, 240f, 28f, L("ui.ship.cost"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(head, 252f, 0f, 104f, 26f, L("ui.ship.cost_add"), () =>
             {
                 _craftCost.Add(new CostRow { Item = "iron_plate", Count = 1 });
                 RefreshCostRows();
             });
 
             RefreshCostRows();
-        }
-
-        private void AddPaletteRow(Transform parent, int index)
-        {
-            var row = Row(parent, 36f);
-            var img = row.gameObject.AddComponent<Image>();
-            img.sprite = UiKit.ButtonSprite;
-            img.type = Image.Type.Sliced;
-
-            var btn = row.gameObject.AddComponent<Button>();
-            btn.transition = Selectable.Transition.None;
-            btn.targetGraphic = img;
-            int idx = index;
-            btn.onClick.AddListener(() => Select(idx));
-
-            var sw = new GameObject("Swatch", typeof(RectTransform));
-            sw.transform.SetParent(row, false);
-            UiKit.Place(sw, 10f, 9f, 18f, 18f);
-            var swImg = sw.AddComponent<Image>();
-            swImg.sprite = UiKit.SolidSprite;
-            swImg.color = _palette[index].Color;
-            swImg.raycastTarget = false;
-
-            string tag = _palette[index].Kind == "marker" ? "◆ " : string.Empty;
-            UiKit.AddText(row, 38f, 0f, 232f, 36f, tag + _palette[index].Label, 16, UiKit.TextCol);
-            _palButtons.Add(img);
-            _rowToPaletteIndex.Add(index);
-        }
-
-        /// <summary>Rebuilds the palette list from the search filter; rows carry their real
-        /// <see cref="_palette"/> index so selection stays stable across filters.</summary>
-        private void RebuildPaletteRows()
-        {
-            if (_palListParent == null)
-            {
-                return;
-            }
-
-            for (int i = _palListParent.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_palListParent.GetChild(i).gameObject);
-            }
-
-            _palButtons.Clear();
-            _rowToPaletteIndex.Clear();
-
-            string q = _search.Trim().ToLowerInvariant();
-            for (int i = 0; i < _palette.Length; i++)
-            {
-                var p = _palette[i];
-                bool match = q.Length == 0
-                    || (p.Label != null && p.Label.ToLowerInvariant().Contains(q))
-                    || (p.Id != null && p.Id.ToLowerInvariant().Contains(q));
-                if (match)
-                {
-                    AddPaletteRow(_palListParent, i);
-                }
-            }
-
-            Select(_selected);
-        }
-
-        private void Select(int index)
-        {
-            _selected = index;
-            for (int i = 0; i < _palButtons.Count; i++)
-            {
-                _palButtons[i].color = _rowToPaletteIndex[i] == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
-            }
         }
 
         private static int ParseHex(string s)
@@ -608,7 +533,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var row = Row(_form, 30f);
             var ui = new CostUi { Go = row.gameObject };
-            ui.Item = UiKit.AddInput(row, 4f, 2f, 200f, 26f, string.Empty, null, "item id");
+            ui.Item = UiKit.AddInput(row, 4f, 2f, 200f, 26f, string.Empty, null, L("ui.ship.cost_item"));
             ui.Count = UiKit.AddInput(row, 210f, 2f, 72f, 26f, string.Empty, null);
             ui.Count.contentType = InputField.ContentType.IntegerNumber;
             UiKit.AddButton(row, 288f, 2f, 30f, 26f, "×", () =>
@@ -656,13 +581,15 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInput(row, 4f, 2f, 352f, 28f, value, onChange);
         }
 
-        private void Stepper(string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt)
+        private void Stepper(string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt,
+            Func<float, string> display = null)
         {
+            string Show() => display != null ? display(get()) : get().ToString(fmt);
             var row = Row(_form, 30f);
             UiKit.AddText(row, 4f, 0f, 156f, 30f, label, 15, UiKit.TextCol);
-            var valTxt = UiKit.AddText(row, 196f, 0f, 72f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(row, 164f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = get().ToString(fmt); });
-            UiKit.AddButton(row, 272f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = get().ToString(fmt); });
+            var valTxt = UiKit.AddText(row, 196f, 0f, 72f, 30f, Show(), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(row, 164f, 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); valTxt.text = Show(); });
+            UiKit.AddButton(row, 272f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = Show(); });
         }
 
         private static RectTransform RightPanel(Transform root, float w, float h)
@@ -698,7 +625,7 @@ namespace BlocksBeyondTheStars.Client
             string key = Slug(_key);
             if (string.IsNullOrEmpty(key))
             {
-                _status = "Give the ship a key first.";
+                _status = L("ui.ed.need_key");
                 return;
             }
 
@@ -750,11 +677,11 @@ namespace BlocksBeyondTheStars.Client
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "ship.json"), JsonUtility.ToJson(ship, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
-                _status = $"Saved '{key}' ({_design.Count} blocks) to:\n{dir}\nRun tools/merge_ship.py to add it to the game.";
+                _status = string.Format(L("ui.ed.saved_ship"), key, _design.Count, dir);
             }
             catch (Exception e)
             {
-                _status = "Export failed: " + e.Message;
+                _status = string.Format(L("ui.ed.export_failed"), e.Message);
             }
         }
 
@@ -784,10 +711,10 @@ namespace BlocksBeyondTheStars.Client
 
             var panel = UiKit.AddDialogPanel(_canvas.transform, 700f, 280f, 520f, 520f);
             _loadPicker = panel.gameObject;
-            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, "LOAD DESIGN", 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             if (keys.Count == 0)
             {
-                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, "No saved ship designs yet.", 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             }
             else
             {
@@ -803,7 +730,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, "Close", () => { Destroy(_loadPicker); _loadPicker = null; });
+            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, L("ui.menu.back"), () => { Destroy(_loadPicker); _loadPicker = null; });
         }
 
         /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
@@ -813,7 +740,7 @@ namespace BlocksBeyondTheStars.Client
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
             {
-                _status = "Design not found.";
+                _status = L("ui.ed.not_found");
                 if (_statusLabel != null) _statusLabel.text = _status;
                 return;
             }
@@ -859,12 +786,12 @@ namespace BlocksBeyondTheStars.Client
                     _key = key;
                 }
 
-                _status = $"Loaded '{key}' ({_design.Count} blocks).";
+                _status = string.Format(L("ui.ed.loaded"), key, _design.Count);
                 RebuildForm();
             }
             catch (Exception e)
             {
-                _status = "Load failed: " + e.Message;
+                _status = string.Format(L("ui.ed.load_failed"), e.Message);
                 if (_statusLabel != null) _statusLabel.text = _status;
             }
         }

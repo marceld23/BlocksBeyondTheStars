@@ -6168,6 +6168,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-19): editor palettes usable + fully localized (ship / station / settlement editors)
+
+The build-material list in the ship, station and settlement editors was a flat, ~150-row list sorted by
+internal English block id with random hash-colour swatches, and large parts of the editor UIs were
+hardcoded English. Now: blocks carry a data-driven `category` in `blocks.json` (7 groups, localized via
+`ui.cat.*`, guarded by a new content test) and the shared `EditorPaletteKit` renders the palette grouped
+under section headers (markers/ship parts first), sorted by the *localized* block name, with each block's
+**real procedural atlas tile** as its icon — the same tile also colours the placed 3D preview cell. The
+search field got a localized placeholder. The ShipEditor was migrated off its hardcoded strings onto
+`ui.ship.*`/`ui.part.*` keys (form, stats, brush, craft cost, load picker, statuses, hint), the
+StructureEditor's remaining English (markers, shape names, size tiers, status messages) moved onto
+`ui.marker.*`, the shared `ui.shape.*` keys and new `ui.tier.*`/`ui.ed.*` keys. The too-narrow
+SAVE/EXPORT button got a full-width footer row of its own (load + back below). Editor-local
+`BlockTextureAtlas` instances are destroyed with the editor (#423 leak lesson).
+
 ## ✅ Done (2026-07-19): corrupt settings can no longer destroy the PlayerToken (#410)
 
 A corrupt/truncated `client_settings.json` used to silently reset all settings **and** overwrite the only

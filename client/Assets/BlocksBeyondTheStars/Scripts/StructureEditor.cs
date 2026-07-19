@@ -41,8 +41,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<Vector3i, CellData> _design = new();   // cell -> authored cell (export source)
         private EditorVoxelChunkView _view;                                // chunked combined-mesh renderer
 
-        private struct Pal { public string Id, Label, Kind; public Color Color; }
-        private Pal[] _palette;
+        private BlockTextureAtlas _atlas;                                  // editor-local atlas for palette icons + cell colours
+        private EditorPaletteKit.Entry[] _palette;
         private int _selected;
         private string[] _tiers;
         private int _tier;
@@ -52,8 +52,13 @@ namespace BlocksBeyondTheStars.Client
         private int _brushTint, _brushGlow, _brushShape, _brushOrient;
         private string _search = string.Empty;
 
-        /// <summary>The 9 in-game block shapes (index = BlockShape enum). Orientation is 0..3 quarter-turns.</summary>
-        private static readonly string[] ShapeNames = { "Cube", "Slab", "Pyramid", "Dome", "Sphere", "Ramp", "Stairs", "Cone", "Cylinder" };
+        /// <summary>The 9 in-game block shapes (index = BlockShape enum; localized via <c>ui.shape.*</c>).
+        /// Orientation is 0..3 quarter-turns.</summary>
+        private static readonly string[] ShapeSlugs = { "cube", "slab", "pyramid", "dome", "sphere", "ramp", "stairs", "cone", "cylinder" };
+
+        private string ShapeName(int i) => L("ui.shape." + ShapeSlugs[i]);
+
+        private string TierLabel(string slug) => L("ui.tier." + slug);
 
         private string _key = "my_structure";
         private string _name = "My Structure";
@@ -64,6 +69,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
+            // Editor-local block atlas: gives the palette (and the placed cells) the real material look.
+            _atlas = Shell != null && Shell.Content != null ? new BlockTextureAtlas(Shell.Content) : null;
             _palette = BuildPalette();
             _tiers = EditorMode == Mode.Station
                 ? new[] { "small", "medium", "large", "huge" }
@@ -87,66 +94,42 @@ namespace BlocksBeyondTheStars.Client
             BuildUi();
         }
 
-        private static Pal P(string id, string label, string kind, Color c) => new Pal { Id = id, Label = label, Kind = kind, Color = c };
-
-        /// <summary>The full palette: every placeable block from the loaded content (so all materials —
-        /// including the dyeable, shapeable, light and glowing blocks — are available), preceded by the
-        /// interaction markers this structure kind needs. Built once from <see cref="AppShell.Content"/>.</summary>
-        private Pal[] BuildPalette()
+        /// <summary>A marker palette entry: localized via <c>ui.marker.*</c>, grouped under "markers".</summary>
+        private EditorPaletteKit.Entry M(string id, Color c) => new EditorPaletteKit.Entry
         {
-            var list = new List<Pal>();
+            Id = id, Label = L("ui.marker." + id), Kind = "marker", Group = "markers", Color = c,
+        };
+
+        /// <summary>The full palette: the interaction markers this structure kind needs, then every
+        /// placeable block from the loaded content — localized, category-grouped and iconed with its
+        /// real atlas tile (see <see cref="EditorPaletteKit"/>). Built once in Start.</summary>
+        private EditorPaletteKit.Entry[] BuildPalette()
+        {
+            var list = new List<EditorPaletteKit.Entry>();
             list.AddRange(EditorMode == Mode.Station ? StationMarkers() : SettlementMarkers());
-
-            var content = Shell != null ? Shell.Content : null;
-            if (content != null)
-            {
-                var keys = new List<string>(content.Blocks.Keys);
-                keys.Sort(System.StringComparer.Ordinal);
-                foreach (var key in keys)
-                {
-                    if (key == "air")
-                    {
-                        continue;
-                    }
-
-                    var def = content.GetBlock(key);
-                    string label = def != null ? L(def.NameKey) : key;
-                    list.Add(P(key, label, "block", BlockSwatch(key)));
-                }
-            }
-
+            list.AddRange(EditorPaletteKit.BlockEntries(Shell, _atlas));
             return list.ToArray();
         }
 
-        private static Pal[] StationMarkers() => new[]
+        private EditorPaletteKit.Entry[] StationMarkers() => new[]
         {
-            P("hangar", "Hangar marker", "marker", new Color(0.35f, 0.4f, 0.46f)),
-            P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),
-            P("mission_board", "Mission board", "marker", new Color(0.4f, 0.7f, 0.95f)),
-            P("heal_tank", "Heal tank", "marker", new Color(0.4f, 0.9f, 0.6f)),
-            P("quarters", "Quarters", "marker", new Color(0.6f, 0.45f, 0.8f)),
-            P("console", "Console", "marker", new Color(0.3f, 0.6f, 0.95f)),
+            M("hangar", new Color(0.35f, 0.4f, 0.46f)),
+            M("vendor", new Color(0.9f, 0.75f, 0.2f)),
+            M("mission_board", new Color(0.4f, 0.7f, 0.95f)),
+            M("heal_tank", new Color(0.4f, 0.9f, 0.6f)),
+            M("quarters", new Color(0.6f, 0.45f, 0.8f)),
+            M("console", new Color(0.3f, 0.6f, 0.95f)),
         };
 
-        private static Pal[] SettlementMarkers() => new[]
+        private EditorPaletteKit.Entry[] SettlementMarkers() => new[]
         {
-            P("vendor", "Vendor marker", "marker", new Color(0.9f, 0.75f, 0.2f)),
-            P("mission_board", "Mission board", "marker", new Color(0.4f, 0.7f, 0.95f)),
-            P("npc", "Inhabitant", "marker", new Color(0.85f, 0.6f, 0.5f)),
-            P("door_slide", "Slide door", "marker", new Color(0.40f, 0.85f, 0.95f)),
-            P("door_hinge", "Hinge door", "marker", new Color(0.60f, 0.40f, 0.20f)),
-            P("loot", "Loot cache", "marker", new Color(0.8f, 0.7f, 0.3f)),
+            M("vendor", new Color(0.9f, 0.75f, 0.2f)),
+            M("mission_board", new Color(0.4f, 0.7f, 0.95f)),
+            M("npc", new Color(0.85f, 0.6f, 0.5f)),
+            M("door_slide", new Color(0.40f, 0.85f, 0.95f)),
+            M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
+            M("loot", new Color(0.8f, 0.7f, 0.3f)),
         };
-
-        /// <summary>A stable, legible swatch colour for a block id (used only in the palette list — the
-        /// real cell tints with the brush dye / glow at place time).</summary>
-        private static Color BlockSwatch(string key)
-        {
-            int h = 0;
-            foreach (char c in key) h = h * 31 + c;
-            float hue = ((h & 0x7FFFFFFF) % 360) / 360f;
-            return Color.HSVToRGB(hue, 0.32f, 0.78f);
-        }
 
         private void BuildRoom()
         {
@@ -216,9 +199,10 @@ namespace BlocksBeyondTheStars.Client
             _cam.transform.position += move * speed;
 
             _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
-            if (_blocksLabel != null)
+            if (_blocksLabel != null && _lastPlaced != _design.Count)
             {
-                _blocksLabel.text = $"Placed: {_design.Count}";
+                _lastPlaced = _design.Count;
+                _blocksLabel.text = string.Format(L("ui.ed.placed"), _design.Count);
             }
 
             if (!flying && !_mouseOverUi)
@@ -294,7 +278,7 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        private void PlaceCell(Vector3i cell, Pal pal)
+        private void PlaceCell(Vector3i cell, EditorPaletteKit.Entry pal)
         {
             var data = new CellData { Id = pal.Id, Kind = pal.Kind };
             if (pal.Kind == "block")
@@ -308,7 +292,7 @@ namespace BlocksBeyondTheStars.Client
             PlaceCellData(cell, pal, data);
         }
 
-        private void PlaceCellData(Vector3i cell, Pal pal, CellData data)
+        private void PlaceCellData(Vector3i cell, EditorPaletteKit.Entry pal, CellData data)
         {
             // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch.
             // The chunked view bakes directional shading + face culling; markers render as small inset cubes.
@@ -349,7 +333,7 @@ namespace BlocksBeyondTheStars.Client
             string key = Slug(_key);
             if (string.IsNullOrEmpty(key))
             {
-                SetStatus("Give it a key first.");
+                SetStatus(L("ui.ed.need_key"));
                 return;
             }
 
@@ -397,11 +381,11 @@ namespace BlocksBeyondTheStars.Client
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
 
-                SetStatus($"Saved '{key}' ({_design.Count} cells).\nLive in your new worlds now (pack '{pack}').\nRun tools/merge_structure.py to ship it into the game.");
+                SetStatus(string.Format(L("ui.ed.saved_structure"), key, _design.Count, pack));
             }
             catch (Exception e)
             {
-                SetStatus("Export failed: " + e.Message);
+                SetStatus(string.Format(L("ui.ed.export_failed"), e.Message));
             }
         }
 
@@ -435,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             if (keys.Count == 0)
             {
-                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.save.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             }
             else
             {
@@ -456,7 +440,7 @@ namespace BlocksBeyondTheStars.Client
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
             {
-                SetStatus("Design not found.");
+                SetStatus(L("ui.ed.not_found"));
                 return;
             }
 
@@ -505,12 +489,12 @@ namespace BlocksBeyondTheStars.Client
                     _key = key;
                 }
 
-                _status = $"Loaded '{key}' ({_design.Count} cells).";
+                _status = string.Format(L("ui.ed.loaded"), key, _design.Count);
                 RebuildUi();
             }
             catch (Exception e)
             {
-                SetStatus("Load failed: " + e.Message);
+                SetStatus(string.Format(L("ui.ed.load_failed"), e.Message));
             }
         }
 
@@ -570,11 +554,14 @@ namespace BlocksBeyondTheStars.Client
         private Text _shapeLabel;
         private Text _orientLabel;
         private Transform _palListParent;
-        private readonly List<Image> _palButtons = new();
+        private PaletteListUi _palList;
+        private int _lastPlaced = -1;
 
         private void OnDestroy()
         {
             _view?.Dispose();
+            _atlas?.Destroy(); // palette sprites reference this texture; the editor owns it (#423 lesson)
+            _atlas = null;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
@@ -589,12 +576,14 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5;
             var root = _canvas.transform;
 
-            // Left: palette (markers + every placeable block) with a search filter.
+            // Left: palette (markers + every placeable block), grouped by category, with a search filter.
             var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
             UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, L("ui.struct.palette"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; RebuildPaletteRows(); });
+            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, L("ui.pal.search"));
             _palListParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, PanelH - 90f);
-            RebuildPaletteRows();
+            _palList = new PaletteListUi(Shell, _palListParent, _palette, _selected);
+            _palList.OnSelected = i => _selected = i;
+            _palList.Rebuild(_search);
 
             // Right: metadata.
             var meta = RightPanel(root, 380f, PanelH);
@@ -613,8 +602,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Size tier stepper.
             UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.tier"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _tierLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, _tiers[_tier], 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () => { _tier = (_tier + 1) % _tiers.Length; _tierLabel.text = _tiers[_tier]; });
+            _tierLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, TierLabel(_tiers[_tier]), 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () => { _tier = (_tier + 1) % _tiers.Length; _tierLabel.text = TierLabel(_tiers[_tier]); });
             y += 44f;
 
             // Template pack (a world enables a set of packs) + selection weight within the tier.
@@ -640,23 +629,25 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(meta, 250f, y, 80f, 30f, L("ui.struct.brush_none"), () => { _brushGlow = 0; RebuildUi(); });
             y += 42f;
             UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.shape"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _shapeLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, ShapeNames[_brushShape], 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 262f, y, 30f, 30f, "−", () => { _brushShape = (_brushShape + ShapeNames.Length - 1) % ShapeNames.Length; _shapeLabel.text = ShapeNames[_brushShape]; });
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _brushShape = (_brushShape + 1) % ShapeNames.Length; _shapeLabel.text = ShapeNames[_brushShape]; });
+            _shapeLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, ShapeName(_brushShape), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddButton(meta, 262f, y, 30f, 30f, "−", () => { _brushShape = (_brushShape + ShapeSlugs.Length - 1) % ShapeSlugs.Length; _shapeLabel.text = ShapeName(_brushShape); });
+            UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _brushShape = (_brushShape + 1) % ShapeSlugs.Length; _shapeLabel.text = ShapeName(_brushShape); });
             y += 38f;
             UiKit.AddText(meta, 16f, y, 90f, 30f, L("ui.struct.orient"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             _orientLabel = UiKit.AddText(meta, 116f, y, 140f, 30f, (_brushOrient * 90) + "°", 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddButton(meta, 262f, y, 68f, 30f, "↻ R", () => { _brushOrient = (_brushOrient + 1) & 3; _orientLabel.text = (_brushOrient * 90) + "°"; });
             y += 46f;
 
-            _blocksLabel = UiKit.AddText(meta, 16f, y, 348f, 24f, "Placed: 0", 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _lastPlaced = _design.Count;
+            _blocksLabel = UiKit.AddText(meta, 16f, y, 348f, 24f, string.Format(L("ui.ed.placed"), _design.Count), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
 
-            // Footer.
-            _statusLabel = UiKit.AddText(meta, 16f, PanelH - 150f, 352f, 70f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
+            // Footer: save gets a full-width row of its own so the label never has to shrink; load +
+            // back share the row below.
+            _statusLabel = UiKit.AddText(meta, 16f, PanelH - 208f, 348f, 84f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(meta, 16f, PanelH - 70f, 150f, 40f, L("ui.struct.save"), Export);
-            UiKit.AddButton(meta, 172f, PanelH - 70f, 86f, 40f, L("ui.struct.load"), OpenLoadPicker);
-            UiKit.AddButton(meta, 264f, PanelH - 70f, 100f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
+            UiKit.AddButton(meta, 16f, PanelH - 116f, 348f, 42f, L("ui.struct.save"), Export);
+            UiKit.AddButton(meta, 16f, PanelH - 66f, 168f, 40f, L("ui.struct.load"), OpenLoadPicker);
+            UiKit.AddButton(meta, 196f, PanelH - 66f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseStructureEditor());
 
             // Controls hint.
             var hintGo = new GameObject("Hint", typeof(RectTransform));
@@ -674,82 +665,6 @@ namespace BlocksBeyondTheStars.Client
             hint.horizontalOverflow = HorizontalWrapMode.Overflow;
             hint.raycastTarget = false;
             hint.text = L("ui.struct.hint");
-        }
-
-        private void AddPaletteRow(Transform parent, int index)
-        {
-            var row = new GameObject("Row", typeof(RectTransform));
-            row.transform.SetParent(parent, false);
-            var le = row.AddComponent<LayoutElement>();
-            le.minHeight = le.preferredHeight = 36f;
-            var rt = row.GetComponent<RectTransform>();
-
-            var img = row.AddComponent<Image>();
-            img.sprite = UiKit.ButtonSprite;
-            img.type = Image.Type.Sliced;
-
-            var btn = row.AddComponent<Button>();
-            btn.transition = Selectable.Transition.None;
-            btn.targetGraphic = img;
-            int idx = index;
-            btn.onClick.AddListener(() => Select(idx));
-
-            var sw = new GameObject("Swatch", typeof(RectTransform));
-            sw.transform.SetParent(rt, false);
-            UiKit.Place(sw, 10f, 9f, 18f, 18f);
-            var swImg = sw.AddComponent<Image>();
-            swImg.sprite = UiKit.SolidSprite;
-            swImg.color = _palette[index].Color;
-            swImg.raycastTarget = false;
-
-            string tag = _palette[index].Kind == "marker" ? "◆ " : string.Empty;
-            UiKit.AddText(rt, 38f, 0f, 232f, 36f, tag + _palette[index].Label, 15, UiKit.TextCol);
-            _palButtons.Add(img);
-            _rowToPaletteIndex.Add(index);
-        }
-
-        private readonly List<int> _rowToPaletteIndex = new();
-
-        /// <summary>Rebuilds the palette list from the search filter (markers always shown; blocks matched by
-        /// label or id). Rows carry their real <see cref="_palette"/> index so selection stays stable.</summary>
-        private void RebuildPaletteRows()
-        {
-            if (_palListParent == null)
-            {
-                return;
-            }
-
-            for (int i = _palListParent.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_palListParent.GetChild(i).gameObject);
-            }
-
-            _palButtons.Clear();
-            _rowToPaletteIndex.Clear();
-
-            string q = _search.Trim().ToLowerInvariant();
-            for (int i = 0; i < _palette.Length; i++)
-            {
-                var p = _palette[i];
-                bool match = q.Length == 0
-                    || (p.Label != null && p.Label.ToLowerInvariant().Contains(q))
-                    || (p.Id != null && p.Id.ToLowerInvariant().Contains(q));
-                if (match)
-                {
-                    AddPaletteRow(_palListParent, i);
-                }
-            }
-
-            Select(_selected);
-        }
-
-        private void Select(int index)
-        {
-            _selected = index;
-            for (int i = 0; i < _palButtons.Count; i++)
-            {
-                _palButtons[i].color = _rowToPaletteIndex[i] == index ? new Color(0.45f, 0.82f, 1f, 1f) : new Color(0.62f, 0.68f, 0.76f, 1f);
-            }
         }
 
         /// <summary>Parses a 6-hex-digit colour string to 0xRRGGBB (0 = empty/invalid = "none").</summary>

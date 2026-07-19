@@ -18,6 +18,11 @@ public sealed class BlockDefinition
     /// <summary>Localization key for the display name (resolved via the locale tables).</summary>
     public string NameKey { get; set; } = string.Empty;
 
+    /// <summary>Coarse grouping used by building UIs (editor palettes) to sort blocks into sections:
+    /// "building", "terrain", "ore", "flora", "light", "door" or "machine". Localized section titles
+    /// live under <c>ui.cat.*</c> in the locale tables.</summary>
+    public string Category { get; set; } = "building";
+
     /// <summary>Relative mining time multiplier; higher = slower to mine.</summary>
     public float Hardness { get; set; } = 1f;
 

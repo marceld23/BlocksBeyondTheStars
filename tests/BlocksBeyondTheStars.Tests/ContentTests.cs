@@ -82,6 +82,29 @@ public class ContentTests
     }
 
     [Fact]
+    public void BlockCategories_HaveLocalizedSectionTitles()
+    {
+        // The editor palettes group blocks by BlockDefinition.Category and title each section via
+        // ui.cat.<category> — a typo'd or new category without locale entries would show a raw slug.
+        var content = Load();
+        var en = content.CreateLocalizer(GameLocale.English);
+        var de = content.CreateLocalizer(GameLocale.German);
+
+        foreach (var block in content.Blocks.Values)
+        {
+            if (block.Key == "air")
+            {
+                continue;
+            }
+
+            Assert.False(string.IsNullOrEmpty(block.Category), $"block '{block.Key}' has no category");
+            string key = "ui.cat." + block.Category;
+            Assert.True(en.Has(key), $"missing '{key}' in en locale (block '{block.Key}')");
+            Assert.True(de.Has(key), $"missing '{key}' in de locale (block '{block.Key}')");
+        }
+    }
+
+    [Fact]
     public void Validation_DetectsBrokenReference()
     {
         var ex = Assert.Throws<ContentValidationException>(() =>
