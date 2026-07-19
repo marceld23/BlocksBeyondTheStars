@@ -136,6 +136,42 @@ public sealed class TradeTests : IDisposable
     }
 
     [Fact]
+    public void DuplicateOfferEntries_BeyondStock_AreRejected_NoItemMinting()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            TwoTradersTogether(server);
+            OpenTrade(server);
+
+            // Alice owns 10 iron_ore. Pre-fix, each duplicate entry passed the Has() check against
+            // the full owned count and was paid out per entry on commit — minting 10 extra (#406).
+            server.SetTradeOffer("Alice", new[] { new ItemAmount("iron_ore", 10), new ItemAmount("iron_ore", 10) });
+
+            Assert.Empty(server.ActiveTrade("Alice")!.OfferA); // aggregated 20 > 10 owned → rejected
+        }
+    }
+
+    [Fact]
+    public void DuplicateOfferEntries_WithinStock_AreMergedAndSwapOnce()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (a, b) = TwoTradersTogether(server);
+            OpenTrade(server);
+
+            server.SetTradeOffer("Alice", new[] { new ItemAmount("iron_ore", 3), new ItemAmount("iron_ore", 4) });
+            server.ConfirmTrade("Alice");
+            server.ConfirmTrade("Bob"); // Bob offers nothing → still a valid one-sided gift
+
+            Assert.Null(server.ActiveTrade("Alice")); // committed
+            Assert.Equal(3, a.Inventory.CountOf("iron_ore")); // 10 − (3+4)
+            Assert.Equal(7, b.Inventory.CountOf("iron_ore")); // exactly the merged amount, no dupe
+        }
+    }
+
+    [Fact]
     public void Trade_RejectedWhenPartnersTooFarApart()
     {
         var server = Started(out var repo);

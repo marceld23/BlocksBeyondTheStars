@@ -117,7 +117,14 @@ public sealed partial class GameServer
             return;
         }
 
-        var offer = items.Where(i => i.Count > 0).Select(i => new ItemAmount(i.Item, i.Count)).ToList();
+        // Aggregate per item id: duplicate entries (e.g. [{iron,50},{iron,50}]) would each pass the
+        // Has() check against the full owned count and then be Add()ed once per entry on commit —
+        // minting items from nothing. Summing through long clamps a wrap-around to an impossible
+        // amount, so an overflowing offer simply fails validation below.
+        var offer = items.Where(i => i.Count > 0)
+            .GroupBy(i => i.Item)
+            .Select(g => new ItemAmount(g.Key, (int)System.Math.Min(g.Sum(i => (long)i.Count), int.MaxValue)))
+            .ToList();
         // Validate against the offering player's OWN ship cargo, not the ship cursor (`_ship`). In normal
         // message dispatch the cursor already is this player, but keying off their own session removes the
         // cursor dependency so the check is correct regardless of who the server is currently serving.
