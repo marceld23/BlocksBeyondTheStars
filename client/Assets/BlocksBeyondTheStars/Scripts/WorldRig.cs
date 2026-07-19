@@ -259,6 +259,7 @@ namespace BlocksBeyondTheStars.Client
             var interactions = root.AddComponent<PlayerInteractions>();
             interactions.Game = boot;
             interactions.Remotes = remotes;
+            interactions.Menu = menu;
 
             // Render planet enemies (M25).
             var entities = root.AddComponent<WorldEntities>();

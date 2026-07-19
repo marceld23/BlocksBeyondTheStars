@@ -120,6 +120,31 @@ never end the loop. Regression tests: blocked-health-probe harness proves reap/s
 world (reap test fails pre-fix), and a throwing `/status` provider proves the gateway answers the
 next request (fails pre-fix). Server-only (WorldHost image + bundled server gateway).
 
+### ★ Dock/trade modal no longer permanently locks the cursor under the Tab menu (#407, 2026-07-19, branch fix-407-dock-modal-cursor)
+A dock/trade request arriving **while the Tab menu was open** locked the cursor for the rest of the
+session: PlayerInteractions freed the cursor only on the modal's *rising edge*, and GameMenu's close
+re-locks unconditionally — so once the edge was consumed under the menu, nothing ever unlocked again
+(audit finding C1, the worst case of the systemic #413). The modal cursor manager is now
+**level-triggered** like RespawnPrompt: while a dock/trade modal is up it re-asserts
+`MenuOpen` + a free cursor every frame, so closing the Tab menu reveals a clickable Accept/Decline
+panel instead of a dead session. On modal close the cursor is handed back to gameplay **unless the
+Tab menu is still open** (modal resolved remotely under it) — then the menu keeps ownership and
+re-locks on its own close (fixes stacking scenario (a) of M2 for this pair). Client-only; the
+broader cursor-ownership refactor stays with #413.
+
+### ★ Failed local-server launch no longer strands the player in a silent void world (#409, 2026-07-19, branch fix/409-server-launch-swallowed)
+When the bundled singleplayer server failed to start (AV/SmartScreen block on a fresh install, broken
+update, port already bound) the client sailed on regardless: `LaunchPrepared()`'s bool result was never
+consumed, the loading screen proceeded on its pure timing guard, and `Disconnected` never fires for a
+never-connected session — so after the 25 s veil timeout the player floated in a chunk-less void with
+no message (audit finding C3; exactly the first-run experience that makes new players uninstall). Now
+`AppShell.Update` **consumes the launch task's result** and watches for an **early process exit**
+during the never-connected window, and `GameBootstrap` raises a localized `ConnectFailedReason` once
+its 6×2 s connect retries are exhausted (also catching a mistyped multiplayer host/port); both drive
+the same bail-out as a rejected join — back to the main menu with a DE/EN notice (`ui.sp.server_failed`
+with an antivirus hint for local hosting, generic `ui.connect.failed` for remote joins). Client-only;
+reaches players with the next release.
+
 ### ★ WorldHost rate limits no longer spoofable via X-Forwarded-For; per-account login backoff (#418, 2026-07-19, branch fix/418-xff-ratelimit)
 The ForwardedHeaders middleware had `KnownIPNetworks`/`KnownProxies` **cleared**, which in ASP.NET
 means "trust any peer": whoever reached the bind directly could rotate a fabricated `X-Forwarded-For`
