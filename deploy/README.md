@@ -47,15 +47,48 @@ button deep-links into it with the world's wss URL + join token, so browser play
 world with one click. The build is injected out-of-band (the worldhost image cannot build Unity):
 
 ```sh
-# on the VPS, once per client release that ships a webgl*.zip asset:
-cd /opt/bbs/worldhost && rm -rf webgl && mkdir webgl
-curl -fL -o /tmp/webgl.zip "https://github.com/marceld23/BlocksBeyondTheStars/releases/latest/download/webgl-<version>.zip"
+# on the VPS, once per client release that ships a webgl*.zip asset (run as root — the
+# extracted files are root-owned). Clear the folder IN PLACE: it is bind-mounted read-only
+# into the running container, so `rm -rf webgl && mkdir webgl` would replace the directory
+# inode and silently break the mount until the next container recreate.
+cd /opt/bbs/worldhost
+find webgl -mindepth 1 -delete
+curl -fL -o /tmp/webgl.zip "https://github.com/marceld23/BlocksBeyondTheStars/releases/download/v<version>/BlocksBeyondTheStars-webgl-<version>.zip"
 unzip -q /tmp/webgl.zip -d webgl && rm /tmp/webgl.zip
+cat webgl/version.txt   # must print <version>
 ```
 
 The folder is bind-mounted read-only at `/app/webgl` (`BBS_WH_WEBGL_DIR`). Empty folder = a friendly
 "not installed" page. The deep-link needs a build that understands the `hosted_token`/`world_id`
 query parameters (v0.8.0+).
+
+## Per-release runbook — rolling the fleet to a new game version
+
+Proven on v0.8.4/v0.8.5. Precondition: `release.yml` is green for tag `vX.Y.Z` (it publishes the
+dedicated-server image `ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z` and the
+`BlocksBeyondTheStars-webgl-X.Y.Z.zip` release asset).
+
+1. **Pre-pull the game-server image** on the host, so the first world wake doesn't pay the pull:
+   `docker pull ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z`
+2. **Update the fleet pin** (this is *not* covered by `deploy.yml`, which only rewrites the
+   control-plane `*_TAG` lines): back up and edit `/opt/bbs/worldhost/.env` →
+   `BBS_WH_SERVER_IMAGE=ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z`
+   (`cp .env .env.bak.pre-XYZ` first — that backup is also the rollback path).
+3. **Redeploy `worldhost`** via the Deploy (VPS) workflow (service=`worldhost`; set
+   `worldhost_tag=sha-<short>` when the control plane itself changed since the last deploy —
+   check `worldhost-image.yml` runs). The `production` environment gate must be approved.
+4. **Recycle the keep-awake arcade pool worlds.** They never idle-exit
+   (`BBS_WH_GLITCH_KEEP_AWAKE`), so unlike normal worlds they would keep the old image forever:
+   `docker rm -f bbs-world-<id>` per pool world — WorldHost re-wakes each on the new pin within
+   ~20 s via the crash→re-wake path. Verify the image with `docker ps`.
+   Normal hosted worlds need nothing: they pick up the new pin on their next wake.
+5. **Refresh `/play`** with the release's `webgl` zip — see the in-place snippet above.
+   Verify: portal `/play` answers 200 and `webgl/version.txt` prints `X.Y.Z`.
+6. **Config check:** scan the release notes for new env knobs. Defaults are chosen to work for
+   this fleet unless the notes say otherwise — only edit `/opt/bbs/*/.env` when a knob's default
+   does not fit.
+
+Rollback = restore the `.env` backup, redeploy `worldhost`, recycle the pool worlds again.
 
 ## One-time host prerequisites (already done on bbs-host-1, 2026-07-04)
 
