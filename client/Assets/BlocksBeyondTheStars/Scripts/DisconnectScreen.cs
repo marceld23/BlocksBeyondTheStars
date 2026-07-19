@@ -52,11 +52,6 @@ namespace BlocksBeyondTheStars.Client
                 Show();
             }
 
-            if (_shown)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
         }
 
         private void OnDisconnected()
@@ -72,10 +67,7 @@ namespace BlocksBeyondTheStars.Client
             _detail.text = Tr(maintenance ? "ui.disconnect.maint_detail" : "ui.disconnect.detail");
             _panel.SetActive(true);
             _shown = true;
-            if (Game != null)
-            {
-                Game.MenuOpen = true; // freeze player control under the panel
-            }
+            Game?.SetMenuOwner(this, true); // freeze player control + free the cursor under the panel (#413)
         }
 
         private void OnBackToMenu()

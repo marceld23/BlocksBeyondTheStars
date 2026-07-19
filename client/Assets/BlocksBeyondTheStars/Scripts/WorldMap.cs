@@ -31,7 +31,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.M) && !Game.ChatTyping)
+            // Esc closes the map like every other panel — before this, the map set MenuOpen (so the app
+            // shell left Esc alone) but had no handler of its own, leaving Esc swallowed-but-dead (#413 N6).
+            if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping)
+            {
+                Game.MarkMenuInputHandled(); // consumed — don't also pop the quit prompt
+                Close();
+            }
+
+            // Not while the death/ship-destruction prompt is up — confirming it would otherwise reveal a
+            // still-open map (#413 N6).
+            if (Input.GetKeyDown(KeyCode.M) && !Game.ChatTyping && !Game.AwaitingRespawnConfirm)
             {
                 if (_open)
                 {
@@ -61,18 +71,14 @@ namespace BlocksBeyondTheStars.Client
         private void Open()
         {
             _open = true;
-            Game.MenuOpen = true;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Game.SetMenuOwner(this, true); // the cursor arbiter frees/locks from the owner set (#413)
             Build();
         }
 
         private void Close()
         {
             _open = false;
-            Game.MenuOpen = false;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Game.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);

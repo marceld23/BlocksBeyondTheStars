@@ -716,28 +716,10 @@ namespace BlocksBeyondTheStars.Client
             Phase = ShellPhase.InGame;
         }
 
-        /// <summary>Windows/desktop Unity releases a locked cursor when the window loses focus (Alt-Tab), and
-        /// nothing re-locked it on return — so the mouse stayed free and could wander or click out of the game
-        /// during normal on-foot play (Severin playtest). Re-lock on focus regain, but only when we're actually
-        /// in on-foot play with nothing that intentionally frees the cursor: a menu, chat, any of the
-        /// map/trade/dock/beacon/feedback modals (all via <see cref="GameBootstrap.MenuOpen"/>), the space view,
-        /// the respawn prompt, or the quit dialog. Editors/settings are separate shell phases, so already excluded.</summary>
-        private void OnApplicationFocus(bool hasFocus)
-        {
-            if (!hasFocus || Phase != ShellPhase.InGame || _confirmQuit)
-            {
-                return;
-            }
-
-            var boot = Boot();
-            if (boot == null || boot.MenuOpen || boot.ChatTyping || boot.SpaceViewActive || boot.AwaitingRespawnConfirm)
-            {
-                return;
-            }
-
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        // NOTE (#413 N2): Alt-Tab cursor re-lock used to live in an OnApplicationFocus handler here — with
+        // hand-rolled "is anyone else holding the cursor?" checks that missed space flight. The arbiter in
+        // GameBootstrap.LateUpdate now re-asserts the lock every frame from the owner set, which covers
+        // focus regain in every mode with no special-casing.
 
         /// <summary>Tears down the in-game world, stops the local server, and returns to the menu.</summary>
         public void ReturnToMenu()
@@ -783,6 +765,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _confirmQuit; // showing the "quit to menu?" confirmation over the game
         private bool _chatTypingPrev; // chat focus last frame (so closing chat with Esc doesn't pop quit)
+        private bool _fieldTypingPrev; // text field focused last frame (an Esc that unfocuses it clears isFocused the same frame)
         private GameObject _quitDialog;
 
         private GameBootstrap Boot() => _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
@@ -791,11 +774,10 @@ namespace BlocksBeyondTheStars.Client
         {
             _confirmQuit = false;
             ShowQuitDialog(false);
-            var boot = Boot();
-            if (boot != null)
-            {
-                boot.MenuOpen = false; // hands control back to the player (re-locks the cursor)
-            }
+            // Release our ownership — the arbiter re-locks the cursor this frame unless another panel is
+            // still open. Before #413 this path only cleared the shared MenuOpen bool and never re-locked,
+            // so "Resume" left a live, visible OS cursor over the game (M3).
+            Boot()?.SetMenuOwner(this, false);
         }
 
         private GameObject _uiMenu;
@@ -1108,6 +1090,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Esc while typing in a text field (e.g. the world name on save-select) must only leave the
+            // field, not tear the whole screen down (#413 N5). The InputField may process the same Esc
+            // first and clear isFocused before we run, so remember the previous frame's focus too.
+            bool fieldTyping = UiKit.TextFieldFocused();
+            bool fieldTypingRecent = fieldTyping || _fieldTypingPrev;
+            _fieldTypingPrev = fieldTyping;
+
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (Phase == ShellPhase.InGame)
@@ -1121,22 +1110,18 @@ namespace BlocksBeyondTheStars.Client
                     {
                         CancelQuit(); // Esc again dismisses the confirmation
                     }
-                    else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame))
+                    else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm))
                     {
-                        // The in-game menu or one of its browser screens owns this Esc press.
+                        // The in-game menu / a modal owns this Esc press — or the death prompt is up
+                        // (#413: the quit dialog would open invisibly BEHIND its backdrop, sortingOrder
+                        // 60 vs 85; only its "Weiter" button proceeds).
                     }
                     else
                     {
                         // Ask before leaving the game (rather than quitting instantly).
                         _confirmQuit = true;
                         ShowQuitDialog(true);
-                        if (boot != null)
-                        {
-                            boot.MenuOpen = true; // freezes player control + frees the cursor for the buttons
-                        }
-
-                        Cursor.lockState = CursorLockMode.None;
-                        Cursor.visible = true;
+                        boot?.SetMenuOwner(this, true); // freezes player control + frees the cursor for the buttons (#413)
                     }
                 }
                 else if (Phase == ShellPhase.Settings)
@@ -1153,7 +1138,10 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else if (Phase == ShellPhase.SaveSelect)
                 {
-                    Phase = ShellPhase.MainMenu;
+                    if (!fieldTypingRecent)
+                    {
+                        Phase = ShellPhase.MainMenu;
+                    }
                 }
                 else if (Phase == ShellPhase.ShipEditor)
                 {

@@ -68,10 +68,6 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                // Keep the cursor usable for the OK button while the modal is up (cheap per-frame insurance,
-                // same as RespawnPrompt — gameplay systems would otherwise re-lock it).
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
             }
 
             if (_lingerRemaining > 0f)
@@ -131,6 +127,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _modal?.SetActive(true);
+            // Cursor-only owner (#413): the OK button needs a free cursor, but gameplay is not paused
+            // (a maintenance notice can arrive mid-flight; the countdown plays out regardless).
+            Game?.SetCursorOwner(this, true);
         }
 
         private void OnInfoAck()
@@ -142,12 +141,7 @@ namespace BlocksBeyondTheStars.Client
                 _lingerRemaining = InfoBannerLinger;
             }
 
-            // Hand the cursor back to gameplay unless a menu holds it open.
-            if (Game != null && !Game.MenuOpen)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Game?.SetCursorOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
         }
 
         private void RefreshBanner()

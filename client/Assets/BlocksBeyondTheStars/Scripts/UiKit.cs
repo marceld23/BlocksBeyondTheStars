@@ -25,6 +25,20 @@ namespace BlocksBeyondTheStars.Client
         public static readonly Color Warn = new Color(1.00f, 0.72f, 0.28f); // amber — caution / developer-tool labels
         public static readonly Color TabLocked = new Color(0.30f, 0.34f, 0.42f, 0.85f); // dimmed tab whose context isn't met (stays clickable)
 
+        /// <summary>True while a uGUI text field has keyboard focus — Esc/Tab hotkey handlers must then
+        /// leave the keystroke to the field (unfocus/advance) instead of closing their screen (#413 N5).</summary>
+        public static bool TextFieldFocused()
+        {
+            var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            if (selected == null)
+            {
+                return false;
+            }
+
+            var field = selected.GetComponent<InputField>();
+            return field != null && field.isFocused;
+        }
+
         private static Font _font;
         private static Sprite _panelSprite;
         private static Sprite _buttonSprite;

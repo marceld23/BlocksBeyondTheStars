@@ -47,9 +47,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas.gameObject.SetActive(true);
             RebuildList();
 
-            if (Game != null) Game.MenuOpen = true;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
         }
 
         private void Update()
@@ -58,6 +56,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (Time.frameCount != _openFrame && Input.GetKeyDown(KeyCode.Escape))
             {
+                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
@@ -66,9 +65,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _open = false;
             if (_canvas != null) _canvas.gameObject.SetActive(false);
-            if (Game != null) Game.MenuOpen = false;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
         private NetBeam Find(int id)

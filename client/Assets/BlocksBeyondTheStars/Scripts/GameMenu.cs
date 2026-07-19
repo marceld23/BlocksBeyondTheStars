@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _open;
         private bool _wasInSpaceView;
         private bool _hyperjumpHooked;
+        private bool _typingPrev; // text field focused last frame (an Esc that unfocuses it clears isFocused the same frame)
 
         private void Update()
         {
@@ -50,9 +51,17 @@ namespace BlocksBeyondTheStars.Client
 
                 _wasInSpaceView = Game.SpaceViewActive;
 
+                // Esc/Tab while typing in a menu text field (crafting search, alliance picker …) must only
+                // leave the field, not close the whole menu (#413 N5). The InputField may process the same
+                // Esc first and clear isFocused before we run, so remember the previous frame's focus too
+                // (same trick AppShell uses for the chat input).
+                bool typing = UiKit.TextFieldFocused();
+                bool typingRecent = typing || _typingPrev;
+                _typingPrev = typing;
+
                 // Full-screen menu/browser panes must be escapable before the app shell sees Esc
                 // as "leave game", otherwise the player can get trapped behind overlapping modals.
-                if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping)
+                if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping && !typingRecent)
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(false);
@@ -60,10 +69,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 // Don't let Tab open the menu while the death / ship-destruction prompt is up — only its
-                // "Weiter" button proceeds.
+                // "Weiter" button proceeds. Also not while another modal owns the input (trade, beacon
+                // naming, dock request …): stacking the crafting menu on top of those was the root of a
+                // family of cursor-fights (#413) — the modal's own Esc/Tab handling closes it instead.
                 // Tab (keyboard) or Start (gamepad button 7) toggles the menu.
                 if ((Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.JoystickButton7))
-                    && !Game.AwaitingRespawnConfirm && !Game.ChatTyping)
+                    && !Game.AwaitingRespawnConfirm && !Game.ChatTyping && !typingRecent
+                    && !Game.MenuInputHandledThisFrame && (_open || !Game.MenuOpen))
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(!_open);
@@ -114,10 +126,6 @@ namespace BlocksBeyondTheStars.Client
         /// as the Tab key does (at the current tab), so a marketing shot can show the Tab menu over the cockpit.</summary>
         public void SetMenuOpen(bool open) => SetOpen(open);
 
-        /// <summary>Whether the Tab menu is currently open — read by <see cref="PlayerInteractions"/> to
-        /// decide who owns the cursor when its dock/trade modal closes (#407).</summary>
-        public bool IsOpen => _open;
-
         /// <summary>Opens the in-game Wiki ("Codex") screen — an always-available menu point.</summary>
         public void OpenWiki() { _browser = BrowserScreen.Wiki; SetOpen(true); }
 
@@ -165,9 +173,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _open = open;
-            Game.MenuOpen = _open;
-            Cursor.lockState = _open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = _open;
+            Game.SetMenuOwner(this, _open); // the cursor arbiter frees/locks from the owner set (#413)
             if (_open)
             {
                 UiNav.Enable(gameObject); // gamepad can drive the menu (covers every tab; inert on KB/mouse)

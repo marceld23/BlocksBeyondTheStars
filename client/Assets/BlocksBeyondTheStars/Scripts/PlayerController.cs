@@ -198,6 +198,10 @@ namespace BlocksBeyondTheStars.Client
             // after a fall let a far teleport (boarding a station, travel) drop through while chunks loaded.
             if (_settling && Game != null)
             {
+                // The settle freeze was the one early-return that skipped this: jetpack-thrusting onto a
+                // beam pad froze the player with the jetpack still "on" server-side, draining suit energy
+                // the whole wait (#413 N3).
+                UpdateJetpack(false);
                 transform.position = _spawnPos;
                 _verticalVelocity = 0f;
 
@@ -263,11 +267,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A UI panel or the chat input is open: don't steer/interact, just settle by gravity.
+            // A UI panel or the chat input is open: don't steer/interact, just settle by gravity — unless
+            // we're driving a speeder: on-foot gravity would drag the player out of hover under the menu
+            // and yank them back up on close (#413 N4). Hold the hover position instead.
             if (Game != null && (Game.MenuOpen || Game.ChatTyping))
             {
                 UpdateJetpack(false);
-                ApplyGravityOnly();
+                if (string.IsNullOrEmpty(Game.InSpeeder))
+                {
+                    ApplyGravityOnly();
+                }
+
                 return;
             }
 

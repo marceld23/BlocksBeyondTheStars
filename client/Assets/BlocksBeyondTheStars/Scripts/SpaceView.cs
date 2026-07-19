@@ -970,6 +970,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
+                    Game.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                     CancelLandChooser();
                     return;
                 }
@@ -1270,8 +1271,9 @@ namespace BlocksBeyondTheStars.Client
             EnsureUi();
 
             var loc = Game.Localizer;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            // Cursor-only owner (#413): the pad map needs a free cursor for its click-to-land buttons,
+            // but flight holds through _confirmLand, not MenuOpen.
+            Game.SetCursorOwner(this, true);
 
             // Centre panel in the 1536×864 HUD space (equirect map strip + button rows below).
             const float pw = 760f, ph = 540f;
@@ -1422,7 +1424,8 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        /// <summary>Tears down the landing-pad map + re-locks the cursor for flight.</summary>
+        /// <summary>Tears down the landing-pad map + releases its cursor ownership (the arbiter re-locks
+        /// for flight only once no other panel is open, #413).</summary>
         private void HideLandMap()
         {
             if (_landMapGo != null)
@@ -1432,11 +1435,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _landMapBody = null;
-            if (Game != null && Game.SpaceViewActive)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Game?.SetCursorOwner(this, false);
         }
 
         /// <summary>Rebuilds the quick-bar of ship systems from the active ship's fitted modules (a weapon
@@ -2304,6 +2303,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void Exit()
         {
+            // The pad chooser can still be up when space closes under us (ship destroyed while choosing,
+            // #413 M15): its map lives on the persistent _ui canvas and would survive Exit as a dead
+            // overlay with live click-to-land raycast targets. Tear it down with the view.
+            CancelLandChooser();
             _landDestBody = null; // descent finished — don't let a stale target steer a later recovery landing
             Camera.transform.SetParent(_camPrevParent, false);
             Camera.transform.localPosition = _camPrevLocalPos;

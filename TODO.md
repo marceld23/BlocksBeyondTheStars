@@ -100,6 +100,26 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Cursor/menu/input ownership rebuilt on a single arbiter (#413, 2026-07-19, branch fix/413-cursor-input-ownership)
+~12 panels each wrote the shared `GameBootstrap.MenuOpen` bool AND forced `Cursor.lockState` on their
+own open/close, each assuming it was the only open UI — last-writer-wins produced a whole family of
+locked-cursor-under-live-UI / free-cursor-over-live-gameplay states (audit M2; #407 was the worst
+instance). `MenuOpen` is now a **property derived from an owner set** (`SetMenuOwner`), with a second
+cursor-only owner set (`SetCursorOwner`) for overlays that free the cursor without pausing gameplay
+(landing-pad chooser, respawn prompt, maintenance notice); `GameBootstrap.LateUpdate` **recomputes the
+cursor lock every frame** from all owners — no panel touches `Cursor.*` in-game anymore. That per-frame
+re-assert also fixes M3 (pause "Resume" never re-locked) and N2 (Alt-Tab skips re-lock in flight;
+the old `OnApplicationFocus` special-casing is gone). Instance fixes riding along: M15 (`SpaceView.Exit`
+now tears down a still-open pad chooser — ship destroyed while choosing left a dead 760×540 map with
+live click-to-land buttons over the on-foot world), N1 (Esc closing trade/feedback/beacon/beam-pad/pad-
+chooser marks the press consumed so it can't also pop the quit prompt), N3 (settle/teleport freeze now
+sends jetpack-off; the server kept draining suit energy), N4 (opening a menu while driving a speeder
+held on-foot gravity — now holds the hover), N5 (Esc/Tab while typing in a menu text field or the
+save-select world name only leaves the field, via `UiKit.TextFieldFocused` + a prev-frame latch),
+N6 (planet map closes on Esc; M gated on the death prompt), and Tab can no longer stack the crafting
+menu over an open modal. PlayerInteractions' #407 level-trigger + menu-deference special case collapsed
+into one idempotent per-frame owner registration. Client-only; reaches players with the next release.
+
 ### ★ Ghost entities/players/doors no longer persist across world transitions (#412, 2026-07-19, branch fix/412-ghost-entities-world-transitions)
 Three audit findings (M5/M6/S12), one failure shape: a world change left stale state rendering and
 interacting. **(M5)** `GameBootstrap.OnWorldReset` now clears every world-scoped entity list

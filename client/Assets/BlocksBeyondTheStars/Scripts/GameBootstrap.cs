@@ -713,8 +713,70 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hotbar slot the player has selected (written by the player controller).</summary>
         public int SelectedHotbarSlot;
 
-        /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.</summary>
-        public bool MenuOpen;
+        /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.
+        /// Derived from the menu-owner set — panels register via <see cref="SetMenuOwner"/> instead of
+        /// writing a shared bool, so overlapping panels can no longer clobber each other's state (#413).</summary>
+        public bool MenuOpen => _menuOwners.Count > 0;
+
+        // The cursor/menu arbiter (#413): every open panel registers itself as an owner, and the cursor
+        // lock state is recomputed each frame in LateUpdate from ALL owners — no panel writes
+        // Cursor.lockState directly anymore, so "last close wins" can't strand a locked cursor under a
+        // still-open UI (or an unlocked one over live gameplay).
+        private readonly System.Collections.Generic.HashSet<object> _menuOwners = new();
+        private readonly System.Collections.Generic.HashSet<object> _cursorOwners = new();
+
+        /// <summary>Registers/unregisters <paramref name="owner"/> as an open menu-style panel: frees the
+        /// cursor AND pauses player/flight control (via <see cref="MenuOpen"/>). Idempotent per owner.</summary>
+        public void SetMenuOwner(object owner, bool open)
+        {
+            if (owner == null)
+            {
+                return;
+            }
+
+            if (open)
+            {
+                _menuOwners.Add(owner);
+            }
+            else
+            {
+                _menuOwners.Remove(owner);
+            }
+        }
+
+        /// <summary>Registers/unregisters <paramref name="owner"/> as a cursor-only owner: frees the cursor
+        /// WITHOUT pausing gameplay (e.g. the landing-pad chooser, the respawn prompt, a maintenance
+        /// notice — their systems hold position through their own flags). Idempotent per owner.</summary>
+        public void SetCursorOwner(object owner, bool open)
+        {
+            if (owner == null)
+            {
+                return;
+            }
+
+            if (open)
+            {
+                _cursorOwners.Add(owner);
+            }
+            else
+            {
+                _cursorOwners.Remove(owner);
+            }
+        }
+
+        /// <summary>True while anything wants the OS cursor free (any menu panel or cursor-only owner).</summary>
+        public bool CursorFreeWanted => _menuOwners.Count > 0 || _cursorOwners.Count > 0;
+
+        /// <summary>The single place the in-game cursor lock is decided (#413): recomputed every frame from
+        /// all open-UI owners, after every panel's Update has run. Assigned unconditionally — Windows drops
+        /// a hardware cursor lock on Alt-Tab without telling us, so re-asserting each frame also re-locks
+        /// on focus regain (in flight and on foot alike) with no special focus handling.</summary>
+        private void LateUpdate()
+        {
+            bool free = CursorFreeWanted;
+            Cursor.lockState = free ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = free;
+        }
 
         /// <summary>True while the chat input is focused; the player controller pauses look/move.</summary>
         public bool ChatTyping;

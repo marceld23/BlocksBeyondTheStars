@@ -56,7 +56,6 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _open;
         private bool _sending;
-        private bool _cursorWasLocked = true; // cursor state before the dialog opened, restored on close
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
 
@@ -102,6 +101,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_open && !_sending && Input.GetKeyDown(KeyCode.Escape))
             {
+                Game.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
 
@@ -144,12 +144,10 @@ namespace BlocksBeyondTheStars.Client
             _dialog.SetActive(true);
 
             // Modal: free the cursor + pause player/flight control (mirrors GameMenu / BeamPadUi; SpaceView
-            // holds position while MenuOpen). Remember the cursor state so closing restores it — in flight
-            // sub-screens like the landing-pad chooser the cursor was already free, not locked.
-            _cursorWasLocked = Cursor.lockState == CursorLockMode.Locked;
-            Game.MenuOpen = true;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            // holds position while MenuOpen). The arbiter recomputes on close, so a flight sub-screen the
+            // dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
+            // save/restore the prior state by hand (#413).
+            Game.SetMenuOwner(this, true);
         }
 
         private void Close()
@@ -160,12 +158,7 @@ namespace BlocksBeyondTheStars.Client
             _shotJpg = null;
             if (_dialog != null) _dialog.SetActive(false);
 
-            if (Game != null)
-            {
-                Game.MenuOpen = false;
-                Cursor.lockState = _cursorWasLocked ? CursorLockMode.Locked : CursorLockMode.None;
-                Cursor.visible = !_cursorWasLocked;
-            }
+            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
         }
 
         private void ResetFields()

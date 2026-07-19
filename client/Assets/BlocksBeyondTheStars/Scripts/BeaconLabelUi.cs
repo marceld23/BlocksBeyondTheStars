@@ -54,13 +54,7 @@ namespace BlocksBeyondTheStars.Client
             _openFrame = Time.frameCount;
             _canvas.gameObject.SetActive(true);
 
-            if (Game != null)
-            {
-                Game.MenuOpen = true; // freezes player control + frees the cursor (modal, like trade/dock)
-            }
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
             _input.ActivateInputField();
             _input.Select();
         }
@@ -84,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close(); // cancel — no callback, nothing placed/renamed
             }
         }
@@ -97,13 +92,7 @@ namespace BlocksBeyondTheStars.Client
                 _canvas.gameObject.SetActive(false);
             }
 
-            if (Game != null)
-            {
-                Game.MenuOpen = false;
-            }
-
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
         private void EnsureBuilt()

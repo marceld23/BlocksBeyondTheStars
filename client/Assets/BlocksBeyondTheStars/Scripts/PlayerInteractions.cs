@@ -20,11 +20,8 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
         public RemotePlayers Remotes;
-        public GameMenu Menu; // Tab menu — cursor-ownership arbitration on modal close (#407)
 
         public float InteractRange = 6f;
-
-        private bool _managedCursor;
 
         private void Update()
         {
@@ -34,31 +31,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Our windows are modal: while one is up, free the cursor and pause on-foot control.
-            // Level-triggered (like RespawnPrompt), not edge-triggered: a dock/trade request can
-            // arrive while the Tab menu is open, and GameMenu re-locks the cursor unconditionally
-            // on close — re-asserting every frame keeps the modal clickable instead of leaving the
-            // session with a permanently locked cursor (#407).
+            // Level-triggered on the server-driven state (a dock/trade request can arrive or resolve
+            // remotely at any time, even under the Tab menu). The per-owner registration is idempotent,
+            // and the arbiter keeps the cursor free while ANY owner — us or the menu above us — is still
+            // open, so a remote resolve can no longer strand a locked cursor (#407 → #413).
             bool modal = Game.TradeActive || !string.IsNullOrEmpty(Game.PendingDockFrom);
-            if (modal)
-            {
-                Game.MenuOpen = true;
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-                _managedCursor = true;
-            }
-            else if (_managedCursor)
-            {
-                _managedCursor = false;
-                // Hand the cursor back to gameplay — unless the Tab menu is still open above us
-                // (the modal resolved remotely under it); then the menu keeps cursor ownership
-                // and re-locks on its own close.
-                if (Menu == null || !Menu.IsOpen)
-                {
-                    Game.MenuOpen = false;
-                    Cursor.lockState = CursorLockMode.Locked;
-                    Cursor.visible = false;
-                }
-            }
+            Game.SetMenuOwner(this, modal);
 
             if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping)
             {

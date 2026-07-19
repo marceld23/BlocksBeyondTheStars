@@ -74,10 +74,6 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                // Keep the cursor free for the button every frame — other systems (flight, settle) won't
-                // re-lock it while we're up, but this is cheap insurance against a one-frame fight.
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
             }
         }
 
@@ -126,6 +122,9 @@ namespace BlocksBeyondTheStars.Client
 
             _panel?.SetActive(true);
             _shown = true;
+            // Cursor-only owner (#413): the button needs a free cursor, but gameplay holds through
+            // AwaitingRespawnConfirm, not MenuOpen — the arbiter keeps the two axes separate.
+            Game?.SetCursorOwner(this, true);
             _fade = 0f;
             if (_backdrop != null)
             {
@@ -143,11 +142,8 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.AwaitingRespawnConfirm = false; // release: world reveals / ship recovers from here
+                Game.SetCursorOwner(this, false);    // arbiter re-locks only once NO other owner is open (#413)
             }
-
-            // Hand the cursor back to gameplay (on-foot look / flight re-lock it as before).
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
         }
 
         private void EnsureUi()

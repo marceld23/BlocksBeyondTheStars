@@ -40,13 +40,7 @@ namespace BlocksBeyondTheStars.Client
             _open = true;
             _openedFrame = Time.frameCount; // so the same E press that opened it doesn't close it this frame
             _canvas.enabled = true;
-            if (Game != null)
-            {
-                Game.MenuOpen = true;
-            }
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Game?.SetMenuOwner(this, true); // the cursor arbiter frees/locks from the owner set (#413)
             Rebuild();
         }
 
@@ -63,13 +57,7 @@ namespace BlocksBeyondTheStars.Client
                 _canvas.enabled = false;
             }
 
-            if (Game != null)
-            {
-                Game.MenuOpen = false;
-            }
-
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
         private void Update()
@@ -86,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
             if (_open && Time.frameCount > _openedFrame
                 && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Tab)))
             {
+                Game?.MarkMenuInputHandled(); // this Esc/Tab is consumed — no quit prompt / menu toggle on top (#413 N1)
                 Close();
             }
         }
