@@ -286,6 +286,7 @@ public sealed class WorldHostPhase3Tests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // ~2 min wall clock — exceeds the 120s fast-tier budget (full runs on main/release cover it)
     public async Task ArchiveSweep_SparesAWorld_WhoseWakeIsInFlightAsync()
     {
         var config = new WorldHostConfig
