@@ -88,6 +88,55 @@ public sealed class WorldHostPhase3Tests : IDisposable
         }
     }
 
+    [Fact]
+    public void RateLimiter_IsExhausted_ChecksWithoutConsuming()
+    {
+        long now = 1000;
+        var limiter = new RateLimiter(2, TimeSpan.FromSeconds(60), () => now);
+
+        // Repeated checks never spend budget — the login backoff relies on metering only FAILURES.
+        for (int i = 0; i < 10; i++)
+        {
+            Assert.False(limiter.IsExhausted("acct"));
+        }
+
+        Assert.True(limiter.TryPass("acct"));
+        Assert.True(limiter.TryPass("acct"));
+        Assert.True(limiter.IsExhausted("acct"));
+        Assert.False(limiter.IsExhausted("other"));
+
+        now += 61;                                // window rolls over → cooldown ends
+        Assert.False(limiter.IsExhausted("acct"));
+    }
+
+    // ---------------- Trusted-proxy parsing (#418) ----------------
+
+    [Fact]
+    public void ParseTrustedProxies_SplitsCidrsFromBareAddresses()
+    {
+        var (networks, proxies) = WorldHostConfig.ParseTrustedProxies(
+            new[] { "172.16.0.0/12", "::1", "127.0.0.0/8", "203.0.113.7" });
+
+        Assert.Equal(2, networks.Count);
+        Assert.Equal(2, proxies.Count);
+        Assert.Contains(proxies, p => p.ToString() == "203.0.113.7");
+    }
+
+    [Fact]
+    public void ParseTrustedProxies_DefaultListParses()
+    {
+        var (networks, proxies) = WorldHostConfig.ParseTrustedProxies(new WorldHostConfig().TrustedProxies);
+        Assert.True(networks.Count + proxies.Count > 0);
+    }
+
+    [Fact]
+    public void ParseTrustedProxies_InvalidEntry_FailsLoudly()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => WorldHostConfig.ParseTrustedProxies(new[] { "not-an-ip" }));
+        Assert.Contains("not-an-ip", ex.Message);
+    }
+
     // ---------------- Blocked names (kid-facing hygiene) ----------------
 
     [Fact]

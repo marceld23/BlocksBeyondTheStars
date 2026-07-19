@@ -120,6 +120,24 @@ public sealed class WorldHostConfig
 
     public int LoginPerMinutePerIp { get; set; } = 10;
 
+    /// <summary>Failed login attempts per account per 15 minutes before further tries are refused
+    /// (BBS_WH_LOGIN_FAILS_PER_15_MIN). Complements the per-IP login limit: that one keys on a value an
+    /// attacker with many addresses (or a spoofable proxy chain) controls, this one keys on the TARGET
+    /// account, so a distributed brute force against one name still stalls. Only failures consume budget —
+    /// a player who knows their password is never locked out. Non-positive disables it.</summary>
+    public int LoginFailsPer15MinPerAccount { get; set; } = 10;
+
+    /// <summary>Proxies whose <c>X-Forwarded-For</c> is honored as the real client IP — the rate limits
+    /// above key on it (BBS_WH_TRUSTED_PROXIES, comma-separated IPs and/or CIDRs; the literal <c>none</c>
+    /// empties the list, which turns forwarded headers OFF entirely). The default trusts loopback and the
+    /// private ranges: the fleet's Caddy is a sibling container on the docker network (an address in
+    /// 172.16/12 assigned at network creation), while a caller on the public internet can never inject a
+    /// spoofed header this way (#418). Operators who know their proxy's exact address can tighten this.</summary>
+    public List<string> TrustedProxies { get; set; } = new()
+    {
+        "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7",
+    };
+
     public int UploadsPerHourPerAccount { get; set; } = 6;
 
     public int ReportsPerHourPerAccount { get; set; } = 10;
@@ -276,6 +294,37 @@ public sealed class WorldHostConfig
     public bool GlitchConfigured =>
         GlitchEnabled && GlitchTitleId.Length > 0 && GlitchTitleToken.Length > 0;
 
+    /// <summary>Splits <see cref="TrustedProxies"/> into the two shapes the ForwardedHeaders middleware
+    /// takes: CIDR entries (containing '/') become networks, bare addresses become single proxies. Parsed
+    /// eagerly at startup so a typo'd BBS_WH_TRUSTED_PROXIES fails the launch loudly — a silently dropped
+    /// entry would either reopen the spoofing hole or collapse every player onto the proxy's rate-limit
+    /// bucket, and neither failure announces itself.</summary>
+    public static (List<System.Net.IPNetwork> Networks, List<System.Net.IPAddress> Proxies) ParseTrustedProxies(IEnumerable<string> entries)
+    {
+        var networks = new List<System.Net.IPNetwork>();
+        var proxies = new List<System.Net.IPAddress>();
+        foreach (string entry in entries)
+        {
+            try
+            {
+                if (entry.Contains('/'))
+                {
+                    networks.Add(System.Net.IPNetwork.Parse(entry));
+                }
+                else
+                {
+                    proxies.Add(System.Net.IPAddress.Parse(entry));
+                }
+            }
+            catch (FormatException ex)
+            {
+                throw new InvalidOperationException($"BBS_WH_TRUSTED_PROXIES entry '{entry}' is not a valid IP address or CIDR network.", ex);
+            }
+        }
+
+        return (networks, proxies);
+    }
+
     /// <summary>Loads config from BBS_WH_* environment variables over the defaults.</summary>
     public static WorldHostConfig FromEnvironment()
     {
@@ -320,6 +369,13 @@ public sealed class WorldHostConfig
 
         if (Env("BBS_WH_SIGNUPS_PER_HOUR") is { } suStr && int.TryParse(suStr, out var su)) { c.SignupPerHourPerIp = su; }
         if (Env("BBS_WH_LOGINS_PER_MINUTE") is { } liStr && int.TryParse(liStr, out var li)) { c.LoginPerMinutePerIp = li; }
+        if (Env("BBS_WH_LOGIN_FAILS_PER_15_MIN") is { } lfStr && int.TryParse(lfStr, out var lf)) { c.LoginFailsPer15MinPerAccount = lf; }
+        if (Env("BBS_WH_TRUSTED_PROXIES") is { } proxies)
+        {
+            c.TrustedProxies = string.Equals(proxies.Trim(), "none", StringComparison.OrdinalIgnoreCase)
+                ? new List<string>()
+                : proxies.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+        }
         if (Env("BBS_WH_UPLOADS_PER_HOUR") is { } ulStr && int.TryParse(ulStr, out var ul)) { c.UploadsPerHourPerAccount = ul; }
         if (Env("BBS_WH_REPORTS_PER_HOUR") is { } rpStr && int.TryParse(rpStr, out var rp)) { c.ReportsPerHourPerAccount = rp; }
         if (Env("BBS_WH_STATS_PER_MINUTE") is { } spStr && int.TryParse(spStr, out var sp)) { c.StatsPerMinutePerIp = sp; }

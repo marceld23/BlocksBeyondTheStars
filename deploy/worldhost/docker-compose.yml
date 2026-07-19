@@ -66,6 +66,10 @@ services:
       BBS_WH_INSTANCE_MEMORY: ${BBS_WH_INSTANCE_MEMORY:-768m}
       BBS_WH_INSTANCE_CPUS: ${BBS_WH_INSTANCE_CPUS:-2}
       BBS_WH_MAX_ACTIVE: ${BBS_WH_MAX_ACTIVE:-10}
+      # X-Forwarded-For trust (#418): empty keeps the built-in default (loopback + private ranges —
+      # covers the sibling Caddy container); set exact IPs/CIDRs to tighten, `none` to disable.
+      BBS_WH_TRUSTED_PROXIES: ${BBS_WH_TRUSTED_PROXIES:-}
+      BBS_WH_LOGIN_FAILS_PER_15_MIN: ${BBS_WH_LOGIN_FAILS_PER_15_MIN:-}
       # glitch.fun arcade gateway (v0.8.0): off without the title credentials. The title token is
       # server-side only by design — it never ships inside the WebGL build.
       BBS_WH_GLITCH_ENABLED: ${BBS_WH_GLITCH_ENABLED:-false}

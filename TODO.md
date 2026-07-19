@@ -100,6 +100,19 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ WorldHost rate limits no longer spoofable via X-Forwarded-For; per-account login backoff (#418, 2026-07-19, branch fix/418-xff-ratelimit)
+The ForwardedHeaders middleware had `KnownIPNetworks`/`KnownProxies` **cleared**, which in ASP.NET
+means "trust any peer": whoever reached the bind directly could rotate a fabricated `X-Forwarded-For`
+per request and mint a fresh rate-limit bucket every time — unlimited signup floods and password
+brute-force from one host (audit finding S7). Now a real trusted-proxy allow-list drives the
+middleware: `BBS_WH_TRUSTED_PROXIES` (IPs/CIDRs; parsed eagerly, typos fail the launch loudly;
+`none` disables forwarded headers), defaulting to loopback + private ranges so the fleet's sibling
+Caddy container works without .env changes while public callers can never inject the header. On top,
+`/api/login` gained a per-account failed-login backoff (world-password pattern: `IsExhausted` before
+verify, only failures spend budget, keyed on the lowercased name; 10 fails/15 min via
+`BBS_WH_LOGIN_FAILS_PER_15_MIN` → 429 `too_many_attempts`, locale keys existed) — so a distributed
+brute force against one account stalls even with many real IPs. Server-only (WorldHost image).
+
 ### ★ Admin /api endpoints fail closed without a password on public binds (#411, 2026-07-19, branch fix/411-admin-api-fail-closed)
 The `/api` auth middleware only enforced the admin password **when one was configured** — with
 `BBS_ADMIN_PASSWORD` unset (the default) every admin route ran unauthenticated, including

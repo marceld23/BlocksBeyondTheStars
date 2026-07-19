@@ -23,6 +23,7 @@ var glitch = new GlitchGateway(config, registry, orchestrator);
 // fronts this service), uploads/reports on the account. See WorldHostConfig for the operator knobs.
 var signupLimit = new RateLimiter(config.SignupPerHourPerIp, TimeSpan.FromHours(1));
 var loginLimit = new RateLimiter(config.LoginPerMinutePerIp, TimeSpan.FromMinutes(1));
+var loginFailLimit = new RateLimiter(config.LoginFailsPer15MinPerAccount, TimeSpan.FromMinutes(15));
 var uploadLimit = new RateLimiter(config.UploadsPerHourPerAccount, TimeSpan.FromHours(1));
 var reportLimit = new RateLimiter(config.ReportsPerHourPerAccount, TimeSpan.FromHours(1));
 var statsLimit = new RateLimiter(config.StatsPerMinutePerIp, TimeSpan.FromMinutes(1));
@@ -33,17 +34,32 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.WebHost.UseUrls($"http://{config.BindAddress}:{config.Port}");
 
-// Honor X-Forwarded-* from the fronting Caddy so rate limits key on the real client IP, not the proxy.
-// The proxy is a trusted sibling container on an arbitrary IP, so clear the loopback-only allow-list.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
+// Honor X-Forwarded-* from the fronting Caddy so rate limits key on the real client IP, not the proxy —
+// but ONLY from the configured trusted proxies (#418). The lists were previously cleared, which in this
+// middleware means "trust ANY peer": whoever could reach the bind directly could rotate a fabricated
+// X-Forwarded-For per request and mint a fresh rate-limit bucket every time. ForwardLimit stays at its
+// default 1, so even a proxy that appends to an attacker-supplied header only ever advances one hop —
+// the one the trusted proxy itself wrote. An empty trusted list (BBS_WH_TRUSTED_PROXIES=none) skips the
+// middleware entirely: limits then key on the immediate peer, which is at least never attacker-chosen.
+var (trustedNetworks, trustedProxies) = WorldHostConfig.ParseTrustedProxies(config.TrustedProxies);
+bool honorForwardedHeaders = trustedNetworks.Count + trustedProxies.Count > 0;
+if (honorForwardedHeaders)
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        trustedNetworks.ForEach(options.KnownIPNetworks.Add);
+        trustedProxies.ForEach(options.KnownProxies.Add);
+    });
+}
 
 var app = builder.Build();
-app.UseForwardedHeaders();
+if (honorForwardedHeaders)
+{
+    app.UseForwardedHeaders();
+}
 var log = app.Logger;
 
 string CallerIp(HttpContext ctx) => ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -492,8 +508,20 @@ app.MapPost("/api/login", (HttpContext ctx, SignupRequest req) =>
         return RateLimited();
     }
 
-    if (registry.Login(req.Name, req.Password) is not { } login)
+    // Per-account failed-login backoff (#418), the world-password pattern: the per-IP window keys on a
+    // value a distributed attacker multiplies at will, this one keys on the TARGET name — lowercased so
+    // case rotation doesn't mint fresh windows. Only failures consume budget (IsExhausted checks without
+    // spending), so the account owner with the right password sails through even mid-attack.
+    string name = req.Name ?? string.Empty; // declared non-nullable, but JSON binding can deliver null
+    string accountKey = name.Trim().ToLowerInvariant();
+    if (loginFailLimit.IsExhausted(accountKey))
     {
+        return ApiError("Too many password attempts — please wait a few minutes.", StatusCodes.Status429TooManyRequests);
+    }
+
+    if (registry.Login(name, req.Password) is not { } login)
+    {
+        loginFailLimit.TryPass(accountKey);
         return Results.Unauthorized();
     }
 
