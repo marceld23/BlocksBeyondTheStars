@@ -181,6 +181,18 @@ compatibility) separate — it is not the game version. Gotchas if you touch thi
 built (out of scope for now — a native macOS client would need its own graphics (Metal/Vulkan) and
 Apple code-signing/notarization work).
 
+**After every merge to `main`, verify the push-triggered workflows actually started** (`gh run list`):
+GitHub Actions has been observed (2026-07-19, several pushes) to silently create **zero** runs for a
+main push — no CI, no CodeQL and, worse, no `worldhost-image.yml`/`reports-image.yml`/`ai-image.yml`
+build, so a service fix merges but its deployable image never gets built. If a run is missing, dispatch
+the image workflow by hand (`gh workflow run worldhost-image.yml -f push=true -f tag=sha-<short> -f latest=true`);
+missed CI/CodeQL runs are covered by the PR gates and the weekly CodeQL cron. Related pin gotcha:
+**push-built image tags use a 7-char short sha** (`sha-${GITHUB_SHA::7}`, e.g. `sha-6c1041e`) — pinning
+an 8-char tag in a `deploy.yml` dispatch fails at pull time *after* the `.env` tag line was already
+rewritten (rerun with the correct tag to heal). Manual-dispatch tags are free-form. The per-release
+fleet roll itself (server-image pin, pool recycle, `/play` refresh) is documented in
+[deploy/README.md](deploy/README.md).
+
 ## Project conventions
 
 - C#: `LangVersion=latest`, nullable enabled, 4-space indent, Allman braces
