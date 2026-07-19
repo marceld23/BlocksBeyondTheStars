@@ -156,6 +156,8 @@ public sealed class WebSocketTransportTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // real-socket close handshake under a loaded parallel suite: 3 s locally,
+                                // but 190 s+ on a busy 2-core PR runner — full runs on main still cover it
     public async Task Gateway_DropsAConnectionThatNeverSendsAsync()
     {
         int port = FreeTcpPort();
