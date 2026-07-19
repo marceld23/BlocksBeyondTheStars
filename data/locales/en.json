@@ -1015,6 +1015,8 @@
   "ui.glitch.arcade_failed": "Could not join the arcade world right now - please try again in a moment.",
   "ui.glitch.access_revoked": "Your arcade access has been revoked.",
   "ui.sp.browser_failed": "The world could not be started in this browser - please reload the page and try again.",
+  "ui.settings.recovered_backup": "Your settings file was damaged - the last good backup was restored automatically.",
+  "ui.settings.reset_defaults": "Your settings file was damaged and has been reset to defaults - please check your name and options in Settings.",
   "ui.host.title": "HOST A WORLD",
   "ui.host.subtitle": "Host a world for friends: pick any saved world or create a new one, then share the address shown in-game.",
   "ui.host.max_players": "Max players",

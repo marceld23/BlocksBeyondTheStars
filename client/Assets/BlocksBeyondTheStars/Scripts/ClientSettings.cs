@@ -336,25 +336,52 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        private static string FilePath => Path.Combine(Application.persistentDataPath, "client_settings.json");
+        /// <summary>Directory the settings/token files live in; null = Unity's persistent data path. A static
+        /// seam (Load/Save are static) so the edit-mode tests can run against a scratch directory instead of
+        /// the developer's real settings.</summary>
+        public static string StorageDirOverride = null;
+
+        /// <summary>Locale KEY of a one-shot "settings were recovered / reset" notice set by <see cref="Load"/>.
+        /// Load runs before the localizer exists, so the main menu localizes it into
+        /// <see cref="AppShell.MenuNotice"/> at build time and clears this.</summary>
+        public static string LoadNoticeKey = "";
+
+        private static string StorageDir => string.IsNullOrEmpty(StorageDirOverride)
+            ? Application.persistentDataPath
+            : StorageDirOverride;
+
+        private static string FilePath => Path.Combine(StorageDir, "client_settings.json");
+
+        /// <summary>The previous settings file, kept by every atomic <see cref="Save"/> as the recovery source
+        /// when the main file is lost/corrupted (crash mid-write, disk hiccup, AV interference).</summary>
+        private static string BackupPath => FilePath + ".bak";
+
+        /// <summary>Where an unreadable settings file is moved (never deleted) so nothing is clobbered and a
+        /// bug report can include the evidence.</summary>
+        private static string CorruptPath => FilePath + ".corrupt";
+
+        /// <summary>Separate copy of just <see cref="PlayerToken"/>. The token is irreplaceable (it IS the
+        /// name claim on every server), so it gets its own tiny file that no settings rewrite ever touches —
+        /// the last line of defence when both the settings file and its .bak are gone (#410).</summary>
+        private static string TokenPath => Path.Combine(StorageDir, "player_token.txt");
 
         public static ClientSettings Load()
         {
-            // Capture before touching the file: a genuine first run is the only time we auto-pick the
+            // Capture before touching the files: a genuine first run is the only time we auto-pick the
             // language from the OS. Returning players keep whatever they chose (even an explicit "en").
-            bool freshInstall = !File.Exists(FilePath);
+            // Any surviving file — main, backup or token — counts as an existing install.
+            bool freshInstall = !File.Exists(FilePath) && !File.Exists(BackupPath) && !File.Exists(TokenPath);
 
-            ClientSettings settings = null;
-            try
+            ClientSettings settings = TryReadSettingsFile(FilePath);
+            bool recovering = settings == null && File.Exists(FilePath);
+            if (recovering)
             {
-                if (File.Exists(FilePath))
-                {
-                    settings = JsonUtility.FromJson<ClientSettings>(File.ReadAllText(FilePath));
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"Could not read client settings, using defaults: {e.Message}");
+                // The settings file exists but can't be parsed. Never reset it silently — that used to
+                // destroy the only copy of the name-claim token and permanently lock the player out of
+                // their own name (#410). Preserve the evidence, then fall back to the last good backup.
+                PreserveCorruptFile();
+                settings = TryReadSettingsFile(BackupPath);
+                LoadNoticeKey = settings != null ? "ui.settings.recovered_backup" : "ui.settings.reset_defaults";
             }
 
             settings ??= new ClientSettings();
@@ -373,10 +400,28 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            bool tokenChanged = false;
+            if (string.IsNullOrEmpty(settings.PlayerToken))
+            {
+                // Both the settings and their backup lost the token (or a fresh install): restore it from
+                // its own backup file before ever minting a new one.
+                settings.PlayerToken = TryReadTokenBackup();
+                tokenChanged = !string.IsNullOrEmpty(settings.PlayerToken);
+            }
+
             if (string.IsNullOrEmpty(settings.PlayerToken))
             {
                 settings.PlayerToken = Guid.NewGuid().ToString("N");
-                settings.Save(); // persist the claim secret right away so it survives a crash before the next save
+                tokenChanged = true;
+            }
+
+            if (recovering || tokenChanged)
+            {
+                settings.Save(); // persist the recovered state / claim secret right away so it survives a crash
+            }
+            else
+            {
+                EnsureTokenBackup(settings.PlayerToken); // heal installs that predate the token backup file
             }
 
             return settings;
@@ -386,11 +431,94 @@ namespace BlocksBeyondTheStars.Client
         {
             try
             {
-                File.WriteAllText(FilePath, JsonUtility.ToJson(this, prettyPrint: true));
+                // Atomic write (#410): a crash mid-write may corrupt only the .tmp file, never the live
+                // settings. The previous file survives as .bak — Load's recovery source.
+                string tmp = FilePath + ".tmp";
+                File.WriteAllText(tmp, JsonUtility.ToJson(this, prettyPrint: true));
+                if (File.Exists(FilePath))
+                {
+                    try
+                    {
+                        File.Replace(tmp, FilePath, BackupPath);
+                    }
+                    catch (Exception)
+                    {
+                        // File.Replace can be unavailable (platform FS quirks) — same net result, just not atomic.
+                        File.Copy(FilePath, BackupPath, overwrite: true);
+                        File.Delete(FilePath);
+                        File.Move(tmp, FilePath);
+                    }
+                }
+                else
+                {
+                    File.Move(tmp, FilePath);
+                }
+
+                EnsureTokenBackup(PlayerToken);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"Could not save client settings: {e.Message}");
+            }
+        }
+
+        private static ClientSettings TryReadSettingsFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return null;
+                return JsonUtility.FromJson<ClientSettings>(File.ReadAllText(path));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Could not read client settings from '{Path.GetFileName(path)}': {e.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Moves the unreadable settings file aside to <see cref="CorruptPath"/> (keeping only the
+        /// latest incident). Moving — not deleting — means the next Save can't shove corrupt content into
+        /// the .bak slot, and the player still has the raw file.</summary>
+        private static void PreserveCorruptFile()
+        {
+            try
+            {
+                if (File.Exists(CorruptPath)) File.Delete(CorruptPath);
+                File.Move(FilePath, CorruptPath);
+                Debug.LogWarning($"Preserved unreadable client settings as '{Path.GetFileName(CorruptPath)}'.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Could not preserve the corrupt client settings file: {e.Message}");
+            }
+        }
+
+        private static string TryReadTokenBackup()
+        {
+            try
+            {
+                return File.Exists(TokenPath) ? File.ReadAllText(TokenPath).Trim() : "";
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Could not read the player-token backup: {e.Message}");
+                return "";
+            }
+        }
+
+        private static void EnsureTokenBackup(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return;
+            try
+            {
+                if (!File.Exists(TokenPath) || !string.Equals(File.ReadAllText(TokenPath).Trim(), token, StringComparison.Ordinal))
+                {
+                    File.WriteAllText(TokenPath, token);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Could not write the player-token backup: {e.Message}");
             }
         }
 

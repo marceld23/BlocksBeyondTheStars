@@ -1016,6 +1016,8 @@
   "ui.glitch.arcade_failed": "Die Arcade-Welt konnte gerade nicht betreten werden - bitte versuch es gleich noch einmal.",
   "ui.glitch.access_revoked": "Dein Arcade-Zugang wurde gesperrt.",
   "ui.sp.browser_failed": "Die Welt konnte in diesem Browser nicht gestartet werden - bitte lade die Seite neu und versuch es noch einmal.",
+  "ui.settings.recovered_backup": "Deine Einstellungsdatei war beschaedigt - die letzte gute Sicherung wurde automatisch wiederhergestellt.",
+  "ui.settings.reset_defaults": "Deine Einstellungsdatei war beschaedigt und wurde zurueckgesetzt - bitte pruefe deinen Namen und deine Optionen in den Einstellungen.",
   "ui.host.title": "WELT HOSTEN",
   "ui.host.subtitle": "Eine Welt für Freunde hosten: eine gespeicherte Welt wählen oder neu erstellen, dann die im Spiel angezeigte Adresse teilen.",
   "ui.host.max_players": "Max. Spieler",

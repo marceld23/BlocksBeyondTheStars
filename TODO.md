@@ -5949,6 +5949,18 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-19): corrupt settings can no longer destroy the PlayerToken (#410)
+
+A corrupt/truncated `client_settings.json` used to silently reset all settings **and** overwrite the only
+copy of the name-claim token — permanently locking the player out of their own multiplayer name.
+`ClientSettings.Save` is now atomic (temp + `File.Replace`) and keeps the previous file as
+`client_settings.json.bak`; `Load` recovers from the `.bak`, preserves the unreadable file as
+`client_settings.json.corrupt` (never clobbers it), and the token additionally lives in its own
+`player_token.txt` backup that settings rewrites never touch (restored even when settings + `.bak` are both
+gone; existing installs gain the backup on next launch). A one-shot localized main-menu notice tells the
+player when a recovery/reset happened. Covered by a new EditMode test suite
+(`ClientSettingsPersistenceEditModeTests`). Ships to players with the next client release.
+
 ## ✅ Done (2026-07-17): fast PR test gate again — Release tests, Slow-tier hygiene, duration guardrail
 
 The PR gate had silently decayed from its designed ~6 min back to ~15 min: new CPU-heavy tests were

@@ -50,6 +50,14 @@ namespace BlocksBeyondTheStars.Client
             GameObject official = null;
 
             // --- One-shot notice (e.g. why the last join was refused) ---
+            // A settings-recovery incident (#410) is claimed here rather than at load time: ClientSettings.Load
+            // runs before the localizer exists, so it can only stash the locale KEY of the notice.
+            if (string.IsNullOrEmpty(shell.MenuNotice) && !string.IsNullOrEmpty(ClientSettings.LoadNoticeKey))
+            {
+                shell.MenuNotice = shell.L(ClientSettings.LoadNoticeKey);
+                ClientSettings.LoadNoticeKey = "";
+            }
+
             if (!string.IsNullOrEmpty(shell.MenuNotice))
             {
                 UiKit.AddText(root, 90f, 286f, 1200f, 28f, shell.MenuNotice, 17,
