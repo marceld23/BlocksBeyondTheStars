@@ -129,7 +129,9 @@ public sealed partial class GameServer
     private void MaybeFlushCrashReports(double dt)
     {
         var sink = CrashUploader;
-        var writer = _crashWriter;
+        // Only flush a writer that already exists — don't force the lazy init (and its directory create)
+        // just to look for queued files that can't exist yet.
+        var writer = _crashWriter.IsValueCreated ? _crashWriter.Value : null;
         if (sink is null || !sink.IsConfigured || writer is null)
         {
             return;

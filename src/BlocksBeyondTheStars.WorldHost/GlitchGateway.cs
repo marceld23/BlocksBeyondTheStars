@@ -699,11 +699,27 @@ public sealed class GlitchGateway
                 ? nameProp.GetString() ?? string.Empty
                 : string.Empty;
             _validateCache[installId] = (now + ValidateCacheSeconds, userName);
+            PruneValidateCache(now);
             return (true, userName);
         }
         catch (Exception)
         {
             return (false, string.Empty);
+        }
+    }
+
+    /// <summary>Drops expired validate-cache entries (#426 S15). Without this, one entry per unique
+    /// visitor ever seen lives until process restart. Runs on the (rare, network-bound) cache-miss path
+    /// right after an insert, so the dictionary walk costs nothing measurable; entries are tiny, but
+    /// unbounded-forever is exactly what the audit flagged.</summary>
+    private void PruneValidateCache(long now)
+    {
+        foreach (var kv in _validateCache)
+        {
+            if (kv.Value.ExpiresUnix <= now)
+            {
+                _validateCache.TryRemove(kv.Key, out _);
+            }
         }
     }
 

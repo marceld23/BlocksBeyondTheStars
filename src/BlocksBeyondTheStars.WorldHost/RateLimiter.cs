@@ -23,6 +23,10 @@ public sealed class RateLimiter
     private readonly long _windowSeconds;
     private readonly Func<long> _nowUnix;
     private readonly ConcurrentDictionary<string, Window> _windows = new();
+    private long _lastSweepUnix;
+
+    /// <summary>Number of keys currently tracked (test/inspection — the #426 S15 sweep keeps this bounded).</summary>
+    public int TrackedKeyCount => _windows.Count;
 
     public RateLimiter(int maxPerWindow, TimeSpan window, Func<long>? nowUnix = null)
     {
@@ -62,6 +66,7 @@ public sealed class RateLimiter
         }
 
         long now = _nowUnix();
+        SweepExpired(now);
         var window = _windows.GetOrAdd(key ?? string.Empty, _ => new Window { StartUnix = now });
         lock (window)
         {
@@ -78,6 +83,34 @@ public sealed class RateLimiter
 
             window.Count++;
             return true;
+        }
+    }
+
+    /// <summary>Amortized cleanup (#426 S15): without it, one entry per unique key ever seen lives until
+    /// process restart — an unbounded control-plane cache growing with every visitor. At most one pass per
+    /// window length, and only entries idle for ≥ 2 windows are dropped: those carry no live budget (their
+    /// window would restart on next use anyway), so racing a concurrent <see cref="TryPass"/> on the same
+    /// key can at worst hand that key one fresh window — irrelevant for abuse blunting.</summary>
+    private void SweepExpired(long now)
+    {
+        long last = Interlocked.Read(ref _lastSweepUnix);
+        if (now - last < _windowSeconds || Interlocked.CompareExchange(ref _lastSweepUnix, now, last) != last)
+        {
+            return; // swept recently, or another caller just took this sweep
+        }
+
+        foreach (var kv in _windows)
+        {
+            bool stale;
+            lock (kv.Value)
+            {
+                stale = now - kv.Value.StartUnix >= _windowSeconds * 2;
+            }
+
+            if (stale)
+            {
+                _windows.TryRemove(kv.Key, out _);
+            }
         }
     }
 }

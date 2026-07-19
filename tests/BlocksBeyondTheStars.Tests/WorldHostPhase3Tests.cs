@@ -80,6 +80,23 @@ public sealed class WorldHostPhase3Tests : IDisposable
     }
 
     [Fact]
+    public void RateLimiter_SweepsIdleKeys_KeepsMemoryBounded()
+    {
+        long now = 1000;
+        var limiter = new RateLimiter(2, TimeSpan.FromSeconds(60), () => now);
+        for (int i = 0; i < 100; i++)
+        {
+            Assert.True(limiter.TryPass("visitor-" + i));
+        }
+
+        Assert.Equal(100, limiter.TrackedKeyCount); // one entry per unique visitor…
+
+        now += 121; // …until they have been idle ≥ 2 windows (#426 S15)
+        Assert.True(limiter.TryPass("fresh"));      // any call past the sweep interval prunes
+        Assert.Equal(1, limiter.TrackedKeyCount);
+    }
+
+    [Fact]
     public void RateLimiter_NonPositiveLimit_DisablesIt()
     {
         var limiter = new RateLimiter(0, TimeSpan.FromSeconds(1), () => 0);

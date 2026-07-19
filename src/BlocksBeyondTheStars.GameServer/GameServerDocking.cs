@@ -17,6 +17,12 @@ public sealed partial class GameServer
 {
     private const string DockingModule = "docking_module";
 
+    /// <summary>How close two players must be for docking (#426 S17). Wider than <c>TradeRange</c> —
+    /// the players stand in/near their parked ships, not face to face — but still "same landing site":
+    /// docking grants guest access to the partner's ship, so it must not be establishable across the
+    /// map or from another world.</summary>
+    private const float DockRange = 48f;
+
     // Outstanding handshake requests: requester id -> target id (one pending request each).
     private readonly Dictionary<string, string> _pendingDock = new();
 
@@ -59,6 +65,12 @@ public sealed partial class GameServer
         if (toSession is null)
         {
             RejectDock(fromSession, "Target player is not online.");
+            return;
+        }
+
+        if (!CanDockTogether(fromId, toId))
+        {
+            RejectDock(fromSession, "The other player must be nearby to dock.");
             return;
         }
 
@@ -127,7 +139,36 @@ public sealed partial class GameServer
             return;
         }
 
+        // Re-check at accept time (#426 S17): the requester may have flown to another world (or across
+        // the map) between request and accept — the request-time check alone must not be bankable.
+        if (!CanDockTogether(fromId, toId))
+        {
+            var requester = FindSessionByPlayerId(fromId);
+            if (requester is not null)
+            {
+                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "Too far apart to dock." });
+            }
+
+            return;
+        }
+
         EstablishDock(fromId, toId);
+    }
+
+    /// <summary>Both players joined, on the SAME world, and within <see cref="DockRange"/> (#426 S17) —
+    /// mirrors <c>CanTradeTogether</c>, plus the explicit world check: positions are world-local, so two
+    /// players on different planets could otherwise "overlap" numerically and dock across worlds.</summary>
+    private bool CanDockTogether(string a, string b)
+    {
+        var sa = FindSessionByPlayerId(a);
+        var sb = FindSessionByPlayerId(b);
+        if (sa is null || sb is null || !sa.Joined || !sb.Joined)
+        {
+            return false;
+        }
+
+        return sa.CurrentLocationId == sb.CurrentLocationId
+            && WrapDistSq(sa.State.Position, sb.State.Position) <= DockRange * DockRange;
     }
 
     /// <summary>Dissolves the player's active docking, if any, and notifies both sides.</summary>

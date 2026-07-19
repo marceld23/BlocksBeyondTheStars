@@ -31,7 +31,7 @@ public sealed class WebSocketServerTransport : IServerTransport
     public static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(15);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA1001:Types that own disposable fields should be disposable",
-        Justification = "Per-connection holder; the socket is torn down when the receive loop ends or the listener stops, and SendLock is used only for WaitAsync/Release (no WaitHandle is ever allocated), so there is nothing requiring deterministic disposal.")]
+        Justification = "Per-connection holder; socket + SendLock are disposed by the receive loop's finally (#426 S16) — the loop outlives every other reference to them, so the holder itself never needs to be IDisposable.")]
     private sealed class Client
     {
         public WebSocket Socket = null!;
@@ -343,6 +343,14 @@ public sealed class WebSocketServerTransport : IServerTransport
         {
             _clients.TryRemove(id, out _);
             _events.Enqueue((EventKind.Disconnect, id, Array.Empty<byte>()));
+
+            // Tear the per-connection resources down for real (#426 S16): before this, every connection
+            // ever accepted leaked its WebSocket (and semaphore) until process exit. Removal from
+            // _clients above stops NEW sends from picking the client up; an in-flight SendAsync that
+            // already holds a reference tolerates both disposals (its catch swallows the socket, its
+            // Release is ObjectDisposedException-guarded).
+            try { client.Socket.Dispose(); } catch { }
+            try { client.SendLock.Dispose(); } catch { }
         }
     }
 
@@ -378,7 +386,15 @@ public sealed class WebSocketServerTransport : IServerTransport
 
     private static async Task SendAsync(Client client, byte[] payload)
     {
-        await client.SendLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await client.SendLock.WaitAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            return; // connection torn down between lookup and send (#426 S16) — nothing to deliver to
+        }
+
         try
         {
             if (client.Socket.State == WebSocketState.Open)
@@ -393,7 +409,7 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
         finally
         {
-            client.SendLock.Release();
+            try { client.SendLock.Release(); } catch (ObjectDisposedException) { }
         }
     }
 

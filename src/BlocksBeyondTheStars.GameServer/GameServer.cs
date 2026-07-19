@@ -69,15 +69,14 @@ public sealed partial class GameServer
     private readonly IGameLogger _log;
     private readonly IAiMissionProvider _ai;
 
-    private CrashReportWriter? _crashWriter;
+    private readonly Lazy<CrashReportWriter> _crashWriter;
 
     /// <summary>The durable, endpoint-independent sink for contained tick faults and process-wide crashes.
     /// Lazily created (after <see cref="Start"/> has resolved the world directory) and shared with the host's
-    /// <c>AppDomain</c>/<c>TaskScheduler</c> handlers so every server fault is written to one place.</summary>
-    public CrashReportWriter CrashWriter => _crashWriter ??= new CrashReportWriter(
-        BugReportPaths.ResolveCrashes(Path.Combine(_repo.WorldDirectory, "crashes")),
-        _config.WorldName,
-        ServerVersionString);
+    /// <c>AppDomain</c>/<c>TaskScheduler</c> handlers so every server fault is written to one place.
+    /// <see cref="Lazy{T}"/> instead of <c>??=</c> (#426 S18): the first accesses can race — a crash handler
+    /// on any thread vs. the tick thread — and a torn double-init would split reports over two writers.</summary>
+    public CrashReportWriter CrashWriter => _crashWriter.Value;
 
     /// <summary>Build string baked into each crash report (informational version if the build set one, else
     /// the assembly version) so a report identifies the binary that produced it.</summary>
@@ -192,6 +191,12 @@ public sealed partial class GameServer
               ?? (config.AiLevel != AiLevel.Off
                   ? new HttpAiMissionProvider(config.AiBackendUrl, timeoutSeconds: config.AiTimeoutSeconds)
                   : new NullAiMissionProvider());
+        _crashWriter = new Lazy<CrashReportWriter>(
+            () => new CrashReportWriter(
+                BugReportPaths.ResolveCrashes(Path.Combine(_repo.WorldDirectory, "crashes")),
+                _config.WorldName,
+                ServerVersionString),
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     private GameRules Rules => _config.Rules;

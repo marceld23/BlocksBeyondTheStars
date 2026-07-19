@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -47,7 +48,27 @@ public sealed class DockingTests : IDisposable
             s.Ships[s.ActiveShipId].Modules.Add("docking_module");
         }
 
+        // Fresh players spawn on their own (far-apart) landing pads; docking now requires standing
+        // together (#426 S17 — the client only offers the K prompt within InteractRange anyway), so
+        // co-locate them like real dock partners before each scenario.
+        Colocate(server);
+
         return server;
+    }
+
+    /// <summary>Puts every joined player at the first session's position (the real pre-dock situation:
+    /// the K prompt only appears for a player standing next to you).</summary>
+    private static void Colocate(SvGameServer server)
+    {
+        var anchor = server.Sessions.Values.First(s => s.Joined);
+        foreach (var s in server.Sessions.Values)
+        {
+            if (s.Joined)
+            {
+                s.State.Position = anchor.State.Position;
+                s.CurrentLocationId = anchor.CurrentLocationId;
+            }
+        }
     }
 
     [Fact]
@@ -122,6 +143,57 @@ public sealed class DockingTests : IDisposable
         }
     }
 
+    /// <summary>Places one player <paramref name="dy"/> blocks straight above their current position —
+    /// vertical, so no torus wrap can shrink the distance regardless of the test world's circumference.</summary>
+    private static void MoveVertically(SvGameServer server, string playerId, float dy)
+    {
+        var s = server.Sessions.Values.First(x => x.State.PlayerId == playerId);
+        var p = s.State.Position;
+        s.State.Position = new Vector3f(p.X, p.Y + dy, p.Z);
+    }
+
+    [Fact]
+    public void FarApart_RejectsDocking()
+    {
+        var server = NewServer(DockingMode.Free, out var repo);
+        using (repo)
+        {
+            MoveVertically(server, "Bob", 200f); // way past DockRange (#426 S17)
+            server.RequestDock("Alice", "Bob");
+            Assert.False(server.AreDocked("Alice", "Bob"));
+        }
+    }
+
+    [Fact]
+    public void DifferentWorld_RejectsDocking_EvenAtOverlappingCoordinates()
+    {
+        var server = NewServer(DockingMode.Free, out var repo);
+        using (repo)
+        {
+            // Positions are world-local: leave them numerically identical, move only the world.
+            var bob = server.Sessions.Values.First(x => x.State.PlayerId == "Bob");
+            bob.CurrentLocationId = "some-other-planet";
+
+            server.RequestDock("Alice", "Bob");
+            Assert.False(server.AreDocked("Alice", "Bob")); // #426 S17: same-world is required
+        }
+    }
+
+    [Fact]
+    public void MovedAwayBetweenRequestAndAccept_RejectsTheAccept()
+    {
+        var server = NewServer(DockingMode.RequestRequired, out var repo);
+        using (repo)
+        {
+            server.RequestDock("Alice", "Bob"); // close together — request goes through
+
+            MoveVertically(server, "Alice", 200f); // requester flies off before Bob accepts
+            server.RespondDock("Bob", "Alice", accept: true);
+
+            Assert.False(server.AreDocked("Alice", "Bob")); // #426 S17: re-checked at accept time
+        }
+    }
+
     [Fact]
     public void MissingDockingModule_RejectsRequest()
     {
@@ -136,6 +208,7 @@ public sealed class DockingTests : IDisposable
         // Note: no docking_module built on the ship.
         server.AddLocalPlayer("Alice");
         server.AddLocalPlayer("Bob");
+        Colocate(server); // rule out the proximity gate — this test is about the missing module
 
         server.RequestDock("Alice", "Bob");
         Assert.False(server.AreDocked("Alice", "Bob"));
@@ -168,6 +241,7 @@ public sealed class DockingTests : IDisposable
             }
         }
 
+        Colocate(server);
         server.RequestDock("Alice", "Bob");
         Assert.True(server.AreDocked("Alice", "Bob"));
 
