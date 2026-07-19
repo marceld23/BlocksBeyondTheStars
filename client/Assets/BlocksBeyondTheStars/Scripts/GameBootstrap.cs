@@ -726,6 +726,12 @@ namespace BlocksBeyondTheStars.Client
         /// AppShell watches this and returns to the menu showing the reason.</summary>
         public string JoinRejectedReason { get; private set; } = string.Empty;
 
+        /// <summary>Set when the transport never connected after every retry (the bundled singleplayer
+        /// server never came up, or a mistyped multiplayer host/port). AppShell watches this and returns
+        /// to the menu showing the reason — without it the player would sit in a chunk-less void once
+        /// the loading veil times out, with no hint anything went wrong (#409).</summary>
+        public string ConnectFailedReason { get; private set; } = string.Empty;
+
         /// <summary>Last server feedback line (craft result / rejection / message) for a HUD toast.</summary>
         public string LastMessage { get; private set; } = string.Empty;
 
@@ -1288,11 +1294,22 @@ namespace BlocksBeyondTheStars.Client
                     // Safety net: re-attempt the connection a few times (e.g. the local
                     // singleplayer server is still starting up).
                     _retryTimer += Time.deltaTime;
-                    if (_retryTimer >= 2f && _retries < 6)
+                    if (_retryTimer >= 2f)
                     {
-                        _retryTimer = 0f;
-                        _retries++;
-                        Network.Connect(Host, Port);
+                        if (_retries < 6)
+                        {
+                            _retryTimer = 0f;
+                            _retries++;
+                            Network.Connect(Host, Port);
+                        }
+                        else if (string.IsNullOrEmpty(ConnectFailedReason))
+                        {
+                            // All retries spent and still no connection: give up loudly. Disconnected
+                            // never fires for a never-connected session, so this flag is the only
+                            // signal AppShell gets to bail back to the menu with a message (#409).
+                            Debug.LogError($"Could not connect to {Host}:{Port} after {_retries} retries — giving up.");
+                            ConnectFailedReason = Localizer?.Get("ui.connect.failed") ?? "Could not connect to the server.";
+                        }
                     }
                 }
             }

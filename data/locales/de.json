@@ -1018,6 +1018,8 @@
   "ui.sp.browser_failed": "Die Welt konnte in diesem Browser nicht gestartet werden - bitte lade die Seite neu und versuch es noch einmal.",
   "ui.settings.recovered_backup": "Deine Einstellungsdatei war beschaedigt - die letzte gute Sicherung wurde automatisch wiederhergestellt.",
   "ui.settings.reset_defaults": "Deine Einstellungsdatei war beschaedigt und wurde zurueckgesetzt - bitte pruefe deinen Namen und deine Optionen in den Einstellungen.",
+  "ui.sp.server_failed": "Der Welt-Server konnte nicht gestartet werden - vielleicht wurde er vom Virenschutz blockiert oder ein anderes Programm benutzt seinen Port. Bitte versuch es noch einmal oder starte das Spiel neu, wenn es wieder passiert.",
+  "ui.connect.failed": "Keine Verbindung zum Server moeglich - bitte pruefe Adresse und Port und versuch es noch einmal.",
   "ui.host.title": "WELT HOSTEN",
   "ui.host.subtitle": "Eine Welt für Freunde hosten: eine gespeicherte Welt wählen oder neu erstellen, dann die im Spiel angezeigte Adresse teilen.",
   "ui.host.max_players": "Max. Spieler",

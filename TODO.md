@@ -100,6 +100,19 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Failed local-server launch no longer strands the player in a silent void world (#409, 2026-07-19, branch fix/409-server-launch-swallowed)
+When the bundled singleplayer server failed to start (AV/SmartScreen block on a fresh install, broken
+update, port already bound) the client sailed on regardless: `LaunchPrepared()`'s bool result was never
+consumed, the loading screen proceeded on its pure timing guard, and `Disconnected` never fires for a
+never-connected session — so after the 25 s veil timeout the player floated in a chunk-less void with
+no message (audit finding C3; exactly the first-run experience that makes new players uninstall). Now
+`AppShell.Update` **consumes the launch task's result** and watches for an **early process exit**
+during the never-connected window, and `GameBootstrap` raises a localized `ConnectFailedReason` once
+its 6×2 s connect retries are exhausted (also catching a mistyped multiplayer host/port); both drive
+the same bail-out as a rejected join — back to the main menu with a DE/EN notice (`ui.sp.server_failed`
+with an antivirus hint for local hosting, generic `ui.connect.failed` for remote joins). Client-only;
+reaches players with the next release.
+
 ### ★ WorldHost rate limits no longer spoofable via X-Forwarded-For; per-account login backoff (#418, 2026-07-19, branch fix/418-xff-ratelimit)
 The ForwardedHeaders middleware had `KnownIPNetworks`/`KnownProxies` **cleared**, which in ASP.NET
 means "trust any peer": whoever reached the bind directly could rotate a fabricated `X-Forwarded-For`

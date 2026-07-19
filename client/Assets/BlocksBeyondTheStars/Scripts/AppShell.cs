@@ -86,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
         /// Null until the first browser-singleplayer start; survives returns to the menu stopped.</summary>
         public BrowserLocalServer BrowserServer { get; private set; }
         private bool _serverPending;                          // prepared, waiting to spawn once the screen is up
-        private System.Threading.Tasks.Task _serverLaunch;    // the off-thread spawn (so Process.Start can't freeze us)
+        private System.Threading.Tasks.Task<bool> _serverLaunch; // the off-thread spawn (so Process.Start can't freeze us)
         private GameObject _gameRoot;
 
         public bool ContentReady { get; private set; }
@@ -1001,6 +1001,32 @@ namespace BlocksBeyondTheStars.Client
                 _serverLaunch = System.Threading.Tasks.Task.Run(() => _localServer.LaunchPrepared());
             }
 
+            // A failed local-server launch must never strand the player in an empty void (#409): consume
+            // the launch task's result (Process.Start refused — AV/SmartScreen block, broken bundle) and
+            // watch for an early process exit (port already bound, instant crash) while nothing is
+            // connected yet. Either way: back to the menu with a notice instead of a silent chunk-less
+            // world. Once the client is connected, a dying server fires Disconnected → DisconnectScreen,
+            // so this watcher only owns the never-connected window.
+            if (_hostLocal && _serverLaunch != null && _serverLaunch.IsCompleted)
+            {
+                bool launched = _serverLaunch.Status == System.Threading.Tasks.TaskStatus.RanToCompletion
+                                && _serverLaunch.Result;
+                var bootForNet = Phase == ShellPhase.InGame ? Boot() : null;
+                bool connected = bootForNet != null && bootForNet.Network != null && bootForNet.Network.Connected;
+                if (connected)
+                {
+                    _serverLaunch = null; // handed over to the normal disconnect handling — stop watching
+                }
+                else if (!launched || !_localServer.IsRunning)
+                {
+                    _serverLaunch = null;
+                    Debug.LogError("Local server failed to launch or exited before the first connect — returning to menu.");
+                    ReturnToMenu();
+                    MenuNotice = L("ui.sp.server_failed");
+                    return;
+                }
+            }
+
             // Settings + credits are uGUI now too (the whole shell is one design).
             if (Phase == ShellPhase.Settings && _uiSettings == null)
             {
@@ -1054,6 +1080,17 @@ namespace BlocksBeyondTheStars.Client
             if (igBoot != null && !string.IsNullOrEmpty(igBoot.JoinRejectedReason))
             {
                 MenuNotice = igBoot.JoinRejectedReason;
+                ReturnToMenu();
+                return;
+            }
+
+            // Never connected at all (#409): the bundled server never came up (blocked/crashed) or a
+            // multiplayer host/port was mistyped. Same bail-out as a rejected join — menu + reason —
+            // instead of an empty void once the loading veil times out. The local-server case gets the
+            // more helpful "server could not start" text (antivirus hint) over the generic connect error.
+            if (igBoot != null && !string.IsNullOrEmpty(igBoot.ConnectFailedReason))
+            {
+                MenuNotice = _hostLocal ? L("ui.sp.server_failed") : igBoot.ConnectFailedReason;
                 ReturnToMenu();
                 return;
             }

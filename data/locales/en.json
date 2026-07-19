@@ -1017,6 +1017,8 @@
   "ui.sp.browser_failed": "The world could not be started in this browser - please reload the page and try again.",
   "ui.settings.recovered_backup": "Your settings file was damaged - the last good backup was restored automatically.",
   "ui.settings.reset_defaults": "Your settings file was damaged and has been reset to defaults - please check your name and options in Settings.",
+  "ui.sp.server_failed": "The world server could not be started - it may have been blocked by your antivirus or another program is using its port. Please try again, or restart the game if it keeps happening.",
+  "ui.connect.failed": "Could not connect to the server - please check the address and port and try again.",
   "ui.host.title": "HOST A WORLD",
   "ui.host.subtitle": "Host a world for friends: pick any saved world or create a new one, then share the address shown in-game.",
   "ui.host.max_players": "Max players",
