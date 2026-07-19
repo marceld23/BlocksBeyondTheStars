@@ -235,8 +235,9 @@ public sealed partial class GameServer
         _shipShieldRegen = regen;
         _shipRadarRange = radar;
 
-        // A freshly created ship starts at full hull; clamp persisted values into range.
-        if (_ship.Hull <= 0f || _ship.Hull > _shipHullMax)
+        // A freshly created ship starts at full hull; clamp persisted values into range. A downed wreck
+        // legitimately sits at zero hull — topping it up here would undo the wreck penalty on reload.
+        if ((_ship.Hull <= 0f && !_ship.Downed) || _ship.Hull > _shipHullMax)
         {
             _ship.Hull = _shipHullMax;
         }

@@ -82,6 +82,10 @@ public sealed class ShipSnapshot
     public float Hull { get; set; } = 100f;
     public float Shield { get; set; }
     public string ShipType { get; set; } = "starter";
+
+    /// <summary>Wreck flag (<see cref="ShipState.Downed"/>): the ship was lost under KeepShipOnDeath=false and
+    /// is grounded until repaired. Persisted so a restart/rejoin doesn't hand back a flight-ready ship for free.</summary>
+    public bool Downed { get; set; }
 }
 
 /// <summary>Maps between runtime state objects and their persisted snapshots.</summary>
@@ -261,6 +265,7 @@ public static class StateMapper
         Hull = ship.Hull,
         Shield = ship.Shield,
         ShipType = ship.ShipType,
+        Downed = ship.Downed,
     };
 
     public static ShipState FromSnapshot(ShipSnapshot s) => new()
@@ -271,5 +276,6 @@ public static class StateMapper
         Hull = s.Hull,
         Shield = s.Shield,
         ShipType = string.IsNullOrEmpty(s.ShipType) ? "starter" : s.ShipType,
+        Downed = s.Downed,
     };
 }

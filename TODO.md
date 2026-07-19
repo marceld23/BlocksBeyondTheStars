@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Wrecked ships stay wrecked across a restart — Downed flag persisted (#419, 2026-07-19, branch fix/419-downed-not-persisted)
+Under `KeepShipOnDeath=false` a ship lost in combat is downed (hull 0, grounded until repaired) — but
+`ShipSnapshot` never carried the `Downed` flag, and `RecomputeShipCombatStats` clamps a hull ≤ 0 back
+to full on load. So any rejoin/restart (maintenance restarts are routine here) handed the wreck back
+fully repaired and flight-ready for free, nullifying the hardcore wreck penalty on every backend
+(SQLite, PostgreSQL, browser-SP — all map through the same `StateMapper`; audit finding S6). Now
+`Downed` round-trips through `ShipSnapshot` + both mappers (old saves default to `false`, unchanged
+behaviour), and the load-time hull clamp leaves a downed wreck at zero instead of topping it up.
+Regression test wrecks a ship, restarts the server on the same save and asserts it comes back
+grounded at hull 0 with launch still rejected. Server-only; reaches the VPS with the next image.
+
 ### ★ WorldHost background passes take the wake lock; WS gateway accept loop survives request faults (#415/#416/#417, 2026-07-19, branch fix/415-417-worldhost-hardening)
 Three audit findings (S3/S4/S5), one theme: fleet background work racing live joins. **(#415)** The
 reaper read a world row, spent seconds in `docker inspect`, then wrote `Stopped/""` **without the

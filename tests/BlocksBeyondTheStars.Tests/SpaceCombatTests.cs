@@ -660,6 +660,52 @@ public sealed class SpaceCombatTests : IDisposable
         }
     }
 
+    [Fact]
+    public void KeepShipOff_Wreck_SurvivesServerRestart_AndStaysGrounded()
+    {
+        // #419: ShipState.Downed was not persisted, so a maintenance restart handed the wrecked ship back
+        // fully repaired and flight-ready for free. The wreck must survive save → reload.
+        var server = NewServer("wreckpersist", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Normal;
+            r.KeepShipOnDeath = false;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
+            server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z);
+            server.Tick(30.0);
+            Assert.True(server.Ship.Downed);
+            Assert.Equal(0f, server.Ship.Hull);
+
+            server.Stop(); // saves players + ships
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        // Restart on the same save: the ship must come back as a grounded wreck, not flight-ready at full hull.
+        var server2 = NewServer("wreckpersist", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.PvE;
+            r.SpaceNpcEnemies = AlienActivity.Normal;
+            r.KeepShipOnDeath = false;
+        }, out var repo2);
+        using (repo2)
+        {
+            server2.AddLocalPlayer("Pilot");
+            Assert.True(server2.Ship.Downed);   // wreck flag survived the reload
+            Assert.Equal(0f, server2.Ship.Hull); // hull NOT clamped back to full on load
+
+            server2.EnterSpace("Pilot");
+            Assert.False(server2.InSpace("Pilot")); // still grounded until repaired
+        }
+    }
+
     // ---------------- Ship module build flow (over the wire) ----------------
 
     [Fact]
