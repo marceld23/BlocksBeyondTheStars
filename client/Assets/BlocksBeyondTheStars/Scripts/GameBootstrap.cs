@@ -1548,6 +1548,24 @@ namespace BlocksBeyondTheStars.Client
             LandedShips.Clear();
             LandedShipsChanged?.Invoke();
 
+            // Same for every world-scoped entity list: the new world re-sends its own, but only lists it
+            // actually HAS — a peaceful destination never sends a PlanetEnemyList, so without this the old
+            // world's robots keep growling/firing here, stale beacons/bases/factories linger on the map, and
+            // ghost speeders keep offering their board prompt (issue #412 M5). The views prune ids missing
+            // from these arrays, so clearing despawns the stale objects.
+            PlanetEnemies = System.Array.Empty<NetCombatEntity>();
+            Creatures = System.Array.Empty<NetCreature>();
+            Npcs = System.Array.Empty<NetNpc>();
+            Containers = System.Array.Empty<NetContainer>();
+            Beacons = System.Array.Empty<NetBeacon>();
+            Beams = System.Array.Empty<NetBeam>();
+            Bases = System.Array.Empty<NetBase>();
+            Factories = System.Array.Empty<NetFactory>();
+            DataCubes = System.Array.Empty<NetDataCube>();
+            NetFragments = System.Array.Empty<NetStoryFragment>();
+            Speeders = System.Array.Empty<NetSpeeder>();
+            PendingSpeederFx.Clear(); // queued one-shot FX would play at old-world coordinates
+
             foreach (var view in _chunkObjects.Values)
             {
                 if (view?.Go != null)

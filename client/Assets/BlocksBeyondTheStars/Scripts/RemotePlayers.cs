@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerPresenceReceived += OnPresence;
                 Game.Network.PlayerLeftReceived += OnLeft;
                 Game.Network.PlayerFaceReceived += OnFace;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -155,6 +156,22 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Changing world (planet ↔ station ↔ ship interior) wipes the remote avatars: presence is
+        /// per-world, so the previous world's players would linger as frozen ghosts — still offering trade/dock
+        /// prompts — at their old-world coordinates (issue #412 M6, mirrors <see cref="NpcView"/>). The new
+        /// world's ~10 Hz presence stream repopulates whoever is really here. The face cache is deliberately
+        /// KEPT: faces are per-player (not per-world) and the server only sends them on join or change, so a
+        /// cleared cache could never be refilled for players we meet again.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var r in _remotes.Values)
+            {
+                Destroy(r.Go);
+            }
+
+            _remotes.Clear();
+        }
+
         private void OnLeft(PlayerLeft m)
         {
             if (_remotes.TryGetValue(m.PlayerId, out var r))
@@ -193,6 +210,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerPresenceReceived -= OnPresence;
                 Game.Network.PlayerLeftReceived -= OnLeft;
                 Game.Network.PlayerFaceReceived -= OnFace;
+                Game.Network.WorldResetReceived -= OnWorldReset;
             }
         }
 

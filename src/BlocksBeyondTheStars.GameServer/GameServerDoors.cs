@@ -105,6 +105,12 @@ public sealed partial class GameServer
         {
             _log.Info($"Registered {_doors.Count} doors in the active world.");
         }
+
+        // Everyone already on this world must see the rebuilt registry: TickDoors only re-broadcasts on an
+        // open/close change, so without this a launched/removed ship left its hatch floating as a ghost door
+        // where the ship stood (and a freshly parked ship's hatch stayed missing) until some other door
+        // toggled (issue #412 S12). DoorList fully replaces the client's doors; an empty world is a no-op.
+        BroadcastDoors();
     }
 
     /// <summary>(Re)builds the active (station) world's door registry from a station's door markers — called

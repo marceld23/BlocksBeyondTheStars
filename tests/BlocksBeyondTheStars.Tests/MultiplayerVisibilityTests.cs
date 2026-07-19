@@ -276,6 +276,39 @@ public sealed class MultiplayerVisibilityTests : IDisposable
         Assert.True(bobSawHullEdit, "Bob must receive Alice's ship-hull edit (StructureBlockChanged) in the shared instance.");
     }
 
+    [Fact]
+    public void ShipLaunch_RebroadcastsDoorRegistry_SoNoGhostHatchRemains()
+    {
+        // Issue #412 S12: launching removes the parked ship object, and RegisterDoors rebuilds the world's
+        // door registry without its hatch — but TickDoors only re-broadcasts on an open/close change, so a
+        // co-located player kept rendering (and colliding with) a ghost hatch door floating where the ship
+        // stood. The rebuild must push the fresh DoorList to everyone still on the world.
+        var transport = new RecordingTransport();
+        var server = NewServer("door_ghost", transport, c =>
+        {
+            c.PlaceStarterShip = true; // both players get a parked ship, each with an energy hatch door
+            c.Rules.FreeSpaceFlight = true;
+        });
+
+        server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+
+        int hatchesBefore = server.DoorSnapshots.Count(d => d.Kind == "energy");
+        Assert.True(hatchesBefore >= 2, "both parked starter ships should register an energy hatch door");
+
+        transport.Sent.Clear();
+        server.EnterSpace("Alice"); // the launch removes Alice's parked ship — and must announce its doors' removal
+
+        var doorList = transport.Sent
+            .Where(x => x.Conn == bob.ConnectionId && x.Msg is DoorList)
+            .Select(x => (DoorList)x.Msg)
+            .LastOrDefault();
+        Assert.NotNull(doorList);
+        Assert.Equal(server.DoorSnapshots.Count, doorList!.Doors.Length); // the fresh registry, not the stale one
+        Assert.True(doorList.Doors.Count(d => d.Kind == "energy") < hatchesBefore,
+            "Alice's hatch must be gone from the door list Bob received");
+    }
+
     // ---------------- Station interiors ----------------
 
     [Fact]
