@@ -11,6 +11,44 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [0.8.5] — 2026-07-19
+
+The audit release: a full static bug-hunt swept the whole stack — client, server and the hosted-worlds fleet — and this release ships the fixes. The headline for players: the locked-cursor family of bugs is gone for good, world changes no longer leave ghosts behind, touch players can't get soft-locked anymore, and a series of exploits and denial-of-service holes on the server side is closed.
+
+### 🖱️ One owner for the cursor — the locked-cursor bugs are gone
+- **A dock or trade request arriving while the Tab menu was open used to permanently lock the cursor** — the accept/decline panel sat invisible under the crafting menu, the cursor never came back, and every T/K/U interaction was dead until restart. That worst case was fixed first with a targeted patch, and then the whole family was closed for good: instead of ~12 panels each writing the shared "menu open" flag and forcing the cursor lock on their own (last writer wins), a single arbiter now derives the cursor state **every frame** from the set of open panels and overlays. (#407, #413)
+- The same rework fixes the whole checklist of cousins: pause-menu **Resume** re-locks the cursor again; **Alt-Tab** re-locks reliably in every mode, including space flight; a ship destroyed while its landing-pad chooser was open no longer leaves a dead map floating over the on-foot world; the Esc that closes a dialog can no longer *also* pop the quit prompt; Esc/Tab while typing in a search or name field just leaves the field instead of closing the menu; opening a menu while driving a speeder holds the hover position instead of dropping you; the planet map closes on Esc and won't open over the death prompt; and the crafting menu can no longer stack over trade/beacon/dock dialogs. The freeze during settle/teleport also stops draining suit energy. (#413)
+
+### 👻 World changes no longer leave ghosts behind
+- Landing, boarding a station, hyperjumping or entering a ship interior used to carry stale state along: the old world's **robots kept growling and firing** on peaceful destinations, ghost map markers and speeder prompts lingered, and **frozen remote players** stood around with live trade/dock prompts. A world change now clears every world-scoped entity list and remote avatar; the new world re-sends what actually exists there. (#412)
+- **Ship hatches stopped ghosting for other players**: a launched ship's hatch used to float in place (and a freshly parked ship's hatch stayed missing) for everyone else until some other door toggled, because door registry changes were never re-broadcast. They are now. (#412)
+- **The client stopped leaking ~20 MB+ per menu↔world cycle.** Unity never garbage-collects procedurally created textures, materials and meshes on its own — and this single-scene game never asked it to. Atlas textures, chunk materials, ship/speeder preview meshes and the static icon caches are now freed on world teardown, followed by a full unused-asset sweep. Especially relevant in the browser, where repeated world-hopping could run a tab out of memory. (#423)
+
+### 📱 Touch & browser: no more soft-locks and dead ends
+- **Naming a beacon or beam pad soft-locked touch players** (tablets, play.glitch.fun): the modal only closed on a physical Enter/Esc, and every on-screen touch control was hidden behind it — reload was the only way out. The dialog now has proper on-screen Confirm/Cancel buttons. (#408)
+- **A failed content load now explains itself and offers Retry.** A malformed data file used to freeze the shell with no message; a failed WebGL content download left a dead menu showing raw `ui.*` keys forever. Both now raise a bilingual error overlay with a working Retry, and a mid-session re-load failure keeps the working in-memory content instead of tearing it down. (#422)
+- **Browser builds finally ship crash telemetry**: the crash uploader ran on a thread pool that never executes on WebGL, so browsers reported nothing while the local spool grew forever. Uploads now use the browser-native path and the spool is capped. (#421)
+
+### 🚀 Teleports actually stick now
+- Admin teleports (`teleport_to_location`, `teleport_to_player`) and the ship-recall teleport were **silently reverted** a moment after arrival — the position change travelled on a channel the client's own movement stream immediately overwrote. They now use the same snap channel as the void-fall rescue, so the move is authoritative (and doesn't flash the death screen). (#414)
+- The craftable **suit teleporter** gained its missing trigger: right-click the held item to recall to your ship — the server validates device, energy and cooldown, and rejections surface as toasts. (#414)
+
+### 🛟 Failing loudly instead of silently
+- **A failed singleplayer launch no longer strands you in a void.** When the bundled local server couldn't start — antivirus blocking the fresh EXE, a broken update, the port already taken — the client sailed on into an empty, chunk-less world with no explanation (exactly the first-run experience that makes people quietly uninstall). It now returns to the menu with a clear notice (including an antivirus hint), and a mistyped multiplayer address gets a proper "connection failed" instead of an endless loading veil. (#409)
+- **A corrupt settings file can no longer destroy your identity.** A truncated `client_settings.json` used to silently reset everything *including the PlayerToken* that backs your claimed player name — leaving you permanently rejected under your own name. Saves are now atomic with a rolling backup, the token is additionally mirrored to its own file that settings writes never touch, and the menu tells you whether settings were restored from backup or reset. (#410)
+- **A failed chunk mesh build is retried instead of becoming a permanent hole.** The off-thread mesher swallowed exceptions and never re-queued the chunk — leaving an un-meshed 16³ hole with no collider. Failures now re-dirty the chunk (bounded retries) and log the fault. (#421)
+
+### 🛡️ Server: exploits closed, hardening everywhere
+- **Item duplication via trade offers is fixed**: an offer listing the same item twice (with only one stack owned) validated per entry and paid out per entry — a straight item-minting exploit. Offers are now merged per item id before validation, with overflow-safe sums. (#406)
+- **Wrecked ships stay wrecked**: the "downed" state never survived a server restart, so any rejoin returned the wreck fully repaired and flight-ready for free. It now persists on every backend; old saves are unaffected. (#419)
+- **The admin `/api` fails closed**: without an admin password on a non-loopback bind, every admin route (config, backups, missions, logs) used to run *unauthenticated* — a password-less public Docker deploy was open to full takeover. Such deploys now answer 401 with a hint; local dashboards keep working; the public portal/download pages are unaffected. (#411)
+- **Rate limits can no longer be bypassed with a forged `X-Forwarded-For`**: the fleet's world host trusted the header from *anyone*, letting a single machine mint fresh rate-limit buckets per request (unlimited signup floods, login brute force). Only configured proxies are trusted now (`BBS_WH_TRUSTED_PROXIES`, sane private-range default), and logins get a per-account backoff on failures — the real owner with the right password is never locked out. (#418)
+- **Protocol and transport hardening** (#424): re-sent join requests are dropped instead of rolling the player back to their last autosave and re-running the expensive join burst; joins pass a per-connection token bucket; browser WebSocket connections get a cap and a handshake window (no more slow-loris socket hoarding); incoming MessagePack decodes with untrusted-data limits; a hung Docker daemon can no longer wedge the fleet's join path; and every secret comparison (admin tokens, report keys, server passwords) is fixed-time.
+- **Fleet resilience** (#415, #416, #417, #426): the world reaper and the hourly archive sweep no longer race a world that is just waking up (which could SIGKILL a live container or move its database out from under it); one bad request can no longer kill the browser gateway's accept loop (previously a silent browser-only outage until restart); two unbounded server-side caches now prune themselves; ship **docking now requires same world + proximity on both request and accept** (it's guest access, and range was never checked server-side); and per-connection socket resources are reliably released.
+
+### 📸 Also in this release
+- All 13 English marketing screenshots were regenerated against the current engine, and the unattended capture pipeline that produces them was repaired. (#405)
+
 ## [0.8.4] — 2026-07-18
 
 The visual-fidelity release: a real twilight, name-tagged ships, and an end to the "black silhouette / see-through floor" rendering bugs — plus the Medium-preset ambient-occlusion work and the browser-feedback fixes from this cycle.
@@ -493,7 +531,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.5...HEAD
+[0.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.1...v0.8.2
