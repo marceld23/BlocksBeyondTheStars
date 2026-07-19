@@ -49,7 +49,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var gen = new WorldGenerator(worldSeed, content);
-            gen.SetCircumference(circumference);
+            // Local preview generator: only the wrap size matters here (no cratering, no pad flattening —
+            // same as before the individual setters became the atomic SetWorldMode, #424 S13).
+            gen.SetWorldMode(circumference, cratered: false, landingPads: null);
             int latPeriod = WorldConstants.LatitudePeriodFor(circumference);
             int sea = gen.SeaLevel(planet);
 
