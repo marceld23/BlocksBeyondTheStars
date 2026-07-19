@@ -336,17 +336,40 @@ public sealed class WorldOrchestrator
 
     /// <summary>Reconciles registry state with reality: a world marked active whose container has exited
     /// (idle shutdown is the normal case) is marked stopped, so joins wake it cleanly and world lists tell
-    /// the truth. Called periodically by the host's background loop.</summary>
+    /// the truth. Called periodically by the host's background loop. Each world is reconciled under its
+    /// wake lock (#415): the container probe takes seconds, and writing a stale Stopped/"" over a wake
+    /// that happened in that window would make the next join `docker rm -f` the freshly started container.
+    /// A held lock means a join is waking or probing the world right now — skip it this pass.</summary>
     public int Reap()
     {
         int reaped = 0;
         foreach (var world in _registry.ListActiveWorlds())
         {
-            if (!_launcher.IsRunning(world.ContainerId))
+            var gate = _wakeLocks.GetOrAdd(world.Id, _ => new SemaphoreSlim(1, 1));
+            if (!gate.Wait(0))
             {
-                _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
-                _registry.TouchWorldActive(world.Id); // it WAS just running — inactivity starts now
-                reaped++;
+                continue;
+            }
+
+            try
+            {
+                // Re-read under the lock: the listed row may predate a wake that has since run.
+                if (_registry.GetWorld(world.Id) is not { } fresh
+                    || fresh.Status is not (WorldStatus.Running or WorldStatus.Starting))
+                {
+                    continue;
+                }
+
+                if (!_launcher.IsRunning(fresh.ContainerId))
+                {
+                    _registry.SetWorldStatus(fresh.Id, WorldStatus.Stopped, string.Empty);
+                    _registry.TouchWorldActive(fresh.Id); // it WAS just running — inactivity starts now
+                    reaped++;
+                }
+            }
+            finally
+            {
+                gate.Release();
             }
         }
 
@@ -368,14 +391,34 @@ public sealed class WorldOrchestrator
         int archived = 0;
         foreach (var world in _registry.ListArchiveCandidates(cutoff))
         {
-            if (_launcher.IsRunning(world.ContainerId))
+            var gate = _wakeLocks.GetOrAdd(world.Id, _ => new SemaphoreSlim(1, 1));
+            if (!gate.Wait(0))
             {
-                continue; // belt and braces — never archive under a live container
+                continue; // a join is waking this world right now — clearly not archive material
             }
 
-            SavePaths.MoveToArchive(_config, world.Id);
-            _registry.SetWorldStatus(world.Id, WorldStatus.Archived, string.Empty);
-            archived++;
+            try
+            {
+                // Re-read under the lock (#416): the candidate row may predate a wake. A woken world is
+                // no longer Stopped; one that woke and idle-stopped again since the listing shows a fresh
+                // last-start. Both must be spared, and the live-container guard must use the FRESH
+                // container id — the stale candidate row always carries "", so IsRunning("") proves nothing.
+                if (_registry.GetWorld(world.Id) is not { } fresh
+                    || fresh.Status != WorldStatus.Stopped
+                    || fresh.LastStartedUnix >= cutoff
+                    || _launcher.IsRunning(fresh.ContainerId))
+                {
+                    continue;
+                }
+
+                SavePaths.MoveToArchive(_config, world.Id);
+                _registry.SetWorldStatus(world.Id, WorldStatus.Archived, string.Empty);
+                archived++;
+            }
+            finally
+            {
+                gate.Release();
+            }
         }
 
         _metrics.Archived(archived);

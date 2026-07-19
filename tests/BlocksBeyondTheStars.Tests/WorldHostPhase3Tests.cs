@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.WorldHost;
 using Xunit;
@@ -237,6 +238,86 @@ public sealed class WorldHostPhase3Tests : IDisposable
         long fiveMonthsLater = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 5L * 30 * 86400;
         Assert.Equal(0, orchestrator.ArchiveSweep(fiveMonthsLater));
         Assert.Equal(WorldStatus.Stopped, registry.GetWorld(world.Id)!.Status);
+    }
+
+    // ---------------- Reaper/sweep vs. wake races (#415/#416) ----------------
+
+    /// <summary>Builds an orchestrator whose health probe blocks: it signals <paramref name="probeEntered"/>
+    /// on entry (the wake now holds the per-world lock) and waits for <paramref name="probeGate"/> before
+    /// answering — the deterministic stand-in for "a wake is in flight while a background pass runs".</summary>
+    private static WorldOrchestrator NewBlockingProbeOrchestrator(
+        HostRegistry registry, FakeLauncher launcher, WorldHostConfig config,
+        SemaphoreSlim probeEntered, SemaphoreSlim probeGate)
+        => new(config, registry, launcher, async w =>
+        {
+            probeEntered.Release();
+            await probeGate.WaitAsync();
+            return launcher.IsRunning(w.ContainerId);
+        });
+
+    [Fact]
+    public async Task Reap_SkipsAWorld_WhoseWakeIsInFlightAsync()
+    {
+        var config = new WorldHostConfig { WakeTimeoutSeconds = 5 };
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        using var probeEntered = new SemaphoreSlim(0);
+        using var probeGate = new SemaphoreSlim(0);
+        var orchestrator = NewBlockingProbeOrchestrator(registry, launcher, config, probeEntered, probeGate);
+        var (accountId, account) = NewAccount(registry);
+        var world = registry.CreateWorld(accountId, "Waking World").World!;
+
+        var joinTask = orchestrator.JoinAsync(world.Id, account, "Pilot");
+        Assert.True(await probeEntered.WaitAsync(TimeSpan.FromSeconds(10)));
+
+        // The reaper's container probe races the wake: simulate it observing "not running" for the
+        // container the wake just started. It must NOT write a stale Stopped/"" over the in-flight wake —
+        // that row would make the next join `docker rm -f` the live container (#415).
+        string containerId = registry.GetWorld(world.Id)!.ContainerId;
+        launcher.Running.Clear();
+        Assert.Equal(0, orchestrator.Reap());
+        Assert.Equal(WorldStatus.Starting, registry.GetWorld(world.Id)!.Status);
+
+        launcher.Running.Add(containerId);
+        probeGate.Release();
+        Assert.NotNull((await joinTask).Grant);
+        Assert.Equal(WorldStatus.Running, registry.GetWorld(world.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task ArchiveSweep_SparesAWorld_WhoseWakeIsInFlightAsync()
+    {
+        var config = new WorldHostConfig
+        {
+            WakeTimeoutSeconds = 5,
+            ArchiveAfterMonths = 6,
+            WorldsDir = System.IO.Path.Combine(_root, "worlds-waking"),
+        };
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        using var probeEntered = new SemaphoreSlim(0);
+        using var probeGate = new SemaphoreSlim(0);
+        var orchestrator = NewBlockingProbeOrchestrator(registry, launcher, config, probeEntered, probeGate);
+        var (accountId, account) = NewAccount(registry);
+        var world = registry.CreateWorld(accountId, "Night Owl World").World!;
+
+        string dbPath = SavePaths.WorldDbPath(config, world.Id);
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dbPath)!);
+        System.IO.File.WriteAllText(dbPath, "save-bytes");
+
+        // The hourly sweep fires while the world is mid-wake (wake lock held, probe pending). It must
+        // not move the saves out from under the starting container (#416) — even with a cutoff that
+        // would have archived the world a moment earlier.
+        var joinTask = orchestrator.JoinAsync(world.Id, account, "Pilot");
+        Assert.True(await probeEntered.WaitAsync(TimeSpan.FromSeconds(10)));
+        long sevenMonthsLater = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 7L * 30 * 86400;
+        Assert.Equal(0, orchestrator.ArchiveSweep(sevenMonthsLater));
+        Assert.True(System.IO.File.Exists(dbPath));
+
+        probeGate.Release();
+        Assert.NotNull((await joinTask).Grant);
+        Assert.Equal(WorldStatus.Running, registry.GetWorld(world.Id)!.Status);
+        Assert.True(System.IO.File.Exists(dbPath));
     }
 
     [Fact]

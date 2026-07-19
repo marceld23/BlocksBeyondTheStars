@@ -108,6 +108,31 @@ public sealed class WebSocketTransportTests : IDisposable
         Assert.Null(NetCodec.Decode(payload));
     }
 
+    [Fact]
+    public async Task Gateway_AcceptLoop_SurvivesAFaultingRequestAsync()
+    {
+        int port = FreeTcpPort();
+        using var transport = new WebSocketServerTransport("127.0.0.1");
+        // A throwing status provider faults request handling exactly where a client resetting the
+        // connection mid-response write would — one bad /status poll must never end the accept loop (#417).
+        transport.StatusJsonProvider = () => throw new InvalidOperationException("status snapshot failed (simulated)");
+        transport.Start(port);
+
+        using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        try
+        {
+            (await http.GetAsync($"http://127.0.0.1:{port}/status")).Dispose();
+        }
+        catch (System.Net.Http.HttpRequestException)
+        {
+            // the faulted request may tear down its own connection — that is fine
+        }
+
+        // The accept loop must still be alive: the next client gets a normal answer.
+        using var ok = await http.GetAsync($"http://127.0.0.1:{port}/healthz");
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
     private static async Task ReceiveLoopAsync(ClientWebSocket ws, ConcurrentQueue<byte[]> received, CancellationToken token)
     {
         var buffer = new byte[16 * 1024];

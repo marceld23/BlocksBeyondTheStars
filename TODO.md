@@ -100,6 +100,26 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ WorldHost background passes take the wake lock; WS gateway accept loop survives request faults (#415/#416/#417, 2026-07-19, branch fix/415-417-worldhost-hardening)
+Three audit findings (S3/S4/S5), one theme: fleet background work racing live joins. **(#415)** The
+reaper read a world row, spent seconds in `docker inspect`, then wrote `Stopped/""` **without the
+per-world wake lock** — a join waking the world in that window got its fresh registry row clobbered,
+and the *next* join's `docker rm -f bbs-world-<id>` SIGKILLed the live container (players dropped,
+progress since the last autosave lost). `Reap()` now takes each world's wake lock non-blocking
+(`Wait(0)`; a held lock means a join is waking it — skip this pass) and re-reads the row under the
+lock before deciding. **(#416)** Same class in the hourly `ArchiveSweep`: its live-container guard
+inspected the **stale** candidate row whose container id is always `""`, so it could move `world.db`
+out from under a world being woken. The sweep now also takes the wake lock per world and re-checks
+the FRESH row (status still Stopped, no recent start, fresh container id not running) right before
+moving files. **(#417)** The browser WS gateway's accept loop only guarded `GetContextAsync`; the
+response writes for `/`, `/healthz`, `/status`, `/announce` ran bare, so a client resetting the
+connection mid-write (or a faulting status provider) exited the `while (_running)` loop — no browser
+client could connect until process restart, a silent partial outage since native clients keep
+working. Per-request handling (HTTP branches + WS upgrade) is now wrapped so one bad request can
+never end the loop. Regression tests: blocked-health-probe harness proves reap/sweep skip a mid-wake
+world (reap test fails pre-fix), and a throwing `/status` provider proves the gateway answers the
+next request (fails pre-fix). Server-only (WorldHost image + bundled server gateway).
+
 ### ★ WorldHost rate limits no longer spoofable via X-Forwarded-For; per-account login backoff (#418, 2026-07-19, branch fix/418-xff-ratelimit)
 The ForwardedHeaders middleware had `KnownIPNetworks`/`KnownProxies` **cleared**, which in ASP.NET
 means "trust any peer": whoever reached the bind directly could rotate a fabricated `X-Forwarded-For`

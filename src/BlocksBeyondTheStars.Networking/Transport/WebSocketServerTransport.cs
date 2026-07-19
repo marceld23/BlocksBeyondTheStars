@@ -84,47 +84,65 @@ public sealed class WebSocketServerTransport : IServerTransport
                 break; // listener stopped
             }
 
-            if (!ctx.Request.IsWebSocketRequest)
+            // One request must never take down the accept loop (#417): a client resetting the connection
+            // mid-response write faults right here, and /status is polled continuously — an unhandled
+            // fault would end the while loop and close the gateway to every future browser client.
+            try
             {
-                if (ctx.Request.HttpMethod == "GET"
-                    && (ctx.Request.Url?.AbsolutePath is "/" or "/healthz"))
+                if (ctx.Request.IsWebSocketRequest)
                 {
-                    byte[] body = System.Text.Encoding.UTF8.GetBytes("Blocks Beyond the Stars WebSocket gateway\n");
-                    ctx.Response.StatusCode = 200;
-                    ctx.Response.ContentType = "text/plain; charset=utf-8";
-                    ctx.Response.ContentLength64 = body.Length;
-                    await ctx.Response.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
-                    ctx.Response.Close();
-                }
-                else if (ctx.Request.HttpMethod == "GET"
-                    && ctx.Request.Url?.AbsolutePath == "/status"
-                    && StatusJsonProvider is { } statusProvider)
-                {
-                    byte[] body = System.Text.Encoding.UTF8.GetBytes(statusProvider());
-                    ctx.Response.StatusCode = 200;
-                    ctx.Response.ContentType = "application/json; charset=utf-8";
-                    ctx.Response.ContentLength64 = body.Length;
-                    await ctx.Response.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
-                    ctx.Response.Close();
-                }
-                else if (ctx.Request.HttpMethod == "POST"
-                    && ctx.Request.Url?.AbsolutePath == "/announce"
-                    && AnnounceReceiver is { } announceReceiver
-                    && !string.IsNullOrEmpty(AnnounceToken))
-                {
-                    ctx.Response.StatusCode = await HandleAnnounceAsync(ctx, announceReceiver).ConfigureAwait(false);
-                    ctx.Response.Close();
+                    _ = HandleClientAsync(ctx);
                 }
                 else
                 {
-                    ctx.Response.StatusCode = 400;
-                    ctx.Response.Close();
+                    await HandleHttpRequestAsync(ctx).ConfigureAwait(false);
                 }
-
-                continue;
             }
+            catch
+            {
+                try { ctx.Response.Abort(); } catch { }
+            }
+        }
+    }
 
-            _ = HandleClientAsync(ctx);
+    /// <summary>Serves the plain-HTTP routes (landing page/healthz, /status, /announce). Runs on the
+    /// accept loop; any exception — aborted connection mid-write, faulting status provider — is
+    /// contained by the caller.</summary>
+    private async Task HandleHttpRequestAsync(HttpListenerContext ctx)
+    {
+        if (ctx.Request.HttpMethod == "GET"
+            && (ctx.Request.Url?.AbsolutePath is "/" or "/healthz"))
+        {
+            byte[] body = System.Text.Encoding.UTF8.GetBytes("Blocks Beyond the Stars WebSocket gateway\n");
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "text/plain; charset=utf-8";
+            ctx.Response.ContentLength64 = body.Length;
+            await ctx.Response.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
+            ctx.Response.Close();
+        }
+        else if (ctx.Request.HttpMethod == "GET"
+            && ctx.Request.Url?.AbsolutePath == "/status"
+            && StatusJsonProvider is { } statusProvider)
+        {
+            byte[] body = System.Text.Encoding.UTF8.GetBytes(statusProvider());
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            ctx.Response.ContentLength64 = body.Length;
+            await ctx.Response.OutputStream.WriteAsync(body, 0, body.Length).ConfigureAwait(false);
+            ctx.Response.Close();
+        }
+        else if (ctx.Request.HttpMethod == "POST"
+            && ctx.Request.Url?.AbsolutePath == "/announce"
+            && AnnounceReceiver is { } announceReceiver
+            && !string.IsNullOrEmpty(AnnounceToken))
+        {
+            ctx.Response.StatusCode = await HandleAnnounceAsync(ctx, announceReceiver).ConfigureAwait(false);
+            ctx.Response.Close();
+        }
+        else
+        {
+            ctx.Response.StatusCode = 400;
+            ctx.Response.Close();
         }
     }
 
@@ -187,8 +205,16 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
         catch
         {
-            ctx.Response.StatusCode = 500;
-            ctx.Response.Close();
+            try
+            {
+                ctx.Response.StatusCode = 500;
+                ctx.Response.Close();
+            }
+            catch
+            {
+                // the connection is already gone — nothing left to answer
+            }
+
             return;
         }
 
