@@ -2975,6 +2975,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             BlockId WorldBlock(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b : BlockId.Air;
+            // Feed the mesher the hull's shapes so a full cube next to a slab/ramp/sphere keeps the face the
+            // shaped cell doesn't cover — otherwise it's culled and you see through the hull into the ship (#420 M12).
+            System.Func<int, int, int, int> WorldShape = shapes == null ? null
+                : (x, y, z) => shapes.TryGetValue(new Vector3i(x, y, z), out var s) ? s : 0;
 
             int cs = WorldConstants.ChunkSize;
             int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
@@ -3002,7 +3006,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint);
+                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint, worldShape: WorldShape);
                 if (mesh.vertexCount == 0)
                 {
                     continue;

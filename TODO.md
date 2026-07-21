@@ -6168,6 +6168,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-21): ship render fixes — see-through hull holes + washed-out greebles (#420)
+
+Two static-audit findings in the client mesher (M12, M13). **M12 — see-through holes:** the chunk mesher
+only rescues a cube face bordering a shaped (slab/ramp/stairs/sphere) neighbour when handed the optional
+`worldShape` delegate; the planet streamer passed one but all ship display paths omitted it, so a full hull
+cube next to a shaped cell got its face culled while the shaped geometry didn't fill the cell — a
+see-through hole into the interior (flight view, landed ships, paint preview, remote ships). Fixed by
+passing a `worldShape` delegate reading each path's own shapes dict at the three shaped-hull call sites
+(`ShipMeshBuilder`, `SpaceView`, `LandedShipView`); the speeder hull has no shaped cells so it's documented
+as N/A. **M13 — washed-out greebles:** `AddGreeblePanel` gave all four corners of a raised panel the same
+`uv.center`, a zero-area UV footprint that on the mipmapped, gutter-less atlas sampled a coarse cross-tile
+average resolving to near-white (same defect fixed for bevels in #382). Fixed by projecting each inset
+corner across the tile like `EmitBevel.Push`, so the plate samples the hull's own texel and reads as
+slightly darker plating. Client-side — reaches players with the next Velopack release.
+
 ## ✅ Done (2026-07-19): editor palettes usable + fully localized (ship / station / settlement editors)
 
 The build-material list in the ship, station and settlement editors was a flat, ~150-row list sorted by

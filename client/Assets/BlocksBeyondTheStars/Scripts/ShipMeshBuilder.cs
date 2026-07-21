@@ -117,6 +117,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             BlockId WorldBlock(int x, int y, int z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) ? b : BlockId.Air;
+            // A cube face bordering a shaped (slab/ramp/…) neighbour must not be culled — the shaped cell doesn't
+            // fill its volume, so culling leaves a see-through hole into the hull (#420 M12). The mesher rescues
+            // that face only when handed a worldShape delegate reading the same shapes dict the planet uses.
+            System.Func<int, int, int, int> WorldShape = shapes == null ? null
+                : (x, y, z) => shapes.TryGetValue(new Vector3i(x, y, z), out var s) ? s : 0;
 
             int cs = WorldConstants.ChunkSize;
             int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
@@ -144,7 +149,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, collider) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint);
+                var (mesh, collider) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint, worldShape: WorldShape);
                 if (collider != null)
                 {
                     Object.Destroy(collider); // display-only build — the cooked collider mesh is never used (#423)

@@ -210,6 +210,9 @@ namespace BlocksBeyondTheStars.Client
                 chunk.Set(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value);
             }
 
+            // No worldShape delegate (unlike the ship paths in #420 M12): the speeder hull is a fixed procedural
+            // cube grid built by SpeederCells() with no shaped (slab/ramp/…) cells, so no cube face can border a
+            // shaped neighbour and there are no see-through holes to rescue.
             var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint);
             if (collider != null)
             {

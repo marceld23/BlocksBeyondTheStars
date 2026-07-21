@@ -1000,12 +1000,26 @@ namespace BlocksBeyondTheStars.Client
             Vector3 tan3 = (p3 - p0).sqrMagnitude > 1e-8f ? (p3 - p0).normalized : (p1 - p0).normalized;
             float hand = Vector3.Dot(Vector3.Cross(nrm, tan3), p1 - p0) < 0f ? -1f : 1f;
             var tan = new Vector4(tan3.x, tan3.y, tan3.z, hand);
-            Vector2 uvC = uv.center;
-            for (int i = 0; i < 4; i++)
+
+            // Per-vertex UVs projected across the tile like EmitBevel.Push: a single shared uv.center gave all
+            // four corners a zero-area UV footprint, which on the mipmapped, gutter-less atlas sampled a coarse
+            // cross-tile average that resolved to near-white — the washed-out greeble bug (#420 M13, the same
+            // defect fixed for bevels in #382). The inset corners keep a real footprint so the plate samples the
+            // hull's own texel and reads as slightly darker plating instead of a white blotch.
+            Vector3 nAbs = new Vector3(Mathf.Abs(nrm.x), Mathf.Abs(nrm.y), Mathf.Abs(nrm.z));
+            int domAxis = nAbs.x >= nAbs.y && nAbs.x >= nAbs.z ? 0 : (nAbs.y >= nAbs.z ? 1 : 2);
+            int uAxis = domAxis == 0 ? 1 : 0;
+            int vAxis = domAxis == 2 ? 1 : 2;
+            void PushGreeble(Vector3 p) // verts were already appended above; this adds only the matching attributes
             {
-                colors.Add(col); uvs.Add(uvC); tangents.Add(tan);
+                Vector3 loc = p - cell;
+                var uvv = new Vector2(uv.xMin + Mathf.Clamp01(loc[uAxis]) * uv.width,
+                                      uv.yMin + Mathf.Clamp01(loc[vAxis]) * uv.height);
+                colors.Add(col); uvs.Add(uvv); tangents.Add(tan);
                 skyUv.Add(new Vector2(sky, tintMode)); leafUv.Add(leaf); blockLight.Add(bl); blockLightDir.Add(blDir);
             }
+
+            PushGreeble(p0); PushGreeble(p1); PushGreeble(p2); PushGreeble(p3);
 
             tris.Add(baseIdx); tris.Add(baseIdx + 1); tris.Add(baseIdx + 2);
             tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 3);
