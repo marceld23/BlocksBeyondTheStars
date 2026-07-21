@@ -84,6 +84,23 @@ public sealed class CrashReportSpoolTests : IDisposable
     }
 
     [Fact]
+    public void Write_PublishesAtomically_LeavesNoTempAndReadsBackWhole()
+    {
+        // The body is written to a ".tmp" sibling and renamed into place (#425 N14) so a concurrent
+        // FlushPending reader never observes a half-written file. After a successful Write the spool must
+        // hold only the finished report — the temp name must neither linger nor leak into the pending scan.
+        var spool = new CrashReportSpool(_dir);
+        string body = "{\"kind\":\"crash\",\"payload\":\"" + new string('x', 4096) + "\"}";
+
+        string? path = spool.Write(body, "20260721_120000");
+        Assert.NotNull(path);
+        Assert.EndsWith(".json", path);
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));          // no leftover temp file
+        Assert.Single(spool.ListPending());                       // scan sees exactly the complete report...
+        Assert.Equal(body, spool.Read(path!));                    // ...and it round-trips whole
+    }
+
+    [Fact]
     public void EmptyDirectory_DisablesSpool_NeverThrows()
     {
         var spool = new CrashReportSpool(string.Empty);

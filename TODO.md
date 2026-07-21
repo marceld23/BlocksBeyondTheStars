@@ -100,6 +100,18 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Truncated crash upload + Arcade "content broken" empty-state (#425, 2026-07-21, branch fix/425-crash-arcade)
+Two bounded client audit fixes (N13/N14). **(N14)** `CrashReportSpool.Write` did a plain
+`File.WriteAllText` into the live spool, so startup's `FlushPending` — running while the background log
+callback writes — could read a half-written report and POST truncated JSON. It now writes the body to a
+`.json.tmp` sibling (excluded from the `crash_*.json` scans) and `File.Move`s it into place, so readers
+only ever see complete files; the temp file is cleaned up if the rename fails. New test asserts no `.tmp`
+lingers and the report round-trips whole. **(N13)** A minigame catalogue that failed to load left `Games`
+empty, which made the Arcade show "no data fragments yet" — factually wrong for a player who owns data
+cubes and masking that the content is broken. `MinigameCatalog` now exposes a `Broken` flag (true when the
+catalogue parses to zero games), and the Arcade shows a distinct "Games couldn't be loaded" screen
+(new locale keys `ui.arcade.broken_title`/`ui.arcade.broken_body`, DE+EN) instead of the empty state.
+
 ### ★ Touch naming modal, content-load dead-ends, teleport snap channel (#408/#422/#414, 2026-07-19, branch fix/audit-408-422-414)
 Three community-facing audit issues in one pass. **(#408, critical)** The beacon/beam naming modal
 could only be closed with a physical Enter/Esc — and while it is open every on-screen touch control

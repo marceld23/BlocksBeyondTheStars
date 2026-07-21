@@ -532,6 +532,8 @@
   "ui.arcade.collection": "Collected fragments",
   "ui.arcade.empty_title": "No data fragments yet",
   "ui.arcade.empty_body": "Find glowing data cubes out on planets and press E to extract their data fragments.",
+  "ui.arcade.broken_title": "Games couldn't be loaded",
+  "ui.arcade.broken_body": "The minigame content is missing or damaged, so your data fragments can't be opened. Try restarting the game or reinstalling.",
   "ui.arcade.downloaded": "Data fragment recovered!",
   "ui.browser.unavailable_title": "Browser component not installed",
   "ui.browser.unavailable_body": "The embedded browser (UnityWebBrowser) is not present in this build. See docs/developer/MINIGAMES_AND_WIKI.md to enable it.",

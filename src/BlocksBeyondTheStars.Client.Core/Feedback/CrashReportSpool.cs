@@ -65,7 +65,24 @@ namespace BlocksBeyondTheStars.Client.Feedback
 
                 string stem = $"{FilePrefix}{Sanitize(timestampStem)}_{n:D3}";
                 string file = Path.Combine(_directory, stem + ".json");
-                File.WriteAllText(file, json);
+
+                // Publish atomically: the log callback runs on a background thread while startup's FlushPending
+                // enumerates the spool, so a reader must never observe a half-written body (#425 N14). We write
+                // the full JSON to a sibling temp file — its ".tmp" tail is excluded from the "crash_*.json"
+                // scans, so ListPending/Prune ignore it — then rename it into place, which is atomic on every
+                // supported filesystem. Readers therefore only ever see a complete file.
+                string temp = Path.Combine(_directory, stem + ".json.tmp");
+                File.WriteAllText(temp, json);
+                try
+                {
+                    File.Move(temp, file);
+                }
+                catch
+                {
+                    try { File.Delete(temp); } catch { /* best-effort */ }
+                    throw;
+                }
+
                 Prune(_directory, MaxPending); // file names lead with the UTC timestamp → oldest sorts first
                 return file;
             }

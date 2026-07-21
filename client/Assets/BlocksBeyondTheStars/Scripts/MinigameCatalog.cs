@@ -41,6 +41,12 @@ namespace BlocksBeyondTheStars.Client
 
         public List<Entry> Games { get; } = new List<Entry>();
 
+        /// <summary>True when the catalogue could not be loaded into a usable state (file missing, malformed
+        /// JSON, or no games parsed). Lets the Arcade tell "content is broken" apart from "player owns nothing"
+        /// (#425 N13): a broken catalogue resolves every data cube's seed to null via <see cref="GameForSeed"/>,
+        /// so a player who actually owns cubes would otherwise see a misleading "nothing unlocked" screen.</summary>
+        public bool Broken { get; private set; }
+
         public static MinigameCatalog Instance { get; private set; }
 
         /// <summary>Loads (once) the catalogue from bundled content. Returns the cached instance on repeat calls.</summary>
@@ -75,6 +81,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Debug.LogWarning($"[MinigameCatalog] failed to load: {e.Message}");
             }
+
+            // A healthy bundled catalogue always parses at least one game; an empty list means the load failed
+            // (missing file, parse error, or an empty array) — flag it so the Arcade can say so plainly.
+            cat.Broken = cat.Games.Count == 0;
 
             Instance = cat;
             return cat;

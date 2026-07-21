@@ -533,6 +533,8 @@
   "ui.arcade.collection": "Gesammelte Fragmente",
   "ui.arcade.empty_title": "Noch keine Datenfragmente",
   "ui.arcade.empty_body": "Finde leuchtende Datenwürfel auf Planeten und drücke E, um ihre Datenfragmente zu bergen.",
+  "ui.arcade.broken_title": "Spiele konnten nicht geladen werden",
+  "ui.arcade.broken_body": "Die Minispiel-Inhalte fehlen oder sind beschädigt, deshalb lassen sich deine Datenfragmente nicht öffnen. Starte das Spiel neu oder installiere es neu.",
   "ui.arcade.downloaded": "Datenfragment geborgen!",
   "ui.browser.unavailable_title": "Browser-Komponente nicht installiert",
   "ui.browser.unavailable_body": "Der eingebettete Browser (UnityWebBrowser) ist in diesem Build nicht vorhanden. Siehe docs/developer/MINIGAMES_AND_WIKI.md zum Aktivieren.",

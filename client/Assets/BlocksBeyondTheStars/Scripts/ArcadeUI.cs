@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _rail;
         private GameObject _placeholder;
         private GameObject _emptyState;
+        private GameObject _brokenState;
         private MinigameCatalog _catalog;
         private MinigameHostUI _native;
         private bool _built;
@@ -55,6 +56,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(_root, RegionX, RegionY, RegionW, RegionH, new Color(0.03f, 0.06f, 0.11f, 0.96f));
             _placeholder = BuildText("ArcadePlaceholder", L("ui.browser.unavailable_title"), L("ui.browser.unavailable_body"));
             _emptyState = BuildText("ArcadeEmpty", L("ui.arcade.empty_title"), L("ui.arcade.empty_body"));
+            _brokenState = BuildText("ArcadeBroken", L("ui.arcade.broken_title"), L("ui.arcade.broken_body"));
             _canvas.enabled = false; // first Show() enables it + runs OnOpen()
             _built = true;
         }
@@ -167,11 +169,16 @@ namespace BlocksBeyondTheStars.Client
             if (owned.Count == 0)
             {
                 _placeholder.SetActive(false);
-                _emptyState.SetActive(true);
+                // A broken catalogue also yields zero owned games, but the cause — and the fix the player needs
+                // — is different: "content failed to load" (retry/reinstall), not "go find data cubes" (#425 N13).
+                bool broken = _catalog == null || _catalog.Broken;
+                _emptyState.SetActive(!broken);
+                _brokenState.SetActive(broken);
                 return;
             }
 
             _emptyState.SetActive(false);
+            _brokenState.SetActive(false);
             PlayGame(owned[0].key); // open the first owned game by default
         }
 
@@ -209,6 +216,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureNative();
             _placeholder.SetActive(false);
             _emptyState.SetActive(false);
+            _brokenState.SetActive(false);
             _native.Play(MinigameRegistry.Create(key), Settings != null ? Settings.GetMinigameBest(key) : 0, Game != null && Game.German);
         }
 
