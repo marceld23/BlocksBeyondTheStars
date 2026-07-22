@@ -11,6 +11,26 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [0.8.6] — 2026-07-22
+
+The new-player release: this cycle went back to the first ten minutes — the exact stretch where Severin's second handwritten playtest kept getting stuck — and fixed the whole first-run loop, from the mission text that ran off-screen to the hunger bar that emptied too fast. It also makes the ship/station/settlement build editors genuinely usable in both languages, and clears the last see-through holes and washed-out panels off ship hulls.
+
+### 🚀 The first ten minutes finally hold together
+The six fixes below all come from Severin's second playtest and land squarely in the new-player loop. (#456, closes #450–#455)
+- **The mission objective text is no longer clipped.** The description drew with no word-wrap inside a masked scroll box, so the tail — the actual "dig straight down for iron" hint — ran off-screen. It now wraps and scrolls to its real height, in both languages. (#450)
+- **"Station not available" now tells you _which_ station.** Trying to cook meat used to fail with a hard-coded English line that never said you needed a **detoxifier**, not the workbench you were standing at. The server now sends a machine-readable token the client localizes and names the exact station (DE + EN). (#451)
+- **Diggable ore is more common and easier to reach on every planet.** The per-world richness multiplier was raised, `iron_ore` was added to ice planets (where it was simply absent — an iron mission there was impossible), and the surface layer is now uneven: its thickness rolls between one block and the planet's full topsoil depth per column, so in the thin patches ore-bearing stone surfaces within a block or two and shallow digging is sometimes rewarded. (#452)
+- **Hunger is gentler and now tiered like oxygen.** The flat, fast drain (a full bar in ~200 s) became an Off / Slow / Normal / Fast setting, with Normal draining over ~330 s. The world-options screen gets a proper four-step row (DE + EN); old `hunger=true/false` saves still load. (#453)
+- **Consistent headroom under two-block-high ceilings.** The player capsule's skin width was left at Unity's default, leaving almost no clearance, and a step-up sweep would randomly punch your head into the ceiling ("sometimes I get stuck, sometimes not"). Flat two-high tunnels now pass reliably, while slabs, stairs and ramps step up exactly as before. (#454)
+- **Crouch / sneak.** Hold Ctrl or C on the ground to shrink down, walk slower, and stop at ledges instead of walking off them — which also lets you lean out and place a bridging block against a ledge's side face. You stay crouched under a low ceiling instead of popping up through it. (#455)
+
+### 🧱 Build palettes you can actually read
+- The ship, station and settlement **build editors** shipped with a flat ~150-row material list sorted by internal English id and dotted with random hash-coloured swatches, and much of the ship editor's UI was hard-coded English. The palette is now grouped under localized section headers (markers and ship parts first, then block categories — building, terrain, ore, flora, light, door, machine), sorted by each block's **localized** name, and each entry shows the block's **real procedural atlas tile** as its icon — whose average colour also tints the 3D placement preview, so builds preview in true material colours. The ship and structure editors are fully localized (shape names, size tiers, markers, statuses), the Save button sits on its own full-width row so its label never gets clipped, and search fields have a proper placeholder. Roughly 75 new locale keys, and a content test now fails the build if any block category is missing a translation. (#446)
+
+### 🩹 Ship hulls and crash telemetry
+- **The last see-through holes in ship hulls are plugged.** A full hull cube next to a shaped block (slab, ramp, stairs, sphere) had its shared face culled while the shaped cell didn't fill the gap — a hole straight into the interior, visible in flight, on landed ships, in the paint preview and on other players' ships. Builders never saw it in the editor, only after launch. Raised **greeble** hull panels also rendered near-white from a zero-area texture footprint (the same defect fixed for bevels earlier); they now sample the hull's own texel and read as proper darker plating. (#448, closes #420)
+- **Crash reports upload whole, and a broken Arcade says so.** Crash bodies were written straight into the live spool, so a reader could catch a half-written file and upload truncated JSON — reports are now written to a temp file and atomically moved into place. And if the minigame catalogue fails to load, the Arcade used to claim you had "no data fragments yet" (wrong, and it hid the real problem); it now shows a distinct "Games couldn't be loaded" screen instead. (#449, closes #425)
+
 ## [0.8.5] — 2026-07-19
 
 The audit release: a full static bug-hunt swept the whole stack — client, server and the hosted-worlds fleet — and this release ships the fixes. The headline for players: the locked-cursor family of bugs is gone for good, world changes no longer leave ghosts behind, touch players can't get soft-locked anymore, and a series of exploits and denial-of-service holes on the server side is closed.
@@ -531,7 +551,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.5...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.6...HEAD
+[0.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.2...v0.8.3
