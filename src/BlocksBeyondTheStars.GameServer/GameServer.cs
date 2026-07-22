@@ -2927,7 +2927,11 @@ public sealed partial class GameServer
 
         if (!StationAvailable(session.State, recipe.Station))
         {
-            CraftFail(session, recipe.Key, "Required crafting station is not available here.");
+            // Send a machine-readable token so the client can localize it AND name the exact station
+            // the recipe needs (Severin playtest #2: "crafting station not available" while standing at
+            // a workbench — meat actually needs a detoxifier). The station enum name maps to the existing
+            // "ui.craft.station_<name>" locale keys client-side.
+            CraftFail(session, recipe.Key, "@need_station:" + recipe.Station.ToString().ToLowerInvariant());
             return;
         }
 

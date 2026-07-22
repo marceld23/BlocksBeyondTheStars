@@ -60,9 +60,20 @@ public sealed class HungerTests : IDisposable
     [Fact]
     public void Rule_HungerEnabled_OnlyInSurvival()
     {
-        Assert.True(new GameRules { GameMode = GameMode.Survival, Hunger = true }.HungerEnabled);
-        Assert.False(new GameRules { GameMode = GameMode.Creative, Hunger = true }.HungerEnabled);
-        Assert.False(new GameRules { GameMode = GameMode.Survival, Hunger = false }.HungerEnabled);
+        Assert.True(new GameRules { GameMode = GameMode.Survival, HungerConsumption = HungerConsumption.Normal }.HungerEnabled);
+        Assert.False(new GameRules { GameMode = GameMode.Creative, HungerConsumption = HungerConsumption.Normal }.HungerEnabled);
+        Assert.False(new GameRules { GameMode = GameMode.Survival, HungerConsumption = HungerConsumption.Off }.HungerEnabled);
+    }
+
+    [Fact]
+    public void Rule_HungerDrain_ScalesWithTier()
+    {
+        // Softened + tiered after Severin playtest #2: Off never drains; Slow < Normal < Fast; and Normal is the
+        // eased 0.3/s (a full 100 bar lasts ~333s on foot, up from the old flat 0.5/s ~200s).
+        Assert.Equal(0f, new GameRules { HungerConsumption = HungerConsumption.Off }.HungerDrainPerSecond);
+        Assert.Equal(0.18f, new GameRules { HungerConsumption = HungerConsumption.Slow }.HungerDrainPerSecond);
+        Assert.Equal(0.3f, new GameRules { HungerConsumption = HungerConsumption.Normal }.HungerDrainPerSecond);
+        Assert.Equal(0.5f, new GameRules { HungerConsumption = HungerConsumption.Fast }.HungerDrainPerSecond);
     }
 
     [Fact]

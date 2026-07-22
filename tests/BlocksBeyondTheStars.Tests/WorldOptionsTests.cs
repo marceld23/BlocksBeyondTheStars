@@ -86,7 +86,7 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.Equal(8, config.World.PlanetsPerSystemMax);
         Assert.Equal(4, config.World.MoonsPerPlanetMax);
         Assert.Equal(OxygenConsumption.Slow, config.Rules.OxygenConsumption);
-        Assert.False(config.Rules.Hunger);
+        Assert.Equal(HungerConsumption.Off, config.Rules.HungerConsumption); // "--hunger false" maps to the Off tier
         Assert.Equal(HazardLevel.Hard, config.Rules.EnvironmentalHazards);
         Assert.Equal(DeathPenalty.None, config.Rules.DeathPenalty);
         Assert.Equal(Frequency.Frequent, config.World.PlanetTypeFrequencies["corrupted"]);

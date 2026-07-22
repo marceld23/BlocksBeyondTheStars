@@ -64,6 +64,14 @@ public enum OxygenConsumption
     Fast,
 }
 
+public enum HungerConsumption
+{
+    Off,
+    Slow,
+    Normal,
+    Fast,
+}
+
 public enum DeathPenalty
 {
     None,
@@ -119,8 +127,9 @@ public sealed class GameRules
     public HazardLevel EnvironmentalHazards { get; set; } = HazardLevel.Normal;
     public OxygenConsumption OxygenConsumption { get; set; } = OxygenConsumption.Normal;
 
-    /// <summary>Whether the player gets hungry and must eat (survival need); off in Creative.</summary>
-    public bool Hunger { get; set; } = true;
+    /// <summary>How fast the player gets hungry (survival need); Off disables it entirely (as in Creative).
+    /// A difficulty tier mirroring <see cref="OxygenConsumption"/> so admins can soften or sharpen it.</summary>
+    public HungerConsumption HungerConsumption { get; set; } = HungerConsumption.Normal;
 
     public DeathPenalty DeathPenalty { get; set; } = DeathPenalty.Light;
     public bool KeepInventoryOnDeath { get; set; }
@@ -200,10 +209,19 @@ public sealed class GameRules
     };
 
     /// <summary>Whether the player's hunger drains given the mode and setting.</summary>
-    public bool HungerEnabled => GameMode != GameMode.Creative && Hunger;
+    public bool HungerEnabled => GameMode != GameMode.Creative && HungerConsumption != HungerConsumption.Off;
 
-    /// <summary>Hunger lost per second outside the ship (a full bar lasts a few minutes).</summary>
-    public float HungerDrainPerSecond => 0.5f;
+    /// <summary>Hunger lost per second outside the ship, derived from the configured tier. Softened and tiered
+    /// after Severin playtest #2 (nearly starved twice in the first minutes): at Normal a full bar now lasts
+    /// ~333s on foot (was a flat ~200s), with Slow/Fast difficulty tiers mirroring <see cref="OxygenDrainPerSecond"/>.
+    /// Aboard the ship or in a station hunger still refills, so a short mining trip no longer means starvation.</summary>
+    public float HungerDrainPerSecond => HungerConsumption switch
+    {
+        HungerConsumption.Slow => 0.18f,
+        HungerConsumption.Normal => 0.3f,
+        HungerConsumption.Fast => 0.5f,
+        _ => 0f,
+    };
 
     /// <summary>Whether admin cheats may be used at all, given mode + toggles.</summary>
     public bool CheatsAllowed => AdminCheats &&

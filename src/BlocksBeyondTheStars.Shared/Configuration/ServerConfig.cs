@@ -419,7 +419,10 @@ public sealed class ServerConfig
                     if (Enum.TryParse<OxygenConsumption>(value, ignoreCase: true, out var ox)) { Rules.OxygenConsumption = ox; applied.Add("oxygen"); }
                     break;
                 case "hunger":
-                    if (bool.TryParse(value, out var hg)) { Rules.Hunger = hg; applied.Add("hunger"); }
+                    // Accept the new difficulty tier (Off/Slow/Normal/Fast) and, for backward compatibility with
+                    // existing configs/saves, the legacy boolean (true → Normal, false → Off).
+                    if (Enum.TryParse<HungerConsumption>(value, ignoreCase: true, out var hg)) { Rules.HungerConsumption = hg; applied.Add("hunger"); }
+                    else if (bool.TryParse(value, out var hgb)) { Rules.HungerConsumption = hgb ? HungerConsumption.Normal : HungerConsumption.Off; applied.Add("hunger"); }
                     break;
                 case "hazards":
                     if (Enum.TryParse<HazardLevel>(value, ignoreCase: true, out var hz)) { Rules.EnvironmentalHazards = hz; applied.Add("hazards"); }

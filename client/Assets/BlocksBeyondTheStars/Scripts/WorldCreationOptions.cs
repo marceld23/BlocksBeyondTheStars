@@ -18,6 +18,7 @@ namespace BlocksBeyondTheStars.Client
         public static readonly string[] Activity = { "Off", "Rare", "Normal", "Frequent", "Extreme" };
         public static readonly string[] Freq = { "Off", "VeryRare", "Rare", "Normal", "Frequent" };
         public static readonly string[] OxygenSteps = { "Off", "Slow", "Normal", "Fast" };
+        public static readonly string[] HungerSteps = { "Off", "Slow", "Normal", "Fast" };
         public static readonly string[] HazardSteps = { "Off", "Light", "Normal", "Hard" };
         public static readonly string[] DeathSteps = { "None", "Light", "Normal", "Hard" };
         public static readonly string[] StoryModes = { "Default", "None" };           // 0 = built-in pack, 1 = sandbox
@@ -56,7 +57,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Survival (creation-time; part of the world's rules)
         public int Oxygen = 2;         // Normal
-        public bool Hunger = true;
+        public int Hunger = 2;         // Normal (0=Off,1=Slow,2=Normal,3=Fast)
         public int Hazards = 2;        // Normal
         public int DeathPenalty = 1;   // Light (server default)
 
@@ -176,7 +177,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (Oxygen != 2) Arg("oxygen", OxygenSteps[Oxygen]);
-            if (!Hunger) Arg("hunger", "false");
+            if (Hunger != 2) Arg("hunger", HungerSteps[Hunger]);
             if (Hazards != 2) Arg("hazards", HazardSteps[Hazards]);
             if (DeathPenalty != 1) Arg("death-penalty", DeathSteps[DeathPenalty]);
 

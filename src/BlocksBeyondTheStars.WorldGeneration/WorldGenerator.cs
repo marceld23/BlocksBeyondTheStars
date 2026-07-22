@@ -1553,11 +1553,13 @@ public sealed class WorldGenerator
         return t < 0.60 ? 0.60 : (t > 0.90 ? 0.90 : t);
     }
 
-    /// <summary>This world's ore-richness multiplier (0.85×..1.6× the planet's vein rarities) — some worlds are
-    /// rich strikes, others lean, so the interior payoff varies even on the same planet type. Nudged up from
-    /// 0.7×..1.4× so ore is a bit less scarce for new players who couldn't find any (Severin playtest).</summary>
+    /// <summary>This world's ore-richness multiplier (1.2×..2.2× the planet's vein rarities) — some worlds are
+    /// rich strikes, others lean, so the interior payoff varies even on the same planet type. Raised again from
+    /// 0.85×..1.6× (itself up from 0.7×..1.4×) so diggable ore is noticeably more common on every planet type —
+    /// new players kept reporting they "couldn't find any" (Severin playtests #1 and #2). The per-ore kept-fraction
+    /// is still clamped to 0.95 in <see cref="SelectOre"/>, so even the richest worlds don't flood.</summary>
     private static double PerWorldOreRichness(long seed)
-        => 0.85 + (double)((ulong)(seed ^ 0x0670EL) % 1000UL) / 1000.0 * 0.75;
+        => 1.2 + (double)((ulong)(seed ^ 0x0670EL) % 1000UL) / 1000.0 * 1.0;
 
     private static readonly string[] MantleRocks = { "basalt", "deepslate", "granite" };
 

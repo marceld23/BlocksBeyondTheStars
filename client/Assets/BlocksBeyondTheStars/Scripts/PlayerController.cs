@@ -71,6 +71,17 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
         private static readonly Vector3 ThirdPersonEye = new Vector3(0f, 1.9f, -3.5f);
 
+        // Crouch / sneak (hold Ctrl or C on the ground): shrink the capsule so you fit tight spaces, walk slower,
+        // and — crucially — refuse to step off a ledge. That edge-stop lets you lean out over an edge and lay a
+        // bridging block against the side of the block you stand on (Severin playtest #2: "I miss crouching from
+        // Minecraft" / "I can't build forward beneath me to make a bridge").
+        private const float StandHeight = 1.8f;
+        private const float CrouchHeight = 1.2f;
+        private const float CrouchSpeedMul = 0.4f;
+        private static readonly Vector3 CrouchEye = new Vector3(0f, 1.0f, 0f);
+        private bool _crouched;
+        private float _crouchT; // 0 = standing, 1 = fully crouched (eases the camera; the collider snaps)
+
         private CharacterController _controller;
         private float _pitch;
         // Placement orientation override for shaped building blocks: -1 = auto (the server orients from the
@@ -1580,6 +1591,14 @@ namespace BlocksBeyondTheStars.Client
             bool inWater = IsSubmerged();
             bool onLadder = !inWater && OnLadder();
             _moving = (inWater || grounded || onLadder) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
+
+            // Crouch/sneak: shrink the capsule + slow the walk while held on the ground.
+            UpdateCrouch(grounded, inWater, onLadder);
+            if (_crouched)
+            {
+                move *= CrouchSpeedMul;
+            }
+
             bool jetpacking = false;
             if (inWater)
             {
@@ -1649,6 +1668,24 @@ namespace BlocksBeyondTheStars.Client
             UpdateJetpack(jetpacking);
 
             move.y = _verticalVelocity;
+
+            // Sneak edge-stop: while crouched and standing on the ground, cancel any horizontal component that
+            // would carry the feet off a ledge into open air (checked per axis so you can still slide ALONG the
+            // edge). This is what lets the player lean out over a cave/ledge to place a bridging block instead of
+            // walking off and falling. Jumping (upward velocity) is exempt so you can still hop off deliberately.
+            if (_crouched && grounded && _verticalVelocity <= 0f)
+            {
+                if (Mathf.Abs(move.x) > 0.01f && !GroundAhead(new Vector3(move.x, 0f, 0f)))
+                {
+                    move.x = 0f;
+                }
+
+                if (Mathf.Abs(move.z) > 0.01f && !GroundAhead(new Vector3(0f, 0f, move.z)))
+                {
+                    move.z = 0f;
+                }
+            }
+
             _controller.Move(move * Time.deltaTime);
 
             // Round worlds: latitude (Z) wraps seamlessly like longitude now — the old invisible pole
@@ -1753,6 +1790,51 @@ namespace BlocksBeyondTheStars.Client
             return def?.Key;
         }
 
+        /// <summary>A block key that gives solid footing to stand on (anything placed, but not air or a fluid you'd
+        /// sink through).</summary>
+        private static bool IsSolidKey(string key)
+            => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava";
+
+        /// <summary>Whether there is solid footing just past the player's edge in a horizontal direction — used by
+        /// the sneak edge-stop. Samples a little ahead of the capsule and allows a single step-down (so you can
+        /// still sneak down a slab/stair), but reports "no ground" over a real drop into open air.</summary>
+        private bool GroundAhead(Vector3 horizontalDir)
+        {
+            if (horizontalDir.sqrMagnitude < 0.0001f)
+            {
+                return true;
+            }
+
+            Vector3 ahead = transform.position + horizontalDir.normalized * (_controller.radius + 0.15f);
+            return IsSolidKey(BlockKeyAt(ahead - Vector3.up * 0.5f))
+                || IsSolidKey(BlockKeyAt(ahead - Vector3.up * 1.2f));
+        }
+
+        /// <summary>Drives the crouch/sneak state each frame: sets it from the input while grounded, keeps it on if a
+        /// ceiling would block standing back up, snaps the collider to the crouched capsule, and eases the camera.</summary>
+        private void UpdateCrouch(bool grounded, bool inWater, bool onLadder)
+        {
+            bool want = InputMap.CrouchHeld() && grounded && !inWater && !onLadder;
+
+            // Don't stand up into a block: if crouched under a low ceiling, stay crouched until there's headroom.
+            if (_crouched && !want && IsSolidKey(BlockKeyAt(transform.position + Vector3.up * (StandHeight - 0.1f))))
+            {
+                want = true;
+            }
+
+            _crouched = want;
+            _crouchT = Mathf.MoveTowards(_crouchT, _crouched ? 1f : 0f, Time.deltaTime * 8f);
+
+            // The collider snaps to the crouched capsule (physics can't lerp cleanly). Lowering the centre with the
+            // height keeps the feet planted, so shrinking/growing never pops the player up or down.
+            float targetH = _crouched ? CrouchHeight : StandHeight;
+            if (!Mathf.Approximately(_controller.height, targetH))
+            {
+                _controller.height = targetH;
+                _controller.center = new Vector3(0f, targetH * 0.5f, 0f);
+            }
+        }
+
         /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while
         /// moving, and a decaying shake on landing/impacts. Composed over the look pitch each frame.</summary>
         private void UpdateCameraFeel()
@@ -1777,7 +1859,9 @@ namespace BlocksBeyondTheStars.Client
             _bobPhase += dt * (_moving ? 9f : 0f) * motion;
             float bobY = Mathf.Sin(_bobPhase * 2f) * 0.035f * amt;
             float bobX = Mathf.Cos(_bobPhase) * 0.025f * amt;
-            Camera.transform.localPosition = FirstPersonEye + new Vector3(bobX, bobY, 0f);
+            // Ease the eye down toward the crouch height (_crouchT set in UpdateCrouch) as the baseline the bob rides on.
+            Vector3 eye = Vector3.Lerp(FirstPersonEye, CrouchEye, _crouchT);
+            Camera.transform.localPosition = eye + new Vector3(bobX, bobY, 0f);
 
             Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov + (_moving ? 4f * motion : 0f), dt * 40f);
 

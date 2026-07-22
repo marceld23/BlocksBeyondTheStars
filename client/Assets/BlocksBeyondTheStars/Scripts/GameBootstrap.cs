@@ -800,6 +800,23 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
 
+        /// <summary>Turns a craft-failure reason into a player-facing line. Station-availability failures arrive
+        /// as a machine-readable "@need_station:&lt;station&gt;" token so the client can localize them and name the
+        /// exact station the recipe needs (Severin playtest #2). Other reasons are shown as-is.</summary>
+        private string CraftFailMessage(string reason)
+        {
+            const string stationPrefix = "@need_station:";
+            if (!string.IsNullOrEmpty(reason) && reason.StartsWith(stationPrefix))
+            {
+                string stationKey = reason.Substring(stationPrefix.Length);
+                string stationName = Localizer?.Get("ui.craft.station_" + stationKey) ?? stationKey;
+                string template = Localizer?.Get("ui.craft.need_station") ?? "You need a {station} nearby to craft this.";
+                return template.Replace("{station}", stationName);
+            }
+
+            return $"Craft failed: {reason}";
+        }
+
         /// <summary>Rebuilds <see cref="WikiStateJson"/> from the current star map for the wiki's discovery-gated
         /// Systems &amp; Worlds chapters: only systems the player has entered and bodies they have landed on are
         /// included. Cheap; called on the main thread when the map/language/unlocks change.</summary>
@@ -1306,7 +1323,7 @@ namespace BlocksBeyondTheStars.Client
                 RespawnTarget = new Vector3(m.X, m.Y, m.Z); // teleport the body to the heal-tank on respawn
             };
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
-            Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : $"Craft failed: {m.Reason}";
+            Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : CraftFailMessage(m.Reason);
             Network.ActionRejected += m =>
             {
                 Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");

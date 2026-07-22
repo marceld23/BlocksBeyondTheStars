@@ -77,6 +77,12 @@ namespace BlocksBeyondTheStars.Client
             cc.height = 1.8f;
             cc.radius = 0.35f;
             cc.center = new Vector3(0f, 0.9f, 0f);
+            // Skin width padding — set explicitly instead of leaving Unity's oversized 0.08 default. At 0.08 the
+            // effective standing height is ~1.96 (1.8 + 2×skin), leaving only ~0.04 clearance under a 2-block-high
+            // ceiling, so a tiny step-up sweep would punch the head through and the player would randomly stick
+            // (Severin playtest #2: "sometimes I get stuck under 2-high ceilings, sometimes not"). 0.03 (~10% of the
+            // radius, Unity's recommended value) raises the clearance to ~0.14 so flat 2-high tunnels pass reliably.
+            cc.skinWidth = 0.03f;
             // Auto-step + slope walking so the crafted building shapes are usable on foot: a slab (top at 0.5)
             // and each stair tread (0.5 high) are climbed without jumping, while a full 1.0-high block still
             // needs a jump. The 50° slope limit lets the 45° ramp wedge be walked up smoothly. (Issues #127.)

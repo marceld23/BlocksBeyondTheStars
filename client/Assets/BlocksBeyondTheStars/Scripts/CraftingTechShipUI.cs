@@ -2872,8 +2872,12 @@ namespace BlocksBeyondTheStars.Client
             // player-posted missions and L3 LLM board texts send display text (FreeText) shown verbatim.
             if (!string.IsNullOrEmpty(m2.Description))
             {
-                UiKit.AddText(_detail, 8, y, 620, 60, m2.FreeText ? m2.Description : L(m2.Description), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
-                y += 64f;
+                // Wrap the flavour/instructions so long objectives (e.g. the first-iron hint
+                // "…dig straight down to find it.") are not clipped by the RectMask2D viewport,
+                // and advance y by the actual wrapped height so it never overlaps the objectives.
+                var desc = UiKit.AddText(_detail, 8, y, 620, 60, m2.FreeText ? m2.Description : L(m2.Description), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+                desc.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += Mathf.Max(64f, desc.preferredHeight + 8f);
             }
 
             foreach (var o in m2.Objectives)

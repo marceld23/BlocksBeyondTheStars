@@ -100,6 +100,28 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Severin playtest #2 first-run fixes: mission text, crafting station, ores, hunger, height, crouch (#450–#455, 2026-07-22, branch fix/severin-playtest2)
+Six fixes from Severin's 2nd handwritten playtest, most in the first-10-minutes new-player loop.
+**(M1 #450)** The first mission's objective text was clipped — `DetailMissions` drew the description with
+no word-wrap inside a masked scroll viewport, so the tail (the actual "dig straight down for iron" hint)
+ran off-screen. Now wraps and advances by its real height. **(M2 #451)** "Required crafting station is not
+available" was a hard-coded English string that never said *which* station — meat needs a **detoxifier**,
+not the workbench the player stood at. The server now sends a machine-readable `@need_station:<station>`
+token the client localizes (new `ui.craft.need_station`, DE+EN) and names the station. Aboard-ship crafting
+was left unchanged by design (life support already sates hunger, so algae tanks stay world/base stations).
+**(M3 #452)** Diggable ore made more common on every planet: per-world richness multiplier raised 0.85×–1.6×
+→ 1.2×–2.2× (still clamped 0.95), and `iron_ore` added to ice planets (previously zero, so an iron mission
+failed outright there). **(M4 #453)** Hunger softened and tiered like oxygen: flat 0.5/s (bar ~200 s) → a
+`HungerConsumption` Off/Slow/Normal/Fast tier, Normal 0.3/s (~333 s); replaces the old `bool Hunger` across
+server config + presets + the world-options UI (now a 4-step row, DE+EN), with legacy `hunger=true/false`
+still parsed. **(M5 #454)** Inconsistent 2-block-ceiling clearance: the player capsule left `skinWidth`
+unset (0.08) → effective ~1.96 height, ~0.04 clearance, so a step-up sweep randomly punched the head into
+the ceiling. Set `skinWidth = 0.03` (~0.14 clearance) so flat 2-high tunnels pass reliably; `stepOffset`
+kept at 0.6 for slabs/stairs. **(M6 #455)** Added crouch/sneak (Ctrl/C on the ground): shrinks the capsule,
+slows the walk, and an edge-stop that refuses to step off a ledge — which also lets you lean out and lay a
+bridging block against the ledge's side face (no placement-code change). Server-side validated: full solution
+builds warns-as-error clean, 1234 tests green (new hunger-tier + updated world-option/hunger assertions).
+
 ### ★ Truncated crash upload + Arcade "content broken" empty-state (#425, 2026-07-21, branch fix/425-crash-arcade)
 Two bounded client audit fixes (N13/N14). **(N14)** `CrashReportSpool.Write` did a plain
 `File.WriteAllText` into the live spool, so startup's `FlushPending` — running while the background log

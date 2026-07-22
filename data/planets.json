@@ -30,6 +30,7 @@
       { "surfaceBlock": "stone", "subSurfaceBlock": "stone" }
     ],
     "ores": [
+      { "block": "iron_ore",   "rarity": 0.07, "minDepth": 4,  "maxDepth": 256 },
       { "block": "silver_ore", "rarity": 0.025, "minDepth": 16, "maxDepth": 256 },
       { "block": "nickel_ore", "rarity": 0.03, "minDepth": 8, "maxDepth": 256 },
       { "block": "cobalt_ore", "rarity": 0.025, "minDepth": 16, "maxDepth": 256 },

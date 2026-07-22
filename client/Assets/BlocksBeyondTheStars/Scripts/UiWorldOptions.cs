@@ -98,8 +98,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(main.transform, lx, ly, 700f, 24f, shell.L("ui.worldopt.col_survival"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ly += 34f;
             Row(true, shell.L("ui.worldopt.oxygen"), L4("ui.worldopt.o2"), () => opt.Oxygen, v => opt.Oxygen = v);
-            Row(true, shell.L("ui.worldopt.hunger"), new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") },
-                () => opt.Hunger ? 1 : 0, v => opt.Hunger = v == 1);
+            Row(true, shell.L("ui.worldopt.hunger"), L4("ui.worldopt.hg"), () => opt.Hunger, v => opt.Hunger = v);
             Row(true, shell.L("ui.worldopt.hazards"), L4("ui.worldopt.hz"), () => opt.Hazards, v => opt.Hazards = v);
             Row(true, shell.L("ui.worldopt.death"), L4("ui.worldopt.dp"), () => opt.DeathPenalty, v => opt.DeathPenalty = v);
             var onOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
