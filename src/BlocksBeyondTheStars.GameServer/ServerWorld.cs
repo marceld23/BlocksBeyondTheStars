@@ -107,6 +107,21 @@ public sealed class ServerWorld
         return chunk.Get(local.X, local.Y, local.Z);
     }
 
+    /// <summary>Like <see cref="GetBlock"/> but never loads or generates: cells in unloaded chunks read as
+    /// air. For opportunistic periodic scans (e.g. the heal-tank regen field) that must not drag chunks
+    /// into the cache — a placed device always sits in a chunk its nearby player keeps resident anyway.</summary>
+    public BlockId GetBlockIfLoaded(Vector3i world)
+    {
+        world = WorldConstants.CanonicalBlock(world, Circumference); // longitude wraps
+        if (!_loaded.TryGetValue(WorldConstants.WorldToChunk(world), out var chunk))
+        {
+            return BlockId.Air;
+        }
+
+        var local = WorldConstants.WorldToLocal(world);
+        return chunk.Get(local.X, local.Y, local.Z);
+    }
+
     /// <summary>Sets a block (with an optional per-voxel colour modifier + shape descriptor), persists the
     /// edit, and returns the previous block id. <paramref name="tint"/>/<paramref name="glow"/> are 0xRRGGBB
     /// (0 = none); <paramref name="shape"/> is the packed non-cube shape descriptor (0 = plain cube).</summary>

@@ -142,6 +142,8 @@ TEXTURES = [
     ("detoxifier", "a sci-fi chemical detox station, a metal vat of bubbling glowing green fluid with pipes and valves, top-down"),
     # Algae tank — base food machine (grows rations from water).
     ("algae_tank", "a sci-fi algae farm tank, a dark metal frame around a glass vat of glowing green algae water with rising bubbles and small feed pipes, top-down"),
+    # Heal tank — base/station regen unit (heals, feeds, recharges nearby players; holds the home spawn).
+    ("heal_tank", "a sci-fi regeneration tank, a dark metal frame around a glass vat of glowing teal-cyan fluid with rising bubbles, soft white status lights and small pipes, front view"),
     # Energy fence + gate — creature pen (fauna blocked server-side; gate membrane is walk-through).
     ("energy_fence", "a sci-fi energy fence pylon, a dark metal frame with vertical glowing cyan energy beams in a lattice and small warning lights, front view"),
     ("energy_gate", "a sci-fi energy gate, a dark metal archway frame filled with a soft translucent teal energy membrane with gentle ripples, front view"),

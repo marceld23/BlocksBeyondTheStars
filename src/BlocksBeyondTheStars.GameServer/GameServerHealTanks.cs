@@ -89,7 +89,7 @@ public sealed partial class GameServer
 
     /// <summary>Box scan of the world grid for a heal tank around the player (wider sibling of
     /// <c>NearStationBlock</c> — a regen field should cover a small room, not just arm's reach).</summary>
-    private bool NearHealTankBlock(PlayerState player) => HealTankNear(player.Position);
+    private bool NearHealTankBlock(PlayerState player) => HealTankNear(player.Position, loadedOnly: true);
 
     /// <summary>Test/util: expose the proximity scan (mirrors <see cref="BlockedByEnergyFenceForTest"/>).</summary>
     public bool NearHealTankForTest(string playerId)
@@ -195,7 +195,7 @@ public sealed partial class GameServer
         // a razed home falls back to the ship rather than dropping the player at a ruin.
         if (sameWorld && session.CurrentLocationId == p.CustomSpawnBodyId)
         {
-            if (!HealTankNear(p.CustomSpawnPoint))
+            if (!HealTankNear(p.CustomSpawnPoint, loadedOnly: false))
             {
                 return false;
             }
@@ -222,7 +222,7 @@ public sealed partial class GameServer
         LeaveSpace(p.PlayerId); // exit any flight view (sends SpaceClosed if in one)
         LoadWorld(body.PlanetType, p.CustomSpawnBodyId);
         SetCurrent(session);
-        if (!HealTankNear(p.CustomSpawnPoint))
+        if (!HealTankNear(p.CustomSpawnPoint, loadedOnly: false))
         {
             return false; // home tank gone → the caller's ship path reloads the ship's world
         }
@@ -332,9 +332,12 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>True if a placed heal tank stands within the regen-field box around <paramref name="pos"/>
-    /// (used to verify a stored home spawn still exists before respawning there).</summary>
-    private bool HealTankNear(Vector3f pos)
+    /// <summary>True if a placed heal tank stands within the regen-field box around <paramref name="pos"/>.
+    /// The per-tick regen scan passes <paramref name="loadedOnly"/> so it never forces chunk loads (a
+    /// placed tank always sits in a chunk its nearby player keeps resident anyway); the home-spawn
+    /// validation at respawn time reads THROUGH the cache — the home chunks are usually not resident when
+    /// the player died elsewhere, and loading the few cells there is exactly what the check is for.</summary>
+    private bool HealTankNear(Vector3f pos, bool loadedOnly)
     {
         if (_healTankBlockId == 0)
         {
@@ -350,7 +353,9 @@ public sealed partial class GameServer
             {
                 for (int dz = -HealTankRadius; dz <= HealTankRadius; dz++)
                 {
-                    if (_world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz)).Value == _healTankBlockId)
+                    var cell = new Vector3i(px + dx, py + dy, pz + dz);
+                    var block = loadedOnly ? _world.GetBlockIfLoaded(cell) : _world.GetBlock(cell);
+                    if (block.Value == _healTankBlockId)
                     {
                         return true;
                     }

@@ -100,6 +100,23 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Base/station systems: heal tank, home spawn, respawn choice, console/lab fix (#460–#463, 2026-07-25, branch feat/base-systems)
+Bases and player stations get their first real life-support system. **Heal tank** (new machine block,
+blueprint-gated workshop recipe): players within a ~6-block field are slowly healed (+4 HP/s), fed (+6/s)
+and the suit recharges (+10/s) — the only off-ship suit recharge, closing the documented TickEnvironment
+gap; stateless like the algae tank (the voxel is the machine, block-palette migration covers the id shift).
+**Home spawn** (E on a placed tank): stored body-qualified (`CustomSpawnBodyId/Point/Label` on PlayerState,
+persisted) — deliberately separate from `RespawnPoint`, which every transit rewrites. **Respawn choice**:
+with a home set, death defers relocation (player lies at 0 HP, environment tick skips them) and the death
+screen offers "wake up at <home>" vs "wake up at your ship" (`RespawnOptions`/`RespawnChoiceIntent`, codec
+176/177); home targets support same-world snap, cross-body transition (ship re-homes along) and station
+re-boarding via the shared stamping path; ~30 s timeout and any invalid home fall back to the ship. Closes
+the R4 death-respawn requirement. Drive-by fixes: dying while boarded no longer leaves `_boardedStation`
+behind (permanent free life support), and the **console/lab** ship stations finally do something (#463):
+E opens Ship/Tech tab, server arms + a default arm for unknown ids, `ui.station.console`/`ui.station.lab`
+DE+EN (raw-key prompt fixed). OPEN: heal_tank block texture (OpenAI outage during the session — renders via
+the procedural color/emission fallback until generated; entry already in gen_textures.py).
+
 ### ★ glitch.fun menu: Singleplayer first, arcade renamed "Multiplayer (Arcade)" (2026-07-25, branch glitch-menu-order)
 On glitch.fun the browser menu now leads with **Singleplayer** (plain label, new `ui.menu.singleplayer_glitch`
 key DE+EN) and the shared-worlds entry drops to second place as **"Multiplayer (Arcade)"** (`ui.menu.arcade`

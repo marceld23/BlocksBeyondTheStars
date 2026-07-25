@@ -188,6 +188,10 @@ separate unlock; admins can still disable it through server world rules.
   2 algae rations from 1 water (melt 2 snow or 2 ice into water by hand if there is no lake).
 - **Suit energy** (max 100): powers the stealth-suit cloak and the **jetpack** (hold Space in the air to
   thrust up); both stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank.
+- **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
+  within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
+  suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
+  waking at your ship's medbay or at that home (ship is always the fallback if the home is gone).
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
 
 ### Swimming & diving
