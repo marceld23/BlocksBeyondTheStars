@@ -11,6 +11,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [0.8.7] — 2026-07-25
+
+The homestead release: player bases and space stations get their first real life support. A new heal tank block heals, feeds and recharges everyone nearby, doubles as a settable home spawn point, and dying now lets you choose whether to wake up at your ship or at your base — plus the ship's console and lab stations finally do something, and glitch.fun visitors see Singleplayer first.
+
+### 🏠 Your base becomes a home
+- **New block: the heal tank** (workshop recipe behind a research blueprint). Placed in a base or a player-built station, it slowly heals and feeds every player within a few blocks and recharges the suit — the only way to refill suit energy away from the ship (a code comment had promised "only refills at a heal-tank" for months while no such block existed). Deliberately simple and robust: the placed block itself is the whole machine — no wiring, no fuel, nothing extra to persist. (#464, closes #460)
+- **Press E on a placed heal tank to make it your home spawn.** The spot is stored per player, remembers which planet or station it is on and survives save/load — deliberately separate from the ship's medbay respawn point, which the game rewrites on every landing and jump (the reason it could never hold a base). (#464, closes #461)
+- **Dying now asks where you want to wake up.** With a home spawn set, the death screen offers *"wake up at &lt;your base&gt;"* vs *"wake up at your ship"* — including a full world transition if you died on another planet (your ship re-homes with you), or a re-board if your home is a space station. Without a home spawn everything behaves exactly as before. Fail-safes everywhere: an unanswered choice falls back to the ship after ~30 s, and so does a home whose tank was mined or whose station no longer exists — you can never be stranded. (#464, closes #462)
+- Fixed along the way: dying while boarded on a space station left you flagged as *"in station"* forever afterwards — permanent free life support and a hunger bar that never drained again until relog.
+
+### 🛠️ The ship's console and lab finally do something
+- The **console** and **lab** stations in ship interiors showed a "Press E" prompt with a raw untranslated key — and pressing E did nothing at all (a silent server no-op). E on the console now opens the Ship tab (status + repairs — the cockpit without the helm, so still no launching from a console), E on the lab opens the Tech/research tab, both prompts are properly named in German and English, and any future unknown station id logs itself instead of failing silently. (#464, closes #463)
+
+### 🕹️ glitch.fun: Singleplayer first
+- On play.glitch.fun the main menu now leads with **Singleplayer**, and the shared-worlds entry moved to second place as **"Multiplayer (Arcade)"** — the first live store feedback showed visitors didn't discover that an instant in-browser singleplayer exists at all. The swap is gated to the glitch context; native builds and the fleet's own /play menu are unchanged. (#458)
+
 ## [0.8.6] — 2026-07-22
 
 The new-player release: this cycle went back to the first ten minutes — the exact stretch where Severin's second handwritten playtest kept getting stuck — and fixed the whole first-run loop, from the mission text that ran off-screen to the hunger bar that emptied too fast. It also makes the ship/station/settlement build editors genuinely usable in both languages, and clears the last see-through holes and washed-out panels off ship hulls.
