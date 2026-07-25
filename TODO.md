@@ -114,8 +114,7 @@ re-boarding via the shared stamping path; ~30 s timeout and any invalid home fal
 the R4 death-respawn requirement. Drive-by fixes: dying while boarded no longer leaves `_boardedStation`
 behind (permanent free life support), and the **console/lab** ship stations finally do something (#463):
 E opens Ship/Tech tab, server arms + a default arm for unknown ids, `ui.station.console`/`ui.station.lab`
-DE+EN (raw-key prompt fixed). OPEN: heal_tank block texture (OpenAI outage during the session — renders via
-the procedural color/emission fallback until generated; entry already in gen_textures.py).
+DE+EN (raw-key prompt fixed). Block texture generated via tools/ai-assets (gpt-image-1-mini) + NOTICES entry.
 
 ### ★ glitch.fun menu: Singleplayer first, arcade renamed "Multiplayer (Arcade)" (2026-07-25, branch glitch-menu-order)
 On glitch.fun the browser menu now leads with **Singleplayer** (plain label, new `ui.menu.singleplayer_glitch`
