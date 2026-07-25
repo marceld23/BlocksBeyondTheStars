@@ -1077,6 +1077,8 @@ namespace BlocksBeyondTheStars.Client
                 case "workshop": Menu?.OpenCrafting(); break;
                 case "market": Menu?.OpenMarket(); Game.Network?.SendNpcGreet("vendor"); break; // item 15: vendor greeting
                 case "cargo": Menu?.OpenInventory(); break;
+                case "console": Menu?.OpenShip(); Game.Network?.SendUseStation("console"); break; // ship status/repairs (#463)
+                case "lab": Menu?.OpenTech(); break; // research tab (#463)
                 default:
                     if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");
                     Game.Network?.SendUseStation(Game.NearbyStation);

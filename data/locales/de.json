@@ -1267,6 +1267,8 @@
   "ui.station.airlock": "Luftschleuse — aussteigen (EVA)",
   "ui.station.market": "Handeln",
   "ui.station.workshop": "Werkstatt",
+  "ui.station.console": "Schiffskonsole",
+  "ui.station.lab": "Labor",
   "ui.station.cargo": "Frachtraum",
   "ui.station.quarters": "Quartier",
 

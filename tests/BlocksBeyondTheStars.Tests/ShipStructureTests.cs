@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -258,6 +259,45 @@ public sealed class ShipStructureTests : IDisposable
             server.UseStation("Pilot", "quarters");
 
             Assert.Equal(quarters, pilot.State.RespawnPoint);
+        }
+    }
+
+    [Fact]
+    public void ConsoleAndLab_AreHandled_AndUnknownStationsNoLongerFailSilently()
+    {
+        // Issue #463: 'console' and 'lab' used to fall off the end of the UseStation switch (silent no-op)
+        // and their HUD prompts rendered raw keys. Now both have a server arm, a default arm catches any
+        // future unknown id, and the prompt labels resolve in both languages.
+        var server = Started(placeShip: true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+
+            // The parametric box ship carries both stations.
+            var console = server.StationPosition("console");
+            var lab = server.StationPosition("lab");
+            Assert.NotNull(console);
+            Assert.NotNull(lab);
+
+            // None of these may throw or corrupt vitals (console/lab are informational; 'wibble' hits the
+            // default arm instead of vanishing silently).
+            pilot.State.Health = 40f;
+            pilot.State.Position = console!.Value;
+            server.UseStation("Pilot", "console");
+            pilot.State.Position = lab!.Value;
+            server.UseStation("Pilot", "lab");
+            Assert.Equal(40f, pilot.State.Health);
+
+            // Prompt labels resolve in both languages (the raw-key bug half of #463).
+            var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+            var en = content.CreateLocalizer(GameLocale.English);
+            var de = content.CreateLocalizer(GameLocale.German);
+            foreach (var key in new[] { "ui.station.console", "ui.station.lab" })
+            {
+                Assert.True(en.Has(key), $"missing '{key}' in en locale");
+                Assert.True(de.Has(key), $"missing '{key}' in de locale");
+            }
         }
     }
 

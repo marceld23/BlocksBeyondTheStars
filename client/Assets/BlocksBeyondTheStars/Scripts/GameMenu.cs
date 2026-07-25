@@ -120,6 +120,8 @@ namespace BlocksBeyondTheStars.Client
         public void OpenInventory() => OpenAt(Tab.Inventory);
         public void OpenCrafting() => OpenAt(Tab.Crafting);
         public void OpenMap() => OpenAt(Tab.Map);
+        public void OpenTech() => OpenAt(Tab.Tech);
+        public void OpenShip() => OpenAt(Tab.Ship);
         public void OpenMissions() => OpenAt(Tab.Missions);
 
         /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): open/close the in-game menu exactly

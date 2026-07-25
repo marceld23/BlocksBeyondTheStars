@@ -334,6 +334,25 @@ public sealed partial class GameServer
                 }
 
                 break;
+
+            case "console":
+                // The command console (issue #463; used to be a silent no-op): the ship-status counterpart of the
+                // cockpit WITHOUT the helm arm — no launch, just the repair readout. The client opens the Ship tab.
+                SendShipRepairStatus(session);
+                Send(session, new ServerMessage { Text = "Ship console — open the menu (Tab) → Ship for status and repairs." });
+                break;
+
+            case "lab":
+                // The lab gates the Tech tab (research) exactly like workshop gates crafting; E opens it client-side.
+                Send(session, new ServerMessage { Text = "Lab ready — open the menu (Tab) → Tech to research blueprints." });
+                break;
+
+            default:
+                // Never let an unknown station id fail silently again (that's how the console no-op shipped):
+                // log it and tell the player something instead of swallowing the press.
+                _log.Info($"UseStation: unhandled station id '{station}' (player '{p.Name}').");
+                Send(session, new ServerMessage { Text = $"Nothing to operate at '{station}' yet." });
+                break;
         }
     }
 

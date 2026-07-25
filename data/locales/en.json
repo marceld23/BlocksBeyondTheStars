@@ -1266,6 +1266,8 @@
   "ui.station.airlock": "Airlock — step out (EVA)",
   "ui.station.market": "Trade",
   "ui.station.workshop": "Workshop",
+  "ui.station.console": "Ship console",
+  "ui.station.lab": "Laboratory",
   "ui.station.cargo": "Cargo hold",
   "ui.station.quarters": "Quarters",
 
