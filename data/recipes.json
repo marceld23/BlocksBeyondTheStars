@@ -179,6 +179,7 @@
   // Algae tank: an early-game food machine — no blueprint gate, cheap parts, and its grow recipe
   // needs only water so a fresh base can feed itself (design: keep food production EASY for now).
   { "key": "algae_tank",   "station": "workshop",  "inputs": [ { "item": "metal_panel", "count": 2 }, { "item": "glass", "count": 3 } ], "outputs": [ { "item": "algae_tank", "count": 1 } ] },
+  { "key": "heal_tank",    "station": "workshop",  "requiredBlueprint": "heal_tank", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "glass", "count": 4 }, { "item": "cable", "count": 3 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "heal_tank", "count": 1 } ] },
   { "key": "algae_ration", "station": "algaetank", "inputs": [ { "item": "water", "count": 1 } ],                                        "outputs": [ { "item": "algae_ration", "count": 2 } ] },
 
   // Energy fence: contains creatures, companions and planet enemies; the gate membrane lets

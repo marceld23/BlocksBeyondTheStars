@@ -910,6 +910,7 @@ public sealed partial class GameServer
             Guard("TickNpcs", deltaSeconds, TickNpcs);
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
+            Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
             Guard("StreamChunks", StreamChunks);

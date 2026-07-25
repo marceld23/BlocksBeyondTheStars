@@ -86,6 +86,7 @@ public sealed partial class GameServer
         _creatureWaterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _creatureLavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
         InitFences();
+        InitHealTanks();
     }
 
     // --- Day/night activity (ties into the World-systems clock) ---

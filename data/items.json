@@ -162,6 +162,7 @@
   { "key": "detoxifier",     "nameKey": "item.detoxifier.name",     "category": "block", "maxStack": 16, "placesBlock": "detoxifier", "descriptionKey": "item.detoxifier.desc" },
   { "key": "matter_forge",   "nameKey": "item.matter_forge.name",   "category": "block", "maxStack": 16, "placesBlock": "matter_forge", "descriptionKey": "item.matter_forge.desc" },
   { "key": "algae_tank",     "nameKey": "item.algae_tank.name",     "category": "block", "maxStack": 16, "placesBlock": "algae_tank", "descriptionKey": "item.algae_tank.desc" },
+  { "key": "heal_tank",      "nameKey": "item.heal_tank.name",      "category": "block", "maxStack": 16, "placesBlock": "heal_tank", "descriptionKey": "item.heal_tank.desc" },
   { "key": "matter_dust",    "nameKey": "item.matter_dust.name",    "category": "material", "maxStack": 99, "descriptionKey": "item.matter_dust.desc" },
   { "key": "insulated_wall", "nameKey": "item.insulated_wall.name", "category": "block", "maxStack": 99, "placesBlock": "insulated_wall" },
   { "key": "energy_fence",   "nameKey": "item.energy_fence.name",   "category": "block", "maxStack": 99, "placesBlock": "energy_fence", "descriptionKey": "item.energy_fence.desc" },

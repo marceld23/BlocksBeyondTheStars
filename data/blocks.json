@@ -126,6 +126,7 @@
   { "key": "detoxifier",   "nameKey": "block.detoxifier.name", "category": "machine",   "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.2, "color": 4174699, "drops": [ { "item": "detoxifier", "count": 1 } ] },
   { "key": "matter_forge", "nameKey": "block.matter_forge.name", "category": "machine", "hardness": 4.6, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5, "color": 8413951, "drops": [ { "item": "matter_forge", "count": 1 } ] },
   { "key": "algae_tank",   "nameKey": "block.algae_tank.name", "category": "machine",   "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.35, "color": 3122027, "drops": [ { "item": "algae_tank", "count": 1 } ] },
+  { "key": "heal_tank",    "nameKey": "block.heal_tank.name",  "category": "machine",   "hardness": 4.5, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5,  "color": 4245951, "drops": [ { "item": "heal_tank", "count": 1 } ] },
   { "key": "factory_terminal", "nameKey": "block.factory_terminal.name", "category": "machine", "hardness": 6.0, "requiredTool": "drill", "minToolTier": 2, "emission": 0.7, "color": 3978195, "drops": [] },
   { "key": "machine_block",    "nameKey": "block.machine_block.name", "category": "machine",    "hardness": 6.0, "requiredTool": "drill", "minToolTier": 2, "emission": 0.15, "color": 5526612, "drops": [] },
   { "key": "factory_pipe",     "nameKey": "block.factory_pipe.name", "category": "machine",     "hardness": 4.4, "requiredTool": "drill", "minToolTier": 1, "color": 7898741, "drops": [] },

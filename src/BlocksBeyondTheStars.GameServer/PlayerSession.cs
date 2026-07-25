@@ -95,6 +95,14 @@ public sealed class PlayerSession
     /// <summary>Uptime of the next LLM banter check (0 = not armed yet; armed on the first poll).</summary>
     public double VegaBanterNextAt { get; set; }
 
+    // --- Heal-tank regen field (base/station life support, issue #460) ---
+
+    /// <summary>Countdown to the next heal-tank proximity rescan (the regen itself applies every tick).</summary>
+    public double HealTankScanIn { get; set; }
+
+    /// <summary>Cached result of the last heal-tank proximity scan.</summary>
+    public bool NearHealTank { get; set; }
+
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }
     public float LastSentHealth = 100f;
