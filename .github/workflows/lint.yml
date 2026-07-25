@@ -23,6 +23,9 @@ jobs:
 
   # Python AI backend — ruff is both the linter and the syntax checker. Config (if any) is read from
   # ai-backend/pyproject.toml; today it runs ruff's default rule set, which the tree already passes.
+  # The ruff version is pinned: ai-backend/pyproject.toml declares no ruff dependency, so the action
+  # would otherwise fetch "latest" — 0.16.0's new default rules (S110/BLE001/UP037) turned every PR
+  # red overnight without any code change. Bump deliberately, running the new version locally first.
   ruff:
     name: ruff (Python ai-backend)
     needs: changes
@@ -34,6 +37,7 @@ jobs:
         with:
           args: "check"
           src: "ai-backend"
+          version: "0.15.4"
 
   # Workflow YAML correctness. ShellCheck is disabled (-shellcheck=) so this stays a workflow-syntax check
   # and does not flag shell style in the existing run: scripts. Pinned for reproducibility.
