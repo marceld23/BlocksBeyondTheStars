@@ -28,6 +28,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.RespawnNoticeReceived += OnRespawn;
+                Game.Network.RespawnOptionsReceived += OnRespawnOptions;
                 Game.Network.SpaceClosed += OnSpaceClosed;
                 _subscribed = true;
             }
@@ -64,6 +65,8 @@ namespace BlocksBeyondTheStars.Client
             _flash.color = color;
         }
 
+        private bool _optionsPending; // deferred respawn: feedback already played on the options message
+
         private void OnRespawn(RespawnNotice m)
         {
             if (!m.Died)
@@ -71,7 +74,22 @@ namespace BlocksBeyondTheStars.Client
                 return; // a non-death relocation (e.g. the void-fall rescue) — no death feedback
             }
 
+            if (_optionsPending)
+            {
+                _optionsPending = false;
+                return; // the flash played when the choice appeared — don't flash again on the wake-up
+            }
+
             Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f); // a red death wash
+            ClientAudio.Instance?.Cue("player_death");
+        }
+
+        private void OnRespawnOptions(RespawnOptions m)
+        {
+            // Deferred respawn (issue #462): the death happens NOW — the RespawnNotice only follows once
+            // the player picks where to wake up, so the death feedback belongs to this message.
+            _optionsPending = true;
+            Flash(new Color(0.70f, 0.05f, 0.05f, 0.78f), 0.9f);
             ClientAudio.Instance?.Cue("player_death");
         }
 
@@ -91,6 +109,7 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.RespawnNoticeReceived -= OnRespawn;
+                Game.Network.RespawnOptionsReceived -= OnRespawnOptions;
                 Game.Network.SpaceClosed -= OnSpaceClosed;
             }
         }

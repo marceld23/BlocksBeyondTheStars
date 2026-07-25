@@ -75,6 +75,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<MissionList>? MissionsReceived;
         public event Action<MissionResult>? MissionResultReceived;
         public event Action<RespawnNotice>? RespawnNoticeReceived;
+        public event Action<RespawnOptions>? RespawnOptionsReceived;
         public event Action<ServerRules>? ServerRulesReceived;
 
         // Multiplayer presence (M24).
@@ -382,6 +383,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>E on a placed heal tank: make it the custom spawn point (issue #461).</summary>
         public void SendSetSpawnPoint(int x, int y, int z) => Send(new SetSpawnPointIntent { X = x, Y = y, Z = z });
 
+        /// <summary>Answers a deferred death respawn: wake at the home spawn or at the ship (issue #462).</summary>
+        public void SendRespawnChoice(bool useCustomSpawn) => Send(new RespawnChoiceIntent { UseCustomSpawn = useCustomSpawn });
+
         /// <summary>Claim the factory you're standing at by spending an access code (it becomes your base).</summary>
         public void SendClaimStructure(int factoryId) => Send(new ClaimStructureIntent { FactoryId = factoryId });
 
@@ -526,6 +530,7 @@ namespace BlocksBeyondTheStars.Client
                 case MissionList m: MissionsReceived?.Invoke(m); break;
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;
                 case RespawnNotice m: RespawnNoticeReceived?.Invoke(m); break;
+                case RespawnOptions m: RespawnOptionsReceived?.Invoke(m); break;
                 case ServerRules m: ServerRulesReceived?.Invoke(m); break;
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;

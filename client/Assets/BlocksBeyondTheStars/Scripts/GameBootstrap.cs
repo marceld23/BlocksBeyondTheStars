@@ -1334,6 +1334,7 @@ namespace BlocksBeyondTheStars.Client
                 LastMessage = m.Reason;
                 RespawnTarget = new Vector3(m.X, m.Y, m.Z); // teleport the body to the heal-tank on respawn
             };
+            Network.RespawnOptionsReceived += m => LastMessage = m.Reason; // deferred death: reason shows under the choice modal
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
             Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : CraftFailMessage(m.Reason);
             Network.ActionRejected += m =>

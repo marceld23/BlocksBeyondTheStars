@@ -1019,6 +1019,20 @@ public sealed partial class GameServer
             DecayBeamCooldown(p.PlayerId, dt);
             TickStealth(session, dt);
             TickJetpack(session, dt);
+            // A deferred respawn choice is pending (issue #462): the player lies at the death spot at 0 HP.
+            // No drains, no regen, no re-death — just enforce the timeout fallback to the ship.
+            if (session.RespawnChoiceDeadline > 0)
+            {
+                if (_uptime >= session.RespawnChoiceDeadline)
+                {
+                    session.RespawnChoiceDeadline = 0;
+                    CompleteRespawn(session, session.PendingRespawnReason, session.PendingRespawnSalvaged,
+                        session.PendingRespawnSameWorld, useCustomSpawn: false);
+                }
+
+                continue;
+            }
+
             float maxOxygen = MaxOxygen(p);
             if (p.GodMode)
             {
@@ -1302,6 +1316,45 @@ public sealed partial class GameServer
         bool wasInFlightView = InSpace(p.PlayerId);
         bool wasInShipInterior = _inShipInterior.ContainsKey(p.PlayerId);
 
+        // On foot on a planet your ship is already there (you land with it) — a plain heal-tank snap. You only
+        // need a world transition if you died away from your ship's world: in the flight view, on a spacewalk,
+        // inside the ship, or boarded on a station.
+        bool sameWorld = !wasInFlightView && !wasInShipInterior && !InStation(p.PlayerId);
+
+        // Respawn choice (issue #462): with a home spawn set (heal tank in a base/station, issue #461) the
+        // relocation is DEFERRED — the death screen offers ship vs home and answers with RespawnChoiceIntent.
+        // Until then the player lies at the death spot at 0 HP: the environment tick skips pending players
+        // (no drains, no re-death) and enforces the timeout fallback to the ship.
+        if (!string.IsNullOrEmpty(p.CustomSpawnBodyId))
+        {
+            p.Health = 0f;
+            session.RespawnChoiceDeadline = _uptime + RespawnChoiceTimeout;
+            session.PendingRespawnSalvaged = salvaged;
+            session.PendingRespawnSameWorld = sameWorld;
+            session.PendingRespawnReason = reason;
+            Send(session, new RespawnOptions
+            {
+                Reason = reason,
+                SalvageCapsuleDropped = salvaged,
+                CustomLabel = p.CustomSpawnLabel,
+            });
+            SendInventory(session); // the salvage capsule already emptied the pockets — reflect it under the modal
+            _repo.SavePlayer(p);    // a disconnect mid-choice re-offers the choice on the next join (health 0)
+            _log.Info($"Player '{p.Name}' died — respawn choice offered (home '{p.CustomSpawnLabel}').");
+            return;
+        }
+
+        CompleteRespawn(session, reason, salvaged, sameWorld, useCustomSpawn: false);
+    }
+
+    /// <summary>Seconds a deferred respawn choice may stay unanswered before the ship respawn runs.</summary>
+    private const double RespawnChoiceTimeout = 30.0;
+
+    /// <summary>The relocation half of a death: resets vitals and places the player at the ship heal-tank
+    /// (classic behaviour) or, on request, at their home spawn (issue #462) with the ship as fallback.</summary>
+    private void CompleteRespawn(PlayerSession session, string reason, bool salvaged, bool sameWorld, bool useCustomSpawn)
+    {
+        var p = session.State;
         p.Health = 100f;
         p.Oxygen = MaxOxygen(p);
         p.SuitEnergy = 100f;
@@ -1311,10 +1364,24 @@ public sealed partial class GameServer
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
 
-        // On foot on a planet your ship is already there (you land with it) — a plain heal-tank snap. You only
-        // need a world transition if you died away from your ship's world: in the flight view, on a spacewalk,
-        // inside the ship, or boarded on a station.
-        bool sameWorld = !wasInFlightView && !wasInShipInterior && !InStation(p.PlayerId);
+        if (useCustomSpawn && TryCustomRespawn(session, reason, salvaged, sameWorld))
+        {
+            _repo.SavePlayer(p);
+            _log.Info($"Player '{p.Name}' respawned at their home spawn '{p.CustomSpawnLabel}' (salvage={salvaged}).");
+            return;
+        }
+
+        if (useCustomSpawn)
+        {
+            // The home attempt may have loaded another world before failing — the ship transition below
+            // reloads the ship's own world, so the plain same-world snap is no longer safe.
+            sameWorld = false;
+        }
+
+        // Dying while boarded used to leave the station membership behind (InStation stayed true after the
+        // recovery to the ship — permanent free life support). Always drop it here: every non-station respawn
+        // target below leaves the station, and the station home spawn re-registers it itself.
+        _boardedStation.Remove(p.PlayerId);
 
         if (sameWorld)
         {
@@ -1343,6 +1410,20 @@ public sealed partial class GameServer
 
         _repo.SavePlayer(p);
         _log.Info($"Player '{p.Name}' respawned (salvage={salvaged}, transition={!sameWorld}).");
+    }
+
+    /// <summary>The player's answer to a deferred respawn choice (no-op without one pending, so a duplicate
+    /// or late packet can't double-respawn).</summary>
+    private void HandleRespawnChoice(PlayerSession session, RespawnChoiceIntent choice)
+    {
+        if (session.RespawnChoiceDeadline <= 0)
+        {
+            return;
+        }
+
+        session.RespawnChoiceDeadline = 0;
+        CompleteRespawn(session, session.PendingRespawnReason, session.PendingRespawnSalvaged,
+            session.PendingRespawnSameWorld, choice.UseCustomSpawn);
     }
 
     /// <summary>Death recovery with a world transition: lands the player at their ship's heal-tank on the
@@ -1860,6 +1941,7 @@ public sealed partial class GameServer
             case TractorPullIntent pull: HandleTractorPull(session, pull); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
             case SetSpawnPointIntent spawnPoint: HandleSetSpawnPoint(session, spawnPoint); break;
+            case RespawnChoiceIntent respawnChoice: HandleRespawnChoice(session, respawnChoice); break;
             case UnlockGameIntent unlockGame: HandleUnlockGame(session, unlockGame); break;
             case MinigameResultIntent miniResult: HandleMinigameResult(session, miniResult); break;
             case FallDamageIntent fall: HandleFallDamage(session, fall); break;
@@ -2416,6 +2498,11 @@ public sealed partial class GameServer
 
     private void HandleMove(PlayerSession session, MoveIntent move)
     {
+        if (session.RespawnChoiceDeadline > 0)
+        {
+            return; // lying dead awaiting the respawn choice — the corpse doesn't walk
+        }
+
         // MVP: trust position but clamp to sane finite values. (Full movement validation later.)
         if (float.IsFinite(move.X) && float.IsFinite(move.Y) && float.IsFinite(move.Z))
         {

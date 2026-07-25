@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -68,17 +69,14 @@ public sealed partial class GameServer
                 session.NearHealTank = NearHealTankBlock(p);
             }
 
-            if (!session.NearHealTank || p.GodMode)
+            if (!session.NearHealTank || p.GodMode || p.Health <= 0f)
             {
-                continue; // god mode is already pinned to full vitals by TickEnvironment
+                // God mode is already pinned to full vitals; a downed player (0 HP, e.g. awaiting the
+                // respawn choice) gets nothing — the tank never outruns the death flow.
+                continue;
             }
 
-            if (p.Health > 0f)
-            {
-                // Never revives a downed player (0 HP) — that would outrun the death check.
-                p.Health = System.Math.Min(100f, p.Health + (float)(dt * HealTankHealPerSecond));
-            }
-
+            p.Health = System.Math.Min(100f, p.Health + (float)(dt * HealTankHealPerSecond));
             p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * HealTankFeedPerSecond));
 
             if (!p.Stealthed && !p.Jetpacking)
@@ -91,27 +89,7 @@ public sealed partial class GameServer
 
     /// <summary>Box scan of the world grid for a heal tank around the player (wider sibling of
     /// <c>NearStationBlock</c> — a regen field should cover a small room, not just arm's reach).</summary>
-    private bool NearHealTankBlock(PlayerState player)
-    {
-        int px = (int)System.Math.Floor(player.Position.X);
-        int py = (int)System.Math.Floor(player.Position.Y);
-        int pz = (int)System.Math.Floor(player.Position.Z);
-        for (int dx = -HealTankRadius; dx <= HealTankRadius; dx++)
-        {
-            for (int dy = -HealTankRadiusY; dy <= HealTankRadiusY; dy++)
-            {
-                for (int dz = -HealTankRadius; dz <= HealTankRadius; dz++)
-                {
-                    if (_world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz)).Value == _healTankBlockId)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
+    private bool NearHealTankBlock(PlayerState player) => HealTankNear(player.Position);
 
     /// <summary>Test/util: expose the proximity scan (mirrors <see cref="BlockedByEnergyFenceForTest"/>).</summary>
     public bool NearHealTankForTest(string playerId)
@@ -178,5 +156,208 @@ public sealed partial class GameServer
         {
             HandleSetSpawnPoint(session, new SetSpawnPointIntent { X = x, Y = y, Z = z });
         }
+    }
+
+    /// <summary>Answers a pending respawn choice for a player (used by local play / tests).</summary>
+    public void ChooseRespawn(string playerId, bool useCustomSpawn)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleRespawnChoice(session, new RespawnChoiceIntent { UseCustomSpawn = useCustomSpawn });
+        }
+    }
+
+    // --- Respawning at the home spawn (issue #462) ---
+
+    /// <summary>Attempts the home-spawn relocation after a death. Returns false when the home is gone or
+    /// unreachable (station decommissioned, heal tank mined, body unknown) — the caller then runs the ship
+    /// respawn, which always works. Vitals are already reset by <c>CompleteRespawn</c>.</summary>
+    private bool TryCustomRespawn(PlayerSession session, string reason, bool salvaged, bool sameWorld)
+    {
+        var p = session.State;
+        if (string.IsNullOrEmpty(p.CustomSpawnBodyId))
+        {
+            return false;
+        }
+
+        if (p.CustomSpawnBodyId.StartsWith("station:", System.StringComparison.Ordinal))
+        {
+            return TryRespawnAtHomeStation(session, p.CustomSpawnBodyId.Substring("station:".Length), reason, salvaged);
+        }
+
+        var body = _galaxy?.FindBody(p.CustomSpawnBodyId);
+        if (body is null || string.IsNullOrEmpty(body.PlanetType))
+        {
+            return false;
+        }
+
+        // Died on foot on the home body itself → a plain snap, no reload. The tank must still stand —
+        // a razed home falls back to the ship rather than dropping the player at a ruin.
+        if (sameWorld && session.CurrentLocationId == p.CustomSpawnBodyId)
+        {
+            if (!HealTankNear(p.CustomSpawnPoint))
+            {
+                return false;
+            }
+
+            p.Position = p.CustomSpawnPoint;
+            p.AboardShip = false;
+            Send(session, new RespawnNotice
+            {
+                X = p.Position.X,
+                Y = p.Position.Y,
+                Z = p.Position.Z,
+                Reason = reason,
+                SalvageCapsuleDropped = salvaged,
+                Died = true,
+            });
+            SendInventory(session);
+            SendPlayerState(session);
+            return true;
+        }
+
+        // Full transition to the home body — mirrors RecoverToShip, but lands at the base. The ship
+        // re-homes to this body too (TODO R4 "with your ship"): it keeps the standing invariant that the
+        // parked ship is on the player's world, so teleporter/cargo/launch all keep working.
+        LeaveSpace(p.PlayerId); // exit any flight view (sends SpaceClosed if in one)
+        LoadWorld(body.PlanetType, p.CustomSpawnBodyId);
+        SetCurrent(session);
+        if (!HealTankNear(p.CustomSpawnPoint))
+        {
+            return false; // home tank gone → the caller's ship path reloads the ship's world
+        }
+
+        if (_ship is not null)
+        {
+            _ship.CurrentLocationId = p.CustomSpawnBodyId;
+        }
+
+        if (_config.PlaceStarterShip)
+        {
+            PlaceLandedShip();
+        }
+
+        session.CurrentLocationId = p.CustomSpawnBodyId;
+        MarkArrivedOnBody(session, p.CustomSpawnBodyId);
+        p.Position = p.CustomSpawnPoint;
+        p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
+        p.AboardShip = false;
+        session.SentChunks.Clear();
+
+        var (systemName, planetName) = ActiveLocationNames();
+        Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
+        Send(session, new RespawnNotice
+        {
+            X = p.Position.X,
+            Y = p.Position.Y,
+            Z = p.Position.Z,
+            Reason = reason,
+            SalvageCapsuleDropped = salvaged,
+            Died = true,
+        });
+        SendPlayerState(session);
+        SendEnvironment(session);
+        SendInventory(session);
+        SendLandedShips(session);
+        SendPlanetPois(session);
+        SendCreatures(session);
+        SendContainers(session);
+        SendNpcs(session);
+        return true;
+    }
+
+    /// <summary>Home spawn inside a station: re-board the station world (same stamping path as docking /
+    /// travel-screen boarding) and wake at the stored spot. False when the station no longer exists or is
+    /// no longer boardable for this player — the caller falls back to the ship.</summary>
+    private bool TryRespawnAtHomeStation(PlayerSession session, string stationId, string reason, bool salvaged)
+    {
+        var p = session.State;
+
+        // Died inside the home station itself → just snap back to the stored spot (world already loaded,
+        // station membership intact).
+        if (_boardedStation.TryGetValue(p.PlayerId, out var boardedId) && boardedId == stationId)
+        {
+            p.Position = p.CustomSpawnPoint;
+            Send(session, new RespawnNotice
+            {
+                X = p.Position.X,
+                Y = p.Position.Y,
+                Z = p.Position.Z,
+                Reason = reason,
+                SalvageCapsuleDropped = salvaged,
+                Died = true,
+            });
+            SendInventory(session);
+            SendPlayerState(session);
+            return true;
+        }
+
+        var body = _galaxy?.FindBody(stationId);
+        if (body is null || body.Kind != CelestialKind.SpaceStation || !CanBoardStation(session, stationId))
+        {
+            return false; // decommissioned / unknown / no longer allied → ship fallback
+        }
+
+        if (!_stationsById.TryGetValue(stationId, out var station))
+        {
+            station = GetOrCreateStation(body.Id, body.Name, 0);
+        }
+
+        // Tear down any current presence, then run the shared boarding transition (stamps the interior,
+        // registers doors/NPCs, sends WorldReset + StationBoarded) — the same path as TravelToStation.
+        LeaveSpace(p.PlayerId);
+        if (_playerInstance.TryGetValue(p.PlayerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            inst.Players.Remove(p.PlayerId);
+            _playerInstance.Remove(p.PlayerId);
+        }
+
+        _boardedStation.Remove(p.PlayerId);
+        _dockedFromEva.Remove(p.PlayerId);
+        _boardedReturn[p.PlayerId] = StationReturnLocation(stationId, body);
+        EnterBoardedStation(session, station);
+
+        // Wake at the stored home spot instead of the arrivals pad.
+        p.Position = p.CustomSpawnPoint;
+        Send(session, new RespawnNotice
+        {
+            X = p.Position.X,
+            Y = p.Position.Y,
+            Z = p.Position.Z,
+            Reason = reason,
+            SalvageCapsuleDropped = salvaged,
+            Died = true,
+        });
+        SendPlayerState(session);
+        return true;
+    }
+
+    /// <summary>True if a placed heal tank stands within the regen-field box around <paramref name="pos"/>
+    /// (used to verify a stored home spawn still exists before respawning there).</summary>
+    private bool HealTankNear(Vector3f pos)
+    {
+        if (_healTankBlockId == 0)
+        {
+            return false;
+        }
+
+        int px = (int)System.Math.Floor(pos.X);
+        int py = (int)System.Math.Floor(pos.Y);
+        int pz = (int)System.Math.Floor(pos.Z);
+        for (int dx = -HealTankRadius; dx <= HealTankRadius; dx++)
+        {
+            for (int dy = -HealTankRadiusY; dy <= HealTankRadiusY; dy++)
+            {
+                for (int dz = -HealTankRadius; dz <= HealTankRadius; dz++)
+                {
+                    if (_world.GetBlock(new Vector3i(px + dx, py + dy, pz + dz)).Value == _healTankBlockId)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

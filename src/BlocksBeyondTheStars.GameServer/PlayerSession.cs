@@ -95,6 +95,18 @@ public sealed class PlayerSession
     /// <summary>Uptime of the next LLM banter check (0 = not armed yet; armed on the first poll).</summary>
     public double VegaBanterNextAt { get; set; }
 
+    // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
+
+    /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the
+    /// player lies at the death spot at 0 HP: the environment tick skips them (no drains, no re-death) and
+    /// move intents are ignored. On timeout the ship respawn runs as the safe default.</summary>
+    public double RespawnChoiceDeadline { get; set; }
+
+    /// <summary>Death context captured when the choice was offered (consumed on resolution).</summary>
+    public bool PendingRespawnSalvaged { get; set; }
+    public bool PendingRespawnSameWorld { get; set; }
+    public string PendingRespawnReason { get; set; } = string.Empty;
+
     // --- Heal-tank regen field (base/station life support, issue #460) ---
 
     /// <summary>Countdown to the next heal-tank proximity rescan (the regen itself applies every tick).</summary>
