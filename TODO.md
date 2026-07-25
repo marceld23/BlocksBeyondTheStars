@@ -100,6 +100,17 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ glitch.fun menu: Singleplayer first, arcade renamed "Multiplayer (Arcade)" (2026-07-25, branch glitch-menu-order)
+On glitch.fun the browser menu now leads with **Singleplayer** (plain label, new `ui.menu.singleplayer_glitch`
+key DE+EN) and the shared-worlds entry drops to second place as **"Multiplayer (Arcade)"** (`ui.menu.arcade`
+relabeled DE+EN) — store visitors should discover the in-browser world first; first live feedback said the
+arcade button hid that singleplayer exists. Swap is gated on the glitch context (`install_id` in the URL +
+baked portal origin), so the fleet's /play deep-link menu and all native builds are unchanged. Reaches
+glitch.fun with the next WebGL deploy. Side note from the same session's analysis: Glitch playtime tracking
+needs **no** new integration — the 60 s heartbeat relay (client → WorldHost → `POST /installs` with
+`user_install_id` + `session_id`) is exactly Glitch's documented playtime/retention signal, and it already
+runs for both arcade multiplayer and browser singleplayer.
+
 ### ★ Severin playtest #2 first-run fixes: mission text, crafting station, ores, hunger, height, crouch (#450–#455, 2026-07-22, branch fix/severin-playtest2)
 Six fixes from Severin's 2nd handwritten playtest, most in the first-10-minutes new-player loop.
 **(M1 #450)** The first mission's objective text was clipped — `DetailMissions` drew the description with

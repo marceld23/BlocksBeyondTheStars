@@ -86,7 +86,14 @@ namespace BlocksBeyondTheStars.Client
             // re-requests an arcade session instead of dialing the meaningless default host (which
             // built an empty, serverless world rig), and the manual server picker stays hidden.
             bool onGlitch = GlitchIntegration.ArcadeInstallId.Length > 0 && GlitchIntegration.PortalUrl.Length > 0;
-            UiKit.AddButton(root, bx, wby, bw, bh, shell.L(onGlitch ? "ui.menu.arcade" : "ui.menu.play"), () =>
+
+            // On glitch.fun the singleplayer entry leads and the arcade drops to second place, labeled
+            // "Multiplayer (Arcade)": store visitors should discover the in-browser world first (first
+            // live feedback said the arcade hid that singleplayer exists). Portal /play deep-links keep
+            // the join button on top — there the player explicitly chose a server to join.
+            float joinY = onGlitch ? wby + gap : wby;
+            float spY = onGlitch ? wby : wby + gap;
+            UiKit.AddButton(root, bx, joinY, bw, bh, shell.L(onGlitch ? "ui.menu.arcade" : "ui.menu.play"), () =>
             {
                 if (string.IsNullOrWhiteSpace(webName[0]))
                 {
@@ -110,8 +117,9 @@ namespace BlocksBeyondTheStars.Client
             // In-browser singleplayer: the REAL authoritative server runs in-process (LoopbackTransport,
             // MemoryWorldRepository) — one persistent world per browser, synced to the Glitch cloud when
             // the build runs on glitch.fun with a logged-in account. A name is still required: it is the
-            // player identity the save keys on.
-            UiKit.AddButton(root, bx, wby + gap, bw, bh, shell.L("ui.menu.singleplayer"), () =>
+            // player identity the save keys on. The glitch label is the plain "Singleplayer" so the pair
+            // reads Singleplayer / Multiplayer (Arcade); elsewhere the "/ Local World" suffix stays.
+            UiKit.AddButton(root, bx, spY, bw, bh, shell.L(onGlitch ? "ui.menu.singleplayer_glitch" : "ui.menu.singleplayer"), () =>
             {
                 if (string.IsNullOrWhiteSpace(webName[0]))
                 {
