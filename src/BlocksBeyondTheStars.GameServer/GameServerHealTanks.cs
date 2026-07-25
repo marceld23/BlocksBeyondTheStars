@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
@@ -115,4 +116,67 @@ public sealed partial class GameServer
     /// <summary>Test/util: expose the proximity scan (mirrors <see cref="BlockedByEnergyFenceForTest"/>).</summary>
     public bool NearHealTankForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } s && NearHealTankBlock(s.State);
+
+    // --- Custom spawn point: E on a placed tank makes it home (issue #461) ---
+
+    /// <summary>Reach for the E interaction on a placed tank (arm's length plus a step, like ship stations).</summary>
+    private const float HealTankInteractReach = 5f;
+
+    /// <summary>E on a placed heal tank: store a body-qualified home spawn. Only STORES the point — the
+    /// death flow consuming it (respawn choice, ship fallback) is issue #462. The spawn position is the
+    /// player's own standing spot, not the tank cell, so respawning never puts anyone inside the block.</summary>
+    private void HandleSetSpawnPoint(PlayerSession session, SetSpawnPointIntent intent)
+    {
+        var p = session.State;
+        var cell = new Vector3i(intent.X, intent.Y, intent.Z);
+        if (_healTankBlockId == 0
+            || InSpace(p.PlayerId)
+            || _world.GetBlock(cell).Value != _healTankBlockId
+            || WrapDistSq(p.Position, cell) > HealTankInteractReach * HealTankInteractReach)
+        {
+            Reject(session, "spawn_point", "No heal tank in reach.");
+            return;
+        }
+
+        p.CustomSpawnBodyId = session.CurrentLocationId;
+        p.CustomSpawnPoint = p.Position;
+        p.CustomSpawnLabel = ResolveCustomSpawnLabel(session);
+        _repo.SavePlayer(p);
+        Send(session, new ServerMessage { Text = "@spawn_set" }); // token → localized toast client-side
+    }
+
+    /// <summary>Cosmetic label for the stored spawn: the boarded station's name, else the name of the
+    /// base whose zone the player stands in, else empty (the client falls back to a generic word).</summary>
+    private string ResolveCustomSpawnLabel(PlayerSession session)
+    {
+        var p = session.State;
+        if (_boardedStation.TryGetValue(p.PlayerId, out var stationId)
+            && _stationsById.TryGetValue(stationId, out var station))
+        {
+            return station.Name;
+        }
+
+        var cell = new Vector3i(
+            (int)System.Math.Floor(p.Position.X),
+            (int)System.Math.Floor(p.Position.Y),
+            (int)System.Math.Floor(p.Position.Z));
+        foreach (var b in _bases)
+        {
+            if (b.Planet == session.CurrentLocationId && WithinBaseZone(b.Cell, cell))
+            {
+                return b.Name;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>Runs the authoritative spawn-point setter for a player (used by local play / tests).</summary>
+    public void SetSpawnPoint(string playerId, int x, int y, int z)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleSetSpawnPoint(session, new SetSpawnPointIntent { X = x, Y = y, Z = z });
+        }
+    }
 }

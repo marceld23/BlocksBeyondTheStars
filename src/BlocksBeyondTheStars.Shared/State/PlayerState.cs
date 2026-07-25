@@ -36,6 +36,19 @@ public sealed class PlayerState
     /// <summary>Where the player respawns — the heal-tank in their ship's Medbay.</summary>
     public Vector3f RespawnPoint { get; set; } = Vector3f.Zero;
 
+    /// <summary>Player-chosen home spawn (issue #461): set with E at a placed heal tank in a base or
+    /// station; empty body id = none set. Unlike <see cref="RespawnPoint"/> (the ship heal-tank cache,
+    /// rewritten on every transit) this is body-qualified and only ever written by the player's explicit
+    /// choice — the death flow offers it as a respawn option (issue #462) and falls back to the ship
+    /// when it is gone.</summary>
+    public string CustomSpawnBodyId { get; set; } = string.Empty;
+
+    /// <summary>The stored home-spawn position on <see cref="CustomSpawnBodyId"/>.</summary>
+    public Vector3f CustomSpawnPoint { get; set; } = Vector3f.Zero;
+
+    /// <summary>Display label for the custom spawn (base/station name at set time; purely cosmetic).</summary>
+    public string CustomSpawnLabel { get; set; } = string.Empty;
+
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;

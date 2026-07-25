@@ -1859,6 +1859,7 @@ public sealed partial class GameServer
             case SaveGameIntent: SaveAll(); _log.Info($"Explicit save requested by '{session.State.Name}'."); break;
             case TractorPullIntent pull: HandleTractorPull(session, pull); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
+            case SetSpawnPointIntent spawnPoint: HandleSetSpawnPoint(session, spawnPoint); break;
             case UnlockGameIntent unlockGame: HandleUnlockGame(session, unlockGame); break;
             case MinigameResultIntent miniResult: HandleMinigameResult(session, miniResult); break;
             case FallDamageIntent fall: HandleFallDamage(session, fall); break;

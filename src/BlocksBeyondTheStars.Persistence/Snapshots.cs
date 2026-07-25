@@ -29,6 +29,14 @@ public sealed class PlayerSnapshot
     public float RespawnX { get; set; }
     public float RespawnY { get; set; }
     public float RespawnZ { get; set; }
+
+    // Player-chosen home spawn (heal tank in a base/station, issue #461). Empty body id = none set;
+    // nullable-safe defaults keep pre-feature saves loading unchanged.
+    public string CustomSpawnBodyId { get; set; } = string.Empty;
+    public float CustomSpawnX { get; set; }
+    public float CustomSpawnY { get; set; }
+    public float CustomSpawnZ { get; set; }
+    public string CustomSpawnLabel { get; set; } = string.Empty;
     public float Health { get; set; } = 100f;
     public float Oxygen { get; set; } = 100f;
     public float SuitEnergy { get; set; } = 100f;
@@ -131,6 +139,11 @@ public static class StateMapper
         RespawnX = p.RespawnPoint.X,
         RespawnY = p.RespawnPoint.Y,
         RespawnZ = p.RespawnPoint.Z,
+        CustomSpawnBodyId = p.CustomSpawnBodyId,
+        CustomSpawnX = p.CustomSpawnPoint.X,
+        CustomSpawnY = p.CustomSpawnPoint.Y,
+        CustomSpawnZ = p.CustomSpawnPoint.Z,
+        CustomSpawnLabel = p.CustomSpawnLabel,
         Health = p.Health,
         Oxygen = p.Oxygen,
         SuitEnergy = p.SuitEnergy,
@@ -228,6 +241,9 @@ public static class StateMapper
         Yaw = s.Yaw,
         Pitch = s.Pitch,
         RespawnPoint = new Vector3f(s.RespawnX, s.RespawnY, s.RespawnZ),
+        CustomSpawnBodyId = s.CustomSpawnBodyId ?? string.Empty,
+        CustomSpawnPoint = new Vector3f(s.CustomSpawnX, s.CustomSpawnY, s.CustomSpawnZ),
+        CustomSpawnLabel = s.CustomSpawnLabel ?? string.Empty,
         Health = s.Health,
         Oxygen = s.Oxygen,
         SuitEnergy = s.SuitEnergy,

@@ -379,6 +379,9 @@ namespace BlocksBeyondTheStars.Client
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
         public void SendDoorInteract(int doorId) => Send(new DoorInteractIntent { DoorId = doorId });
 
+        /// <summary>E on a placed heal tank: make it the custom spawn point (issue #461).</summary>
+        public void SendSetSpawnPoint(int x, int y, int z) => Send(new SetSpawnPointIntent { X = x, Y = y, Z = z });
+
         /// <summary>Claim the factory you're standing at by spending an access code (it becomes your base).</summary>
         public void SendClaimStructure(int factoryId) => Send(new ClaimStructureIntent { FactoryId = factoryId });
 

@@ -677,6 +677,7 @@
   "ui.craft.need_materials": "Material fehlt.",
   "ui.craft.need_market": "Handle bei einem Händler oder an der Schiffskonsole.",
   "ui.craft.need_station": "Du brauchst einen {station} in der Nähe, um das herzustellen.",
+  "ui.spawn.set": "Spawnpunkt gesetzt — ab jetzt erwachst du hier.",
   "ui.craft.go_to_workshop": "Geh zur Werkstatt zum Herstellen.",
   "ui.craft.go_to_factory": "Nutze ein Fabrikterminal, das dies herstellt.",
   "ui.factory.prompt": "Fabrikterminal — im Menü herstellen",
