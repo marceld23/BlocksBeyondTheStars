@@ -382,6 +382,18 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // A ban (or a deleted world) can land while the player is signed in — sessions outlive it by
+                // weeks, so the login answer alone would never reach them. Polled here, where the player is
+                // looking at their worlds anyway; a failure is silent, the world list matters more (#496).
+                var state = await Task.Run(() => portal.GetNotices(session));
+                if (official == null) { return; }
+                if (state.Ok && portalModal == null)
+                {
+                    // Only when nothing else is open: the login path already showed these, and stealing a
+                    // dialog the player is filling in would be worse than telling them a refresh later.
+                    ShowNotices(state);
+                }
+
                 // Also pull the public worlds so both lists show in one window. A failure here is non-fatal:
                 // the public section just stays empty rather than blocking the player's own worlds.
                 var pub = await Task.Run(() => portal.ListPublicWorlds(session));
@@ -430,7 +442,133 @@ namespace BlocksBeyondTheStars.Client
                 {
                     PromptReaccept(); // rules changed since the last visit — re-accept in-game (#268)
                 }
+                else
+                {
+                    // Being banned used to be invisible here: the login succeeded, the world list loaded,
+                    // and the wall only appeared at "create world". Now the login itself carries the state
+                    // and the unread messages (#496) — DoRefresh polls too, this is the fast path.
+                    ShowNotices(r.State);
+                }
             }
+
+            // Dialog for the fleet's messages to this player: the ban screen (reason, since, until, what to
+            // do) and the notices behind it — a deleted world leaves no other trace. Shown once per state:
+            // acknowledging clears the unread flag server-side, and _banScreenShown keeps the poll from
+            // re-opening the ban screen every refresh.
+            bool banScreenShown = false;
+
+            void ShowNotices(PortalNoticesResult state)
+            {
+                if (state == null || (!state.Banned && state.Notices.Count == 0))
+                {
+                    banScreenShown = false; // unbanned in the meantime — a later ban must show up again
+                    return;
+                }
+
+                if (state.Banned && banScreenShown && state.Notices.Count == 0)
+                {
+                    return; // already told them this refresh cycle; the status line keeps the hint visible
+                }
+
+                banScreenShown = state.Banned;
+                var nDlg = OpenModalPanel(510f, 200f, 900f, 680f);
+                bool banned = state.Banned;
+                UiKit.AddText(nDlg, 30f, 24f, 840f, 32f,
+                    shell.L(banned ? "ui.notice.banned_title" : "ui.notice.title"), 24,
+                    banned ? UiKit.Warn : UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+                var body = new System.Text.StringBuilder();
+                if (banned)
+                {
+                    if (state.BannedAtUnix > 0)
+                    {
+                        body.AppendLine(string.Format(shell.L("ui.notice.banned_since"), LocalDay(state.BannedAtUnix)));
+                    }
+
+                    body.AppendLine(state.BannedUntilUnix > 0
+                        ? string.Format(shell.L("ui.notice.banned_until"), LocalDay(state.BannedUntilUnix))
+                        : shell.L("ui.notice.banned_perm"));
+                    string reason = BanReasonText(state.BanReasonCode, state.BanReason);
+                    if (reason.Length > 0)
+                    {
+                        body.AppendLine();
+                        body.AppendLine(shell.L("ui.notice.reason") + " " + reason);
+                    }
+
+                    body.AppendLine();
+                    body.AppendLine(shell.L("ui.notice.appeal"));
+                }
+
+                foreach (var n in state.Notices)
+                {
+                    // The ban itself is already spelled out above — its notice would only repeat it.
+                    if (n.Kind == PortalNotice.KindBanned && banned)
+                    {
+                        continue;
+                    }
+
+                    if (body.Length > 0)
+                    {
+                        body.AppendLine();
+                    }
+
+                    switch (n.Kind)
+                    {
+                        case PortalNotice.KindWorldDeleted:
+                            body.AppendLine(string.Format(shell.L("ui.notice.world_deleted"), n.Subject));
+                            if (n.Reason.Length > 0)
+                            {
+                                body.AppendLine(shell.L("ui.notice.reason") + " " + n.Reason);
+                            }
+
+                            break;
+                        case PortalNotice.KindUnbanned:
+                            body.AppendLine(shell.L("ui.notice.unbanned"));
+                            break;
+                        default:
+                            body.AppendLine(BanReasonText(n.ReasonCode, n.Reason));
+                            break;
+                    }
+                }
+
+                var nBody = UiKit.AddText(nDlg, 44f, 76f, 812f, 480f, body.ToString().TrimEnd(), 17, UiKit.TextCol, TextAnchor.UpperLeft);
+                nBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(nDlg, 280f, 590f, 340f, 54f, shell.L("ui.notice.ok"), () =>
+                {
+                    DoAckNotices();
+                    CloseModal();
+                }, "btn_join");
+            }
+
+            async void DoAckNotices()
+            {
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                await Task.Run(() => portal.AckNotices(session)); // best effort: unread again next time is harmless
+            }
+
+            // Canned reason codes are ours and get translated; the operator's own words are shown exactly
+            // as written (like every other ban reason in this UI).
+            string BanReasonText(string code, string reason)
+            {
+                string translated = string.Empty;
+                if (!string.IsNullOrEmpty(code))
+                {
+                    string key = "ui.notice.reason_" + code;
+                    string localized = shell.L(key);
+                    translated = localized == key ? code : localized;
+                }
+
+                if (string.IsNullOrWhiteSpace(reason))
+                {
+                    return translated;
+                }
+
+                return translated.Length > 0 ? translated + " — " + reason : reason;
+            }
+
+            static string LocalDay(long unix)
+                => System.DateTimeOffset.FromUnixTimeSeconds(unix).ToLocalTime().ToString("dd.MM.yyyy");
 
             // Session-scoped world passwords (#250): entered once per protected world, reused on re-joins,
             // never persisted. The prompt is error-driven — open worlds join without ever seeing it.
@@ -914,7 +1052,159 @@ namespace BlocksBeyondTheStars.Client
                         () => DoSetVisibility(world.Id, !world.IsPublic, mWarn), world.IsPublic ? "btn_exit" : "btn_join");
                 }
 
-                UiKit.AddButton(mDlg, 330f, 700f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+                // Owner moderation (#497): the world owner's own ban list, the counterpart to the operator's
+                // fleet ban. Its own dialog — this one is full, and blocking someone deserves room to read.
+                UiKit.AddButton(mDlg, 150f, 700f, 340f, 54f, shell.L("ui.portal.moderation"), () => OpenWorldBans(world), "btn_settings");
+                UiKit.AddButton(mDlg, 510f, 700f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }
+
+            // The owner's ban list for one world: who is blocked (with unblock), and who has played here
+            // (with block/kick). Names come from the join grants the portal issued — the client has no
+            // other way to know who visited, and typing names by hand is how you ban the wrong kid.
+            void OpenWorldBans(PortalWorldInfo world)
+            {
+                var bDlg = OpenModalPanel(460f, 150f, 1000f, 800f);
+                UiKit.AddText(bDlg, 30f, 24f, 940f, 30f, shell.L("ui.portal.bans_title") + " — " + world.Name, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var bHint = UiKit.AddText(bDlg, 40f, 62f, 920f, 44f, shell.L("ui.portal.bans_hint"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+                bHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var bWarn = UiKit.AddText(bDlg, 76f, 110f, 884f, 30f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                UiKit.AddSpinner(bDlg, 42f, 110f, 26f, bWarn);
+                string[] reason = { "" };
+                var listRoot = UiKit.AddPanel(bDlg, 30f, 148f, 940f, 560f, new Color(0f, 0f, 0f, 0f)).transform;
+                UiKit.AddButton(bDlg, 330f, 716f, 340f, 54f, shell.L("ui.menu.back"), () => OpenManage(world), "btn_exit");
+
+                async void Load()
+                {
+                    bWarn.color = warnCol;
+                    bWarn.text = shell.L("ui.portal.working");
+                    var portal = new PortalClient(PortalBase());
+                    string session = shell.Settings.PortalSessionToken;
+                    var r = await Task.Run(() => portal.ListWorldBans(session, world.Id));
+                    if (official == null || listRoot == null) { return; }
+                    if (!r.Ok)
+                    {
+                        bWarn.text = PortalErr(r.Code, r.Error);
+                        return;
+                    }
+
+                    bWarn.text = "";
+                    for (int i = listRoot.childCount - 1; i >= 0; i--)
+                    {
+                        Object.Destroy(listRoot.GetChild(i).gameObject);
+                    }
+
+                    float y = 0f;
+                    UiKit.AddText(listRoot, 10f, y, 900f, 24f, shell.L("ui.portal.bans_title"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    y += 30f;
+                    if (r.Bans.Count == 0)
+                    {
+                        UiKit.AddText(listRoot, 10f, y, 900f, 24f, shell.L("ui.portal.bans_none"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                        y += 30f;
+                    }
+
+                    foreach (var ban in r.Bans)
+                    {
+                        long banId = ban.Id;
+                        string label = ban.PlayerName + (ban.Reason.Length > 0 ? "  —  " + ban.Reason : string.Empty);
+                        UiKit.AddText(listRoot, 10f, y, 700f, 34f, label, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+                        UiKit.AddButton(listRoot, 730f, y, 190f, 34f, shell.L("ui.portal.unblock"), () => DoWorldUnban(world, banId, bWarn, Load), "btn_join");
+                        y += 40f;
+                    }
+
+                    y += 16f;
+                    UiKit.AddText(listRoot, 10f, y, 900f, 24f, shell.L("ui.portal.bans_visitors"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    y += 30f;
+                    var blocked = new System.Collections.Generic.HashSet<string>();
+                    foreach (var ban in r.Bans)
+                    {
+                        blocked.Add(ban.PlayerName.ToLowerInvariant());
+                    }
+
+                    int shown = 0;
+                    foreach (var v in r.Visitors)
+                    {
+                        if (blocked.Contains(v.PlayerName.ToLowerInvariant()) || y > 470f)
+                        {
+                            continue; // already blocked, or the dialog is full — the list is newest-first
+                        }
+
+                        string playerName = v.PlayerName;
+                        string accountId = v.AccountId;
+                        UiKit.AddText(listRoot, 10f, y, 520f, 34f, playerName, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+                        UiKit.AddButton(listRoot, 540f, y, 180f, 34f, shell.L("ui.portal.kick"),
+                            () => DoWorldKick(world, playerName, bWarn), "btn_settings");
+                        UiKit.AddButton(listRoot, 730f, y, 190f, 34f, shell.L("ui.portal.block"),
+                            () => DoWorldBan(world, playerName, accountId, reason[0], bWarn, Load), "btn_exit");
+                        y += 40f;
+                        shown++;
+                    }
+
+                    if (shown == 0 && r.Visitors.Count == 0)
+                    {
+                        UiKit.AddText(listRoot, 10f, y, 900f, 24f, shell.L("ui.portal.bans_no_visitors"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                        y += 30f;
+                    }
+
+                    y += 16f;
+                    UiKit.AddInput(listRoot, 10f, y, 910f, 38f, reason[0], v => reason[0] = v, shell.L("ui.portal.block_reason"));
+                }
+
+                Load();
+            }
+
+            async void DoWorldBan(PortalWorldInfo world, string playerName, string accountId, string reason, Text warn, System.Action done)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.AddWorldBan(session, world.Id, playerName, accountId, reason ?? ""));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                warn.color = UiKit.Ok;
+                warn.text = shell.L("ui.portal.blocked_ok");
+                done?.Invoke();
+            }
+
+            async void DoWorldUnban(PortalWorldInfo world, long banId, Text warn, System.Action done)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.RemoveWorldBan(session, world.Id, banId));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                warn.text = "";
+                done?.Invoke();
+            }
+
+            async void DoWorldKick(PortalWorldInfo world, string playerName, Text warn)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.KickFromWorld(session, world.Id, playerName));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                warn.color = UiKit.Ok;
+                warn.text = shell.L("ui.portal.kicked_ok");
             }
 
             async void DoFeedbackSend(string message, Text warn)

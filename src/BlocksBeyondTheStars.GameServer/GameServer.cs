@@ -946,6 +946,7 @@ public sealed partial class GameServer
         Guard("AccumulatePlaytime", deltaSeconds, AccumulatePlaytime);
         Guard("HostedLifecycle", deltaSeconds, TickHostedLifecycle); // idle shutdown + /status snapshot (hosted worlds)
         Guard("Maintenance", deltaSeconds, TickMaintenance); // announcement intake + restart countdown broadcasts
+        Guard("Moderation", deltaSeconds, TickModeration); // kick intake + the delayed close behind it
         Guard("CrashReportFlush", deltaSeconds, MaybeFlushCrashReports); // best-effort background upload of queued reports
 
         _sinceAutoSave += deltaSeconds;
@@ -3414,6 +3415,29 @@ public sealed partial class GameServer
             }
 
             CheatLog(p, "posted a maintenance announcement");
+            return;
+        }
+
+        // Kicking (not a cheat either): the world admin ends a session right now. Deliberately momentary —
+        // a lasting block is the world owner's ban list on the portal, so there is exactly ONE ban store and
+        // it lives where the world's identity does. Kicking yourself is refused: it reads as a bug report.
+        if (string.Equals(cmd.Command, "kick", StringComparison.OrdinalIgnoreCase))
+        {
+            string target = (cmd.StringArg ?? string.Empty).Trim();
+            if (string.Equals(target, p.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                Reject(session, "admin", "You cannot kick yourself.");
+                return;
+            }
+
+            if (!EnqueueKick(target, "@ui.kick.by_admin"))
+            {
+                Reject(session, "admin", "Usage: /kick <player>");
+                return;
+            }
+
+            Send(session, new ServerMessage { Text = $"Kick sent for '{target}'." });
+            CheatLog(p, $"kicked {target}");
             return;
         }
 

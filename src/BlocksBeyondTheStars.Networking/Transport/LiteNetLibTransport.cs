@@ -94,6 +94,16 @@ public sealed class LiteNetLibServerTransport : IServerTransport
     public void Broadcast(byte[] payload, DeliveryMode mode)
         => _manager.SendToAll(payload, mode.ToLiteNetLib());
 
+    /// <summary>Disconnects one native peer (kick). LiteNetLib flushes the reliable queue before the
+    /// disconnect packet, so a message sent just before this still reaches the client.</summary>
+    public void DisconnectClient(int connectionId)
+    {
+        if (_peers.TryGetValue(connectionId, out var peer))
+        {
+            _manager.DisconnectPeer(peer);
+        }
+    }
+
     public void Poll() => _manager.PollEvents();
 
     public void Stop() => _manager.Stop();

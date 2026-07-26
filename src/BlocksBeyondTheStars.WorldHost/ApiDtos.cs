@@ -36,7 +36,21 @@ public sealed record ReportRequest(string ReportedName, string Category, string?
 
 public sealed record CloseReportRequest(string Status);
 
-public sealed record BanRequest(string AccountId, bool Banned, string? Reason = null);
+/// <summary>Operator ban/unban. <paramref name="Days"/> 0 means "until an operator lifts it"; anything
+/// greater is a timeout that ends by itself. <paramref name="ReasonCode"/> is one of the canned reasons
+/// (chat/griefing/cheating/other) the client can show in the player's language; <paramref name="Reason"/>
+/// is the operator's own words and is shown as written.</summary>
+public sealed record BanRequest(string AccountId, bool Banned, string? Reason = null, string? ReasonCode = null, int Days = 0);
+
+/// <summary>Acknowledges a player notice; id &lt;= 0 acknowledges all of them.</summary>
+public sealed record NoticeAckRequest(long Id = 0);
+
+/// <summary>Owner-only: bar a player from ONE world (#497). Either identifier may be empty as long as one
+/// is given; <paramref name="Kick"/> also ends a session already in progress.</summary>
+public sealed record WorldBanRequest(string? PlayerName = null, string? AccountId = null, string? Reason = null, bool Kick = true);
+
+/// <summary>Owner-only: end one player's session on this world right now, without a lasting block.</summary>
+public sealed record WorldKickRequest(string PlayerName, string? Reason = null);
 
 /// <summary>glitch.fun arcade session grant: the install id Glitch injected into the build's URL, plus
 /// an optional preferred display name (the gateway falls back to the Glitch account name).</summary>

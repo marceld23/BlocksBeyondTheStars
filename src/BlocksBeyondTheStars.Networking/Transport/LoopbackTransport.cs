@@ -24,6 +24,7 @@ public sealed class LoopbackLink
     internal bool ConnectSignaledToClient;
     internal bool DisconnectRequested;
     internal bool DisconnectSignaledToServer;
+    internal bool DisconnectSignaledToClient;
 
     internal void EnqueueToServer(byte[] payload)
     {
@@ -71,6 +72,16 @@ public sealed class LoopbackServerTransport : IServerTransport
     public void Send(int connectionId, byte[] payload, DeliveryMode mode) => _link.EnqueueToClient(payload);
 
     public void Broadcast(byte[] payload, DeliveryMode mode) => _link.EnqueueToClient(payload);
+
+    /// <summary>Server-side hang-up (kick). The loopback has exactly one client, so the id only has to
+    /// match it; the disconnect surfaces on the next <see cref="Poll"/> like a client-side one.</summary>
+    public void DisconnectClient(int connectionId)
+    {
+        if (connectionId == LoopbackLink.ClientConnectionId)
+        {
+            _link.DisconnectRequested = true;
+        }
+    }
 
     public void Poll()
     {
@@ -123,11 +134,20 @@ public sealed class LoopbackClientTransport : IClientTransport
         {
             PayloadReceived?.Invoke(payload);
         }
+
+        // The server can hang up too (a kick, #497) — the client has to notice, or it sits in a world
+        // nobody is serving any more.
+        if (_link.DisconnectRequested && !_link.DisconnectSignaledToClient)
+        {
+            _link.DisconnectSignaledToClient = true;
+            Disconnected?.Invoke();
+        }
     }
 
     public void Disconnect()
     {
         _link.DisconnectRequested = true;
+        _link.DisconnectSignaledToClient = true; // we are the ones hanging up; don't re-raise on the next Poll
         Disconnected?.Invoke();
     }
 

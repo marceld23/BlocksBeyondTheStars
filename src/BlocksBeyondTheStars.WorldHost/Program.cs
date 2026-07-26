@@ -70,6 +70,8 @@ string CallerIp(HttpContext ctx) => ctx.Connection.RemoteIpAddress?.ToString() ?
 static string? CodeFor(string error) => error switch
 {
     _ when error.StartsWith("This account is banned", StringComparison.Ordinal) => "banned",
+    _ when error.StartsWith("The owner of this world has blocked you", StringComparison.Ordinal) => "banned_from_world",
+    "You cannot block yourself from your own world." => "self_block",
     _ when error.StartsWith("World limit reached", StringComparison.Ordinal) => "world_limit",
     _ when error.StartsWith("Save exceeds", StringComparison.Ordinal) => "upload_too_large",
     "Please accept the community rules to create an account." => "accept_rules",
@@ -154,6 +156,33 @@ IResult? GuardAccount(AccountRecord account)
     }
 
     return null;
+}
+
+// The player's unread notices, shaped for the wire (#496). Kind and reasonCode are stable machine strings
+// the client localizes; `reason` is operator/owner free text and travels as written, like ban reasons do.
+object[] NoticesJson(string accountId)
+    => registry.ListNotices(accountId).Select(n => (object)new
+    {
+        id = n.Id,
+        kind = n.Kind,
+        subject = n.Subject,
+        reason = n.Reason,
+        reasonCode = n.ReasonCode,
+        until = n.UntilUnix,
+        created = n.CreatedUnix,
+    }).ToArray();
+
+// An operator deleting someone's world has to be written down BEFORE the row disappears — afterwards
+// there is nothing left to derive a message from, and the owner would just find their world gone. Skipped
+// for the account-less arcade pool, which has no owner to tell.
+void NotifyWorldDeleted(WorldRecord world, string? reason)
+{
+    if (world.Channel != WorldChannel.Portal || registry.GetAccount(world.OwnerAccountId) is null)
+    {
+        return;
+    }
+
+    registry.AddNotice(world.OwnerAccountId, NoticeRecord.KindWorldDeleted, world.DisplayName, (reason ?? string.Empty).Trim());
 }
 
 bool IsAdmin(HttpContext ctx)
@@ -532,7 +561,48 @@ app.MapPost("/api/login", (HttpContext ctx, SignupRequest req) =>
         accountId = login.AccountId,
         sessionToken = login.SessionToken,
         termsOutdated = account.AcceptedTermsVersion < config.TermsVersion,
+        // #496: a banned account logs in exactly like any other and only found out at the first blocked
+        // action — a dead end nobody explained. The state travels with the login now, and the notices
+        // carry what state alone cannot: a world an operator deleted leaves nothing behind to derive.
+        banned = account.IsBanned,
+        banReason = account.BanReason,
+        banReasonCode = account.BanReasonCode,
+        bannedAt = account.BannedAtUnix,
+        bannedUntil = account.BannedUntilUnix,
+        notices = NoticesJson(account.Id),
     });
+});
+
+// The player's unread notices. Polled by the client/portal alongside the world list, because a ban that
+// lands mid-session never passes through /api/login again — sessions outlive it by weeks.
+app.MapGet("/api/notices", (HttpContext ctx) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Json(new
+    {
+        banned = account.IsBanned,
+        banReason = account.BanReason,
+        banReasonCode = account.BanReasonCode,
+        bannedAt = account.BannedAtUnix,
+        bannedUntil = account.BannedUntilUnix,
+        notices = NoticesJson(account.Id),
+    });
+});
+
+// Acknowledges notices once the player has read them (id 0 = all of them). Always scoped to the caller.
+app.MapPost("/api/notices/ack", (HttpContext ctx, NoticeAckRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    registry.MarkNoticesSeen(account.Id, req.Id);
+    return Results.Ok();
 });
 
 app.MapPost("/api/accept-terms", (HttpContext ctx) =>
@@ -609,16 +679,17 @@ app.MapPost("/api/admin/reports/{id:long}/close", (HttpContext ctx, long id, Clo
     return Results.Ok();
 });
 
-app.MapPost("/api/admin/ban", (HttpContext ctx, BanRequest req) =>
+app.MapPost("/api/admin/ban", async (HttpContext ctx, BanRequest req) =>
 {
     if (!IsAdmin(ctx))
     {
         return Results.Unauthorized();
     }
 
-    registry.SetBanned(req.AccountId, req.Banned, req.Reason ?? string.Empty);
+    registry.SetBanned(req.AccountId, req.Banned, req.Reason ?? string.Empty, req.ReasonCode ?? string.Empty, req.Days);
     log.LogInformation("Account {Id} {Action} ({Reason}).", LogSafe(req.AccountId), req.Banned ? "BANNED" : "unbanned", LogSafe(req.Reason));
-    return Results.Ok();
+    int kicked = req.Banned ? await orchestrator.KickAccountEverywhereAsync(req.AccountId) : 0;
+    return Results.Json(new { ok = true, kicked });
 });
 
 // Maintenance announcement (#249), scriptable twin of the /admin form below: pushes an info message or a
@@ -659,6 +730,7 @@ app.MapDelete("/api/admin/worlds/{id}", (HttpContext ctx, string id) =>
     }
 
     bool purge = ctx.Request.Query["purge"].ToString() == "true";
+    NotifyWorldDeleted(world, ctx.Request.Query["reason"].ToString());
     orchestrator.DeleteWorld(world, purge);
     log.LogInformation("Admin API: world '{Name}' ({Id}) deleted — saves {Fate}.",
         LogSafe(world.DisplayName), world.Id, purge ? "PURGED" : "retained");
@@ -764,10 +836,19 @@ app.MapPost("/admin/ban", async (HttpContext ctx) =>
     string accountId = form["accountId"].ToString();
     bool banned = form["banned"].ToString() == "true";
     string reason = form["reason"].ToString();
+    string reasonCode = form["reasonCode"].ToString();
+    _ = int.TryParse(form["days"].ToString(), out int days); // empty/garbage = 0 = until an operator lifts it
     if (accountId.Length > 0)
     {
-        registry.SetBanned(accountId, banned, reason);
-        log.LogInformation("Admin UI: account {Action} ({Reason}).", banned ? "BANNED" : "unbanned", LogSafe(reason));
+        registry.SetBanned(accountId, banned, reason, reasonCode, System.Math.Clamp(days, 0, 3650));
+        log.LogInformation("Admin UI: account {Action} for {Days} day(s) ({Reason}).",
+            banned ? "BANNED" : "unbanned", days, LogSafe(reason));
+        if (banned)
+        {
+            // A ban that leaves the offender playing until they feel like logging off is not a ban.
+            int kicked = await orchestrator.KickAccountEverywhereAsync(accountId);
+            log.LogInformation("Admin UI: ban kicked the account out of {Count} running world(s).", kicked);
+        }
     }
 
     return Results.Redirect("/admin");
@@ -909,6 +990,7 @@ app.MapPost("/admin/worlds/{id}/delete", async (HttpContext ctx, string id) =>
     }
 
     bool purge = form["purge"].ToString() == "true";
+    NotifyWorldDeleted(world, form["reason"].ToString());
     orchestrator.DeleteWorld(world, purge);
     log.LogInformation("Admin UI: world '{Name}' ({Id}) deleted — saves {Fate}.",
         LogSafe(world.DisplayName), world.Id, purge ? "PURGED" : "retained");
@@ -1056,6 +1138,138 @@ app.MapPost("/api/worlds/{id}/visibility", (HttpContext ctx, string id, WorldVis
 
     log.LogInformation("World {Id}: public listing {Action} by its owner.", world.Id, req.Public ? "enabled" : "disabled");
     return Results.Json(new { isPublic = req.Public });
+});
+
+// ---- Owner moderation (#497): every world owner gets the lever the fleet operator has, for their own
+// world only. The list is enforced at the join grant (WorldOrchestrator), so it holds for every client. ----
+
+// Owner-only: the world's ban list plus the recent visitors to pick from (nobody remembers account ids).
+app.MapGet("/api/worlds/{id}/bans", (HttpContext ctx, string id) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    if (world.OwnerAccountId != account.Id)
+    {
+        return Results.Forbid();
+    }
+
+    return Results.Json(new
+    {
+        bans = registry.ListWorldBans(world.Id)
+            .Select(b => new { id = b.Id, playerName = b.PlayerName, accountId = b.AccountId, reason = b.Reason, created = b.CreatedUnix }),
+        // The owner's own account is never offered as a ban target — locking yourself out of your world
+        // would be a support case, not a feature.
+        visitors = registry.ListWorldVisitors(world.Id)
+            .Where(v => v.AccountId != account.Id)
+            .Select(v => new { playerName = v.PlayerName, accountId = v.AccountId, lastSeen = v.LastSeenUnix }),
+    });
+});
+
+// Owner-only: bar a player from this world (and, unless asked otherwise, end their session right now).
+app.MapPost("/api/worlds/{id}/bans", async (HttpContext ctx, string id, WorldBanRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    if (world.OwnerAccountId != account.Id)
+    {
+        return Results.Forbid();
+    }
+
+    string playerName = (req.PlayerName ?? string.Empty).Trim();
+    string targetAccount = (req.AccountId ?? string.Empty).Trim();
+    if (playerName.Length > 24 || playerName.Any(char.IsControl))
+    {
+        return ApiError("Player name must be 1-24 printable characters.");
+    }
+
+    if (targetAccount == account.Id)
+    {
+        return ApiError("You cannot block yourself from your own world.");
+    }
+
+    if (!registry.AddWorldBan(world.Id, targetAccount, playerName, req.Reason ?? string.Empty))
+    {
+        return ApiError("Player name must be 1-24 printable characters.");
+    }
+
+    log.LogInformation("World {Id}: owner blocked a player.", world.Id);
+    bool kicked = false;
+    if (req.Kick && playerName.Length > 0)
+    {
+        // A block only decides the next join — without this the blocked player keeps playing.
+        kicked = await orchestrator.KickInstanceAsync(world, playerName,
+            string.IsNullOrWhiteSpace(req.Reason) ? "@ui.kick.world_ban" : req.Reason);
+    }
+
+    return Results.Json(new { ok = true, kicked });
+});
+
+// Owner-only: lift a block. The world id is part of the lookup, so a foreign ban id cannot be guessed away.
+app.MapDelete("/api/worlds/{id}/bans/{banId:long}", (HttpContext ctx, string id, long banId) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    if (world.OwnerAccountId != account.Id)
+    {
+        return Results.Forbid();
+    }
+
+    registry.RemoveWorldBan(world.Id, banId);
+    return Results.Ok();
+});
+
+// Owner-only: end one player's session on this world without a lasting block ("go cool off").
+app.MapPost("/api/worlds/{id}/kick", async (HttpContext ctx, string id, WorldKickRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    if (world.OwnerAccountId != account.Id)
+    {
+        return Results.Forbid();
+    }
+
+    string playerName = (req.PlayerName ?? string.Empty).Trim();
+    if (playerName.Length is < 1 or > 24 || playerName.Any(char.IsControl))
+    {
+        return ApiError("Player name must be 1-24 printable characters.");
+    }
+
+    bool kicked = await orchestrator.KickInstanceAsync(world, playerName,
+        string.IsNullOrWhiteSpace(req.Reason) ? "@ui.kick.by_owner" : req.Reason);
+    log.LogInformation("World {Id}: owner kicked a player (delivered: {Delivered}).", world.Id, kicked);
+    return Results.Json(new { kicked });
 });
 
 app.MapPost("/api/worlds/{id}/stop", (HttpContext ctx, string id) =>

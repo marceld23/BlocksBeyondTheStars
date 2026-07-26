@@ -593,6 +593,16 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where <player>` | One player's body, position and last-seen time — works while they are offline |
+| `/kick <player>` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
+
+#### Blocking players from your own hosted world
+
+Your world, your rules: open the **Official Worlds** menu (or the worlds page on the portal),
+pick *Manage world → Manage players*. You get everyone who has ever played on that world, and for
+each of them two buttons: **kick** (out now, may return) and **block** (cannot join again). An
+optional reason is shown to the player when they try to come back. Blocking follows the *account*,
+so changing the in-game name does not get around it — and it only ever affects **this** world; the
+rest of the game stays open to them. Unblocking is one click in the same list.
 
 #### Observer mode (fleet admin only)
 

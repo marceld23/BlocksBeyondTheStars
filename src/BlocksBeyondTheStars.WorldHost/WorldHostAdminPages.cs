@@ -37,6 +37,9 @@ public static class WorldHostAdminPages
         return $"<details><summary class='del'>{(glitch ? "reset" : "delete")}…</summary>" +
                $"<form method='post' action='/admin/worlds/{world.Id}/delete'>" +
                $"<input name='confirm' size='14' placeholder='type: {E(world.DisplayName)}' aria-label='confirm world name'>" +
+               // The owner finds out at their next login, so the reason is worth typing (#496). Arcade
+               // worlds have no owner to tell, hence no field there.
+               (glitch ? string.Empty : "<input name='reason' size='18' placeholder='reason (shown to the owner)' aria-label='deletion reason'>") +
                "<button class='danger' title='stop the world, drop it from the registry, keep its saves on disk'>delete</button>" +
                "<button class='danger' name='purge' value='true' title='the same, but also erase the saves (live + archive) — unrecoverable'>purge saves</button>" +
                (glitch ? "<p class='hint'>The arcade pool refills itself — this world comes back empty.</p>" : string.Empty) +
@@ -142,6 +145,32 @@ public static class WorldHostAdminPages
         sb.Append("</div>");
         return WorldHostPortalPages.Shell($"{world.DisplayName} — Fleet admin", sb.ToString(), "de", config);
     }
+
+    /// <summary>The canned ban reasons (#496). Stable machine codes: the game client and the portal show
+    /// them in the player's language, while the free-text field next to it stays the operator's own words.</summary>
+    private static string ReasonSelect() =>
+        "<select name='reasonCode' aria-label='reason'>" +
+        "<option value='chat'>chat</option>" +
+        "<option value='griefing'>griefing</option>" +
+        "<option value='cheating'>cheating</option>" +
+        "<option value='name'>name</option>" +
+        "<option value='other' selected>other</option>" +
+        "</select> ";
+
+    /// <summary>Ban duration. A timeout is the kid-facing default — it ends by itself, so nobody has to
+    /// remember to lift it, and the notice can name the day the player is welcome back.</summary>
+    private static string DurationSelect() =>
+        " <select name='days' aria-label='duration'>" +
+        "<option value='1'>1 day</option>" +
+        "<option value='3' selected>3 days</option>" +
+        "<option value='7'>7 days</option>" +
+        "<option value='30'>30 days</option>" +
+        "<option value='0'>until lifted</option>" +
+        "</select> ";
+
+    /// <summary>Unix seconds → "2026-07-26 14:03"; "—" for 0 (never set).</summary>
+    private static string ShortUnix(long unix)
+        => unix <= 0 ? "—" : DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.ToString("yyyy-MM-dd HH:mm");
 
     /// <summary>ISO timestamp → "2026-07-26 14:03"; "never" when the save predates last-seen tracking.</summary>
     private static string ShortUtc(string iso)
@@ -323,23 +352,35 @@ public static class WorldHostAdminPages
             }
             else
             {
-                string state = lookedUp.IsBanned ? $"BANNED ({E(lookedUp.BanReason)})" : "active";
+                string state = lookedUp.IsBanned
+                    ? $"BANNED{(lookedUp.BanExpires ? $" until {ShortUnix(lookedUp.BannedUntilUnix)}" : " (until lifted)")} ({E(lookedUp.BanReason)})"
+                    : "active";
                 sb.Append($"<p><b>{E(lookedUp.Name)}</b> — {state}{(lookedUp.IsDeveloper ? " · developer" : string.Empty)}</p>");
                 sb.Append($"<form method='post' action='/admin/ban'><input type='hidden' name='accountId' value='{E(lookedUp.Id)}'>" +
                           $"<input type='hidden' name='banned' value='{(lookedUp.IsBanned ? "false" : "true")}'>" +
                           (lookedUp.IsBanned
                               ? "<button>unban</button>"
-                              : "<input name='reason' placeholder='reason (shown to the player)'><button class='danger'>ban account</button>") +
+                              : ReasonSelect() +
+                                "<input name='reason' placeholder='details (shown to the player)' size='30'>" +
+                                DurationSelect() +
+                                "<button class='danger'>ban account</button>") +
                           "</form>");
+                sb.Append("<p class='hint'>The player is told at their next login — reason, date and, for a timeout, " +
+                          "the day it ends. A ban also kicks them out of every world they are in right now. " +
+                          "A timeout lifts itself; nothing to remember.</p>");
             }
         }
 
         if (banned.Count > 0)
         {
-            sb.Append("<h2>Currently banned</h2><table><tr><th>Name</th><th>Reason</th><th></th></tr>");
+            sb.Append("<h2>Currently banned</h2><table><tr><th>Name</th><th>Reason</th><th>Since</th><th>Until</th><th></th></tr>");
             foreach (var a in banned)
             {
-                sb.Append($"<tr><td>{E(a.Name)}</td><td>{E(a.BanReason)}</td><td>" +
+                string reason = a.BanReasonCode.Length > 0
+                    ? $"{E(a.BanReasonCode)}{(a.BanReason.Length > 0 ? $" — {E(a.BanReason)}" : string.Empty)}"
+                    : E(a.BanReason);
+                sb.Append($"<tr><td>{E(a.Name)}</td><td>{reason}</td><td>{E(ShortUnix(a.BannedAtUnix))}</td>" +
+                          $"<td>{(a.BanExpires ? E(ShortUnix(a.BannedUntilUnix)) : "—")}</td><td>" +
                           $"<form method='post' action='/admin/ban'><input type='hidden' name='accountId' value='{E(a.Id)}'>" +
                           "<input type='hidden' name='banned' value='false'><button>unban</button></form></td></tr>");
             }

@@ -166,6 +166,30 @@ kid-friendly acceptance + enforcement loop:
   `POST /api/admin/reports/{id}/close`, `POST /api/admin/ban` (ban/unban + reason).
 - **Bans** — `banned` flag + reason on the account; the join grant (the choke point every hosted
   entry passes) refuses banned accounts with the reason. Banned players can still file reports.
+  A ban may be a **timeout** (`banned_until`, the admin form's default): it lifts itself, so nothing
+  has to be remembered, and the player can be told the day they are welcome back. It also carries a
+  canned `ban_reason_code` (chat / griefing / cheating / name / other) that the client and the portal
+  render in the player's language, next to the operator's free-text detail (shown as written).
+  Banning **kicks the account out of every world it is in right now** — the ban itself would only
+  decide the next join (#496).
+- **Notices** (`account_notice`) — the player's inbox: why they are banned, that a ban was lifted,
+  that an operator deleted one of their worlds. Bans could be re-derived from the account row; a
+  deleted world cannot, because the row is gone — so the notice is written at the moment of the
+  action, with the world's name and the operator's optional reason. `POST /api/login` answers the
+  moderation state plus the unread notices, `GET /api/notices` is the poll behind it (a ban landing
+  mid-session never passes through the login again — sessions outlive it by weeks), and
+  `POST /api/notices/ack` (`{"id":0}` = all) marks them read (#496).
+- **Per-world bans (the owner's own lever)** — `world_ban`, enforced in the same join grant, matching
+  on the account and on the in-game name (arcade guests have no account). Owner routes:
+  `GET/POST /api/worlds/{id}/bans`, `DELETE /api/worlds/{id}/bans/{banId}`,
+  `POST /api/worlds/{id}/kick`. The ban UI picks from `world_visitor`, a log of who entered a world
+  under which name, written at the join grant (#497).
+- **Kick** — `POST /kick` on the instance gateway, same `X-Announce-Token` as `/announce`. The server
+  sends the player a `JoinRejected` (which the client renders as "back to the menu with this reason")
+  and closes the pipe a second later, so the notice is out before the socket goes and a modified
+  client cannot ignore it. A reason of the form `@<locale key>` is resolved in the player's language;
+  anything else is operator/owner prose and shown verbatim. In-game twin for the world admin:
+  `/kick <player>` — deliberately momentary, so there is exactly ONE lasting ban store (#497).
 - Still open (client-side, Phase 2 rest): in-game report button on hosted worlds, first-join
   welcome MOTD, **Impressum + Datenschutzerklärung** pages before public launch (DSGVO — say the
   minimal-data story out loud: name + password hash, no email).

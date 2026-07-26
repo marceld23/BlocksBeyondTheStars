@@ -66,7 +66,13 @@ public sealed class WebSocketServerTransport : IServerTransport
     /// unknown path, so self-hosted gateways expose nothing new.</summary>
     public Func<byte, string?, int, bool>? AnnounceReceiver { get; set; }
 
-    /// <summary>Shared secret required by <c>POST /announce</c>; empty disables the endpoint.</summary>
+    /// <summary>When set together with <see cref="AnnounceToken"/>, <c>POST /kick</c> accepts a moderation
+    /// kick (JSON <c>{"playerName":"…","reason":"…"}</c>) from the control plane and forwards it to the game
+    /// server (name, reason → accepted). Same token, same accept-loop-to-tick handover as the announcement
+    /// route: a ban decides the next join, this is what ends the session already in progress.</summary>
+    public Func<string, string?, bool>? KickReceiver { get; set; }
+
+    /// <summary>Shared secret required by <c>POST /announce</c> and <c>POST /kick</c>; empty disables both.</summary>
     public string AnnounceToken { get; set; } = string.Empty;
 
     private readonly int _maxConnections;
@@ -159,6 +165,14 @@ public sealed class WebSocketServerTransport : IServerTransport
             ctx.Response.StatusCode = await HandleAnnounceAsync(ctx, announceReceiver).ConfigureAwait(false);
             ctx.Response.Close();
         }
+        else if (ctx.Request.HttpMethod == "POST"
+            && ctx.Request.Url?.AbsolutePath == "/kick"
+            && KickReceiver is { } kickReceiver
+            && !string.IsNullOrEmpty(AnnounceToken))
+        {
+            ctx.Response.StatusCode = await HandleKickAsync(ctx, kickReceiver).ConfigureAwait(false);
+            ctx.Response.Close();
+        }
         else
         {
             ctx.Response.StatusCode = 400;
@@ -191,6 +205,38 @@ public sealed class WebSocketServerTransport : IServerTransport
             string? text = root.TryGetProperty("text", out var t) ? t.GetString() : null;
             int seconds = root.TryGetProperty("seconds", out var s) ? s.GetInt32() : -1;
             return receiver(kind, text, seconds) ? 200 : 400;
+        }
+        catch
+        {
+            return 400; // malformed JSON / aborted body — never let a bad request kill the accept loop
+        }
+    }
+
+    /// <summary>Authenticates and parses a <c>POST /kick</c> request; returns the HTTP status code. 404 when
+    /// the named player is not online — the control plane treats that as "nothing to do", not as an error.</summary>
+    private async Task<int> HandleKickAsync(HttpListenerContext ctx, Func<string, string?, bool> receiver)
+    {
+        if (!FixedTimeEquals(ctx.Request.Headers["X-Announce-Token"], AnnounceToken))
+        {
+            return 401;
+        }
+
+        const int MaxBodyBytes = 4096;
+        if (ctx.Request.ContentLength64 is < 0 or > MaxBodyBytes)
+        {
+            return 400;
+        }
+
+        try
+        {
+            using var reader = new System.IO.StreamReader(ctx.Request.InputStream, System.Text.Encoding.UTF8);
+            char[] buffer = new char[MaxBodyBytes];
+            int read = await reader.ReadBlockAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+            using var doc = System.Text.Json.JsonDocument.Parse(new string(buffer, 0, read));
+            var root = doc.RootElement;
+            string name = (root.TryGetProperty("playerName", out var n) ? n.GetString() : null) ?? string.Empty;
+            string? reason = root.TryGetProperty("reason", out var r) ? r.GetString() : null;
+            return name.Length == 0 ? 400 : receiver(name, reason) ? 200 : 404;
         }
         catch
         {
@@ -368,6 +414,17 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
 
         _ = SendAsync(client, browserPayload);
+    }
+
+    /// <summary>Closes a browser connection (kick). Aborting rather than a graceful close is deliberate:
+    /// the receive loop is parked in ReceiveAsync, so Abort is what makes it fall through to its finally —
+    /// which is also where the Disconnect event and the resource teardown live.</summary>
+    public void DisconnectClient(int connectionId)
+    {
+        if (_clients.TryGetValue(connectionId, out var client))
+        {
+            try { client.Socket.Abort(); } catch { }
+        }
     }
 
     public void Broadcast(byte[] payload, DeliveryMode mode)

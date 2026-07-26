@@ -91,12 +91,14 @@ if (webSocket != null)
     webSocket.StatusJsonProvider = () => server.StatusJson;
 
     // POST /announce: the control plane pushes maintenance announcements ("restart in 10 min") into the
-    // running instance. Token-gated; without BBS_ANNOUNCE_TOKEN the route stays disabled.
+    // running instance. POST /kick ends a session the moment a ban lands (#497) — same token, same channel,
+    // because a ban only ever decides the NEXT join. Without BBS_ANNOUNCE_TOKEN both routes stay disabled.
     if (!string.IsNullOrEmpty(config.AnnounceToken))
     {
         webSocket.AnnounceToken = config.AnnounceToken;
         webSocket.AnnounceReceiver = server.EnqueueMaintenance;
-        logger.Info("Maintenance announce endpoint is ON (POST /announce, token-gated).");
+        webSocket.KickReceiver = server.EnqueueKick;
+        logger.Info("Operator endpoints are ON (POST /announce, POST /kick, token-gated).");
     }
 }
 

@@ -204,6 +204,7 @@ function v(id){return document.getElementById(id).value.trim();}
         "Welten können kaputtgehen oder verloren gehen — lade Sicherungen herunter!",
         "Worlds can break or vanish — download backups!")}</div>
 <div id='msg'></div>
+<div id='notices'></div>
 <div class='card'>
  <h2>{T("Dein Spielername", "Your player name")}</h2>
  <input id='player-name' placeholder='{T("Dein Spielername", "Your player name")}' maxlength='24'>
@@ -313,6 +314,40 @@ function v(id){return document.getElementById(id).value.trim();}
                 pwRemoveConfirm = T("Passwort entfernen — dann kann jeder beitreten?", "Remove the password — anyone can join then?"),
                 pwNeedPrompt = T("Diese Welt braucht ein Passwort:", "This world needs a password:"),
                 pwWrongPrompt = T("Falsches Passwort — nochmal versuchen:", "Wrong password — try again:"),
+                banTitle = T("Dein Konto ist gesperrt", "Your account is blocked"),
+                banPerm = T("Die Sperre gilt, bis wir sie aufheben.", "The block stays until we lift it."),
+                banUntil = T("Die Sperre endet am %s.", "The block ends on %s."),
+                banSince = T("Gesperrt seit %s.", "Blocked since %s."),
+                noticeTitle = T("Nachricht vom Portal", "Message from the portal"),
+                noticeReason = T("Grund:", "Reason:"),
+                noticeAppeal = T(
+                    "Wenn du denkst, das ist ein Fehler: Frag deine Eltern und schreibt uns über die Kontaktadresse auf dieser Seite.",
+                    "If you think this is a mistake: ask your parents and write to us at the contact address on this page."),
+                noticeUnbanned = T("Deine Sperre wurde aufgehoben — willkommen zurück!", "Your block has been lifted — welcome back!"),
+                noticeWorldDeleted = T("Deine Welt „%s“ wurde von uns gelöscht.", "Your world “%s” was deleted by us."),
+                noticeOk = T("Verstanden", "Got it"),
+                reasons = new
+                {
+                    chat = T("Wie du im Chat mit anderen geredet hast", "How you talked to others in chat"),
+                    griefing = T("Zerstören in fremden Welten", "Wrecking things in other people's worlds"),
+                    cheating = T("Schummeln im Spiel", "Cheating in the game"),
+                    name = T("Dein Name war nicht in Ordnung", "Your name was not okay"),
+                    other = T("Verstoß gegen die Community-Regeln", "Breaking the community rules"),
+                },
+                mod = T("Spieler verwalten", "Manage players"),
+                modHint = T(
+                    "Gesperrte Spieler kommen nicht mehr in diese Welt. Das Spiel selbst bleibt für sie offen.",
+                    "Blocked players cannot enter this world any more. The game itself stays open to them."),
+                modNone = T("Niemand ist gesperrt.", "Nobody is blocked."),
+                modVisitors = T("Wer war hier", "Who has been here"),
+                modNoVisitors = T("Bisher war niemand in dieser Welt.", "Nobody has visited this world yet."),
+                modBlock = T("sperren", "block"),
+                modUnblock = T("entsperren", "unblock"),
+                modKick = T("rauswerfen", "kick"),
+                modReason = T("Grund (der Spieler sieht ihn)", "reason (the player sees it)"),
+                modBlocked = T("Gesperrt.", "Blocked."),
+                modUnblocked = T("Entsperrt.", "Unblocked."),
+                modKicked = T("Rausgeworfen.", "Kicked."),
                 st = new
                 {
                     stopped = T("gestoppt", "stopped"),
@@ -371,6 +406,9 @@ async function load(){
       ${w.hasPassword
         ? `<button onclick=""setVisibility('${w.id}', ${!w.isPublic})"">${w.isPublic?L.makePrivate:L.makePublic}</button>`
         : `<p class='hint'>${L.publicNeedsPw}</p>`}
+      <details ontoggle=""if(this.open) loadBans('${w.id}')""><summary>${L.mod}</summary>
+        <div id='bans-${w.id}'></div>
+      </details>
       <div class='grant' id='g-${w.id}'></div>`;
     el.appendChild(d);
   }
@@ -506,6 +544,78 @@ async function deleteAccount(){
   if(!confirm(L.delAcc2)) return;
   if(await api('DELETE','/api/account')!==null){ localStorage.removeItem('bbs_session'); location.href='/'; }
 }
+// ---- Moderation messages (#496): why the account is blocked, and what happened to a deleted world.
+// Polled on load because a ban can land long after the session was created — the login answer alone
+// would never reach a player who stays signed in for weeks.
+function day(unix){ return unix>0 ? new Date(unix*1000).toLocaleDateString() : ''; }
+function reasonText(code, reason){
+  const t = code ? (L.reasons[code] || code) : '';
+  if(!reason) return t;
+  return t ? t + ' — ' + reason : reason;
+}
+async function loadNotices(){
+  const r = await fetch('/api/notices', {headers:H});
+  if(!r.ok) return;                       // never let a message poll break the worlds page
+  let j=null; try{ j=await r.json(); }catch{}
+  if(!j) return;
+  const el = document.getElementById('notices');
+  const parts = [];
+  if(j.banned){
+    parts.push(`<h2>${L.banTitle}</h2>`);
+    if(j.bannedAt>0) parts.push(`<p>${esc(L.banSince.replace('%s', day(j.bannedAt)))}</p>`);
+    parts.push(`<p>${esc(j.bannedUntil>0 ? L.banUntil.replace('%s', day(j.bannedUntil)) : L.banPerm)}</p>`);
+    const why = reasonText(j.banReasonCode, j.banReason);
+    if(why) parts.push(`<p><b>${L.noticeReason}</b> ${esc(why)}</p>`);
+    parts.push(`<p class='hint'>${esc(L.noticeAppeal)}</p>`);
+  }
+  for(const n of (j.notices||[])){
+    if(n.kind==='banned' && j.banned) continue;   // already spelled out above
+    if(n.kind==='world_deleted'){
+      parts.push(`<p>${esc(L.noticeWorldDeleted.replace('%s', n.subject))}</p>`);
+      if(n.reason) parts.push(`<p><b>${L.noticeReason}</b> ${esc(n.reason)}</p>`);
+    } else if(n.kind==='unbanned'){
+      parts.push(`<p>${esc(L.noticeUnbanned)}</p>`);
+    } else {
+      const t = reasonText(n.reasonCode, n.reason);
+      if(t) parts.push(`<p>${esc(t)}</p>`);
+    }
+  }
+  if(!parts.length){ el.innerHTML=''; return; }
+  if(!j.banned) parts.unshift(`<h2>${L.noticeTitle}</h2>`);
+  el.innerHTML = `<div class='card'>${parts.join('')}<button onclick='ackNotices()'>${L.noticeOk}</button></div>`;
+}
+async function ackNotices(){
+  await fetch('/api/notices/ack', {method:'POST', headers:H, body: JSON.stringify({id:0})});
+  loadNotices();   // the ban banner stays if the account is still blocked — only the messages clear
+}
+// ---- Per-world ban list (#497): the owner's own lever, next to the world's password and visibility.
+async function loadBans(id){
+  const el = document.getElementById('bans-'+id); if(!el) return;
+  const j = await api('GET',`/api/worlds/${id}/bans`); if(!j) return;
+  const blocked = new Set((j.bans||[]).map(b=>(b.playerName||'').toLowerCase()));
+  const rows = (j.bans||[]).map(b =>
+    `<p>${esc(b.playerName)}${b.reason?' — '+esc(b.reason):''}
+     <button onclick=""unbanPlayer('${id}', ${b.id})"">${L.modUnblock}</button></p>`);
+  const visitors = (j.visitors||[]).filter(v=>!blocked.has((v.playerName||'').toLowerCase())).map(v =>
+    `<p>${esc(v.playerName)}
+     <button onclick=""kickPlayer('${id}', '${esc(v.playerName)}')"">${L.modKick}</button>
+     <button class='danger' onclick=""banPlayer('${id}', '${esc(v.playerName)}', '${esc(v.accountId)}')"">${L.modBlock}</button></p>`);
+  el.innerHTML = `<p class='hint'>${L.modHint}</p>`
+    + (rows.length ? rows.join('') : `<p class='hint'>${L.modNone}</p>`)
+    + `<h3>${L.modVisitors}</h3>`
+    + (visitors.length ? visitors.join('') : `<p class='hint'>${L.modNoVisitors}</p>`)
+    + `<input id='bans-reason-${id}' placeholder='${L.modReason}' maxlength='200'>`;
+}
+async function banPlayer(id, playerName, accountId){
+  const reason = (document.getElementById('bans-reason-'+id)||{}).value || '';
+  if(await api('POST',`/api/worlds/${id}/bans`,{playerName, accountId, reason, kick:true})){ say(L.modBlocked); loadBans(id); }
+}
+async function unbanPlayer(id, banId){
+  if(await api('DELETE',`/api/worlds/${id}/bans/${banId}`)!==null){ say(L.modUnblocked); loadBans(id); }
+}
+async function kickPlayer(id, playerName){
+  if(await api('POST',`/api/worlds/${id}/kick`,{playerName})){ say(L.modKicked); }
+}
 function v(id){return document.getElementById(id).value.trim();}
 function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','""':'&quot;',""'"":'&#39;'}[c]));}
 // Shared player-name field: prefilled from the last used name and persisted as it changes, so joining
@@ -513,6 +623,7 @@ function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;
 (function(){ const pn=document.getElementById('player-name'); if(pn){ pn.value=localStorage.getItem('bbs_player_name')||''; pn.addEventListener('input',()=>localStorage.setItem('bbs_player_name', pn.value.trim())); } })();
 load();
 loadPublic();
+loadNotices();
 </script>";
 
     public static string Rules(WorldHostConfig config, string lang = "de")

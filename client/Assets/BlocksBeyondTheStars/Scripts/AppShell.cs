@@ -1177,7 +1177,11 @@ namespace BlocksBeyondTheStars.Client
             // bail back to the menu and show the reason there instead of waiting on the loading overlay.
             if (igBoot != null && !string.IsNullOrEmpty(igBoot.JoinRejectedReason))
             {
-                MenuNotice = igBoot.JoinRejectedReason;
+                // A reason of the form "@<locale key>" is a message the SERVER wants shown in the player's
+                // language — used by the moderation kick (#497), where the text is ours, not free prose.
+                // Everything else stays verbatim: those reasons are operator- or owner-authored.
+                string reason = igBoot.JoinRejectedReason;
+                MenuNotice = reason.Length > 1 && reason[0] == '@' ? L(reason.Substring(1)) : reason;
                 ReturnToMenu();
                 return;
             }

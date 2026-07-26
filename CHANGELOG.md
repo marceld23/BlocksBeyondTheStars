@@ -11,6 +11,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🛡️ Moderation that explains itself
+- **A blocked player is told what happened, at the next sign-in.** Until now a banned account signed
+  in completely normally — the world list loaded, everything looked fine, and the wall only appeared
+  at *create world* or *join*, with no way to find out why. The sign-in (and a poll behind it, since
+  a ban can land while someone stays signed in for weeks) now carries the state, and the game client
+  and the portal show a proper screen: the reason, since when, until when, and what to do if you
+  think it is a mistake. (#496)
+- **Bans can be timeouts.** The admin panel offers 1 / 3 / 7 / 30 days or "until lifted", with the
+  3-day timeout as the default — it ends by itself, so nobody has to remember to lift it, and the
+  player can be told the day they are welcome back. Alongside the operator's own words there is now
+  a canned reason (chat, griefing, cheating, name, other) that the player reads in their own
+  language. A ban also ends the sessions that are running right now instead of letting the offender
+  play on until they feel like logging off. (#496)
+- **A deleted world no longer just vanishes.** When an operator deletes someone's world, the owner
+  gets a message with the world's name and the reason typed into the admin panel — previously the
+  world row was gone and there was literally nothing left to explain it with. (#496)
+- **World owners can block and kick players from their own world.** *Manage world → Manage players*
+  (in the game and on the portal) lists everyone who has played there and lets the owner kick them
+  out right now or block them for good — enforced at the join grant, so it holds for every client,
+  and matching on the account, so a rename does not get around it. The rest of the game is untouched:
+  this is the small hammer next to the operator's fleet-wide ban. World admins also get
+  `/kick <player>` in chat. (#497)
+
 ### 🛰️ Fleet operations
 - **The fleet admin panel can delete worlds.** Every row on `/admin` gets a folded-away `delete…`
   control: type the world's name (checked on the server — there is no undo), then either `delete`,

@@ -22,6 +22,10 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// <summary>The community rules changed since this account accepted them — the player must
         /// re-accept on the portal website before world actions succeed.</summary>
         public bool TermsOutdated { get; set; }
+
+        /// <summary>Moderation state + unread messages, answered by the login itself (#496): a banned
+        /// account used to sign in normally and only hit the wall at its first world action.</summary>
+        public PortalNoticesResult State { get; set; } = new PortalNoticesResult();
     }
 
     public sealed class PortalWorldInfo
@@ -36,6 +40,78 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// <summary>The owner listed this world in the public browser (opt-in; requires a password). Only
         /// meaningful for the caller's own worlds — the public listing returns only listed worlds.</summary>
         public bool IsPublic { get; set; }
+    }
+
+    /// <summary>One message the fleet has for this player (#496): why they were banned, that a ban was
+    /// lifted, that one of their worlds was deleted. <see cref="Kind"/> and <see cref="ReasonCode"/> are
+    /// stable machine strings the UI localizes; <see cref="Reason"/> is operator prose, shown as written.</summary>
+    public sealed class PortalNotice
+    {
+        public const string KindBanned = "banned";
+        public const string KindUnbanned = "unbanned";
+        public const string KindWorldDeleted = "world_deleted";
+
+        public long Id { get; set; }
+        public string Kind { get; set; } = string.Empty;
+
+        /// <summary>What the notice is about — the world's name for <see cref="KindWorldDeleted"/>.</summary>
+        public string Subject { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+        public string ReasonCode { get; set; } = string.Empty;
+
+        /// <summary>End of a timed ban (unix seconds); 0 = permanent or not applicable.</summary>
+        public long UntilUnix { get; set; }
+        public long CreatedUnix { get; set; }
+    }
+
+    /// <summary>The account's moderation state plus its unread notices — answered by the login and by the
+    /// poll behind it (a ban landing mid-session never passes through the login again).</summary>
+    public sealed class PortalNoticesResult
+    {
+        public bool Ok { get; set; }
+        public string Error { get; set; } = string.Empty;
+
+        /// <summary>Stable machine code of the error (empty on success/unknown) — the UI localizes it.</summary>
+        public string Code { get; set; } = string.Empty;
+
+        public bool Banned { get; set; }
+        public string BanReason { get; set; } = string.Empty;
+        public string BanReasonCode { get; set; } = string.Empty;
+        public long BannedAtUnix { get; set; }
+
+        /// <summary>End of a timed ban (unix seconds); 0 = until an operator lifts it.</summary>
+        public long BannedUntilUnix { get; set; }
+        public List<PortalNotice> Notices { get; set; } = new List<PortalNotice>();
+    }
+
+    /// <summary>A player barred from one world, as the owner's ban list shows them.</summary>
+    public sealed class PortalWorldBan
+    {
+        public long Id { get; set; }
+        public string PlayerName { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+        public long CreatedUnix { get; set; }
+    }
+
+    /// <summary>Someone who has played on the world — the owner's ban pick list.</summary>
+    public sealed class PortalWorldVisitor
+    {
+        public string PlayerName { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
+        public long LastSeenUnix { get; set; }
+    }
+
+    /// <summary>Owner view of a world's moderation state: who is blocked, and who could be.</summary>
+    public sealed class PortalWorldBansResult
+    {
+        public bool Ok { get; set; }
+        public string Error { get; set; } = string.Empty;
+
+        /// <summary>Stable machine code of the error (empty on success/unknown) — the UI localizes it.</summary>
+        public string Code { get; set; } = string.Empty;
+        public List<PortalWorldBan> Bans { get; set; } = new List<PortalWorldBan>();
+        public List<PortalWorldVisitor> Visitors { get; set; } = new List<PortalWorldVisitor>();
     }
 
     public sealed class PortalWorldsResult
@@ -228,6 +304,50 @@ namespace BlocksBeyondTheStars.Client.Portal
             return ParseSimple(status, body);
         }
 
+        /// <summary>Moderation state + unread notices. Polled alongside the world list: a ban that lands
+        /// while the player is signed in never passes through the login again.</summary>
+        public PortalNoticesResult GetNotices(string session)
+        {
+            var (status, body) = Get("/api/notices", session);
+            return ParseNotices(status, body);
+        }
+
+        /// <summary>Acknowledges notices the player has read (<paramref name="noticeId"/> 0 = all).</summary>
+        public PortalSimpleResult AckNotices(string session, long noticeId = 0)
+        {
+            var (status, body) = Post("/api/notices/ack", new { id = noticeId }, session);
+            return ParseSimple(status, body);
+        }
+
+        /// <summary>Owner-only: the world's blocked players plus the recent visitors to pick from.</summary>
+        public PortalWorldBansResult ListWorldBans(string session, string worldId)
+        {
+            var (status, body) = Get($"/api/worlds/{worldId}/bans", session);
+            return ParseWorldBans(status, body);
+        }
+
+        /// <summary>Owner-only: bar a player from this world; <paramref name="kick"/> also ends a session
+        /// already in progress (a block alone only decides the next join).</summary>
+        public PortalSimpleResult AddWorldBan(string session, string worldId, string playerName, string accountId, string reason, bool kick = true)
+        {
+            var (status, body) = Post($"/api/worlds/{worldId}/bans", new { playerName, accountId, reason, kick }, session);
+            return ParseSimple(status, body);
+        }
+
+        /// <summary>Owner-only: lift a block.</summary>
+        public PortalSimpleResult RemoveWorldBan(string session, string worldId, long banId)
+        {
+            var (status, body) = Delete($"/api/worlds/{worldId}/bans/{banId}", session);
+            return ParseSimple(status, body);
+        }
+
+        /// <summary>Owner-only: end one player's session on this world, without a lasting block.</summary>
+        public PortalSimpleResult KickFromWorld(string session, string worldId, string playerName, string? reason = null)
+        {
+            var (status, body) = Post($"/api/worlds/{worldId}/kick", new { playerName, reason }, session);
+            return ParseSimple(status, body);
+        }
+
         /// <summary>Deletes the account, ALL its worlds and their saves — irreversible (DSGVO Art. 17).</summary>
         public PortalSimpleResult DeleteAccount(string session)
         {
@@ -267,6 +387,104 @@ namespace BlocksBeyondTheStars.Client.Portal
                 result.AccountId = GetString(doc!, "accountId");
                 result.SessionToken = GetString(doc!, "sessionToken");
                 result.TermsOutdated = doc!.RootElement.TryGetProperty("termsOutdated", out var to) && to.ValueKind == JsonValueKind.True;
+                result.State = ReadState(doc!.RootElement); // ban state + unread notices ride along (#496)
+                result.State.Ok = true;
+            }
+
+            return result;
+        }
+
+        public static PortalNoticesResult ParseNotices(int status, string body)
+        {
+            var result = new PortalNoticesResult();
+            if (!Succeeded(status, body, out string error, out string code, out JsonDocument? doc))
+            {
+                result.Error = error;
+                result.Code = code;
+                return result;
+            }
+
+            using (doc)
+            {
+                result = ReadState(doc!.RootElement);
+                result.Ok = true;
+            }
+
+            return result;
+        }
+
+        /// <summary>Reads the moderation block shared by the login answer and the notice poll.</summary>
+        private static PortalNoticesResult ReadState(JsonElement root)
+        {
+            var state = new PortalNoticesResult
+            {
+                Banned = root.TryGetProperty("banned", out var b) && b.ValueKind == JsonValueKind.True,
+                BanReason = GetString(root, "banReason"),
+                BanReasonCode = GetString(root, "banReasonCode"),
+                BannedAtUnix = GetLong(root, "bannedAt"),
+                BannedUntilUnix = GetLong(root, "bannedUntil"),
+            };
+
+            if (root.TryGetProperty("notices", out var notices) && notices.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var n in notices.EnumerateArray())
+                {
+                    state.Notices.Add(new PortalNotice
+                    {
+                        Id = GetLong(n, "id"),
+                        Kind = GetString(n, "kind"),
+                        Subject = GetString(n, "subject"),
+                        Reason = GetString(n, "reason"),
+                        ReasonCode = GetString(n, "reasonCode"),
+                        UntilUnix = GetLong(n, "until"),
+                        CreatedUnix = GetLong(n, "created"),
+                    });
+                }
+            }
+
+            return state;
+        }
+
+        public static PortalWorldBansResult ParseWorldBans(int status, string body)
+        {
+            var result = new PortalWorldBansResult();
+            if (!Succeeded(status, body, out string error, out string code, out JsonDocument? doc))
+            {
+                result.Error = error;
+                result.Code = code;
+                return result;
+            }
+
+            using (doc)
+            {
+                result.Ok = true;
+                if (doc!.RootElement.TryGetProperty("bans", out var bans) && bans.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var b in bans.EnumerateArray())
+                    {
+                        result.Bans.Add(new PortalWorldBan
+                        {
+                            Id = GetLong(b, "id"),
+                            PlayerName = GetString(b, "playerName"),
+                            AccountId = GetString(b, "accountId"),
+                            Reason = GetString(b, "reason"),
+                            CreatedUnix = GetLong(b, "created"),
+                        });
+                    }
+                }
+
+                if (doc!.RootElement.TryGetProperty("visitors", out var visitors) && visitors.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var v in visitors.EnumerateArray())
+                    {
+                        result.Visitors.Add(new PortalWorldVisitor
+                        {
+                            PlayerName = GetString(v, "playerName"),
+                            AccountId = GetString(v, "accountId"),
+                            LastSeenUnix = GetLong(v, "lastSeen"),
+                        });
+                    }
+                }
             }
 
             return result;
@@ -455,6 +673,12 @@ namespace BlocksBeyondTheStars.Client.Portal
             doc = null;
             return false;
         }
+
+        private static long GetLong(JsonElement element, string property)
+            => element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Number
+               && value.TryGetInt64(out long v)
+                ? v
+                : 0L;
 
         private static string GetString(JsonDocument doc, string property) => GetString(doc.RootElement, property);
 

@@ -21,6 +21,14 @@ public interface IServerTransport : IDisposable
     /// <summary>Processes pending network events; call once per server tick.</summary>
     void Poll();
 
+    /// <summary>Drops one client (moderation: kick/ban). The client is expected to have been told why
+    /// first — this only closes the pipe, so a modified client cannot simply ignore the message and play
+    /// on. Default: a no-op, for transports where the concept does not apply (loopback singleplayer) or
+    /// test doubles that never own a socket.</summary>
+    void DisconnectClient(int connectionId)
+    {
+    }
+
     void Stop();
 }
 

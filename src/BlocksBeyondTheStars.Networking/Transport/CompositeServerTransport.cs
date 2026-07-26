@@ -67,6 +67,15 @@ public sealed class CompositeServerTransport : IServerTransport
         }
     }
 
+    public void DisconnectClient(int connectionId)
+    {
+        int index = connectionId / IdStride - 1;
+        if (index >= 0 && index < _children.Length)
+        {
+            _children[index].DisconnectClient(connectionId % IdStride);
+        }
+    }
+
     public void Poll()
     {
         foreach (var child in _children)

@@ -13,7 +13,55 @@ public sealed record AccountRecord(
     bool IsDeveloper = false,
     bool IsBanned = false,
     string BanReason = "",
-    int AcceptedTermsVersion = 0);
+    int AcceptedTermsVersion = 0,
+    long BannedAtUnix = 0,
+    long BannedUntilUnix = 0,
+    string BanReasonCode = "")
+{
+    /// <summary>True for a ban that ends by itself (a timeout); false for "until an operator lifts it".</summary>
+    public bool BanExpires => IsBanned && BannedUntilUnix > 0;
+}
+
+/// <summary>
+/// A message waiting for a player: why they were banned, that a ban was lifted, that one of their worlds
+/// was deleted. Bans could be re-derived from the account row, but a deleted world leaves nothing behind
+/// to derive anything from — the notice IS the record, written at the moment of the action.
+/// </summary>
+public sealed record NoticeRecord(
+    long Id,
+    string Kind,
+    string Subject,
+    string Reason,
+    string ReasonCode,
+    long UntilUnix,
+    long CreatedUnix,
+    long SeenUnix)
+{
+    public const string KindBanned = "banned";
+    public const string KindUnbanned = "unbanned";
+    public const string KindWorldDeleted = "world_deleted";
+}
+
+/// <summary>A player barred from ONE world by its owner (the lever a world owner actually needs — the
+/// fleet-wide ban is the operator's). Keyed on the account when there is one; arcade guests have none,
+/// so the player name is matched too.</summary>
+public sealed record WorldBanRecord(
+    long Id,
+    string WorldId,
+    string AccountId,
+    string PlayerName,
+    string Reason,
+    long CreatedUnix);
+
+/// <summary>Who played on a world under which in-game name — written at the join grant. Exists so the
+/// owner's ban UI can offer a pick list (nobody remembers account ids) and so a fleet ban knows which
+/// in-game names to kick.</summary>
+public sealed record WorldVisitorRecord(
+    string WorldId,
+    string AccountId,
+    string PlayerName,
+    long FirstSeenUnix,
+    long LastSeenUnix);
 
 public sealed record WorldRecord(
     string Id,
@@ -131,6 +179,9 @@ public sealed class HostRegistry : IDisposable
                 is_developer INTEGER NOT NULL DEFAULT 0,
                 banned INTEGER NOT NULL DEFAULT 0,
                 ban_reason TEXT NOT NULL DEFAULT '',
+                ban_reason_code TEXT NOT NULL DEFAULT '',
+                banned_at_unix INTEGER NOT NULL DEFAULT 0,
+                banned_until_unix INTEGER NOT NULL DEFAULT 0,
                 terms_version INTEGER NOT NULL DEFAULT 0,
                 terms_accepted_unix INTEGER NOT NULL DEFAULT 0,
                 created_unix INTEGER NOT NULL);
@@ -171,6 +222,32 @@ public sealed class HostRegistry : IDisposable
                 player_name TEXT NOT NULL DEFAULT '',
                 reason TEXT NOT NULL DEFAULT '',
                 created_unix INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS account_notice(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                subject TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                reason_code TEXT NOT NULL DEFAULT '',
+                until_unix INTEGER NOT NULL DEFAULT 0,
+                created_unix INTEGER NOT NULL,
+                seen_unix INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX IF NOT EXISTS ix_notice_account ON account_notice(account_id, seen_unix);
+            CREATE TABLE IF NOT EXISTS world_ban(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                world_id TEXT NOT NULL,
+                account_id TEXT NOT NULL DEFAULT '',
+                player_name TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                created_unix INTEGER NOT NULL);
+            CREATE INDEX IF NOT EXISTS ix_world_ban_world ON world_ban(world_id);
+            CREATE TABLE IF NOT EXISTS world_visitor(
+                world_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                first_seen_unix INTEGER NOT NULL,
+                last_seen_unix INTEGER NOT NULL,
+                PRIMARY KEY(world_id, account_id, player_name));
             """);
 
         // Tolerant upgrades for registries created before newer account columns existed (pre-deployment
@@ -180,6 +257,9 @@ public sealed class HostRegistry : IDisposable
             "ALTER TABLE account ADD COLUMN is_developer INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE account ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE account ADD COLUMN ban_reason TEXT NOT NULL DEFAULT '';",
+            "ALTER TABLE account ADD COLUMN banned_at_unix INTEGER NOT NULL DEFAULT 0;",
+            "ALTER TABLE account ADD COLUMN banned_until_unix INTEGER NOT NULL DEFAULT 0;", // 0 = until an operator lifts it
+            "ALTER TABLE account ADD COLUMN ban_reason_code TEXT NOT NULL DEFAULT '';", // localizable canned reason
             "ALTER TABLE account ADD COLUMN terms_version INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE account ADD COLUMN terms_accepted_unix INTEGER NOT NULL DEFAULT 0;",
             "ALTER TABLE world ADD COLUMN last_active_unix INTEGER NOT NULL DEFAULT 0;",
@@ -319,6 +399,21 @@ public sealed class HostRegistry : IDisposable
         }
     }
 
+    /// <summary>Column list every account read shares — see <see cref="ReadAccount"/> for the order.</summary>
+    private const string AccountColumns =
+        "id, name, is_developer, banned, ban_reason, terms_version, banned_at_unix, banned_until_unix, ban_reason_code";
+
+    /// <summary>Materializes an account row. A timeout whose end has passed reads as NOT banned: the row
+    /// keeps the history for the admin list, but every gate asking <c>IsBanned</c> lets the player back in
+    /// without an operator having to lift anything by hand.</summary>
+    private static AccountRecord ReadAccount(SqliteDataReader reader)
+    {
+        long until = reader.GetInt64(7);
+        bool banned = reader.GetInt32(3) != 0 && (until <= 0 || until > NowUnix());
+        return new AccountRecord(reader.GetString(0), reader.GetString(1), reader.GetInt32(2) != 0,
+            banned, reader.GetString(4), reader.GetInt32(5), reader.GetInt64(6), until, reader.GetString(8));
+    }
+
     /// <summary>Resolves a bearer token to its account, or null when unknown/expired.</summary>
     public AccountRecord? ResolveSession(string? token)
     {
@@ -329,18 +424,16 @@ public sealed class HostRegistry : IDisposable
 
         lock (_gate)
         {
-            using var cmd = Cmd("""
-                SELECT a.id, a.name, a.is_developer, a.banned, a.ban_reason, a.terms_version
+            // Unqualified column names are unambiguous here: `session` carries none of them.
+            using var cmd = Cmd($"""
+                SELECT {AccountColumns}
                 FROM session s JOIN account a ON a.id = s.account_id
                 WHERE s.token_hash = $t AND s.expires_unix >= $now
                 """);
             cmd.Parameters.AddWithValue("$t", Sha256Hex(token));
             cmd.Parameters.AddWithValue("$now", NowUnix());
             using var reader = cmd.ExecuteReader();
-            return reader.Read()
-                ? new AccountRecord(reader.GetString(0), reader.GetString(1), reader.GetInt32(2) != 0,
-                    reader.GetInt32(3) != 0, reader.GetString(4), reader.GetInt32(5))
-                : null;
+            return reader.Read() ? ReadAccount(reader) : null;
         }
     }
 
@@ -359,16 +452,39 @@ public sealed class HostRegistry : IDisposable
     }
 
     /// <summary>Bans (or, with <paramref name="banned"/> false, unbans) an account. Banned accounts keep
-    /// their session but every world action is refused with the reason.</summary>
-    public void SetBanned(string accountId, bool banned, string reason)
+    /// their session but every world action is refused with the reason. <paramref name="days"/> 0 means
+    /// "until an operator lifts it"; anything greater is a timeout that ends by itself — the kid-facing
+    /// default, and the reason the notice can promise a date. Both directions leave a notice behind, so
+    /// the player learns what happened at their next login instead of finding a silently dead account.</summary>
+    public void SetBanned(string accountId, bool banned, string reason, string reasonCode = "", int days = 0)
+        => SetBannedUntil(accountId, banned, reason, reasonCode, banned && days > 0 ? NowUnix() + ((long)days * 86400) : 0);
+
+    /// <summary>The primitive behind <see cref="SetBanned"/>, with the end of the timeout as an absolute
+    /// time (unix seconds; 0 = until an operator lifts it). The admin UI uses the day-count form.</summary>
+    public void SetBannedUntil(string accountId, bool banned, string reason, string reasonCode, long untilUnix)
     {
+        long now = NowUnix();
+        long until = banned ? untilUnix : 0;
         lock (_gate)
         {
-            using var cmd = Cmd("UPDATE account SET banned = $b, ban_reason = $r WHERE id = $i");
+            using var cmd = Cmd("""
+                UPDATE account SET banned = $b, ban_reason = $r, ban_reason_code = $rc,
+                    banned_at_unix = $at, banned_until_unix = $until
+                WHERE id = $i
+                """);
             cmd.Parameters.AddWithValue("$b", banned ? 1 : 0);
             cmd.Parameters.AddWithValue("$r", reason ?? string.Empty);
+            cmd.Parameters.AddWithValue("$rc", reasonCode ?? string.Empty);
+            cmd.Parameters.AddWithValue("$at", banned ? now : 0L);
+            cmd.Parameters.AddWithValue("$until", until);
             cmd.Parameters.AddWithValue("$i", accountId);
-            cmd.ExecuteNonQuery();
+            if (cmd.ExecuteNonQuery() == 0)
+            {
+                return; // unknown account — no notice for a player who does not exist
+            }
+
+            AddNoticeLocked(accountId, banned ? NoticeRecord.KindBanned : NoticeRecord.KindUnbanned,
+                subject: string.Empty, reason ?? string.Empty, reasonCode ?? string.Empty, until, now);
         }
     }
 
@@ -383,34 +499,288 @@ public sealed class HostRegistry : IDisposable
 
         lock (_gate)
         {
-            using var cmd = Cmd("""
-                SELECT id, name, is_developer, banned, ban_reason, terms_version
-                FROM account WHERE lower(name) = lower($n)
-                """);
+            using var cmd = Cmd($"SELECT {AccountColumns} FROM account WHERE lower(name) = lower($n)");
             cmd.Parameters.AddWithValue("$n", name.Trim());
             using var reader = cmd.ExecuteReader();
-            return reader.Read()
-                ? new AccountRecord(reader.GetString(0), reader.GetString(1), reader.GetInt32(2) != 0,
-                    reader.GetInt32(3) != 0, reader.GetString(4), reader.GetInt32(5))
-                : null;
+            return reader.Read() ? ReadAccount(reader) : null;
         }
     }
 
-    /// <summary>All currently banned accounts, for the admin UI's ban list.</summary>
+    /// <summary>Accounts under an active ban, for the admin UI's ban list. Expired timeouts are filtered
+    /// out here as well — they are no longer bans, they are history.</summary>
     public IReadOnlyList<AccountRecord> ListBannedAccounts()
     {
         lock (_gate)
         {
-            using var cmd = Cmd("""
-                SELECT id, name, is_developer, banned, ban_reason, terms_version
-                FROM account WHERE banned = 1 ORDER BY name
-                """);
+            using var cmd = Cmd($"SELECT {AccountColumns} FROM account WHERE banned = 1 ORDER BY name");
             using var reader = cmd.ExecuteReader();
             var list = new List<AccountRecord>();
             while (reader.Read())
             {
-                list.Add(new AccountRecord(reader.GetString(0), reader.GetString(1), reader.GetInt32(2) != 0,
-                    reader.GetInt32(3) != 0, reader.GetString(4), reader.GetInt32(5)));
+                var account = ReadAccount(reader);
+                if (account.IsBanned)
+                {
+                    list.Add(account);
+                }
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>Looks an account up by id (the admin UI's ban forms carry ids, not names).</summary>
+    public AccountRecord? GetAccount(string? accountId)
+    {
+        if (string.IsNullOrEmpty(accountId))
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            using var cmd = Cmd($"SELECT {AccountColumns} FROM account WHERE id = $i");
+            cmd.Parameters.AddWithValue("$i", accountId);
+            using var reader = cmd.ExecuteReader();
+            return reader.Read() ? ReadAccount(reader) : null;
+        }
+    }
+
+    // ---------------- Player notices (the "why can't I play any more?" inbox) ----------------
+
+    /// <summary>Files a notice for a player. Called for bans/unbans (see <see cref="SetBanned"/>) and when
+    /// an operator deletes someone's world — that one leaves no other trace, the world row is gone.</summary>
+    public void AddNotice(string accountId, string kind, string subject, string reason, string reasonCode = "", long untilUnix = 0)
+    {
+        lock (_gate)
+        {
+            AddNoticeLocked(accountId, kind, subject, reason, reasonCode, untilUnix, NowUnix());
+        }
+    }
+
+    private void AddNoticeLocked(string accountId, string kind, string subject, string reason, string reasonCode, long untilUnix, long now)
+    {
+        using var cmd = Cmd("""
+            INSERT INTO account_notice(account_id, kind, subject, reason, reason_code, until_unix, created_unix)
+            VALUES($a, $k, $s, $r, $rc, $u, $c)
+            """);
+        cmd.Parameters.AddWithValue("$a", accountId);
+        cmd.Parameters.AddWithValue("$k", kind);
+        cmd.Parameters.AddWithValue("$s", subject ?? string.Empty);
+        cmd.Parameters.AddWithValue("$r", reason ?? string.Empty);
+        cmd.Parameters.AddWithValue("$rc", reasonCode ?? string.Empty);
+        cmd.Parameters.AddWithValue("$u", untilUnix);
+        cmd.Parameters.AddWithValue("$c", now);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>The player's notices, newest first. Unseen only by default — that is what login and the
+    /// portal poll show; the client acknowledges them once the player has read them.</summary>
+    public IReadOnlyList<NoticeRecord> ListNotices(string accountId, bool unseenOnly = true, int limit = 20)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd($"""
+                SELECT id, kind, subject, reason, reason_code, until_unix, created_unix, seen_unix
+                FROM account_notice
+                WHERE account_id = $a {(unseenOnly ? "AND seen_unix = 0" : string.Empty)}
+                ORDER BY created_unix DESC, id DESC LIMIT $l
+                """);
+            cmd.Parameters.AddWithValue("$a", accountId);
+            cmd.Parameters.AddWithValue("$l", limit);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<NoticeRecord>();
+            while (reader.Read())
+            {
+                list.Add(new NoticeRecord(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7)));
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>Marks one notice (or, with <paramref name="noticeId"/> &lt;= 0, all of them) as read.
+    /// Always scoped to the caller's own account — a notice id is a guessable integer.</summary>
+    public void MarkNoticesSeen(string accountId, long noticeId = 0)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd(noticeId > 0
+                ? "UPDATE account_notice SET seen_unix = $now WHERE account_id = $a AND id = $i AND seen_unix = 0"
+                : "UPDATE account_notice SET seen_unix = $now WHERE account_id = $a AND seen_unix = 0");
+            cmd.Parameters.AddWithValue("$now", NowUnix());
+            cmd.Parameters.AddWithValue("$a", accountId);
+            if (noticeId > 0)
+            {
+                cmd.Parameters.AddWithValue("$i", noticeId);
+            }
+
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // ---------------- Per-world bans & visitors (the world owner's own lever) ----------------
+
+    /// <summary>Bars a player from ONE world. Idempotent per (world, account, name) so a double click
+    /// cannot pile up rows. Returns false when the world/name pair is unusable.</summary>
+    public bool AddWorldBan(string worldId, string accountId, string playerName, string reason)
+    {
+        playerName = (playerName ?? string.Empty).Trim();
+        accountId ??= string.Empty;
+        if (!IsValidWorldId(worldId) || (playerName.Length == 0 && accountId.Length == 0))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            using var check = Cmd("""
+                SELECT 1 FROM world_ban
+                WHERE world_id = $w AND account_id = $a AND lower(player_name) = lower($n)
+                """);
+            check.Parameters.AddWithValue("$w", worldId);
+            check.Parameters.AddWithValue("$a", accountId);
+            check.Parameters.AddWithValue("$n", playerName);
+            if (check.ExecuteScalar() != null)
+            {
+                return true;
+            }
+
+            using var cmd = Cmd("""
+                INSERT INTO world_ban(world_id, account_id, player_name, reason, created_unix)
+                VALUES($w, $a, $n, $r, $c)
+                """);
+            cmd.Parameters.AddWithValue("$w", worldId);
+            cmd.Parameters.AddWithValue("$a", accountId);
+            cmd.Parameters.AddWithValue("$n", playerName);
+            cmd.Parameters.AddWithValue("$r", (reason ?? string.Empty).Trim());
+            cmd.Parameters.AddWithValue("$c", NowUnix());
+            cmd.ExecuteNonQuery();
+            return true;
+        }
+    }
+
+    /// <summary>Lifts a world ban. The world id is part of the WHERE so an id from another world cannot
+    /// be deleted by guessing.</summary>
+    public void RemoveWorldBan(string worldId, long banId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("DELETE FROM world_ban WHERE world_id = $w AND id = $i");
+            cmd.Parameters.AddWithValue("$w", worldId);
+            cmd.Parameters.AddWithValue("$i", banId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<WorldBanRecord> ListWorldBans(string worldId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                SELECT id, world_id, account_id, player_name, reason, created_unix
+                FROM world_ban WHERE world_id = $w ORDER BY created_unix DESC
+                """);
+            cmd.Parameters.AddWithValue("$w", worldId ?? string.Empty);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<WorldBanRecord>();
+            while (reader.Read())
+            {
+                list.Add(new WorldBanRecord(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), reader.GetString(4), reader.GetInt64(5)));
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>The world ban that applies to this join, or null. Matches on the account — and on the
+    /// in-game name too, because arcade guests have no account and because a name is what the owner
+    /// actually recognises.</summary>
+    public WorldBanRecord? FindWorldBan(string worldId, string accountId, string playerName)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                SELECT id, world_id, account_id, player_name, reason, created_unix
+                FROM world_ban
+                WHERE world_id = $w
+                  AND ((account_id <> '' AND account_id = $a) OR (player_name <> '' AND lower(player_name) = lower($n)))
+                ORDER BY created_unix DESC LIMIT 1
+                """);
+            cmd.Parameters.AddWithValue("$w", worldId ?? string.Empty);
+            cmd.Parameters.AddWithValue("$a", accountId ?? string.Empty);
+            cmd.Parameters.AddWithValue("$n", (playerName ?? string.Empty).Trim());
+            using var reader = cmd.ExecuteReader();
+            return reader.Read()
+                ? new WorldBanRecord(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), reader.GetString(4), reader.GetInt64(5))
+                : null;
+        }
+    }
+
+    /// <summary>Records that an account entered a world under an in-game name (upsert, written at the
+    /// join grant). This is the pick list the owner's ban UI offers, and the only place the fleet knows
+    /// which in-game names belong to an account.</summary>
+    public void RecordWorldVisitor(string worldId, string accountId, string playerName)
+    {
+        playerName = (playerName ?? string.Empty).Trim();
+        if (playerName.Length == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                INSERT INTO world_visitor(world_id, account_id, player_name, first_seen_unix, last_seen_unix)
+                VALUES($w, $a, $n, $now, $now)
+                ON CONFLICT(world_id, account_id, player_name) DO UPDATE SET last_seen_unix = $now
+                """);
+            cmd.Parameters.AddWithValue("$w", worldId);
+            cmd.Parameters.AddWithValue("$a", accountId ?? string.Empty);
+            cmd.Parameters.AddWithValue("$n", playerName);
+            cmd.Parameters.AddWithValue("$now", NowUnix());
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Recent visitors of a world, newest first — the owner's ban pick list.</summary>
+    public IReadOnlyList<WorldVisitorRecord> ListWorldVisitors(string worldId, int limit = 30)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("""
+                SELECT world_id, account_id, player_name, first_seen_unix, last_seen_unix
+                FROM world_visitor WHERE world_id = $w ORDER BY last_seen_unix DESC LIMIT $l
+                """);
+            cmd.Parameters.AddWithValue("$w", worldId ?? string.Empty);
+            cmd.Parameters.AddWithValue("$l", limit);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<WorldVisitorRecord>();
+            while (reader.Read())
+            {
+                list.Add(new WorldVisitorRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetInt64(3), reader.GetInt64(4)));
+            }
+
+            return list;
+        }
+    }
+
+    /// <summary>Every in-game name an account has played under, across all worlds — a fleet ban has to
+    /// kick the PERSON, and the instances only know names.</summary>
+    public IReadOnlyList<(string WorldId, string PlayerName)> ListVisitorNamesForAccount(string accountId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("SELECT world_id, player_name FROM world_visitor WHERE account_id = $a");
+            cmd.Parameters.AddWithValue("$a", accountId ?? string.Empty);
+            using var reader = cmd.ExecuteReader();
+            var list = new List<(string, string)>();
+            while (reader.Read())
+            {
+                list.Add((reader.GetString(0), reader.GetString(1)));
             }
 
             return list;
@@ -514,6 +884,9 @@ public sealed class HostRegistry : IDisposable
             {
                 "DELETE FROM session WHERE account_id = $i",
                 "DELETE FROM report WHERE reporter_account_id = $i",
+                "DELETE FROM account_notice WHERE account_id = $i",
+                "DELETE FROM world_visitor WHERE account_id = $i",
+                "DELETE FROM world_ban WHERE account_id = $i",
                 "DELETE FROM account WHERE id = $i",
             })
             {
@@ -1058,9 +1431,19 @@ public sealed class HostRegistry : IDisposable
     {
         lock (_gate)
         {
-            using var cmd = Cmd("DELETE FROM world WHERE id = $i");
-            cmd.Parameters.AddWithValue("$i", worldId);
-            cmd.ExecuteNonQuery();
+            // The world's own side tables go with it — a ban or visitor row for a world that no longer
+            // exists is dead weight that a recycled id would also inherit.
+            foreach (var sql in new[]
+            {
+                "DELETE FROM world_ban WHERE world_id = $i",
+                "DELETE FROM world_visitor WHERE world_id = $i",
+                "DELETE FROM world WHERE id = $i",
+            })
+            {
+                using var cmd = Cmd(sql);
+                cmd.Parameters.AddWithValue("$i", worldId);
+                cmd.ExecuteNonQuery();
+            }
         }
     }
 

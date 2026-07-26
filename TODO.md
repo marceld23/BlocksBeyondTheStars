@@ -6299,6 +6299,47 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-26): "why can't I play any more?" — ban notices, timeouts, world-owner bans (#496/#497)
+
+Analysis: `analysis/ban-notice-and-player-identity.md`. A banned account used to sign in completely normally
+(`/api/login` answered a session and nothing else, `GET /api/worlds` has no ban gate) and only hit the wall at
+the first *create world* / *join* — no reason, no date, no way to ask. An operator-deleted world was worse: the
+row is `DELETE`d, so afterwards there was nothing left to derive any explanation from.
+
+**Notice inbox (`account_notice`).** Written at the moment of the action, because state alone cannot express
+"your world X is gone". Kinds: `banned`, `unbanned`, `world_deleted` (with the world's name and the reason the
+operator typed into the delete form). `POST /api/login` answers the moderation state + unread notices,
+`GET /api/notices` is the poll behind it — a ban landing mid-session never passes through the login again,
+sessions outlive it by weeks — and `POST /api/notices/ack` marks them read, always scoped to the caller
+(notice ids are guessable integers).
+
+**Timeouts instead of permabans.** `banned_until` + `banned_at` + a canned `ban_reason_code`. An expired
+timeout reads as *not banned* at every gate (`ReadAccount` computes it), so a "3 days out" can never silently
+become permanent; the row keeps the history for the admin list. The admin form defaults to 3 days. Reason
+codes (chat/griefing/cheating/name/other) are ours and get localized DE/EN; the free-text detail stays the
+operator's words and is shown as written — the same rule the `banned` error code has always followed.
+
+**Per-world bans (`world_ban`) — the lever the world OWNER needs.** Enforced in `WorldOrchestrator.JoinAsync`,
+next to the fleet ban, so it holds for every client. Matches on the account id (a rename doesn't get around
+it) *and* on the in-game name (arcade guests have no account). The owner's UI picks from `world_visitor`, a
+log of who entered which world under which name, written at the join grant — nobody remembers account ids, and
+typing names by hand is how you block the wrong kid. Both side tables die with their world/account.
+
+**Kick — because a ban only decides the NEXT join.** `POST /kick` on the instance gateway rides the existing
+`/announce` plumbing (same `X-Announce-Token`, same lock-guarded pending slot applied on the tick). The server
+sends `JoinRejected` — which the client already renders as "back to the menu with this reason" — and closes
+the pipe ~1 s later: the message must be out before the socket goes, and a modified client must not be able to
+ignore it and play on. New `IServerTransport.DisconnectClient` (default no-op) implemented for WebSocket,
+LiteNetLib, loopback and the composite. Reasons of the form `@<locale key>` are resolved client-side, so a kick
+reads in the player's language while owner-typed reasons stay verbatim. In-game `/kick <player>` for world
+admins is deliberately **momentary** — one lasting ban store, and it lives where the world's identity does.
+
+**Deliberately NOT in scope:** device/hardware recognition against ban evasion. `deviceUniqueIdentifier`
+changes on a USB plug-in and after Windows updates, the Mono client can fake it in five minutes, identically
+imaged school PCs collide — and reading a device id needs consent under §25 TDDDG / EDPB Guidelines 2/2023,
+which under-16s cannot give. See the analysis for the layered alternative (IP link hints in the admin panel
+first) if it ever becomes necessary.
+
 ## ✅ Done (2026-07-26): fleet-admin observer mode + admin world inspection (#487–#490)
 
 Analysis: `analysis/admin-spectator-access.md` (all decisions in §0). The operator can now walk any hosted

@@ -137,6 +137,15 @@ public sealed class WorldOrchestrator
             return (null, "The community rules have changed — please accept them on the portal first.");
         }
 
+        // The world owner's own ban list (#497): the fleet ban above is the operator's lever, this one
+        // belongs to whoever owns the world. Checked at the same choke point, so it holds for every client.
+        if (_registry.FindWorldBan(worldId, account.Id, playerName) is { } worldBan)
+        {
+            return (null, string.IsNullOrEmpty(worldBan.Reason)
+                ? "The owner of this world has blocked you."
+                : $"The owner of this world has blocked you: {worldBan.Reason}");
+        }
+
         // World password gate (#250/#251) — enforced BEFORE the wake, at token issuance (the one choke
         // point every hosted join passes), so an unauthorized join can neither enter nor wake the world.
         // The owner always bypasses their own world's password.
@@ -172,6 +181,7 @@ public sealed class WorldOrchestrator
 
         _metrics.JoinGranted();
         _registry.TouchWorldActive(world.Id); // real player interest — resets the archive-inactivity clock
+        _registry.RecordWorldVisitor(world.Id, account.Id, playerName); // the owner's ban pick list (#497)
 
         long expires = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + JoinTokenTtlSeconds;
         string token = HostedJoinToken.Create(world.JoinSecret, world.Id, account.Id, playerName, expires);
@@ -333,6 +343,62 @@ public sealed class WorldOrchestrator
         {
             return false;
         }
+    }
+
+    /// <summary>Drops a player from one running instance via its token-gated <c>POST /kick</c> — the same
+    /// channel and the same token as the announcement above. A ban only decides the NEXT join; without this
+    /// the player keeps playing until they disconnect on their own. False when the instance is asleep,
+    /// unreachable or the kick channel is unconfigured.</summary>
+    public async Task<bool> KickInstanceAsync(WorldRecord world, string playerName, string? reason)
+    {
+        if (string.IsNullOrEmpty(_config.AnnounceToken) || string.IsNullOrWhiteSpace(playerName))
+        {
+            return false;
+        }
+
+        if (world.Status is not (WorldStatus.Running or WorldStatus.Starting))
+        {
+            return false; // nobody is in there to kick — waking a world to kick nobody would be absurd
+        }
+
+        string url = _config.ProbeViaDockerNetwork
+            ? $"http://bbs-world-{world.Id}:31415/kick"
+            : $"http://127.0.0.1:{world.HostPort}/kick";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("X-Announce-Token", _config.AnnounceToken);
+            request.Content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(new { playerName, reason = reason ?? string.Empty }),
+                System.Text.Encoding.UTF8, "application/json");
+            using var response = await Http.SendAsync(request).ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Kicks an account out of every world it is currently in — what a fresh fleet ban needs.
+    /// Instances only know in-game names, so the visitor log is what makes this possible at all; a player
+    /// who never joined a hosted world has nothing to kick. Returns how many kicks were accepted.</summary>
+    public async Task<int> KickAccountEverywhereAsync(string accountId)
+    {
+        var byWorld = _registry.ListVisitorNamesForAccount(accountId)
+            .Select(v => (World: _registry.GetWorld(v.WorldId), v.PlayerName))
+            .Where(v => v.World is { Status: WorldStatus.Running or WorldStatus.Starting })
+            .ToList();
+        if (byWorld.Count == 0)
+        {
+            return 0;
+        }
+
+        // '@key' = a locale key the client resolves in the player's language; the ban REASON is deliberately
+        // not carried here — the player reads it in full on the ban screen at their next login.
+        var results = await Task.WhenAll(byWorld.Select(v =>
+            KickInstanceAsync(v.World!, v.PlayerName, "@ui.kick.banned"))).ConfigureAwait(false);
+        return results.Count(ok => ok);
     }
 
     /// <summary>Fans a maintenance announcement out to one world or the whole fleet (every active

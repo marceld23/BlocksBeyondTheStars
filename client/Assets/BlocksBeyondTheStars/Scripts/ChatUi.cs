@@ -422,6 +422,19 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("cancel_restart");
                     return true;
 
+                // ---- Moderation (#497): momentary — a lasting block is the owner's ban list on the portal ----
+                case "/kick":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine("usage: /kick <player>");
+                            return true;
+                        }
+
+                        net.SendAdminCommand("kick", stringArg: p[1].TrimStart('@'));
+                        return true;
+                    }
+
                 default:
                     return false; // not an admin command (e.g. /bump) → send as normal chat
             }
