@@ -844,7 +844,10 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (pos.Y >= s.Min.Y && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
+            // #480 (was ST-7): the protected volume reaches BELOW Min.Y too — the foundation plinth is
+            // filled from the foundation row down to the natural surface (up to 48 on sloped ground), and
+            // leaving it mineable let a "protected" village be undermined from underneath.
+            if (pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
             {
                 return true;
             }

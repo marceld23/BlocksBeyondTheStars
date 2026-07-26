@@ -6229,6 +6229,44 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-26): worldgen overhaul — per-body identity, real seas, calibrated caves/ore, climate, volcanoes (#466–#481)
+
+One branch (`feat/worldgen-overhaul`, worktree), one deliberate one-time change to existing worlds (user
+decision — no grandfathering). Highlights:
+
+- **Per-body identity (#478):** `PlanetSeed`, flora/tree/creature rosters, settlement/ruin/factory/wreck
+  seeds and the flora tint are now salted with the body's location id — two worlds of the same planet type
+  are finally different worlds (terrain character, species names, settlement names). Client previews
+  (`WorldMinimap.Bake`) carry the body id so the map you see is the world you get.
+- **Persistence seatbelts:** body→planet-type map pinned at first sight (#468, freeze migration); one-time
+  stamp registry for ruins/vaults/wreck (#467) — re-entering an unloaded world no longer resurrects mined
+  structures, carves player builds, or re-offers the wreck; the wreck claim itself is persisted (#466).
+- **Sea level (#473):** percentile of the world's real height distribution (tie-aware) — jungle/swamp/
+  savanna/varied finally HAVE oceans and coasts; the ocean type rolls its land fraction per world
+  (archipelago ↔ waterworld); ocean amplitude 8→20.
+- **Caves + ore (#472):** thresholds quantile-calibrated per world against the actual torus-noise CDF (the
+  hand-tuned constants sat unreachably deep in the interpolated tail — the real cause of "no ore"); veins
+  now reach 2048 deep; carved cells below the per-world lava table (~64–128) fill with molten rock.
+- **Rivers (#474) + waterfalls (#475):** headwaters stamped (threshold 1), width relative to the world's
+  largest flow (lava flows finally wide), trunks 2–3 deep; waterfalls fire from network cascade cells.
+- **Altitude climate (#476, cosmetic by decision):** shared `TemperatureAt` lapse above sea level — snow/ice
+  line with dither, tree line, cold flora fade, altitude-blended biome bands (biome arrays reordered
+  low→high), positional HUD temperature (rain in the valley, snow on the peak).
+- **Volcanoes (#477):** watery worlds grow 1–4 basalt cones with molten summit craters (per-column fluid
+  override), vents/hot springs, and the new **obsidian** block — water meeting lava chills to obsidian in
+  the fluid automaton (DE+EN locales, procedural tile).
+- **Planet-type sliders (#471):** overrides LAYER onto the data weights (one touched slider no longer
+  collapses the galaxy; ExoticWorlds stays live), `Selectable` enforced on the override path, spawnWeight 0
+  retires a type. **Data (#479):** rocky grows sparse scrub, crystal stops advertising vegetation.
+- **Fauna spawning (#470):** ring rotor separated from the species rotor (all 20 scatter offsets live,
+  advance-on-failure — no more stalls), safety cap 64 (population model 25–45 finally reachable), lava
+  fauna gets a melt probe (`TryGetLavaSurface`), amphibians hold the water surface. **Structures (#480):**
+  foundation skirt protected, template NPC markers keep their floor, fallback vendor lands in a free cell.
+
+Docs updated (WORLD_GENERATION.md, FLUID_ROUTING.md, stale comments). Tests updated + new coverage
+(spawn distribution, pooled-column water, layered overrides). NOT yet merged to main — local Unity build
+for the user's own playtest first.
+
 ## ✅ Done (2026-07-21): ship render fixes — see-through hull holes + washed-out greebles (#420)
 
 Two static-audit findings in the client mesher (M12, M13). **M12 — see-through holes:** the chunk mesher

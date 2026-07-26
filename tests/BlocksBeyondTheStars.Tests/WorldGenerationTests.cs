@@ -447,9 +447,14 @@ public class WorldGenerationTests
         };
         int cs = WorldConstants.ChunkSize;
 
-        int verified = 0;
-        for (int wx = 0; wx < 512 && verified < 25; wx++)
-            for (int wz = 0; wz < 512 && verified < 25; wz++)
+        // #469: the old 25-column cap stopped at the first ponds and never reached a POOLED river column —
+        // whose surface sits ABOVE the local terrain, exactly the case the helper used to get wrong (it
+        // reconstructed the band from surfaceY and reported water inside solid rock). Verify many more
+        // columns AND at least one pooled one (WaterSurfaceY above the terrain).
+        var field = gen.RiverFieldFor(planet);
+        int verified = 0, pooledVerified = 0;
+        for (int wx = 0; wx < 1024 && (verified < 400 || pooledVerified == 0); wx++)
+            for (int wz = 0; wz < 1024 && (verified < 400 || pooledVerified == 0); wz++)
             {
                 if (!gen.TryGetWaterSurface(planet, wx, wz, out int top, out int bed))
                 {
@@ -470,6 +475,10 @@ public class WorldGenerationTests
                 }
 
                 verified++;
+                if (field.TryGet(wx, wz, out var col) && col.WaterSurfaceY > gen.SurfaceHeight(planet, wx, wz))
+                {
+                    pooledVerified++; // a pooled reach — the regression case fish used to spawn in rock on
+                }
             }
 
         Assert.True(verified > 0, "expected to find water columns on a watery world.");

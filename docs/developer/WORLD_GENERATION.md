@@ -127,8 +127,10 @@ ridges/valleys (`h·(1-ridged) + ridge(h)·ridged`).
 **e) Overriding shapes** — `TerrainStyle` (mesa, dunes, spires, flats…), `Cratered` (flat regolith +
 impact craters for airless bodies), and `FloatingIslands`.
 
-All noise is **torus-periodic FBM** (4 octaves), so terrain, caves and ores are seamless across both
-wrap seams.
+Terrain noise is **torus-periodic FBM** (4 octaves); the cave and ore fields are single-octave torus
+value noise whose thresholds are **quantile-calibrated per world** against the field's measured
+distribution (#472) — so data thresholds keep their meaning and everything stays seamless across both
+wrap seams. Carved cave cells below the per-world **lava table** (~64–128 deep) fill with molten rock.
 
 Below the surface: surface/sub-surface layers (`SurfaceDepth`, default 4) → deep block → per-world
 mantle → an unmineable bedrock foundation at 256–2048 blocks down (with a 6-block lava/basalt band
@@ -162,7 +164,8 @@ preferred climate tags, density multipliers and which tree archetypes it allows.
 
 ## 6. Flora & trees
 
-Derived per world by
+Derived per **body** (#478: the roster seed is the world seed salted with the location id, so two
+worlds of the same planet type grow different species) by
 [`FloraGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/FloraGenerator.cs) and
 [`TreeGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/TreeGenerator.cs):
 
@@ -191,7 +194,7 @@ brown/pink/violet/amber exotics).
 
 ## 7. Fauna
 
-Derived per world by
+Derived per **body** (#478, same location-id salt as flora) by
 [`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs); spawned
 live by `GameServerCreatures.cs`.
 
@@ -210,8 +213,9 @@ live by `GameServerCreatures.cs`.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world.
 
-**Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players), a hard cap of
-12 wild creatures near a player, ring placement 18–45 blocks out, habitat gates (water animals only in
+**Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
+world reaches ~25–45, backstopped by a safety ceiling of 64 — #470), ring placement 18–45 blocks out
+(two rotors: the ring slot advances on every attempt, the species on success), habitat gates (water animals only in
 water columns, cave animals only in caves), despawn beyond 70 blocks. Only **awake, hostile** creatures
 deal damage — sleepers never attack — and the day/night cycle gates which species are awake.
 

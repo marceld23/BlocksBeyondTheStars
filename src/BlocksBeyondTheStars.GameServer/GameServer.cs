@@ -313,6 +313,15 @@ public sealed partial class GameServer
             {
                 body.Status = status;
             }
+
+            // #468: the persisted type map is the authority — a body keeps the type it was first seen with,
+            // no matter how data/planets.json changed since. Unknown pinned types (a removed data entry)
+            // fall back to the fresh derivation rather than crashing LoadWorld.
+            if (_meta.BodyPlanetTypes.TryGetValue(body.Id, out var pinned)
+                && _content.GetPlanet(pinned) is not null)
+            {
+                body.PlanetType = pinned;
+            }
         }
 
         // Choose a start body: the first planet matching the configured start planet type. When no body
@@ -370,6 +379,29 @@ public sealed partial class GameServer
                 start.Status = GenerationStatus.Visited;
                 _repo.SetLocationStatus(start.Id, start.Status.ToString());
             }
+        }
+
+        // #468 (decision #1: freeze): pin every body's FINAL type — including the start-planet retype
+        // above — so future planets.json edits can never re-roll them. On an existing save this adopts
+        // whatever the player currently sees; new systems get pinned the first time they appear.
+        bool typesDirty = false;
+        foreach (var body in _galaxy.AllBodies())
+        {
+            if (string.IsNullOrEmpty(body.PlanetType))
+            {
+                continue;
+            }
+
+            if (!_meta.BodyPlanetTypes.TryGetValue(body.Id, out var known) || known != body.PlanetType)
+            {
+                _meta.BodyPlanetTypes[body.Id] = body.PlanetType;
+                typesDirty = true;
+            }
+        }
+
+        if (typesDirty)
+        {
+            _repo.SaveMetadata(_meta);
         }
 
         // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an

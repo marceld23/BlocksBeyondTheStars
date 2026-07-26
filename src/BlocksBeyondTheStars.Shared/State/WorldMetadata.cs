@@ -53,6 +53,24 @@ public sealed class WorldMetadata
     /// </summary>
     public System.Collections.Generic.List<string> RevealedPois { get; set; } = new();
 
+    /// <summary>
+    /// One-time stamp registry (#467): "{locationId}|ruins" / "|vaults" / "|wreck" once that feature's
+    /// blocks were written into the world. The old in-memory guards died with the unload (a world unloads
+    /// when its last player leaves), so re-entering re-ran the whole stamp chain — resurrecting mined
+    /// ruins/vault/wreck blocks and carving away player builds inside the footprints. A missing entry
+    /// simply means "stamp once more", so old saves migrate by stamping one final time.
+    /// </summary>
+    public System.Collections.Generic.List<string> StampedFeatures { get; set; } = new();
+
+    /// <summary>
+    /// Persisted body identity (#468): bodyId → planetType, pinned when a body is first generated. Without
+    /// it the whole galaxy's types re-derived from <c>planets.json</c> on every start — ANY data edit (a
+    /// new type, a weight rebalance, a reorder) silently re-typed bodies under players' buildings (it
+    /// happened twice in shipped history). Bodies absent from the map (fresh saves, new systems) roll from
+    /// the generator once and are frozen here (decision #1: freeze — no migration re-roll).
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> BodyPlanetTypes { get; set; } = new();
+
     // --- Singleplayer "Creative" world options (chosen at creation; persisted so they reapply on every load).
     // A head-start sandbox: everything available + a starter set, while survival mechanics stay on. All false =
     // the normal "Explorer" world. Blueprints + ships are re-applied per join (idempotent); the kit is one-time. ---

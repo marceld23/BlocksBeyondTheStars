@@ -126,7 +126,9 @@ public sealed class PlanetType
     public double? WaterAbundance { get; set; }
 
     /// <summary>0..1 — how much surface lava this world has (lava seas in basins on volcanic/airless worlds).
-    /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no surface lava.</summary>
+    /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no lava SEA — their
+    /// molten side comes from volcanoes (summit crater pools + vents, #477) and the deep lava table
+    /// (#472), neither of which reads this field.</summary>
     public double? LavaAbundance { get; set; }
 
     /// <summary>Per-column chance of a multi-block tree (trunk + leaf crown) on grass/dirt ground. <c>null</c>
@@ -154,8 +156,10 @@ public sealed class PlanetType
     /// </summary>
     public string Atmosphere { get; set; } = "toxic";
 
-    /// <summary>True for airless bodies (atmosphere "none"): landable asteroids + airless moons/planets. No
-    /// native flora or fauna grow/live here (it's a barren, lifeless surface).</summary>
+    /// <summary>True for airless bodies (atmosphere "none"): landable asteroids + airless moons/planets.
+    /// The FAUNA roster is forced to zero and the FLORA roster comes up empty (FloraGenerator gates on
+    /// this), so nothing grows or lives here — note the worldgen flora *branch* still keys off
+    /// <see cref="FloraDensity"/>, so airless types should not declare a flora density (#479).</summary>
     public bool IsAirless => string.Equals(Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
 
     /// <summary>

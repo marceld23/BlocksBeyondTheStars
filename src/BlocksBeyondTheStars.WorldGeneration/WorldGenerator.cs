@@ -1096,6 +1096,49 @@ public sealed class WorldGenerator
         return false;
     }
 
+    /// <summary>The local LAVA column at a surface (x,z): a volcano crater pool (#477), the global lava
+    /// sea, or a lava river/flow — with the melt-surface Y and the bed Y. The molten counterpart of
+    /// <see cref="TryGetWaterSurface"/>, so lava fauna can spawn and stay IN lava (#470 F4).</summary>
+    public bool TryGetLavaSurface(PlanetType planet, int worldX, int worldZ, out int lavaTopY, out int bedY)
+    {
+        lavaTopY = 0;
+        bedY = 0;
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        if (TryGetVolcanoCrater(planet, worldX, worldZ, out int craterTop))
+        {
+            lavaTopY = craterTop;
+            bedY = surfaceY;
+            return true;
+        }
+
+        var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
+        if (lavaId.IsAir)
+        {
+            return false;
+        }
+
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        if (seaFluid == lavaId && surfaceY + 1 <= seaLevel)
+        {
+            lavaTopY = seaLevel;
+            bedY = surfaceY;
+            return true;
+        }
+
+        if (surfaceY > seaLevel)
+        {
+            var field = RiverFieldFor(planet);
+            if (field.FillFluid == lavaId && field.TryGet(worldX, worldZ, out var col))
+            {
+                lavaTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
+                bedY = col.BedY;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
