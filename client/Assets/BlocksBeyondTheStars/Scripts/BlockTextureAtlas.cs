@@ -327,6 +327,20 @@ namespace BlocksBeyondTheStars.Client
         {
             switch (key)
             {
+                case "obsidian":
+                {
+                    // Sparse violet glints — the glassy sheen that tells obsidian apart from plain basalt.
+                    for (int i = 0; i < 5; i++)
+                    {
+                        int gx = ox + 2 + rng.Next(Tile - 4);
+                        int gy = oy + 2 + rng.Next(Tile - 4);
+                        Texture.SetPixel(gx, gy, new Color(0.45f, 0.30f, 0.65f));
+                        Texture.SetPixel(gx + 1, gy, new Color(0.28f, 0.18f, 0.42f));
+                    }
+
+                    break;
+                }
+
                 case "iron_wall":
                     // Panel rivets near the corners + a central seam.
                     PutDot(ox + 4, oy + 4, new Color(0.30f, 0.31f, 0.34f));
@@ -765,6 +779,7 @@ namespace BlocksBeyondTheStars.Client
             "stone" => new Color(0.55f, 0.55f, 0.57f),
             "dirt" => new Color(0.45f, 0.32f, 0.20f),
             "basalt" => new Color(0.24f, 0.24f, 0.27f),
+            "obsidian" => new Color(0.10f, 0.07f, 0.14f), // glassy black with a violet cast (#477)
             "ice" => new Color(0.70f, 0.85f, 0.95f),
             "iron_ore" => new Color(0.58f, 0.50f, 0.46f),
             "copper_ore" => new Color(0.60f, 0.46f, 0.38f),

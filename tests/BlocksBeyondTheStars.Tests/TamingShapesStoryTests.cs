@@ -221,12 +221,16 @@ public sealed class TamingShapesStoryTests : IDisposable
             server.Tick(1.0);
             Assert.True(p.State.Health > 99f, "a warded player should take no bite (companion stands the machine down)");
 
-            // Release the companion — the very same machine now bites.
+            // Release the companion — an adjacent machine now bites. Spawn a FRESH machine for the second
+            // half: since the per-body rosters (#478) the tamed species varies, and some companions finish
+            // the first machine off while standing it down — the property under test is the ward, not the
+            // machine's survival.
             var companion = server.TamedCreaturesForTest("Ranger").First();
             server.ReleaseCompanionForTest("Ranger", companion.Id);
             server.ReconcileCompanionsForTest();
             Assert.False(server.PlayerWardedByCompanionForTest("Ranger"));
 
+            server.SpawnPlanetEnemyAtForTest(p.State.Position, damagePerSecond: 40f);
             p.State.Health = 100f;
             server.Tick(1.0);
             Assert.True(p.State.Health < 90f, "an unwarded player is bitten by the adjacent machine");

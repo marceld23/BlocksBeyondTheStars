@@ -131,10 +131,10 @@ public sealed partial class GameServer
 
         var (system, _) = ActiveLocationNames();
         _sunColor = StarColor(system);
-        // One uniform flora base hue per planet (green / brown / pink / purple …), deterministic from the
-        // world seed + planet, so every plant on the world shares a base colour (applied as a desaturate-tint
-        // on the client). Airless/floraless worlds still carry a value; it just goes unused with no flora.
-        _floraTint = FloraColor(unchecked((uint)(_meta.Seed ^ StableStringHash(_worlds.Active.PlanetType ?? string.Empty))));
+        // One uniform flora base hue per WORLD (green / brown / pink / purple …). Seeded from
+        // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting
+        // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused.
+        _floraTint = FloraColor(unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed ^ 0x2F0A17)));
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), so worlds with an
         // atmosphere don't all share the same blue sky. Seeded from LocationId ^ Seed (like AtmosphereDensity) so
         // two same-type worlds differ. Airless bodies (space sky) carry a value but the client ignores it.
@@ -242,7 +242,7 @@ public sealed partial class GameServer
     private WorldEnvironment BuildEnvironment(BlocksBeyondTheStars.Shared.Geometry.Vector3f pos = default)
     {
         var (state, intensity) = BiomeWeatherAt(pos);
-        float temperature = CurrentTemperature(state, _dayFraction);
+        float temperature = CurrentTemperature(state, _dayFraction, pos);
         return new WorldEnvironment
         {
             TimeOfDay = (float)_dayFraction,
@@ -283,12 +283,15 @@ public sealed partial class GameServer
         return lo + t * (hi - lo);
     }
 
-    /// <summary>Air temperature (°C): the planet-type base + a per-world seeded variation (so there are
-    /// "especially hot/cold" worlds) + a weather cooling + a day↔night swing (bigger on airless worlds).</summary>
     /// <summary>Sentinel for "no meaningful air temperature" (vacuum / above the atmosphere) — the HUD shows "—".</summary>
     public const float NoAirTemperature = -999f;
 
-    private float CurrentTemperature(string weather, double timeOfDay)
+    /// <summary>Air temperature (°C): the worldgen-static part (planet base + per-world variation + the
+    /// ALTITUDE lapse above sea level, #476 — one shared formula with chunk generation, so the HUD's cold
+    /// agrees with where the snow line actually sits) + a weather cooling + a day↔night swing. Cosmetic by
+    /// decision #7 — nothing deals temperature damage.</summary>
+    private float CurrentTemperature(string weather, double timeOfDay,
+        BlocksBeyondTheStars.Shared.Geometry.Vector3f pos = default)
     {
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
         if (planet?.Void == true)
@@ -301,12 +304,16 @@ public sealed partial class GameServer
             return NoAirTemperature; // airless vacuum world (asteroid/crystal) → no air temp, HUD shows "—"
         }
 
-        double baseT = planet?.BaseTemperature ?? 15.0;
-        double variation = ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 28.0 - 14.0;
+        // The static part comes from the SAME per-world calibration worldgen uses (base + variation −
+        // lapse·altitude). Empty position (world-level broadcasts) reads at the reference altitude.
+        bool hasPos = pos.X != 0f || pos.Y != 0f || pos.Z != 0f;
+        double baseT = planet is null
+            ? 15.0
+            : _generator.AirTemperatureAt(planet, hasPos ? (int)System.Math.Round(pos.Y) : int.MinValue);
         double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "fog" => -3.0, "clouds" => -2.0, _ => 2.0 };
         double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
-        return (float)System.Math.Round(baseT + variation + weatherDelta + dayNight);
+        return (float)System.Math.Round(baseT + weatherDelta + dayNight);
     }
 
     /// <summary>The precipitation form for the current weather + temperature: nothing unless it's actually

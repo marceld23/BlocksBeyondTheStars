@@ -65,10 +65,13 @@ public sealed partial class GameServer
 
     private void InitCreatures()
     {
+        // Per-BODY roster (#478): the seed is salted with the location id (same formula as
+        // WorldGenerator.RosterSeed) so two worlds of the same planet type host different species.
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        long rosterSeed = _meta.Seed ^ BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(_world.LocationId);
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
-            : CreatureGenerator.GenerateRoster(planet, _meta.Seed).ToArray();
+            : CreatureGenerator.GenerateRoster(planet, rosterSeed).ToArray();
 
         _speciesById.Clear();
         _locoProfiles.Clear();

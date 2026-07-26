@@ -216,26 +216,74 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
-    public void PlanetTypeFrequencies_AreRespected()
+    public void PlanetTypeFrequencies_LayerOntoTheDataWeights()
     {
-        // Only allow "ice" planets; no rocky/lava should appear.
+        // #471: a per-type override adjusts only ITS OWN row — the rest of the mix survives. (The old
+        // behaviour replaced the entire weight table: one touched slider collapsed the galaxy to one type.)
         var desc = new WorldDescription
         {
-            StarSystemCount = 10,
+            StarSystemCount = 30,
             PlanetsPerSystemMin = 3,
             PlanetsPerSystemMax = 5,
-            PlanetTypeFrequencies = new Dictionary<string, Frequency> { ["ice"] = Frequency.Normal },
+            PlanetTypeFrequencies = new Dictionary<string, Frequency> { ["ice"] = Frequency.Frequent },
         };
 
         var galaxy = new UniverseGenerator(7, desc, _content).Generate();
-        var planetTypes = galaxy.AllBodies()
+        var types = galaxy.AllBodies()
             .Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon)
             .Select(b => b.PlanetType)
-            .Distinct()
             .ToList();
 
-        Assert.NotEmpty(planetTypes);
-        Assert.All(planetTypes, t => Assert.Equal("ice", t));
+        Assert.NotEmpty(types);
+        Assert.Contains("ice", types);                     // the boosted type is there…
+        Assert.True(types.Distinct().Count() > 3,          // …and the galaxy did NOT collapse to it
+            $"one touched slider must not collapse the mix (got {types.Distinct().Count()} distinct types)");
+    }
+
+    [Fact]
+    public void PlanetTypeFrequency_Off_RemovesOnlyThatType()
+    {
+        // #471: sliding one type to Off retires just that type — it must NOT degenerate to all-rocky.
+        var desc = new WorldDescription
+        {
+            StarSystemCount = 30,
+            PlanetsPerSystemMin = 3,
+            PlanetsPerSystemMax = 5,
+            PlanetTypeFrequencies = new Dictionary<string, Frequency> { ["rocky"] = Frequency.Off },
+        };
+
+        var galaxy = new UniverseGenerator(7, desc, _content).Generate();
+        var types = galaxy.AllBodies()
+            .Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon)
+            .Select(b => b.PlanetType)
+            .ToList();
+
+        Assert.NotEmpty(types);
+        Assert.DoesNotContain("rocky", types);
+        Assert.True(types.Distinct().Count() > 3, "the remaining mix must survive a single Off row");
+    }
+
+    [Fact]
+    public void PlanetTypeFrequencies_NeverAdmitNonSelectableTypes()
+    {
+        // #471 (was PT/F2): the override path used to skip the Selectable filter — orbital_station
+        // "planets" generated as pure void. The filter now applies to overrides too.
+        var desc = new WorldDescription
+        {
+            StarSystemCount = 20,
+            PlanetsPerSystemMin = 3,
+            PlanetsPerSystemMax = 5,
+            PlanetTypeFrequencies = new Dictionary<string, Frequency> { ["orbital_station"] = Frequency.Frequent },
+        };
+
+        var galaxy = new UniverseGenerator(42, desc, _content).Generate();
+        var types = galaxy.AllBodies()
+            .Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon)
+            .Select(b => b.PlanetType)
+            .ToList();
+
+        Assert.NotEmpty(types);
+        Assert.DoesNotContain("orbital_station", types);
     }
 
     [Fact]

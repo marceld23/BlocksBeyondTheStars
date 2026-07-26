@@ -123,3 +123,6 @@ client/capture-run.log
 
 # Local devlog drafts (posted manually to itch.io; not part of the repo)
 client/devlog-*.md
+
+# Local analysis notes (worldgen audits etc.) — deliberately never part of the repo
+/analysis/

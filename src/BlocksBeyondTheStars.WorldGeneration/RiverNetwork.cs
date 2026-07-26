@@ -6,16 +6,11 @@ using System.Collections.Generic;
 namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>
-/// PHASE-0 SPIKE (see <c>docs/developer/RIVER_ROUTING_AND_WATERFALLS_PLAN.md</c>). A deterministic,
-/// gefälle-aware river network traced over a coarse heightfield of the whole (toroidal) world.
-/// <para>
-/// This is NOT yet wired into <see cref="WorldGenerator.Generate"/> — it is a standalone, testable
-/// component whose only world coupling is an injected height sampler + sea level, so the spike can
-/// validate three things before any worldgen change: (1) every river reaches a sink (the sea or a
-/// self-formed lake), (2) the build cost at world-load is acceptable, (3) the result is bit-identical
-/// across runs/platforms (the whole core runs in INTEGER math — terrain heights are ints — so there is
-/// no floating-point drift to diverge server vs. client).
-/// </para>
+/// A deterministic, gefälle-aware river network traced over a coarse heightfield of the whole (toroidal)
+/// world (see <c>docs/developer/RIVER_ROUTING_AND_WATERFALLS_PLAN.md</c>). Wired into
+/// <see cref="WorldGenerator.Generate"/> via <c>RiverFieldFor</c> since Phase 1 — its only world coupling
+/// stays an injected height sampler + sea level, so it remains standalone-testable, and the core runs in
+/// INTEGER math (terrain heights are ints) so there is no floating-point drift server vs. client.
 /// <para>
 /// Algorithm: a Barnes "Priority-Flood" depression fill from the ocean cells yields, for every cell,
 /// (a) a filled water level (cells filled above their terrain are lakes — the user-approved

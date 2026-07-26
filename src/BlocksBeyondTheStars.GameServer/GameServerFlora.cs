@@ -48,13 +48,16 @@ public sealed partial class GameServer
             _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts);
         }
 
-        // Per-world flora roster: each archetype block gets this world's coined name + edible/toxic trait
-        // (deterministic from seed + planet), surfaced when the player scans the plant.
+        // Per-BODY flora roster (#478): each archetype block gets this world's coined name + edible/toxic
+        // trait, surfaced when the player scans the plant. The seed is salted with the body's location id —
+        // the SAME formula as WorldGenerator.RosterSeed, or the scanned names would disagree with what
+        // worldgen actually planted. (Previously every world of the same planet type shared one roster.)
         _floraSpeciesByBlock.Clear();
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        long rosterSeed = _meta.Seed ^ BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(_world.LocationId);
         if (planet != null)
         {
-            foreach (var fs in BlocksBeyondTheStars.WorldGeneration.FloraGenerator.GenerateRoster(planet, _meta.Seed))
+            foreach (var fs in BlocksBeyondTheStars.WorldGeneration.FloraGenerator.GenerateRoster(planet, rosterSeed))
             {
                 if (_content.GetBlock(fs.BlockKey) is { } b && b.NumericId.Value != 0)
                 {
@@ -63,11 +66,11 @@ public sealed partial class GameServer
             }
         }
 
-        // Per-world tree species: the trunk (wood_log) and crown (tree_leaves) share this world's one coined
-        // name + edible/toxic trait (deterministic from seed + planet), surfaced when the player scans a tree.
+        // Per-body tree species (#478): the trunk (wood_log) and crown (tree_leaves) share this world's one
+        // coined name + edible/toxic trait, surfaced when the player scans a tree.
         _treeSpecies = null;
         _treeBlockIds.Clear();
-        if (planet != null && BlocksBeyondTheStars.WorldGeneration.TreeGenerator.Generate(planet, _meta.Seed) is { } tree)
+        if (planet != null && BlocksBeyondTheStars.WorldGeneration.TreeGenerator.Generate(planet, rosterSeed) is { } tree)
         {
             _treeSpecies = tree;
             foreach (var key in new[] { "wood_log", "tree_leaves" })

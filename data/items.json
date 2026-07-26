@@ -180,5 +180,6 @@
   { "key": "lead_block",      "nameKey": "item.lead_block.name",      "category": "block", "maxStack": 99, "placesBlock": "lead_block" },
   { "key": "zinc_block",      "nameKey": "item.zinc_block.name",      "category": "block", "maxStack": 99, "placesBlock": "zinc_block" },
   { "key": "tungsten_block",  "nameKey": "item.tungsten_block.name",  "category": "block", "maxStack": 99, "placesBlock": "tungsten_block" },
-  { "key": "titanium_block",  "nameKey": "item.titanium_block.name",  "category": "block", "maxStack": 99, "placesBlock": "titanium_block" }
+  { "key": "titanium_block",  "nameKey": "item.titanium_block.name",  "category": "block", "maxStack": 99, "placesBlock": "titanium_block" },
+  { "key": "obsidian",        "nameKey": "item.obsidian.name",        "category": "block", "maxStack": 99, "placesBlock": "obsidian" }
 ]

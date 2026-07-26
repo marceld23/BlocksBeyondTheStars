@@ -76,9 +76,9 @@ public sealed class ServerWorld
         }
 
         // Fully re-configure the SHARED generator for THIS world before generating (#424 S13): size,
-        // airless-moon cratering and pad flattening together — a partial set here previously left the
-        // cratered flag of whatever world was configured last (wrong terrain once several worlds are hot).
-        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats);
+        // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
+        // here previously left stale state of whatever world was configured last.
+        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId);
         var chunk = _generator.Generate(Planet, coord);
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {

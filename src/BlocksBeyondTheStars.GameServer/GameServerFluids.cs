@@ -34,12 +34,13 @@ public sealed partial class GameServer
     private HashSet<Vector3i> _activeFluid => _worlds.Active.ActiveFluid;
     private HashSet<Vector3i> _fallingFluid => _worlds.Active.FallingFluid;
     private double _sinceFluid { get => _worlds.Active.SinceFluid; set => _worlds.Active.SinceFluid = value; }
-    private ushort _waterId, _lavaId;
+    private ushort _waterId, _lavaId, _obsidianId;
 
     private void InitFluids()
     {
         _waterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _lavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
+        _obsidianId = _content.GetBlock("obsidian")?.NumericId.Value ?? 0;
     }
 
     private bool IsFluid(ushort id) => id != 0 && (id == _waterId || id == _lavaId);
@@ -219,8 +220,38 @@ public sealed partial class GameServer
         => _worlds.Active.LandedShips.Count > 0
         && ShipInteriorContains(new Vector3f(p.X + 0.5f, p.Y + 0.5f, p.Z + 0.5f));
 
+    /// <summary>True if any of the 6 neighbours holds the OPPOSITE fluid (water vs lava).</summary>
+    private bool TouchesOtherFluid(Vector3i p, ushort id)
+    {
+        ushort other = id == _waterId ? _lavaId : id == _lavaId ? _waterId : (ushort)0;
+        if (other == 0)
+        {
+            return false;
+        }
+
+        return _world.GetBlock(new Vector3i(p.X + 1, p.Y, p.Z)).Value == other
+            || _world.GetBlock(new Vector3i(p.X - 1, p.Y, p.Z)).Value == other
+            || _world.GetBlock(new Vector3i(p.X, p.Y, p.Z + 1)).Value == other
+            || _world.GetBlock(new Vector3i(p.X, p.Y, p.Z - 1)).Value == other
+            || _world.GetBlock(new Vector3i(p.X, p.Y + 1, p.Z)).Value == other
+            || _world.GetBlock(new Vector3i(p.X, p.Y - 1, p.Z)).Value == other;
+    }
+
     private void FillFluid(Vector3i pos, BlockId kind, byte level, bool falling)
     {
+        // Water meets lava (#477, decision #6): the entering flow chills to OBSIDIAN at the contact face
+        // instead of interleaving with the other fluid — dig a channel from a pond into a volcano crater
+        // and a glassy crust grows where the two touch. Waking the neighbours lets the crust propagate.
+        if (_obsidianId != 0 && TouchesOtherFluid(pos, kind.Value))
+        {
+            _world.SetBlock(pos, new BlockId(_obsidianId));
+            _fluidLevel.Remove(pos);
+            _fallingFluid.Remove(pos);
+            BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _obsidianId });
+            WakeNeighbors(pos);
+            return;
+        }
+
         _world.SetBlock(pos, kind);
         _fluidLevel[pos] = level;
         if (falling)

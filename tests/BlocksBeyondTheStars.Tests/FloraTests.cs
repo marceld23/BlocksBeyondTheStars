@@ -223,7 +223,8 @@ public sealed class FloraTests : IDisposable
     [Fact]
     public void Worldgen_PlacesNoFlora_OnABarrenPlanet()
     {
-        var planet = _content.GetPlanet("rocky")!; // no floraDensity → barren
+        // crystal: airless + no floraDensity (#479) → truly barren. (rocky grows sparse scrub now, decision #5.)
+        var planet = _content.GetPlanet("crystal")!;
         var gen = new WorldGenerator(2026, _content);
         var floraIds = FloraIds();
 

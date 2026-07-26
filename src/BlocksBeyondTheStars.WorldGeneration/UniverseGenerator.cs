@@ -43,45 +43,51 @@ public sealed class UniverseGenerator
 
     private static List<(string, int)> BuildPlanetWeights(WorldDescription desc, GameContent content)
     {
-        var list = new List<(string, int)>();
-        if (desc.PlanetTypeFrequencies.Count > 0)
+        // Base: every selectable planet type at its own SpawnWeight (special bodies such as landable
+        // asteroids are Selectable=false so they never appear as ordinary system planets). The per-type
+        // weight lets common worlds dominate while exotic ones stay rare. The "exotic worlds" frequency
+        // scales the exotic types' weights — Off removes them entirely, Frequent makes the strange the norm.
+        //
+        // Per-type overrides (UI sliders / --planet-types / BBS_* config) LAYER on top (#471): a touched
+        // row replaces only ITS OWN weight. The old behaviour replaced the entire table the moment one
+        // entry existed — a single dragged slider collapsed the whole galaxy to one type, sliding a type
+        // to Off degenerated to all-rocky, and the ExoticWorlds slider silently died. Layering also
+        // repairs already-saved worlds that carry such an override. Two hardening fixes ride along:
+        // the override path now enforces Selectable too (it used to accept orbital_station & co. and
+        // generated landless void "planets"), and an explicit spawnWeight of 0 in the data now really
+        // retires a type (the old Math.Max(1, …) clamp silently promoted it back to ~0.7 %).
+        double exotic = desc.ExoticWorlds switch
         {
-            foreach (var kv in desc.PlanetTypeFrequencies)
-            {
-                if (content.GetPlanet(kv.Key) is not null && kv.Value.Weight() > 0)
-                {
-                    list.Add((kv.Key, kv.Value.Weight()));
-                }
-            }
-        }
+            Frequency.Off => 0.0,
+            Frequency.VeryRare => 0.34,
+            Frequency.Rare => 0.6,
+            Frequency.Frequent => 2.5,
+            _ => 1.0,
+        };
 
-        if (list.Count == 0)
+        var list = new List<(string, int)>();
+        foreach (var key in content.Planets.Keys)
         {
-            // Default: every selectable planet type at its own SpawnWeight (special bodies such as landable
-            // asteroids are Selectable=false so they never appear as ordinary system planets). The per-type
-            // weight lets common worlds dominate while exotic ones stay rare without a world-description
-            // override. World options: the "exotic worlds" frequency scales the exotic types' weights —
-            // Off removes them entirely, Frequent makes the strange the norm.
-            double exotic = desc.ExoticWorlds switch
+            if (content.GetPlanet(key) is not { Selectable: true } p)
             {
-                Frequency.Off => 0.0,
-                Frequency.VeryRare => 0.34,
-                Frequency.Rare => 0.6,
-                Frequency.Frequent => 2.5,
-                _ => 1.0,
-            };
-            foreach (var key in content.Planets.Keys)
+                continue; // service types stay out — even when an override names them explicitly
+            }
+
+            int weight;
+            if (desc.PlanetTypeFrequencies.TryGetValue(key, out var freq))
             {
-                if (content.GetPlanet(key) is { Selectable: true } p)
-                {
-                    int weight = p.Exotic
-                        ? (int)System.Math.Round(System.Math.Max(1, p.SpawnWeight) * exotic)
-                        : System.Math.Max(1, p.SpawnWeight);
-                    if (weight > 0)
-                    {
-                        list.Add((key, weight));
-                    }
-                }
+                weight = freq.Weight(); // the player's explicit per-type choice; exotic scaling doesn't re-apply
+            }
+            else
+            {
+                weight = p.Exotic
+                    ? (int)System.Math.Round(System.Math.Max(0, p.SpawnWeight) * exotic)
+                    : System.Math.Max(0, p.SpawnWeight);
+            }
+
+            if (weight > 0)
+            {
+                list.Add((key, weight));
             }
         }
 

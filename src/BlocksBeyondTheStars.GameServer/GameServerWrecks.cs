@@ -68,7 +68,7 @@ public sealed partial class GameServer
     {
         var planet = _world.Planet;
 
-        long wSeed = _meta.Seed ^ WorldGenerator.StableHash("wreck:" + planet.Key);
+        long wSeed = _meta.Seed ^ WorldGenerator.StableHash("wreck:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(wSeed ^ (wSeed >> 32))));
 
         // World options: the chosen wreck frequency scales the per-world chance (Off ⇒ none).

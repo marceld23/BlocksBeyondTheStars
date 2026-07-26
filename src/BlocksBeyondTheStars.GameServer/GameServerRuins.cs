@@ -49,7 +49,7 @@ public sealed partial class GameServer
 
         _ruinsStamped = true;
 
-        long rSeed = _meta.Seed ^ WorldGenerator.StableHash("ruins:" + planet.Key);
+        long rSeed = _meta.Seed ^ WorldGenerator.StableHash("ruins:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(rSeed ^ (rSeed >> 32))));
 
         // Rare: most worlds get none, occasionally one, rarely two — nudged up a touch on bigger worlds and

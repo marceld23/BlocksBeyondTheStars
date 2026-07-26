@@ -325,19 +325,24 @@ public class WorldGenerationTests
         var planet = content.GetPlanet("rocky")!;
         var gen = new WorldGenerator(77, content);
 
+        // Scan the DEEP interior only (Y 0..31, well below any rocky surface): up there the surface layer
+        // now legitimately mixes in biome surfaces, snow caps (#476), volcano basalt (#477) and vegetation
+        // (#479). Down here only rock, veins, caches, caves — and the lava pockets of the deep lava table
+        // (#472/#477 L-A) plus the seeded mantle rocks — may appear.
         var allowed = new HashSet<ushort> { BlockId.AirValue };
-        allowed.Add(content.GetBlock(planet.SurfaceBlock)!.NumericId.Value);
-        allowed.Add(content.GetBlock(planet.SubSurfaceBlock)!.NumericId.Value);
         allowed.Add(content.GetBlock(planet.DeepBlock)!.NumericId.Value);
         allowed.Add(content.GetBlock("data_cache")!.NumericId.Value);
-        allowed.Add(content.GetBlock("water")!.NumericId.Value); // surface seas fill basins below sea level
-        allowed.Add(content.GetBlock("lava")!.NumericId.Value);
+        allowed.Add(content.GetBlock("lava")!.NumericId.Value);      // deep lava table fills carved cells
+        allowed.Add(content.GetBlock("bedrock")!.NumericId.Value);
+        allowed.Add(content.GetBlock("basalt")!.NumericId.Value);    // per-world mantle rocks
+        allowed.Add(content.GetBlock("deepslate")!.NumericId.Value);
+        allowed.Add(content.GetBlock("granite")!.NumericId.Value);
         foreach (var ore in planet.Ores)
         {
             allowed.Add(content.GetBlock(ore.Block)!.NumericId.Value);
         }
 
-        for (int cy = 0; cy <= 5; cy++)
+        for (int cy = 0; cy <= 1; cy++)
         {
             var chunk = gen.Generate(planet, new ChunkCoord(0, cy, 0));
             foreach (var b in chunk.RawBlocks)

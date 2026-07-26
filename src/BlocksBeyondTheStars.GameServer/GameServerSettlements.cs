@@ -169,8 +169,10 @@ public sealed partial class GameServer
     {
         var planet = _world.Planet;
 
-        // Deterministic per planet + seed.
-        long sSeed = _meta.Seed ^ WorldGenerator.StableHash("settlement:" + planet.Key);
+        // Deterministic per BODY + seed (#478): keyed by the location id, not the planet type — every rocky
+        // world used to draw the same tier/ruin/character sequence, layouts and NAMES ("Karth Village"
+        // everywhere), and identically-named settlements even shared NPC memory and mission-id prefixes.
+        long sSeed = _meta.Seed ^ WorldGenerator.StableHash("settlement:" + _world.LocationId);
         var rng = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
 
         // World options: the chosen settlement frequency scales the density (Off ⇒ none).

@@ -1310,7 +1310,8 @@ namespace BlocksBeyondTheStars.Client
             mapGo.transform.SetParent(panel.transform, false);
             UiKit.Place(mapGo, pad, mapTop, mapW, mapH);
             var raw = mapGo.AddComponent<UnityEngine.UI.RawImage>();
-            raw.texture = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128);
+            raw.texture = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128,
+                bodyId: !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home");
             raw.raycastTarget = true;
 
             // Day/night terminator: shade the night half of the strip + mark dawn/dusk, so you can see which pads
@@ -2691,7 +2692,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 int circ = WorldConstants.CircumferenceFor(
                     string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId, ClassOf(kind, planetType));
-                var baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48);
+                var baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48,
+                    bodyId: string.IsNullOrEmpty(bodyId) ? locationName ?? "home" : bodyId);
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
                 sphere.GetComponent<Renderer>().sharedMaterial = LitPhase(washTint, sunDir, baked, new Vector2(1f, 1f));
             }

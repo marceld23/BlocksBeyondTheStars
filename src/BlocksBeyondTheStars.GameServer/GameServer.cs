@@ -424,7 +424,8 @@ public sealed partial class GameServer
         world.World.Cratered = airlessMoon; // stamped on the world so chunk gen re-configures fully (#424 S13)
         // Configure the shared generator for this body's direct gen queries (size, cratering, pads —
         // LandingPadFlats is still empty for a brand-new world; BuildLandingPads below refills it).
-        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats);
+        // The location id salts the per-body identity (#478): terrain character, rosters, structures.
+        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats, locationId);
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits
