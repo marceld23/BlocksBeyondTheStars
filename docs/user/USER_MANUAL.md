@@ -599,6 +599,11 @@ and that option is off by default on hosted worlds.
 Reserved for the operator of the installation (`BBS_FLEET_ADMINS`, see
 [SELF_HOSTING.md](../developer/SELF_HOSTING.md)). The owner of an individual world does **not** get it.
 
+To reach a world: sign in on the Official Worlds screen with a **developer account** (registered with the
+secret claim code) — an extra **"All worlds (operator)"** section then lists every world on the fleet,
+private and password-protected ones included, each with a Play button. Joining as the fleet-admin player name
+skips the world password (child-safety oversight, issue #495); once in, `/spectate on` observes invisibly.
+
 | Command | Effect |
 |---|---|
 | `/spectate [on\|off]` | Enter/leave observer mode: invisible to players, creatures and NPCs, invulnerable, free flight through walls, no ship, no landing pad, no player slot |

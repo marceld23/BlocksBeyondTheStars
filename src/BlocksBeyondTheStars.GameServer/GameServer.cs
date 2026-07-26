@@ -2149,8 +2149,10 @@ public sealed partial class GameServer
         }
 
         // Fleet admin (issue #487): the operator of this installation, config-only and never persisted —
-        // see ServerConfig.FleetAdminPlayers for why this must not become a PlayerRole.
-        bool fleetAdmin = _config.FleetAdminPlayers.Contains(name);
+        // see ServerConfig.FleetAdminPlayers for why this must not become a PlayerRole. Case-insensitive
+        // (#495): the hosted token check above compares names OrdinalIgnoreCase too, and a silent
+        // `marcel` ≠ `Marcel` mismatch would grant nothing with no error anywhere.
+        bool fleetAdmin = IsFleetAdminName(name);
 
         // A fleet admin gets a reserved slot on top of MaxPlayers: they come to observe a world, and a full
         // world is exactly when moderation is most likely to be needed. Their observer session also does not
@@ -2469,7 +2471,7 @@ public sealed partial class GameServer
             Joined = true,
             CurrentLocationId = joinBody,
             Locale = NormalizeLocale(locale),
-            IsFleetAdmin = _config.FleetAdminPlayers.Contains(name), // config-only, like the network join path
+            IsFleetAdmin = IsFleetAdminName(name), // config-only, like the network join path
         };
         _sessions[connectionId] = session;
         state.LastSeenUtc = UtcNowIso();

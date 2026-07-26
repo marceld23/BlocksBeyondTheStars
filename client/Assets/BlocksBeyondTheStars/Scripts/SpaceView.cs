@@ -2516,10 +2516,10 @@ namespace BlocksBeyondTheStars.Client
             // The system's other planets/moons at their (scaled) orbit coords — all real, all landable.
             if (current != null && system != null)
             {
-                const float BodyGap = 8f; // clear space kept between two bodies' surfaces
-
                 // Plan every body first (positions + radii), then nudge any overlaps apart, THEN spawn — so no
-                // two planets/moons ever clip into each other at the compact view scale.
+                // two planets/moons ever clip into each other at the compact view scale. How much clear space
+                // "apart" means comes from SystemBodyLayout: proportional to the two bodies, because a flat gap
+                // left every moon hugging its planet (#493).
                 var ids = new List<string>();
                 var names = new List<string>();
                 var locKeys = new List<string>(); // "System · Body" — the key the body's WORLD seeds flora hues with
@@ -2527,6 +2527,7 @@ namespace BlocksBeyondTheStars.Client
                 var radii = new List<float>();
                 var bodyTypes = new List<string>();
                 var kinds = new List<string>(); // star-map Kind — keys each body's true circumference
+                var homeMoons = new List<int>(); // planned in home's plane → must also clear home itself
 
                 void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type)
                 {
@@ -2565,18 +2566,23 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
-                    var parent = planets[0];
+                    int parentIndex = 0;
                     float bestSq = float.MaxValue;
-                    foreach (var p in planets)
+                    for (int p = 0; p < planets.Count; p++)
                     {
-                        float dx = b.SystemX - p.Sx, dz = b.SystemZ - p.Sz;
+                        float dx = b.SystemX - planets[p].Sx, dz = b.SystemZ - planets[p].Sz;
                         float dsq = dx * dx + dz * dz;
-                        if (dsq < bestSq) { bestSq = dsq; parent = p; }
+                        if (dsq < bestSq) { bestSq = dsq; parentIndex = p; }
                     }
+
+                    var parent = planets[parentIndex];
 
                     var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
                     float moonDia = OrbitDiameterFor(b.Id, b.Kind, b.PlanetType);
-                    float minClear = parent.Radius + moonDia * 0.5f + BodyGap; // outside the planet's surface
+                    // Outside the planet's surface, with room to spare. This clamp fires for essentially every
+                    // moon — the star map's moon orbit (90 system units ≈ 14 view units) is smaller than any
+                    // planet's rendered radius — so the gap it leaves IS the moon's visible altitude (#493).
+                    float minClear = SystemBodyLayout.MinOrbitFor(parent.Radius, moonDia * 0.5f);
                     if (rel.magnitude < minClear)
                     {
                         Vector3 dir = rel.sqrMagnitude > 0.0001f ? rel.normalized : Vector3.right;
@@ -2584,6 +2590,12 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     Plan(b.Id, b.Name, b.Kind, parent.Render + rel, moonDia, type);
+                    if (parentIndex == 0)
+                    {
+                        // A moon of the body you launched from: planned in HOME'S plane (far below the flight
+                        // plane), so it is the one case where the relax pass can shove a body back into home.
+                        homeMoons.Add(positions.Count - 1);
+                    }
                 }
 
                 // Pass 3: large landable asteroids — scattered like planets; you fly up + press E to land on
@@ -2602,35 +2614,25 @@ namespace BlocksBeyondTheStars.Client
                     Plan(b.Id, b.Name, b.Kind, pos, diameter, type);
                 }
 
-                // Separation pass: relax any overlapping pair apart in the x-z plane until every body has a
-                // clear gap to every other. (Home is excluded — it sits far "below" you and never overlaps.)
-                for (int iter = 0; iter < 24; iter++)
+                // Separation pass: nudge any overlapping pair apart in the x-z plane until every body has
+                // its clear gap (SystemBodyLayout — shared with the tests that assert the guarantee).
+                // Home is passed as the fixed body: it never moves (the scene is centred on it) and its
+                // own moons are the ones laid out in its plane, so they are the ones it has to push out.
+                var flatX = new float[positions.Count];
+                var flatZ = new float[positions.Count];
+                for (int k = 0; k < positions.Count; k++)
                 {
-                    bool moved = false;
-                    for (int a = 0; a < positions.Count; a++)
-                    {
-                        for (int c = a + 1; c < positions.Count; c++)
-                        {
-                            Vector3 d = positions[a] - positions[c];
-                            d.y = 0f;
-                            float dist = d.magnitude;
-                            float need = radii[a] + radii[c] + BodyGap;
-                            if (dist < need)
-                            {
-                                Vector3 dir = dist > 0.0001f ? d / dist
-                                    : new Vector3(Mathf.Cos(a * 2.39996f), 0f, Mathf.Sin(a * 2.39996f)); // co-located → spread by a golden angle
-                                float push = (need - dist) * 0.5f;
-                                positions[a] += dir * push;
-                                positions[c] -= dir * push;
-                                moved = true;
-                            }
-                        }
-                    }
+                    flatX[k] = positions[k].x;
+                    flatZ[k] = positions[k].z;
+                }
 
-                    if (!moved)
-                    {
-                        break;
-                    }
+                SystemBodyLayout.SeparateXZ(
+                    flatX, flatZ, radii.ToArray(),
+                    homePos.x, homePos.z, homeDiameter * 0.5f, homeMoons.ToArray());
+
+                for (int k = 0; k < positions.Count; k++)
+                {
+                    positions[k] = new Vector3(flatX[k], positions[k].y, flatZ[k]);
                 }
 
                 // Spawn the separated bodies + register them as landable / keep-out.

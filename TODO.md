@@ -119,6 +119,37 @@ decided), thin sheets stay "water" so pads/chests avoid breakable crust; new pub
 renders/collides already; minimap stays stylized). ⚠️ Retroactive one-time change on existing cold
 worlds (seed+delta persistence) — announced in the Unreleased changelog next to #492's note.
 
+### ★ Space view: planets and satellites keep a visible gap (#493, 2026-07-26, branch fix/space-view-body-spacing)
+Analysed and measured first (`analysis/space-view-body-spacing.md`): a probe replayed
+`SpaceView.BuildSystem`'s layout math over real `UniverseGenerator` output across **2 400 systems /
+26 951 bodies**.
+
+**Root cause: two independent size models.** `UniverseGenerator` places bodies with hand-picked
+constants (`MoonOrbit` 90, `OrbitStep` 520, `BodyClearance` 470/290/215) while `SpaceView` derives a
+body's *rendered* radius from its real walkable circumference — 11…27 view units for a planet, i.e.
+**69…169 system units**. So a moon's star-map orbit (90 → 14 view units) is always *inside* its own
+planet once drawn: the `minClear` clamp fired for **13 882/13 882 moons = 100 %** and pinned each at
+the flat `BodyGap = 8f`, *below* the ship's own 10-unit keep-out shell. The moon's seeded *angle*
+survived; its seeded *distance* was discarded entirely, making `MoonStep` dead code. Planets were
+fine on average (median 185) but the tail near-touched (p10 54, min 8.0) because `pAngle` is a free
+random draw. The relax pass displaced 17 % of bodies and was the de-facto layout.
+
+**Fix (client only, deliberately):** the gap rule + relaxation moved to
+`Shared/World/SystemBodyLayout.cs`, beside `WorldConstants.CircumferenceFor` (the size source both
+stages must agree on), and the flat gap became `max(14, (rA+rB) · 0.55)` for both the moon clamp and
+the relax pass. Home is now passed in as a **fixed obstacle** — it never moves, but its own moons are
+laid out in *its* plane and nothing stopped the pass from shoving one back into it (measured overlaps
+up to 16 units). Measured after: nearest-neighbour gap median **8.0 → 21.4**, p10 **8.0 → 14.0**,
+moon→parent median **8.0 → 22.2**, home-moon→home min **−16.1 → 39.1**, cruise to the outermost body
+28 s → 29 s. `SystemBodyLayoutTests` asserts the guarantee over 320 real generated systems.
+
+`SystemX`/`SystemZ` are untouched, so the surface sky view, star map, radar and travel distances are
+unaffected. **Not done, and why:** deriving moon orbits from the parent's real size is the deeper fix,
+but `SkyBodiesView` sizes sky bodies from real system-space distance, so it would shrink the parent
+planet seen from its moon from 47 → 9-12 and stretch cruise to 43 s — it needs its own parent/child-aware
+companion change. Two further findings left open: landable asteroids are the only body kind with **no**
+generator separation pass, and `MoonStep` remains inert.
+
 ### ★ Fleet admin: delete worlds + the portal links to the game website (2026-07-26, branch feat/worldhost-admin-delete-and-site-link)
 Two small WorldHost additions, both analysed first (`analysis/fleet-admin-world-delete.md`,
 `analysis/portal-website-link.md`).
@@ -6355,6 +6386,26 @@ decision — no grandfathering). Highlights:
 Docs updated (WORLD_GENERATION.md, FLUID_ROUTING.md, stale comments). Tests updated + new coverage
 (spawn distribution, pooled-column water, layered overrides). NOT yet merged to main — local Unity build
 for the user's own playtest first.
+
+## ✅ Done (2026-07-26): fleet admin reaches private + password-protected worlds (#495)
+
+Follow-up to #487: observer mode existed but the JOIN path still treated the operator like a player — the
+world browser only listed "mine + public", and only a world's *owner* bypassed its password. So the invisible
+observer could only reach public, password-free worlds — while kids play mostly on private, password-shared
+ones, and their oversight is the whole point.
+
+**Access model (double-locked).** The operator gate is `account.IsDeveloper && fleet-admin join name`:
+developer accounts are only claimable with the secret `BBS_WH_RESERVED_CLAIM_CODE`, and config load now
+**auto-adds every fleet-admin name to `ReservedNames`**, so the name carrying the power can never be
+registered or played by anyone else. A developer account under a normal name gets no bypass (family member
+playing), and a normal account can't even join under the fleet-admin name (reserved). Name matching is now
+case-insensitive on both the WorldHost and the game server — the token check already was, and a silent
+`marcel` ≠ `Marcel` mismatch would deny the elevation with no error anywhere.
+
+**Plumbing.** `WorldOrchestrator.JoinAsync` gains the operator bypass next to the existing owner bypass
+(ban/terms checks untouched); new `GET /api/worlds/all` (developer accounts only, 403 otherwise) lists every
+world incl. owner names; the client's Official Worlds screen probes it and renders an "All worlds (operator)"
+section — invisible to normal accounts by construction, with `[PW]`/`[PRIV]`/owner flags per row. DE+EN.
 
 ## ✅ Done (2026-07-26): fleet-admin observer mode + admin world inspection (#487–#490)
 

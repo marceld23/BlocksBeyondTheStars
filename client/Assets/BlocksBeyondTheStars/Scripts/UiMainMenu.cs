@@ -337,6 +337,7 @@ namespace BlocksBeyondTheStars.Client
             var oContent = UiKit.AddPanel(odlg, 0f, 150f, 1100f, 440f, new Color(0f, 0f, 0f, 0f)).transform;
             var oWorlds = new List<PortalWorldInfo>();  // the signed-in account's own worlds
             var oPublic = new List<PortalWorldInfo>();  // public worlds shared by OTHERS (own ones filtered out)
+            var oOperator = new List<PortalWorldInfo>(); // fleet-operator view: EVERY world (#495); empty for normal accounts
 
             string PortalBase() => string.IsNullOrWhiteSpace(shell.Settings.PortalUrl)
                 ? PortalClient.DefaultPortalUrl
@@ -387,6 +388,11 @@ namespace BlocksBeyondTheStars.Client
                 var pub = await Task.Run(() => portal.ListPublicWorlds(session));
                 if (official == null) { return; }
 
+                // Operator probe (#495): only developer accounts get an answer here — a 403 simply means
+                // "not an operator" and the section stays hidden, so this costs normal players nothing.
+                var all = await Task.Run(() => portal.ListAllWorldsOperator(session));
+                if (official == null) { return; }
+
                 oStatus.text = "";
                 oWorlds.Clear();
                 oWorlds.AddRange(r.Worlds);
@@ -399,6 +405,19 @@ namespace BlocksBeyondTheStars.Client
                         if (!oWorlds.Exists(o => o.Id == p.Id))
                         {
                             oPublic.Add(p);
+                        }
+                    }
+                }
+
+                oOperator.Clear();
+                if (all.Ok)
+                {
+                    // The operator list shows OTHER people's worlds — own ones sit in "My worlds" already.
+                    foreach (var w in all.Worlds)
+                    {
+                        if (!oWorlds.Exists(o => o.Id == w.Id))
+                        {
+                            oOperator.Add(w);
                         }
                     }
                 }
@@ -1246,6 +1265,33 @@ namespace BlocksBeyondTheStars.Client
                 EmptyHint(shell.L("ui.portal.public_intro"));
                 if (oPublic.Count == 0) { EmptyHint(shell.L("ui.portal.no_public")); }
                 else { foreach (var world in oPublic) { WorldRow(world, owned: false); } }
+
+                // Section 3 — fleet operator only (#495): every world on the fleet, private and
+                // password-protected ones included. The list is simply empty for normal accounts (the
+                // server answers 403 to the probe), so nothing here ever renders for players. Joining
+                // bypasses the world password server-side; the owner name is shown because moderation
+                // starts with "whose world is this".
+                if (oOperator.Count > 0)
+                {
+                    ry += 12f;
+                    UiKit.AddImage(list, 30f, ry, 1016f, 2f, UiKit.SolidSprite, new Color(UiKit.Warn.r, UiKit.Warn.g, UiKit.Warn.b, 0.35f));
+                    ry += 18f;
+                    SectionHeader(shell.L("ui.portal.operator_title"));
+                    EmptyHint(shell.L("ui.portal.operator_intro"));
+                    foreach (var world in oOperator)
+                    {
+                        var w = world;
+                        UiKit.AddText(list, 30f, ry + 8f, 380f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                        string flags = w.Status
+                            + (w.HasPassword ? " [PW]" : "")
+                            + (w.IsPublic ? " [PUB]" : " [PRIV]")
+                            + (string.IsNullOrEmpty(w.Owner) ? "" : " · " + w.Owner);
+                        var st = UiKit.AddText(list, 420f, ry + 8f, 230f, 26f, flags, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                        st.horizontalOverflow = HorizontalWrapMode.Wrap;
+                        UiKit.AddButton(list, col[3], ry, colW, 44f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
+                        ry += 52f;
+                    }
+                }
 
                 list.sizeDelta = new Vector2(0f, Mathf.Max(322f, ry + 8f));
                 UiKit.AddVerticalScrollbar(oContent, scroll, 1080f, 108f, 14f, 322f);

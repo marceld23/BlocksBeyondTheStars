@@ -945,6 +945,36 @@ app.MapGet("/api/worlds/public", (HttpContext ctx) =>
     return Results.Json(new { worlds });
 });
 
+// Operator world browser (issue #495): EVERY world on the fleet, including private ones — the reach the
+// invisible observer needs, since kids mostly play on private/password worlds. Developer accounts only
+// (claimable solely with the secret ReservedClaimCode), and unlike /api/worlds/public this one may name the
+// owner: the operator moderates, and "whose world is this" is the first question moderation asks. Regular
+// accounts get 403 — the client probes this endpoint and simply hides the operator section on failure.
+app.MapGet("/api/worlds/all", (HttpContext ctx) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!account.IsDeveloper)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var worlds = registry.ListAllWorldsAdmin()
+        .Select(e => new
+        {
+            id = e.World.Id,
+            name = e.World.DisplayName,
+            status = e.World.Status,
+            owner = e.OwnerName,
+            isPublic = e.World.IsPublic,
+            hasPassword = e.World.HasPassword,
+        });
+    return Results.Json(new { worlds });
+});
+
 app.MapPost("/api/worlds", (HttpContext ctx, CreateWorldRequest req) =>
 {
     if (Caller(ctx) is not { } account)
