@@ -100,7 +100,7 @@ Per-item detail lives in the dated work log below.
 
 ---
 
-### ★ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (2026-07-26, branch feat/bandits)
+### ★ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (#504, 2026-07-26, branch feat/bandits)
 Analysed first (`analysis/bandits-and-raiders.md`). Three encounter types sharing one **hold-up
 protocol** (new msgs `BanditDemand`/`BanditResponseIntent`/`BanditEncounterResult`, tags 179–181):
 a bandit approaches NON-hostile, and only if the mark carries something worth taking demands ~35 %

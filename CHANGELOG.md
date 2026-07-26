@@ -11,7 +11,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🏴‍☠️ Bandits: hold-ups on foot, raider camps, pirate ambushes in space
+### 🏴‍☠️ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (#504)
 - **Lone robbers now roam some worlds.** Rarely, a scruffy figure with a red bandana walks straight
   up to you — and demands about a third of your two biggest stacks (never your tools). You get a
   real choice with a 25-second timer: **hand it over** and the robber keeps its word and leaves you
