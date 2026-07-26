@@ -106,6 +106,22 @@ namespace BlocksBeyondTheStars.Client.Portal
         public long LastSeenUnix { get; set; }
     }
 
+    /// <summary>Outcome of a moderation action that also tries to end a running session (#502). The action
+    /// succeeding says nothing about whether anyone was actually thrown out: the player may be offline, the
+    /// world asleep, or the instance still on an image that predates the kick endpoint — so
+    /// <see cref="Kicked"/> is what the UI must report, not a bare HTTP 200.</summary>
+    public sealed class PortalKickResult
+    {
+        public bool Ok { get; set; }
+        public string Error { get; set; } = string.Empty;
+
+        /// <summary>Stable machine code of the error (empty on success/unknown) — the UI localizes it.</summary>
+        public string Code { get; set; } = string.Empty;
+
+        /// <summary>True only when a running instance accepted the kick for that player.</summary>
+        public bool Kicked { get; set; }
+    }
+
     /// <summary>Owner view of a world's moderation state: who is blocked, and who could be.</summary>
     public sealed class PortalWorldBansResult
     {
@@ -340,11 +356,12 @@ namespace BlocksBeyondTheStars.Client.Portal
         }
 
         /// <summary>Owner-only: bar a player from this world; <paramref name="kick"/> also ends a session
-        /// already in progress (a block alone only decides the next join).</summary>
-        public PortalSimpleResult AddWorldBan(string session, string worldId, string playerName, string accountId, string reason, bool kick = true)
+        /// already in progress (a block alone only decides the next join). The answer reports whether that
+        /// kick actually reached anyone — the block itself holds either way.</summary>
+        public PortalKickResult AddWorldBan(string session, string worldId, string playerName, string accountId, string reason, bool kick = true)
         {
             var (status, body) = Post($"/api/worlds/{worldId}/bans", new { playerName, accountId, reason, kick }, session);
-            return ParseSimple(status, body);
+            return ParseKick(status, body);
         }
 
         /// <summary>Owner-only: lift a block.</summary>
@@ -354,11 +371,13 @@ namespace BlocksBeyondTheStars.Client.Portal
             return ParseSimple(status, body);
         }
 
-        /// <summary>Owner-only: end one player's session on this world, without a lasting block.</summary>
-        public PortalSimpleResult KickFromWorld(string session, string worldId, string playerName, string? reason = null)
+        /// <summary>Owner-only: end one player's session on this world, without a lasting block. A 200 only
+        /// means the request was understood — see <see cref="PortalKickResult.Kicked"/> for whether anyone
+        /// was actually thrown out.</summary>
+        public PortalKickResult KickFromWorld(string session, string worldId, string playerName, string? reason = null)
         {
             var (status, body) = Post($"/api/worlds/{worldId}/kick", new { playerName, reason }, session);
-            return ParseSimple(status, body);
+            return ParseKick(status, body);
         }
 
         /// <summary>Deletes the account, ALL its worlds and their saves — irreversible (DSGVO Art. 17).</summary>
@@ -456,6 +475,27 @@ namespace BlocksBeyondTheStars.Client.Portal
             }
 
             return state;
+        }
+
+        public static PortalKickResult ParseKick(int status, string body)
+        {
+            var result = new PortalKickResult();
+            if (!Succeeded(status, body, out string error, out string code, out JsonDocument? doc))
+            {
+                result.Error = error;
+                result.Code = code;
+                return result;
+            }
+
+            using (doc)
+            {
+                result.Ok = true;
+                result.Kicked = doc != null
+                                && doc.RootElement.TryGetProperty("kicked", out var kicked)
+                                && kicked.ValueKind == JsonValueKind.True;
+            }
+
+            return result;
         }
 
         public static PortalWorldBansResult ParseWorldBans(int status, string body)

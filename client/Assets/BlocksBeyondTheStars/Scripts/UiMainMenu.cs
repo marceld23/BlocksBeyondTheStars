@@ -1185,8 +1185,12 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // The block always holds; the kick behind it only reaches someone who is in the world right
+                // now (#502). Saying "blocked ✓" alone would imply they were thrown out — they weren't.
                 warn.color = UiKit.Ok;
-                warn.text = shell.L("ui.portal.blocked_ok");
+                warn.text = r.Kicked
+                    ? shell.L("ui.portal.blocked_ok")
+                    : shell.L("ui.portal.blocked_ok") + " " + shell.L("ui.portal.kick_not_online");
                 done?.Invoke();
             }
 
@@ -1222,8 +1226,10 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                warn.color = UiKit.Ok;
-                warn.text = shell.L("ui.portal.kicked_ok");
+                // A kick that reached nobody is not a success story — the player may be offline, the world
+                // asleep, or the instance still on an image without the kick endpoint (#502).
+                warn.color = r.Kicked ? UiKit.Ok : warnCol;
+                warn.text = shell.L(r.Kicked ? "ui.portal.kicked_ok" : "ui.portal.kick_not_online");
             }
 
             async void DoFeedbackSend(string message, Text warn)

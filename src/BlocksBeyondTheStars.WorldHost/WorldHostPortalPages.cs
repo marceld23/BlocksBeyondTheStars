@@ -348,6 +348,7 @@ function v(id){return document.getElementById(id).value.trim();}
                 modBlocked = T("Gesperrt.", "Blocked."),
                 modUnblocked = T("Entsperrt.", "Unblocked."),
                 modKicked = T("Rausgeworfen.", "Kicked."),
+                modNotOnline = T("Der Spieler ist gerade nicht in dieser Welt.", "The player is not in this world right now."),
                 st = new
                 {
                     stopped = T("gestoppt", "stopped"),
@@ -608,13 +609,17 @@ async function loadBans(id){
 }
 async function banPlayer(id, playerName, accountId){
   const reason = (document.getElementById('bans-reason-'+id)||{}).value || '';
-  if(await api('POST',`/api/worlds/${id}/bans`,{playerName, accountId, reason, kick:true})){ say(L.modBlocked); loadBans(id); }
+  // The block always holds; the kick behind it only reaches someone who is in the world right now (#502).
+  const j = await api('POST',`/api/worlds/${id}/bans`,{playerName, accountId, reason, kick:true});
+  if(j){ say(j.kicked ? L.modBlocked : L.modBlocked + ' ' + L.modNotOnline); loadBans(id); }
 }
 async function unbanPlayer(id, banId){
   if(await api('DELETE',`/api/worlds/${id}/bans/${banId}`)!==null){ say(L.modUnblocked); loadBans(id); }
 }
 async function kickPlayer(id, playerName){
-  if(await api('POST',`/api/worlds/${id}/kick`,{playerName})){ say(L.modKicked); }
+  // A 200 only means the request was understood — `kicked` says whether anyone was actually thrown out.
+  const j = await api('POST',`/api/worlds/${id}/kick`,{playerName});
+  if(j){ say(j.kicked ? L.modKicked : L.modNotOnline); }
 }
 function v(id){return document.getElementById(id).value.trim();}
 function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','""':'&quot;',""'"":'&#39;'}[c]));}

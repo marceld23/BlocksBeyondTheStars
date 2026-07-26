@@ -913,6 +913,7 @@
   "ui.portal.block_reason": "reason (the player sees it)",
   "ui.portal.blocked_ok": "Blocked ✓",
   "ui.portal.kicked_ok": "Kicked ✓",
+  "ui.portal.kick_not_online": "The player is not in this world right now.",
   "ui.notice.title": "Message from the portal",
   "ui.notice.banned_title": "Your account is blocked",
   "ui.notice.banned_perm": "The block stays until we lift it.",

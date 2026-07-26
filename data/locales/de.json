@@ -914,6 +914,7 @@
   "ui.portal.block_reason": "Grund (der Spieler sieht ihn)",
   "ui.portal.blocked_ok": "Gesperrt ✓",
   "ui.portal.kicked_ok": "Rausgeworfen ✓",
+  "ui.portal.kick_not_online": "Der Spieler ist gerade nicht in dieser Welt.",
   "ui.notice.title": "Nachricht vom Portal",
   "ui.notice.banned_title": "Dein Konto ist gesperrt",
   "ui.notice.banned_perm": "Die Sperre gilt, bis wir sie aufheben.",

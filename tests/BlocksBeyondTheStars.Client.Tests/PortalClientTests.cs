@@ -86,6 +86,25 @@ public sealed class PortalClientTests
         Assert.Equal("Unknown report category.", bad.Error);
     }
 
+    [Fact]
+    public void ParseKick_SeparatesTheRequestFromTheOutcome()
+    {
+        // The action succeeding says nothing about whether anyone was thrown out (#502): the player may be
+        // offline, the world asleep, or the instance still on an image without the kick endpoint. The UI
+        // has to report `kicked`, not the HTTP status, or a block reads as "gone" when nothing happened.
+        Assert.True(PortalClient.ParseKick(200, "{\"kicked\":true}").Kicked);
+        var missed = PortalClient.ParseKick(200, "{\"ok\":true,\"kicked\":false}");
+        Assert.True(missed.Ok);
+        Assert.False(missed.Kicked);
+
+        // An older WorldHost that answers a bare 200 must read as "not kicked", never as success.
+        Assert.False(PortalClient.ParseKick(200, "{}").Kicked);
+
+        var denied = PortalClient.ParseKick(403, "{\"error\":\"This player name is reserved.\",\"code\":\"name_reserved\"}");
+        Assert.False(denied.Ok);
+        Assert.Equal("name_reserved", denied.Code);
+    }
+
     // ---------------- Portal parity (#268-#270) ----------------
 
     [Fact]

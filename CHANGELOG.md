@@ -36,6 +36,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **The operator can never be banned or kicked** — not by a world owner's ban list, not by a kick, not
   even from the admin panel. Oversight of worlds where kids play must not be something anyone can switch
   off, and an operator locked out of their own fleet would have nobody left to lift it. (#496, #497)
+- A kick now says the truth: if the player is not in the world at that moment (or the world is asleep),
+  the owner reads *"the player is not in this world right now"* instead of a "kicked ✓" that never
+  happened. The block itself always holds — it decides the next join. (#502)
 
 ### 🪐 Room to fly between the worlds
 - **Planets and their moons no longer huddle together in space.** Out in the flight view, every moon
