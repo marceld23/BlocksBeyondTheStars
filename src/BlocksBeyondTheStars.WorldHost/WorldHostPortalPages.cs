@@ -27,6 +27,33 @@ public static class WorldHostPortalPages
     /// deliberate choice (URL parameter or the cookie the switcher set).</summary>
     public static string NormalizeLang(string? lang) => lang == "en" ? "en" : "de";
 
+    /// <summary>The game website's entry point for a language (empty when the operator turned the link
+    /// off). English falls back to the main URL when no separate EN entry point is configured.</summary>
+    internal static string WebsiteUrl(WorldHostConfig? config, string lang)
+    {
+        if (config is null || string.IsNullOrWhiteSpace(config.WebsiteUrl))
+        {
+            return string.Empty;
+        }
+
+        return lang == "en" && !string.IsNullOrWhiteSpace(config.WebsiteUrlEn)
+            ? config.WebsiteUrlEn.Trim()
+            : config.WebsiteUrl.Trim();
+    }
+
+    /// <summary>Bare host of a website URL for use as link text ("www." dropped) — so a self-hoster's
+    /// own URL shows their domain rather than a hardcoded one. Falls back to the raw value.</summary>
+    private static string WebsiteLabel(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return url;
+        }
+
+        string host = uri.Host;
+        return host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? host[4..] : host;
+    }
+
     /// <summary>First-visit language from the browser's <c>Accept-Language</c> header: the first
     /// supported primary tag wins (browsers list tags in preference order, so full q-value parsing
     /// would only complicate this), anything else stays German. Only consulted when neither
@@ -62,9 +89,17 @@ public static class WorldHostPortalPages
         lang = NormalizeLang(lang);
         string T(string de, string en) => lang == "en" ? en : de;
 
+        // The footer carries the same link on every page, but a first-time visitor lands HERE and would
+        // never scroll for it — the site is where the game itself, the downloads and the devblog live.
+        string websiteLine = WebsiteUrl(config, lang) is { Length: > 0 } siteUrl
+            ? $@"<p class='sub'>{T("Alles über das Spiel, Downloads und Devblog:", "Everything about the game, downloads and devblog:")}
+ <a href='{System.Net.WebUtility.HtmlEncode(siteUrl)}' target='_blank' rel='noopener noreferrer'>{System.Net.WebUtility.HtmlEncode(WebsiteLabel(siteUrl))} ↗</a></p>"
+            : string.Empty;
+
         string body = $@"
 <h1>Blocks Beyond the Stars — <span class='o'>{T("Welten", "Worlds")}</span></h1>
 <p class='sub'>{T("Eigene Multiplayer-Welt erstellen und mit Freunden spielen.", "Create your own multiplayer world and play with friends.")}</p>
+{websiteLine}
 <div class='card how'>
  <h2>{T("So funktioniert's", "How it works")}</h2>
  <ol>
@@ -121,7 +156,7 @@ public static class WorldHostPortalPages
             }, ScriptJson))
             .Replace("__LQ__", lang == "en" ? "?lang=en" : string.Empty);
 
-        return Shell($"Blocks Beyond the Stars — {T("Welten", "Worlds")}", body, lang);
+        return Shell($"Blocks Beyond the Stars — {T("Welten", "Worlds")}", body, lang, config);
     }
 
     // Plain (non-interpolated) verbatim script: single braces stay single, localized strings arrive
@@ -287,7 +322,7 @@ function v(id){return document.getElementById(id).value.trim();}
                 },
             }, ScriptJson));
 
-        return Shell($"{T("Meine Welten", "My Worlds")} — Blocks Beyond the Stars", body, lang);
+        return Shell($"{T("Meine Welten", "My Worlds")} — Blocks Beyond the Stars", body, lang, config);
     }
 
     private const string WorldsScript = @"
@@ -491,7 +526,7 @@ loadPublic();
         return Shell($"{T("Community-Regeln", "Community Rules")} — Blocks Beyond the Stars", $@"
 <h1>Community-<span class='o'>{T("Regeln", "Rules")}</span> <span class='sub'>(v{config.TermsVersion})</span></h1>
 {card}
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang);
+<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
     }
 
     /// <summary>Impressum (§5 DDG). Operator data comes from config so a SELF-HOSTED WorldHost never
@@ -543,7 +578,7 @@ loadPublic();
         "Dieses Welten-Portal ist ein kostenloses Hobby- und Familienprojekt im Beta-Stadium. Es besteht kein Anspruch auf Verfügbarkeit oder Datenerhalt — Welten und Spielstände können jederzeit verloren gehen (nutze die Sicherungs-Funktion!).",
         "This worlds portal is a free hobby and family project in beta. There is no entitlement to availability or data retention — worlds and saves can be lost at any time (use the backup feature!).")}</p>
 </div>
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang);
+<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
     }
 
     /// <summary>Datenschutzerklärung (DSGVO) — the German text is the legally authoritative one; with
@@ -641,7 +676,7 @@ loadPublic();
         return Shell("Datenschutz — Blocks Beyond the Stars", $@"
 <h1>Datenschutz<span class='o'>erklärung</span> <span class='sub'>· Privacy policy</span></h1>
 {(lang == "en" ? englishSummary + germanBody : germanBody + englishSummary)}
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang);
+<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
     }
 
     /// <summary>The game logo as a compact self-contained inline SVG (mini block cluster + orbit ring,
@@ -658,10 +693,17 @@ loadPublic();
     /// <summary>Shared page chrome, styled after the per-instance portal (dark starfield, cyan/orange):
     /// game-logo header, localized footer with the DE/EN switcher, and the shared error localization.
     /// Internal so the operator admin pages (<see cref="WorldHostAdminPages"/>) share the same look.</summary>
-    internal static string Shell(string title, string body, string lang = "de")
+    internal static string Shell(string title, string body, string lang = "de", WorldHostConfig? config = null)
     {
         lang = NormalizeLang(lang);
         string T(string de, string en) => lang == "en" ? en : de;
+
+        // Outbound link to the game's own website, per language. Opens in a new tab: leaving the portal
+        // mid-session (signed in, a world possibly waking) would be the worse trade. Omitted when the
+        // operator cleared the URLs — a self-hoster must not advertise someone else's site.
+        string websiteLink = WebsiteUrl(config, lang) is { Length: > 0 } url
+            ? $"<a href='{System.Net.WebUtility.HtmlEncode(url)}' target='_blank' rel='noopener noreferrer'>{T("Spiel-Website", "Game website")} ↗</a> ·\n"
+            : string.Empty;
 
         return $@"<!DOCTYPE html>
 <html lang='{lang}'>
@@ -759,7 +801,7 @@ window.bbsErr = function(j, fallback) {{
         : "<span class='cur'>DE</span><a href='?lang=en' lang='en'>EN</a>")}</nav></header>
 <main>{body}</main>
 <footer>
-<a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> ·
+{websiteLink}<a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> ·
 <a href='/impressum{(lang == "en" ? "?lang=en" : "")}'>{T("Impressum", "Legal notice")}</a> ·
 <a href='/datenschutz{(lang == "en" ? "?lang=en" : "")}'>{T("Datenschutz", "Privacy")}</a>
 <span class='lang'> · {(lang == "en"

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1123 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1134 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -99,6 +99,33 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Fleet admin: delete worlds + the portal links to the game website (2026-07-26, branch feat/worldhost-admin-delete-and-site-link)
+Two small WorldHost additions, both analysed first (`analysis/fleet-admin-world-delete.md`,
+`analysis/portal-website-link.md`).
+
+**World deletion on `/admin`.** The primitives existed twice already (the owner's `DELETE
+/api/worlds/{id}` keeps the saves; account self-deletion purges them) — the operator panel simply had
+no entry point. Each instance row now carries a folded `delete…` disclosure with a **server-checked
+name confirmation** and two submit buttons sharing it: `delete` (registry row goes, saves stay) and
+`purge saves` (also erases live + `_archive`). Both run through the new
+`WorldOrchestrator.DeleteWorld(world, purgeSaves)`, which stops the instance FIRST, then removes the
+**container object** via the new `IInstanceLauncher.Remove(worldId)` — instances run without `--rm`
+and a deleted world never wakes again, so every deletion so far (owner's and DSGVO path included)
+left a `bbs-world-<id>` object with its writable layer and logs on the host forever. Port and
+per-account quota free themselves (both derived from the `world` table); open reports keep an
+orphaned `world_id` (no FK) by design. Arcade rows say `reset…` and warn that the pool refills —
+and `GlitchGateway.EnsurePool` now numbers replacements from the **highest suffix in use** instead of
+from the count, which would otherwise mint a second "Glitch Arcade 3". Scriptable twin:
+`DELETE /api/admin/worlds/{id}[?purge=true]` (`X-Admin-Token`).
+
+**Portal → website link.** `WorldHostPortalPages.Shell` (shared by every portal page *and* the admin
+panel) gained a language-aware footer link, plus a line under the landing headline where first-time
+visitors look: DE → `www.blocksbeyondthestars.com/`, EN → `…/en`, new tab with
+`rel='noopener noreferrer'` so a signed-in session is never navigated away. URLs live in
+`WorldHostConfig.WebsiteUrl` / `WebsiteUrlEn` with the production values as **code defaults**
+(`BBS_WH_WEBSITE_URL(_EN)` override, `-` = off) — no deploy change needed, and a self-hoster does not
+advertise someone else's site; the link label is derived from the configured host.
 
 ### ★ In-game UI readability: VEGA + scan panel sized up, a real UI-scale setting, localized scan results (#482–#484, 2026-07-26, branch feat/ui-readability)
 Three connected fixes to "the HUD is too small", all measured first in `analysis/ingame-ui-readability.md`.

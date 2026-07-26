@@ -17,6 +17,12 @@ public interface IInstanceLauncher
     /// <summary>Stops the container (triggering the server's clean drain+save via SIGTERM). Idempotent.</summary>
     void Stop(string containerId);
 
+    /// <summary>Removes a world's container OBJECT (not just stops it). Instances deliberately run
+    /// without <c>--rm</c> so a sleeping world's logs stay inspectable, and the stale object is normally
+    /// cleaned by the next wake — a DELETED world never wakes again, so its object (writable layer +
+    /// logs) would linger forever. Idempotent; "no such container" is fine.</summary>
+    void Remove(string worldId);
+
     /// <summary>Whether the container is still running — false once an idle shutdown has exited it.</summary>
     bool IsRunning(string containerId);
 
@@ -164,6 +170,18 @@ public sealed class DockerCliLauncher : IInstanceLauncher
         }
 
         Run(new List<string> { "stop", containerId }); // best effort; "no such container" is fine
+    }
+
+    public void Remove(string worldId)
+    {
+        if (string.IsNullOrEmpty(worldId))
+        {
+            return;
+        }
+
+        // By NAME, not container id: the registry row is about to disappear, and the name is the one
+        // handle that survives a crashed/replaced container (Start() removes stale ones the same way).
+        Run(new List<string> { "rm", "-f", $"bbs-world-{worldId}" });
     }
 
     public bool IsRunning(string containerId)

@@ -192,8 +192,9 @@ The SP↔hosted round-trip. Instances bind-mount `<BBS_WH_WORLDS_DIR>/<worldId>/
   (no name-exists oracle). Lost password = lost account for now — recovery UX is a Phase-2 concern.
 - Join tokens live 120 s and name one world + one player; the per-world secret never leaves the
   host (it is injected into the instance's env).
-- Deleting a world stops the container and removes the registry row but **keeps the saves volume**
-  (operator-recoverable); automated retention/archival is Phase 3.
+- Deleting a world stops the container, removes its container object and drops the registry row but
+  **keeps the saves volume** (operator-recoverable); automated retention/archival is Phase 3. Only
+  the operator's `purge saves` on `/admin` and account self-deletion erase the files themselves.
 
 ## Operations quick reference
 
@@ -214,6 +215,8 @@ docker network create bbs-hosted
 BBS_WH_BASE_DOMAIN=play.blocksbeyondthestars.de
 BBS_WH_PUBLIC_HOST=play.blocksbeyondthestars.de
 BBS_WH_SERVER_IMAGE=ghcr.io/marceld23/blocks-beyond-the-stars-server:0.6.2   # fleet version pin (WP14)
+# portal → game website link (defaults are the project's own site; set to "-" to drop the link):
+#   BBS_WH_WEBSITE_URL=https://www.blocksbeyondthestars.com/, BBS_WH_WEBSITE_URL_EN=…/en
 # quotas (operator policy): BBS_WH_MAX_WORLDS_PER_ACCOUNT=2, BBS_WH_MAX_PLAYERS=12, BBS_WH_IDLE_MINUTES=20
 # glitch.fun arcade (optional, off without credentials): BBS_WH_GLITCH_ENABLED, BBS_WH_GLITCH_TITLE_ID,
 #   BBS_WH_GLITCH_TITLE_TOKEN, BBS_WH_GLITCH_WORLDS=2, BBS_WH_GLITCH_MAX_PLAYERS=8,
@@ -262,9 +265,21 @@ on their next wake.
 
 `/admin` on the portal domain (Basic Auth via `BBS_WH_ADMIN_USER`/`_PASSWORD`; off when unset — the
 `X-Admin-Token` API for scripts is separate and unchanged): fleet instance overview (status, owner,
-live player counts via `/status`, stop/wake), the open player-report queue (close as
+live player counts via `/status`, stop/wake/restart/**delete**), the open player-report queue (close as
 reviewed/dismissed, reported names link to account lookup) and ban/unban with reason. The
 bug-report inbox has its own `/admin` (ReportHost) including a filtered JSON bulk export.
+
+**Deleting a world** (per row, folded into a `delete…` disclosure so it cannot be hit while aiming
+for stop/wake): the world's **name must be typed** into the box, checked server-side — there is no
+undo. Two buttons share that box: `delete` stops the instance and drops the registry row but leaves
+the saves in the worlds directory, `purge saves` also erases them including the archive copy. Both
+remove the container OBJECT as well (instances run without `--rm`, and a deleted world never wakes
+again to clean up its own leftovers). Deleting a *running* world is allowed and blocks while
+`docker stop` drains it, exactly like the stop button. Its port and the owner's world-quota slot
+return to the pool automatically; open reports naming the world keep their (now orphaned) world id.
+Arcade worlds show `reset…` instead: the glitch pool refills itself, so the world comes back empty
+under a fresh id and the next free `Glitch Arcade <n>` name. Scriptable twin for bulk cleanup:
+`DELETE /api/admin/worlds/{id}[?purge=true]` (`X-Admin-Token`).
 
 **Server health card** (top of `/admin`): host load/RAM/disk plus per-container CPU/memory and the
 fleet aggregates, filled asynchronously from `GET /admin/stats.json` (same Basic-Auth gate) because

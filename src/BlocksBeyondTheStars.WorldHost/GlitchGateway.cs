@@ -42,6 +42,9 @@ public sealed class GlitchGateway
 {
     private const string GuestAccountPrefix = "glitch:";
     private const string FallbackName = "Explorer";
+
+    /// <summary>Display-name stem of the arcade pool; the numeric suffix after it identifies a pool slot.</summary>
+    private const string PoolNamePrefix = "Glitch Arcade ";
     private const int ValidateCacheSeconds = 300;
 
     /// <summary>Heartbeats arrive once a minute per install; this only blunts scripted hammering.</summary>
@@ -510,10 +513,24 @@ public sealed class GlitchGateway
 
         lock (_poolGate)
         {
-            int existing = _registry.ListWorldsByChannel(WorldChannel.Glitch).Count;
-            for (int i = existing + 1; i <= _config.GlitchWorldCount; i++)
+            var pool = _registry.ListWorldsByChannel(WorldChannel.Glitch);
+
+            // Number from the highest suffix in use, not from the count: an operator can delete a single
+            // arcade world on /admin to reset it, and counting would then hand the replacement a name that
+            // is already on another world ("Glitch Arcade 3" twice).
+            int next = 0;
+            foreach (var world in pool)
             {
-                _registry.CreateGlitchWorld($"Glitch Arcade {i}");
+                if (world.DisplayName.StartsWith(PoolNamePrefix, StringComparison.Ordinal)
+                    && int.TryParse(world.DisplayName.AsSpan(PoolNamePrefix.Length), out int suffix))
+                {
+                    next = Math.Max(next, suffix);
+                }
+            }
+
+            for (int i = pool.Count; i < _config.GlitchWorldCount; i++)
+            {
+                _registry.CreateGlitchWorld($"{PoolNamePrefix}{++next}");
             }
         }
     }

@@ -49,6 +49,10 @@ services:
       # bounds cold-worldgen bursts so one player's fresh join/fast-flight can't stall the world's tick for
       # everyone else. Default 25 (generous headroom under the ~66 ms tick); 0 = off (unbounded).
       BBS_WH_CHUNK_STREAM_BUDGET_MS: ${BBS_WH_CHUNK_STREAM_BUDGET_MS:-25}
+      # Portal → game website link (footer + landing page). Unset keeps WorldHost's built-in default
+      # (the project's own site); "-" drops the link, which is what a self-hoster wants.
+      BBS_WH_WEBSITE_URL: ${BBS_WH_WEBSITE_URL:-}
+      BBS_WH_WEBSITE_URL_EN: ${BBS_WH_WEBSITE_URL_EN:-}
       # Legal pages (Impressum/Datenschutz); empty = "not configured" notice on those pages.
       BBS_WH_LEGAL_NAME: ${BBS_WH_LEGAL_NAME:-}
       BBS_WH_LEGAL_ADDRESS: ${BBS_WH_LEGAL_ADDRESS:-}

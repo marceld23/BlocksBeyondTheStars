@@ -287,6 +287,25 @@ public sealed class WorldOrchestrator
         _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
     }
 
+    /// <summary>
+    /// Removes a world for good: stop the instance first (so no container keeps running under a deleted
+    /// registry row), drop the now-unreachable container object, optionally erase the saves, then delete
+    /// the registry row last — a crash mid-way leaves a stopped world, never an orphan container.
+    /// <paramref name="purgeSaves"/> false keeps <c>&lt;WorldsDir&gt;/&lt;id&gt;</c> (and the archive copy)
+    /// on disk for manual recovery, matching the owner-facing delete; true erases both.
+    /// </summary>
+    public void DeleteWorld(WorldRecord world, bool purgeSaves)
+    {
+        StopWorld(world);
+        _launcher.Remove(world.Id);
+        if (purgeSaves)
+        {
+            SavePaths.DeleteWorldData(_config, world.Id);
+        }
+
+        _registry.DeleteWorld(world.Id);
+    }
+
     /// <summary>Pushes a maintenance announcement (#249) into one running instance via its token-gated
     /// POST /announce. Kind: 0 = info, 1 = restart countdown of <paramref name="seconds"/>, 2 = cancel.
     /// False when announcements are unconfigured or the instance did not accept.</summary>

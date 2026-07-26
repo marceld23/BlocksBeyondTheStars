@@ -222,7 +222,8 @@ async Task<IResult> RenderAdminAsync(HttpContext ctx)
     return Results.Content(WorldHostAdminPages.Index(
         config, rows, registry.ListOpenReports(), registry.ListBannedAccounts(),
         lookupQuery is null ? null : registry.FindAccountByName(lookupQuery), lookupQuery,
-        registry.ListGlitchGuests(), registry.ListGlitchBans()),
+        registry.ListGlitchGuests(), registry.ListGlitchBans(),
+        ctx.Request.Query["notice"].ToString()),
         "text/html; charset=utf-8");
 }
 
@@ -556,9 +557,7 @@ app.MapDelete("/api/account", (HttpContext ctx) =>
 
     foreach (var world in registry.ListWorlds(account.Id))
     {
-        orchestrator.StopWorld(world);
-        SavePaths.DeleteWorldData(config, world.Id);
-        registry.DeleteWorld(world.Id);
+        orchestrator.DeleteWorld(world, purgeSaves: true);
     }
 
     registry.DeleteAccount(account.Id);
@@ -641,6 +640,29 @@ app.MapPost("/api/admin/announce", async (HttpContext ctx, AnnounceRequest req) 
     log.LogInformation("Admin API: announce kind {Kind} to {Target} — reached {Reached}/{Targets}.",
         req.Kind, req.WorldId is null ? "fleet" : LogSafe(req.WorldId), reached, targets);
     return Results.Json(new { reached, targets });
+});
+
+// Operator world deletion, scriptable twin of the /admin buttons below — the lever for bulk cleanup of
+// dead worlds. `purge=true` also erases the saves (live + archive); without it they stay on disk exactly
+// like an owner's own delete. Unlike the owner route this is NOT ownership-scoped: it deletes any world,
+// including the account-less glitch.fun arcade pool (which the gateway then re-creates empty).
+app.MapDelete("/api/admin/worlds/{id}", (HttpContext ctx, string id) =>
+{
+    if (!IsAdmin(ctx))
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return ApiError("World not found.", StatusCodes.Status404NotFound);
+    }
+
+    bool purge = ctx.Request.Query["purge"].ToString() == "true";
+    orchestrator.DeleteWorld(world, purge);
+    log.LogInformation("Admin API: world '{Name}' ({Id}) deleted — saves {Fate}.",
+        LogSafe(world.DisplayName), world.Id, purge ? "PURGED" : "retained");
+    return Results.Ok();
 });
 
 // ---------------- Operator admin UI (Basic Auth; the browser front-end to the API above) ----------------
@@ -841,6 +863,37 @@ app.MapPost("/admin/worlds/{id}/wake", async (HttpContext ctx, string id) =>
     return Results.Redirect("/admin");
 });
 
+// Delete a world from the fleet overview. Guarded by a typed confirmation (the world's display name)
+// checked HERE rather than in the browser — the delete button sits next to `stop` in a narrow table cell
+// and there is no undo. `purge=true` erases the saves as well; the plain delete keeps them on disk.
+// Deleting a RUNNING world is allowed and blocks while `docker stop` drains it, exactly like the stop
+// button. On a mismatch nothing happens and the page says so.
+app.MapPost("/admin/worlds/{id}/delete", async (HttpContext ctx, string id) =>
+{
+    if (GuardAdminUi(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    var form = await ctx.Request.ReadFormAsync();
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.Redirect("/admin");
+    }
+
+    if (!string.Equals(form["confirm"].ToString().Trim(), world.DisplayName.Trim(), StringComparison.OrdinalIgnoreCase))
+    {
+        log.LogInformation("Admin UI: delete of world {Id} refused — confirmation name did not match.", world.Id);
+        return Results.Redirect("/admin?notice=confirm");
+    }
+
+    bool purge = form["purge"].ToString() == "true";
+    orchestrator.DeleteWorld(world, purge);
+    log.LogInformation("Admin UI: world '{Name}' ({Id}) deleted — saves {Fate}.",
+        LogSafe(world.DisplayName), world.Id, purge ? "PURGED" : "retained");
+    return Results.Redirect($"/admin?notice={(purge ? "purged" : "deleted")}");
+});
+
 // ---------------- Worlds ----------------
 
 app.MapGet("/api/worlds", (HttpContext ctx) =>
@@ -1022,10 +1075,9 @@ app.MapDelete("/api/worlds/{id}", (HttpContext ctx, string id) =>
         return Results.Forbid();
     }
 
-    // Stop first so no orphan container keeps running under a deleted registry row. The saves directory
-    // is intentionally NOT removed — an operator can still recover/export it; automated retention is Phase 3.
-    orchestrator.StopWorld(world);
-    registry.DeleteWorld(world.Id);
+    // The saves directory is intentionally NOT removed — an operator can still recover/export it (and
+    // purge it from /admin); automated retention is Phase 3.
+    orchestrator.DeleteWorld(world, purgeSaves: false);
     log.LogInformation("World '{Name}' ({Id}) deleted by {Account} (saves directory retained).", LogSafe(world.DisplayName), world.Id, LogSafe(account.Name));
     return Results.Ok();
 });

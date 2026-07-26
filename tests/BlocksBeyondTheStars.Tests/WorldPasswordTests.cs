@@ -58,6 +58,10 @@ public sealed class WorldPasswordTests : IDisposable
 
         public void Stop(string containerId) => Running.Remove(containerId);
 
+        public void Remove(string worldId) => Removed.Add(worldId);
+
+        public readonly List<string> Removed = new();
+
         public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
 
         public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();

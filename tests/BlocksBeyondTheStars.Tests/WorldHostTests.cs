@@ -59,6 +59,11 @@ public sealed class WorldHostTests : IDisposable
 
         public void Stop(string containerId) => Running.Remove(containerId);
 
+        /// <summary>World ids whose container object was removed (`docker rm -f bbs-world-&lt;id&gt;`).</summary>
+        public readonly List<string> Removed = new();
+
+        public void Remove(string worldId) => Removed.Add(worldId);
+
         public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
 
         public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
@@ -138,6 +143,54 @@ public sealed class WorldHostTests : IDisposable
         var w4 = registry.CreateWorld(accountId, "Replacement");
         Assert.True(w4.Ok);
         Assert.Equal(32000, w4.World!.HostPort);
+    }
+
+    [Fact]
+    public async Task DeleteWorld_StopsTheInstance_DropsTheContainerObject_AndKeepsTheSavesAsync()
+    {
+        var config = new WorldHostConfig { WorldsDir = System.IO.Path.Combine(_root, "worlds") };
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = NewOrchestrator(registry, launcher, config);
+        var (_, _, accountId, _) = registry.CreateAccount("Owner", "super-secret-1", acceptedTermsVersion: Terms);
+        var world = registry.CreateWorld(accountId, "Doomed").World!;
+
+        var (running, _) = await orchestrator.EnsureRunningAsync(world.Id);
+        Assert.NotNull(running);
+        string savesDir = SavePaths.HostSavesDir(config, world.Id);
+        System.IO.Directory.CreateDirectory(savesDir);
+
+        orchestrator.DeleteWorld(registry.GetWorld(world.Id)!, purgeSaves: false);
+
+        Assert.Empty(launcher.Running);                                   // instance stopped, not orphaned
+        Assert.Equal(new[] { world.Id }, launcher.Removed);               // …and its container object dropped:
+        Assert.Null(registry.GetWorld(world.Id));                         // nothing will ever wake it again
+        Assert.True(System.IO.Directory.Exists(savesDir), "a plain delete must leave the saves recoverable");
+    }
+
+    [Fact]
+    public void DeleteWorld_Purge_ErasesLiveAndArchivedSaves()
+    {
+        var config = new WorldHostConfig { WorldsDir = System.IO.Path.Combine(_root, "worlds") };
+        var registry = NewRegistry(config);
+        var launcher = new FakeLauncher();
+        var orchestrator = NewOrchestrator(registry, launcher, config);
+        var (_, _, accountId, _) = registry.CreateAccount("Owner", "super-secret-1", acceptedTermsVersion: Terms);
+        var world = registry.CreateWorld(accountId, "Doomed").World!;
+
+        // Both halves of a world's on-disk life: the live saves and an archived copy from an earlier sweep.
+        string live = SavePaths.HostSavesDir(config, world.Id);
+        string archived = SavePaths.ArchivedSavesDir(config, world.Id);
+        System.IO.Directory.CreateDirectory(live);
+        System.IO.Directory.CreateDirectory(archived);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(live, "world.db"), "x");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(archived, "world.db"), "x");
+
+        orchestrator.DeleteWorld(world, purgeSaves: true);
+
+        Assert.False(System.IO.Directory.Exists(live));
+        Assert.False(System.IO.Directory.Exists(archived));
+        Assert.Null(registry.GetWorld(world.Id));
     }
 
     [Fact]

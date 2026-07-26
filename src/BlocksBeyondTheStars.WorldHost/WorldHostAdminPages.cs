@@ -23,6 +23,26 @@ public static class WorldHostAdminPages
         $"<form method='post' action='/admin/reports/{reportId}/close' style='display:inline'><input type='hidden' name='status' value='reviewed'><button>reviewed</button></form>" +
         $"<form method='post' action='/admin/reports/{reportId}/close' style='display:inline'><input type='hidden' name='status' value='dismissed'><button>dismiss</button></form>";
 
+    /// <summary>
+    /// The per-row delete control, folded into a <c>&lt;details&gt;</c> so it never competes with stop/wake
+    /// for a mis-click. Deleting needs the world's name typed into the box — checked server-side, because
+    /// this is the one action on the page with no undo. Two submit buttons share the one input: the second
+    /// carries <c>purge=true</c> and erases the saves as well.
+    /// </summary>
+    private static string DeleteForm(WorldRecord world)
+    {
+        // Arcade worlds have no owner and the gateway tops the pool back up, so deleting one is really a
+        // RESET — say so instead of pretending the world is gone for good.
+        bool glitch = world.Channel == WorldChannel.Glitch;
+        return $"<details><summary class='del'>{(glitch ? "reset" : "delete")}…</summary>" +
+               $"<form method='post' action='/admin/worlds/{world.Id}/delete'>" +
+               $"<input name='confirm' size='14' placeholder='type: {E(world.DisplayName)}' aria-label='confirm world name'>" +
+               "<button class='danger' title='stop the world, drop it from the registry, keep its saves on disk'>delete</button>" +
+               "<button class='danger' name='purge' value='true' title='the same, but also erase the saves (live + archive) — unrecoverable'>purge saves</button>" +
+               (glitch ? "<p class='hint'>The arcade pool refills itself — this world comes back empty.</p>" : string.Empty) +
+               "</form></details>";
+    }
+
     private static string Ago(long unix)
     {
         if (unix <= 0)
@@ -44,7 +64,8 @@ public static class WorldHostAdminPages
         AccountRecord? lookedUp,
         string? lookupQuery,
         IReadOnlyList<GlitchGuestRecord>? glitchGuests = null,
-        IReadOnlyList<GlitchBanRecord>? glitchBans = null)
+        IReadOnlyList<GlitchBanRecord>? glitchBans = null,
+        string? notice = null)
     {
         glitchGuests ??= Array.Empty<GlitchGuestRecord>();
         glitchBans ??= Array.Empty<GlitchBanRecord>();
@@ -56,6 +77,20 @@ public static class WorldHostAdminPages
         sb.Append($"<h1>Fleet <span class='o'>admin</span> <span class='sub'>· {E(config.BaseDomain)}</span></h1>");
         sb.Append($"<p class='hint'>{worlds.Count} worlds · <b>{active}</b>/{(config.MaxActiveInstances > 0 ? config.MaxActiveInstances.ToString() : "∞")} instances awake · " +
                   $"{playerReports.Count} open report(s) · {feedback.Count} open feedback · {banned.Count} banned account(s)</p>");
+
+        // Outcome of the last destructive action (redirect carries ?notice=…) — the page has no other
+        // channel back to the operator.
+        string? noticeText = notice switch
+        {
+            "confirm" => "Nothing deleted — the typed name did not match the world's name.",
+            "deleted" => "World deleted. Its saves are still on disk.",
+            "purged" => "World deleted and its saves erased.",
+            _ => null,
+        };
+        if (noticeText is { })
+        {
+            sb.Append($"<p class='beta'>{E(noticeText)}</p>");
+        }
 
         // ---- Server health (filled by JS from /admin/stats.json AFTER the page renders — the
         // docker-stats sample behind it takes ~1-2 s and must not stall the page) ----
@@ -84,10 +119,14 @@ public static class WorldHostAdminPages
                     : $"<form method='post' action='/admin/worlds/{w.Id}/wake'><button>wake</button></form>";
                 sb.Append($"<tr><td><b>{E(w.DisplayName)}</b>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
                           $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span></td><td>{players}</td>" +
-                          $"<td>{w.HostPort}</td><td>{Ago(w.LastStartedUnix)}</td><td>{action}</td></tr>");
+                          $"<td>{w.HostPort}</td><td>{Ago(w.LastStartedUnix)}</td><td>{action}{DeleteForm(w)}</td></tr>");
             }
 
             sb.Append("</table>");
+            sb.Append("<p class='hint'>Deleting stops the instance and drops the world from the registry. " +
+                      "<b>delete</b> leaves its saves in the worlds directory (recoverable by hand), " +
+                      "<b>purge saves</b> erases them including the archive copy. Both need the world's " +
+                      "name typed into the box first.</p>");
         }
 
         sb.Append("</div>");
@@ -245,7 +284,8 @@ public static class WorldHostAdminPages
         }
 
         sb.Append("<p><a href='/'>← Portal</a></p>");
-        sb.Append("<style>table{width:100%;border-collapse:collapse} th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} form{margin:0}</style>");
+        sb.Append("<style>table{width:100%;border-collapse:collapse} th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} form{margin:0}" +
+                  "summary.del{color:#e05c5c} td details{margin:4px 0} td details input{display:inline-block;width:auto;margin:4px 4px 0 0}</style>");
 
         // Server-health card renderer. Thresholds mirror the ops alerting levels (<70 % green,
         // <85 % amber, else red). Values interpolated into innerHTML are numbers plus docker container
@@ -287,6 +327,6 @@ public static class WorldHostAdminPages
 })();
 </script>");
 
-        return WorldHostPortalPages.Shell("Fleet admin — Blocks Beyond the Stars", sb.ToString());
+        return WorldHostPortalPages.Shell("Fleet admin — Blocks Beyond the Stars", sb.ToString(), "de", config);
     }
 }
