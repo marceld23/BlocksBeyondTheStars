@@ -677,6 +677,27 @@ app.MapGet("/admin", async (HttpContext ctx) =>
     return await RenderAdminAsync(ctx);
 });
 
+// Per-world detail (#489): players, structures and build hotspots, read straight from the world save.
+// No instance call — the saves are bind-mounted where this process can read them (WorldInspector).
+app.MapGet("/admin/worlds/{id}", (HttpContext ctx, string id) =>
+{
+    if (GuardAdminUi(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    if (!HostRegistry.IsValidWorldId(id) || registry.GetWorld(id) is not { } world)
+    {
+        return Results.NotFound();
+    }
+
+    string ownerName = registry.ListAllWorldsAdmin()
+        .FirstOrDefault(e => e.World.Id == world.Id).OwnerName ?? "—";
+    var insight = WorldInspector.Read(config, world.Id);
+    return Results.Content(
+        WorldHostAdminPages.WorldDetail(config, world, ownerName, insight), "text/html; charset=utf-8");
+});
+
 // Server-health JSON behind the admin page's "Server health" card (closes #244). Fetched by the card
 // AFTER the page renders, because `docker stats` samples for ~1-2 s and must not stall the page.
 app.MapGet("/admin/stats.json", async (HttpContext ctx) =>

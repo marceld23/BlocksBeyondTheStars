@@ -81,12 +81,32 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_MAX_PLAYERS` | `maxPlayers` | `BBS_SAVES` | `savesRoot` |
 | `BBS_PASSWORD` (`BBS_SERVER_PASSWORD`) | `serverPassword` | `BBS_DATA` | `dataDir` |
 | `BBS_ADMINS` | `adminPlayers` (comma-separated) | `BBS_USERCONTENT` | `userContentDir` |
+| `BBS_FLEET_ADMINS` | `fleetAdminPlayers` (comma-separated) | | |
 | `BBS_SEED` | `seed` | `BBS_TICK_RATE` | `tickRate` |
 | `BBS_START_PLANET` | `startPlanet` | `BBS_VIEW_DISTANCE` | `viewDistanceChunks` |
 | `BBS_FREE_FLIGHT` | `rules.freeSpaceFlight` | `BBS_SPACE_COMBAT` | `rules.spaceCombat` |
 | `BBS_SHIP_WEAPONS` | `rules.shipWeapons` | `BBS_SPACE_NPCS` | `rules.spaceNpcEnemies` |
 | `BBS_DATABASE_PROVIDER` (`BBS_DATABASE`) | `databaseProvider` | `BBS_POSTGRES_CONNECTION_STRING` (`DATABASE_URL`) | `postgresConnectionString` |
 | `BBS_AI_LEVEL` | `aiLevel` | `BBS_AI_BACKEND_URL` | `aiBackendUrl` |
+
+### Fleet admin vs. world admin
+
+`BBS_ADMINS` grants the in-game **Admin** role: cheats, announcements, restarts. The first player to join a
+world becomes its **WorldAdmin** and keeps those powers for their own world.
+
+`BBS_FLEET_ADMINS` is a step above and means "operator of this installation". It is the only thing that unlocks
+the invisible **observer mode** (`/spectate`) and the cross-body `/goto`, because those reach into worlds other
+people own. Two deliberate properties:
+
+- It is **never written into a save.** Roles live in the player record, and player records travel with an
+  exported/re-uploaded world — an operator-level role stored there would follow the world onto machines the
+  operator does not control. The elevation is recomputed from config on every join.
+- It is **not a world option.** A world owner cannot switch off the operator's ability to look at their world,
+  which would defeat the point on a hosted fleet. The role is the whole gate; the "admin cheats" world option
+  does not apply.
+
+On a hosted fleet, set `fleetAdmins` on the WorldHost (`BBS_WH_FLEET_ADMINS`) — it forwards the list to every
+world container as `BBS_FLEET_ADMINS`. Left empty (the default), observer mode is off for the entire fleet.
 
 `BBS_FREE_FLIGHT=true` is useful for hosted WebGL realms where every player should be allowed to launch and fly
 manually right away. It also upgrades older world metadata that was saved before free flight became the default,

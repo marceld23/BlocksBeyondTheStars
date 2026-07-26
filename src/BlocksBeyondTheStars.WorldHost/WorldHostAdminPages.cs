@@ -43,6 +43,114 @@ public static class WorldHostAdminPages
                "</form></details>";
     }
 
+    /// <summary>
+    /// Per-world detail (issue #489): who plays here, what they have built, and where the building actually
+    /// happened. Rendered straight from the world save — see <see cref="WorldInspector"/> for why that is
+    /// possible without touching the game server, and why the numbers are as fresh as the last autosave.
+    /// </summary>
+    public static string WorldDetail(WorldHostConfig config, WorldRecord world, string ownerName, WorldInsight insight)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"<h1>{E(world.DisplayName)} <span class='sub'>· <code>{world.Id}</code></span></h1>");
+        sb.Append($"<p class='hint'>Owner: {E(ownerName)} · status <span class='st {E(world.Status)}'>{E(world.Status)}</span> · " +
+                  "<a href='/admin'>back to the fleet</a></p>");
+
+        if (insight.Problem is { } problem)
+        {
+            sb.Append($"<p class='beta'>{E(problem)}</p>");
+        }
+        else
+        {
+            // Be explicit about staleness: a running instance owns the DB and only checkpoints periodically,
+            // so pretending this is live would mislead an operator chasing someone in real time.
+            string age = insight.SaveModifiedUtc is { } m
+                ? $"{Ago(new DateTimeOffset(m, TimeSpan.Zero).ToUnixTimeSeconds())} (last save)"
+                : "unknown";
+            sb.Append($"<p class='hint'>Read from the world save · data as of {E(age)}. " +
+                      "A running world writes on its autosave interval, so live positions can be a few minutes behind.</p>");
+        }
+
+        // ---- Players ----
+        sb.Append("<div class='card'><h2>Players</h2>");
+        if (insight.Players.Count == 0)
+        {
+            sb.Append("<p class='hint'>No player records in this save.</p>");
+        }
+        else
+        {
+            sb.Append("<table><tr><th>Name</th><th>Role</th><th>Body</th><th>Position</th><th>Last seen</th><th>Jump to</th></tr>");
+            foreach (var p in insight.Players)
+            {
+                sb.Append($"<tr><td><b>{E(p.Name)}</b></td><td>{E(p.Role)}</td><td><code>{E(p.Body)}</code></td>" +
+                          $"<td>{p.X} / {p.Y} / {p.Z}</td><td>{E(ShortUtc(p.LastSeenUtc))}</td>" +
+                          $"<td><code>/goto {E(p.Name)}</code></td></tr>");
+            }
+
+            sb.Append("</table>");
+        }
+
+        sb.Append("</div>");
+
+        // ---- Named structures ----
+        sb.Append("<div class='card'><h2>Structures</h2>");
+        if (insight.Builds.Count == 0)
+        {
+            sb.Append("<p class='hint'>No bases, beacons, beam pads or stations have been placed.</p>");
+        }
+        else
+        {
+            sb.Append("<table><tr><th>Kind</th><th>Name</th><th>Owner</th><th>Body</th><th>Position</th><th>Jump to</th></tr>");
+            foreach (var b in insight.Builds)
+            {
+                string name = string.IsNullOrWhiteSpace(b.Name) ? "(unnamed)" : b.Name;
+                sb.Append($"<tr><td>{E(b.Kind)}</td><td><b>{E(name)}</b></td><td>{E(b.Owner)}</td>" +
+                          $"<td><code>{E(b.Body)}</code></td><td>{b.X} / {b.Y} / {b.Z}</td>" +
+                          $"<td><code>/goto {E(b.Body)} {b.X} {b.Y + 2} {b.Z}</code></td></tr>");
+            }
+
+            sb.Append("</table>");
+        }
+
+        sb.Append("</div>");
+
+        // ---- Build hotspots ----
+        sb.Append("<div class='card'><h2>Build hotspots</h2>");
+        sb.Append("<p class='hint'>Clusters of changed blocks — this is how you find a house someone built " +
+                  "without placing a base core, or a hillside that was dug away. \"Last editor\" is empty for " +
+                  "cells changed before edit attribution shipped; it cannot be reconstructed.</p>");
+        if (insight.Hotspots.Count == 0)
+        {
+            sb.Append("<p class='hint'>No building activity of note yet.</p>");
+        }
+        else
+        {
+            sb.Append("<table><tr><th>Body</th><th>Around</th><th>Changed blocks</th><th>Last editor</th><th>When</th><th>Jump to</th></tr>");
+            foreach (var h in insight.Hotspots)
+            {
+                string when = h.LastEditUtc is { } t ? t.ToString("yyyy-MM-dd HH:mm") : "—";
+                string who = string.IsNullOrEmpty(h.LastEditor) ? "—" : h.LastEditor;
+                sb.Append($"<tr><td><code>{E(h.Body)}</code></td><td>{h.X} / {h.Z}</td><td>{h.Edits}</td>" +
+                          $"<td>{E(who)}</td><td>{E(when)}</td>" +
+                          $"<td><code>/goto {E(h.Body)} {h.X} 80 {h.Z}</code></td></tr>");
+            }
+
+            sb.Append("</table>");
+            sb.Append("<p class='hint'>Paste a <code>/goto</code> line into the in-game console as a fleet admin. " +
+                      "Hotspot jumps aim at a fixed height — fly down from there.</p>");
+        }
+
+        sb.Append("</div>");
+        return WorldHostPortalPages.Shell($"{world.DisplayName} — Fleet admin", sb.ToString(), "de", config);
+    }
+
+    /// <summary>ISO timestamp → "2026-07-26 14:03"; "never" when the save predates last-seen tracking.</summary>
+    private static string ShortUtc(string iso)
+        => DateTime.TryParse(iso, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+            out var t)
+            ? t.ToString("yyyy-MM-dd HH:mm")
+            : "never";
+
     private static string Ago(long unix)
     {
         if (unix <= 0)
@@ -117,7 +225,7 @@ public static class WorldHostAdminPages
                     ? $"<form method='post' action='/admin/worlds/{w.Id}/restart' style='display:inline'><button title='warn players, then stop after a 10-minute countdown'>restart in 10 min</button></form> " +
                       $"<form method='post' action='/admin/worlds/{w.Id}/stop' style='display:inline'><button class='danger' title='stop immediately, players get no warning'>stop</button></form>"
                     : $"<form method='post' action='/admin/worlds/{w.Id}/wake'><button>wake</button></form>";
-                sb.Append($"<tr><td><b>{E(w.DisplayName)}</b>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
+                sb.Append($"<tr><td><a href='/admin/worlds/{w.Id}'><b>{E(w.DisplayName)}</b></a>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
                           $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span></td><td>{players}</td>" +
                           $"<td>{w.HostPort}</td><td>{Ago(w.LastStartedUnix)}</td><td>{action}{DeleteForm(w)}</td></tr>");
             }

@@ -1194,6 +1194,62 @@ namespace BlocksBeyondTheStars.Client
             _verticalVelocity = 0f;
         }
 
+        // --- Observer mode (issue #487) -------------------------------------------------------------
+
+        /// <summary>Base flight speed while observing (blocks/s). Deliberately not much faster than a walk by
+        /// default: every metre flown streams chunks, and a fast observer is a chunk-generation firehose on the
+        /// server (see the planet-movement-lag findings). <see cref="SpectatorBoost"/> is the opt-in burst.</summary>
+        private const float SpectatorSpeed = 12f;
+        private const float SpectatorBoost = 3f;      // hold sprint
+        private const float SpectatorMaxSpeed = 60f;  // hard cap, wheel adjustment included
+        private float _spectatorSpeedScale = 1f;
+
+        /// <summary>Free flight with no collision and no gravity. The CharacterController is switched off
+        /// entirely (the same trick <see cref="SnapTo"/> uses) so walls, terrain and ship hulls are simply not
+        /// there — an observer inspecting a sealed base must be able to get inside it.</summary>
+        private void SpectatorMove(float h, float v)
+        {
+            if (_controller.enabled)
+            {
+                _controller.enabled = false; // noclip: nothing to collide with while observing
+            }
+
+            _verticalVelocity = 0f;
+            _moving = Mathf.Abs(h) + Mathf.Abs(v) > 0.1f;
+
+            // The wheel tunes cruise speed so a single base and a whole continent are both comfortable. Reusing
+            // the hotbar scroll is free here: the hotbar is hidden while observing, so nothing else wants it.
+            float wheel = InputMap.HotbarScroll();
+            if (Mathf.Abs(wheel) > 0.01f)
+            {
+                _spectatorSpeedScale = Mathf.Clamp(_spectatorSpeedScale * (wheel > 0f ? 1.25f : 0.8f), 0.25f, 5f);
+            }
+
+            float speed = SpectatorSpeed * _spectatorSpeedScale;
+            if (InputMap.Held(InputAction.SpeederBoost)) // LeftShift by default — "go faster" in both contexts
+            {
+                speed *= SpectatorBoost;
+            }
+
+            speed = Mathf.Min(speed, SpectatorMaxSpeed);
+
+            // Fly where you look (including pitch) — a strictly horizontal WASD would make descending into a
+            // cave needlessly fiddly.
+            Vector3 forward = Camera != null ? Camera.transform.forward : transform.forward;
+            Vector3 move = (transform.right * h + forward * v) * speed;
+            if (InputMap.JumpHeld())
+            {
+                move += Vector3.up * speed;
+            }
+
+            if (InputMap.CrouchHeld())
+            {
+                move -= Vector3.up * speed;
+            }
+
+            transform.position += move * Time.deltaTime;
+        }
+
         /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): pose the on-foot player at a world
         /// position + facing so an outdoor planet shot can step out of the landed ship onto open terrain. SnapTo
         /// bypasses collision for the move; with no mouse input during a capture run the look sticks, and gravity
@@ -1595,6 +1651,23 @@ namespace BlocksBeyondTheStars.Client
         {
             float h = _captureWalk ? _captureH : InputMap.MoveX();
             float v = _captureWalk ? _captureV : InputMap.MoveY();
+
+            // Observer mode (issue #487): free flight straight through geometry. Handled before every normal
+            // movement branch because none of them apply — no gravity, no ground, no water, no fall damage,
+            // no footsteps to give the invisible admin away.
+            if (Game != null && Game.Spectating)
+            {
+                SpectatorMove(h, v);
+                return;
+            }
+
+            if (!_controller.enabled)
+            {
+                // Left observer mode (or a capture snap): the controller owns collision again from here.
+                _controller.enabled = true;
+                _verticalVelocity = 0f;
+            }
+
             Vector3 move = (transform.right * h + transform.forward * v) * _effMoveSpeed;
 
             float prevVy = _verticalVelocity; // captured before the grounded reset (for landing shake)

@@ -346,6 +346,37 @@ namespace BlocksBeyondTheStars.Client
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
 
+                // ---- Fleet-admin observer + inspection (issues #487/#488) ----
+                // Note these are NOT gated by the "admin cheats" world option server-side; the role is the gate.
+                case "/players": net.SendAdminCommand("players"); return true;
+
+                case "/builds":
+                    // Optional player filter: "/builds Justus" lists only that player's structures.
+                    net.SendAdminCommand("builds", stringArg: p.Length >= 2 ? p[1].TrimStart('@') : null);
+                    return true;
+
+                case "/where":
+                    if (p.Length < 2) { LocalLine("usage: /where <player>"); return true; }
+                    net.SendAdminCommand("where", stringArg: p[1].TrimStart('@'));
+                    return true;
+
+                case "/spectate":
+                case "/observe":
+                    net.SendAdminCommand("spectate", stringArg: p.Length >= 2 ? p[1] : null);
+                    return true;
+
+                case "/goto":
+                    if (p.Length < 2)
+                    {
+                        LocalLine("usage: /goto <player> | /goto base|beacon|beam|station <name> | /goto <body> <x> <y> <z>");
+                        return true;
+                    }
+
+                    // Everything after the verb goes to the server verbatim — it owns resolving names, build
+                    // kinds and coordinates, and the client has no registry to check them against anyway.
+                    net.SendAdminCommand("goto", stringArg: t.Substring(p[0].Length).Trim());
+                    return true;
+
                 // ---- Story finale QA ----
                 case "/story": net.SendAdminCommand("story_status"); return true;
                 case "/advance":

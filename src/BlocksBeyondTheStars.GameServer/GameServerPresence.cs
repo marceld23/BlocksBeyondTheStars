@@ -105,6 +105,11 @@ public sealed partial class GameServer
     /// <summary>Sends a player's face to every other joined player on the same world.</summary>
     private void BroadcastFace(PlayerSession subject)
     {
+        if (subject.Spectating)
+        {
+            return; // observers are invisible — nothing about them goes out (issue #487)
+        }
+
         var msg = FaceOf(subject);
         foreach (var viewer in _sessions.Values)
         {
@@ -124,7 +129,7 @@ public sealed partial class GameServer
     {
         foreach (var other in _sessions.Values)
         {
-            if (other.Joined && other.ConnectionId != newcomer.ConnectionId
+            if (other.Joined && !other.Spectating && other.ConnectionId != newcomer.ConnectionId
                 && other.CurrentLocationId == newcomer.CurrentLocationId
                 && !string.IsNullOrEmpty(other.State.FacePixels))
             {
@@ -198,12 +203,13 @@ public sealed partial class GameServer
         return string.Empty;
     }
 
-    /// <summary>Sends the new player the presence of everyone already online.</summary>
+    /// <summary>Sends the new player the presence of everyone already online. Observers are skipped: a
+    /// newcomer must never learn that one is there (issue #487).</summary>
     private void SendExistingPresences(PlayerSession newcomer)
     {
         foreach (var other in _sessions.Values)
         {
-            if (other.Joined && other.ConnectionId != newcomer.ConnectionId
+            if (other.Joined && !other.Spectating && other.ConnectionId != newcomer.ConnectionId
                 && other.CurrentLocationId == newcomer.CurrentLocationId)
             {
                 Send(newcomer, PresenceOf(other));
@@ -240,6 +246,11 @@ public sealed partial class GameServer
 
         foreach (var subject in joined)
         {
+            if (subject.Spectating)
+            {
+                continue; // observer: nothing about them is ever broadcast (issue #487)
+            }
+
             // Encode each subject's presence once, then fan it out to every nearby viewer — the old per-viewer
             // Send re-serialized it, making this O(players²) encodes per presence tick.
             var payload = NetCodec.Encode(PresenceOf(subject));

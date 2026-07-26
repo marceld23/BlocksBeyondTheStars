@@ -192,6 +192,12 @@ public sealed class WorldHostConfig
     /// on POST /announce. Empty (default) = announcements off (both sides keep the endpoint disabled).</summary>
     public string AnnounceToken { get; set; } = string.Empty;
 
+    /// <summary>Player names granted <b>fleet admin</b> inside every hosted world (BBS_WH_FLEET_ADMINS,
+    /// comma-separated). Forwarded to each container as BBS_FLEET_ADMINS. These names — and only these — may
+    /// use the invisible observer mode (issue #487); the owner of an individual world keeps their WorldAdmin
+    /// powers but cannot observe. Empty (default) = nobody, i.e. the feature is off for the whole fleet.</summary>
+    public string FleetAdmins { get; set; } = string.Empty;
+
     // --- Server crash reports (optional). The dedicated server queues crash reports locally and only
     // uploads them when it has an API key (ServerConfig.CrashReportApiKey — deliberate no-phone-home
     // default). With the key set here, every world instance receives it as BBS_CRASH_REPORT_KEY, so
@@ -400,6 +406,7 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_LEGAL_ADDRESS") is { } legalAddress) { c.LegalAddress = legalAddress; }
         if (Env("BBS_WH_LEGAL_EMAIL") is { } legalEmail) { c.LegalEmail = legalEmail; }
         if (Env("BBS_WH_ANNOUNCE_TOKEN") is { } announceToken) { c.AnnounceToken = announceToken; }
+        if (Env("BBS_WH_FLEET_ADMINS") is { } fleetAdmins) { c.FleetAdmins = fleetAdmins; }
         if (Env("BBS_WH_CRASH_REPORT_KEY") is { } crashKey) { c.CrashReportKey = crashKey; }
         if (Env("BBS_WH_CRASH_REPORT_ENDPOINT") is { } crashEndpoint) { c.CrashReportEndpoint = crashEndpoint; }
         if (Env("BBS_WH_AI_BACKEND_URL") is { } aiUrl) { c.AiBackendUrl = aiUrl; }

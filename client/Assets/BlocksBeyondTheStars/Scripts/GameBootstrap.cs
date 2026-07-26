@@ -191,6 +191,11 @@ namespace BlocksBeyondTheStars.Client
         /// into space); nothing sets it yet, so it's a no-op until that lands.</summary>
         public bool OnFootInSpace { get; set; }
 
+        /// <summary>Fleet-admin observer mode (issue #487), server-authoritative. The controller switches to
+        /// free flight without collision, the HUD hides the hotbar/viewmodel and shows the SPECTATOR badge.
+        /// Never set locally: invisibility is the server's decision, and the client only reflects it.</summary>
+        public bool Spectating { get; private set; }
+
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
 
@@ -1837,6 +1842,14 @@ namespace BlocksBeyondTheStars.Client
             Aboard = m.AboardShip;
             InEva = m.InEva;
             InSpeeder = m.InSpeeder ?? string.Empty;
+
+            // Observer mode toggled by the server (issue #487) — tell the player which mode they are in, since
+            // the visual difference (no hotbar, free flight) is easy to mistake for a bug otherwise.
+            if (m.Spectating != Spectating)
+            {
+                Spectating = m.Spectating;
+                LastMessage = Localizer?.Get(m.Spectating ? "hud.observer.on" : "hud.observer.off") ?? LastMessage;
+            }
 
             // Built/climbed above the atmosphere → zero-g float on foot + space sky (item 10).
             if (m.AboveAtmosphere != OnFootInSpace)

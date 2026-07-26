@@ -124,8 +124,11 @@ public sealed class ServerWorld
 
     /// <summary>Sets a block (with an optional per-voxel colour modifier + shape descriptor), persists the
     /// edit, and returns the previous block id. <paramref name="tint"/>/<paramref name="glow"/> are 0xRRGGBB
-    /// (0 = none); <paramref name="shape"/> is the packed non-cube shape descriptor (0 = plain cube).</summary>
-    public BlockId SetBlock(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
+    /// (0 = none); <paramref name="shape"/> is the packed non-cube shape descriptor (0 = plain cube).
+    /// <paramref name="owner"/> is the player who caused the change, recorded as the cell's last editor
+    /// (issue #490); leave it empty for server-internal writes — worldgen stamps, fluid flow, fire spread,
+    /// flora regrowth — which must not claim authorship of a cell a player built.</summary>
+    public BlockId SetBlock(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0, string owner = "")
     {
         world = WorldConstants.CanonicalBlock(world, Circumference); // longitude wraps: store/cache the canonical column
         var chunk = GetOrLoadChunk(WorldConstants.WorldToChunk(world));
@@ -134,7 +137,7 @@ public sealed class ServerWorld
         chunk.Set(local.X, local.Y, local.Z, block); // clears any old modifier/shape when set to air
         chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
         chunk.SetShape(local.X, local.Y, local.Z, shape);
-        _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape);
+        _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
         return previous;
     }
 

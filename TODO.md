@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1134 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1150 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -6298,6 +6298,52 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-07-26): fleet-admin observer mode + admin world inspection (#487–#490)
+
+Analysis: `analysis/admin-spectator-access.md` (all decisions in §0). The operator can now walk any hosted
+world unseen and find out who plays there and what they built.
+
+**New role tier — fleet admin.** `BBS_FLEET_ADMINS` / `fleetAdminPlayers` (forwarded by the WorldHost as
+`BBS_WH_FLEET_ADMINS`) marks the operator of the installation, as opposed to the owner of one world. It is a
+**session flag, never a `PlayerRole`**: roles are persisted in the player record and saves are downloadable
+and re-uploadable, so an operator-level role stored there would follow a world onto machines the operator
+doesn't control. It is also deliberately not a world option — a world owner must not be able to switch off
+oversight of their world.
+
+**Observer mode (`/spectate`).** Invisibility is server-side, not the cosmetic `Stealthed` flag: that flag
+only asks a client not to draw an avatar (an old or modified client can ignore it) and does nothing about the
+*footprint* joining leaves. An observer is excluded from the presence stream and the face broadcast (with a
+`PlayerLeft` handshake on entry so no client keeps a frozen avatar), parks no ship, claims no landing pad,
+triggers no descent animation, spawns no fauna, materialises no pets/speeders, and doesn't consume a player
+slot or appear in the fleet panel's player count — while still keeping the world awake so it can't shut down
+under them. Invulnerable and ignored by creatures via the existing `GodMode`/`Stealthed` checks. Read-only
+**except mining**: removing an offensive build is the only in-world moderation lever there is (bans are
+account-level), and every removal is logged. Chat is muted with `/say` as the deliberate escape hatch.
+Client-side it is free flight with the CharacterController switched off (noclip — an observer must be able to
+get inside a sealed base), a speed cap so flying doesn't become a chunk-generation firehose, no hotbar, and a
+permanent SPECTATOR badge.
+
+**Inspection commands (admins, NOT gated by the "admin cheats" option — that defaults off and hosted worlds
+never enable it).** `/players` (online *and* offline, from the save), `/builds [player]`, `/where <player>`,
+plus `/goto` — the cross-body teleport `/tp` never was: `teleport_to_player` only ever wrote a position, so
+teleporting to someone on another planet dropped you at those coordinates on your *own* world. `/goto`
+travels first (`adminBypass`) and snaps via the `RespawnNotice` channel (#414 M7). Needed a new
+`PlayerState.LastSeenUtc` (JSON blob → no migration).
+
+**Fleet `/admin` world detail page.** World saves are bind-mounted where the WorldHost can read them, so the
+page renders players, structures and **build hotspots** straight from `world.db` read-only — no protocol
+message, no instance endpoint, no game-server change. Hotspots (`GROUP BY` 32-block buckets over `block_edit`)
+are how you find a house built without a base core. The page states its data age: a running instance only
+checkpoints periodically, so it can be an autosave behind.
+
+**Block attribution (#490).** `block_edit` gained an interned `owner_id` + `edited_unix`. Measured before
+committing: the table is keyed by CELL (`ON CONFLICT … DO UPDATE`), so attribution adds **zero rows** — 52.1 →
+59.1 bytes/row, +13.5 % (an interned id beat the player name as TEXT at +24 %). An append-only history log was
+measured at 58.7 bytes/action (336 MB at 10 000 player-hours) and rejected: "last editor wins" already answers
+the question that matters, since griefing is by definition the most recent edit of a cell. Server-internal
+writes (worldgen, flora regrowth, fluids) pass no owner and never overwrite an existing one. No back-fill is
+possible — cells built before this ship as unknown, which is why it landed now.
 
 ## ✅ Done (2026-07-21): ship render fixes — see-through hull holes + washed-out greebles (#420)
 

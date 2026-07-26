@@ -753,6 +753,12 @@ public sealed class PlayerStateUpdate
     /// <summary>Id of the hover speeder the player is currently piloting (empty = on foot). Drives the client's
     /// switch into vehicle-drive mode + the speeder HUD.</summary>
     public string InSpeeder { get; set; } = string.Empty;
+
+    /// <summary>Fleet-admin observer mode is active for this player (issue #487): the client switches to free
+    /// flight with no collision, hides the viewmodel/hotbar and shows the SPECTATOR badge. Server-authoritative
+    /// — the client never decides this for itself, and every other player's server never sends this player's
+    /// presence at all while it is set.</summary>
+    public bool Spectating { get; set; }
 }
 
 public sealed class CraftResult

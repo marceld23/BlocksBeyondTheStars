@@ -37,6 +37,16 @@ public sealed class ServerConfig
     /// <summary>Player names granted the Admin role on join (the world creator becomes WorldAdmin).</summary>
     public List<string> AdminPlayers { get; set; } = new();
 
+    /// <summary>Player names granted <b>fleet admin</b> on join — the operator of the hosting installation,
+    /// as opposed to the owner of an individual world. Fleet admins are the only ones who may enter the
+    /// invisible observer mode (issue #487), because that power reaches into worlds other people own.
+    ///
+    /// <para>Deliberately NOT a <see cref="Shared.State.PlayerRole"/> value: roles live in
+    /// <see cref="Shared.State.PlayerState.Role"/> and are persisted in the save, and saves can be downloaded,
+    /// edited and re-uploaded by players. A persisted fleet role would therefore travel into worlds the
+    /// operator does not control. This list is config-only and re-evaluated on every join.</para></summary>
+    public List<string> FleetAdminPlayers { get; set; } = new();
+
     public int AutoSaveIntervalMinutes { get; set; } = 5;
     public int BackupIntervalMinutes { get; set; } = 60;
 
@@ -378,6 +388,10 @@ public sealed class ServerConfig
                     // passes the host's name so the host is always admin, even on older saves).
                     AdminPlayers = SplitNames(value); applied.Add("admins");
                     break;
+                case "fleet-admins":
+                    // Comma-separated player names granted fleet admin (observer mode). See FleetAdminPlayers.
+                    FleetAdminPlayers = SplitNames(value); applied.Add("fleet-admins");
+                    break;
                 case "seed":
                     if (long.TryParse(value, out var sd)) { Seed = sd; applied.Add("seed"); }
                     break;
@@ -543,6 +557,7 @@ public sealed class ServerConfig
         if (Env("BBS_MAX_PLAYERS") is { } maxStr && int.TryParse(maxStr, out var max)) { MaxPlayers = max; applied.Add("BBS_MAX_PLAYERS"); }
         if ((Env("BBS_PASSWORD") ?? Env("BBS_SERVER_PASSWORD")) is { } pw) { ServerPassword = pw; applied.Add("BBS_PASSWORD"); }
         if (Env("BBS_ADMINS") is { } admins) { AdminPlayers = SplitNames(admins); applied.Add("BBS_ADMINS"); }
+        if (Env("BBS_FLEET_ADMINS") is { } fleetAdmins) { FleetAdminPlayers = SplitNames(fleetAdmins); applied.Add("BBS_FLEET_ADMINS"); }
         if (Env("BBS_ADMIN_PASSWORD") is { } adminPw) { AdminPassword = adminPw; applied.Add("BBS_ADMIN_PASSWORD"); }
         if (Env("BBS_ADMIN_BIND") is { } adminBind) { AdminBindAddress = adminBind; applied.Add("BBS_ADMIN_BIND"); }
         if (Env("BBS_ENABLE_WEBSOCKET") is { } wsStr && bool.TryParse(wsStr, out var ws)) { EnableWebSocket = ws; applied.Add("BBS_ENABLE_WEBSOCKET"); }

@@ -633,7 +633,9 @@ public sealed partial class GameServer
 
         // Fixed landing pads (item 38): claim the player's chosen (or first free) pad before tearing down the
         // flight state. A full body (every pad occupied) refuses the landing here, leaving the player in flight.
-        if (!ClaimPadOrReject(session, body.Id, intent.PadIndex))
+        // An observer takes no pad (issue #487): pads are finite and communal, and being refused entry to a busy
+        // world — the world most likely to need an operator's eyes — would be exactly backwards.
+        if (!session.Spectating && !ClaimPadOrReject(session, body.Id, intent.PadIndex))
         {
             return;
         }
@@ -653,22 +655,30 @@ public sealed partial class GameServer
             _ship.CurrentLocationId = body.Id; // keep the ship's body in sync so a later launch rises off THIS body (B48)
         }
 
-        if (_config.PlaceStarterShip)
+        // An observer arrives with no ship and no announcement (issue #487).
+        if (_config.PlaceStarterShip && !session.Spectating)
         {
             PlaceLandedShip();
         }
 
         var (systemName, planetName) = ActiveLocationNames();
         OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
-        ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
+        if (!session.Spectating)
+        {
+            ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
+        }
+
         var pad = PlayerPad(session); // the pad claimed above (item 38)
         int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
-        session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
-        session.State.AboardShip = true;
         session.SentChunks.Clear();
-        BroadcastShipTransit(session, body.Id, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent (item 38)
+        if (!session.Spectating)
+        {
+            session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
+            session.State.AboardShip = true;
+            BroadcastShipTransit(session, body.Id, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent (item 38)
+        }
 
         Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
         SendPlayerState(session);
@@ -678,8 +688,14 @@ public sealed partial class GameServer
         SendShipStations(session);
         SendPlanetPois(session);
         SendEnvironment(session);
-        PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
-        SpawnCompanionsForSession(session); // re-materialise the player's pets if this is their companions' home world
+        if (!session.Spectating)
+        {
+            // Observers watch the world as it is: they neither seed fauna around themselves nor bring pets
+            // along, both of which would be visible changes made by an invisible person (issue #487).
+            PopulateCreaturesNear(session.State, CreatureCapPerPlayer); // arrive to a living world, not an empty one
+            SpawnCompanionsForSession(session); // re-materialise the player's pets if this is their companions' home world
+        }
+
         SendCreatures(session);
         SendCompanions(session); // the player's full companion roster (for the Companions menu tab)
         SendDoors(session);
@@ -1922,6 +1938,14 @@ public sealed partial class GameServer
 
     private void Dispatch(PlayerSession session, object message)
     {
+        // Observer mode is read-only apart from block removal (issue #487): an invisible admin who could
+        // craft, loot, trade or shoot would change a world nobody can see them in. Dropped silently — the
+        // client already hides the affordances, so a rejection toast would just be noise.
+        if (session.Spectating && !SpectatorMayHandle(message))
+        {
+            return;
+        }
+
         switch (message)
         {
             case MoveIntent move: HandleMove(session, move); break;
@@ -2091,8 +2115,15 @@ public sealed partial class GameServer
             return;
         }
 
-        int joinedCount = _sessions.Values.Count(s => s.Joined);
-        if (joinedCount >= _config.MaxPlayers)
+        // Fleet admin (issue #487): the operator of this installation, config-only and never persisted —
+        // see ServerConfig.FleetAdminPlayers for why this must not become a PlayerRole.
+        bool fleetAdmin = _config.FleetAdminPlayers.Contains(name);
+
+        // A fleet admin gets a reserved slot on top of MaxPlayers: they come to observe a world, and a full
+        // world is exactly when moderation is most likely to be needed. Their observer session also does not
+        // count toward the cap for anyone else (see JoinedPlayerCount).
+        int joinedCount = JoinedPlayerCount();
+        if (joinedCount >= _config.MaxPlayers && !fleetAdmin)
         {
             SendTo(connectionId, new JoinRejected { Reason = "Server is full." });
             return;
@@ -2159,8 +2190,16 @@ public sealed partial class GameServer
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
-        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(join.Locale), ViewDistance = join.ViewDistanceChunks };
+        var session = new PlayerSession(connectionId, state)
+        {
+            Joined = true,
+            CurrentLocationId = joinBody,
+            Locale = NormalizeLocale(join.Locale),
+            ViewDistance = join.ViewDistanceChunks,
+            IsFleetAdmin = fleetAdmin,
+        };
         _sessions[connectionId] = session;
+        state.LastSeenUtc = UtcNowIso(); // "last seen" for the admin player list (issue #488)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
@@ -2392,8 +2431,15 @@ public sealed partial class GameServer
         var (joinBody, joinBodyType) = RestoreJoinBody(state);
         LoadWorld(joinBodyType, joinBody);
 
-        var session = new PlayerSession(connectionId, state) { Joined = true, CurrentLocationId = joinBody, Locale = NormalizeLocale(locale) };
+        var session = new PlayerSession(connectionId, state)
+        {
+            Joined = true,
+            CurrentLocationId = joinBody,
+            Locale = NormalizeLocale(locale),
+            IsFleetAdmin = _config.FleetAdminPlayers.Contains(name), // config-only, like the network join path
+        };
         _sessions[connectionId] = session;
+        state.LastSeenUtc = UtcNowIso();
         SetupPlayerShip(session); // local/test players get their own ship too
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
@@ -2687,7 +2733,9 @@ public sealed partial class GameServer
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
-        _world.SetBlock(pos, BlockId.Air);
+        // Attribution (issue #490): removing a block is an edit like any other, and it is the one that grief
+        // reports are actually about ("someone tore my house down") — so the remover is recorded as the owner.
+        _world.SetBlock(pos, BlockId.Air, owner: session.State.PlayerId);
         _miningProgress.Remove(pos);
 
         if (def.Key == "crate")
@@ -2955,7 +3003,7 @@ public sealed partial class GameServer
             }
         }
 
-        _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape);
+        _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
 
         if (blockDef.Key == "crate")
         {
@@ -3334,7 +3382,11 @@ public sealed partial class GameServer
     private void HandleAdminCommand(PlayerSession session, AdminCommandIntent cmd)
     {
         var p = session.State;
-        if (!p.IsAdmin)
+
+        // A fleet admin is an admin everywhere by definition — they are the operator of the installation, not
+        // a guest on someone's world. Checked as a session flag rather than by writing PlayerRole.Admin into
+        // the save, so the elevation never travels with an exported world (see ServerConfig.FleetAdminPlayers).
+        if (!p.IsAdmin && !session.IsFleetAdmin)
         {
             Reject(session, "admin", "Only the world admin or admins may use cheats.");
             return;
@@ -3383,6 +3435,45 @@ public sealed partial class GameServer
             EnqueueMaintenance(MaintenanceNotice.KindCancelled, null, -1);
             CheatLog(p, "cancelled the scheduled restart");
             return;
+        }
+
+        // Inspection (issues #487/#488) — deliberately above the CheatsAllowed gate, like `announce`. That world
+        // option defaults to OFF and hosted worlds never enable it, so gating oversight on it would make these
+        // dead on arrival exactly where they matter. The role is the gate.
+        switch (cmd.Command?.ToLowerInvariant())
+        {
+            case "players":
+                AdminListPlayers(session);
+                return;
+
+            case "builds":
+                AdminListBuilds(session, cmd.StringArg);
+                return;
+
+            case "where":
+                AdminWhere(session, cmd.StringArg ?? cmd.TargetPlayer);
+                return;
+
+            // Observer mode + its jump command are fleet-admin only: they reach into worlds other people own,
+            // so the owner of a single world must not be able to use them (issue #487).
+            case "spectate":
+            case "goto":
+                if (!session.IsFleetAdmin)
+                {
+                    Reject(session, "admin", "Observer mode is reserved for the fleet admin.");
+                    return;
+                }
+
+                if (string.Equals(cmd.Command, "spectate", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandleSpectateCommand(session, cmd.StringArg);
+                }
+                else
+                {
+                    AdminGoto(session, cmd.StringArg);
+                }
+
+                return;
         }
 
         if (!Rules.CheatsAllowed)
@@ -3788,7 +3879,30 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!HasAnyRadio(session))
+        // Observers are silent by default (issue #487): an invisible admin whose chat line pops up in the
+        // channel is no longer invisible. "/say <text>" is the deliberate way to speak.
+        if (session.Spectating)
+        {
+            const string sayPrefix = "/say ";
+            if (!text.StartsWith(sayPrefix, System.StringComparison.OrdinalIgnoreCase))
+            {
+                Send(session, new ServerMessage
+                {
+                    Text = De(session)
+                        ? "Im Beobachter-Modus stumm — mit /say <Text> bewusst sprechen."
+                        : "Muted while observing — use /say <text> to speak deliberately.",
+                });
+                return;
+            }
+
+            text = text.Substring(sayPrefix.Length).Trim();
+            if (text.Length == 0)
+            {
+                return;
+            }
+        }
+
+        if (!HasAnyRadio(session) && !session.Spectating)
         {
             Reject(session, "chat", "You need a comm radio to use comms.");
             return;
@@ -3865,6 +3979,7 @@ public sealed partial class GameServer
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,
+            Spectating = session.Spectating,
         });
     }
 

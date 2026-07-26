@@ -383,9 +383,10 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>Players currently on this world (on foot or aboard their parked ship — but not in space),
-    /// i.e. those whose companions should be materialised here.</summary>
+    /// i.e. those whose companions should be materialised here. Observers are excluded (issue #487): a pet
+    /// trotting around with no visible owner would give the invisible admin away.</summary>
     private IEnumerable<PlayerSession> CompanionOwnersHere()
-        => JoinedInActiveWorld().Where(s => !InSpace(s.State.PlayerId));
+        => JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId));
 
     private int CompanionCountFor(string ownerId) => _creatures.Count(c => c.OwnerId == ownerId);
 
