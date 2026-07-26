@@ -433,6 +433,52 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_GLITCH_SAVES_PER_HOUR") is { } gsvStr && int.TryParse(gsvStr, out var gsv)) { c.GlitchSavesPerHourPerInstall = gsv; }
         if (Env("BBS_WH_GLITCH_KEEP_AWAKE") is { } gkaStr && bool.TryParse(gkaStr, out var gka)) { c.GlitchKeepAwake = gka; }
 
+        c.ReserveFleetAdminNames();
         return c;
+    }
+
+    /// <summary>True when <paramref name="playerName"/> is one of the configured fleet-admin names.
+    /// Case-insensitive on purpose: the game server matches the name the same way, and a silent
+    /// `marcel` ≠ `Marcel` mismatch would grant nothing without any error anywhere.</summary>
+    public bool IsFleetAdminName(string? playerName)
+    {
+        if (string.IsNullOrWhiteSpace(playerName) || string.IsNullOrWhiteSpace(FleetAdmins))
+        {
+            return false;
+        }
+
+        string wanted = playerName.Trim();
+        foreach (var name in FleetAdmins.Split(','))
+        {
+            if (string.Equals(name.Trim(), wanted, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Adds every fleet-admin name to <see cref="ReservedNames"/> (child-safety hardening,
+    /// issue #495): fleet-admin power is granted by player NAME, so the name itself must be unclaimable
+    /// by anyone but a developer account. Without this, an operator who sets <c>BBS_WH_FLEET_ADMINS</c>
+    /// to a name outside the default reserved list would leave that name — and with it invisible-observer
+    /// access — open for any kid to register. Called at config load; idempotent.</summary>
+    public void ReserveFleetAdminNames()
+    {
+        if (string.IsNullOrWhiteSpace(FleetAdmins))
+        {
+            return;
+        }
+
+        foreach (var name in FleetAdmins.Split(','))
+        {
+            string trimmed = name.Trim();
+            if (trimmed.Length > 0
+                && !ReservedNames.Any(r => string.Equals(r, trimmed, StringComparison.OrdinalIgnoreCase)))
+            {
+                ReservedNames.Add(trimmed);
+            }
+        }
     }
 }

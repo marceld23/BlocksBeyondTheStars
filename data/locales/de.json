@@ -849,6 +849,8 @@
   "ui.portal.my_worlds": "Meine Welten",
   "ui.portal.public_browse_title": "ÖFFENTLICHE WELTEN",
   "ui.portal.public_intro": "Von anderen Spielern geteilte Welten. Zum Beitreten brauchst du das Passwort des Erstellers.",
+  "ui.portal.operator_title": "ALLE WELTEN (OPERATOR)",
+  "ui.portal.operator_intro": "Flotten-Operator-Ansicht: jede Welt auf diesem Server, auch private. Beitritt umgeht das Welt-Passwort. Mit /spectate unsichtbar beobachten.",
   "ui.portal.no_public": "Gerade keine öffentlichen Welten. Sei die/der Erste — teile eine deiner Welten!",
   "ui.portal.public_title": "Öffentlich listen",
   "ui.portal.public_hint": "Diese Welt im öffentlichen Browser listen, damit Freunde sie finden. Jede/r mit dem Passwort kann beitreten.",

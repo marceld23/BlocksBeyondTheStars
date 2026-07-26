@@ -848,6 +848,8 @@
   "ui.portal.my_worlds": "My worlds",
   "ui.portal.public_browse_title": "PUBLIC WORLDS",
   "ui.portal.public_intro": "Worlds shared by other players. You need the creator's password to join.",
+  "ui.portal.operator_title": "ALL WORLDS (OPERATOR)",
+  "ui.portal.operator_intro": "Fleet operator view: every world on this server, private ones included. Joining skips the world password. Use /spectate to observe without being seen.",
   "ui.portal.no_public": "No public worlds right now. Be the first — list one of yours!",
   "ui.portal.public_title": "Public listing",
   "ui.portal.public_hint": "List this world in the public browser so friends can find it. Anyone who has the password can join.",

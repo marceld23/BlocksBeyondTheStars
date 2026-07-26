@@ -6337,6 +6337,26 @@ Docs updated (WORLD_GENERATION.md, FLUID_ROUTING.md, stale comments). Tests upda
 (spawn distribution, pooled-column water, layered overrides). NOT yet merged to main — local Unity build
 for the user's own playtest first.
 
+## ✅ Done (2026-07-26): fleet admin reaches private + password-protected worlds (#495)
+
+Follow-up to #487: observer mode existed but the JOIN path still treated the operator like a player — the
+world browser only listed "mine + public", and only a world's *owner* bypassed its password. So the invisible
+observer could only reach public, password-free worlds — while kids play mostly on private, password-shared
+ones, and their oversight is the whole point.
+
+**Access model (double-locked).** The operator gate is `account.IsDeveloper && fleet-admin join name`:
+developer accounts are only claimable with the secret `BBS_WH_RESERVED_CLAIM_CODE`, and config load now
+**auto-adds every fleet-admin name to `ReservedNames`**, so the name carrying the power can never be
+registered or played by anyone else. A developer account under a normal name gets no bypass (family member
+playing), and a normal account can't even join under the fleet-admin name (reserved). Name matching is now
+case-insensitive on both the WorldHost and the game server — the token check already was, and a silent
+`marcel` ≠ `Marcel` mismatch would deny the elevation with no error anywhere.
+
+**Plumbing.** `WorldOrchestrator.JoinAsync` gains the operator bypass next to the existing owner bypass
+(ban/terms checks untouched); new `GET /api/worlds/all` (developer accounts only, 403 otherwise) lists every
+world incl. owner names; the client's Official Worlds screen probes it and renders an "All worlds (operator)"
+section — invisible to normal accounts by construction, with `[PW]`/`[PRIV]`/owner flags per row. DE+EN.
+
 ## ✅ Done (2026-07-26): fleet-admin observer mode + admin world inspection (#487–#490)
 
 Analysis: `analysis/admin-spectator-access.md` (all decisions in §0). The operator can now walk any hosted

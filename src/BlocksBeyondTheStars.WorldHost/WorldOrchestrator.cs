@@ -137,12 +137,21 @@ public sealed class WorldOrchestrator
             return (null, "The community rules have changed — please accept them on the portal first.");
         }
 
+        // Fleet operator (issue #495): the operator must be able to enter ANY world on the fleet — private,
+        // password-protected, whatever — because oversight of worlds where kids play is the point of observer
+        // mode, and those are rarely the public password-free ones. The gate is deliberately double-locked:
+        // the account must be a developer account (only claimable with the secret ReservedClaimCode at
+        // signup) AND the join name must be a configured fleet-admin name (which config load auto-reserves,
+        // so nobody else can hold it). A stolen password alone gets neither.
+        bool fleetOperator = account.IsDeveloper && _config.IsFleetAdminName(playerName);
+
         // World password gate (#250/#251) — enforced BEFORE the wake, at token issuance (the one choke
         // point every hosted join passes), so an unauthorized join can neither enter nor wake the world.
-        // The owner always bypasses their own world's password.
+        // The owner always bypasses their own world's password; so does the fleet operator (above).
         if (_registry.GetWorld(worldId) is { } gated
             && !string.IsNullOrEmpty(gated.PasswordHash)
-            && gated.OwnerAccountId != account.Id)
+            && gated.OwnerAccountId != account.Id
+            && !fleetOperator)
         {
             string attemptKey = account.Id + "|" + gated.Id;
             if (_passwordAttempts.IsExhausted(attemptKey))

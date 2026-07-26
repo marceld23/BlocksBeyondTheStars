@@ -36,6 +36,10 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// <summary>The owner listed this world in the public browser (opt-in; requires a password). Only
         /// meaningful for the caller's own worlds — the public listing returns only listed worlds.</summary>
         public bool IsPublic { get; set; }
+
+        /// <summary>Owner display name — only filled by the operator listing (issue #495), which may name
+        /// owners because the operator moderates; the public listing never carries it.</summary>
+        public string Owner { get; set; } = string.Empty;
     }
 
     public sealed class PortalWorldsResult
@@ -152,6 +156,15 @@ namespace BlocksBeyondTheStars.Client.Portal
         public PortalWorldsResult ListPublicWorlds(string session)
         {
             var (status, body) = Get("/api/worlds/public", session);
+            return ParseWorlds(status, body);
+        }
+
+        /// <summary>Operator listing (issue #495): every world on the fleet, private ones included, with
+        /// owner names. Developer accounts only — everyone else gets 403, so the caller treats a failed
+        /// answer as "not an operator" and hides the section rather than showing an error.</summary>
+        public PortalWorldsResult ListAllWorldsOperator(string session)
+        {
+            var (status, body) = Get("/api/worlds/all", session);
             return ParseWorlds(status, body);
         }
 
@@ -296,6 +309,7 @@ namespace BlocksBeyondTheStars.Client.Portal
                             Status = GetString(w, "status"),
                             HasPassword = w.TryGetProperty("hasPassword", out var hp) && hp.ValueKind == JsonValueKind.True,
                             IsPublic = w.TryGetProperty("isPublic", out var ip) && ip.ValueKind == JsonValueKind.True,
+                            Owner = GetString(w, "owner"), // only the operator listing fills this (#495)
                         });
                     }
                 }
