@@ -61,6 +61,10 @@ public sealed class GlitchGatewayTests : IDisposable
 
         public void Stop(string containerId) => Running.Remove(containerId);
 
+        public void Remove(string worldId) => Removed.Add(worldId);
+
+        public readonly List<string> Removed = new();
+
         public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
 
         public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
@@ -159,6 +163,25 @@ public sealed class GlitchGatewayTests : IDisposable
         // The validate call went out with the server-side title token; the guest is on the ban-target list.
         Assert.Contains(api.Requests, r => r.Url.Contains("/validate") && r.Auth == "Bearer token-1");
         Assert.Equal(Install, Assert.Single(registry.ListGlitchGuests()).InstallId);
+    }
+
+    [Fact]
+    public void EnsurePool_NumbersReplacementsFromTheHighestSuffix_NotTheCount()
+    {
+        // An operator can delete a single arcade world on /admin to reset it; the pool then refills.
+        // Numbering by COUNT would hand the replacement a name another world already carries.
+        var (gateway, registry, _, _) = NewGateway();
+        gateway.EnsurePool();
+        var pool = registry.ListWorldsByChannel(WorldChannel.Glitch);
+        Assert.Equal(2, pool.Count);
+
+        registry.DeleteWorld(pool[0].Id); // reset the first arcade world
+        gateway.EnsurePool();
+
+        var refilled = registry.ListWorldsByChannel(WorldChannel.Glitch);
+        Assert.Equal(2, refilled.Count);
+        Assert.Equal(refilled.Select(w => w.DisplayName).Distinct().Count(), refilled.Count);
+        Assert.Contains(refilled, w => w.DisplayName == "Glitch Arcade 3");
     }
 
     [Fact]

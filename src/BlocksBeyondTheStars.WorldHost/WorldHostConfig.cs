@@ -25,6 +25,16 @@ public sealed class WorldHostConfig
     /// per-world subdomain + Caddy; native UDP bypasses the proxy and needs the machine itself.</summary>
     public string PublicHost { get; set; } = "localhost";
 
+    /// <summary>Game website the portal links out to (footer + landing page). Defaults to the project's
+    /// own site; a self-hoster who does not want to advertise it sets the variable empty, which drops the
+    /// link entirely.</summary>
+    public string WebsiteUrl { get; set; } = "https://www.blocksbeyondthestars.com/";
+
+    /// <summary>English entry point of <see cref="WebsiteUrl"/> — a separate value rather than a
+    /// "+ /en" rule, because that suffix is a property of OUR site, not of websites in general. Empty
+    /// falls back to <see cref="WebsiteUrl"/>.</summary>
+    public string WebsiteUrlEn { get; set; } = "https://www.blocksbeyondthestars.com/en";
+
     /// <summary>Dedicated-server image each world instance runs (one container per world).</summary>
     public string ServerImage { get; set; } = "blocks-beyond-the-stars-server:local";
 
@@ -340,6 +350,12 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_PORT") is { } portStr && int.TryParse(portStr, out var port)) { c.Port = port; }
         if (Env("BBS_WH_BASE_DOMAIN") is { } domain) { c.BaseDomain = domain; }
         if (Env("BBS_WH_PUBLIC_HOST") is { } publicHost) { c.PublicHost = publicHost; }
+
+        // "-" turns the website link off. An UNSET (or empty) variable deliberately keeps the built-in
+        // default instead: the fleet compose forwards these unconditionally, and an operator who never
+        // filled them in must not silently lose the link.
+        if (Env("BBS_WH_WEBSITE_URL") is { } site) { c.WebsiteUrl = site.Trim() == "-" ? string.Empty : site.Trim(); }
+        if (Env("BBS_WH_WEBSITE_URL_EN") is { } siteEn) { c.WebsiteUrlEn = siteEn.Trim() == "-" ? string.Empty : siteEn.Trim(); }
         if (Env("BBS_WH_SERVER_IMAGE") is { } image) { c.ServerImage = image; }
         if (Env("BBS_WH_DOCKER_NETWORK") is { } network) { c.DockerNetwork = network; }
         if (Env("BBS_WH_PORT_RANGE_START") is { } rsStr && int.TryParse(rsStr, out var rs)) { c.PortRangeStart = rs; }

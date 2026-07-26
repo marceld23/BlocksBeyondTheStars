@@ -226,6 +226,108 @@ public sealed class WorldHostPortalPagesTests
         Assert.True(reportsCard < feedbackCard && feedbackCard < feedbackRow);
     }
 
+    // ---------------- Fleet admin: world deletion ----------------
+
+    private static AdminWorldRow AdminRow(string name, string status = WorldStatus.Stopped, string channel = WorldChannel.Portal)
+        => new(new WorldRecord("aabbccddee11", "acct1", name, "secret", 32000, status, "", 0, 0, "", false, channel), "Owner", null);
+
+    [Fact]
+    public void AdminPage_DeleteNeedsTheWorldNameTyped_AndOffersAPurgeVariant()
+    {
+        string html = WorldHostAdminPages.Index(
+            Config, new[] { AdminRow("Justus' Welt") }, Array.Empty<ReportRecord>(),
+            Array.Empty<AccountRecord>(), null, null);
+
+        Assert.Contains("action='/admin/worlds/aabbccddee11/delete'", html);
+        Assert.Contains("name='confirm'", html);
+        Assert.Contains("name='purge' value='true'", html);
+
+        // The world name reaches the placeholder HTML-encoded (apostrophes would break the attribute).
+        Assert.Contains("placeholder='type: Justus&#39; Welt'", html);
+
+        // Folded away so it cannot be hit while aiming for stop/wake.
+        int deleteForm = html.IndexOf("/delete'", StringComparison.Ordinal);
+        Assert.True(html.LastIndexOf("<details>", deleteForm, StringComparison.Ordinal)
+            > html.LastIndexOf("</details>", deleteForm, StringComparison.Ordinal),
+            "the delete form must sit inside its own collapsed <details>");
+    }
+
+    [Fact]
+    public void AdminPage_LabelsArcadeWorldDeletionAsAReset()
+    {
+        string glitch = WorldHostAdminPages.Index(
+            Config, new[] { AdminRow("Glitch Arcade 1", channel: WorldChannel.Glitch) },
+            Array.Empty<ReportRecord>(), Array.Empty<AccountRecord>(), null, null);
+        Assert.Contains(">reset…</summary>", glitch);
+        Assert.Contains("arcade pool refills itself", glitch);
+
+        string portal = WorldHostAdminPages.Index(
+            Config, new[] { AdminRow("Justus Welt") }, Array.Empty<ReportRecord>(),
+            Array.Empty<AccountRecord>(), null, null);
+        Assert.Contains(">delete…</summary>", portal);
+        Assert.DoesNotContain("arcade pool refills itself", portal);
+    }
+
+    [Theory]
+    [InlineData("confirm", "did not match")]
+    [InlineData("deleted", "still on disk")]
+    [InlineData("purged", "saves erased")]
+    public void AdminPage_ReportsTheOutcomeOfTheLastDelete(string notice, string expected)
+    {
+        string html = WorldHostAdminPages.Index(
+            Config, Array.Empty<AdminWorldRow>(), Array.Empty<ReportRecord>(),
+            Array.Empty<AccountRecord>(), null, null, null, null, notice);
+        Assert.Contains(expected, html);
+    }
+
+    // ---------------- Link out to the game website ----------------
+
+    [Fact]
+    public void Portal_LinksToTheGameWebsite_PerLanguage()
+    {
+        string de = WorldHostPortalPages.Landing(Config);
+        Assert.Contains("https://www.blocksbeyondthestars.com/'", de); // footer + landing line
+        Assert.Contains("Spiel-Website", de);
+        Assert.Contains("Alles über das Spiel", de);
+        Assert.DoesNotContain("blocksbeyondthestars.com/en", de);
+
+        string en = WorldHostPortalPages.Landing(Config, "en");
+        Assert.Contains("https://www.blocksbeyondthestars.com/en'", en);
+        Assert.Contains("Game website", en);
+        Assert.Contains("Everything about the game", en);
+
+        // New tab, and never a referrer/opener handle into the portal session.
+        Assert.Contains("rel='noopener noreferrer'", de);
+
+        // The shared shell carries it, so every portal page has it — not just the landing page.
+        Assert.Contains("Spiel-Website", WorldHostPortalPages.Worlds(Config));
+        Assert.Contains("Game website", WorldHostPortalPages.Rules(Config, "en"));
+    }
+
+    [Fact]
+    public void Portal_OmitsTheWebsiteLink_WhenTheOperatorClearedIt()
+    {
+        var noSite = new WorldHostConfig { WebsiteUrl = string.Empty, WebsiteUrlEn = string.Empty };
+        foreach (string html in new[] { WorldHostPortalPages.Landing(noSite), WorldHostPortalPages.Landing(noSite, "en") })
+        {
+            Assert.DoesNotContain("blocksbeyondthestars.com", html);
+            Assert.DoesNotContain("Spiel-Website", html);
+            Assert.DoesNotContain("Game website", html);
+        }
+    }
+
+    [Fact]
+    public void Portal_WebsiteLink_UsesTheOperatorsOwnDomainAsLabel()
+    {
+        var own = new WorldHostConfig { WebsiteUrl = "https://www.example.org/spiel", WebsiteUrlEn = string.Empty };
+        string de = WorldHostPortalPages.Landing(own);
+        Assert.Contains("https://www.example.org/spiel", de);
+        Assert.Contains(">example.org ↗<", de); // label without the "www."
+
+        // No EN entry point configured — English falls back to the one URL rather than dropping the link.
+        Assert.Contains("https://www.example.org/spiel", WorldHostPortalPages.Landing(own, "en"));
+    }
+
     // ---------------- Play button: deep-link + grant rendering order (#252) ----------------
 
     [Fact]

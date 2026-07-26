@@ -11,6 +11,24 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🛰️ Fleet operations
+- **The fleet admin panel can delete worlds.** Every row on `/admin` gets a folded-away `delete…`
+  control: type the world's name (checked on the server — there is no undo), then either `delete`,
+  which stops the instance and drops it from the registry but leaves its saves recoverable on disk,
+  or `purge saves`, which erases them including the archived copy. Both now also remove the world's
+  container object — instances run without `--rm`, and a deleted world never wakes again to clean up
+  its own leftovers, so until today every deleted world left one behind for good. Arcade worlds show
+  `reset…` instead, because the glitch.fun pool refills itself (and its replacement worlds are now
+  numbered from the highest name in use, so a reset can no longer produce two "Glitch Arcade 3").
+  Scriptable twin for bulk cleanup: `DELETE /api/admin/worlds/{id}[?purge=true]`.
+
+### 🌍 Worlds portal
+- **The portal links to the game's website.** The shared footer carries a "Game website ↗" link on
+  every page of play.blocksbeyondthestars.de, and the landing page repeats it in a line under the
+  headline where first-time visitors actually look — German pages to the German site, English pages
+  to `/en`. Self-hosters can point both elsewhere or drop the link entirely
+  (`BBS_WH_WEBSITE_URL` / `_EN`, `-` = off).
+
 ## [0.8.7] — 2026-07-25
 
 The homestead release: player bases and space stations get their first real life support. A new heal tank block heals, feeds and recharges everyone nearby, doubles as a settable home spawn point, and dying now lets you choose whether to wake up at your ship or at your base — plus the ship's console and lab stations finally do something, and glitch.fun visitors see Singleplayer first.
