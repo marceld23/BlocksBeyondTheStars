@@ -639,12 +639,16 @@ public sealed class WorldGenerator
         public int TempRefY;                  // reference altitude: sea level, else BaseHeight
     }
 
-    private readonly System.Collections.Generic.Dictionary<(string, int, bool, long), WorldCalibration> _calibs = new();
-    private readonly object _calibLock = new object();
+    // STATIC cache: the calibration is a pure function of (world seed, planet, circumference, cratered,
+    // body salt), so it is safe — and important — to share across generator instances: the client bakes a
+    // fresh WorldGenerator per minimap/orbit texture and the tests spin up hundreds, each of which would
+    // otherwise re-sample ~17k heights + 2×4096 field points.
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), WorldCalibration> _calibs = new();
+    private static readonly object _calibLock = new object();
 
     private WorldCalibration CalibFor(PlanetType planet)
     {
-        var key = (planet.Key, _circumference, _crateredWorld, _locationSalt);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
         lock (_calibLock)
         {
             if (_calibs.TryGetValue(key, out var cached))
@@ -653,9 +657,9 @@ public sealed class WorldGenerator
             }
 
             var calib = BuildCalibration(planet);
-            if (_calibs.Count >= 8)
+            if (_calibs.Count >= 64)
             {
-                _calibs.Clear(); // soft cap, mirrors the river-field cache
+                _calibs.Clear(); // soft cap — entries are ~150 KB each (the sorted height sample)
             }
 
             _calibs[key] = calib;
@@ -730,7 +734,8 @@ public sealed class WorldGenerator
         //    reference altitude is the (repaired) sea level so "warm at the coast, frozen on the peaks".
         c.TempRefY = c.SeaLevel != int.MinValue ? c.SeaLevel : planet.BaseHeight;
         c.BaseTemperature = planet.BaseTemperature + (R01(0x7E3BL) - 0.5) * 12.0; // per-world ±6 °C
-        c.LapsePerBlock = 0.35 + 0.25 * R01(0x1A65EL);                            // 0.35..0.6 °C per block
+        c.LapsePerBlock = 0.5 + 0.3 * R01(0x1A65EL); // 0.5..0.8 °C per block — snow caps land on the
+                                                     // upper third of a temperate world's peaks (measured)
         return c;
     }
 
@@ -2108,10 +2113,12 @@ public sealed class WorldGenerator
             }
 
             // The coarse noise clusters into vein-like patches; the threshold comes from the field's OWN
-            // measured distribution (#472), so `rarity × richness` really is the fraction of cells kept.
-            // The old fixed formula assumed a uniform field and sat unreachably far in the interpolated
-            // torus sampler's tail — the root cause of the recurring "can't find any ore" feedback.
-            double frac = System.Math.Clamp(ore.Rarity * richness, 0.0, 0.25);
+            // measured distribution (#472), so the kept fraction is exactly what we ask for. The old fixed
+            // formula assumed a uniform field and sat unreachably far in the interpolated torus sampler's
+            // tail — the root cause of the recurring "can't find any ore" feedback. The 0.15 scale keeps
+            // the UNION over a planet's ~8 stacked veins at a healthy ~6–10 % of deep rock (measured) —
+            // without it, per-vein literalism turned half the underground into ore.
+            double frac = System.Math.Clamp(ore.Rarity * richness * 0.15, 0.0, 0.05);
             if (frac <= 0.0)
             {
                 continue;
