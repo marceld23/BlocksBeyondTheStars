@@ -119,6 +119,13 @@ public sealed class WebSocketTransportTests : IDisposable
         transport.Start(port);
 
         using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+
+        // No keep-alive: on Linux (managed HttpListener) an idle connection is only reaped after the
+        // listener's 2-minute idle timeout, and Dispose() below waits for that drain — the test body
+        // takes milliseconds, but the CI runs measured it at ~126 s and it blew the fast-tier duration
+        // budget on every PR. Windows (http.sys) never showed it. Closing each connection keeps the
+        // shutdown immediate without changing what this test covers.
+        http.DefaultRequestHeaders.ConnectionClose = true;
         try
         {
             (await http.GetAsync($"http://127.0.0.1:{port}/status")).Dispose();
