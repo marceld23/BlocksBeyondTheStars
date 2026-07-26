@@ -456,13 +456,22 @@ public sealed class HostRegistry : IDisposable
     /// "until an operator lifts it"; anything greater is a timeout that ends by itself — the kid-facing
     /// default, and the reason the notice can promise a date. Both directions leave a notice behind, so
     /// the player learns what happened at their next login instead of finding a silently dead account.</summary>
-    public void SetBanned(string accountId, bool banned, string reason, string reasonCode = "", int days = 0)
+    /// <returns>False when the ban was refused — an operator account can never be banned.</returns>
+    public bool SetBanned(string accountId, bool banned, string reason, string reasonCode = "", int days = 0)
         => SetBannedUntil(accountId, banned, reason, reasonCode, banned && days > 0 ? NowUnix() + ((long)days * 86400) : 0);
 
     /// <summary>The primitive behind <see cref="SetBanned"/>, with the end of the timeout as an absolute
     /// time (unix seconds; 0 = until an operator lifts it). The admin UI uses the day-count form.</summary>
-    public void SetBannedUntil(string accountId, bool banned, string reason, string reasonCode, long untilUnix)
+    public bool SetBannedUntil(string accountId, bool banned, string reason, string reasonCode, long untilUnix)
     {
+        // Operator accounts are never bannable. The developer flag is only obtainable with the operator's
+        // secret claim code, and the fleet ban is the operator's OWN lever — a banned operator would be
+        // locked out of the fleet they run, with nobody left who could lift it. Unbanning stays allowed.
+        if (banned && GetAccount(accountId) is { IsDeveloper: true })
+        {
+            return false;
+        }
+
         long now = NowUnix();
         long until = banned ? untilUnix : 0;
         lock (_gate)
@@ -480,11 +489,12 @@ public sealed class HostRegistry : IDisposable
             cmd.Parameters.AddWithValue("$i", accountId);
             if (cmd.ExecuteNonQuery() == 0)
             {
-                return; // unknown account — no notice for a player who does not exist
+                return false; // unknown account — no notice for a player who does not exist
             }
 
             AddNoticeLocked(accountId, banned ? NoticeRecord.KindBanned : NoticeRecord.KindUnbanned,
                 subject: string.Empty, reason ?? string.Empty, reasonCode ?? string.Empty, until, now);
+            return true;
         }
     }
 

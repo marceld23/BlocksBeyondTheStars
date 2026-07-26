@@ -6365,6 +6365,13 @@ LiteNetLib, loopback and the composite. Reasons of the form `@<locale key>` are 
 reads in the player's language while owner-typed reasons stay verbatim. In-game `/kick <player>` for world
 admins is deliberately **momentary** — one lasting ban store, and it lives where the world's identity does.
 
+**The operator is never a moderation target.** An operator account cannot be banned (the developer flag is
+only obtainable with the secret claim code, and the fleet ban is the operator's own lever — a locked-out
+operator has nobody left to lift it); a world ban never applies to a fleet admin, the owner's ban/kick routes
+refuse the fleet-admin name as *reserved*, `ApplyKick` skips fleet-admin sessions, and the operator's join is
+kept out of `world_visitor` — that list is exactly what the world owner reads, and observer mode is invisible
+by design (#495/#487). Unbanning always stays allowed, so a pre-existing ban can be cleared.
+
 **Deliberately NOT in scope:** device/hardware recognition against ban evasion. `deviceUniqueIdentifier`
 changes on a USB plug-in and after Windows updates, the Mono client can fake it in five minutes, identically
 imaged school PCs collide — and reading a device id needs consent under §25 TDDDG / EDPB Guidelines 2/2023,

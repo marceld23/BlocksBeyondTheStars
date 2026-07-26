@@ -33,6 +33,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   and matching on the account, so a rename does not get around it. The rest of the game is untouched:
   this is the small hammer next to the operator's fleet-wide ban. World admins also get
   `/kick <player>` in chat. (#497)
+- **The operator can never be banned or kicked** — not by a world owner's ban list, not by a kick, not
+  even from the admin panel. Oversight of worlds where kids play must not be something anyone can switch
+  off, and an operator locked out of their own fleet would have nobody left to lift it. (#496, #497)
 
 ### 🪐 Room to fly between the worlds
 - **Planets and their moons no longer huddle together in space.** Out in the flight view, every moon

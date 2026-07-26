@@ -72,6 +72,7 @@ static string? CodeFor(string error) => error switch
     _ when error.StartsWith("This account is banned", StringComparison.Ordinal) => "banned",
     _ when error.StartsWith("The owner of this world has blocked you", StringComparison.Ordinal) => "banned_from_world",
     "You cannot block yourself from your own world." => "self_block",
+    "Operator accounts cannot be banned." => "operator_protected",
     _ when error.StartsWith("World limit reached", StringComparison.Ordinal) => "world_limit",
     _ when error.StartsWith("Save exceeds", StringComparison.Ordinal) => "upload_too_large",
     "Please accept the community rules to create an account." => "accept_rules",
@@ -184,6 +185,14 @@ void NotifyWorldDeleted(WorldRecord world, string? reason)
 
     registry.AddNotice(world.OwnerAccountId, NoticeRecord.KindWorldDeleted, world.DisplayName, (reason ?? string.Empty).Trim());
 }
+
+// True when a moderation target is the fleet operator — by the account (the developer flag is only
+// obtainable with the operator's secret claim code) or by one of the configured fleet-admin names (which
+// config load reserves fleet-wide). The operator is unbannable and unkickable on every path: oversight of
+// worlds where kids play must not be something a world owner — or a stolen owner session — can switch off.
+bool IsOperatorTarget(string? accountId, string? playerName)
+    => config.IsFleetAdminName(playerName)
+       || (!string.IsNullOrEmpty(accountId) && registry.GetAccount(accountId) is { IsDeveloper: true });
 
 bool IsAdmin(HttpContext ctx)
     => BasicAuth.TokenEquals(ctx.Request.Headers["X-Admin-Token"].ToString(), config.AdminToken);
@@ -686,7 +695,11 @@ app.MapPost("/api/admin/ban", async (HttpContext ctx, BanRequest req) =>
         return Results.Unauthorized();
     }
 
-    registry.SetBanned(req.AccountId, req.Banned, req.Reason ?? string.Empty, req.ReasonCode ?? string.Empty, req.Days);
+    if (!registry.SetBanned(req.AccountId, req.Banned, req.Reason ?? string.Empty, req.ReasonCode ?? string.Empty, req.Days))
+    {
+        return ApiError("Operator accounts cannot be banned.", StatusCodes.Status403Forbidden);
+    }
+
     log.LogInformation("Account {Id} {Action} ({Reason}).", LogSafe(req.AccountId), req.Banned ? "BANNED" : "unbanned", LogSafe(req.Reason));
     int kicked = req.Banned ? await orchestrator.KickAccountEverywhereAsync(req.AccountId) : 0;
     return Results.Json(new { ok = true, kicked });
@@ -840,7 +853,12 @@ app.MapPost("/admin/ban", async (HttpContext ctx) =>
     _ = int.TryParse(form["days"].ToString(), out int days); // empty/garbage = 0 = until an operator lifts it
     if (accountId.Length > 0)
     {
-        registry.SetBanned(accountId, banned, reason, reasonCode, System.Math.Clamp(days, 0, 3650));
+        if (!registry.SetBanned(accountId, banned, reason, reasonCode, System.Math.Clamp(days, 0, 3650)))
+        {
+            log.LogInformation("Admin UI: ban refused — operator accounts cannot be banned.");
+            return Results.Redirect("/admin?notice=operator");
+        }
+
         log.LogInformation("Admin UI: account {Action} for {Days} day(s) ({Reason}).",
             banned ? "BANNED" : "unbanned", days, LogSafe(reason));
         if (banned)
@@ -1233,6 +1251,14 @@ app.MapPost("/api/worlds/{id}/bans", async (HttpContext ctx, string id, WorldBan
         return ApiError("You cannot block yourself from your own world.");
     }
 
+    // The fleet operator is not blockable — a world owner must not be able to switch off oversight of
+    // their own world (#495). Answered as "reserved", which is what the fleet-admin names already are
+    // everywhere else (signup, join), so this leaks nothing that isn't public behaviour anyway.
+    if (IsOperatorTarget(targetAccount, playerName))
+    {
+        return ApiError("This player name is reserved.", StatusCodes.Status403Forbidden);
+    }
+
     if (!registry.AddWorldBan(world.Id, targetAccount, playerName, req.Reason ?? string.Empty))
     {
         return ApiError("Player name must be 1-24 printable characters.");
@@ -1294,6 +1320,11 @@ app.MapPost("/api/worlds/{id}/kick", async (HttpContext ctx, string id, WorldKic
     if (playerName.Length is < 1 or > 24 || playerName.Any(char.IsControl))
     {
         return ApiError("Player name must be 1-24 printable characters.");
+    }
+
+    if (IsOperatorTarget(accountId: string.Empty, playerName))
+    {
+        return ApiError("This player name is reserved.", StatusCodes.Status403Forbidden);
     }
 
     bool kicked = await orchestrator.KickInstanceAsync(world, playerName,

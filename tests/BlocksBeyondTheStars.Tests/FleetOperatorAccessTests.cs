@@ -153,6 +153,49 @@ public sealed class FleetOperatorAccessTests : IDisposable
         Assert.NotNull((await orchestrator.JoinAsync(world.Id, op, "Operator")).Grant);
     }
 
+    [Fact]
+    public async Task WorldOwner_CannotBlockTheOperatorOut_AndNeverSeesTheVisitAsync()
+    {
+        // Per-world bans (#497) are the owner's lever — but a world owner must not be able to switch off
+        // oversight of their own world (#495), and a ban list would be the easiest way to try. The visit
+        // also stays out of the visitor log: observer mode is invisible by design, and "who has been here"
+        // is exactly the list the owner reads.
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var orchestrator = NewOrchestrator(registry, config);
+
+        var owner = NewAccount(registry, "KidOwner");
+        var world = registry.CreateWorld(owner.Id, "Kids World").World!;
+        var op = NewAccount(registry, "Operator", ClaimCode);
+        Assert.True(registry.AddWorldBan(world.Id, op.Id, "Operator", "go away"));
+
+        var (grant, error) = await orchestrator.JoinAsync(world.Id, op, "Operator");
+
+        Assert.NotNull(grant);
+        Assert.Equal(string.Empty, error);
+        Assert.Empty(registry.ListWorldVisitors(world.Id));
+    }
+
+    [Fact]
+    public void OperatorAccount_CannotBeBanned_ButCanStillBeUnbanned()
+    {
+        // The fleet ban is the operator's OWN lever: a banned operator would be locked out of the fleet
+        // they run, with nobody left who could lift it. Unbanning stays allowed so a pre-existing ban (or
+        // an account that BECAME an operator) can always be cleared.
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var op = NewAccount(registry, "Operator", ClaimCode);
+        var kid = NewAccount(registry, "SomeKid");
+
+        Assert.False(registry.SetBanned(op.Id, banned: true, "because", "other", days: 3));
+        Assert.False(registry.GetAccount(op.Id)!.IsBanned);
+        Assert.Empty(registry.ListNotices(op.Id));
+
+        Assert.True(registry.SetBanned(kid.Id, banned: true, "griefing", "griefing", days: 3));
+        Assert.True(registry.SetBanned(kid.Id, banned: false, string.Empty));
+        Assert.True(registry.SetBanned(op.Id, banned: false, string.Empty)); // the unban path is never blocked
+    }
+
     // ---------------- The name lock (child-safety hardening) ----------------
 
     [Fact]

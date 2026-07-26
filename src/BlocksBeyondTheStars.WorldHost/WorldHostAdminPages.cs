@@ -222,6 +222,7 @@ public static class WorldHostAdminPages
             "confirm" => "Nothing deleted — the typed name did not match the world's name.",
             "deleted" => "World deleted. Its saves are still on disk.",
             "purged" => "World deleted and its saves erased.",
+            "operator" => "Nothing changed — operator accounts cannot be banned (a locked-out operator could not lift it again).",
             _ => null,
         };
         if (noticeText is { })
@@ -356,15 +357,19 @@ public static class WorldHostAdminPages
                     ? $"BANNED{(lookedUp.BanExpires ? $" until {ShortUnix(lookedUp.BannedUntilUnix)}" : " (until lifted)")} ({E(lookedUp.BanReason)})"
                     : "active";
                 sb.Append($"<p><b>{E(lookedUp.Name)}</b> — {state}{(lookedUp.IsDeveloper ? " · developer" : string.Empty)}</p>");
-                sb.Append($"<form method='post' action='/admin/ban'><input type='hidden' name='accountId' value='{E(lookedUp.Id)}'>" +
-                          $"<input type='hidden' name='banned' value='{(lookedUp.IsBanned ? "false" : "true")}'>" +
-                          (lookedUp.IsBanned
-                              ? "<button>unban</button>"
-                              : ReasonSelect() +
-                                "<input name='reason' placeholder='details (shown to the player)' size='30'>" +
-                                DurationSelect() +
-                                "<button class='danger'>ban account</button>") +
-                          "</form>");
+                // An operator account is never bannable (the lever is the operator's own, and a locked-out
+                // operator could not lift it again) — so don't offer the button in the first place.
+                sb.Append(lookedUp.IsDeveloper && !lookedUp.IsBanned
+                    ? "<p class='hint'>Operator account — cannot be banned.</p>"
+                    : $"<form method='post' action='/admin/ban'><input type='hidden' name='accountId' value='{E(lookedUp.Id)}'>" +
+                      $"<input type='hidden' name='banned' value='{(lookedUp.IsBanned ? "false" : "true")}'>" +
+                      (lookedUp.IsBanned
+                          ? "<button>unban</button>"
+                          : ReasonSelect() +
+                            "<input name='reason' placeholder='details (shown to the player)' size='30'>" +
+                            DurationSelect() +
+                            "<button class='danger'>ban account</button>") +
+                      "</form>");
                 sb.Append("<p class='hint'>The player is told at their next login — reason, date and, for a timeout, " +
                           "the day it ends. A ban also kicks them out of every world they are in right now. " +
                           "A timeout lifts itself; nothing to remember.</p>");

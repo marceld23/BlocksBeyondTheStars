@@ -100,8 +100,11 @@ public sealed partial class GameServer
     /// <summary>Sends the rejection to every session playing under this name and arms the close.</summary>
     private void ApplyKick(string playerName, string reason)
     {
+        // A fleet admin is never a kick target: a world owner must not be able to remove oversight of their
+        // own world (#495), and the operator's own lever is stopping the instance, not kicking themselves.
         var targets = _sessions.Values
-            .Where(s => s.Joined && string.Equals(s.State.Name, playerName, System.StringComparison.OrdinalIgnoreCase))
+            .Where(s => s.Joined && !s.IsFleetAdmin
+                        && string.Equals(s.State.Name, playerName, System.StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (targets.Count == 0)
         {

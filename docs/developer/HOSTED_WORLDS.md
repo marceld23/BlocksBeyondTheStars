@@ -179,6 +179,12 @@ kid-friendly acceptance + enforcement loop:
   moderation state plus the unread notices, `GET /api/notices` is the poll behind it (a ban landing
   mid-session never passes through the login again — sessions outlive it by weeks), and
   `POST /api/notices/ack` (`{"id":0}` = all) marks them read (#496).
+- **The operator is never a moderation target** — an operator account (the developer flag, obtainable
+  only with the secret claim code) cannot be banned, and neither a world ban, the owner's kick route nor
+  the in-game `/kick` can touch a fleet admin. A banned operator would be locked out of the fleet they
+  run with nobody left to lift it, and a world owner must not be able to switch off oversight of their
+  own world (#495). The operator's join is also kept out of `world_visitor`, which is the list the owner
+  reads. Unbanning always stays allowed.
 - **Per-world bans (the owner's own lever)** — `world_ban`, enforced in the same join grant, matching
   on the account and on the in-game name (arcade guests have no account). Owner routes:
   `GET/POST /api/worlds/{id}/bans`, `DELETE /api/worlds/{id}/bans/{banId}`,
