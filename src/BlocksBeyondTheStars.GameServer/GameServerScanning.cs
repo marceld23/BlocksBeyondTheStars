@@ -27,58 +27,94 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
         {
-            return new ScanResult { Subject = subjectKey, Info = "No scanner.", Threat = "—" };
+            return Rejected(subjectKey, "ui.scan.no_scanner", "No scanner.");
         }
 
-        string info;
-        string threat = "—";
+        var readout = new ScanReadout { Kind = subjectType, SubjectKey = subjectKey, Display = subjectKey };
         int value;
-        string display = subjectKey;
         // First-scan ledger key. Defaults to the species/block key; trees override it to a shared key so the
         // trunk and the leaves count as one discovery.
         string ledgerKey = $"{subjectType}:{subjectKey}";
 
         if (subjectType == "creature" && _speciesById.TryGetValue(subjectKey, out var sp))
         {
-            info = $"{sp.Habitat} · {sp.Activity} · {sp.Temperament}";
-            threat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
+            readout.TraitKeys = new[]
+            {
+                "ui.scan.habitat." + sp.Habitat.ToString().ToLowerInvariant(),
+                "ui.scan.activity." + sp.Activity.ToString().ToLowerInvariant(),
+                "ui.scan.temperament." + sp.Temperament.ToString().ToLowerInvariant(),
+            };
+            readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"
+                : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "ui.scan.threat.provokable"
+                : "ui.scan.threat.safe";
+            readout.LegacyInfo = $"{sp.Habitat} · {sp.Activity} · {sp.Temperament}";
+            readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
-            display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
+            readout.Display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
         }
         else if (subjectType == "block" && _content.GetBlock(subjectKey) is { } block)
         {
-            var drops = string.Join(", ", block.Drops.Select(d => $"{d.Item}×{d.Count}"));
+            readout.Drops = block.Drops.Select(d => new NetTradeItem { Item = d.Item, Count = d.Count }).ToArray();
+            readout.LegacyInfo = string.Join(", ", block.Drops.Select(d => $"{d.Item}×{d.Count}"));
+            bool hasDrops = readout.Drops.Length > 0;
+
             // Trees and flora read as a named species with an edible/toxic classification; other blocks
             // report yield. Trunk + leaves share the world's one tree species AND a single ledger key, so
             // scanning either part counts as one discovery.
             if (TreeSpeciesForBlock(subjectKey) is { } tree)
             {
-                info = drops.Length > 0 ? $"Yields: {drops}" : "Foliage of the tree.";
-                threat = tree.Toxic ? "Toxic" : "Edible";
-                display = string.IsNullOrEmpty(tree.Name) ? subjectKey : tree.Name;
+                readout.Kind = "tree";
+                readout.InfoKey = hasDrops ? string.Empty : "ui.scan.foliage";
+                readout.ThreatKey = tree.Toxic ? "ui.scan.threat.toxic" : "ui.scan.threat.edible";
+                readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "Foliage of the tree.";
+                readout.LegacyThreat = tree.Toxic ? "Toxic" : "Edible";
+                readout.Display = string.IsNullOrEmpty(tree.Name) ? subjectKey : tree.Name;
                 ledgerKey = $"tree:{tree.Id}";
             }
             else if (FloraSpeciesForBlock(subjectKey) is { } flora)
             {
-                info = drops.Length > 0 ? $"Yields: {drops}" : "Harvestable flora.";
-                threat = flora.Toxic ? "Toxic" : "Edible";
-                display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
+                readout.Kind = "flora";
+                readout.InfoKey = hasDrops ? string.Empty : "ui.scan.flora_harvest";
+                readout.ThreatKey = flora.Toxic ? "ui.scan.threat.toxic" : "ui.scan.threat.edible";
+                readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "Harvestable flora.";
+                readout.LegacyThreat = flora.Toxic ? "Toxic" : "Edible";
+                readout.Display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
             }
             else
             {
-                info = drops.Length > 0 ? $"Yields: {drops}" : "No yield.";
+                readout.InfoKey = hasDrops ? string.Empty : "ui.scan.no_yield";
+                readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "No yield.";
             }
 
             value = KnowledgeBlock;
         }
         else
         {
-            return new ScanResult { Subject = subjectKey, Info = "Unknown subject.", Threat = "—" };
+            return Rejected(subjectKey, "ui.scan.unknown", "Unknown subject.");
         }
 
-        // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `display`.
-        return Award(session, ledgerKey, display, info, threat, value);
+        // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `Display`.
+        return Award(session, ledgerKey, readout, value);
     }
+
+    /// <summary>The structured readout the client localizes, plus the legacy English strings kept for one
+    /// release so an old client still shows something (#484).</summary>
+    private sealed class ScanReadout
+    {
+        public string Kind = string.Empty;
+        public string SubjectKey = string.Empty;
+        public string Display = string.Empty;
+        public string ThreatKey = string.Empty;
+        public string InfoKey = string.Empty;
+        public string[] TraitKeys = System.Array.Empty<string>();
+        public NetTradeItem[] Drops = System.Array.Empty<NetTradeItem>();
+        public string LegacyInfo = string.Empty;
+        public string LegacyThreat = "—";
+    }
+
+    /// <summary>A scan that produced nothing to award (no session / unscannable subject).</summary>
+    private static ScanResult Rejected(string subjectKey, string infoKey, string legacyInfo)
+        => new() { Subject = subjectKey, SubjectKey = subjectKey, InfoKey = infoKey, Info = legacyInfo, Threat = "—" };
 
     /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).</summary>
     public ScanResult ScanSpaceEntity(string playerId, string entityId)
@@ -94,19 +130,27 @@ public sealed partial class GameServer
             || instance.Entities.FirstOrDefault(e => e.Id == entityId) is not { } target
             || target.Kind != CombatEntityKind.Asteroid)
         {
-            return new ScanResult { Subject = entityId, Info = "Not a scannable object.", Threat = "—" };
+            return Rejected(entityId, "ui.scan.not_scannable", "Not a scannable object.");
         }
 
         // Asteroids break down to mineral drops; report the resource types they ultimately yield.
+        // Count 0 = "type only, no quantity" — the client then omits the "×n" suffix.
         var loot = target.Loot.Count > 0 ? target.Loot : MakeAsteroid(0, target.Position).Loot;
-        string info = loot.Count > 0
-            ? "Resources: " + string.Join(", ", loot.Select(l => l.Item).Distinct())
-            : "Barren — no resources.";
+        var kinds = loot.Select(l => l.Item).Distinct().ToArray();
+        var readout = new ScanReadout
+        {
+            Kind = "asteroid",
+            SubjectKey = "asteroid",
+            Display = "asteroid",
+            Drops = kinds.Select(k => new NetTradeItem { Item = k, Count = 0 }).ToArray(),
+            InfoKey = kinds.Length > 0 ? string.Empty : "ui.scan.barren",
+            LegacyInfo = kinds.Length > 0 ? "Resources: " + string.Join(", ", kinds) : "Barren — no resources.",
+        };
 
-        return Award(session, "asteroid", "asteroid", info, "—", KnowledgeAsteroid);
+        return Award(session, "asteroid", readout, KnowledgeAsteroid);
     }
 
-    private ScanResult Award(PlayerSession session, string ledgerKey, string subject, string info, string threat, int value)
+    private ScanResult Award(PlayerSession session, string ledgerKey, ScanReadout readout, int value)
     {
         var p = session.State;
         bool firstTime = p.Scanned.Add(ledgerKey); // HashSet.Add returns false if already present
@@ -118,16 +162,51 @@ public sealed partial class GameServer
 
         var result = new ScanResult
         {
-            Subject = subject,
-            Info = info,
-            Threat = threat,
+            Subject = readout.Display,
+            SubjectKey = readout.SubjectKey,
+            Kind = readout.Kind,
+            ThreatKey = readout.ThreatKey,
+            TraitKeys = readout.TraitKeys,
+            Drops = readout.Drops,
+            InfoKey = readout.InfoKey,
+            Info = readout.LegacyInfo,     // legacy English, for an old client only
+            Threat = readout.LegacyThreat, // ditto
             FirstTime = firstTime,
             KnowledgeGained = gained,
             KnowledgeTotal = p.KnowledgePoints,
         };
         Send(session, result);
+        if (firstTime)
+        {
+            // Remember the display name NOW: creature/tree/flora species are per-world, so this coined name
+            // is unresolvable once the player leaves this planet (#484).
+            p.ScannedNames[ledgerKey] = readout.Display;
+
+            // Append the new entry to the client's Codex discovery list.
+            Send(session, new DiscoveryLog
+            {
+                Entries = new[] { ledgerKey },
+                Names = new[] { readout.Display },
+                Full = false,
+            });
+        }
+
         ShipAiOnScan(session); // VEGA onboarding: first scan (any subject counts)
         return result;
+    }
+
+    /// <summary>Sends the player's whole first-scan ledger — the Codex "Discoveries" snapshot on join.</summary>
+    private void SendDiscoveryLog(PlayerSession session)
+    {
+        var entries = session.State.Scanned.ToArray();
+        var names = new string[entries.Length];
+        for (int i = 0; i < entries.Length; i++)
+        {
+            // Pre-#484 entries have no recorded name — send empty and let the client show the raw key.
+            names[i] = session.State.ScannedNames.TryGetValue(entries[i], out var n) ? n : string.Empty;
+        }
+
+        Send(session, new DiscoveryLog { Entries = entries, Names = names, Full = true });
     }
 
     private void HandleScan(PlayerSession session, ScanIntent intent)

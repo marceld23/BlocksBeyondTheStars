@@ -64,7 +64,20 @@ namespace BlocksBeyondTheStars.Client
         private void OnScan(OreScanResult scan)
         {
             Clear();
-            if (scan.X == null || scan.X.Length == 0)
+            int hits = scan.X?.Length ?? 0;
+
+            // Text feedback on the HUD toast. The pulse used to produce glow markers and NOTHING else, so a
+            // zero-hit scan — the common case on ore-poor worlds — spent 10 suit energy and showed an empty
+            // screen, indistinguishable from a broken item (#482).
+            var loc = Game?.Localizer;
+            if (loc != null)
+            {
+                Game.ShowMessage(hits == 0
+                    ? loc.Get("ui.scan.ore.none")
+                    : string.Format(loc.Get("ui.scan.ore.found"), scan.Capped ? hits + "+" : hits.ToString()));
+            }
+
+            if (hits == 0)
             {
                 return;
             }

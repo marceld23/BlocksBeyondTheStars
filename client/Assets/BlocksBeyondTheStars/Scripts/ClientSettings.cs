@@ -73,6 +73,12 @@ namespace BlocksBeyondTheStars.Client
         // Singleplayer forwards this to the bundled server as the streaming radius (AppShell → --view-distance),
         // and the server now reclaims out-of-range chunks (far-chunk sweep), so the larger radius stays bounded.
         public int ViewDistanceChunks = 4;
+
+        /// <summary>Player UI-scale multiplier for the HUD (0.8–1.6, 1 = shipped default). Applied in
+        /// <see cref="Apply"/> via <see cref="UiKit.SetUserScale"/>, which divides the HUD canvases'
+        /// reference resolution — a smaller reference draws the same layout bigger. Menus deliberately do
+        /// NOT follow it: they lay out in absolute 1920 coordinates and would run off-screen (#483).
+        /// (Declared since the first settings pass but dead until then — nothing ever read it.)</summary>
         public float UiScale = 1f;
 
         // Frame pacing. Exposed as its own switch instead of being baked into the quality preset: with VSync
@@ -178,8 +184,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Account name belonging to <see cref="PortalSessionToken"/> (display only).</summary>
         public string PortalAccountName = "";
 
-        // Accessibility (flags wired now; visual effects applied when the render layer lands)
+        // Accessibility
         public bool ReducedEffects = false;
+
+        /// <summary>Legacy one-shot "large UI" flag. Superseded by the continuous <see cref="UiScale"/>
+        /// setting (#483); kept only so an existing settings file that has it on is migrated once, in
+        /// <see cref="Apply"/>'s caller, rather than silently losing the player's preference.</summary>
         public bool LargeUi = false;
 
         /// <summary>Camera motion comfort toggle: head bob, the moving FOV kick and impact camera
@@ -385,6 +395,21 @@ namespace BlocksBeyondTheStars.Client
             }
 
             settings ??= new ClientSettings();
+
+            // One-shot migration (#483): LargeUi was an accessibility flag that never did anything — no
+            // code ever read it. It is now superseded by the continuous UiScale setting, so a player who
+            // had ticked it lands on a comparable scale instead of silently losing the preference.
+            if (settings.LargeUi)
+            {
+                settings.LargeUi = false;
+                if (Mathf.Approximately(settings.UiScale, 1f))
+                {
+                    settings.UiScale = 1.3f;
+                }
+            }
+
+            settings.UiScale = Mathf.Clamp(settings.UiScale, UiKit.UserScaleMin, UiKit.UserScaleMax);
+
             if (freshInstall)
             {
                 // German Windows starts in German; everything else falls back to English. The chosen value
@@ -528,6 +553,7 @@ namespace BlocksBeyondTheStars.Client
             ApplyWindowMode();
             AudioListener.volume = Mathf.Clamp01(MasterVolume); // master bus (M26)
             UiKit.ReducedMotion = ReducedEffects; // UI transitions snap instantly for reduced-effects users
+            UiKit.SetUserScale(UiScale);          // HUD canvases + the IMGUI leftovers follow the UI-scale setting
 
             int levels = QualitySettings.names != null ? QualitySettings.names.Length : 0;
             if (levels > 0)

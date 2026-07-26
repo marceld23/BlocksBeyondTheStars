@@ -16,8 +16,10 @@ namespace BlocksBeyondTheStars.Client
     {
         public const float RefHeight = 1080f;
 
-        /// <summary>Scale factor from the virtual 1080p space to the real screen (clamped for extremes).</summary>
-        public static float Factor => Mathf.Clamp(Screen.height / RefHeight, 0.75f, 4f);
+        /// <summary>Scale factor from the virtual 1080p space to the real screen (clamped for extremes),
+        /// multiplied by the player's UI-scale setting so the IMGUI leftovers follow the same knob as the
+        /// uGUI HUD canvases (#483).</summary>
+        public static float Factor => Mathf.Clamp(Screen.height / RefHeight, 0.75f, 4f) * UiKit.UserScale;
 
         /// <summary>Virtual screen width to lay out against (use instead of Screen.width inside Begin/End).</summary>
         public static float Width => Screen.width / Factor;

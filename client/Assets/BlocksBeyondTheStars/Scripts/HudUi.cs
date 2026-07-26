@@ -23,6 +23,16 @@ namespace BlocksBeyondTheStars.Client
         private const int Slots = 9;
         private const float W = UiKit.HudRefW, H = UiKit.HudRefH; // smaller reference → a ~1.25× bigger HUD
 
+        // Scan panel (bottom-left), in HUD reference units. Width is CAPPED at 390: the hotbar backplate
+        // starts at x 400, so a wider panel clips it. The left column above is VEGA's (speech 396…586,
+        // objective chip 594…642 — see VegaPanel), so this panel starts at 650 (#482).
+        private const float ScanPanelY = 650f, ScanPanelW = 390f, ScanPanelH = 182f;
+
+        /// <summary>How long a scan readout lingers once the scanner is put away. Was 12 s — long enough to
+        /// read the old one-liner, not the fuller readout (#482). While the scanner is still the held item
+        /// the panel stays pinned regardless (see <see cref="RefreshScan"/>).</summary>
+        private const float ScanHoldSeconds = 20f;
+
         private static readonly Color Health = new Color(0.92f, 0.32f, 0.34f);
         private static readonly Color Oxygen = new Color(0.36f, 0.78f, 1f);
         private static readonly Color Energy = new Color(1f, 0.82f, 0.25f);
@@ -408,21 +418,31 @@ namespace BlocksBeyondTheStars.Client
             _speederPanel.SetActive(false);
 
             // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
-            // threat, knowledge, and a highlighted "new discovery" line on a first-time scan.
-            _scanPanel = Panel(root, 10, H - 150 - 48, 360, 150).gameObject;
+            // threat, knowledge, and a highlighted "new discovery" line on a first-time scan. Enlarged in
+            // #482 (it carried the densest text in the game at the smallest size). WIDTH IS CAPPED: the
+            // hotbar backplate owns x 400…1136, so this panel must not reach x 400.
+            _scanPanel = Panel(root, 10, ScanPanelY, ScanPanelW, ScanPanelH).gameObject;
             var scanIcon = UiKit.Icon("item_advanced_scanner") ?? UiKit.Icon("cat_target");
-            float scanTextX = 10f;
+            float scanTextX = 12f;
             if (scanIcon != null)
             {
-                UiKit.AddImage(_scanPanel.transform, 8, 6, 22, 22, scanIcon, UiKit.Cyan);
-                scanTextX = 36f;
+                UiKit.AddImage(_scanPanel.transform, 10, 8, 26, 26, scanIcon, UiKit.Cyan);
+                scanTextX = 42f;
             }
 
-            _scanSubject = UiKit.AddText(_scanPanel.transform, scanTextX, 6, 340 - scanTextX, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _scanInfo = UiKit.AddText(_scanPanel.transform, 10, 34, 340, 56, string.Empty, 14, UiKit.TextCol, TextAnchor.UpperLeft);
+            const float scanTextW = ScanPanelW - 24f;
+            _scanSubject = UiKit.AddText(_scanPanel.transform, scanTextX, 8, ScanPanelW - 12f - scanTextX, 26, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _scanInfo = UiKit.AddText(_scanPanel.transform, 12, 40, scanTextW, 78, string.Empty, 17, UiKit.TextCol, TextAnchor.UpperLeft);
             _scanInfo.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _scanThreat = UiKit.AddText(_scanPanel.transform, 10, 94, 340, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _scanKnow = UiKit.AddText(_scanPanel.transform, 10, 116, 340, 22, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Truncate, NOT the AddText default Overflow: a long yield list (asteroids report every
+            // distinct resource) used to run straight over the threat + knowledge lines (#482).
+            _scanInfo.verticalOverflow = VerticalWrapMode.Truncate;
+            _scanThreat = UiKit.AddText(_scanPanel.transform, 12, 122, scanTextW, 22, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _scanKnow = UiKit.AddText(_scanPanel.transform, 12, 148, scanTextW, 26, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_scanSubject);
+            UiKit.AddOutline(_scanInfo);
+            UiKit.AddOutline(_scanThreat);
+            UiKit.AddOutline(_scanKnow);
 
             // Wreck panel (right).
             _wreckPanel = Panel(root, W - 260f, 140, 250, 150).gameObject;
@@ -870,7 +890,9 @@ namespace BlocksBeyondTheStars.Client
         private void RefreshScan(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             var scan = Game.LastScan;
-            bool show = scan != null && Time.time - Game.LastScanAt <= 12f;
+            // Pinned while the scanner is still in hand (you're actively surveying — the readout is the
+            // point), otherwise it lingers ScanHoldSeconds after the scan and fades out (#482).
+            bool show = scan != null && (HoldingScanner() || Time.time - Game.LastScanAt <= ScanHoldSeconds);
             if (_scanPanel.activeSelf != show)
             {
                 _scanPanel.SetActive(show);
@@ -879,8 +901,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (!show) return;
             _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
-            _scanInfo.text = scan.Info;
-            _scanThreat.text = $"{loc.Get("ui.scan.threat")}: {scan.Threat}";
+            _scanInfo.text = ScanInfoText(loc, scan);
+            // The threat WORD comes from a locale key now; `scan.Threat` is the legacy English fallback (#484).
+            string threat = !string.IsNullOrEmpty(scan.ThreatKey) ? loc.Get(scan.ThreatKey) : scan.Threat;
+            _scanThreat.gameObject.SetActive(!string.IsNullOrEmpty(threat) && threat != "—");
+            _scanThreat.text = $"{loc.Get("ui.scan.threat")}: {threat}";
 
             // A first-time discovery shows its knowledge GAIN highlighted; re-scans just show the total.
             if (scan.FirstTime && scan.KnowledgeGained > 0)
@@ -893,6 +918,58 @@ namespace BlocksBeyondTheStars.Client
                 _scanKnow.color = UiKit.TextCol;
                 _scanKnow.text = $"{loc.Get("ui.scan.knowledge")}: {scan.KnowledgeTotal}";
             }
+        }
+
+        /// <summary>Builds the scan panel's description line from the STRUCTURED payload (#484): a creature's
+        /// habitat/activity/temperament traits, or a yield/resource list with localized item names, or a
+        /// single remark key. Falls back to the legacy English <see cref="ScanResult.Info"/> only when the
+        /// server is older than the structured fields.</summary>
+        private string ScanInfoText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, BlocksBeyondTheStars.Networking.Messages.ScanResult scan)
+        {
+            var traits = scan.TraitKeys;
+            if (traits != null && traits.Length > 0)
+            {
+                var parts = new string[traits.Length];
+                for (int i = 0; i < traits.Length; i++)
+                {
+                    parts[i] = loc.Get(traits[i]);
+                }
+
+                return string.Join("  ·  ", parts);
+            }
+
+            var drops = scan.Drops;
+            if (drops != null && drops.Length > 0)
+            {
+                var parts = new string[drops.Length];
+                for (int i = 0; i < drops.Length; i++)
+                {
+                    // Count 0 = a resource TYPE with no quantity (asteroid scan) — no "×n" suffix then.
+                    string name = ItemOrBlockName(loc, drops[i].Item);
+                    parts[i] = drops[i].Count > 0 ? $"{name} ×{drops[i].Count}" : name;
+                }
+
+                string label = loc.Get(scan.Kind == "asteroid" ? "ui.scan.resources" : "ui.scan.yield");
+                return $"{label}: {string.Join(", ", parts)}";
+            }
+
+            if (!string.IsNullOrEmpty(scan.InfoKey))
+            {
+                return loc.Get(scan.InfoKey);
+            }
+
+            return scan.Info; // pre-#484 server
+        }
+
+        /// <summary>Localized name for an item key, falling back to the block table (drop lists mix both).</summary>
+        private string ItemOrBlockName(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key)
+        {
+            if (Game.Content?.GetItem(key) is { } item)
+            {
+                return loc.Get(item.NameKey);
+            }
+
+            return Game.Content?.GetBlock(key) is { } block ? loc.Get(block.NameKey) : key;
         }
 
         /// <summary>Resolves a scan subject key to a readable, localized name (block / item / creature)
@@ -920,7 +997,14 @@ namespace BlocksBeyondTheStars.Client
             // honoured if one exists; Localizer.Get returns "[key]" for a missing key, so we must probe
             // with Has() rather than inspect the returned string.)
             string creatureKey = $"creature.{key}.name";
-            return loc.Has(creatureKey) ? loc.Get(creatureKey) : key;
+            if (loc.Has(creatureKey))
+            {
+                return loc.Get(creatureKey);
+            }
+
+            // Generic scan subjects that are neither content nor a species — currently just "asteroid" (#484).
+            string subjectKey = $"ui.scan.subject.{key}";
+            return loc.Has(subjectKey) ? loc.Get(subjectKey) : key;
         }
 
         private void RefreshWreck(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

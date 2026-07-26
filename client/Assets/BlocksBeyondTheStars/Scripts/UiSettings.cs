@@ -85,6 +85,14 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.view_distance_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 28f;
             }
+            // UI scale (#483): drives UiKit.UserScale, which divides the HUD canvases' reference resolution.
+            // Applies live via S.Apply() so the player can size the HUD while looking at it from the pause
+            // menu. Menus are deliberately unaffected (absolute 1920 layout).
+            Stepper(ref y, L("ui.settings.ui_scale"),
+                (S.UiScale - UiKit.UserScaleMin) / (UiKit.UserScaleMax - UiKit.UserScaleMin), UiKit.UserScaleMin, UiKit.UserScaleMax,
+                () => { S.UiScale = Mathf.Clamp(S.UiScale - 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
+                () => { S.UiScale = Mathf.Clamp(S.UiScale + 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
+                Mathf.RoundToInt(S.UiScale * 100f) + "%");
             Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
                 () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
                 () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },

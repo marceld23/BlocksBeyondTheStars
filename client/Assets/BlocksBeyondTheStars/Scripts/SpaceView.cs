@@ -3601,7 +3601,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _ui = UiKit.CreateCanvas("Space View Overlay", UiKit.HudRefW, UiKit.HudRefH); // ~1.25× bigger flight HUD
+            // Flat (not diegetic) but still a HUD, so it follows the player's UI-scale setting (#483).
+            _ui = UiKit.CreateCanvas("Space View Overlay", UiKit.HudRefW, UiKit.HudRefH, userScalable: true); // ~1.25× bigger flight HUD
             _ui.sortingOrder = 12; // above the space HUD, below menus
 
             // Full-screen launch/landing fade.

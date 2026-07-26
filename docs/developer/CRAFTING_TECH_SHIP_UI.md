@@ -15,9 +15,11 @@ components, a category sidebar and blueprint state.
 - **One uGUI screen.** `CraftingTechShipUI` (new Canvas UI, not IMGUI) hosts Crafting, Tech, Ship and
   the other menu tabs it now owns (Inventory, Map, Missions, Story, Companions, Alliances, and
   Settings — `Mode.Character` is labelled "Settings"). A
-  `Mode`/tab header selects the view; the canvas scales with screen size (reference 1920×1080) and
-  honours `ClientSettings.UiScale` / `LargeUi`, clamped so cards and text stay readable on 4K and
-  unshrunk on small displays.
+  `Mode`/tab header selects the view; the canvas scales with screen size (reference 1920×1080,
+  `ScreenMatchMode.Expand`), so cards and text stay readable on 4K and unshrunk on small displays.
+  It does **not** follow the player's `ClientSettings.UiScale` setting: this screen lays out in
+  absolute 1920 coordinates, so scaling the canvas up would push content off-screen. Only HUD
+  canvases are user-scalable (`UiKit.CreateCanvas(..., userScalable: true)`) — see #483.
 - **Card → detail flow.** Lists show cards (icon, name, status, cost row); selecting one fills a detail
   pane with ingredients (have/need, pooled from inventory + ship cargo), required station/blueprint,
   the effect/benefit, and the action button with a reason when disabled. A "craftable now" filter,

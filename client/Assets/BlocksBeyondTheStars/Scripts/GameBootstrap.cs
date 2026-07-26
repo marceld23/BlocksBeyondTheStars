@@ -563,6 +563,13 @@ namespace BlocksBeyondTheStars.Client
         public ScanResult LastScan { get; private set; }
         public float LastScanAt { get; private set; }
 
+        /// <summary>The player's first-scan ledger: <c>kind:key</c> → the display name captured at scan time
+        /// (empty for entries scanned before the game recorded names). Mirrors the server's
+        /// <c>PlayerState.Scanned</c>/<c>ScannedNames</c> and backs the Codex "Discoveries" chapter (#484) —
+        /// before that the ledger never left the server, so a scan left no permanent record in the UI.</summary>
+        public readonly System.Collections.Generic.Dictionary<string, string> Discoveries
+            = new System.Collections.Generic.Dictionary<string, string>();
+
         /// <summary>Repair progress of the wreck the player is standing in (null until a wreck reports it).</summary>
         public WreckRepairStatus Wreck { get; private set; }
 
@@ -1310,7 +1317,25 @@ namespace BlocksBeyondTheStars.Client
                 LastScanAt = Time.time;
                 if (m.FirstTime && m.KnowledgeGained > 0)
                 {
-                    LastMessage = $"+{m.KnowledgeGained} knowledge ({m.KnowledgeTotal})";
+                    // Localized (#484) — this toast used to be an English literal in the German build too.
+                    LastMessage = string.Format(
+                        Localizer?.Get("ui.scan.knowledge_gain") ?? "+{0} knowledge ({1})",
+                        m.KnowledgeGained,
+                        m.KnowledgeTotal);
+                }
+            };
+            Network.DiscoveryLogReceived += m =>
+            {
+                if (m.Full)
+                {
+                    Discoveries.Clear(); // the join snapshot replaces whatever a previous session left
+                }
+
+                var entries = m.Entries ?? System.Array.Empty<string>();
+                var names = m.Names ?? System.Array.Empty<string>();
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    Discoveries[entries[i]] = i < names.Length ? names[i] ?? string.Empty : string.Empty;
                 }
             };
             Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;

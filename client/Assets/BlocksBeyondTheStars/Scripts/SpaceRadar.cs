@@ -34,7 +34,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _canvas = UiKit.CreateDiegeticCanvas("Space Radar"); // visor HUD camera when active
+            // HUD reference (1536×864) like HudUi/SpaceView — the radar was missed by the 2026-06-07
+            // "bigger HUD" pass and drew 25 % smaller than the rest of the flight HUD (#482). Everything
+            // in here is anchor-relative (top-centre + pixel offsets), so the lower reference just scales
+            // it up in place.
+            _canvas = UiKit.CreateDiegeticCanvas("Space Radar", UiKit.HudRefW, UiKit.HudRefH); // visor HUD camera when active
             _canvas.sortingOrder = 10; // HUD level
             var root = _canvas.transform;
 

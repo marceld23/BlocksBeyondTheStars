@@ -53,6 +53,10 @@ public sealed class PlayerSnapshot
     public Dictionary<string, int> KnowledgeGivenTo { get; set; } = new();
     public Dictionary<string, NpcRelationship> NpcMemory { get; set; } = new();
     public List<string> Scanned { get; set; } = new();
+
+    /// <summary>Display name per <see cref="Scanned"/> entry, captured at scan time (#484). Absent in saves
+    /// written before it existed — those entries just have no name.</summary>
+    public Dictionary<string, string> ScannedNames { get; set; } = new();
     public List<InventorySlotDto> RationStore { get; set; } = new();
     public List<InventorySlotDto> Inventory { get; set; } = new();
     public List<MissionProgress> Missions { get; set; } = new();
@@ -160,6 +164,7 @@ public static class StateMapper
         KnowledgeGivenTo = new Dictionary<string, int>(p.KnowledgeGivenTo),
         NpcMemory = CloneNpcMemory(p.NpcMemory),
         Scanned = p.Scanned.ToList(),
+        ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         RationStore = DumpInventory(p.RationStore),
         Inventory = DumpInventory(p.Inventory),
         Missions = p.Missions.Select(CloneProgress).ToList(),
@@ -260,6 +265,7 @@ public static class StateMapper
         KnowledgeGivenTo = new Dictionary<string, int>(s.KnowledgeGivenTo ?? new Dictionary<string, int>()),
         NpcMemory = CloneNpcMemory(s.NpcMemory),
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
+        ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),

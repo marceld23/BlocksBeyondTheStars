@@ -2195,6 +2195,7 @@ public sealed partial class GameServer
         SendNetFragments(session); // story net fragments on the join world (P2)
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
+        SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)

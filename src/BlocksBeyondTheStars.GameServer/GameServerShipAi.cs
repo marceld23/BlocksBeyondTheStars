@@ -569,14 +569,34 @@ public sealed partial class GameServer
         };
     }
 
+    /// <summary>Longest VEGA line the speech panel can show. The panel holds ~4 wrapped lines and now
+    /// TRUNCATES rather than overflowing (#482), so a rambling LLM answer would be cut off mid-word with
+    /// no indication. Clamping here means the player at least sees an ellipsis. Keep in sync with the
+    /// panel geometry in <c>VegaPanel</c>.</summary>
+    private const int VegaMaxTextChars = 240;
+
+    /// <summary>Bounds an LLM-authored line to what the speech panel can display, ending on a word
+    /// boundary where possible. Locale-key lines are authored by us and need no clamp.</summary>
+    private static string ClampVegaText(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= VegaMaxTextChars)
+        {
+            return text;
+        }
+
+        // netstandard2.1: no string.Concat(ReadOnlySpan<char>, string) overload — plain Substring.
+        int cut = text.LastIndexOf(' ', VegaMaxTextChars - 1);
+        return text.Substring(0, cut > VegaMaxTextChars / 2 ? cut : VegaMaxTextChars - 1).TrimEnd() + "…";
+    }
+
     private static ShipAiLine BuildVegaTextLine(string text)
-        => new() { Text = text, Kind = 1 }; // advisor channel: the settings mute applies to banter too
+        => new() { Text = ClampVegaText(text), Kind = 1 }; // advisor channel: the settings mute applies to banter too
 
     /// <summary>Sends an LLM banter text directly (keeps the current objective chip fields).</summary>
     private void SendVegaText(PlayerSession session, string text)
         => Send(session, new ShipAiLine
         {
-            Text = text,
+            Text = ClampVegaText(text),
             ObjectiveKey = VegaObjectiveKey(session.State),
             ObjectiveProgress = VegaObjectiveProgress(session),
             ObjectiveTarget = VegaObjectiveTarget(session.State),
