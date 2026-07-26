@@ -129,10 +129,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (variant == 0)
             {
-                // Variant A: slightly darker with a few thin cracks wandering across the tile.
+                // Variant A: a touch darker with a few thin cracks. Kept SUBTLE (0.96/0.70 — was
+                // 0.90/0.55): the old darkening made plain stone read as basalt once a player stared at a
+                // whole tunnel of it (user playtest 2026-07-26, "everything turned to basalt").
                 for (int i = 0; i < px.Length; i++)
                 {
-                    px[i] = Scale(px[i], 0.90f);
+                    px[i] = Scale(px[i], 0.96f);
                 }
 
                 for (int c = 0; c < 3; c++)
@@ -142,7 +144,7 @@ namespace BlocksBeyondTheStars.Client
                     for (int s = 0; s < steps; s++)
                     {
                         px[Mathf.Clamp(y, 0, Tile - 1) * Tile + Mathf.Clamp(x, 0, Tile - 1)] =
-                            Scale(px[Mathf.Clamp(y, 0, Tile - 1) * Tile + Mathf.Clamp(x, 0, Tile - 1)], 0.55f);
+                            Scale(px[Mathf.Clamp(y, 0, Tile - 1) * Tile + Mathf.Clamp(x, 0, Tile - 1)], 0.70f);
                         x += rng.Next(3) - 1;
                         y += rng.Next(3) - 1;
                     }

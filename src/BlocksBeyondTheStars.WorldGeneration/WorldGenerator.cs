@@ -2115,10 +2115,15 @@ public sealed class WorldGenerator
             // The coarse noise clusters into vein-like patches; the threshold comes from the field's OWN
             // measured distribution (#472), so the kept fraction is exactly what we ask for. The old fixed
             // formula assumed a uniform field and sat unreachably far in the interpolated torus sampler's
-            // tail — the root cause of the recurring "can't find any ore" feedback. The 0.15 scale keeps
-            // the UNION over a planet's ~8 stacked veins at a healthy ~6–10 % of deep rock (measured) —
-            // without it, per-vein literalism turned half the underground into ore.
-            double frac = System.Math.Clamp(ore.Rarity * richness * 0.15, 0.0, 0.05);
+            // tail — the root cause of the recurring "can't find any ore" feedback. The scale keeps the
+            // UNION over a planet's ~8 stacked veins near ~10 % of deep rock (measured) — without it,
+            // per-vein literalism turned half the underground into ore. SHALLOW starter veins (minDepth
+            // ≤ 8: iron/copper/silicate class) run twice as dense as the deep rarities: the quantile blobs
+            // cluster, and a new player's first ten blocks must reward digging (Severin M3, user playtest
+            // 2026-07-26 — "nothing but rock at the spawn").
+            double scale = ore.MinDepth <= 8 ? 0.30 : 0.15;
+            double cap = ore.MinDepth <= 8 ? 0.08 : 0.05;
+            double frac = System.Math.Clamp(ore.Rarity * richness * scale, 0.0, cap);
             if (frac <= 0.0)
             {
                 continue;
@@ -2193,6 +2198,39 @@ public sealed class WorldGenerator
         }
 
         return list;
+    }
+
+    /// <summary>True when this column's biome surface is welcoming ground (grass or dirt). The landing-pad
+    /// chooser PREFERS such columns so new players spawn on green topsoil — where the thin-topsoil ore
+    /// windows (Severin M3) are visible — instead of a mud marsh or bare rock. A preference only, never a
+    /// hard requirement (see <see cref="HasEarthySurfaceBiome"/>).</summary>
+    public bool IsEarthySurface(PlanetType planet, int worldX, int worldZ)
+    {
+        var biomes = ResolveBiomes(planet);
+        var b = biomes[biomes.Count <= 1
+            ? 0
+            : BiomeIndex(CalibFor(planet), PlanetSeed(planet), worldX, worldZ, biomes.Count,
+                SurfaceHeight(planet, worldX, worldZ))];
+        var grass = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
+        var dirt = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
+        return (!grass.IsAir && b.Surface == grass) || (!dirt.IsAir && b.Surface == dirt);
+    }
+
+    /// <summary>Whether this world has any grass/dirt biome at all — desert/ice/exotic worlds don't, and
+    /// their pad placement must not waste its search (or reject every candidate) looking for one.</summary>
+    public bool HasEarthySurfaceBiome(PlanetType planet)
+    {
+        var grass = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
+        var dirt = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
+        foreach (var b in ResolveBiomes(planet))
+        {
+            if ((!grass.IsAir && b.Surface == grass) || (!dirt.IsAir && b.Surface == dirt))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The biome index at a world position (large regions), for per-biome systems like weather.</summary>
