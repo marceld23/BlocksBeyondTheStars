@@ -43,6 +43,7 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
         private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist;
+        private Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private Text _playtimeText;
         private RectTransform _todMarker;
@@ -401,6 +402,11 @@ namespace BlocksBeyondTheStars.Client
             // Toast / indicators / prompts / hint.
             _toast = UiKit.AddText(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _inSpace = UiKit.AddText(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+
+            // Observer badge (issue #487). Top centre, always-on while the mode is active: an admin who forgets
+            // they are invisible is how you end up "fixing" a world nobody can see you in.
+            _observer = UiKit.AddText(root, W / 2f - 160, 30, 320, 24, string.Empty, 18, UiKit.Warn,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
             _prompt = UiKit.AddText(root, W / 2f - 160, H / 2f + 24, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _hint = UiKit.AddText(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
@@ -544,6 +550,7 @@ namespace BlocksBeyondTheStars.Client
 
             _toast.text = Game.LastMessage ?? string.Empty;
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
+            _observer.text = Game.Spectating ? loc.Get("ui.hud.observer") : string.Empty;
             _hint.text = InputMap.ActiveDevice switch
             {
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
@@ -667,7 +674,11 @@ namespace BlocksBeyondTheStars.Client
             // No on-foot hotbar while flying the ship — you're piloting, not holding hand tools. BUT on an EVA
             // the hotbar IS shown: you float in space and build/mine on structures from your inventory, so you
             // need to see + pick the held block/tool (B?).
-            bool hide = ((Game.SpaceViewActive || Game.InSpace) && !Game.InEva) || !string.IsNullOrEmpty(Game.InSpeeder);
+            // Observer mode has no hotbar either (issue #487): an observer carries nothing and may not build,
+            // so showing slots would advertise actions the server drops.
+            bool hide = ((Game.SpaceViewActive || Game.InSpace) && !Game.InEva)
+                        || !string.IsNullOrEmpty(Game.InSpeeder)
+                        || Game.Spectating;
             if (_hotbarRoot != null && _hotbarRoot.activeSelf == hide)
             {
                 _hotbarRoot.SetActive(!hide);

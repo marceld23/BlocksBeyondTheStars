@@ -35,6 +35,18 @@ public sealed class PlayerSession
     /// space). Set when landing; superseded on the next landing; ignored once the player is in space/elsewhere.</summary>
     public int AssignedPadIndex { get; set; } = -1;
 
+    /// <summary>Fleet admin: the operator of this hosting installation, as opposed to the owner of one world
+    /// (issue #487). Granted on join from <see cref="Shared.Configuration.ServerConfig.FleetAdminPlayers"/> and
+    /// deliberately <b>never persisted</b> — see that property for why a saved role would leak between worlds.
+    /// The only gate for the invisible observer mode.</summary>
+    public bool IsFleetAdmin { get; set; }
+
+    /// <summary>Observer mode (issue #487): this player is invisible to everyone — no presence, no avatar, no
+    /// nameplate — leaves no footprint in the world (no parked ship, no landing pad, no fauna) and is ignored by
+    /// creatures. Session-scoped, never persisted: a crash or reconnect always drops back to normal play, which
+    /// is the safe default. Only ever set for <see cref="IsFleetAdmin"/> sessions.</summary>
+    public bool Spectating { get; set; }
+
     /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
     public int LastChatTick { get; set; }
 

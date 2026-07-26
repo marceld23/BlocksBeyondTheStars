@@ -34,16 +34,22 @@ public sealed partial class GameServer
     /// the status snapshot. Runs under a Guard like every other tick system.</summary>
     private void TickHostedLifecycle(double deltaSeconds)
     {
-        int joined = 0;
+        // Two different counts on purpose (issue #487). The REPORTED number is real players only — an operator
+        // watching a world is not "someone playing", and the fleet panel would otherwise show a busy world that
+        // nobody is in. The IDLE timer, however, counts any live session: shutting the world down under the
+        // admin who is currently walking through it would be its own kind of bug.
+        int joined = JoinedPlayerCount();
+        bool anySession = false;
         foreach (var s in _sessions.Values)
         {
             if (s.Joined)
             {
-                joined++;
+                anySession = true;
+                break;
             }
         }
 
-        if (joined > 0)
+        if (anySession)
         {
             _idleSeconds = 0;
             _lastActiveUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -53,7 +59,7 @@ public sealed partial class GameServer
             _idleSeconds += deltaSeconds;
         }
 
-        if (_config.IdleShutdownMinutes > 0 && joined == 0 && !IdleShutdownTriggered
+        if (_config.IdleShutdownMinutes > 0 && !anySession && !IdleShutdownTriggered
             && _idleSeconds >= _config.IdleShutdownMinutes * 60.0)
         {
             IdleShutdownTriggered = true;

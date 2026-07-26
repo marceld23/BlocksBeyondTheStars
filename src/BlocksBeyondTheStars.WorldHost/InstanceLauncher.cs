@@ -129,6 +129,13 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             args.AddRange(new[] { "-e", $"BBS_ANNOUNCE_TOKEN={config.AnnounceToken}" });
         }
 
+        // Fleet admins (#487): the operator names allowed to observe any world invisibly. Deliberately passed
+        // per instance rather than stored in a save — the role must not survive a world export/import.
+        if (!string.IsNullOrEmpty(config.FleetAdmins))
+        {
+            args.AddRange(new[] { "-e", $"BBS_FLEET_ADMINS={config.FleetAdmins}" });
+        }
+
         // Server crash reports (#363): with the write key set, a crashed instance uploads its queued
         // crash reports on its next start. The endpoint stays the server's built-in default (the
         // official ReportHost inbox) unless a self-hosted fleet overrides it.

@@ -47,6 +47,9 @@ public sealed class PlayerSnapshot
     public string Role { get; set; } = "Player";
     public string NameTokenHash { get; set; } = string.Empty;
     public bool HostedWelcomeShown { get; set; }
+
+    /// <summary>ISO-8601 UTC of the last join/save (admin "last seen"); empty in pre-#488 saves.</summary>
+    public string LastSeenUtc { get; set; } = string.Empty;
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
     public int KnowledgePoints { get; set; }
@@ -158,6 +161,7 @@ public static class StateMapper
         Role = p.Role.ToString(),
         NameTokenHash = p.NameTokenHash,
         HostedWelcomeShown = p.HostedWelcomeShown,
+        LastSeenUtc = p.LastSeenUtc,
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
         KnowledgePoints = p.KnowledgePoints,
@@ -259,6 +263,7 @@ public static class StateMapper
         Role = Enum.TryParse<PlayerRole>(s.Role, out var role) ? role : PlayerRole.Player,
         NameTokenHash = s.NameTokenHash ?? string.Empty,
         HostedWelcomeShown = s.HostedWelcomeShown,
+        LastSeenUtc = s.LastSeenUtc ?? string.Empty,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
         KnowledgePoints = s.KnowledgePoints,

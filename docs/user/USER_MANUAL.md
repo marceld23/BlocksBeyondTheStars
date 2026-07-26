@@ -583,6 +583,37 @@ is logged (`[CHEAT] …`). Type **`/help`** in chat to see the list in-game.
 | `/ai <prompt>` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
 | `/help` | List the admin commands in chat |
 
+#### Inspection (admins) — who is here and what have they built
+
+Unlike the cheats above, these are **not** gated by the "admin cheats" world option: they are moderation tools,
+and that option is off by default on hosted worlds.
+
+| Command | Effect |
+|---|---|
+| `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
+| `/builds [player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
+| `/where <player>` | One player's body, position and last-seen time — works while they are offline |
+
+#### Observer mode (fleet admin only)
+
+Reserved for the operator of the installation (`BBS_FLEET_ADMINS`, see
+[SELF_HOSTING.md](../developer/SELF_HOSTING.md)). The owner of an individual world does **not** get it.
+
+| Command | Effect |
+|---|---|
+| `/spectate [on\|off]` | Enter/leave observer mode: invisible to players, creatures and NPCs, invulnerable, free flight through walls, no ship, no landing pad, no player slot |
+| `/goto <player>` | Travel to that player's body and jump to their position (works for offline players via their last position) |
+| `/goto base\|beacon\|beam\|station <name>` | Jump to a named structure anywhere in the save |
+| `/goto <bodyId> <x> <y> <z>` | Jump to raw coordinates on any body — this is the cross-body teleport `/tp` never was |
+| `/say <text>` | Speak while observing. Chat is muted by default in observer mode, so a stray line can't give you away |
+
+While observing you fly with WASD (in the direction you look), Space/Ctrl for up/down, Shift for a burst of
+speed, and the mouse wheel to set the cruise speed. You may still **mine** blocks — removing an offensive build
+is the one in-world moderation lever there is, and every removal is written to the server log.
+
+The fleet admin panel's per-world page lists the same players and structures plus **build hotspots** (clusters
+of changed blocks — how you find a house built without a base core), each with a `/goto` line to paste here.
+
 #### Story / finale testing (skip ahead to the endgame)
 These fast-track the story so you can read the full arc and reach the **Guardian finale** (the dialogue-duel
 boss) without grinding the whole playthrough. Same admin + `CheatsAllowed` gating as above.

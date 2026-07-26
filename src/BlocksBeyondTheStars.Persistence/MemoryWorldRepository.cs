@@ -90,7 +90,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     // Keyed exactly like the SQLite tables. Complex mutable POCOs are JSON-cloned on write AND read so
     // no caller ever aliases repository state (the DB round-trip gave that isolation for free).
     private readonly Dictionary<ushort, string> _palette = new();
-    private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, int Tint, int Glow, int Shape)> _blockEdits = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, int Tint, int Glow, int Shape, string Owner, DateTime? EditedUtc)> _blockEdits = new();
     private readonly Dictionary<(string Planet, int Cx, int Cy, int Cz), List<(string Planet, int X, int Y, int Z)>> _blockEditsByChunk = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _flora = new();
     private readonly Dictionary<string, string> _players = new();       // id → PlayerSnapshot JSON
@@ -363,7 +363,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             var value = _blockEdits[key];
             if (remap.TryGetValue(value.Block, out ushort nb) && nb != value.Block)
             {
-                _blockEdits[key] = (nb, value.Tint, value.Glow, value.Shape);
+                _blockEdits[key] = (nb, value.Tint, value.Glow, value.Shape, value.Owner, value.EditedUtc);
             }
         }
 
@@ -416,15 +416,15 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
     // ---------------- Block edits ----------------
 
-    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0)
+    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0, string owner = "")
     {
         lock (_gate)
         {
-            SetBlockLocked(planet, worldPosition, block, tint, glow, shape);
+            SetBlockLocked(planet, worldPosition, block, tint, glow, shape, owner);
         }
     }
 
-    private void SetBlockLocked(string planet, Vector3i worldPosition, ushort block, int tint, int glow, int shape)
+    private void SetBlockLocked(string planet, Vector3i worldPosition, ushort block, int tint, int glow, int shape, string owner = "")
     {
         var key = (planet, worldPosition.X, worldPosition.Y, worldPosition.Z);
         if (!_blockEdits.ContainsKey(key))
@@ -438,7 +438,26 @@ public sealed class MemoryWorldRepository : IWorldRepository
             bucket.Add(key);
         }
 
-        _blockEdits[key] = (block, tint, glow, shape);
+        // Mirrors the SQL repositories: a server-internal write (no owner) must not erase an existing
+        // attribution, so the previous editor is kept (issue #490).
+        string keptOwner = owner;
+        DateTime? stamp = string.IsNullOrEmpty(owner) ? null : DateTime.UtcNow;
+        if (string.IsNullOrEmpty(owner) && _blockEdits.TryGetValue(key, out var prev))
+        {
+            keptOwner = prev.Owner;
+            stamp = prev.EditedUtc;
+        }
+
+        _blockEdits[key] = (block, tint, glow, shape, keptOwner ?? string.Empty, stamp);
+    }
+
+    public (string Owner, DateTime? EditedUtc)? GetBlockAttribution(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            var key = (planet, worldPosition.X, worldPosition.Y, worldPosition.Z);
+            return _blockEdits.TryGetValue(key, out var value) ? (value.Owner, value.EditedUtc) : null;
+        }
     }
 
     public IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk)
@@ -649,6 +668,14 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<StoredBeacon> ListAllBeacons()
+    {
+        lock (_gate)
+        {
+            return _beacons.Values.Select(CloneBeacon).ToList();
+        }
+    }
+
     public void DeleteBeacon(string planet, int x, int y, int z)
     {
         lock (_gate)
@@ -670,6 +697,14 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             return _beams.Values.Where(b => b.Planet == planet).Select(CloneBeam).ToList();
+        }
+    }
+
+    public IReadOnlyList<StoredBeam> ListAllBeams()
+    {
+        lock (_gate)
+        {
+            return _beams.Values.Select(CloneBeam).ToList();
         }
     }
 

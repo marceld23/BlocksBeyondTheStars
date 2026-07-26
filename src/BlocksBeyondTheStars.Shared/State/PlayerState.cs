@@ -107,8 +107,17 @@ public sealed class PlayerState
     /// when they descend back below the atmosphere line. Not persisted.</summary>
     public bool AboveAtmosphere { get; set; }
 
-    /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.</summary>
+    /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.
+    /// <para>Note there is deliberately no "fleet admin" value here: this field is persisted in the save, and
+    /// saves are downloadable and re-uploadable by players, so an operator-level role stored here would travel
+    /// into worlds the operator does not control. Fleet admin is config-only — see
+    /// <c>ServerConfig.FleetAdminPlayers</c>.</para></summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
+
+    /// <summary>ISO-8601 UTC timestamp of this player's last join or save, so the admin player list can show
+    /// "last seen" for players who are not online (issue #488). Empty for records written before this existed.
+    /// Persisted in the player blob, so no schema change was needed.</summary>
+    public string LastSeenUtc { get; set; } = string.Empty;
 
     /// <summary>Name verification: SHA-256 hex of the per-install secret the name's first join presented.
     /// Later joins under this name must present the matching token. Empty = unclaimed (legacy save or a

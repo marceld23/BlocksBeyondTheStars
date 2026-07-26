@@ -461,7 +461,9 @@ public sealed partial class GameServer
     private bool ReconcileSpeeders()
     {
         string body = _world.LocationId;
-        var present = JoinedInActiveWorld().Where(s => !InSpace(s.State.PlayerId)).ToList();
+        // Observers are not "present" for this purpose (issue #487) — a parked speeder with no visible owner
+        // would betray the invisible admin.
+        var present = JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId)).ToList();
         var presentOwners = new HashSet<string>(present.Select(s => s.State.PlayerId));
 
         int before = _speeders.Count;

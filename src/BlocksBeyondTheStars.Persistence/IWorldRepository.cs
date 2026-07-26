@@ -123,13 +123,25 @@ public readonly struct BlockEdit
     public readonly int Glow;
     public readonly int Shape;
 
-    public BlockEdit(Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0)
+    /// <summary>Player id of the <b>last</b> editor of this cell, or empty when unknown (server-internal write,
+    /// or a cell edited before attribution existed — issue #490). The table is keyed by cell and updated in
+    /// place, so this is deliberately "who changed it last", not a history: griefing is by definition the most
+    /// recent edit, which is the question the data has to answer.</summary>
+    public readonly string Owner;
+
+    /// <summary>When the last edit happened (UTC), or null when unknown.</summary>
+    public readonly DateTime? EditedUtc;
+
+    public BlockEdit(Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0,
+        string owner = "", DateTime? editedUtc = null)
     {
         WorldPosition = worldPosition;
         Block = block;
         Tint = tint;
         Glow = glow;
         Shape = shape;
+        Owner = owner ?? string.Empty;
+        EditedUtc = editedUtc;
     }
 }
 
@@ -176,8 +188,16 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Records a single block change (only deltas against the procedural baseline are stored).
     /// <paramref name="tint"/>/<paramref name="glow"/> carry the optional per-voxel colour modifier (0 = none);
-    /// <paramref name="shape"/> the packed non-cube shape descriptor (0 = plain cube).</summary>
-    void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0);
+    /// <paramref name="shape"/> the packed non-cube shape descriptor (0 = plain cube).
+    /// <paramref name="owner"/> is the player who made the change (empty for server-internal writes like
+    /// worldgen stamps or flora regrowth) — see <see cref="BlockEdit.Owner"/> for the "last editor wins"
+    /// semantics this stores.</summary>
+    void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0, string owner = "");
+
+    /// <summary>Attribution for one cell: who last changed it and when (issue #490). Null when the cell has no
+    /// stored edit at all; the owner is empty for cells edited before attribution existed or written by the
+    /// server itself.</summary>
+    (string Owner, DateTime? EditedUtc)? GetBlockAttribution(string planet, Vector3i worldPosition);
 
     /// <summary>Loads all stored block edits that fall inside the given chunk.</summary>
     IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk);
@@ -220,6 +240,10 @@ public interface IWorldRepository : IDisposable
     /// <summary>Lists all placed radio beacons on a planet (restored on world load).</summary>
     IReadOnlyList<StoredBeacon> ListBeacons(string planet);
 
+    /// <summary>Lists placed beacons across <b>every</b> body. The per-world lists only cover the resident
+    /// world; the admin build inventory (issue #488) means "everywhere", so it reads the save instead.</summary>
+    IReadOnlyList<StoredBeacon> ListAllBeacons();
+
     void DeleteBeacon(string planet, int x, int y, int z);
 
     /// <summary>Stores (inserts or replaces) a placed beam block, keyed by its world cell.</summary>
@@ -227,6 +251,9 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Lists all placed beam blocks on a planet (restored on world load).</summary>
     IReadOnlyList<StoredBeam> ListBeams(string planet);
+
+    /// <summary>Lists placed beam pads across <b>every</b> body — see <see cref="ListAllBeacons"/>.</summary>
+    IReadOnlyList<StoredBeam> ListAllBeams();
 
     void DeleteBeam(string planet, int x, int y, int z);
 

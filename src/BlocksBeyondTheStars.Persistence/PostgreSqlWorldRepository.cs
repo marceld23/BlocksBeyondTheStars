@@ -29,6 +29,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     // Guards against an illegal nested BEGIN so RunInTransaction can be called reentrantly.
     private bool _inTransaction;
 
+    /// <summary>player id → <c>player_ref</c> surrogate; see the SQLite twin. Guarded by <see cref="_gate"/>.</summary>
+    private readonly Dictionary<string, int> _playerRefCache = new(StringComparer.Ordinal);
+
     public string WorldDirectory => _paths.WorldDirectory;
 
     public PostgreSqlWorldRepository(SaveGamePaths paths, string connectionString)
@@ -59,7 +62,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, tint INTEGER NOT NULL DEFAULT 0, glow INTEGER NOT NULL DEFAULT 0,
                 shape INTEGER NOT NULL DEFAULT 0,
+                owner_id INTEGER NOT NULL DEFAULT 0, edited_unix BIGINT NOT NULL DEFAULT 0,
                 PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS player_ref (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE);
             CREATE TABLE IF NOT EXISTS player (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS container (
@@ -102,6 +107,10 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         // Migrate older saves to carry the per-voxel shape descriptor (non-cube building forms). Same pattern:
         // harmlessly ignored on a fresh DB where the CREATE already added the column.
         TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS shape INTEGER NOT NULL DEFAULT 0;");
+        // Block attribution (issue #490) — mirrors the SQLite side: interned owner + edit time, 0 = unknown for
+        // every row written before this shipped (no back-fill is possible).
+        TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS owner_id INTEGER NOT NULL DEFAULT 0;");
+        TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS edited_unix BIGINT NOT NULL DEFAULT 0;");
     }
 
     // --- Block-id palette (content-shift migration) ---
@@ -290,13 +299,23 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     // --- Block edits ---
 
-    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0)
+    public void SetBlock(string planet, Vector3i worldPosition, ushort block, int tint = 0, int glow = 0, int shape = 0, string owner = "")
     {
         lock (_gate)
         {
+            // A server-internal write (worldgen stamp, flora regrowth) carries no owner and must not erase an
+            // existing attribution — see the SQLite twin for the reasoning.
+            int ownerId = string.IsNullOrEmpty(owner) ? 0 : InternPlayerLocked(owner);
+            long now = ownerId == 0 ? 0 : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO block_edit (planet, x, y, z, block, tint, glow, shape) VALUES (@p, @x, @y, @z, @b, @t, @g, @s) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block = excluded.block, tint = excluded.tint, glow = excluded.glow, shape = excluded.shape;";
+            cmd.CommandText =
+                "INSERT INTO block_edit (planet, x, y, z, block, tint, glow, shape, owner_id, edited_unix) " +
+                "VALUES (@p, @x, @y, @z, @b, @t, @g, @s, @o, @u) " +
+                "ON CONFLICT(planet, x, y, z) DO UPDATE SET block = excluded.block, tint = excluded.tint, " +
+                "glow = excluded.glow, shape = excluded.shape, " +
+                "owner_id = CASE WHEN excluded.owner_id = 0 THEN block_edit.owner_id ELSE excluded.owner_id END, " +
+                "edited_unix = CASE WHEN excluded.owner_id = 0 THEN block_edit.edited_unix ELSE excluded.edited_unix END;";
             cmd.Parameters.AddWithValue("@p", planet);
             cmd.Parameters.AddWithValue("@x", worldPosition.X);
             cmd.Parameters.AddWithValue("@y", worldPosition.Y);
@@ -305,7 +324,53 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("@t", tint);
             cmd.Parameters.AddWithValue("@g", glow);
             cmd.Parameters.AddWithValue("@s", shape);
+            cmd.Parameters.AddWithValue("@o", ownerId);
+            cmd.Parameters.AddWithValue("@u", now);
             cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>player id → interned surrogate, inserted on first use. Caller holds <c>_gate</c>; cached because
+    /// block writes are hot.</summary>
+    private int InternPlayerLocked(string playerId)
+    {
+        if (_playerRefCache.TryGetValue(playerId, out int cached))
+        {
+            return cached;
+        }
+
+        using var cmd = Connection.CreateCommand();
+        cmd.CommandText = "INSERT INTO player_ref (name) VALUES (@n) ON CONFLICT (name) DO NOTHING; " +
+                          "SELECT id FROM player_ref WHERE name = @n;";
+        cmd.Parameters.AddWithValue("@n", playerId);
+        int id = Convert.ToInt32(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+        _playerRefCache[playerId] = id;
+        return id;
+    }
+
+    public (string Owner, DateTime? EditedUtc)? GetBlockAttribution(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText =
+                "SELECT COALESCE(r.name, ''), e.edited_unix FROM block_edit e " +
+                "LEFT JOIN player_ref r ON r.id = e.owner_id " +
+                "WHERE e.planet = @p AND e.x = @x AND e.y = @y AND e.z = @z;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", worldPosition.X);
+            cmd.Parameters.AddWithValue("@y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("@z", worldPosition.Z);
+
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            string owner = reader.GetString(0);
+            long unix = reader.GetInt64(1);
+            return (owner, unix > 0 ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime : null);
         }
     }
 
@@ -749,6 +814,56 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         }
     }
 
+    public IReadOnlyList<StoredBeacon> ListAllBeacons()
+    {
+        var result = new List<StoredBeacon>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT planet, x, y, z, label, owner FROM beacon;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredBeacon
+                {
+                    Planet = reader.GetString(0),
+                    X = reader.GetInt32(1),
+                    Y = reader.GetInt32(2),
+                    Z = reader.GetInt32(3),
+                    Label = reader.GetString(4),
+                    OwnerId = reader.GetString(5),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<StoredBeam> ListAllBeams()
+    {
+        var result = new List<StoredBeam>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT planet, x, y, z, name, owner FROM beam;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredBeam
+                {
+                    Planet = reader.GetString(0),
+                    X = reader.GetInt32(1),
+                    Y = reader.GetInt32(2),
+                    Z = reader.GetInt32(3),
+                    Name = reader.GetString(4),
+                    OwnerId = reader.GetString(5),
+                });
+            }
+        }
+
+        return result;
+    }
+
     public IReadOnlyList<StoredBeacon> ListBeacons(string planet)
     {
         var result = new List<StoredBeacon>();
@@ -1150,7 +1265,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     private static readonly string[] BackupTables =
     {
-        "world_meta", "block_edit", "player", "ship", "container", "door", "beacon", "beam",
+        "world_meta", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon", "beam",
         "base_claim", "alliance", "story_state", "location_status", "mission",
         "space_structure", "structure_edit", "flora_regrow",
     };
