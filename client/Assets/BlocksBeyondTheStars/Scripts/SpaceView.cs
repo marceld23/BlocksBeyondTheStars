@@ -2516,11 +2516,10 @@ namespace BlocksBeyondTheStars.Client
             // The system's other planets/moons at their (scaled) orbit coords — all real, all landable.
             if (current != null && system != null)
             {
-                // Clear space between two bodies' surfaces comes from SystemBodyLayout: proportional to how
-                // big the two bodies are, because a flat gap made every moon hug its planet (#493).
-
                 // Plan every body first (positions + radii), then nudge any overlaps apart, THEN spawn — so no
-                // two planets/moons ever clip into each other at the compact view scale.
+                // two planets/moons ever clip into each other at the compact view scale. How much clear space
+                // "apart" means comes from SystemBodyLayout: proportional to the two bodies, because a flat gap
+                // left every moon hugging its planet (#493).
                 var ids = new List<string>();
                 var names = new List<string>();
                 var locKeys = new List<string>(); // "System · Body" — the key the body's WORLD seeds flora hues with

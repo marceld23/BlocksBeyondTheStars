@@ -11,6 +11,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🪐 Room to fly between the worlds
+- **Planets and their moons no longer huddle together in space.** Out in the flight view, every moon
+  used to sit glued to the surface of its planet, and the odd pair of planets came out nearly
+  touching — the view kept a flat 8-unit gap between any two bodies, whether they were pebbles or gas
+  giants, and that gap is less than the distance the ship itself is held at. The gap now grows with
+  the bodies, so a moon rides at a real altitude above its planet and neighbouring worlds read as
+  separate places you fly *between*. Measured across 2 400 generated systems the typical clear space
+  between two bodies went from 8 to 21 units, and moon-to-planet from 8 to 22 — while the time to
+  cruise out to the system's farthest body is unchanged. A moon of the world you launched from could
+  also end up stuck *inside* it; it can't any more (#493).
+
 ### 🛰️ Fleet operations
 - **The fleet admin panel can delete worlds.** Every row on `/admin` gets a folded-away `delete…`
   control: type the world's name (checked on the server — there is no undo), then either `delete`,
