@@ -427,6 +427,7 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // 1024² scan seeking a pooled reach (#469) — full-tier only (PRs skip Slow)
     public void TryGetWaterSurface_LandsInsideGeneratedWater()
     {
         // Guards the fauna fix: aquatic creatures spawn at the column TryGetWaterSurface reports. The old probe

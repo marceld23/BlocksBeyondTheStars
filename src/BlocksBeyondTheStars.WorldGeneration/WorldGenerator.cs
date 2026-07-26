@@ -894,14 +894,17 @@ public sealed class WorldGenerator
     // rasterizes that to block columns whose water surface FOLLOWS the terrain (no floating wall) and which
     // carry a waterfall drop at steep steps. The whole thing is integer + seed-deterministic, so the client
     // rebuilds the identical field — no network snapshot. See the plan doc.
-    private readonly System.Collections.Generic.Dictionary<(string, int, bool, long), RiverField> _riverFields = new();
-    private readonly object _riverLock = new object();
+    // STATIC like the calibration cache: the field is a pure function of (world seed, planet, size,
+    // cratered, body salt), and fresh generator instances (tests, client preview bakes) would otherwise
+    // re-run the ~300 ms network build per instance.
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), RiverField> _riverFields = new();
+    private static readonly object _riverLock = new object();
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
     public RiverField RiverFieldFor(PlanetType planet)
     {
-        var key = (planet.Key, _circumference, _crateredWorld, _locationSalt);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
         lock (_riverLock)
         {
             if (_riverFields.TryGetValue(key, out var cached))

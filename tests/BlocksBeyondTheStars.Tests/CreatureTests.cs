@@ -191,6 +191,7 @@ public sealed class CreatureTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // ~3 min of simulated ticks — full-tier only (PRs skip Slow)
     public void SpawnRing_ScattersFauna_AndPopulationEscapesTheOldFixedCap()
     {
         // #470: the ring rotor used to advance modulo the ROSTER length (3/6), so only the first arc of
