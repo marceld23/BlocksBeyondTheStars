@@ -26,9 +26,14 @@ public sealed partial class GameServer
 
     private void StampRuins()
     {
-        if (_ruinsStamped)
+        if (_ruinsStamped || FeatureStamped("ruins"))
         {
-            return; // already stamped once — the ruin blocks live on as persisted edits
+            // Already stamped — this session OR any earlier one (#467): the ruin blocks live on as
+            // persisted edits. Ruins are deliberately mineable, so re-stamping would resurrect every
+            // scavenged wall (the doc comment above always promised this; the persisted registry is
+            // what finally makes it true across world unloads).
+            _ruinsStamped = true;
+            return;
         }
 
         var planet = _world.Planet;
@@ -48,8 +53,9 @@ public sealed partial class GameServer
         }
 
         _ruinsStamped = true;
+        MarkFeatureStamped("ruins"); // #467: whatever the rolls below decide is decided once, forever
 
-        long rSeed = _meta.Seed ^ WorldGenerator.StableHash("ruins:" + planet.Key);
+        long rSeed = _meta.Seed ^ WorldGenerator.StableHash("ruins:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(rSeed ^ (rSeed >> 32))));
 
         // Rare: most worlds get none, occasionally one, rarely two — nudged up a touch on bigger worlds and

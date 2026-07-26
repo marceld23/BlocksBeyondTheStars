@@ -169,8 +169,10 @@ public sealed partial class GameServer
     {
         var planet = _world.Planet;
 
-        // Deterministic per planet + seed.
-        long sSeed = _meta.Seed ^ WorldGenerator.StableHash("settlement:" + planet.Key);
+        // Deterministic per BODY + seed (#478): keyed by the location id, not the planet type — every rocky
+        // world used to draw the same tier/ruin/character sequence, layouts and NAMES ("Karth Village"
+        // everywhere), and identically-named settlements even shared NPC memory and mission-id prefixes.
+        long sSeed = _meta.Seed ^ WorldGenerator.StableHash("settlement:" + _world.LocationId);
         var rng = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
 
         // World options: the chosen settlement frequency scales the density (Off ⇒ none).
@@ -842,7 +844,10 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (pos.Y >= s.Min.Y && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
+            // #480 (was ST-7): the protected volume reaches BELOW Min.Y too — the foundation plinth is
+            // filled from the foundation row down to the natural surface (up to 48 on sloped ground), and
+            // leaving it mineable let a "protected" village be undermined from underneath.
+            if (pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
             {
                 return true;
             }

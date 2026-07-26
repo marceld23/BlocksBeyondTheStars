@@ -150,7 +150,9 @@ public sealed class FloraVarietyTests
     {
         var planet = _content.GetPlanet("jungle")!;
         var gen = new WorldGenerator(2026, _content);
-        var counts = CountArea(gen, planet, chunksXZ: 4);
+        // 8×8 chunks: since the altitude-biome pass (#476) the lowlands near the origin can be one swamp
+        // grove patch (Broadleaf OR Dead snags) — a wider area guarantees crossing patch boundaries.
+        var counts = CountArea(gen, planet, chunksXZ: 8);
 
         var log = _content.GetBlock("wood_log")!.NumericId.Value;
         var leaves = _content.GetBlock("tree_leaves")!.NumericId.Value;

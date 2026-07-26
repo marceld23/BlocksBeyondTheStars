@@ -147,5 +147,6 @@
   { "key": "lead_block",      "nameKey": "block.lead_block.name", "category": "building",      "hardness": 4.2, "requiredTool": "drill", "minToolTier": 1, "color": 5922406,  "drops": [ { "item": "lead_block", "count": 1 } ] },
   { "key": "zinc_block",      "nameKey": "block.zinc_block.name", "category": "building",      "hardness": 3.9, "requiredTool": "drill", "minToolTier": 1, "color": 11122882, "drops": [ { "item": "zinc_block", "count": 1 } ] },
   { "key": "tungsten_block",  "nameKey": "block.tungsten_block.name", "category": "building",  "hardness": 8.2, "requiredTool": "drill", "minToolTier": 2, "color": 5592410,  "drops": [ { "item": "tungsten_block", "count": 1 } ] },
-  { "key": "titanium_block",  "nameKey": "block.titanium_block.name", "category": "building",  "hardness": 7.4, "requiredTool": "drill", "minToolTier": 2, "color": 12633548, "drops": [ { "item": "titanium_block", "count": 1 } ] }
+  { "key": "titanium_block",  "nameKey": "block.titanium_block.name", "category": "building",  "hardness": 7.4, "requiredTool": "drill", "minToolTier": 2, "color": 12633548, "drops": [ { "item": "titanium_block", "count": 1 } ] },
+  { "key": "obsidian",        "nameKey": "block.obsidian.name", "category": "terrain",        "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "obsidian", "count": 1 } ] }
 ]

@@ -40,6 +40,10 @@ services:
       # Maintenance announcements (#249): shared secret forwarded to each world as BBS_ANNOUNCE_TOKEN;
       # worlds only pick it up on their next wake. Empty = announcements off.
       BBS_WH_ANNOUNCE_TOKEN: ${BBS_WH_ANNOUNCE_TOKEN:-}
+      # Fleet admins (#487/#495): operator player names, forwarded to each world as BBS_FLEET_ADMINS
+      # (picked up on the next wake). Grants the invisible observer mode + all-worlds access; the names
+      # are auto-reserved so nobody else can register or play them. Empty = observer mode off fleet-wide.
+      BBS_WH_FLEET_ADMINS: ${BBS_WH_FLEET_ADMINS:-}
       # Server crash reports (#363): the ReportHost write key, forwarded to each world as
       # BBS_CRASH_REPORT_KEY (picked up on the next wake). Empty = crash upload off. The endpoint
       # override is only for fleets with their own ReportHost — the server default is the official inbox.

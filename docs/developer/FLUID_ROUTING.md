@@ -32,7 +32,7 @@ The whole pipeline is **fluid-agnostic** and parameterised by a fill fluid:
 - **`RiverNetwork`** (`src/BlocksBeyondTheStars.WorldGeneration/RiverNetwork.cs`) — the coarse
   drainage solver. Pure, deterministic, **integer math** (terrain heights are `int`, so there is no
   float to drift across .NET ↔ Unity/IL2CPP). Algorithm:
-  - Sample `SurfaceHeight` on a **coarse grid** (cell size **8** blocks) over the whole torus.
+  - Sample `SurfaceHeight` on a **coarse grid** (cell size **16** blocks) over the whole torus.
   - **Priority-Flood** depression fill (Barnes) from the sea cells → a drainage tree plus
     **fill-and-spill** lakes, so every cell has a downhill path to a sink. Lake depth is capped
     (see §5) so the naive flood doesn't drown 20–28 % of the world.
@@ -128,10 +128,10 @@ mode 6 and:
 
 | Parameter | Water | Lava | Note |
 |---|---|---|---|
-| Coarse cell size | 8 | 8 | shared grid |
-| `channelFlowThreshold` | 2 | 1 | lava = sparser paths |
+| Coarse cell size | 16 | 16 | shared grid |
+| `channelFlowThreshold` | 1 | 1 | headwaters are stamped too (#474) |
 | `maxWidth` | 7 | 9 | lava = wider thick flows |
-| `widthPerFlow` | 8 | 6 | lava = slower width growth |
+| `fullWidthAccum` | 8 | 1 | width is RELATIVE to the world's largest flow (#474) |
 | `maxLakeDepth` | 6 | 4 | lava = shallower basins |
 | `estuaryWiden` | 3 | 4 | flare at the sea mouth |
 | `waterfallMinDrop` | 4 | 4 | shared; matches client mist `MinDrop` |

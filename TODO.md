@@ -100,6 +100,37 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Space view: planets and satellites keep a visible gap (#493, 2026-07-26, branch fix/space-view-body-spacing)
+Analysed and measured first (`analysis/space-view-body-spacing.md`): a probe replayed
+`SpaceView.BuildSystem`'s layout math over real `UniverseGenerator` output across **2 400 systems /
+26 951 bodies**.
+
+**Root cause: two independent size models.** `UniverseGenerator` places bodies with hand-picked
+constants (`MoonOrbit` 90, `OrbitStep` 520, `BodyClearance` 470/290/215) while `SpaceView` derives a
+body's *rendered* radius from its real walkable circumference — 11…27 view units for a planet, i.e.
+**69…169 system units**. So a moon's star-map orbit (90 → 14 view units) is always *inside* its own
+planet once drawn: the `minClear` clamp fired for **13 882/13 882 moons = 100 %** and pinned each at
+the flat `BodyGap = 8f`, *below* the ship's own 10-unit keep-out shell. The moon's seeded *angle*
+survived; its seeded *distance* was discarded entirely, making `MoonStep` dead code. Planets were
+fine on average (median 185) but the tail near-touched (p10 54, min 8.0) because `pAngle` is a free
+random draw. The relax pass displaced 17 % of bodies and was the de-facto layout.
+
+**Fix (client only, deliberately):** the gap rule + relaxation moved to
+`Shared/World/SystemBodyLayout.cs`, beside `WorldConstants.CircumferenceFor` (the size source both
+stages must agree on), and the flat gap became `max(14, (rA+rB) · 0.55)` for both the moon clamp and
+the relax pass. Home is now passed in as a **fixed obstacle** — it never moves, but its own moons are
+laid out in *its* plane and nothing stopped the pass from shoving one back into it (measured overlaps
+up to 16 units). Measured after: nearest-neighbour gap median **8.0 → 21.4**, p10 **8.0 → 14.0**,
+moon→parent median **8.0 → 22.2**, home-moon→home min **−16.1 → 39.1**, cruise to the outermost body
+28 s → 29 s. `SystemBodyLayoutTests` asserts the guarantee over 320 real generated systems.
+
+`SystemX`/`SystemZ` are untouched, so the surface sky view, star map, radar and travel distances are
+unaffected. **Not done, and why:** deriving moon orbits from the parent's real size is the deeper fix,
+but `SkyBodiesView` sizes sky bodies from real system-space distance, so it would shrink the parent
+planet seen from its moon from 47 → 9-12 and stretch cruise to 43 s — it needs its own parent/child-aware
+companion change. Two further findings left open: landable asteroids are the only body kind with **no**
+generator separation pass, and `MoonStep` remains inert.
+
 ### ★ Fleet admin: delete worlds + the portal links to the game website (2026-07-26, branch feat/worldhost-admin-delete-and-site-link)
 Two small WorldHost additions, both analysed first (`analysis/fleet-admin-world-delete.md`,
 `analysis/portal-website-link.md`).
@@ -6339,6 +6370,64 @@ changes on a USB plug-in and after Windows updates, the Mono client can fake it 
 imaged school PCs collide — and reading a device id needs consent under §25 TDDDG / EDPB Guidelines 2/2023,
 which under-16s cannot give. See the analysis for the layered alternative (IP link hints in the admin panel
 first) if it ever becomes necessary.
+
+## ✅ Done (2026-07-26): worldgen overhaul — per-body identity, real seas, calibrated caves/ore, climate, volcanoes (#466–#481)
+
+One branch (`feat/worldgen-overhaul`, worktree), one deliberate one-time change to existing worlds (user
+decision — no grandfathering). Highlights:
+
+- **Per-body identity (#478):** `PlanetSeed`, flora/tree/creature rosters, settlement/ruin/factory/wreck
+  seeds and the flora tint are now salted with the body's location id — two worlds of the same planet type
+  are finally different worlds (terrain character, species names, settlement names). Client previews
+  (`WorldMinimap.Bake`) carry the body id so the map you see is the world you get.
+- **Persistence seatbelts:** body→planet-type map pinned at first sight (#468, freeze migration); one-time
+  stamp registry for ruins/vaults/wreck (#467) — re-entering an unloaded world no longer resurrects mined
+  structures, carves player builds, or re-offers the wreck; the wreck claim itself is persisted (#466).
+- **Sea level (#473):** percentile of the world's real height distribution (tie-aware) — jungle/swamp/
+  savanna/varied finally HAVE oceans and coasts; the ocean type rolls its land fraction per world
+  (archipelago ↔ waterworld); ocean amplitude 8→20.
+- **Caves + ore (#472):** thresholds quantile-calibrated per world against the actual torus-noise CDF (the
+  hand-tuned constants sat unreachably deep in the interpolated tail — the real cause of "no ore"); veins
+  now reach 2048 deep; carved cells below the per-world lava table (~64–128) fill with molten rock.
+- **Rivers (#474) + waterfalls (#475):** headwaters stamped (threshold 1), width relative to the world's
+  largest flow (lava flows finally wide), trunks 2–3 deep; waterfalls fire from network cascade cells.
+- **Altitude climate (#476, cosmetic by decision):** shared `TemperatureAt` lapse above sea level — snow/ice
+  line with dither, tree line, cold flora fade, altitude-blended biome bands (biome arrays reordered
+  low→high), positional HUD temperature (rain in the valley, snow on the peak).
+- **Volcanoes (#477):** watery worlds grow 1–4 basalt cones with molten summit craters (per-column fluid
+  override), vents/hot springs, and the new **obsidian** block — water meeting lava chills to obsidian in
+  the fluid automaton (DE+EN locales, procedural tile).
+- **Planet-type sliders (#471):** overrides LAYER onto the data weights (one touched slider no longer
+  collapses the galaxy; ExoticWorlds stays live), `Selectable` enforced on the override path, spawnWeight 0
+  retires a type. **Data (#479):** rocky grows sparse scrub, crystal stops advertising vegetation.
+- **Fauna spawning (#470):** ring rotor separated from the species rotor (all 20 scatter offsets live,
+  advance-on-failure — no more stalls), safety cap 64 (population model 25–45 finally reachable), lava
+  fauna gets a melt probe (`TryGetLavaSurface`), amphibians hold the water surface. **Structures (#480):**
+  foundation skirt protected, template NPC markers keep their floor, fallback vendor lands in a free cell.
+
+Docs updated (WORLD_GENERATION.md, FLUID_ROUTING.md, stale comments). Tests updated + new coverage
+(spawn distribution, pooled-column water, layered overrides). NOT yet merged to main — local Unity build
+for the user's own playtest first.
+
+## ✅ Done (2026-07-26): fleet admin reaches private + password-protected worlds (#495)
+
+Follow-up to #487: observer mode existed but the JOIN path still treated the operator like a player — the
+world browser only listed "mine + public", and only a world's *owner* bypassed its password. So the invisible
+observer could only reach public, password-free worlds — while kids play mostly on private, password-shared
+ones, and their oversight is the whole point.
+
+**Access model (double-locked).** The operator gate is `account.IsDeveloper && fleet-admin join name`:
+developer accounts are only claimable with the secret `BBS_WH_RESERVED_CLAIM_CODE`, and config load now
+**auto-adds every fleet-admin name to `ReservedNames`**, so the name carrying the power can never be
+registered or played by anyone else. A developer account under a normal name gets no bypass (family member
+playing), and a normal account can't even join under the fleet-admin name (reserved). Name matching is now
+case-insensitive on both the WorldHost and the game server — the token check already was, and a silent
+`marcel` ≠ `Marcel` mismatch would deny the elevation with no error anywhere.
+
+**Plumbing.** `WorldOrchestrator.JoinAsync` gains the operator bypass next to the existing owner bypass
+(ban/terms checks untouched); new `GET /api/worlds/all` (developer accounts only, 403 otherwise) lists every
+world incl. owner names; the client's Official Worlds screen probes it and renders an "All worlds (operator)"
+section — invisible to normal accounts by construction, with `[PW]`/`[PRIV]`/owner flags per row. DE+EN.
 
 ## ✅ Done (2026-07-26): fleet-admin observer mode + admin world inspection (#487–#490)
 

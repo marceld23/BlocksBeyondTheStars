@@ -65,7 +65,7 @@ public sealed partial class GameServer
             return;
         }
 
-        long fSeed = _meta.Seed ^ WorldGenerator.StableHash("factory:" + planet.Key);
+        long fSeed = _meta.Seed ^ WorldGenerator.StableHash("factory:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(fSeed ^ (fSeed >> 32))));
 
         // Rare: most worlds get none.

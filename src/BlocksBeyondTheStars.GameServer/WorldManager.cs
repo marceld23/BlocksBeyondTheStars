@@ -134,6 +134,7 @@ internal sealed class LoadedWorld
     public double CreatureClock { get; set; }
     public double CreatureBroadcastTimer { get; set; }
     public int CreatureSpawnRotor { get; set; }
+    public int CreatureRingRotor { get; set; } // #470: ring slot counter, SEPARATE from the species rotor
     public double EnemySpawnTimer { get; set; }
     public double SinceFluid { get; set; }
     public double SinceFire { get; set; }

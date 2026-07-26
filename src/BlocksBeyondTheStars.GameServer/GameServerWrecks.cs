@@ -68,7 +68,7 @@ public sealed partial class GameServer
     {
         var planet = _world.Planet;
 
-        long wSeed = _meta.Seed ^ WorldGenerator.StableHash("wreck:" + planet.Key);
+        long wSeed = _meta.Seed ^ WorldGenerator.StableHash("wreck:" + _world.LocationId); // per body (#478)
         var rng = new System.Random(unchecked((int)(wSeed ^ (wSeed >> 32))));
 
         // World options: the chosen wreck frequency scales the per-world chance (Off ⇒ none).
@@ -106,21 +106,30 @@ public sealed partial class GameServer
         int baseY = groundY - 1; // half-buried crash pose: sink the hull one block into the ground
         _wreckOrigin = new Vector3i(ax, baseY, az);
 
-        // Stamp only the wreck's solid blocks (breaches stay as the existing terrain/air).
-        for (int x = 0; x < structure.Width; x++)
-            for (int y = 0; y < structure.Height; y++)
-                for (int z = 0; z < structure.Length; z++)
-                {
-                    ushort b = structure.Get(x, y, z);
-                    if (b != 0)
+        // Stamp only the wreck's solid blocks (breaches stay as the existing terrain/air) — and only ONCE
+        // per world (#467): on re-entry the runtime state (structure, markers, name) is re-derived from the
+        // same deterministic rolls, but the blocks are the player's now — repairs stay repaired, mined
+        // hull stays mined, nothing resurrects.
+        bool write = !FeatureStamped("wreck");
+        if (write)
+        {
+            for (int x = 0; x < structure.Width; x++)
+                for (int y = 0; y < structure.Height; y++)
+                    for (int z = 0; z < structure.Length; z++)
                     {
-                        _world.SetBlock(new Vector3i(ax + x, baseY + y, az + z), new BlockId(b));
+                        ushort b = structure.Get(x, y, z);
+                        if (b != 0)
+                        {
+                            _world.SetBlock(new Vector3i(ax + x, baseY + y, az + z), new BlockId(b));
+                        }
                     }
-                }
+        }
 
         _wreck = structure;
         _wreckName = WreckDisplayName(structure.Origin, design, rng);
-        _wreckClaimed = false;
+        // #466: the claim is persisted — travelling away and back no longer resets it (that minted a free
+        // ship per lap: repair once, then re-claim on every re-entry).
+        _wreckClaimed = _meta.Claims.Exists(c => c.Key == _world.LocationId + "|wreck");
 
         _wreckMarkers.Clear();
         foreach (var m in structure.Markers)
@@ -136,7 +145,11 @@ public sealed partial class GameServer
         }
 
         _wreckStamped = true;
-        _log.Info($"Wreck '{_wreckName}' ({structure.Origin} {design.Key}) stamped at ({ax}, {baseY}, {az}) with {_wreckMarkers.Count} markers, {structure.BreachCount()} breaches.");
+        if (write)
+        {
+            MarkFeatureStamped("wreck");
+            _log.Info($"Wreck '{_wreckName}' ({structure.Origin} {design.Key}) stamped at ({ax}, {baseY}, {az}) with {_wreckMarkers.Count} markers, {structure.BreachCount()} breaches.");
+        }
     }
 
     /// <summary>Per-planet probability of a wreck (rare everywhere; a touch likelier on lived-in worlds).</summary>
@@ -263,6 +276,15 @@ public sealed partial class GameServer
 
         string id = AddOwnedShipFromDefinition(def, "wreck");
         _wreckClaimed = true;
+        // #466: persist the claim — without this record, every re-entry offered the wreck again.
+        _meta.Claims.RemoveAll(c => c.Key == _world.LocationId + "|wreck");
+        _meta.Claims.Add(new Shared.State.StructureClaim
+        {
+            Key = _world.LocationId + "|wreck",
+            OwnerId = playerId,
+            Name = _wreckName,
+        });
+        _repo.SaveMetadata(_meta);
         Send(session, new ServerMessage { Text = $"Claimed repaired wreck: {def.Key}" });
         SendWreckRepairStatus(session);
         return (true, id);

@@ -313,6 +313,15 @@ public sealed partial class GameServer
             {
                 body.Status = status;
             }
+
+            // #468: the persisted type map is the authority — a body keeps the type it was first seen with,
+            // no matter how data/planets.json changed since. Unknown pinned types (a removed data entry)
+            // fall back to the fresh derivation rather than crashing LoadWorld.
+            if (_meta.BodyPlanetTypes.TryGetValue(body.Id, out var pinned)
+                && _content.GetPlanet(pinned) is not null)
+            {
+                body.PlanetType = pinned;
+            }
         }
 
         // Choose a start body: the first planet matching the configured start planet type. When no body
@@ -372,6 +381,29 @@ public sealed partial class GameServer
             }
         }
 
+        // #468 (decision #1: freeze): pin every body's FINAL type — including the start-planet retype
+        // above — so future planets.json edits can never re-roll them. On an existing save this adopts
+        // whatever the player currently sees; new systems get pinned the first time they appear.
+        bool typesDirty = false;
+        foreach (var body in _galaxy.AllBodies())
+        {
+            if (string.IsNullOrEmpty(body.PlanetType))
+            {
+                continue;
+            }
+
+            if (!_meta.BodyPlanetTypes.TryGetValue(body.Id, out var known) || known != body.PlanetType)
+            {
+                _meta.BodyPlanetTypes[body.Id] = body.PlanetType;
+                typesDirty = true;
+            }
+        }
+
+        if (typesDirty)
+        {
+            _repo.SaveMetadata(_meta);
+        }
+
         // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an
         // already-revealed save (after start-body selection, so it never affects the spawn world). A fresh
         // reveal adds it live via RevealGuardianSystemIfReady.
@@ -424,7 +456,8 @@ public sealed partial class GameServer
         world.World.Cratered = airlessMoon; // stamped on the world so chunk gen re-configures fully (#424 S13)
         // Configure the shared generator for this body's direct gen queries (size, cratering, pads —
         // LandingPadFlats is still empty for a brand-new world; BuildLandingPads below refills it).
-        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats);
+        // The location id salts the per-body identity (#478): terrain character, rosters, structures.
+        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats, locationId);
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits
@@ -2117,8 +2150,10 @@ public sealed partial class GameServer
         }
 
         // Fleet admin (issue #487): the operator of this installation, config-only and never persisted —
-        // see ServerConfig.FleetAdminPlayers for why this must not become a PlayerRole.
-        bool fleetAdmin = _config.FleetAdminPlayers.Contains(name);
+        // see ServerConfig.FleetAdminPlayers for why this must not become a PlayerRole. Case-insensitive
+        // (#495): the hosted token check above compares names OrdinalIgnoreCase too, and a silent
+        // `marcel` ≠ `Marcel` mismatch would grant nothing with no error anywhere.
+        bool fleetAdmin = IsFleetAdminName(name);
 
         // A fleet admin gets a reserved slot on top of MaxPlayers: they come to observe a world, and a full
         // world is exactly when moderation is most likely to be needed. Their observer session also does not
@@ -2437,7 +2472,7 @@ public sealed partial class GameServer
             Joined = true,
             CurrentLocationId = joinBody,
             Locale = NormalizeLocale(locale),
-            IsFleetAdmin = _config.FleetAdminPlayers.Contains(name), // config-only, like the network join path
+            IsFleetAdmin = IsFleetAdminName(name), // config-only, like the network join path
         };
         _sessions[connectionId] = session;
         state.LastSeenUtc = UtcNowIso();

@@ -117,6 +117,17 @@ public sealed class AdminObserverTests : IDisposable
         Assert.DoesNotContain("FleetAdmin", Enum.GetNames<PlayerRole>());
     }
 
+    [Fact]
+    public void FleetAdmin_NameMatch_IsCaseInsensitive()
+    {
+        // #495: the hosted join token already compares names OrdinalIgnoreCase — a case-sensitive config
+        // match here would deny the elevation silently, with no error anywhere to see.
+        var transport = new RecordingTransport();
+        var server = NewServer("fleet_case", transport, "operator");
+
+        Assert.True(server.AddLocalPlayer("Operator").IsFleetAdmin);
+    }
+
     // ---------------- Invisibility (issue #487) ----------------
 
     [Fact]

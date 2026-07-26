@@ -146,7 +146,31 @@ public static class SettlementGenerator
             }
         }
 
-        if (!markers.Exists(m => m.Type == "vendor")) markers.Add(new SettlementMarker("vendor", new Vector3i(w / 2, 1, l / 2)));
+        // Fallback vendor for templates without one — in a FREE cell (#480, was ST-9): the old fixed centre
+        // spot could sit inside a wall, burying the vendor. Scan upward at the centre for the first air cell
+        // with something solid below; a fully solid column falls back to the roof.
+        // NOTE (#480, was ST-9b): templates carry no door_slide/door_hinge markers unless the author places
+        // them — RegisterDoors hangs doors ONLY on markers, so authored doorways without markers stay open
+        // arches. Place door markers in the editor where you want working doors.
+        if (!markers.Exists(m => m.Type == "vendor"))
+        {
+            int vx = w / 2, vz = l / 2, vy = 1;
+            for (int y = 1; y < h; y++)
+            {
+                if (blocks[(vx * h + y) * l + vz] == 0 && blocks[(vx * h + (y - 1)) * l + vz] != 0)
+                {
+                    vy = y;
+                    break;
+                }
+
+                if (y == h - 1)
+                {
+                    vy = h - 1; // solid column all the way up → roof
+                }
+            }
+
+            markers.Add(new SettlementMarker("vendor", new Vector3i(vx, vy, vz)));
+        }
 
         return new SettlementStructure(w, h, l, t.Tier, ruined: false, inhabitant: "human", blocks, markers, System.Math.Max(1, buildings), mods, shapes);
     }

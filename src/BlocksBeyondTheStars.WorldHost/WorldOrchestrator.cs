@@ -137,9 +137,19 @@ public sealed class WorldOrchestrator
             return (null, "The community rules have changed — please accept them on the portal first.");
         }
 
+        // Fleet operator (issue #495): the operator must be able to enter ANY world on the fleet — private,
+        // password-protected, whatever — because oversight of worlds where kids play is the point of observer
+        // mode, and those are rarely the public password-free ones. The gate is deliberately double-locked:
+        // the account must be a developer account (only claimable with the secret ReservedClaimCode at
+        // signup) AND the join name must be a configured fleet-admin name (which config load auto-reserves,
+        // so nobody else can hold it). A stolen password alone gets neither.
+        bool fleetOperator = account.IsDeveloper && _config.IsFleetAdminName(playerName);
+
         // The world owner's own ban list (#497): the fleet ban above is the operator's lever, this one
-        // belongs to whoever owns the world. Checked at the same choke point, so it holds for every client.
-        if (_registry.FindWorldBan(worldId, account.Id, playerName) is { } worldBan)
+        // belongs to whoever owns the world. Checked at the same choke point, so it holds for every client —
+        // but never against the fleet operator: a world owner must not be able to block oversight of their
+        // own world (#495), and a ban list would otherwise be the easiest way to do exactly that.
+        if (!fleetOperator && _registry.FindWorldBan(worldId, account.Id, playerName) is { } worldBan)
         {
             return (null, string.IsNullOrEmpty(worldBan.Reason)
                 ? "The owner of this world has blocked you."
@@ -148,10 +158,11 @@ public sealed class WorldOrchestrator
 
         // World password gate (#250/#251) — enforced BEFORE the wake, at token issuance (the one choke
         // point every hosted join passes), so an unauthorized join can neither enter nor wake the world.
-        // The owner always bypasses their own world's password.
+        // The owner always bypasses their own world's password; so does the fleet operator (above).
         if (_registry.GetWorld(worldId) is { } gated
             && !string.IsNullOrEmpty(gated.PasswordHash)
-            && gated.OwnerAccountId != account.Id)
+            && gated.OwnerAccountId != account.Id
+            && !fleetOperator)
         {
             string attemptKey = account.Id + "|" + gated.Id;
             if (_passwordAttempts.IsExhausted(attemptKey))
@@ -181,7 +192,14 @@ public sealed class WorldOrchestrator
 
         _metrics.JoinGranted();
         _registry.TouchWorldActive(world.Id); // real player interest — resets the archive-inactivity clock
-        _registry.RecordWorldVisitor(world.Id, account.Id, playerName); // the owner's ban pick list (#497)
+
+        // The owner's ban pick list (#497) — but never the operator: observer mode is invisible by design
+        // (#495/#487), and listing the operator among "who has been here" would hand the world owner the
+        // one thing that mode exists to withhold.
+        if (!fleetOperator)
+        {
+            _registry.RecordWorldVisitor(world.Id, account.Id, playerName);
+        }
 
         long expires = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + JoinTokenTtlSeconds;
         string token = HostedJoinToken.Create(world.JoinSecret, world.Id, account.Id, playerName, expires);

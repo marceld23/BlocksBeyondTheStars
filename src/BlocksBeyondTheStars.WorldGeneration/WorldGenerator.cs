@@ -51,20 +51,35 @@ public sealed class WorldGenerator
     /// <summary>The active world's landing pads (so a caller can save/restore them like <see cref="Cratered"/>).</summary>
     public IReadOnlyList<LandingPadFlatten> LandingPads => _landingPads;
 
+    // The active BODY's identity salt (#478): StableHash of its location id, mixed into PlanetSeed so every
+    // celestial body rolls its own terrain character, flora/fauna rosters and structures. Without it every
+    // world of the same planet TYPE was identical (same relief drama, same species, same settlement names).
+    // 0 = legacy/unset (tests, callers that predate the overhaul) — those keep the per-type behaviour.
+    private long _locationSalt;
+    private string _locationId = string.Empty;
+
+    /// <summary>The location id this generator is currently configured for (empty = none; per-type legacy).</summary>
+    public string LocationId => _locationId;
+
     /// <summary>
-    /// Configures ALL per-world mode state (circumference, airless-moon cratering, landing-pad flattening)
-    /// in one call. This generator instance is shared across every resident world, and #424 S13 showed the
-    /// old individual setters invited asymmetric configuration — one path set circumference + pads but not
-    /// cratered, another circumference + cratered but not pads, so correctness rested entirely on the
-    /// single-active-world invariant. One all-or-nothing setter makes a full re-configure the only option.
-    /// Callers re-apply it before every generate/query batch for a body (chunk gen itself stays on the
-    /// single tick thread — this method is about complete state, not thread-safety).
+    /// Configures ALL per-world mode state (circumference, airless-moon cratering, landing-pad flattening,
+    /// body identity) in one call. This generator instance is shared across every resident world, and #424
+    /// S13 showed the old individual setters invited asymmetric configuration — one path set circumference +
+    /// pads but not cratered, another circumference + cratered but not pads, so correctness rested entirely
+    /// on the single-active-world invariant. One all-or-nothing setter makes a full re-configure the only
+    /// option. Callers re-apply it before every generate/query batch for a body (chunk gen itself stays on
+    /// the single tick thread — this method is about complete state, not thread-safety).
+    /// <paramref name="locationId"/> is the body's location id (#478): it salts the per-world rolls so two
+    /// bodies of the same planet type are different worlds. Null/empty keeps the legacy per-type seeding.
     /// </summary>
-    public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads)
+    public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads,
+        string? locationId = null)
     {
         _circumference = circumference;
         _crateredWorld = cratered;
         _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
+        _locationId = locationId ?? string.Empty;
+        _locationSalt = string.IsNullOrEmpty(locationId) ? 0L : StableHash(locationId);
     }
 
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
@@ -90,7 +105,7 @@ public sealed class WorldGenerator
     /// surface height becomes air (terrain bumps, trees, props, flora, stray water), the surface cell gets
     /// the column's natural surface block, and caves directly below are plugged so the pad never collapses
     /// into a cavern. Runs as a post-pass so every feature stamp is covered uniformly.</summary>
-    private void FlattenLandingPads(ChunkData chunk, ChunkCoord coord,
+    private void FlattenLandingPads(PlanetType planet, ChunkData chunk, ChunkCoord coord,
         List<BiomeResolved> biomes, long seed)
     {
         if (_landingPads.Count == 0)
@@ -98,6 +113,7 @@ public sealed class WorldGenerator
             return;
         }
 
+        var calib = CalibFor(planet);
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
         for (int lx = 0; lx < cs; lx++)
@@ -110,7 +126,7 @@ public sealed class WorldGenerator
                     continue;
                 }
 
-                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, padY);
                 var surfaceId = biomes[biomeIndex].Surface;
                 var subSurfaceId = biomes[biomeIndex].Sub;
 
@@ -165,7 +181,14 @@ public sealed class WorldGenerator
         }
     }
 
-    private long PlanetSeed(PlanetType planet) => _worldSeed ^ StableHash(planet.Key);
+    // The type key AND the body salt (#478): every body of the same planet type used to share this seed —
+    // and with it relief drama, cave/ore rolls, rosters and biome counts. The salt makes it per body.
+    private long PlanetSeed(PlanetType planet) => _worldSeed ^ StableHash(planet.Key) ^ _locationSalt;
+
+    /// <summary>The roster seed for this body — the world seed salted with the body identity (#478). The
+    /// server-side roster consumers (flora/tree/creature name + species lookups) MUST use the same formula,
+    /// or scanned names would disagree with what worldgen actually planted.</summary>
+    public long RosterSeed => _worldSeed ^ _locationSalt;
 
     // --- Round-world (torus) noise wrappers: X periodic at the circumference, Z at the latitude period
     // (≈ circumference/2), so terrain/caves/ores are seamless when circumnavigating in ANY direction. ---
@@ -200,8 +223,27 @@ public sealed class WorldGenerator
     private static double DramaFor(long seed)
         => 0.9 + 0.6 * ((seed * 2654435761L >> 16 & 0x3FF) / 1023.0);
 
-    /// <summary>Computes the surface height (world Y) of a column for a planet.</summary>
+    /// <summary>Computes the surface height (world Y) of a column for a planet — the raw terrain plus, on
+    /// watery worlds, the volcano cones (#477). Everything that consumes terrain (rivers, settlements,
+    /// pads, previews) goes through here, so every system sees the same mountain.</summary>
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
+    {
+        int h = RawSurfaceHeight(planet, worldX, worldZ);
+        if (HasVolcanoes(planet))
+        {
+            double vo = VolcanoOffset(planet, PlanetSeed(planet), worldX, worldZ);
+            if (vo != 0.0)
+            {
+                h += (int)System.Math.Round(vo);
+            }
+        }
+
+        return h;
+    }
+
+    /// <summary>The terrain height WITHOUT the volcano overlay — the base field volcano geometry itself is
+    /// anchored to (the crater's lava level derives from the pre-cone ground under the cone's centre).</summary>
+    private int RawSurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
         long seed = PlanetSeed(planet);
         double n = FbmT(seed, worldX, worldZ, planet.TerrainScale, octaves: 4);
@@ -267,6 +309,139 @@ public sealed class WorldGenerator
     /// <summary>The TOP world-Y of a floating sky island at this column, or <see cref="int.MinValue"/> if none.</summary>
     public int FloatingIslandTop(PlanetType planet, int worldX, int worldZ)
         => FloatingIslandBand(planet, worldX, worldZ, out int top, out _) ? top : int.MinValue;
+
+    // --- Volcanoes (#477, decision #6): watery worlds grow sparse basalt cones with a molten summit
+    // crater — lava on worlds whose seas are water. The cone lives INSIDE SurfaceHeight so every consumer
+    // sees the same mountain; the crater's lava pool is a per-column fluid override in Generate, the same
+    // mechanism ponds and rivers already use. Seam-safe by construction: one hotspot cell grid over the
+    // torus, centres kept a full cone radius inside their cell so no cone ever straddles a wrap seam. ---
+    private const double VolcanoCellSize = 1280.0; // hotspot grid pitch (≈2–5 candidate cells on a default world)
+    private const double VolcanoChance = 0.55;     // fraction of hotspot cells that actually grow a cone
+
+    /// <summary>Volcanoes grow only on watery, breathable-atmosphere worlds (#477): lava/ashen worlds have
+    /// their own lava seas + flows, airless/cratered bodies are geologically dead, skylands stay floaty.</summary>
+    private bool HasVolcanoes(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        return hasAir && waterAb > 0.0;
+    }
+
+    private readonly struct VolcanoCone
+    {
+        public readonly int CenterX;
+        public readonly int CenterZ;
+        public readonly double Radius;
+        public readonly double Height;
+        public readonly double CraterR;
+        public readonly double CraterDepth;
+
+        public VolcanoCone(int cx, int cz, double radius, double height)
+        {
+            CenterX = cx;
+            CenterZ = cz;
+            Radius = radius;
+            Height = height;
+            CraterR = System.Math.Max(4.0, radius * 0.16);
+            CraterDepth = height * 0.55 + 4.0;
+        }
+    }
+
+    /// <summary>The volcano cone covering (worldX, worldZ), if any — with the distance to its centre.
+    /// Deterministic hotspot-cell lookup; a centre never sits closer than its radius to a cell border, so
+    /// checking the containing cell alone is complete (and the cone can never straddle a wrap seam).</summary>
+    private bool TryGetVolcano(PlanetType planet, long seed, int worldX, int worldZ,
+        out VolcanoCone cone, out double dist)
+    {
+        cone = default;
+        dist = 0.0;
+        int period = LatPeriod;
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / VolcanoCellSize));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / VolcanoCellSize));
+        double cw = _circumference / (double)nx;
+        double ch = period / (double)nz;
+
+        int wx = WorldConstants.WrapX(worldX, _circumference);
+        int zc = ((worldZ + period / 2) % period + period) % period; // canonical [0, period)
+        int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
+        int czI = System.Math.Min(nz - 1, (int)(zc / ch));
+
+        ulong h = Noise.Hash(seed ^ 0x70C4A0, cxI, 0, czI);
+        if ((h & 0xFFFF) / 65536.0 >= VolcanoChance)
+        {
+            return false; // this hotspot cell grew no volcano
+        }
+
+        double radius = 34.0 + ((h >> 16) & 0x3FF) / 1023.0 * 26.0; // 34..60
+        double height = 24.0 + ((h >> 26) & 0x3FF) / 1023.0 * 22.0; // 24..46
+        double margin = radius + 24.0;
+        double ox = margin + ((h >> 36) & 0x3FF) / 1023.0 * System.Math.Max(1.0, cw - 2.0 * margin);
+        double oz = margin + ((h >> 46) & 0x3FF) / 1023.0 * System.Math.Max(1.0, ch - 2.0 * margin);
+        int centerX = (int)(cxI * cw + ox);
+        int centerZc = (int)(czI * ch + oz);
+
+        double dx = WorldConstants.WrapDeltaX(wx - centerX, _circumference);
+        double dz = zc - centerZc;
+        if (dz > period / 2.0) dz -= period;
+        if (dz < -period / 2.0) dz += period;
+        dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return false;
+        }
+
+        cone = new VolcanoCone(centerX, centerZc - period / 2, radius, height);
+        return true;
+    }
+
+    /// <summary>The cone's height contribution at a distance from its centre: a smooth basalt slope rising
+    /// to the rim, with the summit crater carved back down toward the vent.</summary>
+    private static double ConeOffsetOf(in VolcanoCone v, double dist)
+    {
+        double t = 1.0 - dist / v.Radius;
+        double cone = v.Height * System.Math.Pow(t, 1.6);
+        if (dist < v.CraterR)
+        {
+            double bt = (v.CraterR - dist) / v.CraterR;
+            cone -= v.CraterDepth * (bt * bt * (3.0 - 2.0 * bt)); // smoothstep bowl down to the vent
+        }
+
+        return cone;
+    }
+
+    private double VolcanoOffset(PlanetType planet, long seed, int worldX, int worldZ)
+        => TryGetVolcano(planet, seed, worldX, worldZ, out var v, out double dist) ? ConeOffsetOf(v, dist) : 0.0;
+
+    /// <summary>The Y of the crater pool's topmost lava cell — anchored to the pre-cone ground under the
+    /// cone's centre so the pool is flat regardless of how the base terrain undulates below the flanks.</summary>
+    private int CraterLavaTop(PlanetType planet, in VolcanoCone v)
+        => RawSurfaceHeight(planet, v.CenterX, v.CenterZ)
+           + (int)System.Math.Round(v.Height - v.CraterDepth + v.CraterDepth * 0.45);
+
+    /// <summary>True when this column lies inside a volcano's summit crater; outputs the molten pool's top
+    /// cell Y. Shared by Generate and the placement/water helpers so they can never disagree (#477).</summary>
+    public bool TryGetVolcanoCrater(PlanetType planet, int worldX, int worldZ, out int lavaTopY)
+    {
+        lavaTopY = 0;
+        if (!HasVolcanoes(planet))
+        {
+            return false;
+        }
+
+        long seed = PlanetSeed(planet);
+        if (!TryGetVolcano(planet, seed, worldX, worldZ, out var v, out double dist) || dist >= v.CraterR - 0.5)
+        {
+            return false;
+        }
+
+        lavaTopY = CraterLavaTop(planet, v);
+        return true;
+    }
 
     /// <summary>Height offset (blocks, added to BaseHeight) for a planet with an explicit <see cref="PlanetType.TerrainStyle"/>
     /// (item 21 V2). <paramref name="h"/> is the base FBM swell in [-1,1]. Each style reshapes it into a distinct
@@ -443,35 +618,218 @@ public sealed class WorldGenerator
     /// int.MinValue if the world has no surface fluid. Used to keep aquatic creatures in the water.</summary>
     public int SeaLevel(PlanetType planet) => ResolveSeaFluid(planet).Level;
 
-    /// <summary>The world's surface sea: which fluid fills its basins and up to what world-Y level. Water on
-    /// worlds with an atmosphere, lava on volcanic / airless worlds (never both); a higher abundance raises
-    /// the level so more low ground floods. Returns (int.MinValue, Air) for a dry world.</summary>
-    private (int Level, BlockId Fluid) ResolveSeaFluid(PlanetType planet)
+    // --- Per-world calibration (#472/#473/#476): measured once per world instead of hand-tuned constants.
+    // The old sea formula guessed against the raw Amplitude while the height function scales it 0.18–1.9×
+    // per style, so most watery worlds had NO sea at all and the ocean type drowned 99.99 % of its surface.
+    // The old cave/ore thresholds were tuned against the original 3D noise; the torus sampler halved the
+    // field's σ and pushed them unreachably far into the tail (caves + ore became corner speckle). Both are
+    // the same class of bug — a constant assuming a distribution the field doesn't have — so both are fixed
+    // the same way: sample the ACTUAL distribution once per world and place thresholds by quantile. ---
+    private sealed class WorldCalibration
     {
+        public int SeaLevel = int.MinValue;   // int.MinValue = dry world
+        public BlockId SeaFluid;
+        public int[] SortedHeights = System.Array.Empty<int>(); // coarse whole-world surface sample, sorted
+        public int MinHeight, MaxHeight;
+        public double CaveThreshold;          // quantile-calibrated (0 = caves disabled)
+        public double[] OreCdf = System.Array.Empty<double>();  // sorted ore-field samples (empirical CDF)
+        public int LavaTableDepth = int.MaxValue; // cave cells deeper than this fill with lava (#472/#477 L-A)
+        public double BaseTemperature;        // planet base + per-world variation (°C) — worldgen-static part
+        public double LapsePerBlock;          // °C lost per block above the reference altitude (#476)
+        public int TempRefY;                  // reference altitude: sea level, else BaseHeight
+    }
+
+    // STATIC cache: the calibration is a pure function of (world seed, planet, circumference, cratered,
+    // body salt), so it is safe — and important — to share across generator instances: the client bakes a
+    // fresh WorldGenerator per minimap/orbit texture and the tests spin up hundreds, each of which would
+    // otherwise re-sample ~17k heights + 2×4096 field points.
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), WorldCalibration> _calibs = new();
+    private static readonly object _calibLock = new object();
+
+    private WorldCalibration CalibFor(PlanetType planet)
+    {
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
+        lock (_calibLock)
+        {
+            if (_calibs.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var calib = BuildCalibration(planet);
+            if (_calibs.Count >= 64)
+            {
+                _calibs.Clear(); // soft cap — entries are ~150 KB each (the sorted height sample)
+            }
+
+            _calibs[key] = calib;
+            return calib;
+        }
+    }
+
+    private WorldCalibration BuildCalibration(PlanetType planet)
+    {
+        long seed = PlanetSeed(planet);
+        var c = new WorldCalibration();
+        double R01(long salt) => (double)((ulong)(seed ^ salt) % 10000UL) / 10000.0;
+
+        // 1) Whole-world height sample (coarse but torus-complete) — the basis for the percentile sea level
+        //    and the altitude normalisation. ~17k samples on the default world; cached per world afterwards.
+        int period = LatPeriod;
+        int stepX = System.Math.Max(8, _circumference / 188);
+        int stepZ = System.Math.Max(8, period / 94);
+        var hs = new System.Collections.Generic.List<int>((_circumference / stepX + 1) * (period / stepZ + 1));
+        for (int z = -period / 2; z < period / 2; z += stepZ)
+            for (int x = 0; x < _circumference; x += stepX)
+                hs.Add(RawSurfaceHeight(planet, x, z));
+        hs.Sort();
+        c.SortedHeights = hs.ToArray();
+        c.MinHeight = c.SortedHeights[0];
+        c.MaxHeight = c.SortedHeights[c.SortedHeights.Length - 1];
+
+        // 2) Sea level by height percentile (#473): waterAbundance now really means "roughly this fraction
+        //    of the world floods" — on every terrain style and every drama roll. Ocean-class worlds
+        //    (abundance ≥ 1) roll their land fraction per world instead (decision #3): some are near-solid
+        //    water, some archipelagos. Water still beats lava; airless worlds stay dry.
         bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
-
         double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
-        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0); // B19: more lava (higher pool level) on volcanic worlds
-
-        // Sea level sits BELOW the average surface (BaseHeight) so only genuine low ground floods (valleys,
-        // canyon floors, basins) — not half the world. A higher abundance raises it toward more water.
+        double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0);
         if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
         {
-            int level = planet.BaseHeight + (int)System.Math.Round((waterAb - 0.95) * planet.Amplitude);
-            return (level, water.NumericId);
+            double frac = waterAb >= 1.0
+                ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)
+                : System.Math.Clamp(0.06 + 0.40 * waterAb + (R01(0x5EA02) - 0.5) * 0.08, 0.02, 0.60);
+            c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
+            c.SeaFluid = water.NumericId;
         }
-
-        // Watery worlds get no surface lava; only dry volcanic/airless worlds pool lava in their basins. The
-        // level sits around the average surface so lava is actually VISIBLE across the low + mid terrain — not
-        // hidden in a few deep pits — with mountains poking out as basalt islands (B54).
-        if (waterAb <= 0.0 && lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
+        else if (lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
         {
-            int level = planet.BaseHeight + (int)System.Math.Round((lavaAb - 0.7) * planet.Amplitude);
-            return (level, lava.NumericId);
+            // Only dry volcanic/airless worlds pool a lava sea (B54: visible across low + mid terrain).
+            double frac = System.Math.Clamp(0.30 * lavaAb + (R01(0x5EA03) - 0.5) * 0.06, 0.05, 0.55);
+            c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
+            c.SeaFluid = lava.NumericId;
         }
 
-        return (int.MinValue, BlockId.Air);
+        // 3) Cave threshold by field quantile (#472): the data's caveThreshold maps to a target carve
+        //    fraction (lower data value = cavier world, as before), jittered per world, then converted to
+        //    whatever raw threshold the ACTUAL torus field needs to carve that fraction.
+        if (planet.CaveThreshold > 0.0)
+        {
+            double carve = System.Math.Clamp(0.5 * (0.90 - planet.CaveThreshold), 0.02, 0.18);
+            carve = System.Math.Clamp(carve + (R01(0x0CA7E) - 0.5) * 0.06, 0.015, 0.22);
+            var caveCdf = FieldSamplesSorted(seed + 7777, 22.0, 16.0, 22.0);
+            c.CaveThreshold = caveCdf[(int)((1.0 - carve) * (caveCdf.Length - 1))];
+        }
+
+        // 4) Ore field CDF (#472): SelectOre turns each vein's rarity into a quantile of this, so `rarity`
+        //    finally IS the kept fraction (the multiplier bumps never fixed this because the knob was broken).
+        c.OreCdf = FieldSamplesSorted(seed + 100, 9.0, 9.0, 9.0);
+
+        // 5) Deep lava table (#472/#477 L-A): carved cave cells below this depth fill with molten rock — the
+        //    danger half to the now-reachable deep ore bands. Kept below the cave-fauna scan (surface−49).
+        c.LavaTableDepth = 64 + (int)((ulong)(seed ^ 0x1A7AB1EL) % 65UL); // 64..128
+
+        // 6) Altitude climate (#476, cosmetic by decision #7): a per-world temperature base + lapse. The
+        //    reference altitude is the (repaired) sea level so "warm at the coast, frozen on the peaks".
+        c.TempRefY = c.SeaLevel != int.MinValue ? c.SeaLevel : planet.BaseHeight;
+        c.BaseTemperature = planet.BaseTemperature + (R01(0x7E3BL) - 0.5) * 12.0; // per-world ±6 °C
+        c.LapsePerBlock = 0.5 + 0.3 * R01(0x1A65EL); // 0.5..0.8 °C per block — snow caps land on the
+                                                     // upper third of a temperate world's peaks (measured)
+        return c;
+    }
+
+    /// <summary>The sea level that floods ≈<paramref name="frac"/> of the sampled columns. Integer terrain
+    /// heights tie heavily (the base-height plateau, mesa decks, flats), so a naive rank quantile can
+    /// overshoot the target by half the world — instead, pick the candidate level whose ACTUAL flooded
+    /// fraction P(surface &lt; L) lands closest to the target.</summary>
+    private static int QuantileLevel(int[] sortedHeights, double frac)
+    {
+        int n = sortedHeights.Length;
+        double target = System.Math.Clamp(frac, 0.0, 1.0);
+        int best = sortedHeights[0]; // floods nothing
+        double bestErr = target;
+        int i = 0;
+        while (i < n)
+        {
+            int v = sortedHeights[i];
+            int j = i;
+            while (j < n && sortedHeights[j] == v)
+            {
+                j++;
+            }
+
+            // Candidate level v+1 floods everything ≤ v, i.e. j/n of the sampled world.
+            double err = System.Math.Abs((double)j / n - target);
+            if (err < bestErr)
+            {
+                bestErr = err;
+                best = v + 1;
+            }
+
+            i = j;
+        }
+
+        return best;
+    }
+
+    /// <summary>Sorted samples of a ValueT field over this world's domain — its empirical CDF. Thresholds
+    /// derived from this stay meaningful no matter how many interpolation axes the torus sampler stacks.</summary>
+    private double[] FieldSamplesSorted(long fieldSeed, double scaleX, double scaleY, double scaleZ)
+    {
+        const int N = 4096;
+        var vals = new double[N];
+        int period = LatPeriod;
+        for (int i = 0; i < N; i++)
+        {
+            double u1 = Noise.Value01(fieldSeed ^ 0x5A11, i, 1, 0);
+            double u2 = Noise.Value01(fieldSeed ^ 0x5A11, i, 2, 0);
+            double u3 = Noise.Value01(fieldSeed ^ 0x5A11, i, 3, 0);
+            double x = u1 * _circumference;
+            double y = -600.0 + u2 * 680.0; // the depth band caves/ore actually occupy
+            double z = -period / 2.0 + u3 * period;
+            vals[i] = ValueT(fieldSeed, x, y, z, scaleX, scaleY, scaleZ);
+        }
+
+        System.Array.Sort(vals);
+        return vals;
+    }
+
+    /// <summary>Air temperature (°C) at a world Y for this planet — the per-world base minus the altitude
+    /// lapse above the reference level (sea level, else BaseHeight). Worldgen-static: the server layers
+    /// weather + day/night on top (#476; temperature stays cosmetic by decision #7).</summary>
+    public double AirTemperatureAt(PlanetType planet, int worldY)
+    {
+        var c = CalibFor(planet);
+        // long math: int.MinValue is the "no position" sentinel and must not overflow into a hot reading.
+        return c.BaseTemperature - c.LapsePerBlock * System.Math.Max(0L, (long)worldY - c.TempRefY);
+    }
+
+    /// <summary>Surface temperature (°C) of a column — its surface altitude fed through the lapse.</summary>
+    public double SurfaceTemperatureAt(PlanetType planet, int worldX, int worldZ)
+        => AirTemperatureAt(planet, SurfaceHeight(planet, worldX, worldZ));
+
+    private static double TempAt(WorldCalibration c, int worldY)
+        => c.BaseTemperature - c.LapsePerBlock * System.Math.Max(0, worldY - c.TempRefY);
+
+    private const double SnowLineC = 0.0;   // below this surface temperature the ground gets a snow cover
+    private const double IceLineC = -14.0;  // …and below this it freezes to solid ice
+    private const double TreeLineC = -4.0;  // no trees / giant mushrooms above the tree line
+    private const double FloraFadeHiC = 4.0, FloraFadeLoC = -8.0; // flora density ramps to zero across this band
+
+    /// <summary>Flora density multiplier for the cold: 1 in the warm lowlands, fading to 0 toward the ice.</summary>
+    private static double ColdFloraFactor(WorldCalibration c, int surfaceY)
+    {
+        double t = TempAt(c, surfaceY);
+        return System.Math.Clamp((t - FloraFadeLoC) / (FloraFadeHiC - FloraFadeLoC), 0.0, 1.0);
+    }
+
+    /// <summary>The world's surface sea: which fluid fills its basins and up to what world-Y level (#473 —
+    /// percentile-based, see <see cref="BuildCalibration"/>). Returns (int.MinValue, Air) for a dry world.</summary>
+    private (int Level, BlockId Fluid) ResolveSeaFluid(PlanetType planet)
+    {
+        var c = CalibFor(planet);
+        return (c.SeaLevel, c.SeaFluid);
     }
 
     // World floor (B46/B?): every world has a DEEP solid foundation (a few hundred to a couple thousand blocks,
@@ -514,6 +872,13 @@ public sealed class WorldGenerator
             return 0;
         }
 
+        // No ponds anywhere on a volcano (#477): the crater is molten and the flanks are steep basalt —
+        // checked here (the single source of truth) so Generate and SurfacePondDepth can never disagree.
+        if (HasVolcanoes(planet) && TryGetVolcano(planet, seed, worldX, worldZ, out _, out _))
+        {
+            return 0;
+        }
+
         // Flat-ground gate — sampled lazily, only inside the pond mask, so it doesn't cost on every column.
         if (SurfaceSlope(planet, worldX, worldZ) > PondMaxSlope)
         {
@@ -529,14 +894,17 @@ public sealed class WorldGenerator
     // rasterizes that to block columns whose water surface FOLLOWS the terrain (no floating wall) and which
     // carry a waterfall drop at steep steps. The whole thing is integer + seed-deterministic, so the client
     // rebuilds the identical field — no network snapshot. See the plan doc.
-    private readonly System.Collections.Generic.Dictionary<(string, int, bool), RiverField> _riverFields = new();
-    private readonly object _riverLock = new object();
+    // STATIC like the calibration cache: the field is a pure function of (world seed, planet, size,
+    // cratered, body salt), and fresh generator instances (tests, client preview bakes) would otherwise
+    // re-run the ~300 ms network build per instance.
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), RiverField> _riverFields = new();
+    private static readonly object _riverLock = new object();
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
     public RiverField RiverFieldFor(PlanetType planet)
     {
-        var key = (planet.Key, _circumference, _crateredWorld);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
         lock (_riverLock)
         {
             if (_riverFields.TryGetValue(key, out var cached))
@@ -575,12 +943,15 @@ public sealed class WorldGenerator
         double areaScale = area / (double)refArea;
 
         // WATER rivers: the wetter water worlds. Density scales with WaterAbundance + world area (Phase 4).
+        // channelFlowThreshold 1 (#474): the headwaters (FlowAccum == 1) are stamped too, so a river has a
+        // SOURCE instead of appearing abruptly at the first confluence; density is steered via sourceCount.
         if (seaFluid == waterId && !waterId.IsAir && pondAbundance >= 0.4)
         {
             double wetness = System.Math.Min(1.0, System.Math.Max(0.0, (pondAbundance - 0.4) / 0.6));
             int sources = System.Math.Max(8, (int)System.Math.Round((40 + 80 * wetness) * areaScale));
             var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);
-            return RiverField.Build(net, Height, _circumference, fillFluid: waterId);
+            return RiverField.Build(net, Height, _circumference, fillFluid: waterId,
+                channelFlowThreshold: 1, fullWidthAccum: 8);
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
@@ -592,9 +963,11 @@ public sealed class WorldGenerator
             int sources = System.Math.Max(6, (int)System.Math.Round(26 * areaScale));
             var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);
             // channelFlowThreshold 1: magma flows are sparse, so every routed source path counts as a channel
-            // (they rarely merge the way dense water tributaries do). Wider + shallower = thick, slow flows.
+            // (they rarely merge the way dense water tributaries do). fullWidthAccum 1 (#474): a lava flow
+            // reaches full width without needing tributaries — the old absolute divisor kept every lava
+            // channel at width 1 (FlowAccum never exceeds 1 on a lava world), making this tuning inert.
             return RiverField.Build(net, Height, _circumference, fillFluid: lavaId,
-                channelFlowThreshold: 1, maxWidth: 9, widthPerFlow: 6, maxLakeDepth: 4, estuaryWiden: 4);
+                channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4);
         }
 
         return RiverField.Empty(_circumference);
@@ -635,9 +1008,10 @@ public sealed class WorldGenerator
             return 0; // a pond already claims this column (pond-first precedence)
         }
 
-        // The global sea owns columns at/below sea level — Generate skips the river fill there, so we must too.
+        // The global sea owns columns at/below sea level — Generate skips the river fill there, so we must
+        // too — and a volcano crater's molten pool is never a river column (#477).
         int seaLevel = ResolveSeaFluid(planet).Level;
-        if (SurfaceHeight(planet, worldX, worldZ) <= seaLevel)
+        if (SurfaceHeight(planet, worldX, worldZ) <= seaLevel || TryGetVolcanoCrater(planet, worldX, worldZ, out _))
         {
             return 0;
         }
@@ -667,10 +1041,15 @@ public sealed class WorldGenerator
             || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
     }
 
-    /// <summary>True if this surface column is under a LAVA sea — so a ship landing avoids it too (B54), the
-    /// same way it avoids water.</summary>
+    /// <summary>True if this surface column is under a LAVA sea — or inside a volcano's molten summit
+    /// crater (#477) — so a ship landing avoids it too (B54), the same way it avoids water.</summary>
     public bool IsSurfaceLava(PlanetType planet, int worldX, int worldZ)
     {
+        if (TryGetVolcanoCrater(planet, worldX, worldZ, out _))
+        {
+            return true;
+        }
+
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
         return seaFluid == lavaId && !lavaId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
@@ -702,14 +1081,67 @@ public sealed class WorldGenerator
             return true;
         }
 
-        // Upland pond or river: a carved bowl/channel filled flush to the original surface. SurfaceRiverDepth
-        // already yields 0 where a pond sits, so taking the max keeps Generate's pond-first precedence.
-        int carve = System.Math.Max(SurfacePondDepth(planet, worldX, worldZ), SurfaceRiverDepth(planet, worldX, worldZ));
-        if (carve > 0)
+        // Upland pond: a carved bowl filled flush to the original surface (pond-first precedence).
+        int pond = SurfacePondDepth(planet, worldX, worldZ);
+        if (pond > 0)
         {
             waterTopY = surfaceY;
-            seabedY = surfaceY - carve;
+            seabedY = surfaceY - pond;
             return true;
+        }
+
+        // River: read the routed field's ABSOLUTE surface/bed (#469). A pooled reach sits ABOVE the local
+        // terrain by design (that is what makes it a pool), so reconstructing the band from surfaceY put
+        // the reported water into solid rock — and aquatic creatures spawned inside it.
+        if (surfaceY > seaLevel && !TryGetVolcanoCrater(planet, worldX, worldZ, out _)
+            && RiverFieldFor(planet).TryGet(worldX, worldZ, out var col))
+        {
+            waterTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
+            seabedY = col.BedY;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The local LAVA column at a surface (x,z): a volcano crater pool (#477), the global lava
+    /// sea, or a lava river/flow — with the melt-surface Y and the bed Y. The molten counterpart of
+    /// <see cref="TryGetWaterSurface"/>, so lava fauna can spawn and stay IN lava (#470 F4).</summary>
+    public bool TryGetLavaSurface(PlanetType planet, int worldX, int worldZ, out int lavaTopY, out int bedY)
+    {
+        lavaTopY = 0;
+        bedY = 0;
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        if (TryGetVolcanoCrater(planet, worldX, worldZ, out int craterTop))
+        {
+            lavaTopY = craterTop;
+            bedY = surfaceY;
+            return true;
+        }
+
+        var lavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
+        if (lavaId.IsAir)
+        {
+            return false;
+        }
+
+        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
+        if (seaFluid == lavaId && surfaceY + 1 <= seaLevel)
+        {
+            lavaTopY = seaLevel;
+            bedY = surfaceY;
+            return true;
+        }
+
+        if (surfaceY > seaLevel)
+        {
+            var field = RiverFieldFor(planet);
+            if (field.FillFluid == lavaId && field.TryGet(worldX, worldZ, out var col))
+            {
+                lavaTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
+                bedY = col.BedY;
+                return true;
+            }
         }
 
         return false;
@@ -748,11 +1180,26 @@ public sealed class WorldGenerator
         int floorDepth = FloorDepthFor(seed);
         var floorBandId = airlessBody ? basaltFloorId : lavaFloorId; // boundary band: basalt on airless, lava on planets
 
-        // Per-world interior variety (item 21): cave frequency + ore richness + a deep basalt mantle all vary
-        // per world, so two worlds of the same type differ underground, not just on the surface.
-        double caveThreshold = PerWorldCaveThreshold(planet, seed);
+        // Per-world interior variety (item 21) + calibration (#472): cave threshold and ore CDF come from
+        // the measured field distribution, richness and the mantle stay seeded rolls.
+        var calib = CalibFor(planet);
+        double caveThreshold = calib.CaveThreshold;
+        int lavaTableDepth = calib.LavaTableDepth;
         double oreRichness = PerWorldOreRichness(seed) * _oreFactor;
         int mantleDepth = PerWorldMantle(seed, floorDepth, out var mantleId);
+
+        // Altitude climate (#476): snow/ice above the world's snow line, tree/flora fades handled in the
+        // stamps. Precomputed gate: hot flat worlds skip the per-column check entirely.
+        var snowId = _content.GetBlock("snow")?.NumericId ?? BlockId.Air;
+        var iceId = _content.GetBlock("ice")?.NumericId ?? BlockId.Air;
+        bool hasAtmosphere = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        bool snowPossible = hasAtmosphere && !airlessBody && !snowId.IsAir
+            && TempAt(calib, calib.MaxHeight) < SnowLineC + 2.0;
+
+        // Volcanoes (#477): watery worlds may carry basalt cones with molten summit craters.
+        bool volcanoWorld = HasVolcanoes(planet);
+        var basaltId = _content.GetBlock("basalt")?.NumericId ?? BlockId.Air;
+        var craterLavaId = _content.GetBlock("lava")?.NumericId ?? BlockId.Air;
 
         // Surface seas: water fills terrain basins on worlds with an atmosphere; lava fills them on
         // volcanic / airless worlds (never both). A higher abundance raises the sea level so more low
@@ -782,7 +1229,8 @@ public sealed class WorldGenerator
             ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
         bool geyserVolcanic = (planet.LavaAbundance ?? 0.0) > 0.0
             || string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
-            || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase);
+            || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase)
+            || volcanoWorld; // #477 L-C: volcano worlds vent too (hot springs / fumaroles on watery worlds)
         bool geysers = !geyserVentId.IsAir && (geyserWater > 0.25 || geyserVolcanic);
 
         // Aquatic flora: seabed plants (kelp stalks / coral reefs / seagrass) + lily pads on the surface, only
@@ -841,11 +1289,27 @@ public sealed class WorldGenerator
                     }
                 }
 
+                // Volcano (#477): the summit crater overrides the column's fluid to a molten pool — the same
+                // per-column mechanism ponds/rivers use — and the cone's flanks turn to basalt below.
+                bool craterHere = false;
+                double coneRise = 0.0;
+                if (volcanoWorld && TryGetVolcano(planet, seed, worldX, worldZ, out var vCone, out double vDist))
+                {
+                    coneRise = ConeOffsetOf(vCone, vDist);
+                    if (vDist < vCone.CraterR - 0.5)
+                    {
+                        craterHere = true;
+                        seabedY = surfaceY;
+                        waterTop = CraterLavaTop(planet, vCone);
+                        columnFluid = craterLavaId;
+                    }
+                }
+
                 // Rivers (routed): the RiverField places a channel whose water surface FOLLOWS the terrain — a
                 // thin sheet on a flowing reach (no floating wall), the pooled level inside a capped lake, and at
-                // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond or
-                // the global sea already claims the column. The river bed is carved to BedY.
-                if (!pondHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
+                // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond,
+                // a volcano crater or the global sea already claims the column. The river bed is carved to BedY.
+                if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
                 {
                     seabedY = river.BedY;
                     waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
@@ -853,10 +1317,35 @@ public sealed class WorldGenerator
                 }
 
                 // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
-                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(seed, worldX, worldZ, biomes.Count, _circumference);
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, surfaceY);
                 var biome = biomes[biomeIndex];
                 var surfaceId = biome.Surface;
                 var subSurfaceId = biome.Sub;
+
+                // Altitude climate (#476): above the snow line the ground gets a snow cover, further up solid
+                // ice. Dithered (±1.5 °C noise) so the line wanders naturally instead of cutting a contour.
+                if (snowPossible && surfaceY > waterTop)
+                {
+                    double surfT = TempAt(calib, surfaceY)
+                        + (FbmT(seed + 0x51F0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
+                    if (surfT < IceLineC && !iceId.IsAir)
+                    {
+                        surfaceId = iceId;
+                        subSurfaceId = iceId;
+                    }
+                    else if (surfT < SnowLineC)
+                    {
+                        surfaceId = snowId;
+                    }
+                }
+
+                // Volcano flanks read as dark volcanic rock wherever the cone meaningfully rises (#477) —
+                // after the snow pass, so the warm basalt wins over a snow cap near the vent.
+                if (coneRise > 3.0 && !basaltId.IsAir)
+                {
+                    surfaceId = basaltId;
+                    subSurfaceId = basaltId;
+                }
 
                 // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
                 // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air. The band is
@@ -913,13 +1402,21 @@ public sealed class WorldGenerator
                         continue;
                     }
 
-                    // Carve caves below the surface layer (per-world cave frequency, item 21).
+                    // Carve caves below the surface layer (quantile-calibrated per world, #472).
                     if (caveThreshold > 0.0 && depth > 1)
                     {
                         double cave = ValueT(seed + 7777, worldX, worldY, worldZ, 22.0, 16.0, 22.0);
                         if (cave > caveThreshold)
                         {
-                            continue; // cave => air
+                            // Below the world's lava table a carved cell fills with molten rock instead of
+                            // air (#472/#477 L-A): the deep ore bands are now reachable — and dangerous.
+                            // Airless bodies stay dry (their floor band is basalt for the same reason).
+                            if (!airlessBody && depth > lavaTableDepth)
+                            {
+                                chunk.Set(lx, ly, lz, lavaFloorId);
+                            }
+
+                            continue; // cave => air (or the lava pocket above)
                         }
                     }
 
@@ -937,7 +1434,7 @@ public sealed class WorldGenerator
                         // Deep crust turns to a dark basalt mantle below this world's mantle depth (item 21), so the
                         // interior isn't one uniform stone column on every world. Ores still vein through it.
                         var rock = depth >= mantleDepth ? mantleId : deepId;
-                        block = SelectOre(planet, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
+                        block = SelectOre(planet, calib, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
 
                         if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
                         {
@@ -963,16 +1460,19 @@ public sealed class WorldGenerator
                     // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
                     // sparse open ground) + the per-biome density, so undergrowth gathers into thickets instead
                     // of an even sprinkle — and the same forest the trees cluster in is also carpeted with plants.
-                    double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ);
+                    // The cold factor (#476) thins growth toward the snow line and stops it at the ice.
+                    double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ)
+                        * ColdFloraFactor(calib, surfaceY);
                     if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
                         && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < localFloraDensity)
                     {
                         chunk.Set(lx, fly, lz, floraId);
                     }
                 }
-                else if (waterFlora && seabedY + 1 <= waterTop)
+                else if (waterFlora && columnFluid == seaWaterId && seabedY + 1 <= waterTop)
                 {
-                    // Submerged column — the sea or an upland pond grows seabed plants / lily pads, not land flora.
+                    // Submerged WATER column — the sea or an upland pond grows seabed plants / lily pads.
+                    // The column-fluid check keeps kelp out of lava rivers and volcano craters (#477).
                     StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
                         kelpId, lilyId, coralId, seagrassId, floraDensity);
                 }
@@ -1022,7 +1522,7 @@ public sealed class WorldGenerator
 
         // Landing pads (ship-as-object): level + clear the planned pad areas so the placed ship structure
         // always sits on flat, solid, vegetation-free ground.
-        FlattenLandingPads(chunk, coord, biomes, seed);
+        FlattenLandingPads(planet, chunk, coord, biomes, seed);
 
         return chunk;
     }
@@ -1210,6 +1710,7 @@ public sealed class WorldGenerator
             chunk.Set(lx, ly, lz, block);
         }
 
+        var calib = CalibFor(planet);
         for (int wx = origin.X - maxCapR; wx < origin.X + cs + maxCapR; wx++)
             for (int wz = origin.Z - maxCapR; wz < origin.Z + cs + maxCapR; wz++)
             {
@@ -1218,13 +1719,18 @@ public sealed class WorldGenerator
                     continue;
                 }
 
-                var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)].Surface;
+                int sy = SurfaceHeight(planet, wx, wz);
+                var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)].Surface;
                 if (surf != myceliumId)
                 {
                     continue; // only on mycelium ground
                 }
 
-                int sy = SurfaceHeight(planet, wx, wz);
+                if (TempAt(calib, sy) < TreeLineC)
+                {
+                    continue; // above the tree line (#476)
+                }
+
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
                 {
                     continue; // not in water
@@ -1307,10 +1813,12 @@ public sealed class WorldGenerator
             chunk.Set(lx, ly, lz, block);
         }
 
+        var calib = CalibFor(planet);
         for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
             for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
             {
-                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(seed, wx, wz, biomes.Count, _circumference)];
+                int sy = SurfaceHeight(planet, wx, wz);
+                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
 
                 // FORESTS: a low-frequency mask gathers trees into real groves/woods. Inside a forest patch the
                 // density is ~9x, on the fringe ~2x, the open land between almost bare — scaled by the biome's
@@ -1322,6 +1830,11 @@ public sealed class WorldGenerator
                     || Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
                 {
                     continue;
+                }
+
+                if (TempAt(calib, sy) < TreeLineC)
+                {
+                    continue; // above the tree line (#476): woods stop before the snow does
                 }
 
                 // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
@@ -1339,7 +1852,6 @@ public sealed class WorldGenerator
                     continue;
                 }
 
-                int sy = SurfaceHeight(planet, wx, wz);
                 if (sy + 1 <= fluidLevel)
                 {
                     continue; // not in the sea
@@ -1543,19 +2055,8 @@ public sealed class WorldGenerator
     // honeycombed with caves, the next nearly solid; one is ore-rich, the next lean; and the deep crust turns
     // to dark basalt at a depth that varies per world. All deterministic from the world seed. ---
 
-    /// <summary>This world's effective cave threshold (lower = MORE caves) — the planet's base value jittered
-    /// per world by ±0.06, so cave frequency underground varies world to world. 0 keeps caves disabled.</summary>
-    private static double PerWorldCaveThreshold(PlanetType planet, long seed)
-    {
-        if (planet.CaveThreshold <= 0.0)
-        {
-            return 0.0;
-        }
-
-        double j = ((double)((ulong)(seed ^ 0x0CA7EL) % 1000UL) / 1000.0 - 0.5) * 0.10; // ±0.05
-        double t = planet.CaveThreshold + j;
-        return t < 0.60 ? 0.60 : (t > 0.90 ? 0.90 : t);
-    }
+    // (The old PerWorldCaveThreshold clamp lived here — replaced by the per-world quantile calibration in
+    // BuildCalibration (#472): the data threshold now maps to a target carve FRACTION, jittered per world.)
 
     /// <summary>This world's ore-richness multiplier (1.2×..2.2× the planet's vein rarities) — some worlds are
     /// rich strikes, others lean, so the interior payoff varies even on the same planet type. Raised again from
@@ -1603,7 +2104,8 @@ public sealed class WorldGenerator
         return 1 + (int)System.Math.Round(n * (baseDepth - 1));
     }
 
-    private BlockId SelectOre(PlanetType planet, long seed, int x, int y, int z, int depth, BlockId fallback, double richness)
+    private BlockId SelectOre(PlanetType planet, WorldCalibration calib, long seed, int x, int y, int z,
+        int depth, BlockId fallback, double richness)
     {
         for (int i = 0; i < planet.Ores.Count; i++)
         {
@@ -1613,10 +2115,26 @@ public sealed class WorldGenerator
                 continue;
             }
 
-            // Coarse 3D noise produces vein-like clusters; rarity is the fraction kept (scaled by this world's
-            // richness so some worlds strike rich and others lean).
+            // The coarse noise clusters into vein-like patches; the threshold comes from the field's OWN
+            // measured distribution (#472), so the kept fraction is exactly what we ask for. The old fixed
+            // formula assumed a uniform field and sat unreachably far in the interpolated torus sampler's
+            // tail — the root cause of the recurring "can't find any ore" feedback. The scale keeps the
+            // UNION over a planet's ~8 stacked veins near ~10 % of deep rock (measured) — without it,
+            // per-vein literalism turned half the underground into ore. SHALLOW starter veins (minDepth
+            // ≤ 8: iron/copper/silicate class) run twice as dense as the deep rarities: the quantile blobs
+            // cluster, and a new player's first ten blocks must reward digging (Severin M3, user playtest
+            // 2026-07-26 — "nothing but rock at the spawn").
+            double scale = ore.MinDepth <= 8 ? 0.30 : 0.15;
+            double cap = ore.MinDepth <= 8 ? 0.08 : 0.05;
+            double frac = System.Math.Clamp(ore.Rarity * richness * scale, 0.0, cap);
+            if (frac <= 0.0)
+            {
+                continue;
+            }
+
+            double threshold = calib.OreCdf[(int)((1.0 - frac) * (calib.OreCdf.Length - 1))];
             double n = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0);
-            if (n > 1.0 - System.Math.Clamp(ore.Rarity * richness, 0.0, 0.95))
+            if (n > threshold)
             {
                 var oreBlock = _content.GetBlock(ore.Block);
                 if (oreBlock is not null)
@@ -1685,23 +2203,65 @@ public sealed class WorldGenerator
         return list;
     }
 
+    /// <summary>True when this column's biome surface is welcoming ground (grass or dirt). The landing-pad
+    /// chooser PREFERS such columns so new players spawn on green topsoil — where the thin-topsoil ore
+    /// windows (Severin M3) are visible — instead of a mud marsh or bare rock. A preference only, never a
+    /// hard requirement (see <see cref="HasEarthySurfaceBiome"/>).</summary>
+    public bool IsEarthySurface(PlanetType planet, int worldX, int worldZ)
+    {
+        var biomes = ResolveBiomes(planet);
+        var b = biomes[biomes.Count <= 1
+            ? 0
+            : BiomeIndex(CalibFor(planet), PlanetSeed(planet), worldX, worldZ, biomes.Count,
+                SurfaceHeight(planet, worldX, worldZ))];
+        var grass = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
+        var dirt = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
+        return (!grass.IsAir && b.Surface == grass) || (!dirt.IsAir && b.Surface == dirt);
+    }
+
+    /// <summary>Whether this world has any grass/dirt biome at all — desert/ice/exotic worlds don't, and
+    /// their pad placement must not waste its search (or reject every candidate) looking for one.</summary>
+    public bool HasEarthySurfaceBiome(PlanetType planet)
+    {
+        var grass = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
+        var dirt = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
+        foreach (var b in ResolveBiomes(planet))
+        {
+            if ((!grass.IsAir && b.Surface == grass) || (!dirt.IsAir && b.Surface == dirt))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>The biome index at a world position (large regions), for per-biome systems like weather.</summary>
     public int BiomeIndexAt(PlanetType planet, int worldX, int worldZ)
     {
         int count = ResolveBiomes(planet).Count;
-        return count <= 1 ? 0 : BiomeIndex(PlanetSeed(planet), worldX, worldZ, count, _circumference);
+        return count <= 1
+            ? 0
+            : BiomeIndex(CalibFor(planet), PlanetSeed(planet), worldX, worldZ, count,
+                SurfaceHeight(planet, worldX, worldZ));
     }
 
     /// <summary>How many distinct biomes this planet's world uses.</summary>
     public int BiomeCount(PlanetType planet) => ResolveBiomes(planet).Count;
 
-    /// <summary>Broad low-frequency noise picks a biome per column (multi-biome worlds). The scale is
-    /// large so each biome is a big contiguous region (so per-biome weather covers a meaningful area).</summary>
-    private static int BiomeIndex(long seed, int worldX, int worldZ, int count, int circumference)
+    /// <summary>Picks a biome per column: broad region noise (stretched so the outer list entries actually
+    /// get real coverage — the raw FBM clusters around 0.5 and starved them) blended with the column's
+    /// normalised ALTITUDE (#476), so a planet's biome list reads bottom-to-top: entry 0 hugs the lowlands,
+    /// the last entry caps the peaks. Regions stay large so per-biome weather covers a meaningful area.</summary>
+    private int BiomeIndex(WorldCalibration calib, long seed, int worldX, int worldZ, int count, int surfaceY)
     {
-        double n = Noise.FbmTorus(seed ^ 0x0B10E, worldX, worldZ, circumference,
-            WorldConstants.LatitudePeriodFor(circumference), 360.0, octaves: 3);
-        int idx = (int)(n * count);
+        double n = Noise.FbmTorus(seed ^ 0x0B10E, worldX, worldZ, _circumference,
+            WorldConstants.LatitudePeriodFor(_circumference), 360.0, octaves: 3);
+        double spread = System.Math.Clamp((n - 0.5) * 2.4 + 0.5, 0.0, 1.0);
+        double span = System.Math.Max(1.0, calib.MaxHeight - calib.MinHeight);
+        double alt = System.Math.Clamp((surfaceY - calib.MinHeight) / span, 0.0, 1.0);
+        double mix = System.Math.Clamp(spread * 0.6 + alt * 0.4, 0.0, 0.9999);
+        int idx = (int)(mix * count);
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);
     }
 
@@ -1776,6 +2336,7 @@ public sealed class WorldGenerator
     // requested planet changes, or the first-visited planet's flora would contaminate all others (and the
     // baseline would depend on visit order instead of the seed).
     private string? _floraResolvedFor;
+    private long _floraResolvedSalt; // the body salt the pools were resolved under (#478 — per-body rosters)
     private bool _kelpActive, _lilyActive; // whether the seabed kelp / surface lily archetypes grow on this world
     private bool _coralActive, _seagrassActive; // the other two seabed archetypes (coral reefs / seagrass)
     // surface block id -> the pool of (this world's active) flora that may grow on it.
@@ -1789,17 +2350,18 @@ public sealed class WorldGenerator
     /// surface or the seas ever go bare).</summary>
     private void ResolveFlora(PlanetType planet)
     {
-        if (_floraResolvedFor == planet.Key)
+        if (_floraResolvedFor == planet.Key && _floraResolvedSalt == _locationSalt)
         {
             return;
         }
 
         _floraResolvedFor = planet.Key;
-        _floraBySurface.Clear(); // re-resolving for a different planet: drop the previous planet's pools
+        _floraResolvedSalt = _locationSalt;
+        _floraBySurface.Clear(); // re-resolving for a different planet/body: drop the previous pools
         _floraTagByBlock.Clear();
 
         var active = new System.Collections.Generic.HashSet<string>();
-        foreach (var fs in FloraGenerator.GenerateRoster(planet, _worldSeed))
+        foreach (var fs in FloraGenerator.GenerateRoster(planet, RosterSeed))
         {
             if (fs.Active)
             {

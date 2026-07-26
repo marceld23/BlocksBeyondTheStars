@@ -52,6 +52,7 @@ public sealed partial class GameServer
     private double _creatureClock { get => _worlds.Active.CreatureClock; set => _worlds.Active.CreatureClock = value; }
     private double _creatureBroadcastTimer { get => _worlds.Active.CreatureBroadcastTimer; set => _worlds.Active.CreatureBroadcastTimer = value; }
     private int _creatureSpawnRotor { get => _worlds.Active.CreatureSpawnRotor; set => _worlds.Active.CreatureSpawnRotor = value; }
+    private int _creatureRingRotor { get => _worlds.Active.CreatureRingRotor; set => _worlds.Active.CreatureRingRotor = value; }
     private ushort _creatureWaterId, _creatureLavaId;
 
     /// <summary>Live creatures on the surface (passive + hostile fauna).</summary>
@@ -65,10 +66,13 @@ public sealed partial class GameServer
 
     private void InitCreatures()
     {
+        // Per-BODY roster (#478): the seed is salted with the location id (same formula as
+        // WorldGenerator.RosterSeed) so two worlds of the same planet type host different species.
         var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        long rosterSeed = _meta.Seed ^ BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(_world.LocationId);
         _speciesRoster = planet is null
             ? System.Array.Empty<CreatureSpecies>()
-            : CreatureGenerator.GenerateRoster(planet, _meta.Seed).ToArray();
+            : CreatureGenerator.GenerateRoster(planet, rosterSeed).ToArray();
 
         _speciesById.Clear();
         _locoProfiles.Clear();
@@ -82,6 +86,7 @@ public sealed partial class GameServer
         _creatureSpawnTimer = 0;
         _creatureClock = 0;
         _creatureBroadcastTimer = 0;
+        _creatureRingRotor = 0;
         _creatureSpawnRotor = 0;
         _creatureWaterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _creatureLavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
@@ -276,7 +281,11 @@ public sealed partial class GameServer
         }
     }
 
-    private const int CreatureHardCap = 12;
+    // #470 (decision #4): a SAFETY ceiling only — the real population comes from WorldCreatureCap. The old
+    // value of 12 sat below the model's 25–47 range for lush worlds, silently reducing "belebte Planeten"
+    // back to the pre-overhaul fixed cap on exactly the worlds it was built for (and TickCreatures spun in
+    // its fast fill cadence forever against it).
+    private const int CreatureHardCap = 64;
 
     // Offsets scattered around the player at ~18-45 blocks so fauna appears spread out across the
     // surroundings — not stacked on one spot and not right on top of the player's ship/landing site.
@@ -320,10 +329,30 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>The molten sibling of <see cref="TryFindWaterColumnNear"/> (#470/F4): the nearest lava
+    /// column — a volcano crater pool, the global lava sea, or a lava flow — around a spot.</summary>
+    private bool TryFindLavaColumnNear(int x, int z, out int wx, out int wz, out int lavaTopY)
+    {
+        foreach (var (dx, dz) in WaterProbe)
+        {
+            if (_generator.TryGetLavaSurface(_world.Planet, x + dx, z + dz, out lavaTopY, out _))
+            {
+                wx = x + dx;
+                wz = z + dz;
+                return true;
+            }
+        }
+
+        wx = x;
+        wz = z;
+        lavaTopY = 0;
+        return false;
+    }
+
     /// <summary>
     /// Spawns one roster species suited to a spread-out spot around the player (habitat-gated, on the
-    /// ground). Returns true if one spawned. The rotor advances both the ring slot and the species so
-    /// repeated calls scatter different creatures around the player.
+    /// ground). Returns true if one spawned. Two independent rotors (#470): the ring rotor walks all 20
+    /// scatter offsets (advancing even on failure), the species rotor walks the roster on success.
     /// </summary>
     private bool TrySpawnCreatureNear(Shared.State.PlayerState player)
     {
@@ -332,7 +361,12 @@ public sealed partial class GameServer
             return false;
         }
 
-        var (dx, dz) = SpawnRing[_creatureSpawnRotor % SpawnRing.Length];
+        // #470/F2+F3: the ring slot has its OWN rotor (the species rotor runs 0..rosterLength, which kept
+        // this index below 6 forever — only the first arc of the 20 offsets was ever used, fauna always
+        // appeared from the same direction and the outer band was dead), and it advances on EVERY attempt —
+        // a failed spot no longer stalls the spawner on the identical column until the player moves.
+        var (dx, dz) = SpawnRing[_creatureRingRotor % SpawnRing.Length];
+        _creatureRingRotor = (_creatureRingRotor + 1) % SpawnRing.Length;
         int x = (int)System.Math.Floor(player.Position.X) + dx;
         int z = (int)System.Math.Floor(player.Position.Z) + dz;
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
@@ -377,6 +411,19 @@ public sealed partial class GameServer
                     y = sp.Habitat == CreatureHabitat.Water
                         ? (seabedY + 1 + waterTopY) * 0.5f
                         : waterTopY;
+                }
+                else if (sp.Habitat == CreatureHabitat.Lava)
+                {
+                    // #470/F4: lava fauna needs the same courtesy water got — the ring spot is practically
+                    // never molten itself (surface+1 is air above the melt), so these species were rolled
+                    // into rosters but never appeared. Seek the nearest lava column (crater pool, lava sea
+                    // or flow) and bask at its surface; skip the species when no melt is nearby.
+                    if (!TryFindLavaColumnNear(x, z, out px, out pz, out int lavaTopY))
+                    {
+                        continue;
+                    }
+
+                    y = lavaTopY;
                 }
                 else
                 {
@@ -709,8 +756,29 @@ public sealed partial class GameServer
                 // any cave, hold its current depth rather than popping up to the surface.
                 int caveY = FindCaveFloorY((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z), surface);
                 return caveY >= 0 ? new Vector3f(p.X, caveY, p.Z) : p;
+            case CreatureHabitat.Lava:
+                // #470/F4: stay in the melt (crater pool / lava sea / flow) the way swimmers stay in water —
+                // the old land snap to surface+1 put lava dwellers into the air above their own habitat.
+                if (_generator.TryGetLavaSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
+                        out int lavaTop, out _))
+                {
+                    return new Vector3f(p.X, lavaTop, p.Z);
+                }
+
+                return new Vector3f(p.X, surface + 1f, p.Z); // wandered onto dry rock → crawl on it
+            case CreatureHabitat.Amphibian:
+                // #470/F8: hold the water-surface cell instead of stepping out onto the bank — the land snap
+                // to surface+1 undid the careful water placement on the very first move tick (upland ponds
+                // fill flush with the ground, so surface+1 is the air cell ABOVE the water).
+                if (_generator.TryGetWaterSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
+                        out int ampTop, out _))
+                {
+                    return new Vector3f(p.X, ampTop, p.Z);
+                }
+
+                return new Vector3f(p.X, surface + 1f, p.Z); // genuinely ashore → waddle on land
             default:
-                // Land / lava / amphibian follow the ground. Hoppers (and floaty drifters) pop up on their own
+                // Land creatures follow the ground. Hoppers (and floaty drifters) pop up on their own
                 // wave; everyone else has VertAmp 0 and walks flat.
                 float pop = prof.VertAmp > 0f ? System.Math.Max(0f, prof.VertAmp * vertWave) : 0f;
                 return new Vector3f(p.X, surface + 1f + pop, p.Z);

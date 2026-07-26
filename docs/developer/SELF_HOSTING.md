@@ -108,6 +108,13 @@ people own. Two deliberate properties:
 On a hosted fleet, set `fleetAdmins` on the WorldHost (`BBS_WH_FLEET_ADMINS`) — it forwards the list to every
 world container as `BBS_FLEET_ADMINS`. Left empty (the default), observer mode is off for the entire fleet.
 
+Reaching **any** world (issue #495): a fleet admin signed in with a **developer account** (one registered with
+the secret `BBS_WH_RESERVED_CLAIM_CODE`) sees an extra "All worlds (operator)" section in the client's
+Official Worlds screen — every world on the fleet, private ones included — and joins password-protected worlds
+without the password. The gate is double-locked: developer account **and** fleet-admin join name. Config load
+auto-adds every fleet-admin name to `ReservedNames`, so the name that carries this power can never be
+registered or played by anyone else. Name matching is case-insensitive on both sides.
+
 `BBS_FREE_FLIGHT=true` is useful for hosted WebGL realms where every player should be allowed to launch and fly
 manually right away. It also upgrades older world metadata that was saved before free flight became the default,
 while leaving the rest of that world's saved rules intact.

@@ -21,7 +21,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// pour a vertical waterfall column into the lower reach. Deep flood basins (the over-flooding the Phase-0
 /// spike found) are capped: anything deeper than <c>MaxLakeDepth</c> is treated as a thin reach, not a lake.
 /// </para>
-/// All integer math + deterministic inputs ⇒ identical on server and client.
+/// Deterministic inputs + integer state (the interpolation uses <c>Math.Round(double)</c>, whose IEEE-754
+/// result is fully specified) ⇒ identical on server and client.
 /// </summary>
 public sealed class RiverField
 {
@@ -72,9 +73,9 @@ public sealed class RiverField
         System.Func<int, int, int> height,
         int circumference,
         BlockId fillFluid = default,
-        int channelFlowThreshold = 2,
+        int channelFlowThreshold = 1,
         int maxWidth = 7,
-        int widthPerFlow = 8,
+        int fullWidthAccum = 8,
         int waterfallMinDrop = 4,
         int maxLakeDepth = 6,
         int estuaryWiden = 3)
@@ -84,6 +85,29 @@ public sealed class RiverField
         int cell = net.CellSize;
         int gridW = net.GridW, gridH = net.GridH;
         int waterfalls = 0;
+
+        // Width is RELATIVE to this world's largest flow (#474): the old absolute divisor made width
+        // depend on the source count, leaving sparse worlds with 1-block threads everywhere (and every
+        // lava channel at width 1). fullWidthAccum is the floor of "full width" so a world whose flows
+        // never merge doesn't promote every brook to a trunk river (lava passes 1 deliberately).
+        int maxAccum = fullWidthAccum;
+        foreach (int cc in net.ChannelCells)
+        {
+            if (net.FlowAccum[cc] > maxAccum)
+            {
+                maxAccum = net.FlowAccum[cc];
+            }
+        }
+
+        // Cells the coarse network flagged as a real cascade step (#475): the rasterizer used to re-derive
+        // drops at block resolution against the same 16-block threshold, which no FBM terrain ever met —
+        // the network's own result was computed and thrown away, so natural waterfalls never fired.
+        var fallCells = new HashSet<int>();
+        foreach (var wf in net.Waterfalls)
+        {
+            fallCells.Add(wf.Cell);
+            fallCells.Add(wf.DownstreamCell);
+        }
 
         // Coarse cell containing a world column (wrapped).
         int CellOf(int wx, int wz)
@@ -135,9 +159,10 @@ public sealed class RiverField
             if (steps == 0) steps = 1;
 
             byte axis = (byte)(System.Math.Abs(ddx) >= System.Math.Abs(ddz) ? 0 : 1);
-            // Width grows with the upstream flow: a headwater brook is 1 wide, a trunk that has gathered many
-            // tributaries widens toward the cap. Where the channel meets the sea the mouth flares into an estuary.
-            int width = 1 + System.Math.Min(maxWidth - 1, net.FlowAccum[c] / widthPerFlow);
+            // Width grows with the upstream flow RELATIVE to the world's biggest trunk (#474): a headwater
+            // brook is 1 wide, a gathered trunk approaches maxWidth. At the sea mouth an estuary flares.
+            double rel = System.Math.Min(1.0, net.FlowAccum[c] / (double)maxAccum);
+            int width = 1 + (int)System.Math.Floor((maxWidth - 1) * System.Math.Sqrt(rel));
             if (net.IsSea[d]) width = System.Math.Min(width + estuaryWiden, maxWidth + estuaryWiden);
             int half = width / 2;
 
@@ -160,11 +185,16 @@ public sealed class RiverField
                 else
                 {
                     surface = terrain;                  // thin sheet following the ground (no floating wall)
-                    bed = terrain - (width >= 3 ? 2 : 1);
+                    // Depth decoupled from a width-3 gate (#474): brooks are 1 deep, anything that has
+                    // gathered flow runs 2, trunks 3 — deep enough that a river is swimmable, not wadable.
+                    bed = terrain - (width >= 4 ? 3 : width >= 2 ? 2 : 1);
                 }
 
+                // Waterfall (#475): inside a network-flagged cascade cell a 3-block sheer step fires; far
+                // from one it still takes the old 5-block cliff, so gentle slopes never sprout water pillars.
                 int drop = prevTerrain - terrain;
-                int waterfallDrop = drop > waterfallMinDrop ? drop : 0;
+                int minDrop = fallCells.Contains(cellIdx) ? 3 : waterfallMinDrop + 1;
+                int waterfallDrop = drop >= minDrop ? drop : 0;
                 prevTerrain = terrain;
 
                 // Centerline + perpendicular band (flat cross-section at the centerline's surface).

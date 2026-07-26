@@ -23,10 +23,14 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly Dictionary<string, Texture2D> _cache = new();
 
+        /// <param name="bodyId">The body's true location id (e.g. <c>sys0-p1</c>) — the SERVER salts the
+        /// terrain seed with it (#478), so the preview must use the same id or it would show a different
+        /// world. <paramref name="locationName"/> stays the name-derived key the flora-tint rolls use.</param>
         public static Texture2D Bake(GameContent content, BlockTextureAtlas atlas, long worldSeed,
-            string locationName, string planetTypeKey, int circumference, int texW, int texH)
+            string locationName, string planetTypeKey, int circumference, int texW, int texH,
+            string bodyId = null)
         {
-            string key = $"{worldSeed}|{locationName}|{planetTypeKey}|{circumference}|{texW}x{texH}";
+            string key = $"{worldSeed}|{locationName}|{bodyId}|{planetTypeKey}|{circumference}|{texW}x{texH}";
             if (_cache.TryGetValue(key, out var cached) && cached != null)
             {
                 return cached;
@@ -49,9 +53,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var gen = new WorldGenerator(worldSeed, content);
-            // Local preview generator: only the wrap size matters here (no cratering, no pad flattening —
-            // same as before the individual setters became the atomic SetWorldMode, #424 S13).
-            gen.SetWorldMode(circumference, cratered: false, landingPads: null);
+            // Local preview generator: wrap size + the BODY identity (#478 — the body id salts the
+            // terrain seed, so the preview must carry it or it would show a different world's terrain).
+            gen.SetWorldMode(circumference, cratered: false, landingPads: null, bodyId);
             int latPeriod = WorldConstants.LatitudePeriodFor(circumference);
             int sea = gen.SeaLevel(planet);
 

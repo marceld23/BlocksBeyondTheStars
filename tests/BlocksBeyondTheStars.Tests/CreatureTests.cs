@@ -191,6 +191,47 @@ public sealed class CreatureTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // ~3 min of simulated ticks — full-tier only (PRs skip Slow)
+    public void SpawnRing_ScattersFauna_AndPopulationEscapesTheOldFixedCap()
+    {
+        // #470: the ring rotor used to advance modulo the ROSTER length (3/6), so only the first arc of
+        // the 20 scatter offsets ever spawned anything — fauna always appeared from the same direction and
+        // the outer band was dead; a failed attempt didn't advance at all (permanent stalls). And the old
+        // hard cap of 12 truncated the 25–47 population model on exactly the lush worlds it was built for.
+        var server = Started("jungle", out var repo); // "many" → per-world cap well above 12
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Ranger");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0, 64, 0);
+
+            for (int i = 0; i < 90; i++)
+            {
+                server.Tick(2.0); // many fill cadences
+            }
+
+            var wild = server.Creatures.Where(c => !c.IsCompanion).ToList();
+            Assert.True(wild.Count > 12,
+                $"the population model must escape the old fixed cap of 12 (got {wild.Count})");
+
+            // All four quadrants around the player must have fauna — one arc means the ring rotor is stuck.
+            bool ne = false, nw = false, se = false, sw = false;
+            foreach (var c in wild)
+            {
+                float dx = c.Position.X - p.State.Position.X;
+                float dz = c.Position.Z - p.State.Position.Z;
+                if (dx >= 0 && dz >= 0) ne = true;
+                else if (dx < 0 && dz >= 0) nw = true;
+                else if (dx >= 0) se = true;
+                else sw = true;
+            }
+
+            Assert.True(ne && nw && se && sw,
+                $"fauna must scatter across all four quadrants, not one arc (NE={ne} NW={nw} SE={se} SW={sw})");
+        }
+    }
+
+    [Fact]
     public void StasisProjector_FreezesACreature_SoItCanBeScannedSafely()
     {
         // Item 36: the stasis projector holds creatures still (no movement, no biting) for a few seconds.

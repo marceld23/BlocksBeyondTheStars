@@ -52,11 +52,15 @@ public sealed class MissionTests : IDisposable
 
             var p = server.Sessions[1].State;
             int baseY = (int)System.Math.Floor(p.Position.Y) - 1;
+            // Mine NEXT TO the player, wherever the spawn pad ended up — since the sea-level fix (#473) the
+            // home pad can be nudged well away from world-origin X=0, and absolute coords fall out of reach.
+            int px = (int)System.Math.Floor(p.Position.X);
+            int pz = (int)System.Math.Floor(p.Position.Z);
             var oreId = _content.GetBlock("iron_ore")!.NumericId;
 
             for (int x = 0; x < 3; x++)
             {
-                var pos = new Vector3i(x, baseY, 0);
+                var pos = new Vector3i(px + x, baseY, pz);
                 server.World.SetBlock(pos, oreId);
                 // Iron ore is hard now — it takes several basic-drill hits to break.
                 for (int hit = 0; hit < 4; hit++)

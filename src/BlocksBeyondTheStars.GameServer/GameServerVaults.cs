@@ -23,8 +23,31 @@ public sealed partial class GameServer
     /// <summary>Surface entrances of this world's stamped vaults (tests/inspection).</summary>
     public IReadOnlyList<Vector3i> VaultEntrances => _vaultEntrances;
 
-    /// <summary>Stamps this world's buried vaults (idempotent per world). Moderate density: most worlds have
-    /// one, some a second, a few none — finds stay special but exploration is regularly rewarded.</summary>
+    // --- One-time stamp registry (#467). The in-memory guards (WreckStamped & co.) die when the world
+    // unloads — and a world unloads as soon as its last player leaves — so re-entering used to re-run the
+    // whole stamp chain: mined ruin/vault/wreck blocks resurrected (a repeatable material farm), player
+    // builds inside the footprints were carved away, and the wreck became claimable again. The registry
+    // persists "this feature's blocks are already in the world" per location; the stampers still RE-DERIVE
+    // their runtime state (positions, markers) every entry — they just skip the block writes. ---
+
+    /// <summary>True once the one-time feature ("ruins"/"vaults"/"wreck") was stamped on this world.</summary>
+    private bool FeatureStamped(string feature)
+        => _meta.StampedFeatures.Contains(_world.LocationId + "|" + feature);
+
+    private void MarkFeatureStamped(string feature)
+    {
+        string key = _world.LocationId + "|" + feature;
+        if (!_meta.StampedFeatures.Contains(key))
+        {
+            _meta.StampedFeatures.Add(key);
+            _repo.SaveMetadata(_meta);
+        }
+    }
+
+    /// <summary>Stamps this world's buried vaults (once per world, #467). Moderate density: most worlds have
+    /// one, some a second, a few none — finds stay special but exploration is regularly rewarded. On
+    /// re-entry the same deterministic rolls re-derive the entrances, but no blocks are written — a mined
+    /// vault shell stays mined.</summary>
     private void StampVaults()
     {
         if (_vaultsStamped)
@@ -39,6 +62,7 @@ public sealed partial class GameServer
             return; // stations have no terrain to bury anything in
         }
 
+        bool write = !FeatureStamped("vaults");
         long vSeed = _meta.Seed ^ WorldGenerator.StableHash("vault:" + _world.LocationId);
         var rng = new System.Random(unchecked((int)(vSeed ^ (vSeed >> 32))));
         // World options: the chosen vault frequency scales both rolls (Off ⇒ none; Frequent ⇒ most
@@ -58,18 +82,24 @@ public sealed partial class GameServer
                 continue; // don't drop a vault entrance inside a settlement footprint
             }
 
-            StampVault(wx, az, rng);
+            StampVault(wx, az, rng, write);
         }
 
-        if (_vaultEntrances.Count > 0)
+        if (write && _vaultEntrances.Count > 0)
         {
             _log.Info($"Stamped {_vaultEntrances.Count} buried vault(s) on '{_world.LocationId}'.");
+        }
+
+        if (write)
+        {
+            MarkFeatureStamped("vaults");
         }
     }
 
     /// <summary>Carves one vault: surface pillar ring → 2×2 shaft → buried 9×9 chamber (deepslate shell, air
-    /// inside) with data caches + two loot containers and a data terminal.</summary>
-    private void StampVault(int ax, int az, System.Random rng)
+    /// inside) with data caches + two loot containers and a data terminal. With <paramref name="write"/>
+    /// false only the runtime state (entrances, loot markers) is re-derived (#467).</summary>
+    private void StampVault(int ax, int az, System.Random rng, bool write)
     {
         var planet = _world.Planet;
         int surfaceY = _generator.SurfaceHeight(planet, ax, az);
@@ -82,6 +112,16 @@ public sealed partial class GameServer
         var pillar = (_content.GetBlock("granite") ?? _content.GetBlock("stone"))!.NumericId;
         var cache = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
 
+        // #467: on re-entry only the runtime state is re-derived; block writes are one-time. Every rng
+        // consumption below stays unconditional so write/no-write walks the identical roll sequence.
+        void Put(Vector3i p, BlockId b)
+        {
+            if (write)
+            {
+                _world.SetBlock(p, b);
+            }
+        }
+
         int floorY = surfaceY - 16;
 
         // Chamber: a 9×9 outer shell (7×7 inside), 4 air-high, deepslate walls/floor/ceiling.
@@ -91,7 +131,7 @@ public sealed partial class GameServer
                 {
                     var p = new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), floorY + dy, az + dz);
                     bool isShell = dx is -4 or 4 || dz is -4 or 4 || dy is -1 or 4;
-                    _world.SetBlock(p, isShell ? shell : BlockId.Air);
+                    Put(p, isShell ? shell : BlockId.Air);
                 }
 
         // Shaft: a 2×2 drop from the surface into the chamber's ceiling corner (the way in — bring a jetpack
@@ -101,7 +141,7 @@ public sealed partial class GameServer
             for (int dx = -1; dx <= 0; dx++)
                 for (int dz = -1; dz <= 0; dz++)
                 {
-                    _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
+                    Put(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
                 }
         }
 
@@ -119,7 +159,7 @@ public sealed partial class GameServer
             int h = 1 + rng.Next(2);
             for (int dy = 1; dy <= h; dy++)
             {
-                _world.SetBlock(new Vector3i(px, py + dy, az + rz), pillar);
+                Put(new Vector3i(px, py + dy, az + rz), pillar);
             }
         }
 
@@ -127,11 +167,12 @@ public sealed partial class GameServer
         // (salvage capsule + a data terminal — generated once, persisted, looted with G like wreck loot).
         if (!cache.IsAir)
         {
-            _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az + 3), cache);
-            _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax - 3, _world.Circumference), floorY, az + 3), cache);
-            _world.SetBlock(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az - 3), cache);
+            Put(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az + 3), cache);
+            Put(new Vector3i(WorldConstants.WrapX(ax - 3, _world.Circumference), floorY, az + 3), cache);
+            Put(new Vector3i(WorldConstants.WrapX(ax + 3, _world.Circumference), floorY, az - 3), cache);
         }
 
+        // Loot markers stay unconditional — SpawnStructureLoot is idempotent via GeneratedLoot.
         SpawnStructureLoot("vault", "loot", new Vector3f(ax - 2, floorY, az - 2), rng);
         SpawnStructureLoot("vault", "loot", new Vector3f(ax + 2, floorY, az - 3), rng);
         SpawnStructureLoot("vault", "data_terminal", new Vector3f(ax, floorY, az), rng);

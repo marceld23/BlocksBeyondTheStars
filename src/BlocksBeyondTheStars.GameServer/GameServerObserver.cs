@@ -42,6 +42,12 @@ public sealed partial class GameServer
     /// <summary>ISO-8601 UTC "now", the format <see cref="PlayerState.LastSeenUtc"/> stores.</summary>
     private static string UtcNowIso() => DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
 
+    /// <summary>Whether <paramref name="name"/> is a configured fleet-admin name. Case-insensitive (#495),
+    /// matching how the hosted join token compares names — a silent case mismatch would deny the elevation
+    /// with no error anywhere to see.</summary>
+    private bool IsFleetAdminName(string name)
+        => _config.FleetAdminPlayers.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>True when this session's client is German — server-authored text is written in the player's
     /// language (the game is bilingual DE/EN).</summary>
     private static bool De(PlayerSession session) => session.Locale == "de";

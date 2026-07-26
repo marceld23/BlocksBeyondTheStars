@@ -110,11 +110,13 @@ public sealed partial class GameServer
         int savedCirc = _generator.Circumference;
         bool savedCratered = _generator.Cratered;
         var savedPads = _generator.LandingPads;
+        string savedLocation = _generator.LocationId;
         bool airlessMoon = kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         // Full mode swap for the target body (#424 S13) — no pads: this computes WHERE the pads go, so
         // flattening must not apply, and the active world's pads must not leak into the noise queries.
-        _generator.SetWorldMode(circ, airlessMoon, null);
+        // The target's location id rides along (#478) so pad nudging sees the target's OWN terrain.
+        _generator.SetWorldMode(circ, airlessMoon, null, locationId);
 
         try
         {
@@ -157,7 +159,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _generator.SetWorldMode(savedCirc, savedCratered, savedPads);
+            _generator.SetWorldMode(savedCirc, savedCratered, savedPads, savedLocation);
         }
     }
 
@@ -204,37 +206,59 @@ public sealed partial class GameServer
     private int NudgePadToDryAndFlat(PlanetType planet, int baseX, int baseZ)
     {
         int circ = _generator.Circumference;
+        // Prefer WELCOMING ground: on worlds that have grass/dirt biomes at all, keep marching for a green
+        // column instead of settling on the first flat one — since the altitude-biome pass, "flat + dry"
+        // is often the mud marsh just above the sea, where a new player's first dig finds no visible
+        // topsoil ore windows (user playtest 2026-07-26). Preference only: a desert world, or a world
+        // whose whole equator band is marsh, still gets the flattest dry spot as before.
+        bool seekEarthy = _generator.HasEarthySurfaceBiome(planet);
         int bestX = NudgePadToDry(planet, baseX, baseZ);
-        int bestSpread = LandingFootprintWet(planet, bestX, baseZ) ? int.MaxValue : PadFootprintSpread(planet, bestX, baseZ);
-        if (bestSpread <= 5)
+        int bestSpread = int.MaxValue;
+        int earthyX = int.MinValue, earthySpread = int.MaxValue;
+
+        void Consider(int x)
         {
-            return bestX;
+            if (LandingFootprintWet(planet, x, baseZ))
+            {
+                return;
+            }
+
+            int spread = PadFootprintSpread(planet, x, baseZ);
+            if (spread < bestSpread)
+            {
+                bestSpread = spread;
+                bestX = x;
+            }
+
+            if (seekEarthy && spread < earthySpread && _generator.IsEarthySurface(planet, x, baseZ))
+            {
+                earthySpread = spread;
+                earthyX = x;
+            }
         }
 
-        for (int step = 1; step <= 40; step++)
+        Consider(bestX);
+        if (bestSpread <= 5 && (!seekEarthy || earthyX == bestX))
+        {
+            return bestX; // already flat + dry (+ green where the world offers green)
+        }
+
+        // ±180 blocks (was ±120): biome regions are broad, so the nearest green column regularly sits just
+        // beyond the old march (measured 138 on the 2026-07-26 playtest world).
+        for (int step = 1; step <= 60; step++)
         {
             foreach (int x in new[] { WorldConstants.WrapX(baseX + step * 3, circ), WorldConstants.WrapX(baseX - step * 3, circ) })
             {
-                if (LandingFootprintWet(planet, x, baseZ))
+                Consider(x);
+                if (earthySpread <= 5)
                 {
-                    continue;
-                }
-
-                int spread = PadFootprintSpread(planet, x, baseZ);
-                if (spread <= 5)
-                {
-                    return x; // flat + dry — done
-                }
-
-                if (spread < bestSpread)
-                {
-                    bestSpread = spread;
-                    bestX = x;
+                    return earthyX; // green + flat + dry — done
                 }
             }
         }
 
-        return bestX; // the flattest dry spot found (worst case: the old dry nudge)
+        // Green ground wins while it is still reasonably level; else the flattest dry spot found.
+        return earthyX != int.MinValue && earthySpread <= 10 ? earthyX : bestX;
     }
 
     /// <summary>Nudges a pad longitude (at a fixed latitude) to the nearest dry column (deterministic

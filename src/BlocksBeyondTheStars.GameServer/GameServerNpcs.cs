@@ -121,9 +121,11 @@ public sealed partial class GameServer
                 string npcTheme = role == "vendor" ? VendorThemeFor(settlement.Name, vendorIndex++, settlementTheme) : settlementTheme;
                 bool robotic = npcTheme == "researchers"; // research staff are service androids
 
-                // NPCs have no physics, so place their feet exactly on top of the settlement floor block
-                // (the marker Y sits inside it) — otherwise they render sunk into the ground.
-                var standing = new Vector3f(pos.X, settlement.Min.Y + 1f, pos.Z);
+                // NPCs have no physics, so place their feet on top of the floor block. Procedural markers
+                // sit inside the ground-floor row (the clamp lifts them to Min.Y+1 as before); an authored
+                // TEMPLATE marker keeps its own Y (#480, was ST-8) — an upper-floor vendor is no longer
+                // teleported to the ground floor (possibly inside a wall).
+                var standing = new Vector3f(pos.X, System.Math.Max(settlement.Min.Y + 1f, pos.Y), pos.Z);
                 var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
                 npc.Settlement = settlement.Name;
                 if (role == "quartermaster")
