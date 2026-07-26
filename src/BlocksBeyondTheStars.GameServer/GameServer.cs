@@ -500,6 +500,8 @@ public sealed partial class GameServer
                     StampRuins(); // standalone fallen-city ruins (unprotected) — after settlements so they avoid them
                 }
 
+                StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+
                 if (_config.PlaceFactories)
                 {
                     StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
@@ -555,6 +557,8 @@ public sealed partial class GameServer
         _creatures.Clear();
         _speciesRoster = System.Array.Empty<Shared.Definitions.CreatureSpecies>();
         _planetEnemies.Clear();
+        _bandits.Clear();
+        _banditCamps.Clear();
         _npcs.Clear();
         _doors.Clear();
         _dataCubes.Clear();
@@ -950,6 +954,7 @@ public sealed partial class GameServer
             // Run() and crash the process.
             Guard("TickEnvironment", deltaSeconds, TickEnvironment);
             Guard("TickEnemies", deltaSeconds, TickEnemies);
+            Guard("TickBandits", deltaSeconds, TickBandits);
             Guard("TickPresence", deltaSeconds, TickPresence);
             Guard("TickFluids", deltaSeconds, TickFluids);
             Guard("TickFire", deltaSeconds, TickFire);
@@ -2027,6 +2032,7 @@ public sealed partial class GameServer
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
             case UseGadgetIntent gadget: HandleUseGadget(session, gadget); break;
             case TameRespondIntent tameResp: HandleTameRespond(session, tameResp); break;
+            case BanditResponseIntent banditResp: HandleBanditResponse(session, banditResp); break;
             case RequestCompanionsIntent: HandleRequestCompanions(session); break;
             case SetCompanionNameIntent compName: HandleSetCompanionName(session, compName); break;
             case ReleaseCompanionIntent release: HandleReleaseCompanion(session, release); break;
@@ -4180,6 +4186,7 @@ public sealed partial class GameServer
             PlanetEnemies = r.PlanetEnemies.ToString(),
             SpaceNpcEnemies = r.SpaceNpcEnemies.ToString(),
             AlienUfos = r.AlienUfos.ToString(),
+            Bandits = r.Bandits.ToString(),
             InstantTravel = r.InstantTravel,
             VoiceChatEnabled = _config.VoiceChatEnabled,
         });
@@ -4208,6 +4215,7 @@ public sealed partial class GameServer
         Apply(intent.PlanetEnemies, v => Rules.PlanetEnemies = v);
         Apply(intent.SpaceNpcEnemies, v => Rules.SpaceNpcEnemies = v);
         Apply(intent.AlienUfos, v => Rules.AlienUfos = v);
+        Apply(intent.Bandits, v => Rules.Bandits = v);
         if (!string.IsNullOrEmpty(intent.InstantTravel))
         {
             Rules.InstantTravel = intent.InstantTravel.Equals("On", System.StringComparison.OrdinalIgnoreCase);
@@ -4235,7 +4243,8 @@ public sealed partial class GameServer
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
-                  $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, instantTravel={Rules.InstantTravel}.");
+                  $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
+                  $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

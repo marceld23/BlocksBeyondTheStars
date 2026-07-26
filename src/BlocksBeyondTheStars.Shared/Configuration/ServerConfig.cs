@@ -212,6 +212,14 @@ public sealed class ServerConfig
     public bool PlaceChests { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may stamp <b>bandit camps</b> on a body's surface — small hostile outposts
+    /// (huts + palisade) guarded by bandit NPCs, with a loot stash as the raid reward. Like ruins the
+    /// blocks are NOT protected; a razed camp stays razed and cleared bandits stay gone. Camps also
+    /// require <see cref="GameRules.Bandits"/> to be enabled. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceBanditCamps { get; set; } = true;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).
@@ -429,6 +437,9 @@ public sealed class ServerConfig
                 case "ufos":
                     if (Enum.TryParse<AlienActivity>(value, ignoreCase: true, out var uf)) { Rules.AlienUfos = uf; applied.Add("ufos"); }
                     break;
+                case "bandits":
+                    if (Enum.TryParse<AlienActivity>(value, ignoreCase: true, out var ba)) { Rules.Bandits = ba; applied.Add("bandits"); }
+                    break;
                 case "oxygen":
                     if (Enum.TryParse<OxygenConsumption>(value, ignoreCase: true, out var ox)) { Rules.OxygenConsumption = ox; applied.Add("oxygen"); }
                     break;
@@ -577,6 +588,7 @@ public sealed class ServerConfig
         if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }
         if (Env("BBS_SHIP_WEAPONS") is { } swStr && Enum.TryParse<ShipWeaponMode>(swStr, ignoreCase: true, out var sw)) { Rules.ShipWeapons = sw; applied.Add("BBS_SHIP_WEAPONS"); }
         if (Env("BBS_SPACE_NPCS") is { } snStr && Enum.TryParse<AlienActivity>(snStr, ignoreCase: true, out var sn)) { Rules.SpaceNpcEnemies = sn; applied.Add("BBS_SPACE_NPCS"); }
+        if (Env("BBS_BANDITS") is { } bnStr && Enum.TryParse<AlienActivity>(bnStr, ignoreCase: true, out var bn)) { Rules.Bandits = bn; applied.Add("BBS_BANDITS"); }
         if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
         if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
         if (Env("BBS_AI_TIMEOUT_SECONDS") is { } aiToStr && int.TryParse(aiToStr, out var aiTo) && aiTo > 0) { AiTimeoutSeconds = aiTo; applied.Add("BBS_AI_TIMEOUT_SECONDS"); }

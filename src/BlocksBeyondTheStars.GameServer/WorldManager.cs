@@ -50,6 +50,23 @@ internal sealed class FactoryInstance
     public string OwnerId { get; set; } = string.Empty;
 }
 
+/// <summary>One stamped bandit camp on a world: a small hostile outpost (huts + palisade) guarded by
+/// bandit NPCs. Blocks are unprotected (players may raze it) and the stamp is one-time-guarded, so a
+/// razed camp stays razed; once every guard is dead the camp is persisted as cleared and its guards
+/// never respawn.</summary>
+internal sealed class BanditCampInstance
+{
+    public Vector3i Min { get; set; }
+    public Vector3i Max { get; set; }
+    public Vector3f Center { get; set; }
+
+    /// <summary>Stable per-world key (origin-derived) used to persist the cleared state.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    public bool Cleared { get; set; }
+    public List<(string Type, Vector3f Pos)> Markers { get; } = new();
+}
+
 /// <summary>
 /// One loaded voxel world for a celestial body: the <see cref="ServerWorld"/>, the ids that identify it,
 /// and its per-world runtime state (fauna, enemies, NPCs, flora, fluids, containers, stamped structures,
@@ -65,6 +82,8 @@ internal sealed class LoadedWorld
     // Per-world runtime state (was scattered across the GameServer partials).
     public List<CombatEntity> Creatures { get; } = new();
     public List<CombatEntity> PlanetEnemies { get; } = new();
+    public List<CombatEntity> Bandits { get; } = new();               // lone robbers + camp guards on this world
+    public List<BanditCampInstance> BanditCamps { get; } = new();     // 0..N stamped bandit camps
     public List<GameServer.ServerNpc> Npcs { get; } = new();
     public List<GameServer.ServerDoor> Doors { get; } = new();
     public List<GameServer.ServerDataCube> DataCubes { get; } = new(); // minigame download cubes scattered on the surface
@@ -136,6 +155,7 @@ internal sealed class LoadedWorld
     public int CreatureSpawnRotor { get; set; }
     public int CreatureRingRotor { get; set; } // #470: ring slot counter, SEPARATE from the species rotor
     public double EnemySpawnTimer { get; set; }
+    public double SinceBanditSync { get; set; }  // bandit movement stream throttle (per-world, like SinceEnemySync)
     public double SinceFluid { get; set; }
     public double SinceFire { get; set; }
     // These three run once per occupied world each tick, so their accumulate-and-reset throttles MUST be

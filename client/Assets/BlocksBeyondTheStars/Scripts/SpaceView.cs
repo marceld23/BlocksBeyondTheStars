@@ -1533,7 +1533,7 @@ namespace BlocksBeyondTheStars.Client
             float bestScore = 0.25f; // require at least this much forward alignment
             foreach (var e in space.Entities)
             {
-                if (e.Kind != "Asteroid" && e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser")
+                if (e.Kind != "Asteroid" && e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip")
                 {
                     continue;
                 }
@@ -3186,6 +3186,39 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
+        /// <summary>The bandit raider: an angular dark wedge with rust-red trim, a narrow cockpit slit and
+        /// twin outrigger blades — clearly a different silhouette from the saucer UFO, reads as a predator.</summary>
+        private GameObject BuildBanditShipModel(Transform parent)
+        {
+            var root = new GameObject("BanditShip");
+            root.transform.SetParent(parent, false);
+
+            var hull = LitTex("carbon", new Color(0.20f, 0.19f, 0.22f));      // near-black plating
+            var trim = LitTex("iron_wall", new Color(0.55f, 0.22f, 0.16f));   // rust-red raider trim
+            var glowRed = Unlit(new Color(1f, 0.25f, 0.15f));
+            var glowAmber = Unlit(new Color(1f, 0.6f, 0.2f));
+
+            // A forward-swept wedge body.
+            Cube("Nose", root.transform, new Vector3(0f, 0f, 1.4f), new Vector3(0.7f, 0.5f, 1.6f), hull);
+            Cube("Body", root.transform, new Vector3(0f, 0f, 0f), new Vector3(1.4f, 0.7f, 1.8f), hull);
+            Cube("Tail", root.transform, new Vector3(0f, 0.1f, -1.4f), new Vector3(1.0f, 0.5f, 1.0f), trim);
+            Cube("CockpitSlit", root.transform, new Vector3(0f, 0.26f, 0.9f), new Vector3(0.5f, 0.12f, 0.5f), glowAmber);
+
+            // Outrigger blades left/right — the pirate silhouette.
+            Cube("BladeL", root.transform, new Vector3(-1.3f, 0f, -0.2f), new Vector3(1.2f, 0.12f, 1.6f), trim);
+            Cube("BladeR", root.transform, new Vector3(1.3f, 0f, -0.2f), new Vector3(1.2f, 0.12f, 1.6f), trim);
+            Cube("TipL", root.transform, new Vector3(-1.9f, 0f, 0.5f), new Vector3(0.25f, 0.18f, 0.9f), hull);
+            Cube("TipR", root.transform, new Vector3(1.9f, 0f, 0.5f), new Vector3(0.25f, 0.18f, 0.9f), hull);
+
+            // Engines + running lights.
+            Cube("EngineL", root.transform, new Vector3(-0.45f, 0f, -2.0f), new Vector3(0.35f, 0.35f, 0.3f), glowRed);
+            Cube("EngineR", root.transform, new Vector3(0.45f, 0f, -2.0f), new Vector3(0.35f, 0.35f, 0.3f), glowRed);
+            Cube("LightL", root.transform, new Vector3(-1.9f, 0.12f, 1.0f), new Vector3(0.12f, 0.12f, 0.12f), glowRed);
+            Cube("LightR", root.transform, new Vector3(1.9f, 0.12f, 1.0f), new Vector3(0.12f, 0.12f, 0.12f), glowRed);
+
+            return root;
+        }
+
         /// <summary>A real cruiser model: an elongated iron hull with a glass bridge and twin glowing engines.</summary>
         private GameObject BuildCruiserModel(Transform parent)
         {
@@ -3408,6 +3441,7 @@ namespace BlocksBeyondTheStars.Client
                             "Drone" => BuildDroneModel(_root.transform),
                             "Ufo" => BuildUfoModel(_root.transform),
                             "Cruiser" => BuildCruiserModel(_root.transform),
+                            "BanditShip" => BuildBanditShipModel(_root.transform),
                             _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
                         };
 
@@ -3496,7 +3530,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var e in space.Entities)
             {
-                if (!e.Hostile || (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser"))
+                if (!e.Hostile || (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip"))
                 {
                     continue;
                 }

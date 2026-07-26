@@ -135,6 +135,10 @@ namespace BlocksBeyondTheStars.Client
         // Creature taming + companions: the live ritual state, the finished result, and the player's roster.
         public event Action<TameProgress>? TameProgressReceived;
         public event Action<TameResult>? TameResultReceived;
+
+        // Bandits: a robber (on foot or as a ship) demands goods; the result closes the panel.
+        public event Action<BanditDemand>? BanditDemandReceived;
+        public event Action<BanditEncounterResult>? BanditResultReceived;
         public event Action<CompanionList>? CompanionsReceived;
 
         // Hover speeders: the world's live speeders + one-shot deploy/destruction effects.
@@ -175,13 +179,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
-            string instantTravel = "", string keepInventory = "", string keepShip = "")
+            string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
                 PlanetEnemies = planetEnemies,
                 SpaceNpcEnemies = spaceNpcs,
                 AlienUfos = ufos,
+                Bandits = bandits,
                 InstantTravel = instantTravel,
                 KeepInventoryOnDeath = keepInventory,
                 KeepShipOnDeath = keepShip,
@@ -456,6 +461,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Asks the server for the player's companion roster (sent when the Companions tab opens).</summary>
         public void SendRequestCompanions() => Send(new RequestCompanionsIntent());
 
+        // --- Bandits ---
+        /// <summary>The player's answer to a bandit demand: hand the goods over (comply) or refuse.</summary>
+        public void SendBanditResponse(int demandId, bool comply)
+            => Send(new BanditResponseIntent { DemandId = demandId, Comply = comply });
+
         /// <summary>Rename a companion I own.</summary>
         public void SendSetCompanionName(string companionId, string name)
             => Send(new SetCompanionNameIntent { CompanionId = companionId ?? string.Empty, Name = name ?? string.Empty });
@@ -572,6 +582,8 @@ namespace BlocksBeyondTheStars.Client
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
+                case BanditDemand m: BanditDemandReceived?.Invoke(m); break;
+                case BanditEncounterResult m: BanditResultReceived?.Invoke(m); break;
             }
         }
 

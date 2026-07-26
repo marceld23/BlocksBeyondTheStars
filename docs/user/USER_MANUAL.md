@@ -370,6 +370,24 @@ separate unlock; admins can still disable it through server world rules.
   two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
   (a steep barter recipe). Keep one if you find it — it's your key to turning a factory into a home.
 
+### Bandits (robbers, camps, pirate space)
+- **Lone robbers** roam some survival worlds. One may walk straight up to you and demand roughly a
+  third of your two biggest stacks (**never your tools**). You have ~25 seconds and a real choice:
+  **[1] Hand it over** — the robber keeps its word, leaves, and won't bother you again for a long
+  while — or **[2] Refuse** (attacking or just ignoring it counts as refusing) and it fights.
+  Players with empty pockets are simply left alone. Kill a bandit and its loot is yours — including
+  anything you paid it earlier.
+- **Bandit camps** are small raider outposts (huts, palisade, campfire) whose guards attack on
+  sight but never chase far from home. Their **stash** holds better loot than ruins. The camp is
+  **freely mineable**; a razed camp stays razed, and once all guards are down the camp is cleared
+  **forever** — no respawns.
+- **Pirate space:** about a quarter of star systems have a bandit reputation — VEGA warns you on
+  entry, *before* anything happens. There, a raider ship may warp in and hail you with a cargo
+  demand (drawn from inventory **and** hold) while you keep flying: pay and it warps away for good,
+  refuse or open fire and it fights. Raiders only appear where the rules let you shoot back.
+- The **"Bandits"** world option (world options / at creation) scales all three — Off disables them
+  entirely (peaceful/family presets default to Off).
+
 ### Trade
 - **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and
   confirms; the swap executes atomically once both confirm.

@@ -11,6 +11,30 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏴‍☠️ Bandits: hold-ups on foot, raider camps, pirate ambushes in space
+- **Lone robbers now roam some worlds.** Rarely, a scruffy figure with a red bandana walks straight
+  up to you — and demands about a third of your two biggest stacks (never your tools). You get a
+  real choice with a 25-second timer: **hand it over** and the robber keeps its word and leaves you
+  alone for a long while, or **refuse** (or attack, or just stay silent) and it fights. Players with
+  empty pockets are not worth the trouble and are simply left in peace. Killing a robber wins its
+  loot — including anything you paid it earlier. New world option **"Bandits"** (Off/Rare/Normal/
+  Frequent/Extreme, default Normal on survival worlds, Off on peaceful/family presets), live-editable.
+- **Bandit camps.** Some worlds carry a small raider outpost — log huts behind a palisade around a
+  campfire, guarded by melee and gunner bandits that attack on sight but never chase far from camp.
+  The reward is their stash (better loot than ruins). Camps are yours to raze: the blocks are
+  unprotected, a demolished camp **stays** demolished, and once every guard is down the camp is
+  permanently cleared — the guards never respawn.
+- **Pirate space.** About a quarter of all star systems are bandit country. In those, a raider ship
+  may warp in mid-flight, close in, and hail you with a cargo demand (drawn from your inventory
+  **and** hold) — the same pay-or-fight choice, while you keep flying. Pay and it warps out for
+  good; refuse or open fire and it fights like any hostile. Bandit ships only ever appear when the
+  rules let you shoot back (space combat on + ship weapons usable), so an unkillable extortionist
+  can never happen. Destroying one returns your goods.
+- **VEGA teaches the rules BEFORE the first hold-up.** The first time you enter a flagged sector or
+  land on a bandit world, the ship AI explains what bandits want and that paying is a safe, valid
+  choice — afterwards you get short "pirate activity flagged" warnings on entry, always before any
+  bandit shows up.
+
 ### 🛡️ Moderation that explains itself
 - **A blocked player is told what happened, at the next sign-in.** Until now a banned account signed
   in completely normally — the world list loaded, everything looked fine, and the wall only appeared

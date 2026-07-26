@@ -830,6 +830,7 @@ public sealed class ServerRules
     public string PlanetEnemies { get; set; } = string.Empty;
     public string SpaceNpcEnemies { get; set; } = string.Empty;
     public string AlienUfos { get; set; } = string.Empty;
+    public string Bandits { get; set; } = string.Empty;
 
     /// <summary>Instant Travel world option: when true the travel screen may quick-travel anywhere; when
     /// false it is limited to bodies the player has already landed on (default).</summary>
@@ -849,6 +850,7 @@ public sealed class SetWorldRulesIntent
     public string PlanetEnemies { get; set; } = string.Empty;
     public string SpaceNpcEnemies { get; set; } = string.Empty;
     public string AlienUfos { get; set; } = string.Empty;
+    public string Bandits { get; set; } = string.Empty;
 
     /// <summary>Instant Travel toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string InstantTravel { get; set; } = string.Empty;

@@ -334,6 +334,12 @@ public static class NetCodec
 
         // Codex "Discoveries" (#484): the first-scan ledger, so a scan leaves a permanent record.
         Register(178, typeof(DiscoveryLog));             // Server -> Client (join snapshot + per-scan delta)
+
+        // Bandits: lone robbers on foot and bandit ships in space hail the player and demand part of
+        // their goods; comply and they leave, refuse (or ignore the deadline) and they turn hostile.
+        Register(179, typeof(BanditDemand));             // Server -> Client (the hold-up, with countdown)
+        Register(180, typeof(BanditResponseIntent));     // Client -> Server (hand it over / refuse)
+        Register(181, typeof(BanditEncounterResult));    // Server -> Client (paid/refused/expired/fled)
     }
 
     private static void Register(byte tag, Type type)

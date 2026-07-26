@@ -100,6 +100,31 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (2026-07-26, branch feat/bandits)
+Analysed first (`analysis/bandits-and-raiders.md`). Three encounter types sharing one **hold-up
+protocol** (new msgs `BanditDemand`/`BanditResponseIntent`/`BanditEncounterResult`, tags 179–181):
+a bandit approaches NON-hostile, and only if the mark carries something worth taking demands ~35 %
+of the 1–2 largest non-tool stacks (25 s deadline, server-enforced à la respawn choice — silence =
+refusal). Comply → `MaterialPool` transfer into the bandit's loot (killing it later wins it back),
+long per-player quiet spell; refuse/attack/timeout → hostile via the normal enemy AI. Empty pockets
+→ left alone. **Ground bandits** are new `CombatEntityKind.Bandit`/`BanditGunner` riding the
+planet-enemy wire (targeting/defeat unchanged; client renders an upright humanoid with bandana +
+blade/blaster; gunner = longer damage aura 8 with LOS — cover works — plus tracer visuals).
+**Camps** (`BanditCampGenerator` + `GameServerBanditCamps`, ruins model): huts + palisade + fire
+pit + `bandit_stash` loot; unprotected blocks, one-time stamp via `FeatureStamped("banditcamps")`
+(razed stays razed), per-camp cleared key persisted via `StampedFeatures` — guards never respawn.
+**Bandit ships**: per-system "pirate space" seeding (trader-traffic pattern, ~25 % of systems),
+delayed warp-in ambush 30–90 s after entry, hail at range 60 with demand from inventory+cargo,
+pay → warp-out, refuse/fire → `HostileProfile` fight; **spawn hard-gated on SpaceCombat PvE+ AND
+ShipWeapons NpcsOnly+** (the unkillable-UFO lesson). **VEGA pre-briefs** (user request): one-time
+full explainer (milestone `vega:hint:bandit_brief`) + per-entry sector warning and per-world ground
+warning, always BEFORE an encounter. New rule `Rules.Bandits` (slider Off→Extreme, Normal on
+survival presets, Off on peaceful/family; `--bandits`, `BBS_BANDITS`, world-options row DE+EN) +
+`ServerConfig.PlaceBanditCamps`. Client: `BanditDemandUi` (dock-panel modal on foot / keyboard
+[1]/[2] in flight, countdown + 1.5 s anti-reflex gate), bandit humanoids in `WorldEntities`, raider
+wedge model + target-filter entries in `SpaceView`. 14 new tests (`BanditTests`) incl. locale
+parity; kid-friendly tone throughout (paying is always a safe choice).
+
 ### ★ Cold worlds freeze over: ice sheets + solid-frozen seas (#494, 2026-07-26, branch feat/frozen-water)
 Analysed first (`analysis/frozen-water-and-ice-sheets.md`); everything item-side already existed
 (ice block mineable by hand + placeable, `water_ice` hand recipe 2→1) — the whole feature is a

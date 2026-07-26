@@ -91,6 +91,14 @@ public sealed partial class GameServer
                 }
 
                 break;
+            case "bandit_stash": // a bandit camp's stash — stolen goods, the raid reward (richer than ruins)
+                AddRandom(new[] { "iron_plate", "titanium_plate", "energy_cell_1", "cable", "circuit_board" }, 3, 2, 4);
+                if (rng.NextDouble() < 0.5)
+                {
+                    AddRandom(new[] { "gold_ingot", "crystal", "data_fragment" }, 1, 1, 2);
+                }
+
+                break;
             default: // general salvage cache
                 AddRandom(new[] { "iron_plate", "cable", "carbon_composite", "silicate", "iron_ore", "copper_ore" }, 3, 1, 4);
                 break;

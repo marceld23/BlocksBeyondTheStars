@@ -43,6 +43,10 @@ public sealed class EnergyFenceTests : IDisposable
             StartPlanet = planet,
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
+            // Isolation: camp guards would consume entity ids at world load, shifting the test
+            // machine's id — and with it its id-hashed roam heading, which these fence-geometry
+            // assertions depend on (same idea as PlaceStarterShip=false above).
+            PlaceBanditCamps = false,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

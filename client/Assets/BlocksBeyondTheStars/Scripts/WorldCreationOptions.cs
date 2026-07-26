@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         public int PlanetEnemies = 2;  // Normal
         public int SpaceNpcs = 2;      // Normal (the singleplayer default so far)
         public int Ufos = 0;           // Off (matches today's default)
+        public int Bandits = 2;        // Normal (robbers on foot + camps + ship ambushes)
 
         // Worldgen (Frequency indices; creation-only — baked into the save)
         public int Flora = 3;          // Normal
@@ -85,14 +86,14 @@ namespace BlocksBeyondTheStars.Client
         public string StartPlanetType = "";
 
         public static WorldCreationOptions Peaceful()
-            => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Hazards = 1, DeathPenalty = 0, SpaceCombat = false };
+            => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Bandits = 0, Hazards = 1, DeathPenalty = 0, SpaceCombat = false };
 
         public static WorldCreationOptions Standard() => new WorldCreationOptions();
 
         public static WorldCreationOptions Hostile()
             => new WorldCreationOptions
             {
-                Creatures = 1, PlanetEnemies = 3, SpaceNpcs = 3, Ufos = 2,
+                Creatures = 1, PlanetEnemies = 3, SpaceNpcs = 3, Ufos = 2, Bandits = 3,
                 Flora = 2, Settlements = 2, Hazards = 3, DeathPenalty = 2,
             };
 
@@ -100,6 +101,7 @@ namespace BlocksBeyondTheStars.Client
         public void CopyFrom(WorldCreationOptions other)
         {
             Creatures = other.Creatures; PlanetEnemies = other.PlanetEnemies; SpaceNpcs = other.SpaceNpcs; Ufos = other.Ufos;
+            Bandits = other.Bandits;
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
@@ -132,6 +134,7 @@ namespace BlocksBeyondTheStars.Client
             if (PlanetEnemies != 2) Arg("planet-enemies", Activity[PlanetEnemies]);
             if (SpaceNpcs != 2) Arg("space-npcs", Activity[SpaceNpcs]);
             if (Ufos != 0) Arg("ufos", Activity[Ufos]);
+            if (Bandits != 2) Arg("bandits", Activity[Bandits]);
 
             if (Flora != 3) Arg("flora", Freq[Flora]);
             if (Ore != 2) Arg("ore", Freq[Ore]);

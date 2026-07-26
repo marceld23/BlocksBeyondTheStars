@@ -35,6 +35,8 @@ namespace BlocksBeyondTheStars.Client
             public float FlinchUntil;     // hurt recoil window
             public float Pitch;
             public bool IsDrone;          // flying scan-drone variant (hovers; no limb animation)
+            public bool IsBandit;         // humanoid robber (upright gait, talks before it fights)
+            public bool IsGunner;         // ranged bandit variant (tracer shots instead of claw swipes)
         }
 
         private readonly Dictionary<string, Entry> _enemies = new();
@@ -49,6 +51,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Range at which a hovering scan-drone opens fire on the player (blocks). Ground robots have
         /// no ranged attack — they only claw in melee.</summary>
         private const float DroneFireRange = 16f;
+
+        /// <summary>Range at which a hostile bandit gunner fires its tracer (mirrors the server's damage aura).</summary>
+        private const float BanditGunFireRange = 8f;
 
         private void Update()
         {
@@ -70,7 +75,9 @@ namespace BlocksBeyondTheStars.Client
                 seen.Add(e.Id);
                 if (!_enemies.TryGetValue(e.Id, out var en))
                 {
-                    en = e.Kind == "ScanDrone" ? BuildDrone(e.Id) : Build(e.Id);
+                    en = e.Kind == "ScanDrone" ? BuildDrone(e.Id)
+                        : e.Kind == "Bandit" || e.Kind == "BanditGunner" ? BuildBandit(e.Id, e.Kind == "BanditGunner")
+                        : Build(e.Id);
                     en.Target = en.Settled = new Vector3(e.X, e.Y, e.Z);
                     _enemies[e.Id] = en;
                 }
@@ -89,7 +96,8 @@ namespace BlocksBeyondTheStars.Client
                 // holds its fire instead of staring at / shooting the hull.
                 bool playerAboard = Game.Aboard;
                 bool nearPlayer = toPlayer.sqrMagnitude < 64f;
-                Vector3 face = e.Hostile && nearPlayer && !playerAboard ? toPlayer : vel;
+                // A bandit faces you even while peaceful — it's walking up to TALK (the hold-up), not to graze.
+                Vector3 face = (e.Hostile || en.IsBandit) && nearPlayer && !playerAboard ? toPlayer : vel;
                 if (face.sqrMagnitude > 0.01f)
                 {
                     en.Root.transform.rotation = Quaternion.Slerp(
@@ -102,8 +110,8 @@ namespace BlocksBeyondTheStars.Client
                 var audio = ClientAudio.Instance;
                 if (audio != null)
                 {
-                    // Periodic menacing growl, spatialised at the enemy.
-                    if (Time.time >= en.NextGrowl)
+                    // Periodic menacing growl, spatialised at the enemy (bandits are people — no robot growls).
+                    if (!en.IsBandit && Time.time >= en.NextGrowl)
                     {
                         en.NextGrowl = Time.time + Random.Range(6f, 14f);
                         audio.At("enemy_growl", en.Root.transform.position, en.Pitch, 0.9f);
@@ -127,6 +135,16 @@ namespace BlocksBeyondTheStars.Client
                             {
                                 en.NextAttack = Time.time + Random.Range(0.7f, 1.3f);
                                 en.AttackUntil = Time.time + 0.18f; // brief charge/recoil tic
+                                FireDroneLaser(en, audio);
+                            }
+                        }
+                        else if (en.IsGunner)
+                        {
+                            // Bandit gunner: tracer shots at aura range (cosmetic — the server aura damages).
+                            if (toPlayer.sqrMagnitude < BanditGunFireRange * BanditGunFireRange)
+                            {
+                                en.NextAttack = Time.time + Random.Range(0.8f, 1.5f);
+                                en.AttackUntil = Time.time + 0.2f;
                                 FireDroneLaser(en, audio);
                             }
                         }
@@ -214,14 +232,23 @@ namespace BlocksBeyondTheStars.Client
 
             float swing = Mathf.Sin(en.WalkPhase) * Mathf.Lerp(4f, 38f, moving);
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
-            float bodyPitch = Mathf.Lerp(10f, 18f, moving); // hunched stalk, deeper while moving
+            // Bandits walk upright like a person; the machines stalk hunched.
+            float bodyPitch = en.IsBandit ? Mathf.Lerp(1f, 6f, moving) : Mathf.Lerp(10f, 18f, moving);
             float headYaw = moving < 0.05f ? Mathf.Sin(t * 0.6f) * 18f : 0f; // slow menacing look-around
 
             if (hostile)
             {
-                // Arms raised, claws forward when hunting.
-                armL = Mathf.Min(armL, -28f) - 14f;
-                armR = Mathf.Min(armR, -28f) - 14f;
+                if (en.IsBandit)
+                {
+                    // Weapon arm up: the gunner levels its blaster, the blade bandit brandishes.
+                    armR = en.IsGunner ? -78f : Mathf.Min(armR, -40f);
+                }
+                else
+                {
+                    // Arms raised, claws forward when hunting.
+                    armL = Mathf.Min(armL, -28f) - 14f;
+                    armR = Mathf.Min(armR, -28f) - 14f;
+                }
             }
 
             if (Time.time < en.AttackUntil)
@@ -341,6 +368,92 @@ namespace BlocksBeyondTheStars.Client
             en.LegL = Pivot(root.transform, Vector3.zero);
             en.LegR = Pivot(root.transform, Vector3.zero);
             return en;
+        }
+
+        /// <summary>Builds a humanoid bandit: a blocky person (skin head, worn jacket, dark trousers) with a
+        /// red bandana band and a hand weapon — an energy blade (melee) or a snub blaster (gunner). Uses the
+        /// same pivot skeleton as the robot so <see cref="Animate"/> drives it unchanged, just upright.</summary>
+        private Entry BuildBandit(string id, bool gunner)
+        {
+            EnsureMaterials();
+            EnsureBanditMaterials();
+            int h = Hash(id);
+            float size = 0.95f + ((h & 0xFF) / 255f) * 0.1f; // people vary a little, not like fauna
+            var en = new Entry
+            {
+                Seed = (h & 0x3ff) * 0.137f,
+                Pitch = 0.9f + ((h >> 5) % 17) / 17f * 0.25f,
+                IsBandit = true,
+                IsGunner = gunner,
+            };
+
+            var root = new GameObject(gunner ? "BanditGunner" : "Bandit");
+            root.transform.SetParent(transform, true);
+            root.transform.localScale = Vector3.one * size;
+            en.Root = root;
+
+            // Jacket colour varies per bandit (muted, scruffy tones).
+            var jacket = new Material(_banditClothMat) { color = ShaderColor.Srgb(BanditJacketColor(h)) };
+
+            en.Body = Pivot(root.transform, new Vector3(0f, 0.95f, 0f));
+            Cube(en.Body, "Torso", new Vector3(0f, 0.34f, 0f), new Vector3(0.52f, 0.66f, 0.3f), jacket);
+            Cube(en.Body, "Belt", new Vector3(0f, -0.02f, 0f), new Vector3(0.46f, 0.12f, 0.28f), _banditDarkMat);
+
+            en.Head = Pivot(en.Body, new Vector3(0f, 0.78f, 0f));
+            Cube(en.Head, "Skull", new Vector3(0f, 0.12f, 0f), new Vector3(0.34f, 0.34f, 0.34f), _banditSkinMat);
+            Cube(en.Head, "Bandana", new Vector3(0f, 0.26f, 0f), new Vector3(0.36f, 0.1f, 0.36f), _banditBandanaMat);
+            Cube(en.Head, "EyeL", new Vector3(-0.08f, 0.1f, 0.17f), new Vector3(0.07f, 0.05f, 0.02f), _banditDarkMat);
+            Cube(en.Head, "EyeR", new Vector3(0.08f, 0.1f, 0.17f), new Vector3(0.07f, 0.05f, 0.02f), _banditDarkMat);
+
+            en.ArmL = Pivot(en.Body, new Vector3(-0.34f, 0.58f, 0f));
+            Cube(en.ArmL, "ArmLMesh", new Vector3(0f, -0.28f, 0f), new Vector3(0.15f, 0.56f, 0.15f), jacket);
+            Cube(en.ArmL, "HandL", new Vector3(0f, -0.6f, 0f), new Vector3(0.14f, 0.12f, 0.14f), _banditSkinMat);
+            en.ArmR = Pivot(en.Body, new Vector3(0.34f, 0.58f, 0f));
+            Cube(en.ArmR, "ArmRMesh", new Vector3(0f, -0.28f, 0f), new Vector3(0.15f, 0.56f, 0.15f), jacket);
+            Cube(en.ArmR, "HandR", new Vector3(0f, -0.6f, 0f), new Vector3(0.14f, 0.12f, 0.14f), _banditSkinMat);
+
+            // The hand weapon: a snub blaster (gunner) or an energy blade (melee).
+            if (gunner)
+            {
+                Cube(en.ArmR, "Gun", new Vector3(0f, -0.66f, 0.16f), new Vector3(0.1f, 0.12f, 0.34f), _banditDarkMat);
+                Cube(en.ArmR, "GunTip", new Vector3(0f, -0.66f, 0.36f), new Vector3(0.06f, 0.06f, 0.08f), _eyeMat);
+            }
+            else
+            {
+                Cube(en.ArmR, "Hilt", new Vector3(0f, -0.68f, 0.1f), new Vector3(0.08f, 0.1f, 0.14f), _banditDarkMat);
+                Cube(en.ArmR, "Blade", new Vector3(0f, -0.68f, 0.36f), new Vector3(0.05f, 0.05f, 0.42f), _eyeMat);
+            }
+
+            en.LegL = Pivot(root.transform, new Vector3(-0.14f, 0.95f, 0f));
+            Cube(en.LegL, "LegLMesh", new Vector3(0f, -0.48f, 0f), new Vector3(0.18f, 0.9f, 0.2f), _banditDarkMat);
+            en.LegR = Pivot(root.transform, new Vector3(0.14f, 0.95f, 0f));
+            Cube(en.LegR, "LegRMesh", new Vector3(0f, -0.48f, 0f), new Vector3(0.18f, 0.9f, 0.2f), _banditDarkMat);
+
+            return en;
+        }
+
+        private static Color BanditJacketColor(int h) => ((h >> 12) % 4) switch
+        {
+            0 => new Color(0.32f, 0.24f, 0.16f), // worn leather brown
+            1 => new Color(0.22f, 0.26f, 0.22f), // faded olive
+            2 => new Color(0.26f, 0.22f, 0.28f), // dusty plum
+            _ => new Color(0.24f, 0.24f, 0.27f), // grey slate
+        };
+
+        private static Material _banditSkinMat, _banditClothMat, _banditDarkMat, _banditBandanaMat;
+
+        private static void EnsureBanditMaterials()
+        {
+            if (_banditSkinMat != null)
+            {
+                return;
+            }
+
+            var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            _banditSkinMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.78f, 0.6f, 0.45f)) };
+            _banditClothMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.3f, 0.25f, 0.2f)) };
+            _banditDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.14f, 0.13f, 0.14f)) };
+            _banditBandanaMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.72f, 0.15f, 0.12f)) }; // the red band that marks a robber
         }
 
         private static Transform Pivot(Transform parent, Vector3 localPos)

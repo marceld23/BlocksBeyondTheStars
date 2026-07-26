@@ -22,6 +22,9 @@ public enum CombatEntityKind
     AlienMonster,
     ScanDrone,   // story P4: the black flying Guardian scan-drone (hovering planet enemy)
     ResourceDrop,
+    Bandit,       // humanoid robber on foot, melee variant (lone hold-ups + camp guards)
+    BanditGunner, // humanoid robber on foot, ranged variant (longer damage aura + tracer visuals)
+    BanditShip,   // space raider that hails the player ship and demands cargo before opening fire
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -102,6 +105,31 @@ public sealed class CombatEntity
 
     /// <summary>True when this entity is a tamed companion rather than wild fauna.</summary>
     public bool IsCompanion => OwnerId.Length > 0;
+
+    // --- Bandit state (server-only; only meaningful on the Bandit* kinds) ---
+
+    /// <summary>Where this bandit is in its hold-up script (approach → demand → fight/leave).</summary>
+    public BanditPhase BanditPhase { get; set; }
+
+    /// <summary>The player this bandit is stalking/robbing (empty = none; camp guards pick targets ad hoc).</summary>
+    public string BanditTargetId { get; set; } = string.Empty;
+
+    /// <summary>Camp anchor key when this bandit guards a bandit camp (empty = lone robber). Guards leash to
+    /// their camp and their deaths count toward the camp's persisted "cleared" state.</summary>
+    public string CampKey { get; set; } = string.Empty;
+
+    /// <summary>True for the Bandit* kinds (targetable humans, not Guardian machines — no story credit).</summary>
+    public bool IsBandit => Kind is CombatEntityKind.Bandit or CombatEntityKind.BanditGunner or CombatEntityKind.BanditShip;
+}
+
+/// <summary>A bandit's hold-up script phase (server-only).</summary>
+public enum BanditPhase
+{
+    None,      // camp guards: plain hostile, no script
+    Approach,  // walking/flying toward its mark, not hostile yet
+    Demanding, // demand sent, waiting for the answer (or the deadline)
+    Fighting,  // refused/attacked — plain hostile now
+    Leaving,   // paid off or gave up — wanders away and despawns
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>
@@ -156,6 +184,17 @@ public sealed class SpaceInstance
 
     /// <summary>Throttle for streaming trader-movement updates to clients (mirrors the hostile sync cadence).</summary>
     public double TraderSyncTimer { get; set; }
+
+    // ---- Bandit-ship ambush (one per flight at most; see GameServerBanditShips) ----
+
+    /// <summary>True once this instance rolled its ambush dice (rolled exactly once per instance).</summary>
+    public bool BanditRolled { get; set; }
+
+    /// <summary>Uptime at which the bandit ship warps in (0 = no ambush this flight).</summary>
+    public double BanditAmbushAt { get; set; }
+
+    /// <summary>Entity id of the live bandit ship in this instance (empty = none yet/anymore).</summary>
+    public string BanditShipId { get; set; } = string.Empty;
 }
 
 /// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
@@ -380,6 +419,7 @@ public sealed partial class GameServer
         if (session is not null)
         {
             ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
+            ShipAiBanditSectorWarning(session, instance); // pirate space? warn BEFORE any raider appears
             SendSpaceState(session, instance, skipLaunch, hyperjump);
             SendShipCombatStatus(session);
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
@@ -657,6 +697,11 @@ public sealed partial class GameServer
 
         if (target.Hull > 0f)
         {
+            if (target.Kind == CombatEntityKind.BanditShip && !target.Hostile)
+            {
+                OnBanditShipAttacked(instance, target); // opening fire during the hail IS the answer
+            }
+
             BroadcastSpaceState(instance);
             return;
         }
@@ -664,7 +709,11 @@ public sealed partial class GameServer
         // Destroyed. A large/medium asteroid splits into smaller chunks instead of dropping loot;
         // only the smallest asteroids (and other entities) yield resources.
         instance.Entities.Remove(target);
-        if (target.Hostile)
+        if (target.Kind == CombatEntityKind.BanditShip)
+        {
+            OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
+        }
+        else if (target.Hostile)
         {
             RecordStoryMachineKill(); // space machine (drone/UFO) destroyed → advances the story (P4)
             if (session is not null)
@@ -780,6 +829,14 @@ public sealed partial class GameServer
         if (target.Kind == CombatEntityKind.SpaceStation)
         {
             reason = "Dock with the station instead of firing on it.";
+            return false;
+        }
+
+        if (target.Kind == CombatEntityKind.ResourceDrop || (!target.Hostile && target.Kind != CombatEntityKind.BanditShip))
+        {
+            // Non-hostiles can't be shot — EXCEPT a hailing bandit ship: opening fire on the extortionist
+            // is a legitimate answer (it turns the hold-up into a fight).
+            reason = "That is not a valid target.";
             return false;
         }
 
@@ -1066,6 +1123,10 @@ public sealed partial class GameServer
             // through, depart (warp out). Purely ambient — invulnerable, never damages anyone.
             TickSpaceTraders(instance, dt);
 
+            // Bandit-ship ambush: in flagged systems a raider may warp in, hail the ship and demand cargo —
+            // comply and it leaves, refuse and it fights (see GameServerBanditShips).
+            TickBanditShips(instance, dt);
+
             float incoming = instance.Entities
                 .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
                 .Sum(e => e.DamagePerSecond);
@@ -1191,6 +1252,7 @@ public sealed partial class GameServer
         CombatEntityKind.Drone => (190f, 16f, 9f),
         CombatEntityKind.Ufo => (240f, 24f, 7f),
         CombatEntityKind.Cruiser => (260f, 36f, 4f),
+        CombatEntityKind.BanditShip => (280f, 20f, 8f), // once hostile it presses in hard (it already knows you)
         _ => (0f, 0f, 0f),
     };
 

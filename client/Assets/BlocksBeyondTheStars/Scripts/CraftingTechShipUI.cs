@@ -1487,6 +1487,7 @@ namespace BlocksBeyondTheStars.Client
             RuleRow(L("ui.worldopt.planet_enemies"), rules?.PlanetEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(planetEnemies: v));
             RuleRow(L("ui.worldopt.space_npcs"), rules?.SpaceNpcEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(spaceNpcs: v));
             RuleRow(L("ui.worldopt.ufos"), rules?.AlienUfos ?? "Off", v => Game?.Network?.SendSetWorldRules(ufos: v));
+            RuleRow(L("ui.worldopt.bandits"), rules?.Bandits ?? "Normal", v => Game?.Network?.SendSetWorldRules(bandits: v));
 
             // Instant Travel (world option): when on, the travel screen may quick-travel anywhere; when off
             // (default) it is limited to worlds you've already landed on. The server enforces the admin gate.

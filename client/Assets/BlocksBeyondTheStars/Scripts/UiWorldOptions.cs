@@ -94,6 +94,7 @@ namespace BlocksBeyondTheStars.Client
             Row(true, shell.L("ui.worldopt.planet_enemies"), activitySteps, () => opt.PlanetEnemies, v => opt.PlanetEnemies = v);
             Row(true, shell.L("ui.worldopt.space_npcs"), activitySteps, () => opt.SpaceNpcs, v => opt.SpaceNpcs = v);
             Row(true, shell.L("ui.worldopt.ufos"), activitySteps, () => opt.Ufos, v => opt.Ufos = v);
+            Row(true, shell.L("ui.worldopt.bandits"), activitySteps, () => opt.Bandits, v => opt.Bandits = v);
             ly += 10f;
             UiKit.AddText(main.transform, lx, ly, 700f, 24f, shell.L("ui.worldopt.col_survival"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ly += 34f;

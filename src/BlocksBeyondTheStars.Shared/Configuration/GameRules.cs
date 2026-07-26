@@ -163,6 +163,12 @@ public sealed class GameRules
     /// spawn (the frequency sliders + cap are untouched). Off restores uniform spawning. Live-editable.</summary>
     public bool MachineWreckCoupling { get; set; } = true;
 
+    /// <summary>Bandit activity: lone robbers on foot, bandit camps and bandit-ship ambushes in space.
+    /// Scales encounter frequency and camp count; Off disables all three. Only active in Survival —
+    /// bandit ships additionally require space combat + ship weapons so the player can always fight
+    /// back (lesson from the unkillable-UFO bug). Live-editable.</summary>
+    public AlienActivity Bandits { get; set; } = AlienActivity.Normal;
+
     /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
     /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a
     /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>

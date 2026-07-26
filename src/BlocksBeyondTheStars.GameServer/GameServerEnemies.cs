@@ -446,6 +446,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (_bandits.FirstOrDefault(e => e.Id == entityId) is { } bandit)
+        {
+            AttackCombatEntity(session, bandit, _bandits, isCreature: false);
+            return;
+        }
+
         // Player-vs-player combat is not implemented yet: only creatures/NPCs are valid targets. When players do
         // become targetable (on foot here, or ship-vs-ship in FireWeapon), gate the damage on the alliance —
         // allies must never harm one another, even on a PVP server: `if (AreAllied(playerId, targetId)) reject`.
@@ -517,6 +523,10 @@ public sealed partial class GameServer
                 target.AwakeOverrideTimer = CreatureWakeSeconds; // a hit jolts any sleeping creature awake (then it acts per temperament)
                 ProvokeCreature(target);
             }
+            else if (target.IsBandit)
+            {
+                OnBanditAttacked(session, target); // attacking a robber counts as refusing its hold-up
+            }
 
             if (isCreature) BroadcastCreatures(); else BroadcastPlanetEnemies();
             return;
@@ -538,14 +548,24 @@ public sealed partial class GameServer
         else
         {
             BroadcastToWorld(new PlanetEnemyDefeated { Id = target.Id });
-            RecordStoryMachineKill(); // planet machine destroyed → advances the story (P4: combat-as-progress)
-            TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
+            if (target.IsBandit)
+            {
+                OnBanditKilled(target); // bandits are people, not machines — no story credit, but camps clear
+            }
+            else
+            {
+                RecordStoryMachineKill(); // planet machine destroyed → advances the story (P4: combat-as-progress)
+                TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
+            }
+
             BroadcastPlanetEnemies();
         }
     }
 
+    // Bandits ride the planet-enemy wire (same list message), so client targeting/health bars/defeat
+    // handling work unchanged — the client tells them apart by the Kind string.
     private void BroadcastPlanetEnemies()
-        => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Select(ToNet).ToArray() });
+        => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Concat(_bandits).Select(ToNet).ToArray() });
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
         => AttackEntity(session.State.PlayerId, intent.EntityId);

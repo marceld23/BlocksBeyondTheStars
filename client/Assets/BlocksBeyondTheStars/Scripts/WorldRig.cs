@@ -256,6 +256,10 @@ namespace BlocksBeyondTheStars.Client
             var maintenance = root.AddComponent<MaintenanceUi>();
             maintenance.Game = boot;
 
+            // Bandit hold-up panel: a robber (on foot or in space) demands goods — comply or refuse.
+            var banditUi = root.AddComponent<BanditDemandUi>();
+            banditUi.Game = boot;
+
             // "Connection lost" gate (#249): surfaces a mid-game server stop instead of silently freezing.
             var disconnect = root.AddComponent<DisconnectScreen>();
             disconnect.Game = boot;
