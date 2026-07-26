@@ -656,4 +656,143 @@ public class WorldGenerationTests
         Assert.True(CountBlock(gen, planet, lava) > 0, "A volcanic world should pool lava in its basins.");
         Assert.Equal(0, CountBlock(gen, planet, water));
     }
+
+    [Fact]
+    public void IceWorld_SeaFreezesOver_NoDivingFromTheSurface()
+    {
+        // #494: on a deep-frozen world (ice type, −38 ± 6 °C at the waterline) every sea column carries
+        // at least a 4-block ice cap — often frozen through — so the waterline is walkable solid ice and
+        // there is no open water to fall into from the surface.
+        var content = Content();
+        var planet = content.GetPlanet("ice")!;
+        var gen = new WorldGenerator(7, content);
+        int sea = gen.SeaLevel(planet);
+        Assert.True(sea > int.MinValue, "expected the icy world to pool a (frozen) sea");
+        var iceId = content.GetBlock("ice")!.NumericId;
+        int cs = WorldConstants.ChunkSize;
+
+        var chunks = new System.Collections.Generic.Dictionary<ChunkCoord, ChunkData>();
+        BlockId At(int wx, int wy, int wz)
+        {
+            var c = new ChunkCoord(wx / cs, wy / cs, wz / cs);
+            if (!chunks.TryGetValue(c, out var ch))
+            {
+                chunks[c] = ch = gen.Generate(planet, c);
+            }
+
+            return ch.Get(wx % cs, wy % cs, wz % cs);
+        }
+
+        int verified = 0;
+        for (int x = 0; x < 1024 && verified < 12; x += 5)
+            for (int z = 0; z < 512 && verified < 12; z += 5)
+            {
+                int depth = sea - gen.SurfaceHeight(planet, x, z);
+                if (depth < 4)
+                {
+                    continue; // want genuinely deep sea columns — shallows freeze through trivially
+                }
+
+                int ice = gen.SurfaceIceThickness(planet, x, z);
+                Assert.True(ice >= 4, $"deep-frozen sea column at ({x},{z}) carries only {ice} ice");
+
+                // Whatever a would-be diver touches from above is solid ice, not water.
+                Assert.Equal(iceId, At(x, sea, z));
+                Assert.Equal(iceId, At(x, sea - 3, z));
+
+                // Any liquid the helper still reports sits BELOW the cap, never at the waterline.
+                if (gen.TryGetWaterSurface(planet, x, z, out int top, out _))
+                {
+                    Assert.True(top <= sea - 4, "liquid water reported inside the ice cap");
+                }
+
+                verified++;
+            }
+
+        Assert.True(verified > 0, "expected to find deep sea columns on the icy world");
+    }
+
+    [Fact]
+    public void TundraWorld_IceSheet_KeepsLiquidWaterBelow()
+    {
+        // #494: a merely-cold world (tundra, −22 ± 6 °C) freezes a 1..4-block sheet you can mine
+        // through — with real liquid water (and the fauna the helpers place there) underneath on deep
+        // bodies. The helper trio must agree exactly with the generated blocks.
+        var content = Content();
+        var planet = content.GetPlanet("tundra")!;
+        var gen = new WorldGenerator(7, content);
+        int sea = gen.SeaLevel(planet);
+        Assert.True(sea > int.MinValue, "expected the tundra world to pool a sea");
+        var iceId = content.GetBlock("ice")!.NumericId;
+        var waterId = content.GetBlock("water")!.NumericId;
+        int cs = WorldConstants.ChunkSize;
+
+        var chunks = new System.Collections.Generic.Dictionary<ChunkCoord, ChunkData>();
+        BlockId At(int wx, int wy, int wz)
+        {
+            var c = new ChunkCoord(wx / cs, wy / cs, wz / cs);
+            if (!chunks.TryGetValue(c, out var ch))
+            {
+                chunks[c] = ch = gen.Generate(planet, c);
+            }
+
+            return ch.Get(wx % cs, wy % cs, wz % cs);
+        }
+
+        int verified = 0;
+        for (int x = 0; x < 1024 && verified < 12; x += 5)
+            for (int z = 0; z < 512 && verified < 12; z += 5)
+            {
+                int surfaceY = gen.SurfaceHeight(planet, x, z);
+                int depth = sea - surfaceY;
+                if (depth < 6)
+                {
+                    continue; // deep water — a sheet (max 4) can never freeze it through
+                }
+
+                int ice = gen.SurfaceIceThickness(planet, x, z);
+                Assert.InRange(ice, 1, depth - 1);
+
+                // The liquid column the fauna spawner sees starts right under the sheet.
+                Assert.True(gen.TryGetWaterSurface(planet, x, z, out int top, out int bed));
+                Assert.Equal(sea - ice, top);
+                Assert.Equal(surfaceY, bed);
+
+                Assert.Equal(iceId, At(x, sea, z));           // frozen waterline…
+                Assert.Equal(iceId, At(x, sea - ice + 1, z)); // …down to the sheet's underside
+                Assert.Equal(waterId, At(x, top, z));         // liquid directly below it
+                verified++;
+            }
+
+        Assert.True(verified > 0, "expected to find deep sea columns on the tundra world");
+    }
+
+    [Fact]
+    public void WarmWorld_SeaStaysLiquid_NoIceSheet()
+    {
+        // #494 guard: the freeze pass must not touch warm seas — a jungle world's waterline stays
+        // open water, and the water-surface helper still reports the sea level itself.
+        var content = Content();
+        var planet = content.GetPlanet("jungle")!;
+        var gen = new WorldGenerator(7, content);
+        int sea = gen.SeaLevel(planet);
+        Assert.True(sea > int.MinValue, "expected the jungle world to pool a sea");
+
+        int verified = 0;
+        for (int x = 0; x < 512 && verified < 50; x += 5)
+            for (int z = 0; z < 512 && verified < 50; z += 5)
+            {
+                if (sea - gen.SurfaceHeight(planet, x, z) < 2)
+                {
+                    continue;
+                }
+
+                Assert.Equal(0, gen.SurfaceIceThickness(planet, x, z));
+                Assert.True(gen.TryGetWaterSurface(planet, x, z, out int top, out _));
+                Assert.Equal(sea, top);
+                verified++;
+            }
+
+        Assert.True(verified > 0, "expected to find sea columns on the jungle world");
+    }
 }

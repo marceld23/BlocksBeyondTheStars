@@ -29,6 +29,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   to `/en`. Self-hosters can point both elsewhere or drop the link entirely
   (`BBS_WH_WEBSITE_URL` / `_EN`, `-` = off).
 
+### ❄️ Cold worlds freeze over
+- **Water on cold worlds now generates frozen.** Below the freeze line a sea, pond or river carries
+  a solid ice sheet — one to four blocks thick, growing with the cold — and in the deep cold
+  (ice-type worlds) the whole body freezes through to the seabed. The waterline is walkable: no more
+  diving into open water on a −38 °C planet. On merely-cold worlds (tundra, high mountain lakes on
+  temperate planets) liquid water survives **under** the sheet — mine through the hand-diggable ice
+  to reach the water, the kelp and the fish below, and take an oxygen reserve: under a closed sheet
+  you dig your way back out. Mined ice stacks and crafts into water by hand (2 ice → 1 water, as
+  before), so frozen worlds feed an algae tank just fine, and ice remains placeable as a building
+  block. Ships treat thickly frozen seas as solid ground and may land on them. Freeze edges are
+  noise-dithered, so partially frozen lakes with open patches appear right at the freeze line.
+  ⚠️ *One-time world change:* existing cold worlds freeze retroactively on next load (player-built
+  blocks are untouched). (#495, closes #494)
+
 ## [0.8.7] — 2026-07-25
 
 The homestead release: player bases and space stations get their first real life support. A new heal tank block heals, feeds and recharges everyone nearby, doubles as a settable home spawn point, and dying now lets you choose whether to wake up at your ship or at your base — plus the ship's console and lab stations finally do something, and glitch.fun visitors see Singleplayer first.

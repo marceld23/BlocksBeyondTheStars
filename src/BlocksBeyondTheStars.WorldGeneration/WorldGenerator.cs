@@ -817,11 +817,70 @@ public sealed class WorldGenerator
     private const double TreeLineC = -4.0;  // no trees / giant mushrooms above the tree line
     private const double FloraFadeHiC = 4.0, FloraFadeLoC = -8.0; // flora density ramps to zero across this band
 
+    // Frozen water (#494): below the snow line a water body carries a floating ice sheet that thickens
+    // with the cold; below DeepFreezeC at the waterline it freezes through to the seabed. A sheet of
+    // LandableIceSheet+ blocks is treated as land by the surface-water queries (ships may land on it).
+    private const double DeepFreezeC = -32.0; // waterline temperature below which a body freezes solid
+    private const int MaxIceSheet = 4;        // thickest floating sheet on a merely-cold world (blocks)
+    private const int LandableIceSheet = 3;   // a sheet this thick counts as land, not water
+
     /// <summary>Flora density multiplier for the cold: 1 in the warm lowlands, fading to 0 toward the ice.</summary>
     private static double ColdFloraFactor(WorldCalibration c, int surfaceY)
     {
         double t = TempAt(c, surfaceY);
         return System.Math.Clamp((t - FloraFadeLoC) / (FloraFadeHiC - FloraFadeLoC), 0.0, 1.0);
+    }
+
+    /// <summary>True when this world can freeze water at all (#494) — the snow pass's gate plus the ice
+    /// block itself. A cheap whole-world precheck: if even the highest point stays warm, no column can.</summary>
+    private bool CanFreezeWater(PlanetType planet, WorldCalibration calib)
+    {
+        bool airlessBody = planet.Cratered || _crateredWorld;
+        bool hasAtmosphere = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        return hasAtmosphere && !airlessBody
+            && !(_content.GetBlock("snow")?.NumericId ?? BlockId.Air).IsAir
+            && !(_content.GetBlock("ice")?.NumericId ?? BlockId.Air).IsAir
+            && TempAt(calib, calib.MaxHeight) < SnowLineC + 2.0;
+    }
+
+    /// <summary>Ice-sheet thickness (blocks, 0 = open water) for a water column whose surface sits at
+    /// <paramref name="waterTop"/> (#494): 0 above the freeze line, then 1 block per started 7 °C below
+    /// it (capped at <see cref="MaxIceSheet"/>), and the full <paramref name="depth"/> below
+    /// <see cref="DeepFreezeC"/> — or whenever the sheet would reach the seabed anyway (shallow ponds
+    /// freeze through). Dithered with the snow pass's noise shape so the freeze edge wanders raggedly
+    /// instead of cutting a temperature contour.</summary>
+    private int IceSheetThickness(WorldCalibration calib, long seed, int worldX, int worldZ, int waterTop, int depth)
+    {
+        double surfT = TempAt(calib, waterTop)
+            + (FbmT(seed + 0x1CE0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
+        if (surfT >= SnowLineC)
+        {
+            return 0;
+        }
+
+        if (surfT < DeepFreezeC)
+        {
+            return depth; // frozen through, down to the seabed
+        }
+
+        int sheet = 1 + (int)((SnowLineC - surfT) / 7.0);
+        return System.Math.Min(System.Math.Min(sheet, MaxIceSheet), depth);
+    }
+
+    /// <summary>The generated ice on the water column at (x,z): 0 for a dry/lava/warm column, the sheet
+    /// thickness on a frozen one — equal to the full water depth when the body is frozen through (#494).
+    /// Mirrors exactly what <see cref="Generate"/> fills, like the other surface-water queries.</summary>
+    public int SurfaceIceThickness(PlanetType planet, int worldX, int worldZ)
+    {
+        var calib = CalibFor(planet);
+        if (!CanFreezeWater(planet, calib)) // cheap whole-world gate first — warm worlds pay nothing
+        {
+            return 0;
+        }
+
+        return TryGetRawWaterColumn(planet, worldX, worldZ, out int waterTopY, out int seabedY)
+            ? IceSheetThickness(calib, PlanetSeed(planet), worldX, worldZ, waterTopY, waterTopY - seabedY)
+            : 0;
     }
 
     /// <summary>The world's surface sea: which fluid fills its basins and up to what world-Y level (#473 —
@@ -1032,13 +1091,28 @@ public sealed class WorldGenerator
     {
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        if (seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel)
+        bool water = (seaFluid == waterId && !waterId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel)
+            || SurfacePondDepth(planet, worldX, worldZ) > 0   // inside an upland pond
+            || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
+        if (!water)
         {
-            return true; // beneath the global sea
+            return false;
         }
 
-        return SurfacePondDepth(planet, worldX, worldZ) > 0   // inside an upland pond
-            || SurfaceRiverDepth(planet, worldX, worldZ) > 0; // …or a river channel
+        // Frozen columns (#494): a body frozen to the seabed, or capped by a thick sheet, is walkable
+        // land — ships may land on a frozen sea. Thin sheets (1–2 blocks) still count as water so
+        // landings and chests don't sit on breakable crust.
+        var calib = CalibFor(planet);
+        if (CanFreezeWater(planet, calib) && TryGetRawWaterColumn(planet, worldX, worldZ, out int top, out int bed))
+        {
+            int ice = IceSheetThickness(calib, PlanetSeed(planet), worldX, worldZ, top, top - bed);
+            if (ice >= top - bed || ice >= LandableIceSheet)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>True if this surface column is under a LAVA sea — or inside a volcano's molten summit
@@ -1055,11 +1129,33 @@ public sealed class WorldGenerator
         return seaFluid == lavaId && !lavaId.IsAir && SurfaceHeight(planet, worldX, worldZ) + 1 <= seaLevel;
     }
 
-    /// <summary>The local water column at a surface (x,z): true if water actually covers it — the global sea,
-    /// an upland pond, or a river — returning the water-surface Y (topmost filled cell) and the seabed Y (last
-    /// solid cell below the water). Mirrors what <see cref="Generate"/> fills, so the server can place and keep
-    /// aquatic life in ANY water body, not just the deep global sea. False (with 0s) for dry/lava columns.</summary>
+    /// <summary>The local LIQUID water column at a surface (x,z): true if water actually covers it — the
+    /// global sea, an upland pond, or a river — returning the liquid-surface Y (topmost water cell, i.e.
+    /// beneath any ice sheet, #494) and the seabed Y (last solid cell below the water). Mirrors what
+    /// <see cref="Generate"/> fills, so the server can place and keep aquatic life in ANY water body, not
+    /// just the deep global sea. False (with 0s) for dry/lava/frozen-through columns.</summary>
     public bool TryGetWaterSurface(PlanetType planet, int worldX, int worldZ, out int waterTopY, out int seabedY)
+    {
+        if (!TryGetRawWaterColumn(planet, worldX, worldZ, out waterTopY, out seabedY))
+        {
+            return false;
+        }
+
+        var calib = CalibFor(planet);
+        if (CanFreezeWater(planet, calib))
+        {
+            // Fauna lives below the ice sheet (#494) — report the topmost LIQUID cell.
+            waterTopY -= IceSheetThickness(calib, PlanetSeed(planet), worldX, worldZ, waterTopY, waterTopY - seabedY);
+        }
+
+        return waterTopY > seabedY; // frozen through → no water body left here
+    }
+
+    /// <summary>The water column at a surface (x,z) as generated BEFORE the freeze pass (#494) — surface Y
+    /// of the topmost filled (water or ice) cell and the seabed Y. The ice-aware public queries
+    /// (<see cref="TryGetWaterSurface"/>, <see cref="IsSurfaceWater"/>, <see cref="SurfaceIceThickness"/>)
+    /// layer the sheet on top of this.</summary>
+    private bool TryGetRawWaterColumn(PlanetType planet, int worldX, int worldZ, out int waterTopY, out int seabedY)
     {
         waterTopY = 0;
         seabedY = 0;
@@ -1195,6 +1291,7 @@ public sealed class WorldGenerator
         bool hasAtmosphere = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         bool snowPossible = hasAtmosphere && !airlessBody && !snowId.IsAir
             && TempAt(calib, calib.MaxHeight) < SnowLineC + 2.0;
+        bool freezeWater = CanFreezeWater(planet, calib); // #494: cold water columns freeze from the top
 
         // Volcanoes (#477): watery worlds may carry basalt cones with molten summit craters.
         bool volcanoWorld = HasVolcanoes(planet);
@@ -1316,6 +1413,15 @@ public sealed class WorldGenerator
                     columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
                 }
 
+                // Frozen water (#494): a cold column's water freezes from the waterline down — a walkable
+                // ice sheet with liquid below on merely-cold bodies, frozen through to the seabed in the
+                // deep cold or where the sheet reaches the bed anyway. Lava columns never freeze.
+                int iceTop = 0;
+                if (freezeWater && columnFluid == seaWaterId && !seaWaterId.IsAir && waterTop > seabedY)
+                {
+                    iceTop = IceSheetThickness(calib, seed, worldX, worldZ, waterTop, waterTop - seabedY);
+                }
+
                 // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
                 int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, surfaceY);
                 var biome = biomes[biomeIndex];
@@ -1372,7 +1478,9 @@ public sealed class WorldGenerator
                     {
                         if (worldY <= waterTop)
                         {
-                            chunk.Set(lx, ly, lz, columnFluid); // sea fill in a basin, or an upland pond above it
+                            // Sea fill in a basin, or an upland pond above it — the top of a cold column
+                            // reads as solid ice instead of water (#494).
+                            chunk.Set(lx, ly, lz, worldY > waterTop - iceTop ? iceId : columnFluid);
                         }
                         else if (floatingIslands && worldY >= islandBottom && worldY <= islandTop)
                         {
@@ -1469,12 +1577,14 @@ public sealed class WorldGenerator
                         chunk.Set(lx, fly, lz, floraId);
                     }
                 }
-                else if (waterFlora && columnFluid == seaWaterId && seabedY + 1 <= waterTop)
+                else if (waterFlora && columnFluid == seaWaterId && seabedY + 1 <= waterTop - iceTop)
                 {
                     // Submerged WATER column — the sea or an upland pond grows seabed plants / lily pads.
                     // The column-fluid check keeps kelp out of lava rivers and volcano craters (#477).
-                    StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop,
-                        kelpId, lilyId, coralId, seagrassId, floraDensity);
+                    // Plants stay below any ice sheet, and no lily pads float on a frozen surface (#494);
+                    // frozen-through columns (guard above) grow nothing at all.
+                    StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop - iceTop,
+                        kelpId, iceTop > 0 ? BlockId.Air : lilyId, coralId, seagrassId, floraDensity);
                 }
 
                 // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.

@@ -100,6 +100,25 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Cold worlds freeze over: ice sheets + solid-frozen seas (#494, 2026-07-26, branch feat/frozen-water)
+Analysed first (`analysis/frozen-water-and-ice-sheets.md`); everything item-side already existed
+(ice block mineable by hand + placeable, `water_ice` hand recipe 2→1) — the whole feature is a
+worldgen freeze pass. The climate pass used to skip every submerged column (`surfaceY > waterTop`),
+so even −38 °C ice worlds pooled liquid seas. Now `IceSheetThickness` runs at the single fluid
+write site (covers seas, ponds, rivers, waterfall columns; lava never freezes): below the snow line
+the top 1–4 water cells become solid ice (1 block per started 7 °C, dithered like the snow pass so
+freeze edges wander), below −32 °C at the waterline — or when the sheet reaches the bed (shallow
+ponds) — the column freezes through. Ice worlds (−38±6) get walkable frozen seas; tundra (−22±6)
+gets sheets with liquid + kelp + fish **below** (mine through, mind your oxygen); temperate
+mountain lakes freeze via the existing lapse rate for free. Consistency: aquatic flora stays below
+the sheet (no lilies on ice, nothing in frozen-through columns); `TryGetWaterSurface` now reports
+the topmost LIQUID cell (fauna spawns under the ice) and returns false when frozen through;
+`IsSurfaceWater` counts frozen-solid or ≥3-sheet columns as LAND (ships may land on frozen seas —
+decided), thin sheets stay "water" so pads/chests avoid breakable crust; new public
+`SurfaceIceThickness`. Server-only — no new block key (no palette shift), no client change (ice
+renders/collides already; minimap stays stylized). ⚠️ Retroactive one-time change on existing cold
+worlds (seed+delta persistence) — announced in the Unreleased changelog next to #492's note.
+
 ### ★ Fleet admin: delete worlds + the portal links to the game website (2026-07-26, branch feat/worldhost-admin-delete-and-site-link)
 Two small WorldHost additions, both analysed first (`analysis/fleet-admin-world-delete.md`,
 `analysis/portal-website-link.md`).

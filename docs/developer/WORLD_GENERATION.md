@@ -281,9 +281,12 @@ When a chunk is generated (`WorldGenerator.Generate(planet, coord)`):
 2. Resolve per-world constants: planet seed, biomes, deep/bedrock blocks, cave threshold, ore
    richness, mantle depth, flora multiplier (all seeded).
 3. Resolve fluids: sea level + type, pond mask, river field (memoised per world).
-4. Per column: surface height → water carve (pond/river/sea precedence) → biome index → optional
-   floating islands / crater floors → vertical fill (air/fluid, bedrock, floor band, caves,
-   surface/deep blocks, ore veins, rare data caches) → surface or aquatic flora.
+4. Per column: surface height → water carve (pond/river/sea precedence) → freeze pass (#494: below
+   the snow line a water column's top 1–4 cells become solid ice — frozen through to the seabed in
+   the deep cold, so cold worlds get walkable frozen seas you can mine into) → biome index →
+   optional floating islands / crater floors → vertical fill (air/fluid, bedrock, floor band, caves,
+   surface/deep blocks, ore veins, rare data caches) → surface or aquatic flora (kept below any ice
+   sheet; nothing grows in a frozen-through column).
 5. Feature stamps with cross-chunk margins: trees, giant mushrooms, geysers, and set-dressing
    (boulders, crystal shards, dead logs, monoliths, stone circles).
 6. Landing-pad flattening where a pad is reserved.
