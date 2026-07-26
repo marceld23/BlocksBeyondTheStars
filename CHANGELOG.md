@@ -9,7 +9,39 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
-## [Unreleased]
+## [0.9.0] — 2026-07-27
+
+The frontier release: space got wilder. Every world now has its own face, seas and volcanoes are real,
+bandits roam the frontier — and the family running the servers got real oversight tools to keep
+everyone safe out there.
+
+> ⚠️ **Existing worlds change with this release.** The world generator was overhauled from the ground
+> up, and terrain that no player has touched regenerates under the new rules — coastlines, caves, ore,
+> rivers and snow lines will differ from what you remember. **Everything players built or mined is
+> preserved** (player edits always override the generator), and each body's planet *type* is now pinned
+> so it can never change again. This is a deliberate one-time cut for much better worlds ahead.
+
+### 🌋 Every world is now its own world (#466–#481)
+- **Per-body identity.** Two jungle planets used to be the same jungle twice. Now every celestial body
+  seeds its own terrain, plant and creature rosters, settlements, ruins and colours — the map preview
+  in the menu shows the actual world you will land on.
+- **Real seas and coasts.** Sea level is derived from each world's actual terrain, so jungle, swamp,
+  savanna and varied worlds finally have oceans (measured, not guessed: ~20–27 % water) — and ocean
+  worlds roll how much land they keep, from island chains to near-endless water.
+- **Ore you can actually find.** Cave and ore generation is calibrated against each world's real rock
+  distribution — the old constants sat so deep in the noise tail that "there is no ore" was literally
+  true. Veins now reach 2 048 blocks deep, starter veins near the surface pay out double, and deep
+  caves below the lava table fill with molten rock.
+- **Rivers, waterfalls, volcanoes.** Rivers get real headwaters and run 2–3 blocks deep, waterfalls
+  actually fire (~200 on a highland world), and watery worlds grow basalt volcanoes with molten
+  summit craters, vents and hot springs. Water meeting lava chills into the new **obsidian** block.
+- **Cold peaks, warm valleys.** Temperature now drops with altitude: dithered snow caps and tree
+  lines on highlands, cold-faded flora, and the HUD thermometer reads your position — rain in the
+  valley can be snow on the summit.
+- **Living-world fixes.** Fauna spawning reaches its intended population (the old cap starved it),
+  lava creatures can finally spawn on melt pools, amphibians hold the water surface — and mined
+  ruins, claimed wrecks and looted vaults **stay** mined, claimed and looted across re-entry instead
+  of resurrecting (which also closes a free-ship exploit).
 
 ### 🏴‍☠️ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (#504)
 - **Lone robbers now roam some worlds.** Rarely, a scruffy figure with a red bandana walks straight
@@ -74,6 +106,37 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   between two bodies went from 8 to 21 units, and moon-to-planet from 8 to 22 — while the time to
   cruise out to the system's farthest body is unchanged. A moon of the world you launched from could
   also end up stuck *inside* it; it can't any more (#493).
+
+### 🔍 The UI got readable (#482–#484)
+- **VEGA speaks up.** The ship AI's dialogue panel and the scan-result panel were sized for a
+  magnifying glass; both grew properly, and scan results arrive in your language instead of raw keys.
+- **A real "HUD size" setting.** Settings gains a live stepper that scales the whole in-game HUD —
+  change it and watch it apply, no restart. Scanned discoveries also land in a new Codex
+  "Discoveries" chapter, with the species names captured at scan time (every world names its own
+  species, so the name has to be remembered when it is known).
+
+### 👁️ Family oversight: the operator can check on any world (#487–#490, #495)
+For a game whose players are mostly kids, the family running the servers needs to be able to look
+after them — without disturbing anyone's game.
+- **Observer mode.** A *fleet admin* (the operator of the installation — not the same as a world's
+  owner) can enter any world invisibly with `/spectate`: no avatar, no nameplate, no parked ship, no
+  claimed landing pad, no player slot used, ignored by creatures and NPCs, invulnerable, flying
+  freely through walls. Muted by default (`/say` to speak deliberately); block *removal* stays
+  possible as the one in-world moderation lever, and every action is logged.
+- **Finding things.** `/players` lists everyone the world knows — online and offline, with their last
+  position and when they were last seen. `/builds` lists named bases, beacons, teleporter pads and
+  stations with owners. `/goto` jumps to a player (even on another planet — the old `/tp` never
+  could), to a named build, or to raw coordinates.
+- **A world-detail page for the fleet panel.** Each world on `/admin` links to a page showing its
+  players, structures and **build hotspots** — clusters of changed blocks that reveal a house built
+  without any registered base — each with a ready-to-paste `/goto` line.
+- **Who built this?** Block changes now record who last changed each cell and when ("last editor
+  wins" — no history is kept, and the table gains zero extra rows). Old cells stay anonymous;
+  attribution starts with this release.
+- **Any world, safely.** The operator reaches private and password-protected worlds too — the worlds
+  kids actually play on. The power is double-locked: it needs a developer account (registered only
+  with a secret code) *and* the operator's player name, which is auto-reserved so nobody else can
+  ever claim it. A normal account sees none of this — not even the world list.
 
 ### 🛰️ Fleet operations
 - **The fleet admin panel can delete worlds.** Every row on `/admin` gets a folded-away `delete…`
