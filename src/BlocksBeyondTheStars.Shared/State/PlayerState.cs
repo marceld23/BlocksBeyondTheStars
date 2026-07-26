@@ -81,6 +81,13 @@ public sealed class PlayerState
     /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
     public HashSet<string> Scanned { get; set; } = new();
 
+    /// <summary>Display name captured at scan time per <see cref="Scanned"/> entry, backing the Codex
+    /// "Discoveries" chapter (#484). Needed because creature/tree/flora species are generated PER WORLD
+    /// (seed + planet type), so a species id scanned on one planet cannot be resolved to its coined name
+    /// from anywhere else — the name has to be remembered when it is known. Entries scanned before this
+    /// existed simply have none, and the client falls back to the raw key. Persisted.</summary>
+    public Dictionary<string, string> ScannedNames { get; set; } = new();
+
     /// <summary>Suit ration dispenser: food loaded here is auto-eaten when hunger runs low. Small capacity.</summary>
     public Inventory RationStore { get; set; } = new(RationStoreSlots);
 

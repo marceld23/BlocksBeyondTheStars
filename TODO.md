@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1041 server + 129 client passing** (2026-07-17). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1123 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -99,6 +99,49 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ In-game UI readability: VEGA + scan panel sized up, a real UI-scale setting, localized scan results (#482–#484, 2026-07-26, branch feat/ui-readability)
+Three connected fixes to "the HUD is too small", all measured first in `analysis/ingame-ui-readability.md`.
+
+**#482 — sizing.** `VegaPanel` and `SpaceRadar` were **missed by the 2026-06-07 "bigger HUD" pass**
+(item 19a): they still created their canvas at the 1920×1080 default while `HudUi`/`SpaceView` moved to
+`UiKit.HudRefW/HudRefH` (1536×864), so VEGA rendered **25 % smaller than every other HUD element at every
+resolution** — 19 px at 1080p (1.76 % of screen height) for subtitle-class narrative text. Both are now on
+the HUD reference, and VEGA's own fonts went up (speech 19→22, name 20→22, chip 19→20): **19 → 27.5 px
+(+45 %)**. The left column was full, so all three boxes were reflowed — VEGA speech `24,396,640,190`, chip
+`24,594,640,48`, scan panel `10,650,390,182`; the scan panel width is **capped at 390** because the hotbar
+backplate owns x 400…1136. Scan panel fonts 16/14/14/14 → 19/17/16/17, auto-hide 12 s → **20 s** *and*
+pinned while the scanner is the held item. Both text boxes that had `verticalOverflow = Overflow` (VEGA
+speech, scan info) are now `Truncate` — an over-long line used to run over the continue hint / threat +
+knowledge lines; LLM VEGA text is additionally clamped server-side to 240 chars. Outlines added to VEGA and
+scan text. The **terrain scanner finally reports something**: a hit-count toast (`ui.scan.ore.found` /
+`ui.scan.ore.none`, DE+EN), with `OreScanResult.Capped` so an ore-rich world reads "80+" instead of a wrong
+exact count — a zero-hit pulse previously cost 10 suit energy and showed nothing at all.
+
+**#483 — the UI-scale setting.** `ClientSettings.UiScale` and `LargeUi` were **declared, persisted and read
+by nothing** ("flags wired now; …" — and `docs/developer/CRAFTING_TECH_SHIP_UI.md` wrongly claimed the
+crafting UI honoured them; corrected). Now a real **HUD size** stepper in Settings, 0.8–1.6 in 0.1 steps,
+applied live: `UiKit.UserScale` divides a canvas' reference resolution and re-stamps every live scalable
+canvas. **Only HUD canvases follow it** (`CreateDiegeticCanvas`, plus the SpaceView overlay via
+`userScalable: true`) — menus lay out in absolute 1920 coordinates and would run off-screen, which is why
+the 2026-06 pass only lowered the HUD reference. `UiScale.Factor` (IMGUI leftovers) follows too. `LargeUi`
+is migrated once on load (→ 1.3) and retired.
+
+**#484 — scan results.** The readout was built as **English string literals on the server** and printed raw,
+so a German player saw `Bedrohung: Hostile` and `Forest · Nocturnal · Territorial`, with yields as raw item
+keys (`iron_ore×1`). `ScanResult` now carries structure — `SubjectKey`, `Kind`, `ThreatKey`, `TraitKeys[]`,
+`Drops[]` (`Count = 0` means "type only", for asteroid resources) and `InfoKey` — and the client composes +
+localizes it (~35 new keys DE+EN). MessagePack is contractless, so the added properties are compatible both
+ways and tag 82 is unchanged; `Info`/`Threat` stay populated as a legacy fallback for one release. The
+knowledge-gain toast is localized too. New **Codex "Discoveries" chapter** backed by a new `DiscoveryLog`
+message (codec **178**), sent as a full snapshot on join and a delta per first-time scan. Because
+creature/tree/flora species are generated **per world**, the display name is captured at scan time into a
+new persisted `PlayerState.ScannedNames` — otherwise a species id scanned on one planet could never be
+resolved to its coined name again. Pre-existing saves have no names and fall back to the raw key.
+
+6 new tests (structured fields, drop shapes, `ScannedNames` save round-trip, two codec round-trips, and a
+locale-parity test over every new key via a new `TestLocales` helper). Full suite green: **1123 server + 132
+client**. *Sizing wants an in-game check — the left-column stacking is the one thing paper can't verify.*
 
 ### ★ Base/station systems: heal tank, home spawn, respawn choice, console/lab fix (#460–#463, 2026-07-25, branch feat/base-systems)
 Bases and player stations get their first real life-support system. **Heal tank** (new machine block,

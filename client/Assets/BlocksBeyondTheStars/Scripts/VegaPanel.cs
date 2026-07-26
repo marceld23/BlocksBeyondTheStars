@@ -23,6 +23,12 @@ namespace BlocksBeyondTheStars.Client
         private const float AutoAdvanceSeconds = 25f; // fallback so an unattended line never blocks forever
         private const KeyCode ContinueKey = KeyCode.N;
 
+        // Left-column layout in HUD reference units (1536×864). The column is full: vitals end at y 260,
+        // the toast sits at 268, the scan panel starts at 650 and the hotbar backplate owns y 742…834 /
+        // x 400…1136. These two constants are what a layout tweak should move (#482).
+        private const float SpeechY = 396f, SpeechH = 190f;
+        private const float ChipY = 594f;
+
         private Canvas _canvas;
         private GameObject _speech;
         private Text _speechText;
@@ -43,33 +49,42 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            _canvas = UiKit.CreateDiegeticCanvas("VegaPanel");
+            // The HUD reference (1536×864), NOT the 1920×1080 default — VEGA was missed by the 2026-06-07
+            // "bigger HUD" pass (#482), so her lines rendered 25 % smaller than every other HUD element at
+            // every resolution. Subtitle-class text has to read while the eye is on the crosshair.
+            _canvas = UiKit.CreateDiegeticCanvas("VegaPanel", UiKit.HudRefW, UiKit.HudRefH);
+            _canvas.sortingOrder = 11; // just above HudUi (10) — a story line must never be occluded
 
             // Speech panel: left side above the vitals, out of the crosshair's way. VEGA gets a small
-            // generated avatar chip beside her name (uGUI icon pass).
-            _speech = UiKit.AddPanel(_canvas.transform, 24, 600, 600, 150, new Color(0.05f, 0.10f, 0.16f, 0.82f)).gameObject;
+            // generated avatar chip beside her name (uGUI icon pass). Coordinates are in HUD reference
+            // units; the left column is tight (vitals → speech → chip → scan panel → hotbar), see #482.
+            _speech = UiKit.AddPanel(_canvas.transform, 24, SpeechY, 640, SpeechH, new Color(0.05f, 0.10f, 0.16f, 0.82f)).gameObject;
             var avatar = UiKit.Icon("icon_vega");
             float nameX = 14f;
             if (avatar != null)
             {
-                UiKit.AddImage(_speech.transform, 12, 5, 30, 30, avatar, UiKit.Cyan);
-                nameX = 50f;
+                UiKit.AddImage(_speech.transform, 12, 6, 34, 34, avatar, UiKit.Cyan);
+                nameX = 54f;
             }
 
-            UiKit.AddText(_speech.transform, nameX, 6, 300, 28, L("ui.vega.name"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speechText = UiKit.AddText(_speech.transform, 14, 38, 572, 88, string.Empty, 19, UiKit.TextCol, TextAnchor.UpperLeft);
+            UiKit.AddText(_speech.transform, nameX, 6, 320, 30, L("ui.vega.name"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speechText = UiKit.AddText(_speech.transform, 14, 44, 612, 116, string.Empty, 22, UiKit.TextCol, TextAnchor.UpperLeft);
             _speechText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _speechText.verticalOverflow = VerticalWrapMode.Overflow;
+            // Truncate, NOT Overflow: an LLM-authored line has no length bound on the wire, and an
+            // over-long one used to run over the continue hint and out of the panel background (#482).
+            _speechText.verticalOverflow = VerticalWrapMode.Truncate;
+            UiKit.AddOutline(_speechText); // readable over bright terrain / snow / sky
             // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable).
-            _continueHint = UiKit.AddText(_speech.transform, 14, 124, 572, 24, L("ui.vega.next"), 15, UiKit.CyanDim, TextAnchor.MiddleRight);
+            _continueHint = UiKit.AddText(_speech.transform, 14, 160, 612, 24, L("ui.vega.next"), 16, UiKit.CyanDim, TextAnchor.MiddleRight);
             _continueHint.gameObject.SetActive(false);
             _speech.SetActive(false);
 
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
             // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
             // so a button on the chip was unreachable.)
-            _chip = UiKit.AddPanel(_canvas.transform, 24, 760, 600, 44, new Color(0.05f, 0.10f, 0.16f, 0.66f)).gameObject;
-            _chipText = UiKit.AddText(_chip.transform, 14, 0, 574, 44, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft);
+            _chip = UiKit.AddPanel(_canvas.transform, 24, ChipY, 640, 48, new Color(0.05f, 0.10f, 0.16f, 0.66f)).gameObject;
+            _chipText = UiKit.AddText(_chip.transform, 14, 0, 614, 48, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft);
+            UiKit.AddOutline(_chipText);
             _chip.SetActive(false);
 
             if (Game?.Network != null)

@@ -273,6 +273,7 @@ public sealed partial class GameServer
             Z = new int[n],
             Block = new ushort[n],
             Seconds = ScannerSeconds,
+            Capped = hits.Count > n, // the client's toast then reads "80+" rather than a wrong exact count
         };
         for (int i = 0; i < n; i++)
         {

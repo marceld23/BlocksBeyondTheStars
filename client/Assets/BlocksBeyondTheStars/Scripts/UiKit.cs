@@ -209,7 +209,8 @@ namespace BlocksBeyondTheStars.Client
         /// screen-space overlay. Menus/dialogs must keep using <see cref="CreateCanvas"/> (stay flat).</summary>
         public static Canvas CreateDiegeticCanvas(string name, float refW = 1920f, float refH = 1080f)
         {
-            var canvas = CreateCanvas(name, refW, refH);
+            // Diegetic == the in-world HUD, so it always follows the player's UI-scale setting (#483).
+            var canvas = CreateCanvas(name, refW, refH, userScalable: true);
             DiegeticCanvases.Add(canvas);
             ApplyDiegeticTarget(canvas);
             return canvas;
@@ -266,7 +267,57 @@ namespace BlocksBeyondTheStars.Client
         // same layout ~1.25× bigger (more readable on high-res monitors) while Expand keeps it fitting any aspect.
         public const float HudRefW = 1536f, HudRefH = 864f;
 
-        public static Canvas CreateCanvas(string name, float refW = 1920f, float refH = 1080f)
+        /// <summary>Bounds of the player's UI-scale setting (#483).</summary>
+        public const float UserScaleMin = 0.8f, UserScaleMax = 1.6f;
+
+        /// <summary>The player's UI-scale multiplier, driven from <see cref="ClientSettings.UiScale"/> via
+        /// <see cref="SetUserScale"/>. Applied by DIVIDING a canvas' reference resolution — a smaller
+        /// reference means ScaleWithScreenSize draws the same layout bigger. 1 = the shipped default.</summary>
+        public static float UserScale { get; private set; } = 1f;
+
+        // Canvases that follow UserScale, with the reference they were BUILT at (dividing the live value
+        // repeatedly would compound). Menus are deliberately absent: they lay out in absolute 1920
+        // coordinates, so scaling them up pushes content off-screen — see #483.
+        private sealed class ScaledCanvas
+        {
+            public Canvas Canvas;
+            public Vector2 BaseRef;
+        }
+
+        private static readonly System.Collections.Generic.List<ScaledCanvas> ScalableCanvases
+            = new System.Collections.Generic.List<ScaledCanvas>();
+
+        /// <summary>Sets the player's UI scale and re-stamps every live scalable canvas, so the pause-menu
+        /// setting takes effect instantly instead of on the next world load.</summary>
+        public static void SetUserScale(float scale)
+        {
+            float s = Mathf.Clamp(scale, UserScaleMin, UserScaleMax);
+            if (Mathf.Approximately(s, UserScale))
+            {
+                return;
+            }
+
+            UserScale = s;
+            for (int i = ScalableCanvases.Count - 1; i >= 0; i--)
+            {
+                var entry = ScalableCanvases[i];
+                if (entry.Canvas == null)
+                {
+                    ScalableCanvases.RemoveAt(i); // destroyed with its world
+                    continue;
+                }
+
+                var scaler = entry.Canvas.GetComponent<CanvasScaler>();
+                if (scaler != null)
+                {
+                    scaler.referenceResolution = entry.BaseRef / UserScale;
+                }
+            }
+        }
+
+        /// <param name="userScalable">True for HUD-style canvases, which follow the player's UI-scale
+        /// setting. Menus must stay false — their layout is absolute 1920 coordinates.</param>
+        public static Canvas CreateCanvas(string name, float refW = 1920f, float refH = 1080f, bool userScalable = false)
         {
             if (Object.FindAnyObjectByType<EventSystem>() == null)
             {
@@ -288,11 +339,17 @@ namespace BlocksBeyondTheStars.Client
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(refW, refH);
+            var baseRef = new Vector2(refW, refH);
+            scaler.referenceResolution = userScalable ? baseRef / UserScale : baseRef;
             // Expand = scale by the smaller of the width/height ratios, so the whole 1920x1080 layout
             // always fits (no right-edge overflow on non-16:9 / high-res monitors); extra space is margin.
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             go.AddComponent<GraphicRaycaster>();
+            if (userScalable)
+            {
+                ScalableCanvases.Add(new ScaledCanvas { Canvas = canvas, BaseRef = baseRef });
+            }
+
             return canvas;
         }
 

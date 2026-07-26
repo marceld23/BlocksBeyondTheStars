@@ -121,6 +121,10 @@ namespace BlocksBeyondTheStars.Client
         // Terrain-scanner pulse result (Feature 40): ore positions for the through-wall glow markers.
         public event Action<OreScanResult>? OreScanReceived;
 
+        // First-scan ledger backing the Codex "Discoveries" chapter (#484): a full snapshot on join,
+        // then a one-entry delta per first-time scan.
+        public event Action<DiscoveryLog>? DiscoveryLogReceived;
+
         // Ship AI companion "VEGA": onboarding/advisor/story lines + the active objective chip.
         public event Action<ShipAiLine>? ShipAiLineReceived;
 
@@ -553,6 +557,7 @@ namespace BlocksBeyondTheStars.Client
                 case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
+                case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
                 case AllianceList m: AllianceListReceived?.Invoke(m); break;
                 case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
                 case TameProgress m: TameProgressReceived?.Invoke(m); break;

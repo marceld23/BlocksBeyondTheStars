@@ -127,6 +127,168 @@ public sealed class ScanningTests : IDisposable
         }
     }
 
+    // --- #484: the readout travels as locale keys + structured data, never as English prose ---
+
+    // NOTE ON TEST COUNT: each Started(...) generates a whole world (planet, settlements, NPCs, SQLite), so
+    // these assertions are grouped per world rather than split one-per-fact. Splitting them doubled the
+    // server starts in this file, which starved the 2-core CI runner enough to tip a timing-sensitive
+    // loopback-HTTP test in WebSocketTransportTests over the 120 s fast-tier budget. Facets of ONE scan
+    // belong in one test anyway.
+
+    [Fact]
+    public void ScanCreature_SendsLocaleKeys_RecordsName_AndSurvivesASave()
+    {
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Scout");
+            var speciesId = server.SpeciesRoster.First().Id;
+            var result = server.ScanSubject("Scout", "creature", speciesId);
+
+            Assert.Equal("creature", result.Kind);
+            // Habitat / activity / temperament as keys the client localizes — these used to be raw C# enum
+            // names, so the German build read "Forest · Nocturnal · Territorial".
+            Assert.Equal(3, result.TraitKeys.Length);
+            Assert.StartsWith("ui.scan.habitat.", result.TraitKeys[0]);
+            Assert.StartsWith("ui.scan.activity.", result.TraitKeys[1]);
+            Assert.StartsWith("ui.scan.temperament.", result.TraitKeys[2]);
+            Assert.Contains(result.ThreatKey, new[] { "ui.scan.threat.safe", "ui.scan.threat.provokable", "ui.scan.threat.hostile" });
+
+            // The coined species name is remembered at scan time: species are generated PER WORLD, so it
+            // could not be resolved again from another planet for the Codex "Discoveries" list.
+            Assert.Equal(result.Subject, p.State.ScannedNames[$"creature:{speciesId}"]);
+
+            // …and it has to survive a save, or the Codex empties on reload.
+            var restored = StateMapper.FromSnapshot(StateMapper.ToSnapshot(p.State));
+            Assert.Equal(p.State.ScannedNames, restored.ScannedNames);
+        }
+    }
+
+    [Fact]
+    public void ScanBlock_SendsStructuredDrops_AndUnknownSubjectSendsALocaleKey()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Scout");
+            var ore = server.ScanSubject("Scout", "block", "iron_ore");
+
+            // Drops are structured now, so the client can show localized names ("Eisenerz ×1") instead of
+            // the raw key the server used to bake into an English "Yields: iron_ore×1" string.
+            Assert.NotEmpty(ore.Drops);
+            Assert.All(ore.Drops, d => Assert.False(string.IsNullOrEmpty(d.Item)));
+            Assert.All(ore.Drops, d => Assert.True(d.Count > 0));
+            Assert.Empty(ore.InfoKey); // it has a yield, so no whole-line remark
+
+            Assert.Equal("ui.scan.unknown", server.ScanSubject("Scout", "block", "not_a_real_block").InfoKey);
+        }
+    }
+
+    [Fact]
+    public void ScanAsteroid_SendsResourceTypesWithoutCounts()
+    {
+        var server = Started("rocky", out var repo, r => r.FreeSpaceFlight = true);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var asteroid = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
+
+            var result = server.ScanSpaceEntity("Pilot", asteroid.Id);
+            Assert.Equal("asteroid", result.Kind);
+            Assert.NotEmpty(result.Drops);
+            Assert.All(result.Drops, d => Assert.Equal(0, d.Count)); // type only — the client omits "×n"
+        }
+    }
+
+    [Fact]
+    public void DiscoveryLog_RoundTripsThroughTheCodec()
+    {
+        var log = new BlocksBeyondTheStars.Networking.Messages.DiscoveryLog
+        {
+            Entries = new[] { "creature:sp0", "block:iron_ore" },
+            Names = new[] { "Sky Grazer", "iron_ore" },
+            Full = true,
+        };
+
+        var decoded = Assert.IsType<BlocksBeyondTheStars.Networking.Messages.DiscoveryLog>(
+            BlocksBeyondTheStars.Networking.NetCodec.Decode(BlocksBeyondTheStars.Networking.NetCodec.Encode(log)));
+        Assert.Equal(log.Entries, decoded.Entries);
+        Assert.Equal(log.Names, decoded.Names);
+        Assert.True(decoded.Full);
+    }
+
+    [Fact]
+    public void ScanResult_StructuredFields_RoundTripThroughTheCodec()
+    {
+        var sent = new BlocksBeyondTheStars.Networking.Messages.ScanResult
+        {
+            Subject = "Sky Grazer",
+            SubjectKey = "sp0",
+            Kind = "creature",
+            ThreatKey = "ui.scan.threat.safe",
+            TraitKeys = new[] { "ui.scan.habitat.land", "ui.scan.activity.diurnal", "ui.scan.temperament.passive" },
+            Drops = new[] { new BlocksBeyondTheStars.Networking.Messages.NetTradeItem { Item = "hide", Count = 2 } },
+            InfoKey = string.Empty,
+        };
+
+        var decoded = Assert.IsType<BlocksBeyondTheStars.Networking.Messages.ScanResult>(
+            BlocksBeyondTheStars.Networking.NetCodec.Decode(BlocksBeyondTheStars.Networking.NetCodec.Encode(sent)));
+        Assert.Equal(sent.SubjectKey, decoded.SubjectKey);
+        Assert.Equal(sent.Kind, decoded.Kind);
+        Assert.Equal(sent.ThreatKey, decoded.ThreatKey);
+        Assert.Equal(sent.TraitKeys, decoded.TraitKeys);
+        Assert.Equal("hide", decoded.Drops.Single().Item);
+        Assert.Equal(2, decoded.Drops.Single().Count);
+    }
+
+    [Fact]
+    public void EveryScanLocaleKey_ExistsInBothLanguages()
+    {
+        // The whole point of #484: the readout is keys, so a missing key would show "[ui.scan.…]" in game.
+        var en = TestLocales.Load("en");
+        var de = TestLocales.Load("de");
+
+        var required = new List<string>
+        {
+            "ui.scan.yield", "ui.scan.resources", "ui.scan.no_yield", "ui.scan.foliage",
+            "ui.scan.flora_harvest", "ui.scan.barren", "ui.scan.unknown", "ui.scan.no_scanner",
+            "ui.scan.not_scannable", "ui.scan.subject.asteroid", "ui.scan.knowledge_gain",
+            "ui.scan.ore.found", "ui.scan.ore.none", "ui.settings.ui_scale",
+            "ui.wiki.discoveries", "ui.wiki.discoveries.empty", "ui.wiki.discoveries.count",
+        };
+        foreach (var kind in new[] { "creature", "tree", "flora", "block", "asteroid" })
+        {
+            required.Add("ui.wiki.discoveries." + kind);
+        }
+
+        foreach (var t in Enum.GetNames<Shared.Definitions.CreatureHabitat>())
+        {
+            required.Add("ui.scan.habitat." + t.ToLowerInvariant());
+        }
+
+        foreach (var t in Enum.GetNames<Shared.Definitions.CreatureActivity>())
+        {
+            required.Add("ui.scan.activity." + t.ToLowerInvariant());
+        }
+
+        foreach (var t in Enum.GetNames<Shared.Definitions.CreatureTemperament>())
+        {
+            required.Add("ui.scan.temperament." + t.ToLowerInvariant());
+        }
+
+        required.AddRange(new[]
+        {
+            "ui.scan.threat.hostile", "ui.scan.threat.provokable", "ui.scan.threat.safe",
+            "ui.scan.threat.toxic", "ui.scan.threat.edible",
+        });
+
+        var missingEn = required.Where(k => !en.ContainsKey(k)).ToList();
+        var missingDe = required.Where(k => !de.ContainsKey(k)).ToList();
+        Assert.Empty(missingEn);
+        Assert.Empty(missingDe);
+    }
+
     [Fact]
     public void Blueprint_RequiresKnowledge_InAdditionToMaterials()
     {

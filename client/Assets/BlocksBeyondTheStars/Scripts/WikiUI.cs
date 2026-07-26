@@ -52,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
             ("ships", "ui.wiki.ships"),
             ("modules", "ui.wiki.modules"),
             ("planets", "ui.wiki.planets"),
+            ("discoveries", "ui.wiki.discoveries"), // what THIS player has scanned (#484)
         };
 
         public void Show()
@@ -195,8 +196,86 @@ namespace BlocksBeyondTheStars.Client
             "ships" => BuildEntries(L("ui.wiki.ships"), Entries(Game?.Content?.Ships?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "modules" => BuildEntries(L("ui.wiki.modules"), Entries(Game?.Content?.ShipModules?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "planets" => BuildEntries(L("ui.wiki.planets"), Entries(Game?.Content?.Planets?.Values, d => d.NameKey, d => ToDescKey(d.NameKey))),
+            "discoveries" => BuildDiscoveries(),
             _ => string.Empty,
         };
+
+        /// <summary>The player's own scan log (#484): every first-time scan, grouped by kind. Unlike the other
+        /// chapters this is per-player progress, not static content — before this the first-scan ledger never
+        /// left the server, so a scan left no permanent record anywhere in the UI.</summary>
+        private string BuildDiscoveries()
+        {
+            var sb = new StringBuilder();
+            sb.Append("<b><size=24>").Append(L("ui.wiki.discoveries")).Append("</size></b>\n\n");
+
+            var log = Game?.Discoveries;
+            if (log == null || log.Count == 0)
+            {
+                sb.Append(L("ui.wiki.discoveries.empty"));
+                return sb.ToString();
+            }
+
+            sb.Append(string.Format(L("ui.wiki.discoveries.count"), log.Count)).Append("\n\n");
+
+            // Ledger keys are "kind:key" ("asteroid" has no colon); group so creatures/plants/materials read apart.
+            foreach (var kind in new[] { "creature", "tree", "flora", "block", "asteroid" })
+            {
+                var names = new List<string>();
+                foreach (var pair in log)
+                {
+                    int colon = pair.Key.IndexOf(':');
+                    string entryKind = colon > 0 ? pair.Key.Substring(0, colon) : pair.Key;
+                    if (entryKind != kind)
+                    {
+                        continue;
+                    }
+
+                    string subject = string.IsNullOrEmpty(pair.Value)
+                        ? (colon > 0 ? pair.Key.Substring(colon + 1) : pair.Key) // pre-#484 entry: raw key
+                        : pair.Value;
+                    names.Add(SubjectName(subject));
+                }
+
+                if (names.Count == 0)
+                {
+                    continue;
+                }
+
+                names.Sort((a, b) => string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase));
+                sb.Append("<b>").Append(L("ui.wiki.discoveries." + kind)).Append("</b>\n");
+                foreach (var name in names)
+                {
+                    sb.Append("  • ").Append(name).Append('\n');
+                }
+
+                sb.Append('\n');
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>Localizes a discovery subject: a block/item key resolves through the content tables, a
+        /// coined species name is already language-neutral and shows as-is (mirrors <c>HudUi.ScanSubjectName</c>).</summary>
+        private string SubjectName(string subject)
+        {
+            if (string.IsNullOrEmpty(subject))
+            {
+                return subject;
+            }
+
+            if (Game?.Content?.GetBlock(subject) is { } b)
+            {
+                return L(b.NameKey);
+            }
+
+            if (Game?.Content?.GetItem(subject) is { } it)
+            {
+                return L(it.NameKey);
+            }
+
+            string key = "ui.scan.subject." + subject;
+            return Game?.Localizer != null && Game.Localizer.Has(key) ? L(key) : subject;
+        }
 
         /// <summary>Localized, name-sorted (name, description) entries for a content collection. Every definition
         /// carries a NameKey; <paramref name="descKey"/> is null for collections without description text, and an

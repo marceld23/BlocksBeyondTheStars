@@ -331,6 +331,9 @@ public static class NetCodec
         Register(175, typeof(SetSpawnPointIntent));      // Client -> Server (E on a placed heal tank)
         Register(176, typeof(RespawnOptions));           // Server -> Client (death: pick ship vs home spawn)
         Register(177, typeof(RespawnChoiceIntent));      // Client -> Server (the pick)
+
+        // Codex "Discoveries" (#484): the first-scan ledger, so a scan leaves a permanent record.
+        Register(178, typeof(DiscoveryLog));             // Server -> Client (join snapshot + per-scan delta)
     }
 
     private static void Register(byte tag, Type type)
