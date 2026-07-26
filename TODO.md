@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1126 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1123 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -139,8 +139,8 @@ creature/tree/flora species are generated **per world**, the display name is cap
 new persisted `PlayerState.ScannedNames` — otherwise a species id scanned on one planet could never be
 resolved to its coined name again. Pre-existing saves have no names and fall back to the raw key.
 
-9 new tests (structured fields, drop shapes, `ScannedNames` save round-trip, two codec round-trips, and a
-locale-parity test over every new key via a new `TestLocales` helper). Full suite green: **1126 server + 132
+6 new tests (structured fields, drop shapes, `ScannedNames` save round-trip, two codec round-trips, and a
+locale-parity test over every new key via a new `TestLocales` helper). Full suite green: **1123 server + 132
 client**. *Sizing wants an in-game check — the left-column stacking is the one thing paper can't verify.*
 
 ### ★ Base/station systems: heal tank, home spawn, respawn choice, console/lab fix (#460–#463, 2026-07-25, branch feat/base-systems)

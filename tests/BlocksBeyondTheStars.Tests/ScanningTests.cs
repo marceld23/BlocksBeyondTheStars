@@ -129,14 +129,21 @@ public sealed class ScanningTests : IDisposable
 
     // --- #484: the readout travels as locale keys + structured data, never as English prose ---
 
+    // NOTE ON TEST COUNT: each Started(...) generates a whole world (planet, settlements, NPCs, SQLite), so
+    // these assertions are grouped per world rather than split one-per-fact. Splitting them doubled the
+    // server starts in this file, which starved the 2-core CI runner enough to tip a timing-sensitive
+    // loopback-HTTP test in WebSocketTransportTests over the 120 s fast-tier budget. Facets of ONE scan
+    // belong in one test anyway.
+
     [Fact]
-    public void ScanCreature_SendsLocaleKeys_NotEnglishProse()
+    public void ScanCreature_SendsLocaleKeys_RecordsName_AndSurvivesASave()
     {
         var server = Started("jungle", out var repo);
         using (repo)
         {
-            server.AddLocalPlayer("Scout");
-            var result = server.ScanSubject("Scout", "creature", server.SpeciesRoster.First().Id);
+            var p = server.AddLocalPlayer("Scout");
+            var speciesId = server.SpeciesRoster.First().Id;
+            var result = server.ScanSubject("Scout", "creature", speciesId);
 
             Assert.Equal("creature", result.Kind);
             // Habitat / activity / temperament as keys the client localizes — these used to be raw C# enum
@@ -146,24 +153,34 @@ public sealed class ScanningTests : IDisposable
             Assert.StartsWith("ui.scan.activity.", result.TraitKeys[1]);
             Assert.StartsWith("ui.scan.temperament.", result.TraitKeys[2]);
             Assert.Contains(result.ThreatKey, new[] { "ui.scan.threat.safe", "ui.scan.threat.provokable", "ui.scan.threat.hostile" });
+
+            // The coined species name is remembered at scan time: species are generated PER WORLD, so it
+            // could not be resolved again from another planet for the Codex "Discoveries" list.
+            Assert.Equal(result.Subject, p.State.ScannedNames[$"creature:{speciesId}"]);
+
+            // …and it has to survive a save, or the Codex empties on reload.
+            var restored = StateMapper.FromSnapshot(StateMapper.ToSnapshot(p.State));
+            Assert.Equal(p.State.ScannedNames, restored.ScannedNames);
         }
     }
 
     [Fact]
-    public void ScanBlock_SendsDropsAsItemKeysAndCounts()
+    public void ScanBlock_SendsStructuredDrops_AndUnknownSubjectSendsALocaleKey()
     {
         var server = Started("rocky", out var repo);
         using (repo)
         {
             server.AddLocalPlayer("Scout");
-            var result = server.ScanSubject("Scout", "block", "iron_ore");
+            var ore = server.ScanSubject("Scout", "block", "iron_ore");
 
             // Drops are structured now, so the client can show localized names ("Eisenerz ×1") instead of
             // the raw key the server used to bake into an English "Yields: iron_ore×1" string.
-            Assert.NotEmpty(result.Drops);
-            Assert.All(result.Drops, d => Assert.False(string.IsNullOrEmpty(d.Item)));
-            Assert.All(result.Drops, d => Assert.True(d.Count > 0));
-            Assert.Empty(result.InfoKey); // it has a yield, so no whole-line remark
+            Assert.NotEmpty(ore.Drops);
+            Assert.All(ore.Drops, d => Assert.False(string.IsNullOrEmpty(d.Item)));
+            Assert.All(ore.Drops, d => Assert.True(d.Count > 0));
+            Assert.Empty(ore.InfoKey); // it has a yield, so no whole-line remark
+
+            Assert.Equal("ui.scan.unknown", server.ScanSubject("Scout", "block", "not_a_real_block").InfoKey);
         }
     }
 
@@ -181,48 +198,6 @@ public sealed class ScanningTests : IDisposable
             Assert.Equal("asteroid", result.Kind);
             Assert.NotEmpty(result.Drops);
             Assert.All(result.Drops, d => Assert.Equal(0, d.Count)); // type only — the client omits "×n"
-        }
-    }
-
-    [Fact]
-    public void UnscannableSubject_SendsLocaleKey()
-    {
-        var server = Started("rocky", out var repo);
-        using (repo)
-        {
-            server.AddLocalPlayer("Scout");
-            var result = server.ScanSubject("Scout", "block", "not_a_real_block");
-            Assert.Equal("ui.scan.unknown", result.InfoKey);
-        }
-    }
-
-    [Fact]
-    public void FirstScan_RecordsDisplayNameForTheCodex()
-    {
-        var server = Started("jungle", out var repo);
-        using (repo)
-        {
-            var p = server.AddLocalPlayer("Scout");
-            var speciesId = server.SpeciesRoster.First().Id;
-            var result = server.ScanSubject("Scout", "creature", speciesId);
-
-            // The coined species name is remembered at scan time: species are generated PER WORLD, so it
-            // could not be resolved again from another planet for the Codex "Discoveries" list.
-            Assert.Equal(result.Subject, p.State.ScannedNames[$"creature:{speciesId}"]);
-        }
-    }
-
-    [Fact]
-    public void ScannedNames_SurviveASaveRoundTrip()
-    {
-        var server = Started("jungle", out var repo);
-        using (repo)
-        {
-            var p = server.AddLocalPlayer("Scout");
-            server.ScanSubject("Scout", "creature", server.SpeciesRoster.First().Id);
-
-            var restored = StateMapper.FromSnapshot(StateMapper.ToSnapshot(p.State));
-            Assert.Equal(p.State.ScannedNames, restored.ScannedNames);
         }
     }
 
