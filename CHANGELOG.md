@@ -41,7 +41,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   block. Ships treat thickly frozen seas as solid ground and may land on them. Freeze edges are
   noise-dithered, so partially frozen lakes with open patches appear right at the freeze line.
   ⚠️ *One-time world change:* existing cold worlds freeze retroactively on next load (player-built
-  blocks are untouched). (#495, closes #494)
+  blocks are untouched). (#501, closes #494)
 
 ## [0.8.7] — 2026-07-25
 
