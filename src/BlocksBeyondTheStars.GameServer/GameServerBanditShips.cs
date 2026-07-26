@@ -103,63 +103,63 @@ public sealed partial class GameServer
         switch (raider.BanditPhase)
         {
             case BanditPhase.Approach:
-            {
-                if (mark is null)
                 {
-                    BeginBanditShipLeave(instance, raider);
+                    if (mark is null)
+                    {
+                        BeginBanditShipLeave(instance, raider);
+                        break;
+                    }
+
+                    float distSq = raider.Position.DistanceSquared(instance.ShipPosition);
+                    if (distSq <= BanditHailRange * BanditHailRange)
+                    {
+                        BeginBanditShipDemand(instance, raider, mark);
+                        break;
+                    }
+
+                    StepToward(raider, instance.ShipPosition, BanditShipApproachSpeed, dt, stopAt: BanditHailRange * 0.9f);
                     break;
                 }
-
-                float distSq = raider.Position.DistanceSquared(instance.ShipPosition);
-                if (distSq <= BanditHailRange * BanditHailRange)
-                {
-                    BeginBanditShipDemand(instance, raider, mark);
-                    break;
-                }
-
-                StepToward(raider, instance.ShipPosition, BanditShipApproachSpeed, dt, stopAt: BanditHailRange * 0.9f);
-                break;
-            }
 
             case BanditPhase.Demanding:
-            {
-                if (mark is null || mark.BanditDemandId == 0 || !mark.BanditDemandFromShip)
                 {
-                    // The pilot vanished (landed/disconnected) mid-hail — call it off.
-                    BeginBanditShipLeave(instance, raider);
-                    break;
-                }
+                    if (mark is null || mark.BanditDemandId == 0 || !mark.BanditDemandFromShip)
+                    {
+                        // The pilot vanished (landed/disconnected) mid-hail — call it off.
+                        BeginBanditShipLeave(instance, raider);
+                        break;
+                    }
 
-                if (_uptime > mark.BanditDemandDeadline)
-                {
-                    ResolveBanditShipDemand(mark, comply: false, outcome: "expired");
-                }
+                    if (_uptime > mark.BanditDemandDeadline)
+                    {
+                        ResolveBanditShipDemand(mark, comply: false, outcome: "expired");
+                    }
 
-                break; // holds position while the ultimatum runs
-            }
+                    break; // holds position while the ultimatum runs
+                }
 
             case BanditPhase.Fighting:
                 // MoveSpaceHostiles + the engage-range damage aura handle a hostile raider like any UFO.
                 break;
 
             case BanditPhase.Leaving:
-            {
-                var away = AwayFrom(instance.ShipPosition, raider.Position);
-                raider.Position = new Vector3f(
-                    raider.Position.X + away.X * (float)(BanditShipLeaveSpeed * dt),
-                    raider.Position.Y + away.Y * (float)(BanditShipLeaveSpeed * dt),
-                    raider.Position.Z + away.Z * (float)(BanditShipLeaveSpeed * dt));
-                if (raider.Position.DistanceSquared(instance.ShipPosition) >= BanditWarpOutDistance * BanditWarpOutDistance)
                 {
-                    BroadcastWarpFx(instance, raider.Position, arriving: false);
-                    instance.Entities.Remove(raider);
-                    instance.BanditShipId = string.Empty;
-                    BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = raider.Id });
-                    BroadcastSpaceState(instance);
-                }
+                    var away = AwayFrom(instance.ShipPosition, raider.Position);
+                    raider.Position = new Vector3f(
+                        raider.Position.X + away.X * (float)(BanditShipLeaveSpeed * dt),
+                        raider.Position.Y + away.Y * (float)(BanditShipLeaveSpeed * dt),
+                        raider.Position.Z + away.Z * (float)(BanditShipLeaveSpeed * dt));
+                    if (raider.Position.DistanceSquared(instance.ShipPosition) >= BanditWarpOutDistance * BanditWarpOutDistance)
+                    {
+                        BroadcastWarpFx(instance, raider.Position, arriving: false);
+                        instance.Entities.Remove(raider);
+                        instance.BanditShipId = string.Empty;
+                        BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = raider.Id });
+                        BroadcastSpaceState(instance);
+                    }
 
-                break;
-            }
+                    break;
+                }
         }
     }
 

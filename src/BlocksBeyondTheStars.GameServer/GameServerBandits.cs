@@ -344,129 +344,129 @@ public sealed partial class GameServer
             switch (bandit.BanditPhase)
             {
                 case BanditPhase.Approach:
-                {
-                    var mark = FindSessionByPlayerId(bandit.BanditTargetId);
-                    if (!MarkStillRobbable(mark))
                     {
-                        BeginBanditLeave(bandit);
-                        changed = true;
-                        break;
-                    }
-
-                    double distSq = WrapDistSq(mark!.State.Position, bandit.Position);
-                    bandit.ChaseTimer += dt;
-                    if (distSq > 80f * 80f || bandit.ChaseTimer > BanditApproachPatience)
-                    {
-                        BeginBanditLeave(bandit); // the mark got away — not worth the walk
-                        changed = true;
-                        break;
-                    }
-
-                    if (distSq <= BanditDemandRange * BanditDemandRange
-                        && HasLineOfSight(bandit.Position, mark.State.Position))
-                    {
-                        BeginBanditDemand(mark, bandit);
-                        changed = true;
-                        break;
-                    }
-
-                    intent = MoveMode.Seek;
-                    target = Unwrapped(bandit.Position, mark.State.Position);
-                    break;
-                }
-
-                case BanditPhase.Demanding:
-                {
-                    var mark = FindSessionByPlayerId(bandit.BanditTargetId);
-                    if (!MarkStillRobbable(mark))
-                    {
-                        // The mark vanished mid-hold-up (left the world / boarded the ship): call it off.
-                        if (mark is not null && mark.BanditDemandBanditId == bandit.Id)
+                        var mark = FindSessionByPlayerId(bandit.BanditTargetId);
+                        if (!MarkStillRobbable(mark))
                         {
-                            SendBanditResult(mark, "fled");
-                            ClearBanditDemand(mark);
-                        }
-
-                        BeginBanditLeave(bandit);
-                        changed = true;
-                    }
-
-                    return false; // stands its ground while the ultimatum runs
-                }
-
-                case BanditPhase.Fighting:
-                {
-                    var prey = FindSessionByPlayerId(bandit.BanditTargetId);
-                    if (prey is null || prey.CurrentLocationId != _world.LocationId || InSpace(prey.State.PlayerId)
-                        || prey.State.AboardShip || prey.State.Stealthed)
-                    {
-                        prey = NearestBanditPrey(bandit, targets);
-                    }
-
-                    if (prey is null)
-                    {
-                        BeginBanditLeave(bandit);
-                        changed = true;
-                        break;
-                    }
-
-                    double distSq = WrapDistSq(prey.State.Position, bandit.Position);
-                    if (distSq > BanditGiveUpRange * BanditGiveUpRange)
-                    {
-                        bandit.GiveUpTimer += dt;
-                        if (bandit.GiveUpTimer > BanditGiveUpSeconds)
-                        {
-                            BeginBanditLeave(bandit); // you outran it
+                            BeginBanditLeave(bandit);
                             changed = true;
                             break;
                         }
-                    }
-                    else
-                    {
-                        bandit.GiveUpTimer = 0;
+
+                        double distSq = WrapDistSq(mark!.State.Position, bandit.Position);
+                        bandit.ChaseTimer += dt;
+                        if (distSq > 80f * 80f || bandit.ChaseTimer > BanditApproachPatience)
+                        {
+                            BeginBanditLeave(bandit); // the mark got away — not worth the walk
+                            changed = true;
+                            break;
+                        }
+
+                        if (distSq <= BanditDemandRange * BanditDemandRange
+                            && HasLineOfSight(bandit.Position, mark.State.Position))
+                        {
+                            BeginBanditDemand(mark, bandit);
+                            changed = true;
+                            break;
+                        }
+
+                        intent = MoveMode.Seek;
+                        target = Unwrapped(bandit.Position, mark.State.Position);
+                        break;
                     }
 
-                    if (distSq <= EnemyStopRange * EnemyStopRange)
+                case BanditPhase.Demanding:
                     {
-                        return false; // in aura range — hold (the aura does the fighting)
+                        var mark = FindSessionByPlayerId(bandit.BanditTargetId);
+                        if (!MarkStillRobbable(mark))
+                        {
+                            // The mark vanished mid-hold-up (left the world / boarded the ship): call it off.
+                            if (mark is not null && mark.BanditDemandBanditId == bandit.Id)
+                            {
+                                SendBanditResult(mark, "fled");
+                                ClearBanditDemand(mark);
+                            }
+
+                            BeginBanditLeave(bandit);
+                            changed = true;
+                        }
+
+                        return false; // stands its ground while the ultimatum runs
                     }
 
-                    intent = MoveMode.Seek;
-                    target = Unwrapped(bandit.Position, prey.State.Position);
-                    break;
-                }
+                case BanditPhase.Fighting:
+                    {
+                        var prey = FindSessionByPlayerId(bandit.BanditTargetId);
+                        if (prey is null || prey.CurrentLocationId != _world.LocationId || InSpace(prey.State.PlayerId)
+                            || prey.State.AboardShip || prey.State.Stealthed)
+                        {
+                            prey = NearestBanditPrey(bandit, targets);
+                        }
+
+                        if (prey is null)
+                        {
+                            BeginBanditLeave(bandit);
+                            changed = true;
+                            break;
+                        }
+
+                        double distSq = WrapDistSq(prey.State.Position, bandit.Position);
+                        if (distSq > BanditGiveUpRange * BanditGiveUpRange)
+                        {
+                            bandit.GiveUpTimer += dt;
+                            if (bandit.GiveUpTimer > BanditGiveUpSeconds)
+                            {
+                                BeginBanditLeave(bandit); // you outran it
+                                changed = true;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            bandit.GiveUpTimer = 0;
+                        }
+
+                        if (distSq <= EnemyStopRange * EnemyStopRange)
+                        {
+                            return false; // in aura range — hold (the aura does the fighting)
+                        }
+
+                        intent = MoveMode.Seek;
+                        target = Unwrapped(bandit.Position, prey.State.Position);
+                        break;
+                    }
 
                 case BanditPhase.Leaving:
-                {
-                    bandit.GiveUpTimer += dt;
-                    double nearestSq = double.MaxValue;
-                    Vector3f? nearestPos = null;
-                    foreach (var s in targets)
                     {
-                        double sq = WrapDistSq(s.State.Position, bandit.Position);
-                        if (sq < nearestSq)
+                        bandit.GiveUpTimer += dt;
+                        double nearestSq = double.MaxValue;
+                        Vector3f? nearestPos = null;
+                        foreach (var s in targets)
                         {
-                            nearestSq = sq;
-                            nearestPos = s.State.Position;
+                            double sq = WrapDistSq(s.State.Position, bandit.Position);
+                            if (sq < nearestSq)
+                            {
+                                nearestSq = sq;
+                                nearestPos = s.State.Position;
+                            }
                         }
-                    }
 
-                    if (bandit.GiveUpTimer > BanditLeaveSeconds || nearestPos is null
-                        || nearestSq > BanditDespawnRange * BanditDespawnRange)
-                    {
-                        _banditRemovals.Add(bandit);
-                        return false;
-                    }
+                        if (bandit.GiveUpTimer > BanditLeaveSeconds || nearestPos is null
+                            || nearestSq > BanditDespawnRange * BanditDespawnRange)
+                        {
+                            _banditRemovals.Add(bandit);
+                            return false;
+                        }
 
-                    // Walk directly away from the nearest player until far enough to vanish.
-                    var away = Unwrapped(bandit.Position, nearestPos.Value);
-                    target = new Vector3f(
-                        bandit.Position.X + (bandit.Position.X - away.X),
-                        bandit.Position.Y,
-                        bandit.Position.Z + (bandit.Position.Z - away.Z));
-                    intent = MoveMode.Seek;
-                    break;
-                }
+                        // Walk directly away from the nearest player until far enough to vanish.
+                        var away = Unwrapped(bandit.Position, nearestPos.Value);
+                        target = new Vector3f(
+                            bandit.Position.X + (bandit.Position.X - away.X),
+                            bandit.Position.Y,
+                            bandit.Position.Z + (bandit.Position.Z - away.Z));
+                        intent = MoveMode.Seek;
+                        break;
+                    }
             }
         }
 
