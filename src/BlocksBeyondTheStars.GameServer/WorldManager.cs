@@ -67,6 +67,21 @@ internal sealed class BanditCampInstance
     public List<(string Type, Vector3f Pos)> Markers { get; } = new();
 }
 
+/// <summary>One stamped monument on a world: an eroded relic (arcade, gate, stone circle, obelisk or
+/// altar) carrying runes. Blocks are unprotected like a ruin's, so the stamp is one-time-guarded and a
+/// razed monument stays razed; the instance itself is re-derived from the seed on every load so the
+/// scanner can still tell what the player is standing in front of.</summary>
+internal sealed class MonumentInstance
+{
+    public Vector3i Min { get; set; }
+    public Vector3i Max { get; set; }
+    public Vector3f Center { get; set; }
+
+    /// <summary>Which silhouette this is — one of <see cref="MonumentGenerator.Archetypes"/>. Also the
+    /// scan ledger's subject, so a player is rewarded once per archetype per body.</summary>
+    public string Archetype { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// One loaded voxel world for a celestial body: the <see cref="ServerWorld"/>, the ids that identify it,
 /// and its per-world runtime state (fauna, enemies, NPCs, flora, fluids, containers, stamped structures,
@@ -84,6 +99,7 @@ internal sealed class LoadedWorld
     public List<CombatEntity> PlanetEnemies { get; } = new();
     public List<CombatEntity> Bandits { get; } = new();               // lone robbers + camp guards on this world
     public List<BanditCampInstance> BanditCamps { get; } = new();     // 0..N stamped bandit camps
+    public List<MonumentInstance> Monuments { get; } = new();         // 0..N stamped rune monuments
     public List<GameServer.ServerNpc> Npcs { get; } = new();
     public List<GameServer.ServerDoor> Doors { get; } = new();
     public List<GameServer.ServerDataCube> DataCubes { get; } = new(); // minigame download cubes scattered on the surface

@@ -218,7 +218,9 @@ namespace BlocksBeyondTheStars.Client
             sb.Append(string.Format(L("ui.wiki.discoveries.count"), log.Count)).Append("\n\n");
 
             // Ledger keys are "kind:key" ("asteroid" has no colon); group so creatures/plants/materials read apart.
-            foreach (var kind in new[] { "creature", "tree", "flora", "block", "asteroid" })
+            // A monument's key carries the body id too ("monument:<location>:<archetype>"), so the same relic
+            // found on another planet lists as its own discovery — which is exactly what it is.
+            foreach (var kind in new[] { "creature", "tree", "flora", "block", "monument", "asteroid" })
             {
                 var names = new List<string>();
                 foreach (var pair in log)

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1150 server + 132 client passing** (2026-07-26). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1202 server + 137 client passing** (2026-07-27). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -99,6 +99,33 @@ Per-item detail lives in the dated work log below.
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Monuments: arcade arches, gates, stone circles & scannable runes (#522–#527, 2026-07-27, branch feat/monuments-runes)
+Analysed first (`analysis/monuments-arches-and-runes.md`). Ruins were the only ruin-shaped thing in the
+game and they are *statistically* eroded architecture — they can never produce a deliberate silhouette.
+New `MonumentGenerator` + `GameServerMonuments` add the authored counterpart: **0–3 relics per body, one
+per archetype** — `arcade` (colonnade of corbelled arches, some collapsed to drums), `gate` (free-standing
+piers + inscribed lintel, 5-wide walk-through opening), `circle` (standing stones, trilithon lintels,
+toppled stones, inscribed centre table), `obelisk` (stepped base, rune-banded shaft, cracked tip), `altar`
+(paved court, dais, rune table, kneeling stones). Built intact, then an **erosion + settle** pass (a stone
+with nothing under it, nothing corbelled under its shoulder and nothing beside it falls) so what is left
+still reads as what it was. **First procedural generator to emit per-cell shapes and glow** — arches are
+`Ramp`/`Cylinder`/`Slab` forms through the existing `SettlementStructure` modifiers, no new geometry.
+Two new blocks (`ancient_brick`, `rune_stone`, AI textures + items + DE/EN names).
+**Airless bodies included** (the only surface feature that is) and **no foundation plate**: only columns
+that carry stone are cleared and plinthed, so a circle stands in the landscape, not on a plaza.
+**Scanning** a rune where it stands reads the inscriptions: `KnowledgeMonument` = 8 under ledger key
+`monument:<locationId>:<archetype>` — **once per planet per archetype**, Codex chapter *Discoveries →
+Monuments*, lore line + localized name per archetype. Resolved from the **server-authoritative player
+position** (`MonumentNear`), so **no protocol change** and old clients keep working; a rune mined and
+carried home stays a 1-point material scan. Placement is **decided once and persisted**
+(`StampedFeatures` → `monument@<i>:<archetype>:<x>:<y>:<z>`) rather than re-rolled per load, because the
+new placement guard skips footprints players have built in (#527, `IWorldRepository.HasPlayerBlockEdits`,
+implemented for SQLite/Postgres/Memory) — a re-roll after somebody mines a rune would move the instance
+off its own stones. ~1 in 3 carries a `relic_cache` (archaeology loot, not salvage). Ruined settlements
+additionally get a **broken** central feature (#525): snapped column stumps, an arch springer jutting into
+nothing, toppled rune stones. New `ServerConfig.PlaceMonuments`; rides the existing structures slider.
+11 new tests (`MonumentTests`).
 
 ### ★ Material + Item editors realigned with the game (#508–#514, #516, #517, #520, 2026-07-27, branch fix/editor-audit-2026-07)
 Audit of the two developer editors in the Editors menu. **Correctness:** the item editor's station

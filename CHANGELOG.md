@@ -9,6 +9,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [Unreleased]
+
+### 🗿 Monuments: somebody was here first (#522–#527)
+- **Five new relics** stand on the surface of a world: a half-collapsed **arcade** of arches, a
+  free-standing **gate** that leads nowhere, a ring of **standing stones**, a weathered **obelisk**
+  and a **rune altar**. Up to three per world, never two of the same kind.
+- **They are the only structure that also stands on airless moons** — whoever raised them did not
+  need air either, and nothing has weathered them since.
+- **Glowing runes.** Every monument is carved with them. **Scan the runes where they stand** and you
+  read the inscriptions themselves: worth far more knowledge than identifying a stone, with a lore
+  line and a new **Codex → Discoveries → Monuments** entry. Each kind of monument pays once **per
+  planet**, so the stone circle on the next world is worth the walk too.
+- **New building materials.** Ancient Brick and Rune Stone are freely mineable — like ruins, what you
+  clear stays cleared — and yours to build with. About one relic in three hides a small relic cache.
+- **Fallen towns finally have a landmark again:** ruins now keep the broken version of their central
+  feature — snapped column stumps, an arch springer jutting into nothing, toppled inscribed stones.
+- A new world feature that ships in a later release can no longer be stamped on top of somebody's
+  base: the placement check now skips any footprint that already holds player-built blocks.
+
 ## [0.9.0] — 2026-07-27
 
 The frontier release: space got wilder. Every world now has its own face, seas and volcanoes are real,

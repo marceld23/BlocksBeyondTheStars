@@ -99,6 +99,19 @@ public sealed partial class GameServer
                 }
 
                 break;
+            case "relic_cache": // buried at a rune monument — archaeology, not salvage
+                AddRandom(new[] { "data_fragment", "crystal", "silicate" }, 2, 1, 3);
+                if (rng.NextDouble() < 0.4)
+                {
+                    AddRandom(new[] { "gold_ingot", "titanium_plate" }, 1, 1, 2);
+                }
+
+                if (rng.NextDouble() < 0.2)
+                {
+                    AddRandom(new[] { "ai_memory_fragment" }, 1, 1, 1); // VEGA's people were here too
+                }
+
+                break;
             default: // general salvage cache
                 AddRandom(new[] { "iron_plate", "cable", "carbon_composite", "silicate", "iron_ore", "copper_ore" }, 3, 1, 4);
                 break;

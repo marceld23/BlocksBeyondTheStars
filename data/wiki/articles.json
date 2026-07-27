@@ -143,6 +143,17 @@
     }
   },
   {
+    "id": "monuments",
+    "title": {
+      "en": "Monuments & Runes",
+      "de": "Bauwerke & Runen"
+    },
+    "body": {
+      "en": "<p>Somebody was here long before you. <b>Monuments</b> are what they left standing: a half-collapsed <b>arcade</b> of arches, a <b>gate</b> that leads nowhere, a ring of standing stones, a weathered <b>obelisk</b>, a <b>rune altar</b>. A world carries up to three, never two of the same kind — and they are the only structure you also find on <b>airless moons</b>, because whoever raised them did not need air either.</p><p>Every one of them is carved with <b>glowing runes</b>. Point a <span class=\"link\" data-link=\"cat:tech\">scanner</span> at the runes <i>where they stand</i> and you read the inscriptions themselves: far more <span class=\"link\" data-link=\"guide:knowledge\">knowledge</span> than identifying a stone, and a new entry in your Codex. Each kind of monument pays once per planet, so the stone circle on the next world is worth the walk too. A rune you mined and carried home is only a material.</p><p>The masonry is <b>freely mineable</b> like a ruin's, and roughly one relic in three hides a small cache nearby.</p>",
+      "de": "<p>Hier war jemand lange vor dir. <b>Bauwerke</b> sind das, was davon steht: eine halb eingestürzte <b>Arkade</b> aus Bögen, ein <b>Tor</b>, das nirgendwohin führt, ein Kreis aufgerichteter Steine, ein verwitterter <b>Obelisk</b>, ein <b>Runenaltar</b>. Eine Welt trägt bis zu drei, nie zweimal dieselbe Art — und sie sind das Einzige, was du auch auf <b>luftlosen Monden</b> findest, denn wer sie errichtet hat, brauchte ebenfalls keine Luft.</p><p>Jedes davon ist mit <b>leuchtenden Runen</b> beschriftet. Richte einen <span class=\"link\" data-link=\"cat:tech\">Scanner</span> auf die Runen, <i>solange sie dort stehen</i>, und du liest die Inschriften selbst: viel mehr <span class=\"link\" data-link=\"guide:knowledge\">Wissen</span> als das Bestimmen eines Steins, und ein neuer Eintrag im Codex. Jede Art zahlt einmal pro Planet — der Steinkreis auf der nächsten Welt lohnt den Weg also auch. Eine Rune, die du abgebaut und heimgetragen hast, ist nur Material.</p><p>Das Mauerwerk ist <b>frei abbaubar</b> wie bei einer Ruine, und ungefähr jedes dritte Bauwerk verbirgt eine kleine Truhe in der Nähe.</p>"
+    }
+  },
+  {
     "id": "creatures",
     "title": {
       "en": "Creatures & Wildlife",

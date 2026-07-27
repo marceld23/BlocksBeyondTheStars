@@ -405,10 +405,13 @@ public sealed partial class GameServer
     /// <summary>Finds a collision-free spot for a settlement: a ring of deterministic candidates around the home
     /// landing pad, each accepted only if it clears every reserved footprint (pads/wreck/other settlements) and
     /// — for a ground settlement — is dry and reasonably flat, or — for a sky settlement — sits on a floating
-    /// island deck that covers the whole footprint. Returns false if no candidate fits.</summary>
+    /// island deck that covers the whole footprint. Returns false if no candidate fits.
+    /// <paramref name="avoidPlayerEdits"/> additionally rejects a footprint that already holds player-built
+    /// blocks (#527): a feature added in a later release stamps into worlds people have long since settled,
+    /// and the reserved rects know nothing about their bases.</summary>
     private bool TryPlaceSettlement(SettlementStructure s, System.Random rng,
         List<(int Cx, int Cz, int Hw, int Hl)> reserved, bool wantIsland,
-        out Vector3i origin, out int groundY, out bool onIsland)
+        out Vector3i origin, out int groundY, out bool onIsland, bool avoidPlayerEdits = false)
     {
         origin = default;
         groundY = 0;
@@ -449,7 +452,8 @@ public sealed partial class GameServer
 
             if (canIsland)
             {
-                if (TryIslandFootprint(planet, ox, oz, w, l, out int itop))
+                if (TryIslandFootprint(planet, ox, oz, w, l, out int itop)
+                    && !(avoidPlayerEdits && FootprintHasPlayerEdits(ox, oz, itop, w, s.Height, l)))
                 {
                     origin = new Vector3i(ox, itop, oz);
                     groundY = itop;
@@ -466,6 +470,11 @@ public sealed partial class GameServer
             }
 
             int gy = _generator.SurfaceHeight(planet, cx, cz);
+            if (avoidPlayerEdits && FootprintHasPlayerEdits(ox, oz, gy, w, s.Height, l))
+            {
+                continue; // somebody already built here — pick another spot rather than bulldoze it
+            }
+
             origin = new Vector3i(ox, gy, oz);
             groundY = gy;
             onIsland = false;
@@ -473,6 +482,34 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>True if any cell in the build volume carries a player-authored block edit (#527). Worldgen
+    /// stamps, fluid flow, fire and flora regrowth all write with an empty owner, so only real player builds
+    /// (and player mining) match — which is exactly the property that must not be bulldozed by a feature
+    /// added after the world was settled. One bounded repo query per candidate (two across the seam), run
+    /// only after the cheap terrain gates already passed.</summary>
+    private bool FootprintHasPlayerEdits(int ox, int oz, int gy, int w, int h, int l)
+    {
+        const int Margin = 2; // a relic must not crowd a build either
+        int circ = _world.Circumference;
+        int minY = gy - 2, maxY = gy + h;
+        int minZ = oz - Margin, maxZ = oz + l + Margin;
+        int x0 = WorldConstants.WrapX(ox - Margin, circ);
+        int span = w + 2 * Margin;
+
+        // Stored X is canonical [0, circ), so a footprint straddling the seam needs the two halves queried
+        // separately rather than one range that wraps past the end.
+        if (x0 + span < circ)
+        {
+            return _repo.HasPlayerBlockEdits(_world.LocationId,
+                new Vector3i(x0, minY, minZ), new Vector3i(x0 + span, maxY, maxZ));
+        }
+
+        return _repo.HasPlayerBlockEdits(_world.LocationId,
+                   new Vector3i(x0, minY, minZ), new Vector3i(circ - 1, maxY, maxZ))
+               || _repo.HasPlayerBlockEdits(_world.LocationId,
+                   new Vector3i(0, minY, minZ), new Vector3i(x0 + span - circ, maxY, maxZ));
     }
 
     /// <summary>Footprint sample columns (world coords) used by the wet + flatness gates. A small footprint

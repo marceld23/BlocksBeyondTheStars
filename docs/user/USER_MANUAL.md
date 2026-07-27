@@ -370,6 +370,23 @@ separate unlock; admins can still disable it through server world rules.
   two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
   (a steep barter recipe). Keep one if you find it — it's your key to turning a factory into a home.
 
+### Monuments & runes
+- Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
+  **arcade** of arches, a free-standing **gate** that leads nowhere, a ring of standing stones
+  (**stone circle**), a weathered **obelisk**, or a **rune altar**. Each world carries up to three,
+  and never two of the same kind.
+- They are the only structure that also stands on **airless moons and dead worlds** — nobody needed
+  air to raise them, and nothing has weathered them since.
+- Every monument is carved with **glowing runes**. **Scan one where it stands** and you read the
+  inscriptions themselves: that is worth far more **knowledge** than identifying the stone, and it
+  goes into your Codex under **Discoveries → Monuments**. Each kind of monument pays once **per
+  planet**, so the stone circle on the next world is worth walking to as well.
+- Scanning a rune block you mined and carried home only identifies the material — the writing needs
+  its monument.
+- Monuments are **freely mineable** like ruins (the masonry, `Ancient Brick` and `Rune Stone`, is
+  yours to build with), and what you clear stays cleared. Roughly one in three hides a small
+  **relic cache** nearby.
+
 ### Bandits (robbers, camps, pirate space)
 - **Lone robbers** roam some survival worlds. One may walk straight up to you and demand roughly a
   third of your two biggest stacks (**never your tools**). You have ~25 seconds and a real choice:

@@ -343,6 +343,55 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 }
 
+                case "ancient_brick":
+                {
+                    // Coursed masonry: mortar lines every quarter tile, joints offset row to row.
+                    var mortar = new Color(0.44f, 0.41f, 0.34f);
+                    int course = Tile / 4;
+                    for (int row = 0; row * course < Tile; row++)
+                    {
+                        int y = row * course;
+                        for (int x = 0; x < Tile; x++)
+                        {
+                            Texture.SetPixel(ox + x, oy + y, mortar);
+                        }
+
+                        int joint = (row % 2 == 0 ? Tile / 4 : 3 * Tile / 4);
+                        for (int y2 = y + 1; y2 < y + course && y2 < Tile; y2++)
+                        {
+                            Texture.SetPixel(ox + joint, oy + y2, mortar);
+                        }
+                    }
+
+                    break;
+                }
+
+                case "rune_stone":
+                {
+                    // A carved glyph: strokes cut into the slate, with a lighter chisel edge beside them so
+                    // the sign reads at block scale (the emissive glow is a per-voxel modifier, not the tile).
+                    var cut = new Color(0.26f, 0.28f, 0.33f);
+                    var edge = new Color(0.66f, 0.69f, 0.74f);
+                    void Stroke(int x0, int y0, int x1, int y1)
+                    {
+                        int steps = Mathf.Max(Mathf.Abs(x1 - x0), Mathf.Abs(y1 - y0));
+                        for (int s = 0; s <= steps; s++)
+                        {
+                            int x = Mathf.RoundToInt(Mathf.Lerp(x0, x1, steps == 0 ? 0f : s / (float)steps));
+                            int y = Mathf.RoundToInt(Mathf.Lerp(y0, y1, steps == 0 ? 0f : s / (float)steps));
+                            Texture.SetPixel(ox + Mathf.Clamp(x, 0, Tile - 1), oy + Mathf.Clamp(y, 0, Tile - 1), cut);
+                            Texture.SetPixel(ox + Mathf.Clamp(x + 1, 0, Tile - 1), oy + Mathf.Clamp(y, 0, Tile - 1), edge);
+                        }
+                    }
+
+                    int m = Tile / 8;
+                    Stroke(Tile / 2, m, Tile / 2, Tile - m);           // the stem
+                    Stroke(Tile / 2, Tile - m * 2, Tile - m * 2, Tile - m); // upper arm
+                    Stroke(Tile / 2, Tile / 2, m * 2, Tile / 2 + m);        // lower arm
+                    Stroke(m * 2, m * 2, Tile - m * 2, m * 2);              // base bar
+                    break;
+                }
+
                 case "iron_wall":
                     // Panel rivets near the corners + a central seam.
                     PutDot(ox + 4, oy + 4, new Color(0.30f, 0.31f, 0.34f));
@@ -810,6 +859,8 @@ namespace BlocksBeyondTheStars.Client
             "wood_log" => new Color(0.42f, 0.29f, 0.16f),   // brown bark
             "tree_leaves" => new Color(0.22f, 0.50f, 0.20f), // forest-green canopy
             "crystal" => new Color(0.55f, 0.75f, 0.95f),
+            "ancient_brick" => new Color(0.60f, 0.56f, 0.47f), // weathered sandy masonry
+            "rune_stone" => new Color(0.48f, 0.50f, 0.55f),    // cold grey slate, carved (glyphs in Decorate)
             "flora_plant" => new Color(0.25f, 0.70f, 0.30f),
             "flora_crystal" => new Color(0.60f, 0.85f, 1f),
             "flora_kelp" => new Color(0.15f, 0.45f, 0.32f),  // deep sea-green stalk

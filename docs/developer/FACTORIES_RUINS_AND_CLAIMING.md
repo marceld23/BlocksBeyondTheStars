@@ -18,13 +18,14 @@ All surface structures are stamped from `GameServer.LoadWorld` (`GameServer.cs`)
 `ServerConfig.Place*` flag. The new stampers join the existing chain:
 
 ```
-StampSettlement → StampRuins → StampFactories → StampWreck → StampVaults → StampDataCubes
-                                                                          → StampNetFragments → StampChests
+StampSettlement → StampRuins → StampBanditCamps → StampMonuments → StampFactories → StampWreck
+                → StampVaults → StampDataCubes → StampNetFragments → StampChests
 ```
 
 | Feature | Stamper | Flag | Rarity (per body) |
 |---|---|---|---|
 | Ruins | `StampRuins` (`GameServerRuins.cs`) | `PlaceRuins` | ~0–2, mostly none; skipped on airless worlds |
+| Monuments | `StampMonuments` (`GameServerMonuments.cs`) | `PlaceMonuments` | 0–3, one per archetype; airless worlds **included** |
 | Factories | `StampFactories` (`GameServerFactories.cs`) | `PlaceFactories` | ~0–2, mostly none; skipped on airless worlds |
 | Chests | `StampChests` (`GameServerChests.cs`) | `PlaceChests` | ~0–2, mostly none |
 
@@ -98,6 +99,35 @@ are just terrain (freely mineable) plus the occasional scavenge cache. Because t
 stamped **once** (guarded by `LoadedWorld.RuinsStamped`) and then live on as persisted block edits, so a
 reload never resurrects blocks the player cleared.
 
+### 3.1 Monuments (#522–#527)
+
+Ruins are *statistically* eroded architecture, so they can never produce a deliberate silhouette.
+`StampMonuments` (`GameServer/GameServerMonuments.cs`) adds the authored counterpart: 0–3 relics per body,
+one per archetype (`arcade`, `gate`, `circle`, `obelisk`, `altar`) from `WorldGeneration/MonumentGenerator.cs`.
+Each is built intact, then run through an erosion pass plus a **settle** pass (a stone with nothing under
+it, nothing corbelled under its shoulder and nothing beside it falls) so what survives still reads as the
+thing it was. It is the first procedural generator to emit per-cell **shapes and glow** — arches are
+`Ramp`/`Cylinder`/`Slab` forms through the existing `SettlementStructure` modifiers, not new geometry.
+
+Differences from every other surface feature:
+
+- **Airless bodies are allowed** (the raisers are long gone); only void worlds and the finale body are skipped.
+- **No foundation plate.** `StampMonumentBlocks` clears and plinths *only the columns that carry stone*, so a
+  circle stands in the landscape rather than on a plaza.
+- **Placement is decided once and persisted** as `StampedFeatures` entries
+  (`monument@<index>:<archetype>:<x>:<y>:<z>`) and only replayed afterwards. It cannot be re-rolled per load
+  like a settlement's, because the placement gate skips footprints players have built in (#527,
+  `FootprintHasPlayerEdits` → `IWorldRepository.HasPlayerBlockEdits`) — a re-roll after somebody mines a rune
+  would move the instance off its own stones.
+- **Runes are the scan subject.** Scanning a `rune_stone` while standing at a monument
+  (`GameServerScanning.MonumentForScan` → `MonumentNear`, resolved from the server-authoritative player
+  position, so no protocol change) awards `KnowledgeMonument` = 8 under the ledger key
+  `monument:<locationId>:<archetype>` — once per body per archetype. Away from a monument the same block is
+  an ordinary 1-point material scan.
+
+Ruined settlements additionally get a **broken** central feature (`StampBrokenFeature`, #525): snapped
+column stumps, an arch springer jutting into nothing, toppled rune stones.
+
 ---
 
 ## 4. Treasure chests
@@ -158,15 +188,16 @@ claiming are the natural follow-ups.
 
 | Area | Files |
 |---|---|
-| Config flags | `Shared/Configuration/ServerConfig.cs` (`PlaceFactories/PlaceRuins/PlaceChests`) |
+| Config flags | `Shared/Configuration/ServerConfig.cs` (`PlaceFactories/PlaceRuins/PlaceChests/PlaceMonuments`) |
 | Factory gen | `WorldGeneration/FactoryGenerator.cs` |
-| Ruin decay | `WorldGeneration/SettlementGenerator.cs` (ruined branch) |
+| Ruin decay | `WorldGeneration/SettlementGenerator.cs` (ruined branch + `StampBrokenFeature`) |
+| Monuments | `WorldGeneration/MonumentGenerator.cs`, `GameServer/GameServerMonuments.cs`, `GameServer/GameServerScanning.cs` (rune scan) |
 | Stampers | `GameServer/GameServerFactories.cs`, `GameServerRuins.cs`, `GameServerChests.cs` |
-| Tracking | `GameServer/WorldManager.cs` (`FactoryInstance`, `RuinsStamped`) |
+| Tracking | `GameServer/WorldManager.cs` (`FactoryInstance`, `RuinsStamped`, `MonumentInstance`) |
 | Crafting/protection | `GameServer/GameServer.cs` (`HandleCraft` roster gate, mine/place `IsFactoryProtected`, `Disassemble` exclusion, `StationAvailable`) |
 | Claiming | `GameServer/GameServerFactories.cs` (`ClaimFactory`), `Shared/State/WorldMetadata.cs` (`StructureClaim`) |
 | NPC hints | `GameServer/GameServerNpcHints.cs` (`TryEmitHint`), `GameServerSettlements.cs` (`BuildPlanetPois`), `Shared/State/WorldMetadata.cs` (`RevealedPois`), `client/.../WorldMap.cs` (`PoiLook` `treasure`) |
 | Networking | `Networking/Messages/FactoryMessages.cs`, `Networking/NetCodec.cs` (tags 172/173) |
 | Client | `client/.../FactoryView.cs`, `WorldRig.cs`, `PlayerController.cs` (E-claim), `CraftingTechShipUI.cs` (factory station), `GameBootstrap.cs`, `NetworkClient.cs` |
 | Data | `data/blocks.json` (`factory_terminal`, `machine_block`, `factory_pipe`), `data/items.json` (`access_code`), `data/recipes.json` (factory recipes + `market_buy_access_code`), `data/locales/{en,de}.json` |
-| Tests | `tests/.../FactoryStructureTests.cs`, `FactoryClaimTests.cs`, `FactoryCraftingTests.cs`, `RuinsAndChestsTests.cs`, `NpcHintTests.cs` |
+| Tests | `tests/.../FactoryStructureTests.cs`, `FactoryClaimTests.cs`, `FactoryCraftingTests.cs`, `RuinsAndChestsTests.cs`, `MonumentTests.cs`, `NpcHintTests.cs` |

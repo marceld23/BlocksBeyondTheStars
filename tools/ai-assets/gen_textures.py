@@ -162,6 +162,9 @@ TEXTURES = [
     ("zinc_block", "a solid bluish-silver zinc metal block, seamless"),
     ("tungsten_block", "a solid hard dark metallic grey tungsten metal block, seamless"),
     ("titanium_block", "a solid brushed silvery-grey titanium metal block, seamless"),
+    # Monuments — the masonry of a vanished civilisation (arcade arches, gates, stone circles).
+    ("ancient_brick", "weathered pale sandy-grey ancient stone masonry blocks with mortar joints, chipped and lichen-stained, seamless"),
+    ("rune_stone", "a carved grey slate stone slab with deep chiselled glowing angular alien runes, mysterious inscriptions, seamless"),
 ]
 
 

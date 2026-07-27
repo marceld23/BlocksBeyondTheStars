@@ -305,6 +305,14 @@ public interface IWorldRepository : IDisposable
     /// clears that residue from its volume so the old block hull doesn't reappear.</summary>
     void DeleteBlockEdits(string planet, Vector3i min, Vector3i max);
 
+    /// <summary>True if any block edit inside an axis-aligned box (inclusive) carries a player
+    /// <see cref="BlockEdit.Owner"/> — i.e. somebody built, dyed or mined there. Server-internal writes
+    /// (worldgen stamps, fluid flow, fire, flora regrowth) have no owner and do not count. Used by worldgen
+    /// to keep a structure that ships in a later release off ground players already claimed (#527);
+    /// <see cref="LoadChunkEdits"/> deliberately drops attribution (it runs per streamed chunk), so this
+    /// question needs its own bounded query.</summary>
+    bool HasPlayerBlockEdits(string planet, Vector3i min, Vector3i max);
+
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);
 

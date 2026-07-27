@@ -305,10 +305,16 @@ public static class SettlementGenerator
                 plotIndex++;
             }
 
-        // A central feature (well / plaza / monument) on the middle lane.
+        // A central feature (well / plaza / monument) on the middle lane. A ruin gets the BROKEN version of
+        // one (#525): a fallen town used to have a landmark too, and without it the rubble field reads as
+        // nothing but eroded houses.
         if (!ruined)
         {
             StampCentralFeature(Set, w, l, accent, path, flora, lamp, B("water", 0), rng);
+        }
+        else
+        {
+            StampBrokenFeature(Set, w, l, B("ancient_brick", B("stone", wall)), B("rune_stone", B("stone", wall)), rng);
         }
 
         // Some settlements are walled — a low perimeter fence with a gap for the entrance.
@@ -602,6 +608,61 @@ public static class SettlementGenerator
                 }
 
                 break;
+        }
+    }
+
+    /// <summary>The ruined twin of <see cref="StampCentralFeature"/> (#525): the landmark the town once had,
+    /// found the way a ruin leaves it — a snapped column pair, the springer of an arch that no longer spans
+    /// anything, a toppled inscribed stone. The decay pass runs afterwards and takes a little more of it, so
+    /// no two fallen towns wear the same fragment.</summary>
+    private static void StampBrokenFeature(System.Action<int, int, int, ushort> set,
+        int w, int l, ushort masonry, ushort rune, System.Random rng)
+    {
+        if (masonry == 0)
+        {
+            return;
+        }
+
+        int cx = w / 2, cz = l / 2;
+
+        // A broken paving disc — the plaza that used to be here.
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                if (dx * dx + dz * dz <= 5 && rng.NextDouble() < 0.7)
+                {
+                    set(cx + dx, 0, cz + dz, masonry);
+                }
+            }
+
+        // Two column stumps of unequal height — what is left of a gateway or a portico.
+        int leftH = 1 + rng.Next(3);
+        int rightH = 1 + rng.Next(4);
+        for (int y = 1; y <= leftH; y++)
+        {
+            set(cx - 2, y, cz, masonry);
+        }
+
+        for (int y = 1; y <= rightH; y++)
+        {
+            set(cx + 2, y, cz, masonry);
+        }
+
+        // The taller stump still carries the first stone of its arch, jutting into nothing.
+        if (rightH >= 3 && rng.NextDouble() < 0.6)
+        {
+            set(cx + 1, rightH, cz, masonry);
+        }
+
+        // Toppled inscribed stones in the rubble — the only writing the settlers left behind.
+        if (rune != 0)
+        {
+            for (int i = 0; i < 1 + rng.Next(3); i++)
+            {
+                int rx = cx + rng.Next(-2, 3);
+                int rz = cz + rng.Next(-2, 3);
+                set(rx, 1, rz, rune);
+            }
         }
     }
 

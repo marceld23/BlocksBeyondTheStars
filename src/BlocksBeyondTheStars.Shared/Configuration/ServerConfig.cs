@@ -220,6 +220,15 @@ public sealed class ServerConfig
     public bool PlaceBanditCamps { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may stamp <b>monuments</b> on a body's surface — eroded relics of a vanished
+    /// civilisation (arcade arches, a free-standing gate, a stone circle, an obelisk, a rune altar), carved
+    /// with glowing runes that grant knowledge points when scanned. Like ruins the blocks are NOT protected,
+    /// so a razed monument stays razed. Unlike every other surface feature these also appear on airless
+    /// bodies. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceMonuments { get; set; } = true;
+
+    /// <summary>
     /// Singleplayer/admin convenience: guarantee one data cube right next to the start world's landing pad, so
     /// a solo player can always reach a minigame near spawn. Set only by the bundled singleplayer launcher;
     /// left off on shared/dedicated servers (where the random scatter applies as normal).

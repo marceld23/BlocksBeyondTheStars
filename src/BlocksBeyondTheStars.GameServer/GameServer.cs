@@ -502,6 +502,11 @@ public sealed partial class GameServer
 
                 StampBanditCamps(); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
 
+                if (_config.PlaceMonuments)
+                {
+                    StampMonuments(); // eroded rune relics (unprotected) — the only surface feature airless bodies get
+                }
+
                 if (_config.PlaceFactories)
                 {
                     StampFactories(); // rare industrial factories (protected until claimed) — avoid settlements
@@ -559,6 +564,7 @@ public sealed partial class GameServer
         _planetEnemies.Clear();
         _bandits.Clear();
         _banditCamps.Clear();
+        _monuments.Clear();
         _npcs.Clear();
         _doors.Clear();
         _dataCubes.Clear();

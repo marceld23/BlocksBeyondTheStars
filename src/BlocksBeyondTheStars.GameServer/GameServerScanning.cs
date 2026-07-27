@@ -20,6 +20,12 @@ public sealed partial class GameServer
     private const int KnowledgeCreature = 3;
     private const int KnowledgeBlock = 1;
     private const int KnowledgeAsteroid = 4;
+    private const int KnowledgeMonument = 8; // the richest find: a whole culture's writing, not one material
+
+    /// <summary>Block keys whose inscriptions the scanner can read. Scanning one AT a monument identifies the
+    /// relic (worth <see cref="KnowledgeMonument"/>); scanning one the player mined and carried home is just
+    /// an ordinary material scan.</summary>
+    private static readonly string[] RuneBlocks = { "rune_stone" };
 
     /// <summary>Handheld scan of a creature species ("creature") or a block/flora/material ("block").</summary>
     public ScanResult ScanSubject(string playerId, string subjectType, string subjectKey)
@@ -51,6 +57,21 @@ public sealed partial class GameServer
             readout.LegacyThreat = sp.Hostile ? "Hostile" : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "Provokable" : "Safe";
             value = sp.Hostile ? KnowledgeCreatureHostile : KnowledgeCreature;
             readout.Display = string.IsNullOrEmpty(sp.Name) ? subjectKey : sp.Name; // the coined species name on the readout
+        }
+        else if (subjectType == "block" && System.Array.IndexOf(RuneBlocks, subjectKey) >= 0
+                 && MonumentForScan(session) is { } monument)
+        {
+            // The runes ARE the discovery — the block is just how the player points the scanner at it. The
+            // ledger is per body AND per archetype, so the next planet's relics are worth finding too.
+            readout.Kind = "monument";
+            readout.SubjectKey = "monument_" + monument.Archetype;
+            readout.Display = readout.SubjectKey; // the client localizes it via ui.scan.subject.*
+            readout.InfoKey = "ui.scan.monument." + monument.Archetype;
+            readout.ThreatKey = "ui.scan.threat.inert";
+            readout.LegacyInfo = "Ancient inscriptions — origin unknown.";
+            readout.LegacyThreat = "Inert";
+            value = KnowledgeMonument;
+            ledgerKey = $"monument:{_world.LocationId}:{monument.Archetype}";
         }
         else if (subjectType == "block" && _content.GetBlock(subjectKey) is { } block)
         {
@@ -96,6 +117,15 @@ public sealed partial class GameServer
         // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `Display`.
         return Award(session, ledgerKey, readout, value);
     }
+
+    /// <summary>The monument the scanning player is standing at, or null. The scan intent carries no position
+    /// (#524) — but the player's position is server-authoritative, so the relic is resolved from where they
+    /// actually are. Only valid while the player's own world is the active one; a scan from elsewhere falls
+    /// back to the ordinary block readout rather than crediting the wrong body's relic.</summary>
+    private MonumentInstance? MonumentForScan(PlayerSession session)
+        => _monuments.Count > 0 && session.CurrentLocationId == _worlds.Active.LocationId
+            ? MonumentNear(session.State.Position)
+            : null;
 
     /// <summary>The structured readout the client localizes, plus the legacy English strings kept for one
     /// release so an old client still shows something (#484).</summary>
