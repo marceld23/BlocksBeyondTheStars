@@ -6,6 +6,7 @@
 // fails the WebGL script compile with CS0246 'Velopack'.
 #if !UNITY_EDITOR && !UNITY_WEBGL
 using Velopack;
+using Velopack.Sources;
 #endif
 using System;
 using UnityEngine;
@@ -26,14 +27,19 @@ namespace BlocksBeyondTheStars.Client
     }
 
     /// <summary>
-    /// In-app updates via Velopack (MIT), pulling from the self-hosting server's feed served by
-    /// <c>BlocksBeyondTheStars.Api</c> at <c>/updates</c>. Two responsibilities:
+    /// In-app updates via Velopack (MIT). The feed is either the official GitHub release (the default
+    /// <see cref="ClientSettings.DefaultUpdateFeedUrl"/> — release assets carry <c>releases.win.json</c>
+    /// plus the <c>.nupkg</c> payload, read through Velopack's <c>GithubSource</c>) or a self-hosting
+    /// server's static feed served by <c>BlocksBeyondTheStars.Api</c> at <c>/updates</c>. Three
+    /// responsibilities:
     ///   1. <see cref="Bootstrap"/> runs Velopack's startup hooks that the installer/updater rely on
     ///      (first-run shortcut creation, post-update fast callbacks). It MUST run before anything else —
     ///      hence <c>[RuntimeInitializeOnLoadMethod(BeforeSplashScreen)]</c> — and returns within
     ///      milliseconds on a normal launch (it only does real work when invoked with hook arguments by
     ///      Setup.exe / Update.exe, each of which exits the process itself).
-    ///   2. <see cref="CheckForUpdates"/> checks the configured feed; if a newer build exists it downloads
+    ///   2. <see cref="CheckForNoticeOnStartup"/> runs a quiet check-only pass once per launch; a found
+    ///      version lands in <see cref="NoticeVersion"/> and the main menu offers it (#543).
+    ///   3. <see cref="CheckForUpdates"/> checks the configured feed; if a newer build exists it downloads
     ///      it and restarts into the new version.
     /// Only effective in an installed build — a dev/Editor run or a portable (zip) copy reports
     /// <see cref="UpdateState.NotInstalled"/>. The client stays presentation-only: the feed is plain static
@@ -49,6 +55,63 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Extra detail (target version, or error text) appended after the localized status label.</summary>
         public static string Detail { get; private set; } = string.Empty;
+
+        /// <summary>Version found by the quiet startup check ("" = none found / not checked). While
+        /// non-empty and not <see cref="NoticeDismissed"/>, the main menu shows the update notice.</summary>
+        public static string NoticeVersion { get; private set; } = string.Empty;
+
+        /// <summary>Set when the player answers the startup notice with "later" — the notice stays away
+        /// for the rest of the session (returning to the menu must not nag again).</summary>
+        public static bool NoticeDismissed;
+
+        /// <summary>Quiet startup pass: checks <paramref name="feedUrl"/> once and records a found newer
+        /// version in <see cref="NoticeVersion"/> — no download, no UI, and silent on every failure (a
+        /// launch must never be slowed or interrupted by update plumbing). Runs concurrently with the
+        /// splash screens; the main menu picks the result up whenever it lands (#543).</summary>
+#pragma warning disable CS1998 // the Editor/WebGL branch has no awaits by design (reported at the signature)
+        public static async void CheckForNoticeOnStartup(string feedUrl)
+        {
+#if !UNITY_EDITOR && !UNITY_WEBGL
+            if (string.IsNullOrWhiteSpace(feedUrl))
+            {
+                return;
+            }
+
+            try
+            {
+                var mgr = CreateManager(feedUrl);
+                if (!mgr.IsInstalled)
+                {
+                    return; // portable/dev copy — nothing Velopack could apply an update to
+                }
+
+                var info = await mgr.CheckForUpdatesAsync();
+                if (info != null)
+                {
+                    NoticeVersion = info.TargetFullRelease.Version.ToString();
+                }
+            }
+            catch (Exception e)
+            {
+                // Offline, rate-limited, feed missing: the startup check simply has no result.
+                Debug.Log($"Startup update check skipped: {e.Message}");
+            }
+#endif
+        }
+#pragma warning restore CS1998
+
+#if !UNITY_EDITOR && !UNITY_WEBGL
+        /// <summary>Builds the UpdateManager for a feed URL: a github.com repository URL reads the official
+        /// feed straight off the GitHub release assets (releases.win.json + .nupkg) via GithubSource;
+        /// anything else stays the plain static-file feed a self-hosting server serves at /updates.</summary>
+        private static UpdateManager CreateManager(string feedUrl)
+        {
+            string url = feedUrl.Trim();
+            return url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase)
+                ? new UpdateManager(new GithubSource(url, null, false))
+                : new UpdateManager(url);
+        }
+#endif
 
 #if !UNITY_EDITOR && !UNITY_WEBGL
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
@@ -97,7 +160,7 @@ namespace BlocksBeyondTheStars.Client
             onChanged?.Invoke();
             try
             {
-                var mgr = new UpdateManager(feedUrl.Trim());
+                var mgr = CreateManager(feedUrl);
                 if (!mgr.IsInstalled)
                 {
                     State = UpdateState.NotInstalled;

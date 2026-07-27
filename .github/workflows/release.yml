@@ -685,6 +685,9 @@ jobs:
           # Intermediate hand-off / already on the Release — see player-windows above (#533).
           retention-days: 7
 
+      # The feed files (releases.linux.json + the .nupkg payload) ride along so the in-app updater can
+      # read this release as its feed via Velopack's GithubSource (#543) — without them installed
+      # clients never learn a new version exists.
       - name: Publish GitHub Release (Linux assets)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
@@ -692,6 +695,8 @@ jobs:
           files: |
             artifacts/installer-linux/*AppImage
             artifacts/installer-linux/*Portable.zip
+            artifacts/installer-linux/releases.linux.json
+            artifacts/installer-linux/*.nupkg
           generate_release_notes: false
 
   # macOS packaging (experimental, no signing/notarization). Velopack is skipped on purpose: we just zip
@@ -900,6 +905,11 @@ jobs:
       # (verifiable from the run logs) but skips publishing. The release itself (body: Docker pull
       # lines + generated changelog) is created by the `create-release` job — this step, like every
       # per-platform publish step, only attaches assets to it.
+      # The feed files (releases.win.json + the .nupkg payload) ride along so the in-app updater can
+      # read this release as its feed via Velopack's GithubSource (#543): the client's default
+      # UpdateFeedUrl points at the repository, and the quiet startup check compares against the
+      # manifest attached here. Without these two assets installed clients never learn a new version
+      # exists — that was exactly the v0.9.x gap.
       - name: Publish GitHub Release (Windows assets)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3
@@ -908,6 +918,8 @@ jobs:
             artifacts/installer/*Setup.exe
             artifacts/installer/*.msi
             artifacts/installer/*Portable.zip
+            artifacts/installer/releases.win.json
+            artifacts/installer/*.nupkg
           generate_release_notes: false
 
       # Mirror the same three installers to itch.io (jumavegames/blocks-beyond-the-stars) via butler — each

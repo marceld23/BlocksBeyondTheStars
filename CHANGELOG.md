@@ -9,6 +9,20 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [Unreleased]
+
+### 🔔 The game finally tells you about updates (#543)
+- **Update notice on startup.** An installed client now quietly checks for a newer release while the
+  splash screens play and, if one exists, offers it on the main menu: *Install now* downloads and
+  restarts into the new version, *Later* dismisses the notice until the next launch. Can be turned
+  off in **Settings → Software update**.
+- **An official update feed exists now.** Release builds attach the Velopack feed files to the GitHub
+  release, and the client's update server defaults to it — previously the feed was never published
+  anywhere and the URL shipped empty, so even the manual "Check for updates" button could never find
+  one. Self-hosters can still point the URL at their own server's `/updates` endpoint.
+- Applies from this release onward: older installs (0.9.1 and before) don't carry the check yet, so
+  they need one last manual download.
+
 ## [0.9.1] — 2026-07-27
 
 The relics release: somebody was here before you. Ancient monuments now stand on worlds — and on

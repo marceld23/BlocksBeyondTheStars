@@ -158,10 +158,20 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Last singleplayer world the player launched (pre-selected in the world picker).</summary>
         public string LastWorld = "singleplayer";
 
-        /// <summary>Optional Velopack auto-update feed URL — the self-hosting server's update endpoint
-        /// (e.g. <c>http://192.168.1.50:31416/updates</c>, shown on that server's <c>/portal</c> page).
-        /// Empty = no in-app updates. Only effective in an installed build (see <see cref="ClientUpdater"/>).</summary>
-        public string UpdateFeedUrl = "";
+        /// <summary>The official Velopack update feed: the GitHub repository, whose release assets carry
+        /// the feed manifest + payload (read via Velopack's GithubSource — see <see cref="ClientUpdater"/>).</summary>
+        public const string DefaultUpdateFeedUrl = "https://github.com/marceld23/BlocksBeyondTheStars";
+
+        /// <summary>Velopack auto-update feed URL. Defaults to the official GitHub feed
+        /// (<see cref="DefaultUpdateFeedUrl"/>); self-hosters can point it at their server's update
+        /// endpoint instead (e.g. <c>http://192.168.1.50:31416/updates</c>, shown on that server's
+        /// <c>/portal</c> page). An empty value is re-defaulted on load (#543) — to skip the startup
+        /// check, turn off <see cref="UpdateCheckOnStart"/>. Only effective in an installed build.</summary>
+        public string UpdateFeedUrl = DefaultUpdateFeedUrl;
+
+        /// <summary>Quiet update check on launch (#543): when on, the main menu shows a once-per-session
+        /// notice if the feed carries a newer release. Off = updates only via the manual settings button.</summary>
+        public bool UpdateCheckOnStart = true;
 
         /// <summary>The player's name — shown to other players and keying the server-side player state.
         /// Empty by default ON PURPOSE (#221): the main menu forces a choice before playing — a silent
@@ -409,6 +419,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             settings.UiScale = Mathf.Clamp(settings.UiScale, UiKit.UserScaleMin, UiKit.UserScaleMax);
+
+            // Migration (#543): until v0.9.1 there was no official feed, so every install carries an
+            // empty URL and in-app updates were effectively self-host-only. An empty value now means
+            // "official feed" — JsonUtility writes the stored "" over the field default, so re-default
+            // here. Opting out of the startup check is UpdateCheckOnStart's job, not this URL's.
+            if (string.IsNullOrWhiteSpace(settings.UpdateFeedUrl))
+            {
+                settings.UpdateFeedUrl = DefaultUpdateFeedUrl;
+            }
 
             if (freshInstall)
             {

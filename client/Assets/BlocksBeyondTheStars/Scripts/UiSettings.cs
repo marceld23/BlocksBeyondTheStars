@@ -181,6 +181,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_content, _x, y, LabelW, 38, L("ui.settings.update_url"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(_content, _x + CtrlX, y, _rowW - CtrlX, 38, S.UpdateFeedUrl, v => S.UpdateFeedUrl = (v ?? string.Empty).Trim());
             y += 46f;
+            Toggle(ref y, L("ui.settings.update_on_start"), S.UpdateCheckOnStart,
+                () => { S.UpdateCheckOnStart = !S.UpdateCheckOnStart; Rebuild(); });
             UiKit.AddButton(_content, _x, y, 250, 44,
                 ClientUpdater.Busy ? L("ui.settings.update_checking") : L("ui.settings.update_check"),
                 () => { if (!ClientUpdater.Busy) ClientUpdater.CheckForUpdates(S.UpdateFeedUrl, () => { if (this != null) Rebuild(); }); });

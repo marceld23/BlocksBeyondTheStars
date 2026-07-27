@@ -128,6 +128,13 @@ namespace BlocksBeyondTheStars.Client
             ApplyGlitchServerDefaults();
             ConfigureOptionalWebAutoJoin();
 
+            // Quiet update check (#543), fired during the splash so the answer is usually in before the
+            // menu appears. Editor/WebGL/portable runs no-op inside; failures are silent by design.
+            if (Settings.UpdateCheckOnStart)
+            {
+                ClientUpdater.CheckForNoticeOnStartup(Settings.UpdateFeedUrl);
+            }
+
             // The 3D renders at native resolution (crisp on 4K); the IMGUI UI keeps a readable
             // physical size via UiScale (virtual 1080p layout) instead of a blunt resolution cap.
             _splash = new SplashScreen(this);
@@ -1078,6 +1085,20 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_uiMenu);
                 _uiMenu = null;
+            }
+
+            // Startup update notice (#543): once the menu is up and the quiet check found a version,
+            // offer it — on its own canvas, so a result landing late needs no menu rebuild. "Later"
+            // sets NoticeDismissed and the else-branch tears the dialog down until the next launch.
+            if (Phase == ShellPhase.MainMenu && _uiUpdateNotice == null
+                && ClientUpdater.NoticeVersion.Length > 0 && !ClientUpdater.NoticeDismissed)
+            {
+                _uiUpdateNotice = UiUpdateNotice.Build(this);
+            }
+            else if ((Phase != ShellPhase.MainMenu || ClientUpdater.NoticeDismissed) && _uiUpdateNotice != null)
+            {
+                Destroy(_uiUpdateNotice);
+                _uiUpdateNotice = null;
             }
 
             if (Phase == ShellPhase.Loading && _uiLoading == null)
