@@ -195,7 +195,7 @@ kid-friendly acceptance + enforcement loop:
   and closes the pipe a second later, so the notice is out before the socket goes and a modified
   client cannot ignore it. A reason of the form `@<locale key>` is resolved in the player's language;
   anything else is operator/owner prose and shown verbatim. In-game twin for the world admin:
-  `/kick <player>` — deliberately momentary, so there is exactly ONE lasting ban store (#497).
+  `/kick Player` — deliberately momentary, so there is exactly ONE lasting ban store (#497).
 - Still open (client-side, Phase 2 rest): in-game report button on hosted worlds, first-join
   welcome MOTD, **Impressum + Datenschutzerklärung** pages before public launch (DSGVO — say the
   minimal-data story out loud: name + password hash, no email).

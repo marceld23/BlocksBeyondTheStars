@@ -266,7 +266,7 @@ public sealed partial class GameServer
         bool de = De(session);
         if (string.IsNullOrWhiteSpace(name))
         {
-            Reject(session, "admin", de ? "Benutzung: /where <Name>" : "Usage: /where <name>");
+            Reject(session, "admin", de ? "Benutzung: /where Name" : "Usage: /where Name");
             return;
         }
 
@@ -367,8 +367,8 @@ public sealed partial class GameServer
             Send(session, new ServerMessage
             {
                 Text = de
-                    ? $"… {builds.Count - maxLines} weitere — mit /builds <Name> eingrenzen."
-                    : $"… {builds.Count - maxLines} more — narrow it down with /builds <name>.",
+                    ? $"… {builds.Count - maxLines} weitere — mit /builds Name eingrenzen."
+                    : $"… {builds.Count - maxLines} more — narrow it down with /builds Name.",
             });
         }
     }
@@ -392,8 +392,8 @@ public sealed partial class GameServer
         if (parts.Length == 0)
         {
             Reject(session, "admin", de
-                ? "Benutzung: /goto <Spieler> | /goto base|beacon|beam|station <Name> | /goto <Körper> <x> <y> <z>"
-                : "Usage: /goto <player> | /goto base|beacon|beam|station <name> | /goto <bodyId> <x> <y> <z>");
+                ? "Benutzung: /goto Spieler · /goto base|beacon|beam|station Name · /goto Körper X Y Z"
+                : "Usage: /goto Player · /goto base|beacon|beam|station Name · /goto Body X Y Z");
             return;
         }
 

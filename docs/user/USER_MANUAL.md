@@ -559,7 +559,7 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
   `BBS_VOICE=true`); local hosting enables it automatically.*
 
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
-- **Syntax:** `/bump <description of the problem>`
+- **Syntax:** `/bump Description of the problem`
 - Writes a detailed JSON snapshot of your current situation (player state **and inventory**, environment,
   nearby blocks/creatures/players + a wider block/flora census, ship status, and a 30-second history)
   **plus a screenshot** of the moment (the chat box is hidden for the shot; the HUD stays). It adapts to
@@ -573,7 +573,7 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
   `.jpg` screenshot beside it.
 
 ### `/report` — report a player (official hosted worlds only)
-- **Syntax:** `/report <player> [what happened]`
+- **Syntax:** `/report Player [what happened]`
 - Files a player report with the worlds portal, exactly like the report button in the ship UI's
   Alliance tab — one command, no menu digging. The report automatically attaches the reported
   player's **last 10 chat lines** as evidence and the **world id**, so the operators know what was
@@ -586,20 +586,21 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
 Type these **in the chat box** (Enter to open). They are **server-authoritative** and gated twice: the
 player must be an **admin** (`IsAdmin` — the world creator, or a name in the server's admin list) **and**
 the server's `CheatsAllowed` rule must be on; otherwise the command is rejected with a message. Every use
-is logged (`[CHEAT] …`). Type **`/help`** in chat to see the list in-game.
+is logged (`[CHEAT] …`). Type **`/help admin`** in chat to see the list in-game — plain `/help` is the
+short player help (`/report`, `/bump`) so a normal player is not buried under commands they cannot run.
 
 | Command | Effect |
 |---|---|
-| `/give <item> [count] [player]` | Give an item to yourself or a target player |
-| `/tp <x> <y> <z>` | Teleport to coordinates |
-| `/tpp <player>` | Teleport to a player |
-| `/settime <day\|night\|…>` | Set the world time of day |
-| `/setweather <clear\|storm\|…>` | Set the world weather |
+| `/give Item [Count] [Player]` | Give an item to yourself or a target player |
+| `/tp X Y Z` | Teleport to coordinates |
+| `/tpp Player` | Teleport to a player |
+| `/settime day\|night\|…` | Set the world time of day |
+| `/setweather clear\|storm\|…` | Set the world weather |
 | `/fly` | Toggle creative flight (no gravity) |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |
-| `/ai <prompt>` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
-| `/help` | List the admin commands in chat |
+| `/ai Prompt` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
+| `/help admin` | List the admin commands in chat (`/admin` does the same) |
 
 #### Inspection (admins) — who is here and what have they built
 
@@ -609,9 +610,9 @@ and that option is off by default on hosted worlds.
 | Command | Effect |
 |---|---|
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
-| `/builds [player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
-| `/where <player>` | One player's body, position and last-seen time — works while they are offline |
-| `/kick <player>` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
+| `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
+| `/where Player` | One player's body, position and last-seen time — works while they are offline |
+| `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
 
 #### Blocking players from your own hosted world
 
@@ -634,11 +635,11 @@ skips the world password (child-safety oversight, issue #495); once in, `/specta
 
 | Command | Effect |
 |---|---|
-| `/spectate [on\|off]` | Enter/leave observer mode: invisible to players, creatures and NPCs, invulnerable, free flight through walls, no ship, no landing pad, no player slot |
-| `/goto <player>` | Travel to that player's body and jump to their position (works for offline players via their last position) |
-| `/goto base\|beacon\|beam\|station <name>` | Jump to a named structure anywhere in the save |
-| `/goto <bodyId> <x> <y> <z>` | Jump to raw coordinates on any body — this is the cross-body teleport `/tp` never was |
-| `/say <text>` | Speak while observing. Chat is muted by default in observer mode, so a stray line can't give you away |
+| `/spectate on\|off` | Enter/leave observer mode: invisible to players, creatures and NPCs, invulnerable, free flight through walls, no ship, no landing pad, no player slot |
+| `/goto Player` | Travel to that player's body and jump to their position (works for offline players via their last position) |
+| `/goto base\|beacon\|beam\|station Name` | Jump to a named structure anywhere in the save |
+| `/goto BodyId X Y Z` | Jump to raw coordinates on any body — this is the cross-body teleport `/tp` never was |
+| `/say Text` | Speak while observing. Chat is muted by default in observer mode, so a stray line can't give you away |
 
 While observing you fly with WASD (in the direction you look), Space/Ctrl for up/down, Shift for a burst of
 speed, and the mouse wheel to set the cruise speed. You may still **mine** blocks — removing an offensive build

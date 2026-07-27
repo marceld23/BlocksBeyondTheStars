@@ -46,7 +46,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _hostAnnounced = true;
                 string line = Game.Localizer.Get("ui.host.address_line").Replace("{addr}", Game.HostInfo);
-                _lines.Add($"<color=#80E5D2>{line}</color>");
+                _lines.Add($"<color=#80E5D2>{ChatMarkup.RichSafe(line)}</color>");
                 RefreshLog();
                 Game.ShowMessage(line);
             }
@@ -56,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_reportTipShown && !string.IsNullOrEmpty(Game.HostedToken) && !string.IsNullOrEmpty(Game.PortalSession) && Game.Localizer != null)
             {
                 _reportTipShown = true;
-                _lines.Add($"<color=#80E5D2>{Game.Localizer.Get("ui.chat.report_tip")}</color>");
+                _lines.Add($"<color=#80E5D2>{ChatMarkup.RichSafe(Game.Localizer.Get("ui.chat.report_tip"))}</color>");
                 RefreshLog();
             }
 
@@ -108,7 +108,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnChat(BlocksBeyondTheStars.Networking.Messages.ChatMessage m)
         {
-            _lines.Add($"<b>{m.Sender}:</b> {m.Text}");
+            // Sender and text are neutralised first — the log parses rich text, so an unescaped chat line
+            // could otherwise recolour or resize everyone's scrollback.
+            _lines.Add($"<b>{ChatMarkup.RichSafe(m.Sender)}:</b> {ChatMarkup.RichSafe(m.Text)}");
             if (_lines.Count > MaxLog)
             {
                 _lines.RemoveAt(0);
@@ -302,14 +304,26 @@ namespace BlocksBeyondTheStars.Client
             var net = Game.Network;
             switch (p[0].ToLowerInvariant())
             {
+                // Plain "/help" is the player help — two short lines. The admin block is a wall of ~30
+                // commands a normal player may not even run, so it hides behind "/help admin" (the old
+                // "/admin" spelling still lands there) instead of flooding everyone's scrollback.
                 case "/help":
-                case "/admin":
+                    if (p.Length >= 2 && p[1].Equals("admin", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        AdminHelp();
+                        return true;
+                    }
+
                     LocalLine(L("ui.chat.help_player"));
-                    LocalLine(L("ui.admin.help"));
+                    LocalLine(L("ui.chat.help_admin_hint"));
+                    return true;
+
+                case "/admin":
+                    AdminHelp();
                     return true;
 
                 case "/give":
-                    if (p.Length < 2) { LocalLine("usage: /give <item> [count] [player]"); return true; }
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_give")); return true; }
                     int count = p.Length >= 3 && int.TryParse(p[2], out var c) ? c : 1;
                     string who = p.Length >= 4 ? p[3].TrimStart('@') : null;
                     net.SendAdminCommand("give_item", stringArg: p[1], intArg: count, targetPlayer: who);
@@ -322,23 +336,23 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        LocalLine("usage: /tp <x> <y> <z>");
+                        LocalLine(L("ui.cmd.usage_tp"));
                     }
 
                     return true;
 
                 case "/tpp":
-                    if (p.Length < 2) { LocalLine("usage: /tpp <player>"); return true; }
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_tpp")); return true; }
                     net.SendAdminCommand("teleport_to_player", targetPlayer: p[1]);
                     return true;
 
                 case "/settime":
-                    if (p.Length < 2) { LocalLine("usage: /settime <day|night|dawn|dusk>"); return true; }
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_settime")); return true; }
                     net.SendAdminCommand("set_time", stringArg: p[1]);
                     return true;
 
                 case "/setweather":
-                    if (p.Length < 2) { LocalLine("usage: /setweather <clear|cloudy|storm>"); return true; }
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_setweather")); return true; }
                     net.SendAdminCommand("set_weather", stringArg: p[1]);
                     return true;
 
@@ -356,7 +370,7 @@ namespace BlocksBeyondTheStars.Client
                     return true;
 
                 case "/where":
-                    if (p.Length < 2) { LocalLine("usage: /where <player>"); return true; }
+                    if (p.Length < 2) { LocalLine(L("ui.cmd.usage_where")); return true; }
                     net.SendAdminCommand("where", stringArg: p[1].TrimStart('@'));
                     return true;
 
@@ -368,7 +382,7 @@ namespace BlocksBeyondTheStars.Client
                 case "/goto":
                     if (p.Length < 2)
                     {
-                        LocalLine("usage: /goto <player> | /goto base|beacon|beam|station <name> | /goto <body> <x> <y> <z>");
+                        LocalLine(L("ui.cmd.usage_goto"));
                         return true;
                     }
 
@@ -397,7 +411,7 @@ namespace BlocksBeyondTheStars.Client
                 case "/announce":
                     {
                         string msg = t.Substring(p[0].Length).Trim();
-                        if (msg.Length == 0) { LocalLine("usage: /announce <message>"); return true; }
+                        if (msg.Length == 0) { LocalLine(L("ui.cmd.usage_announce")); return true; }
                         net.SendAdminCommand("announce", stringArg: msg);
                         return true;
                     }
@@ -407,7 +421,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         if (p.Length < 2 || !int.TryParse(p[1], out var minutes))
                         {
-                            LocalLine("usage: /restart <minutes> [message]");
+                            LocalLine(L("ui.cmd.usage_restart"));
                             return true;
                         }
 
@@ -427,7 +441,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         if (p.Length < 2)
                         {
-                            LocalLine("usage: /kick <player>");
+                            LocalLine(L("ui.cmd.usage_kick"));
                             return true;
                         }
 
@@ -440,13 +454,26 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Prints the admin command reference, one short line per group — reachable via
+        /// <c>/help admin</c> or <c>/admin</c>. The server still decides what actually runs: most of these
+        /// need the admin role (or the world's "admin cheats" option), so a curious player gets nothing but
+        /// a rejection toast out of them.</summary>
+        private void AdminHelp()
+        {
+            LocalLine(L("ui.admin.help_cheats"));
+            LocalLine(L("ui.admin.help_inspect"));
+            LocalLine(L("ui.admin.help_fleet"));
+            LocalLine(L("ui.admin.help_story"));
+            LocalLine(L("ui.admin.help_maintenance"));
+        }
+
         private static bool TryF(string s, out float v)
             => float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v);
 
         /// <summary>Appends a local-only system line to the chat log (command help / usage errors).</summary>
         private void LocalLine(string s)
         {
-            _lines.Add($"<color=#7fd4ff>{s}</color>");
+            _lines.Add($"<color=#7fd4ff>{ChatMarkup.RichSafe(s)}</color>");
             if (_lines.Count > MaxLog)
             {
                 _lines.RemoveAt(0);

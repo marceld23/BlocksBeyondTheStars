@@ -100,6 +100,23 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Chat `/help` readable again — no pseudo-HTML, no admin wall (#507, 2026-07-27, branch fix/chat-help-cleanup)
+`/help` used to answer with what looked like broken HTML. Not a rendering bug: the help strings used the
+CLI convention `<item>` / `<x>` / `<player>` for placeholders, and the chat scrollback is a legacy uGUI
+`Text` with `supportRichText = true`, which renders *unrecognized* tags verbatim (none of the 20
+placeholders collided with uGUI's six real tags, so the whole wall showed). Worse, `/help` printed
+`ui.chat.help_player` **and** the 509-character `ui.admin.help` to **every** player — the client has no
+role knowledge — which wrapped over ~10 lines and flooded the entire visible log. Now: all chat-facing
+help/usage text is written without angle brackets (`/give Gegenstand [Anzahl]`), plain `/help` is two
+short player lines plus a pointer, and the admin reference moved behind `/help admin` (`/admin` still
+works) split into five grouped lines (`ui.admin.help_cheats|inspect|fleet|story|maintenance`). The ten
+hardcoded English `usage:` lines in `ChatUi` became locale keys (`ui.cmd.usage_*`, DE+EN), and the
+server-side `/where` `/goto` `/builds` `/announce` `/kick` `/say` usage strings lost their brackets too.
+Also closed a small rich-text hole found on the way: chat lines were interpolated into the log raw, so
+anyone could type `<color=#ff0000>` and recolour everyone's scrollback — the new Unity-free
+`ChatMarkup.RichSafe` (a space after any `<` that would open a tag) now guards every line the log shows.
+12 new tests (`ChatHelpTextTests` locale parity + no-markup + line-length, `ChatMarkupTests`).
+
 ### ★ Bandits: hold-ups on foot, raider camps, pirate ambushes in space (#504, 2026-07-26, branch feat/bandits)
 Analysed first (`analysis/bandits-and-raiders.md`). Three encounter types sharing one **hold-up
 protocol** (new msgs `BanditDemand`/`BanditResponseIntent`/`BanditEncounterResult`, tags 179–181):

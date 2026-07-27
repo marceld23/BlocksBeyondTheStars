@@ -3451,7 +3451,7 @@ public sealed partial class GameServer
         {
             if (!EnqueueMaintenance(MaintenanceNotice.KindInfo, cmd.StringArg, -1))
             {
-                Reject(session, "admin", "Usage: /announce <message>");
+                Reject(session, "admin", "Usage: /announce Message");
                 return;
             }
 
@@ -3473,7 +3473,7 @@ public sealed partial class GameServer
 
             if (!EnqueueKick(target, "@ui.kick.by_admin"))
             {
-                Reject(session, "admin", "Usage: /kick <player>");
+                Reject(session, "admin", "Usage: /kick Player");
                 return;
             }
 
@@ -3945,7 +3945,7 @@ public sealed partial class GameServer
         }
 
         // Observers are silent by default (issue #487): an invisible admin whose chat line pops up in the
-        // channel is no longer invisible. "/say <text>" is the deliberate way to speak.
+        // channel is no longer invisible. "/say Text" is the deliberate way to speak.
         if (session.Spectating)
         {
             const string sayPrefix = "/say ";
@@ -3954,8 +3954,8 @@ public sealed partial class GameServer
                 Send(session, new ServerMessage
                 {
                     Text = De(session)
-                        ? "Im Beobachter-Modus stumm — mit /say <Text> bewusst sprechen."
-                        : "Muted while observing — use /say <text> to speak deliberately.",
+                        ? "Im Beobachter-Modus stumm — mit /say Text bewusst sprechen."
+                        : "Muted while observing — use /say Text to speak deliberately.",
                 });
                 return;
             }
