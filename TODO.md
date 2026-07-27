@@ -113,7 +113,8 @@ silent on every failure). If it finds a newer version, the main menu shows a onc
 (`UiUpdateNotice`) — *Install now* runs the existing download-and-restart flow, *Later* dismisses for
 the session; a new `UpdateCheckOnStart` toggle in Settings → Software update opts out. Note for the
 release notes: the notice only works FROM this version on — 0.9.x installs need one last manual
-download.
+download. Rode along (#544): the participate overlay's GitHub "link" was a dead `AddText` that only
+looked clickable — now a real button, plus a language-aware button to the game website.
 
 ### ★ Monuments: arcade arches, gates, stone circles & scannable runes (#522–#527, 2026-07-27, branch feat/monuments-runes)
 Analysed first (`analysis/monuments-arches-and-runes.md`). Ruins were the only ruin-shaped thing in the

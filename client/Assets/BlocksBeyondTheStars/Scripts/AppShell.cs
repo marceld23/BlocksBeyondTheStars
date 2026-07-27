@@ -836,6 +836,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private GameObject _uiMenu;
+        private GameObject _uiUpdateNotice;
         private GameObject _uiLoading;
         private GameObject _uiSettings;
         private GameObject _uiCredits;

@@ -1621,7 +1621,15 @@ namespace BlocksBeyondTheStars.Client
             Para(212f, 50f, "2.  " + shell.L("ui.contribute.play"), 17, UiKit.TextCol);
             Para(266f, 70f, "3.  " + shell.L("ui.contribute.bugs"), 17, UiKit.TextCol);
             Para(340f, 50f, "4.  " + shell.L("ui.contribute.dev"), 17, UiKit.TextCol);
-            UiKit.AddText(pdlg, 40f, 424f, 720f, 26f, shell.L("ui.contribute.github"), 17, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // Real buttons, not link-styled text (#544): the GitHub line used to be a dead AddText that
+            // merely LOOKED clickable. GitHub + the game website open in the system browser; the website
+            // follows the UI language (the German site is the root, English lives under /en).
+            UiKit.AddButton(pdlg, 60f, 414f, 380f, 46f, shell.L("ui.contribute.github"),
+                () => Application.OpenURL("https://github.com/marceld23/BlocksBeyondTheStars"), "btn_credits");
+            UiKit.AddButton(pdlg, 460f, 414f, 280f, 46f, shell.L("ui.contribute.website"),
+                () => Application.OpenURL(shell.Settings.Language == "de"
+                    ? "https://www.blocksbeyondthestars.com/"
+                    : "https://www.blocksbeyondthestars.com/en"), "btn_credits");
             UiKit.AddButton(pdlg, 270f, 500f, 260f, 52f, shell.L("ui.menu.back"), () => participate.SetActive(false), "btn_exit");
             participate.SetActive(false);
 

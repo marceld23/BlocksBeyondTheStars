@@ -23,6 +23,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - Applies from this release onward: older installs (0.9.1 and before) don't carry the check yet, so
   they need one last manual download.
 
+### 🔗 Fixed
+- **The GitHub link in the "Join in" overlay actually opens now** (#544) — it was link-styled text
+  with no click handler on every desktop platform. It's a real button now, joined by a second one
+  that opens the game website in your language.
+
 ## [0.9.1] — 2026-07-27
 
 The relics release: somebody was here before you. Ancient monuments now stand on worlds — and on
