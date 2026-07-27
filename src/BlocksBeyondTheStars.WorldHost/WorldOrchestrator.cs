@@ -325,19 +325,26 @@ public sealed class WorldOrchestrator
     {
         string containerId = world.ContainerId; // captured before SetWorldStatus clears it
         _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
-        BackgroundStopForTest = Task.Run(() =>
-        {
-            try
+        // LongRunning = its OWN thread, not a pooled one. `docker stop` blocks for as long as the world takes
+        // to drain (up to the 180 s stop-timeout), and parking a thread-pool thread for minutes is how you
+        // starve every other request on a busy host — the very thing this method exists to avoid.
+        BackgroundStopForTest = Task.Factory.StartNew(
+            () =>
             {
-                _launcher.Stop(containerId);
-            }
-            catch (InvalidOperationException)
-            {
-                // The CLI could not even be started (no docker on this host). Nobody is awaiting this task,
-                // so swallow it exactly like the launcher's own best-effort stop rather than leaving a
-                // faulted task nobody observes; the reaper still reconciles the container state.
-            }
-        });
+                try
+                {
+                    _launcher.Stop(containerId);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The CLI could not even be started (no docker on this host). Nobody is awaiting this
+                    // task, so swallow it exactly like the launcher's own best-effort stop rather than
+                    // leaving a faulted task nobody observes; the reaper still reconciles container state.
+                }
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default);
     }
 
     /// <summary>Test seam: the drain started by the last <see cref="StopWorldInBackground"/>, so a test can

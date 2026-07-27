@@ -30,6 +30,7 @@ public sealed class WorldStopAndKillTests : IDisposable
     private sealed class GatedLauncher : IInstanceLauncher, IDisposable
     {
         private readonly SemaphoreSlim _gate = new(0, 1);
+        private readonly ManualResetEventSlim _stopped = new(false);
 
         public string? StoppedContainerId;
         public string? KilledContainerId;
@@ -41,7 +42,13 @@ public sealed class WorldStopAndKillTests : IDisposable
             // Bounded, so a failing test cannot leave a thread parked forever.
             _gate.Wait(TimeSpan.FromSeconds(30));
             StoppedContainerId = containerId;
+            _stopped.Set();
         }
+
+        /// <summary>Blocks the CALLING thread until the drain has run. Deliberately not an awaited task: a
+        /// continuation would need a thread-pool slot, and under a loaded CI agent this test then measures
+        /// the pool's queue rather than the code under test (it once took 123 s that way).</summary>
+        public bool WaitUntilStopped(TimeSpan timeout) => _stopped.Wait(timeout);
 
         public void Kill(string containerId) => KilledContainerId = containerId;
 
@@ -55,7 +62,11 @@ public sealed class WorldStopAndKillTests : IDisposable
 
         public void ReleaseStop() => _gate.Release();
 
-        public void Dispose() => _gate.Dispose();
+        public void Dispose()
+        {
+            _gate.Dispose();
+            _stopped.Dispose();
+        }
     }
 
     private (HostRegistry Registry, WorldOrchestrator Orchestrator, GatedLauncher Launcher, WorldRecord World) NewRunningWorld()
@@ -79,20 +90,19 @@ public sealed class WorldStopAndKillTests : IDisposable
     }
 
     [Fact]
-    public async Task StopWorldInBackground_ReturnsBeforeDockerDoes_AndReadsStoppedAtOnceAsync()
+    public void StopWorldInBackground_ReturnsBeforeDockerDoes_AndReadsStoppedAtOnce()
     {
         var (registry, orchestrator, launcher, world) = NewRunningWorld();
 
         orchestrator.StopWorldInBackground(world);
-        var stopping = orchestrator.BackgroundStopForTest!;
 
         // The container is still draining (the launcher is blocked), yet the caller is already free and the
         // next page render tells the operator the truth instead of showing the world as running.
-        Assert.False(stopping.IsCompleted);
+        Assert.False(orchestrator.BackgroundStopForTest!.IsCompleted);
         Assert.Equal(WorldStatus.Stopped, registry.GetWorld(world.Id)!.Status);
 
         launcher.ReleaseStop();
-        await stopping.WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.True(launcher.WaitUntilStopped(TimeSpan.FromSeconds(30)), "the background drain never ran");
 
         // Stopped by the id the world had BEFORE the registry row was cleared — the container must not
         // outlive the row that pointed at it.
