@@ -9,7 +9,18 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
-## [Unreleased]
+## [0.9.1] — 2026-07-27
+
+The relics release: somebody was here before you. Ancient monuments now stand on worlds — and on
+airless moons — with glowing runes worth scanning, asteroids finally come in five distinct families
+with their own crater relief, stopping a hosted world saves it properly again, and the in-game chat
+help stopped shouting HTML at everyone.
+
+> ⚠️ **Existing asteroids change with this release.** An asteroid's family and crater relief are
+> derived deterministically from the world seed and were never persisted, so asteroids in existing
+> worlds change surface type and shape — the same one-time cut as the 0.9.0 worldgen overhaul.
+> **Everything players built or mined is preserved**, though blocks placed on an old surface can end
+> up floating above or buried under the new one.
 
 ### 🗿 Monuments: somebody was here first (#522–#527)
 - **Five new relics** stand on the surface of a world: a half-collapsed **arcade** of arches, a
@@ -27,6 +38,60 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   feature — snapped column stumps, an arch springer jutting into nothing, toppled inscribed stones.
 - A new world feature that ships in a later release can no longer be stamped on top of somebody's
   base: the placement check now skips any footprint that already holds player-built blocks.
+
+### ☄️ Asteroids come in five families now (#515, #518)
+- **Every landable asteroid used to be the same crystal-covered rock** — one hardcoded type with no
+  biome list, so every column of every asteroid surfaced as crystal. Asteroids now roll one of
+  **five families** per body: **stony** (the workhorse — stone, basalt and sand over shallow iron,
+  silicate, copper and tin), **metallic** (nearly solid metal, with cobalt, tungsten, platinum and
+  neodymium deep down), **icy** (−95 °C, volatiles instead of metals), **carbon** (soot-black,
+  cave-riddled, uranium and diamond deep, the best data-cache odds) — and **crystalline**, yesterday's
+  everywhere-look, now the rare find.
+- **Craters have character per body.** Crater density, basin width, depth, rim height and how rolling
+  the regolith in between is are now rolled from each body's own seed instead of five global
+  constants — and airless **moons** share the same path, so they gain the same variance.
+- Every family carries copper and silicate, so the cable progression can never strand you on a rock
+  without them — a content test now guarantees it.
+
+### 🛟 Stopping a hosted world saves it again (#519)
+- **Stopping a world from the admin page silently lost everything since the last autosave.** The game
+  server inside the container inherited an ignored interrupt signal (a POSIX shell rule for
+  background jobs), so the polite shutdown never arrived and Docker hard-killed the world after its
+  full grace period — on every admin stop, scheduled restart and image redeploy. The server now
+  handles **SIGTERM** directly and drains + saves before exit. Idle shutdowns were never affected.
+- **The admin page answers immediately** instead of hanging for the whole stop: both stop endpoints
+  run the container stop off the request path. And for an instance that will not go down there is a
+  new, clearly-labelled emergency **kill** button (no drain, no save — the lever of last resort).
+
+### 💬 Chat help that speaks your language (#507)
+- **`/help` no longer floods the chat with what looked like broken HTML.** Placeholders lost their
+  angle brackets (`/give Gegenstand [Anzahl]` instead of `/give <item> [count]`, DE + EN), the player
+  help is two short lines again, and the 509-character admin wall moved behind **`/help admin`**,
+  split into readable grouped lines. Ten hardcoded English `usage:` lines became proper DE + EN
+  locale strings.
+- **Closed on the way: a chat rich-text hole.** Any player could type `<color=…>` or `<size=200>`
+  and recolour or blow up everyone's scrollback — every line the chat log shows is now sanitized.
+
+### 🛠️ The in-game content editors match the game again (#508–#514, #516, #517, #520)
+- The Material and Item & Recipe editors had drifted from the game's data model: the crafting-station
+  picker offered two stations that **do not exist** (exporting them made the game refuse to start)
+  while three real ones were unreachable — it is now derived from the game's own station list. Ore
+  depth bands reach the true 2 048 blocks, a live readout shows the share of rock a vein actually
+  claims, materials gained the palette category and dyeable/shapeable flags, items gained their
+  missing stats (area mining, cooldown, scan-knowledge multiplier, vendor theme), and typed item
+  keys are checked against the live registry before export instead of failing later at startup.
+- **The merge pipeline behind the editors was broken outright**: the recipe merge tool crashed on the
+  game's own shipped recipe file (legal `//` comments), and both tools rewrote whole data files —
+  merging one material produced a 5 000-line reformat. A new splice-based tool now lands each merge
+  as a 1–3 line diff.
+
+### 🔧 Under the hood
+- A faulted browser-gateway request now gets an honest `500` instead of a torn-down socket, and the
+  gateway no longer waits out a ~2-minute idle sweep on shutdown — which also means a stopping hosted
+  world's process exits promptly instead of being parked by an idle browser connection. (#536)
+- CI got a broad wall-clock pass: platform-correct Unity Library caches (the Windows build was
+  restoring the WebGL cache), a saved WebGL cache on the release critical path, and the 10 GB cache
+  budget reclaimed. (#528–#533)
 
 ## [0.9.0] — 2026-07-27
 
@@ -745,7 +810,7 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.6...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...HEAD
 [0.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...v0.8.4
