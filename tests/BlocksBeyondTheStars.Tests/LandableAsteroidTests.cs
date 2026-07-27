@@ -15,13 +15,21 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Landable asteroids: a special body type — crystalline surface, no life, airless (drains
-/// oxygen) and a permanent space sky. Excluded from the random universe planet pool.
+/// Landable asteroids: special body types — no life, airless (drains oxygen) and a permanent space sky,
+/// excluded from the random universe planet pool. Since #515 there are several FAMILIES (stony, metallic,
+/// icy, carbonaceous, crystalline), one rolled per asteroid body, so a system's rocks differ in surface,
+/// temperature and what they are worth mining.
 /// </summary>
 public sealed class LandableAsteroidTests : IDisposable
 {
     private readonly string _root;
     private readonly GameContent _content;
+
+    /// <summary>Every asteroid family in the shipped content (the generator draws from exactly these).</summary>
+    private string[] Families => _content.Planets.Keys
+        .Where(k => WorldConstants.IsAsteroidType(k))
+        .OrderBy(k => k, StringComparer.Ordinal)
+        .ToArray();
 
     public LandableAsteroidTests()
     {
@@ -30,65 +38,107 @@ public sealed class LandableAsteroidTests : IDisposable
     }
 
     [Fact]
-    public void Asteroid_IsAirless_NonSelectable_SpaceSky()
+    public void EveryAsteroidFamily_IsAirless_NonSelectable_SpaceSky()
     {
-        var ast = _content.GetPlanet("asteroid")!;
-        Assert.Equal("none", ast.Atmosphere);
-        Assert.True(ast.SpaceSky);
-        Assert.False(ast.Selectable);
-        Assert.Equal("none", ast.CreatureAbundance);
-        Assert.Equal(0.0, ast.FloraDensity);
+        Assert.True(Families.Length >= 2, "the point of #515 is that there is more than one family");
+        foreach (var key in Families)
+        {
+            var ast = _content.GetPlanet(key)!;
+            Assert.Equal("none", ast.Atmosphere);
+            Assert.True(ast.SpaceSky, key);
+            Assert.False(ast.Selectable, key);
+            Assert.Equal("none", ast.CreatureAbundance);
+            Assert.Equal(0.0, ast.FloraDensity);
+            Assert.True(ast.Cratered, key);
+            Assert.True(ast.SpawnWeight > 0, $"{key} needs a draw weight or it can never appear");
+        }
     }
 
     [Fact]
-    public void Asteroid_Worldgen_HasCrystalSurface_AndNoFlora()
+    public void AsteroidFamilies_HaveDistinctSurfaces_AndNoFlora()
     {
-        var ast = _content.GetPlanet("asteroid")!;
+        // The bug behind #515: every asteroid was the same crystal rock. Each family must now put its OWN
+        // block on top — and none of them grows anything.
         var gen = new WorldGenerator(2026, _content);
-        ushort crystal = _content.GetBlock("crystal")!.NumericId.Value;
         ushort floraPlant = _content.GetBlock("flora_plant")!.NumericId.Value;
         ushort floraCrystal = _content.GetBlock("flora_crystal")!.NumericId.Value;
 
-        int crystalSurface = 0;
-        for (int x = 0; x < 24; x++)
-            for (int z = 0; z < 24; z++)
-            {
-                int y = gen.SurfaceHeight(ast, x, z);
-                var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-                var origin = WorldConstants.ChunkOrigin(coord);
-                var chunk = gen.Generate(ast, coord);
-                if (chunk.Get(x - origin.X, y - origin.Y, z - origin.Z).Value == crystal) crystalSurface++;
-
-                int ay = y + 1;
-                if (ay - origin.Y is >= 0 and < WorldConstants.ChunkSize)
+        var surfaces = new Dictionary<string, HashSet<ushort>>();
+        foreach (var key in Families)
+        {
+            var ast = _content.GetPlanet(key)!;
+            var seen = new HashSet<ushort>();
+            // Sample WIDE rather than dense: biome regions are far larger than a chunk, so a tight 24×24
+            // window can sit entirely inside a single one and see only that biome's block.
+            for (int x = 0; x < 192; x += 12)
+                for (int z = 0; z < 192; z += 12)
                 {
-                    ushort above = chunk.Get(x - origin.X, ay - origin.Y, z - origin.Z).Value;
-                    Assert.NotEqual(floraPlant, above);   // no flora on a barren asteroid
-                    Assert.NotEqual(floraCrystal, above);
-                }
-            }
+                    int y = gen.SurfaceHeight(ast, x, z);
+                    var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
+                    var origin = WorldConstants.ChunkOrigin(coord);
+                    var chunk = gen.Generate(ast, coord);
+                    seen.Add(chunk.Get(x - origin.X, y - origin.Y, z - origin.Z).Value);
 
-        Assert.True(crystalSurface > 0, "Expected a crystalline asteroid surface.");
+                    int ay = y + 1;
+                    if (ay - origin.Y is >= 0 and < WorldConstants.ChunkSize)
+                    {
+                        ushort above = chunk.Get(x - origin.X, ay - origin.Y, z - origin.Z).Value;
+                        Assert.NotEqual(floraPlant, above);   // no flora on a barren asteroid
+                        Assert.NotEqual(floraCrystal, above);
+                    }
+                }
+
+            Assert.NotEmpty(seen);
+            surfaces[key] = seen;
+        }
+
+        // Crystal is now the RARE family's signature, not what every rock is made of.
+        ushort crystal = _content.GetBlock("crystal")!.NumericId.Value;
+        Assert.Contains(crystal, surfaces["asteroid_crystal"]);
+        Assert.DoesNotContain(crystal, surfaces["asteroid"]);
+
+        // …and each family shows its own material. Which of a family's biomes a given body uses is seeded,
+        // so assert against the family's declared biome pool rather than one specific block — plus the rare
+        // metals that item 33 deliberately exposes on deep crater floors, which are also a legal surface.
+        var craterMetals = new[] { "titanium_ore", "gold_ore", "platinum_ore", "cobalt_ore", "uranium_ore", "tungsten_ore", "neodymium_ore" }
+            .Select(k => _content.GetBlock(k)!.NumericId.Value)
+            .ToHashSet();
+        foreach (var key in Families)
+        {
+            var allowed = _content.GetPlanet(key)!.Biomes
+                .Select(b => _content.GetBlock(b.SurfaceBlock)!.NumericId.Value)
+                .ToHashSet();
+            Assert.NotEmpty(allowed);
+            allowed.UnionWith(craterMetals);
+            Assert.All(surfaces[key], s => Assert.Contains(s, allowed));
+        }
+
+        // The icy rock is frozen over — ice or its snow cover, never bare crystal or carbon.
+        var icy = surfaces["asteroid_icy"];
+        Assert.Contains(icy, s => s == _content.GetBlock("ice")!.NumericId.Value
+                                  || s == _content.GetBlock("snow")!.NumericId.Value);
     }
 
     [Fact]
     public void Asteroid_HasNoCreatures()
     {
-        var ast = _content.GetPlanet("asteroid")!;
-        Assert.Empty(CreatureGenerator.GenerateRoster(ast, 2026));
+        foreach (var key in Families)
+        {
+            Assert.Empty(CreatureGenerator.GenerateRoster(_content.GetPlanet(key)!, 2026));
+        }
     }
 
     [Fact]
     public void Asteroid_NotInRandomUniversePool()
     {
-        // A default galaxy (no frequency overrides) must never place an asteroid as a system planet.
+        // A default galaxy (no frequency overrides) must never place ANY asteroid family as a system planet.
         var galaxy = new UniverseGenerator(123, new WorldDescription(), _content).Generate();
         var planetTypes = galaxy.AllBodies()
             .Where(b => b.Kind == CelestialKind.Planet)
             .Select(b => b.PlanetType)
             .ToHashSet();
 
-        Assert.DoesNotContain("asteroid", planetTypes);
+        Assert.DoesNotContain(planetTypes, t => WorldConstants.IsAsteroidType(t));
     }
 
     [Fact]
@@ -102,8 +152,10 @@ public sealed class LandableAsteroidTests : IDisposable
 
         foreach (var a in asteroids)
         {
-            Assert.Equal("asteroid", a.PlanetType); // → travel/land loads the walkable asteroid world
-            // Asteroid size class → a defined small walkable size AND EvaLandingAllowed permits it (EVA can land).
+            // → travel/land loads a walkable asteroid world of that family…
+            Assert.Contains(a.PlanetType, Families);
+            // …and every family sizes as an asteroid. A family the size lookup did not recognise would wrap
+            // its coordinates at a planet's circumference — the old "cannot mine any block" bug.
             Assert.Equal(WorldConstants.WorldSizeClass.Asteroid,
                 WorldConstants.SizeClassFor(a.Kind, a.PlanetType ?? string.Empty));
         }
@@ -113,6 +165,30 @@ public sealed class LandableAsteroidTests : IDisposable
         {
             Assert.InRange(bySystem.Count(), 2, 3);
         }
+    }
+
+    [Fact]
+    public void AsteroidFamilies_VaryAcrossTheGalaxy_AndAreDeterministic()
+    {
+        // #515: the whole point — a galaxy's rocks are not all the same type, the common stony one dominates,
+        // and the same seed always produces the same rock in the same place.
+        var desc = new WorldDescription { StarSystemCount = 40 };
+        var galaxy = new UniverseGenerator(4711, desc, _content).Generate();
+        var types = galaxy.AllBodies()
+            .Where(b => b.Kind == CelestialKind.AsteroidField)
+            .Select(b => b.PlanetType!)
+            .ToList();
+
+        Assert.True(types.Count > 60, "expected plenty of asteroids across 40 systems");
+        Assert.True(types.Distinct().Count() >= 4, "a galaxy should show several asteroid families");
+
+        int stony = types.Count(t => t == "asteroid");
+        int crystalline = types.Count(t => t == "asteroid_crystal");
+        Assert.True(stony > crystalline, "the common stony rock must outnumber the rare crystal one");
+
+        var again = new UniverseGenerator(4711, desc, _content).Generate()
+            .AllBodies().Where(b => b.Kind == CelestialKind.AsteroidField).Select(b => b.PlanetType!).ToList();
+        Assert.Equal(types, again);
     }
 
     [Fact]

@@ -2660,7 +2660,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Maps a NetBody's string kind + planet type to a size class (matches the server's
         /// <see cref="WorldConstants.SizeClassFor"/>).</summary>
         private static WorldConstants.WorldSizeClass ClassOf(string kind, string planetType)
-            => string.Equals(planetType, "asteroid", System.StringComparison.OrdinalIgnoreCase) ? WorldConstants.WorldSizeClass.Asteroid
+            => WorldConstants.IsAsteroidType(planetType) ? WorldConstants.WorldSizeClass.Asteroid
              : kind == "Moon" ? WorldConstants.WorldSizeClass.Moon
              : WorldConstants.WorldSizeClass.Planet;
 
@@ -4372,6 +4372,10 @@ namespace BlocksBeyondTheStars.Client
                 case "crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
                 case "ocean":
                 case "water": return (new Color(0.24f, 0.46f, 0.72f), "water");
+                case "asteroid_icy": return (new Color(0.76f, 0.86f, 0.92f), "ice");
+                case "asteroid_crystal": return (new Color(0.55f, 0.65f, 0.92f), "crystal");
+                case "asteroid_metallic": return (new Color(0.44f, 0.43f, 0.46f), "stone");
+                case "asteroid_carbon": return (new Color(0.26f, 0.25f, 0.24f), "stone");
                 case "barren":
                 case "asteroid":
                 case "rock": return (new Color(0.52f, 0.50f, 0.47f), "stone");

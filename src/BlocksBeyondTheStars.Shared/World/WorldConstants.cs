@@ -176,7 +176,7 @@ public static class WorldConstants
     /// <summary>Rough size class of a celestial body, which sets how big its walkable cylinder is.</summary>
     public enum WorldSizeClass
     {
-        /// <summary>Landable asteroid (PlanetType "asteroid") — very small, a quick stroll around.</summary>
+        /// <summary>Landable asteroid (an "asteroid…" PlanetType) — very small, a quick stroll around.</summary>
         Asteroid,
         /// <summary>A moon — small.</summary>
         Moon,
@@ -184,11 +184,23 @@ public static class WorldConstants
         Planet,
     }
 
+    /// <summary>The planet-type key prefix shared by every landable-asteroid FAMILY (#515): "asteroid"
+    /// (stony), "asteroid_metallic", "asteroid_icy", "asteroid_carbon", "asteroid_crystal".</summary>
+    private const string AsteroidKeyPrefix = "asteroid";
+
+    /// <summary>True when this planet-type key is one of the landable-asteroid families. THE single place
+    /// that decides it: every caller (world size, orbit view, sky bodies) must agree, because a body sized
+    /// with the wrong class wraps its coordinates at the wrong circumference — that was the original
+    /// "cannot mine any block" bug.</summary>
+    public static bool IsAsteroidType(string? planetKey)
+        => planetKey != null
+           && planetKey.StartsWith(AsteroidKeyPrefix, System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Classifies a body by its star-map kind + planet-type so server (active world) and client
-    /// (orbit view) agree on its size. Landable asteroids use PlanetType "asteroid"; moons are
+    /// (orbit view) agree on its size. Landable asteroids use an "asteroid…" PlanetType; moons are
     /// <see cref="CelestialKind.Moon"/>; everything else landable is a planet.</summary>
     public static WorldSizeClass SizeClassFor(CelestialKind kind, string planetKey)
-        => string.Equals(planetKey, "asteroid", System.StringComparison.OrdinalIgnoreCase) ? WorldSizeClass.Asteroid
+        => IsAsteroidType(planetKey) ? WorldSizeClass.Asteroid
          : kind == CelestialKind.Moon ? WorldSizeClass.Moon
          : WorldSizeClass.Planet;
 

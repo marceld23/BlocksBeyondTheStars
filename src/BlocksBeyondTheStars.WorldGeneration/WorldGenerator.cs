@@ -250,10 +250,11 @@ public sealed class WorldGenerator
         double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
 
         // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
-        // hills/mountains/canyons) pocked with round impact craters carved on top.
+        // hills/mountains/canyons) pocked with round impact craters carved on top. How rolling that regolith
+        // is, and how dense/deep/sharp the craters are, is this BODY's own character (#518).
         if (planet.Cratered || _crateredWorld)
         {
-            double flat = h * 0.30 * planet.Amplitude;
+            double flat = h * CraterProfileFor(seed).Flatness * planet.Amplitude;
             return planet.BaseHeight + (int)System.Math.Round(flat + CraterCarve(seed, worldX, worldZ, planet));
         }
 
@@ -520,31 +521,89 @@ public sealed class WorldGenerator
     }
 
     // --- impact-crater field (item 33): seam-safe round basins via an FBM mask (the B7 pond-mask approach),
-    // each ringed by a raised ejecta rim. Pure noise → deterministic and wraps across the X seam. ---
-    private const double CraterThreshold = 0.60;  // mask above this is inside a crater (upper tail → scattered)
-    private const double CraterBand = 0.16;        // mask range from the rim (0) to the deepest centre (1)
-    private const double CraterMaxDepth = 7.0;     // bowl depth at the centre (blocks)
-    private const double CraterRimHeight = 2.0;    // raised ejecta lip at the crater edge (blocks)
-    private const double CraterRimBand = 0.07;     // mask range just outside the rim where the lip fades to flat
+    // each ringed by a raised ejecta rim. Pure noise → deterministic and wraps across the X seam.
+    // The numbers below are the CENTRE of each range; the actual values are rolled per body from its identity
+    // salt (#518, see CraterProfileFor), so one rock is a saturated, deeply cratered ruin and the next a
+    // near-smooth pebble with a few shallow dishes. ---
+
+    /// <summary>One body's crater character — rolled once per body from its seed and then shared by every
+    /// column of that world (#518). Replaces the five global constants that made every airless body look
+    /// the same.</summary>
+    private readonly struct CraterProfile
+    {
+        public readonly double Threshold;  // mask above this is inside a crater (lower ⇒ more, larger basins)
+        public readonly double Band;       // mask range from the rim (0) to the deepest centre (1)
+        public readonly double MaxDepth;   // bowl depth at the centre (blocks)
+        public readonly double RimHeight;  // raised ejecta lip at the crater edge (blocks)
+        public readonly double RimBand;    // mask range outside the rim where the lip fades back to flat
+        public readonly double Flatness;   // how much of the base swell survives between craters (× amplitude)
+
+        public CraterProfile(double threshold, double band, double maxDepth, double rimHeight, double rimBand,
+            double flatness)
+        {
+            Threshold = threshold;
+            Band = band;
+            MaxDepth = maxDepth;
+            RimHeight = rimHeight;
+            RimBand = rimBand;
+            Flatness = flatness;
+        }
+    }
+
+    // STATIC cache like the world calibration: the profile is a pure function of the body seed, and the
+    // client bakes fresh generators per preview texture. Tiny structs, so the cap can be generous.
+    private static readonly System.Collections.Generic.Dictionary<long, CraterProfile> _craterProfiles = new();
+    private static readonly object _craterProfileLock = new object();
+
+    /// <summary>This body's crater character, rolled from its seed (world seed + planet type + body salt) so
+    /// every asteroid and airless moon gets its own relief — and always the same one.</summary>
+    private static CraterProfile CraterProfileFor(long seed)
+    {
+        lock (_craterProfileLock)
+        {
+            if (_craterProfiles.TryGetValue(seed, out var cached))
+            {
+                return cached;
+            }
+
+            double R(long salt) => Noise.Value01(seed + salt, 17, 31, 53);
+            var p = new CraterProfile(
+                threshold: 0.66 - 0.14 * R(0x0C1A),   // 0.52 (pounded) .. 0.66 (sparsely pocked)
+                band: 0.12 + 0.10 * R(0x0C1B),        // narrow, steep basins .. broad, gentle ones
+                maxDepth: 5.0 + 7.0 * R(0x0C1C),      // 5 .. 12 blocks at the centre
+                rimHeight: 0.8 + 2.4 * R(0x0C1D),     // barely-there lip .. a sharp ejecta wall
+                rimBand: 0.05 + 0.05 * R(0x0C1E),
+                flatness: 0.18 + 0.27 * R(0x0C1F));   // billiard-table regolith .. noticeably rolling ground
+
+            if (_craterProfiles.Count >= 512)
+            {
+                _craterProfiles.Clear(); // soft cap — a few dozen bytes each
+            }
+
+            _craterProfiles[seed] = p;
+            return p;
+        }
+    }
 
     /// <summary>Height offset (blocks) for the impact-crater field at a column: a smooth bowl inside each basin
     /// (deepening toward its centre) ringed by a raised rim, scattered across otherwise-flat ground (item 33).</summary>
     private double CraterCarve(long seed, int worldX, int worldZ, PlanetType planet)
     {
+        var p = CraterProfileFor(seed);
         double mask = FbmT(seed + 0x6A17, worldX, worldZ, planet.TerrainScale * 1.7, octaves: 3);
-        double d = mask - CraterThreshold;
+        double d = mask - p.Threshold;
         if (d >= 0.0)
         {
-            // Inside the basin: a smooth bowl down to -CraterMaxDepth, with a rim lip right at the edge.
-            double t = System.Math.Min(1.0, d / CraterBand);
-            double bowl = -CraterMaxDepth * (t * t * (3.0 - 2.0 * t));         // smoothstep deepening
-            double lip = CraterRimHeight * System.Math.Max(0.0, 1.0 - t * 4.0); // a lip at the edge, gone a quarter in
+            // Inside the basin: a smooth bowl down to -MaxDepth, with a rim lip right at the edge.
+            double t = System.Math.Min(1.0, d / p.Band);
+            double bowl = -p.MaxDepth * (t * t * (3.0 - 2.0 * t));          // smoothstep deepening
+            double lip = p.RimHeight * System.Math.Max(0.0, 1.0 - t * 4.0); // a lip at the edge, gone a quarter in
             return bowl + lip;
         }
 
         // Just outside the rim: the raised ejecta lip, peaking at the edge and fading back to flat ground.
-        double o = System.Math.Min(1.0, -d / CraterRimBand);
-        return CraterRimHeight * (1.0 - o);
+        double o = System.Math.Min(1.0, -d / p.RimBand);
+        return p.RimHeight * (1.0 - o);
     }
 
     // Rare metals exposed as small clumps on deep crater floors — the reward for exploring craters (item 33).
@@ -561,7 +620,10 @@ public sealed class WorldGenerator
     /// few small clumps on the deeper floor (item 33).</summary>
     private BlockId? CraterFloorMetal(PlanetType planet, long seed, int worldX, int worldZ)
     {
-        if (CraterCarve(seed, worldX, worldZ, planet) > -CraterFloorMinDepth)
+        // "Deep enough to be worth climbing into" is relative to how deep THIS body's craters get (#518) —
+        // an absolute 4-block gate would leave a shallow-cratered rock with no exposed metal at all.
+        double floorDepth = System.Math.Min(CraterFloorMinDepth, CraterProfileFor(seed).MaxDepth * 0.55);
+        if (CraterCarve(seed, worldX, worldZ, planet) > -floorDepth)
         {
             return null; // not a deep crater floor
         }

@@ -6374,6 +6374,34 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-27): landable asteroids — five families and per-body crater relief (#515/#518)
+
+Every landable asteroid in the galaxy was the same crystal-covered rock: `UniverseGenerator` hardcoded
+`PlanetType = "asteroid"`, and that one type had no `biomes` array, so `depth == 0` wrote `crystal` on every
+column of every asteroid. Only the walkable circumference and the crater *positions* ever differed.
+
+**Five families (#515), drawn per body.** `asteroid` (stony — grey stone, basalt and dust, iron/silicate/
+copper/tin), `asteroid_metallic` (dark basalt crust, iron and titanium everywhere, cobalt/tungsten/platinum/
+neodymium deep), `asteroid_icy` (ice and snow at −95 °C, volatiles instead of metals), `asteroid_carbon`
+(soot-black, carbon-rich, uranium + diamond deep, the best data-cache odds) and `asteroid_crystal` (the old
+look, now the rare find). All stay `selectable: false`, so they are still absent from the system-planet pool;
+the draw is weighted by each family's `spawnWeight`, so **adding a family is a pure data change**. It runs off
+a SEPARATE hash, never the system `rng` — existing systems keep their stations and wrecks exactly where they
+were. `WorldConstants.IsAsteroidType` is now the single place that recognises the family (size class, orbit
+view, sky bodies, VEGA's first-landing line); a caller that missed one would size the world as a planet and
+reproduce the old "cannot mine any block" bug.
+
+**Per-body crater relief (#518).** `RawSurfaceHeight`'s cratered branch returns before `DramaFor`/
+`TerrainStyle`, so the five crater constants made every airless body identical. They are replaced by a
+`CraterProfile` rolled from the body seed (world seed + type + identity salt, #478) and cached per seed:
+crater density (threshold 0.52–0.66), basin width, depth (5–12 blocks), rim height (0.8–3.2) and how rolling
+the regolith between craters is (0.18–0.45 × amplitude). Airless MOONS share the code path and gain the same
+variance. The crater-floor metal gate is now relative to that body's own depth, so a shallow-cratered rock
+still exposes ore instead of none.
+
+**Retroactive**: a body's `PlanetType` is regenerated deterministically, never persisted, so existing worlds'
+asteroids change type and relief — a one-time change like #492/#501, and release-note material.
+
 ## ✅ Done (2026-07-26): "why can't I play any more?" — ban notices, timeouts, world-owner bans (#496/#497)
 
 Analysis: `analysis/ban-notice-and-player-identity.md`. A banned account used to sign in completely normally

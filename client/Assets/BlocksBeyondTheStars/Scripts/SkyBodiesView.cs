@@ -255,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var body in system.Bodies)
             {
                 bool landable = body.Kind is "Planet" or "Moon"
-                    || string.Equals(body.PlanetType, "asteroid", System.StringComparison.OrdinalIgnoreCase);
+                    || WorldConstants.IsAsteroidType(body.PlanetType);
                 if (!landable || body.Id == map.ActiveLocationId)
                 {
                     continue; // stations etc. stay invisible from the surface; the body you stand on too
@@ -264,7 +264,7 @@ namespace BlocksBeyondTheStars.Client
                 // Deterministic per (current planet, body): the sky choreography is unique to each world.
                 int h = Hash(map.ActiveLocationId + "|" + body.Id);
 
-                var cls = string.Equals(body.PlanetType, "asteroid", System.StringComparison.OrdinalIgnoreCase)
+                var cls = WorldConstants.IsAsteroidType(body.PlanetType)
                     ? WorldConstants.WorldSizeClass.Asteroid
                     : body.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
 
@@ -384,6 +384,10 @@ namespace BlocksBeyondTheStars.Client
             "fungal" or "corrupted" => new Color(0.62f, 0.48f, 0.72f),
             "ashen" => new Color(0.45f, 0.42f, 0.42f),
             "asteroid" => new Color(0.55f, 0.52f, 0.48f),
+            "asteroid_metallic" => new Color(0.42f, 0.41f, 0.44f),
+            "asteroid_icy" => new Color(0.76f, 0.86f, 0.92f),
+            "asteroid_carbon" => new Color(0.26f, 0.25f, 0.24f),
+            "asteroid_crystal" => new Color(0.62f, 0.82f, 0.88f),
             "skylands" or "highland" => new Color(0.62f, 0.72f, 0.66f),
             _ => new Color(0.62f, 0.58f, 0.52f), // rocky + unknown
         };

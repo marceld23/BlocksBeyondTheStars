@@ -33,12 +33,40 @@ public sealed class UniverseGenerator
     private readonly long _seed;
     private readonly WorldDescription _desc;
     private readonly List<(string key, int weight)> _planetWeights;
+    private readonly List<(string key, int weight)> _asteroidWeights;
 
     public UniverseGenerator(long seed, WorldDescription description, GameContent content)
     {
         _seed = seed;
         _desc = description;
         _planetWeights = BuildPlanetWeights(description, content);
+        _asteroidWeights = BuildAsteroidWeights(content);
+    }
+
+    /// <summary>The landable-asteroid families and their relative frequency (#515). Every non-selectable
+    /// "asteroid…" type in planets.json is one, weighted by its <c>spawnWeight</c> — so adding a family is a
+    /// pure data change. Sorted by key so the draw is stable no matter how the content dictionary iterates.
+    /// The world-creation planet-type sliders deliberately do NOT reach these: asteroid bodies exist per
+    /// system regardless of which planet types the player enabled.</summary>
+    private static List<(string, int)> BuildAsteroidWeights(GameContent content)
+    {
+        var list = new List<(string, int)>();
+        foreach (var key in content.Planets.Keys)
+        {
+            if (!WorldConstants.IsAsteroidType(key) || content.GetPlanet(key) is not { Selectable: false } p)
+            {
+                continue;
+            }
+
+            int weight = System.Math.Max(0, p.SpawnWeight);
+            if (weight > 0)
+            {
+                list.Add((key, weight));
+            }
+        }
+
+        list.Sort((a, b) => string.CompareOrdinal(a.Item1, b.Item1));
+        return list;
     }
 
     private static List<(string, int)> BuildPlanetWeights(WorldDescription desc, GameContent content)
@@ -164,6 +192,8 @@ public sealed class UniverseGenerator
             // ship or on an EVA, each sized deterministically by its id (CircumferenceFor → Asteroid class). The
             // small mineable rocks spawn separately as space entities at any body. (One rng draw, like the old
             // single-belt gate, so existing systems' stations/wrecks downstream stay put.)
+            // Each rock also rolls its own FAMILY (#515) — stony, metallic, icy, carbonaceous or crystalline —
+            // so a system's asteroids differ in surface, temperature and what they're worth mining.
             int asteroidCount = 2 + (rng.NextDouble() < 0.5 ? 1 : 0); // 2 or 3
             for (int a = 0; a < asteroidCount; a++)
             {
@@ -173,7 +203,7 @@ public sealed class UniverseGenerator
                     Id = $"{system.Id}-a{a}",
                     Name = $"{system.Name} Asteroid {a + 1}",
                     Kind = CelestialKind.AsteroidField,
-                    PlanetType = "asteroid",
+                    PlanetType = PickAsteroidType(i, a),
                     SystemId = system.Id,
                     SystemX = ax,
                     SystemZ = az,
@@ -311,6 +341,37 @@ public sealed class UniverseGenerator
         CelestialKind.AsteroidField => 215f,
         _ => 160f,
     };
+
+    /// <summary>The asteroid FAMILY for one asteroid body (#515): stony, metallic, icy, carbonaceous or
+    /// crystalline, weighted by each family's <c>spawnWeight</c> in planets.json. Drawn from a SEPARATE hash
+    /// (never the system <c>rng</c>) so adding families leaves every existing system's stations and wrecks
+    /// exactly where they were — only the asteroids themselves change.</summary>
+    private string PickAsteroidType(int systemIndex, int asteroidIndex)
+    {
+        if (_asteroidWeights.Count == 0)
+        {
+            return "asteroid"; // the stony family is the guaranteed fallback
+        }
+
+        int total = 0;
+        foreach (var (_, w) in _asteroidWeights)
+        {
+            total += w;
+        }
+
+        // Hash01 → [0,1); scale into the weight table. Salt 400+ is unused elsewhere in this generator.
+        int roll = 1 + (int)(Hash01(systemIndex, 400 + asteroidIndex, 7) * total);
+        foreach (var (key, w) in _asteroidWeights)
+        {
+            roll -= w;
+            if (roll <= 0)
+            {
+                return key;
+            }
+        }
+
+        return _asteroidWeights[_asteroidWeights.Count - 1].key;
+    }
 
     private string PickPlanetType(DeterministicRandom rng)
     {

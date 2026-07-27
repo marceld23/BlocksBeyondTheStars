@@ -267,9 +267,10 @@ public sealed partial class GameServer
     private void ShipAiWorldFlavour(PlayerSession session)
     {
         string type = _world.Planet?.Key ?? string.Empty;
-        string id = type switch
+        // Every asteroid FAMILY (stony, metallic, icy, carbonaceous, crystalline — #515) shares the one
+        // "you're standing on a rock in the void" line, and the once-flag with it.
+        string id = WorldConstants.IsAsteroidType(type) ? "asteroid" : type switch
         {
-            "asteroid" => "asteroid",
             "ocean" => "ocean",
             "corrupted" => "corrupted",
             "fungal" => "fungal",

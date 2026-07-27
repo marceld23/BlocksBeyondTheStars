@@ -40,8 +40,13 @@ Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration
 The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World/Galaxy.cs).
 
 - **~8 star systems** per galaxy (`StarSystemCount`), each with a random 2D star-map position.
-- Per system: **2–6 planets**, each with **0–3 moons**, plus **2–3 asteroid fields** and (rarely)
+- Per system: **2–6 planets**, each with **0–3 moons**, plus **2–3 landable asteroids** and (rarely)
   **1–3 space stations**.
+- Each asteroid rolls one of five **families** (#515) — `asteroid` (stony), `asteroid_metallic`,
+  `asteroid_icy`, `asteroid_carbon`, `asteroid_crystal` — weighted by each family's `spawnWeight`, so
+  adding one is a pure `planets.json` change. They are all `selectable: false` (never a system planet)
+  and all recognised by `WorldConstants.IsAsteroidType`, which is what maps them to the Asteroid size
+  class. The draw uses its own hash, so it never shifts a system's stations or wrecks.
 - Each body gets a **deterministic orbit position** (polar coordinates around the star: first planet
   ~420 units out, +520 per planet ± jitter; moons 90 + m·55 around their planet) and an **orbit
   period** (planets 6–40 in-game days, moons 0.4–2.5, ~20 % retrograde). The orbit period is a
@@ -125,7 +130,10 @@ same planet type rolls gentle on one world and jagged on the next.
 ridges/valleys (`h·(1-ridged) + ridge(h)·ridged`).
 
 **e) Overriding shapes** — `TerrainStyle` (mesa, dunes, spires, flats…), `Cratered` (flat regolith +
-impact craters for airless bodies), and `FloatingIslands`.
+impact craters for airless bodies), and `FloatingIslands`. A cratered body skips (c) and (d) entirely
+and instead rolls a **`CraterProfile`** from its own body seed (#518): crater density, basin width,
+depth (5–12 blocks), rim height and how rolling the regolith between craters is — so one rock is a
+pounded ruin and the next a near-smooth pebble. Landable asteroids and airless moons share this path.
 
 Terrain noise is **torus-periodic FBM** (4 octaves); the cave and ore fields are single-octave torus
 value noise whose thresholds are **quantile-calibrated per world** against the field's measured

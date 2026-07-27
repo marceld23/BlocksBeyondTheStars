@@ -89,6 +89,59 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void CraterRelief_DiffersPerBody_ButIsStablePerBody()
+    {
+        // #518: every airless body used to share one crater character — same density, same depth, same rim,
+        // only the craters' positions moved. Now each body rolls its own from its identity salt.
+        var content = Content();
+        var asteroid = content.GetPlanet("asteroid")!;
+        int circ = WorldConstants.CircumferenceFor("sys0-a0", WorldConstants.WorldSizeClass.Asteroid);
+
+        (double Pitted, double Rimmed, double Mean, int Deepest) Profile(string locationId)
+        {
+            var gen = new WorldGenerator(9001, content);
+            gen.SetWorldMode(circ, cratered: true, landingPads: null, locationId: locationId);
+
+            int pitted = 0, rimmed = 0, n = 0, deepest = 0;
+            double sum = 0;
+            for (int x = 0; x < 192; x += 2)
+                for (int z = 0; z < 192; z += 2)
+                {
+                    int d = gen.SurfaceHeight(asteroid, x, z) - asteroid.BaseHeight;
+                    if (d <= -4) pitted++;     // inside a crater bowl
+                    if (d >= 2) rimmed++;      // up on an ejecta rim
+                    deepest = System.Math.Min(deepest, d);
+                    sum += System.Math.Abs(d);
+                    n++;
+                }
+
+            return (pitted / (double)n, rimmed / (double)n, sum / n, deepest);
+        }
+
+        var bodies = new[] { "sys0-a0", "sys0-a1", "sys1-a0", "sys2-a1", "sys3-a2", "sys4-a0" };
+        var profiles = bodies.Select(Profile).ToList();
+
+        // Same body → identical relief (the profile is cached per seed and must not drift between instances).
+        Assert.Equal(profiles[0], Profile(bodies[0]));
+
+        // Across bodies the landscape genuinely differs — not just the craters' positions. Crater depth is
+        // rolled from 5 to 12 blocks, so a handful of rocks must span a good part of that.
+        int deepSpread = profiles.Max(p => -p.Deepest) - profiles.Min(p => -p.Deepest);
+        Assert.True(deepSpread >= 3, $"crater depth should vary per body, spread was {deepSpread}");
+
+        double pitMax = profiles.Max(p => p.Pitted), pitMin = profiles.Min(p => p.Pitted);
+        Assert.True(pitMax > pitMin * 1.5, $"crater density should vary per body: {pitMin}..{pitMax}");
+
+        // …while every one of them stays recognisably "flat regolith pocked with craters", never a mountain range.
+        foreach (var p in profiles)
+        {
+            Assert.True(p.Pitted > 0.0, $"a cratered body needs pits: {p}");
+            Assert.True(p.Rimmed > 0.0, $"a cratered body needs raised rims: {p}");
+            Assert.True(p.Mean < 6.0, $"regolith must stay broadly flat between craters: {p}");
+        }
+    }
+
+    [Fact]
     [Trait("Category", "Slow")]
     public void WateryWorld_GeneratesUplandPonds_AboveSeaLevel()
     {
