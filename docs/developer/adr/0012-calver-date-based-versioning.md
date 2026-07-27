@@ -2,7 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-27
-- **Context source:** [`analysis/versioning-scheme-calver.md`](../../../analysis/versioning-scheme-calver.md)
+- **Context source:** [#550](https://github.com/marceld23/BlocksBeyondTheStars/issues/550) (the full
+  impact analysis lives in the local, git-ignored `analysis/versioning-scheme-calver.md`)
 
 ## Context
 
