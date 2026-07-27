@@ -149,6 +149,12 @@ public sealed class WebSocketTransportTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Slow")] // 22 ms locally, 132 s on a loaded PR runner (2026-07-27) with the
+                                // teardown tail already fixed — pure continuation queueing: three
+                                // ConnectAsync hops re-queue behind CPU-bound worldgen bodies on xUnit's
+                                // maxParallelThreads workers (mechanism 2 in
+                                // analysis/ci-test-duration-flakiness.md). Same call as its two Slow
+                                // neighbours; full runs on main and release still cover the cap.
     public async Task Gateway_RejectsConnectionsBeyondTheCapAsync()
     {
         int port = FreeTcpPort();
