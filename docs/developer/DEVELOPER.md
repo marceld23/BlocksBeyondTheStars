@@ -221,7 +221,9 @@ Useful parameters:
 
 To package the built player locally as a Velopack installer/update feed, run
 `scripts/publish-client-installer.ps1` after a successful `build-client.ps1` (it ships the launcher exe as
-`--mainExe`). Add `-Msi` to also build the machine-wide WiX MSI. Pass `-Version <semver>` for a real release;
+`--mainExe`). Add `-Msi` to also build the machine-wide WiX MSI (its ProductVersion major maxes out at 255,
+so the script maps the CalVer year down for the MSI only: `2026.7.1` → `26.7.1`). Pass `-Version <version>`
+for a real release;
 without it the version is read from `PlayerSettings.bundleVersion` in `ProjectSettings.asset` (the version
 source of truth — see [Releases & versioning](#releases-github-actions--versioning) below). For an actual
 shipped release you normally do **not** run this by hand — push a tag and let CI do it.
@@ -262,7 +264,7 @@ Useful parameters:
 For Velopack packaging on Linux (AppImage + portable zip), use `vpk` directly:
 
 ```bash
-vpk pack --packId BlocksBeyondTheStars --packVersion <semver> \
+vpk pack --packId BlocksBeyondTheStars --packVersion <version> \
   --packDir client/Build/Linux \
   --mainExe BlocksBeyondTheStars.Launcher.Console \
   --channel linux \
@@ -335,10 +337,13 @@ Get-ChildItem client/Build/Windows/BlocksBeyondTheStars_Data/Managed/BlocksBeyon
 ## Releases (GitHub Actions) & versioning
 
 Shipped releases are built in the cloud by [`.github/workflows/release.yml`](../../.github/workflows/release.yml),
-not locally. Cut one by pushing a SemVer tag:
+not locally. Versions are **date-based (CalVer)**: `vYYYY.MM.N` — year, month, release counter within the
+month (no leading zeros, never a fourth part; the result must stay valid 3-part SemVer2 because Velopack
+parses it as strict SemVer). See [ADR 0012](adr/0012-calver-date-based-versioning.md) for the rationale
+and constraints. Cut a release by pushing the tag:
 
 ```bash
-git tag v0.3.0 && git push origin v0.3.0
+git tag v2026.7.19 && git push origin v2026.7.19
 ```
 
 The workflow builds for Windows, Linux **and** (experimentally) macOS in parallel jobs. A tiny **`version`**
@@ -395,12 +400,12 @@ Notes:
 - butler authenticates with an itch.io API key stored as the **`BUTLER_API_KEY`** repository secret (Settings →
   Secrets and variables → Actions). It is **never** committed — generate one at itch.io → *Settings → API keys*.
 - The script auto-downloads butler (win-x64) if it is not already on `PATH`, so it also works locally:
-  `$env:BUTLER_API_KEY = '…'; ./scripts/publish-itch.ps1 -Version 0.3.0` (run after `publish-client-installer.ps1`).
+  `$env:BUTLER_API_KEY = '…'; ./scripts/publish-itch.ps1 -Version 2026.7.2` (run after `publish-client-installer.ps1`).
 - The `windows` prefix in each channel name tags the upload as a Windows download on the itch.io page.
 
 ### The git tag is the single source of truth for the version
 
-The tag (e.g. `v0.3.0`) is the only place the version is set. It flows everywhere automatically:
+The tag (e.g. `v2026.7.2`) is the only place the version is set. It flows everywhere automatically:
 
 - CI passes it to GameCI **`versioning: Custom`**, which sets `PlayerSettings.bundleVersion`. So in-game,
   `AppShell.Version` — now a property **`=> Application.version`** (no longer a hardcoded const) — shows the

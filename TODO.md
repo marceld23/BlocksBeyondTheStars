@@ -24,7 +24,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 Published GitHub Releases (tag = version single-source-of-truth; each tag push builds the Windows installer
 trio, pushes the dedicated-server Docker image to GHCR and mirrors the builds to itch.io). Newest first.
-Per-item detail lives in the dated work log below.
+Per-item detail lives in the dated work log below. **Since 2026-07 versions are date-based (CalVer)
+`YYYY.MM.N`** — year.month.counter, valid SemVer2, one-way switch (no `1.0` ever) — see
+[ADR 0012](docs/developer/adr/0012-calver-date-based-versioning.md); releases up to v0.9.1 used SemVer.
 
 - **v0.6.2** — 2026-06-30 — *gameplay polish, oxygen tiers & a browser-client start.* **Gameplay fixes** —
   shaped blocks (sphere/pyramid/slab) now get masked silhouette icons in the hotbar/crafting instead of plain

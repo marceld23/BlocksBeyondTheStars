@@ -148,9 +148,20 @@ New-Item -ItemType Directory -Force $out | Out-Null
 # we keep WiX's clean default dialogs and use the game icon as the only branding (--icon below).
 $msiArgs = @()
 if ($Msi) {
-    # MSI ProductVersion must be purely numeric (x.x.x, each part <= 65535) — strip any pre-release suffix
-    # like "-dev" so a dev build still produces a valid MSI.
+    # MSI ProductVersion must be purely numeric x.x.x with major <= 255 and minor <= 255 (build <= 65535)
+    # — strip any pre-release suffix like "-dev" so a dev build still produces a valid MSI, and map the
+    # CalVer year down into the 255 range (2026.7.1 → 26.7.1): the game version's 4-digit year overflows
+    # the MSI major field. Only the MSI's Apps & Features entry shows the mapped form; Setup.exe, the
+    # portable zip and the Velopack feed all keep the full version.
     $msiVersion = ($Version -split '-')[0]
+    $msiParts = $msiVersion -split '\.'
+    if ([int]$msiParts[0] -gt 255) {
+        $msiParts[0] = [string]([int]$msiParts[0] - 2000)
+        $msiVersion = $msiParts -join '.'
+        if ([int]$msiParts[0] -gt 255 -or [int]$msiParts[0] -lt 0) {
+            Write-Error "Cannot map version '$Version' to a valid MSI ProductVersion (major must be <= 255)."
+        }
+    }
 
     # The AGPL license shown on the wizard's License page. Velopack requires the file to end in .txt/.md/.rtf,
     # but the repo LICENSE has no extension — copy it to a .txt next to the other build artifacts (.txt keeps
@@ -160,12 +171,23 @@ if ($Msi) {
     $licensePath = Join-Path $repo 'artifacts/LICENSE.txt'
     Copy-Item $licenseSrc $licensePath -Force
 
+    # Copyright line on the wizard's finish page (--instConclusion wants a plain-text FILE). It goes on
+    # the conclusion page, not the welcome page: --instWelcome would replace the auto-localized (DE/EN)
+    # welcome text with a fixed string, while the conclusion text is purely additive — and the © line
+    # itself is language-neutral. The year comes from the CalVer version; dev/SemVer versions (major
+    # below 2000, e.g. 0.1.0-dev) fall back to the current year.
+    $copyrightYear = [int](($Version -split '[.-]')[0])
+    if ($copyrightYear -lt 2000) { $copyrightYear = (Get-Date).Year }
+    $conclusionPath = Join-Path $repo 'artifacts/msi-conclusion.txt'
+    Set-Content -Path $conclusionPath -Value ([char]0x00A9 + " $copyrightYear JuMaVe Games") -Encoding UTF8
+
     $msiArgs = @(
         '--msi', 'true',
         '--msiVersion', $msiVersion,
-        '--instLicense', $licensePath
+        '--instLicense', $licensePath,
+        '--instConclusion', $conclusionPath
     )
-    Write-Host "MSI will be built (version $msiVersion, AGPL license page, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
+    Write-Host "MSI will be built (version $msiVersion, AGPL license page, (c) $copyrightYear conclusion line, clean WiX dialogs, game icon only)." -ForegroundColor Cyan
 }
 
 # Attribution: copy the project LICENSE + the third-party NOTICES into the player folder so every pack

@@ -146,10 +146,19 @@ problems are caught locally instead of at release time:
 ## Releases & versioning
 
 Releases are built in the cloud by [.github/workflows/release.yml](.github/workflows/release.yml) — never
-build a release locally for distribution. Cut one by pushing a SemVer tag:
+build a release locally for distribution. **Versions are date-based (CalVer) since 2026-07: `vYYYY.MM.N`**
+— year, month, then the release counter within that month (a month's third release is `v2026.8.3`; the
+next month restarts at `.1`). No leading zeros and never a fourth part: the scheme must stay valid 3-part
+SemVer2, because Velopack (and the whole update feed) parses versions as strict SemVer — `v2026.07.1`
+or `v2026.7.27.1` would be rejected/normalized. Releases up to `v0.9.1` used SemVer and count toward
+their month's counter — July 2026 already had 18 releases, so **the first CalVer release is
+`v2026.7.19`** (if it ships in July; in August it is `v2026.8.1`). The switch is
+one-way (any `0.x`/`1.x` tag would be a downgrade for every installed client and is never offered as an
+update — see [ADR 0012](docs/developer/adr/0012-calver-date-based-versioning.md)). Cut a release by
+pushing the tag:
 
 ```bash
-git tag v0.3.0 && git push origin v0.3.0
+git tag v2026.7.19 && git push origin v2026.7.19
 ```
 
 **Before tagging: refresh the in-game "What's new?" feed (#543).** The main menu shows the devblog
@@ -192,7 +201,9 @@ value. `BuildScript` writes `version.txt`; a CI guard fails the build if the bak
 committed `bundleVersion` is `0.1.0-dev` for local/dev builds. Keep `Networking/Protocol.Version` (wire
 compatibility) separate — it is not the game version. Gotchas if you touch this: GameCI *always* overrides
 `bundleVersion` (drive it via `versioning: Custom`, don't fight it with `-buildVersion`); Velopack needs
-`packVersion >= 0.0.1` (so dev is `0.1.0-dev`, not `0.0.0-*`); after `git push` wait ~20 s before
+`packVersion >= 0.0.1` (so dev is `0.1.0-dev`, not `0.0.0-*`); the WiX MSI's ProductVersion major field
+maxes out at 255, so `publish-client-installer.ps1` maps the CalVer year down for the MSI only
+(`2026.7.1` → `26.7.1` in Apps & Features — everything else shows the full version); after `git push` wait ~20 s before
 `gh workflow run` or it dispatches the previous commit. macOS *client* installers are intentionally not
 built (out of scope for now — a native macOS client would need its own graphics (Metal/Vulkan) and
 Apple code-signing/notarization work).
