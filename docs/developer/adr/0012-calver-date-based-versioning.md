@@ -28,8 +28,11 @@ zeros away, so any zero-padded scheme guarantees a mismatch between displayed an
 
 1. **Versions are `YYYY.MM.N`** — year, month (no leading zero), release counter within that
    month, restarting at `.1` each month. Example: `2026.7.1`, `2026.7.2`, then `2026.8.1`.
-   The counter counts releases *under this scheme*: the transition month starts at `.1` even
-   though earlier SemVer releases (v0.8.4–v0.9.1) also shipped in July 2026.
+   The counter counts *every* release of the month — including, in the July 2026 transition
+   month, the 18 SemVer releases that already shipped (v0.7.0 on 2026-07-05 through v0.9.1 on
+   2026-07-27). **The first CalVer release in July 2026 is therefore `v2026.7.19`.** From the
+   following month on this special case disappears: every release is a CalVer release and the
+   counter simply restarts at `.1` (August: `v2026.8.1`).
    Tags keep the `v` prefix (`v2026.7.2`) — the release trigger glob (`v*`) and the CHANGELOG
    compare links depend on it.
 2. **The scheme must remain valid 3-part SemVer2 forever**: never a fourth part, never leading

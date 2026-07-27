@@ -147,16 +147,18 @@ problems are caught locally instead of at release time:
 
 Releases are built in the cloud by [.github/workflows/release.yml](.github/workflows/release.yml) — never
 build a release locally for distribution. **Versions are date-based (CalVer) since 2026-07: `vYYYY.MM.N`**
-— year, month, then the release counter within that month (July's second release is `v2026.7.2`; August
-restarts at `v2026.8.1`). No leading zeros and never a fourth part: the scheme must stay valid 3-part
+— year, month, then the release counter within that month (a month's third release is `v2026.8.3`; the
+next month restarts at `.1`). No leading zeros and never a fourth part: the scheme must stay valid 3-part
 SemVer2, because Velopack (and the whole update feed) parses versions as strict SemVer — `v2026.07.1`
-or `v2026.7.27.1` would be rejected/normalized. Releases up to `v0.9.1` used SemVer; the switch is
+or `v2026.7.27.1` would be rejected/normalized. Releases up to `v0.9.1` used SemVer and count toward
+their month's counter — July 2026 already had 18 releases, so **the first CalVer release is
+`v2026.7.19`** (if it ships in July; in August it is `v2026.8.1`). The switch is
 one-way (any `0.x`/`1.x` tag would be a downgrade for every installed client and is never offered as an
 update — see [ADR 0012](docs/developer/adr/0012-calver-date-based-versioning.md)). Cut a release by
 pushing the tag:
 
 ```bash
-git tag v2026.7.2 && git push origin v2026.7.2
+git tag v2026.7.19 && git push origin v2026.7.19
 ```
 
 **Before tagging: refresh the in-game "What's new?" feed (#543).** The main menu shows the devblog

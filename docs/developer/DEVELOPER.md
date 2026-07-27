@@ -343,7 +343,7 @@ parses it as strict SemVer). See [ADR 0012](adr/0012-calver-date-based-versionin
 and constraints. Cut a release by pushing the tag:
 
 ```bash
-git tag v2026.7.2 && git push origin v2026.7.2
+git tag v2026.7.19 && git push origin v2026.7.19
 ```
 
 The workflow builds for Windows, Linux **and** (experimentally) macOS in parallel jobs. A tiny **`version`**

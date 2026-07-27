@@ -20,6 +20,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   auto-updates keep working across the switch. The machine-wide MSI shows the year mapped down
   (`26.x.x`) in Apps & Features because Windows Installer caps its major version field at 255 —
   all other surfaces show the full version.
+- **The MSI install wizard's finish page now shows a copyright line** (© year JuMaVe Games).
 
 ### 🔔 The game finally tells you about updates (#543)
 - **Update notice on startup.** An installed client now quietly checks for a newer release while the
