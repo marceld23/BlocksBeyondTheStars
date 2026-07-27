@@ -115,6 +115,20 @@ the session; a new `UpdateCheckOnStart` toggle in Settings → Software update o
 release notes: the notice only works FROM this version on — 0.9.x installs need one last manual
 download. Rode along (#544): the participate overlay's GitHub "link" was a dead `AddText` that only
 looked clickable — now a real button, plus a language-aware button to the game website.
+Also in this PR: **in-game "What's new?"** — `tools/devblog/export_whatsnew.py` extracts the
+bilingual devblog release posts (the DRAFT FILES `devblog-artikel*.md` are git-ignored and stay so)
+into the committed `data/whatsnew.json`; the client (`UiWhatsNew`) fetches it raw from `main` with
+the StreamingAssets copy as offline fallback, shows it via a menu bottom-bar button, and auto-opens
+it ONCE after an update (`ClientSettings.LastSeenVersion`, queued behind the update notice; fresh
+installs are stamped silently). Release procedure (run export → commit BEFORE tagging) documented in
+AGENTS.md; `WhatsNewContentTests` guards the feed's shape. Menu polish from live feedback: What's-new
+opens from a bottom-bar button next to "Mach mit" (a menu-column entry was tried and reverted on user
+preference), the settings screen's language + back buttons moved out of the scroll list into a fixed
+footer (other menu screens checked — only settings had the issue), and the pilot-name field got an
+accented backdrop + bold cyan label, edges flush with the button column. UI
+gotcha learned here: uGUI `VerticalLayoutGroup` + wrapped `Text` rows overflowed the viewport
+horizontally — the settings screen's absolute-rows + `TextGenerator(scaleFactor=1)` height
+measurement is the reliable pattern for variable-height scroll text.
 
 ### ★ Monuments: arcade arches, gates, stone circles & scannable runes (#522–#527, 2026-07-27, branch feat/monuments-runes)
 Analysed first (`analysis/monuments-arches-and-runes.md`). Ruins were the only ruin-shaped thing in the

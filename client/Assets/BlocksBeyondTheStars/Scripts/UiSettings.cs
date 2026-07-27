@@ -189,15 +189,15 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_content, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 52f;
 
-            // Language + back get their own section so the row doesn't float unlabelled at the very bottom.
-            Head(ref y, L("ui.settings.language"));
-            UiKit.AddButton(_content, _x, y, 250, 50, $"{L("ui.settings.language")}: {(S.Language == "de" ? "DE" : "EN")}",
-                () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
-            UiKit.AddButton(_content, _x + _rowW - 250, y, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings());
-            y += 50f;
-
             // Size the scroll content to the rows so the viewport can scroll to the very bottom.
             ((RectTransform)_content).sizeDelta = new Vector2(0f, y + 24f);
+
+            // Fixed footer on the panel, OUTSIDE the scroll viewport: language + back used to be the
+            // last scroll rows, so leaving the screen meant scrolling the whole list first. Rebuild()
+            // recreates them with everything else, so the language label stays current.
+            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {(S.Language == "de" ? "DE" : "EN")}",
+                () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
+            UiKit.AddButton(_root, _px + _pw - 280f, 922f, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings(), "btn_exit");
         }
 
         /// <summary>Creates a vertical ScrollRect clipped to the settings panel and returns its content transform.
@@ -207,7 +207,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var viewGo = new GameObject("SettingsScroll", typeof(RectTransform));
             viewGo.transform.SetParent(_root, false);
-            UiKit.Place(viewGo, _px, 80, _pw, 920);
+            // Stops above the fixed language/back footer (panel spans 80..1000; footer row sits at 922).
+            UiKit.Place(viewGo, _px, 80, _pw, 830);
 
             var scroll = viewGo.AddComponent<ScrollRect>();
             scroll.horizontal = false;
@@ -235,7 +236,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Visible scrollbar along the panel's right edge: shows the position in the long list and
             // lets the player jump anywhere by dragging (the wheel alone gave no overview).
-            UiKit.AddVerticalScrollbar(_root, scroll, _px + _pw - 18f, 84f, 12f, 912f);
+            UiKit.AddVerticalScrollbar(_root, scroll, _px + _pw - 18f, 84f, 12f, 822f);
             return content;
         }
 

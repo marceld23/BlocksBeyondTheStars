@@ -173,6 +173,12 @@ namespace BlocksBeyondTheStars.Client
         /// notice if the feed carries a newer release. Off = updates only via the manual settings button.</summary>
         public bool UpdateCheckOnStart = true;
 
+        /// <summary>The game version whose "What's new?" the player has seen (#543). Differs from
+        /// <see cref="AppShell.Version"/> exactly once after an update — the menu then auto-opens the
+        /// release notes and stamps this. Empty = fresh install / pre-feature settings: stamped silently,
+        /// because there is nothing "new" to catch a brand-new player up on.</summary>
+        public string LastSeenVersion = "";
+
         /// <summary>The player's name — shown to other players and keying the server-side player state.
         /// Empty by default ON PURPOSE (#221): the main menu forces a choice before playing — a silent
         /// "Pilot" default made everyone collide as Pilot in multiplayer. Existing installs keep the

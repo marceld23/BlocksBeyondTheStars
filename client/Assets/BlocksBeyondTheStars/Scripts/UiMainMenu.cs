@@ -75,8 +75,11 @@ namespace BlocksBeyondTheStars.Client
             // required so players never join the public realm anonymously. The whole block is guarded so
             // the native client (the #else below) is byte-for-byte unchanged.
             string[] webName = { shell.PlayerName };
-            UiKit.AddText(root, bx, by, bw, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(root, bx, by + 28f, bw, 44f, webName[0], v => webName[0] = v);
+            // Accented like the native menu: the name gates every play action (#221); panel edges flush
+            // with the button column, content inset — see the native branch below.
+            UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
+            UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, webName[0], v => webName[0] = v);
             var webWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             float wby = by + 112f;
@@ -175,8 +178,12 @@ namespace BlocksBeyondTheStars.Client
             // "Pilot" default meant nobody ever picked one and multiplayer names collided. The value is
             // persisted on use; the connect dialog's own name field stays as a per-join override.
             string[] natName = { shell.PlayerName };
-            UiKit.AddText(root, bx, by, bw, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(root, bx, by + 28f, bw, 44f, natName[0], v => natName[0] = v);
+            // The name is the gate for every play action (#221) — make the field read as step one, not
+            // as a side note: an accented backdrop + bold cyan label instead of the plain grey line.
+            // The panel's outer edges sit exactly on the button column (bx..bx+bw); content insets instead.
+            UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
+            UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, natName[0], v => natName[0] = v);
             var natWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             float nby = by + 112f;
@@ -226,19 +233,26 @@ namespace BlocksBeyondTheStars.Client
 #endif
 
             // --- World / server info panel (bottom-right, decorative) ---
-            UiKit.AddPanel(root, 1290f, 650f, 590f, 250f, UiKit.PanelFill);
-            UiKit.AddText(root, 1314f, 666f, 540f, 24f, shell.L("ui.menu.world_info"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            AddInfo(root, 706f, "info_mode", shell.L("ui.info.mode_title"), shell.L("ui.info.mode_desc"));
-            AddInfo(root, 770f, "info_multiplayer", shell.L("ui.info.mp_title"), shell.L("ui.info.mp_desc"));
-            AddInfo(root, 834f, "info_procedural", shell.L("ui.info.proc_title"), shell.L("ui.info.proc_desc"));
+            // Its bottom edge (672+250=922) lines up with the menu column's last entry ("Quit" ends
+            // at 434+62*7+54=922), so the two columns close on one shared baseline.
+            UiKit.AddPanel(root, 1290f, 672f, 590f, 250f, UiKit.PanelFill);
+            UiKit.AddText(root, 1314f, 688f, 540f, 24f, shell.L("ui.menu.world_info"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            AddInfo(root, 728f, "info_mode", shell.L("ui.info.mode_title"), shell.L("ui.info.mode_desc"));
+            AddInfo(root, 792f, "info_multiplayer", shell.L("ui.info.mp_title"), shell.L("ui.info.mp_desc"));
+            AddInfo(root, 856f, "info_procedural", shell.L("ui.info.proc_title"), shell.L("ui.info.proc_desc"));
 
             // --- Bottom bar ---
             // The participate / "Join in" overlay (built below); the bottom-right button reveals it.
             GameObject participate = null;
             UiKit.AddText(root, 90f, 1030f, 500f, 26f, shell.L("ui.menu.community"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(root, 660f, 1030f, 600f, 26f, shell.L("ui.splash.tagline"), 18, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            // "Mach mit" — replaces the old "Wishlist on Steam" line; opens the open-source participate panel.
-            UiKit.AddButton(root, 1620f, 1018f, 260f, 48f, shell.L("ui.menu.contribute"),
+            // "What's new?" (#543, the devblog release notes in-game — also auto-opens once after an
+            // update) + "Mach mit" (opens the open-source participate panel; replaced the old "Wishlist
+            // on Steam" line). The pair spans exactly the world-info panel above (1290..1880), so the
+            // right column closes flush.
+            UiKit.AddButton(root, 1290f, 1018f, 285f, 48f, shell.L("ui.menu.whatsnew"),
+                shell.OpenWhatsNew, "btn_credits");
+            UiKit.AddButton(root, 1595f, 1018f, 285f, 48f, shell.L("ui.menu.contribute"),
                 () => { if (participate != null) participate.SetActive(true); }, "btn_credits");
 
             // --- Connect-to-server dialog (added last so it draws on top; hidden until JOIN is pressed) ---

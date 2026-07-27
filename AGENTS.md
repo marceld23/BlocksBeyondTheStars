@@ -152,6 +152,22 @@ build a release locally for distribution. Cut one by pushing a SemVer tag:
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
+**Before tagging: refresh the in-game "What's new?" feed (#543).** The main menu shows the devblog
+release posts (menu button + auto-once after an update), served from the committed
+[data/whatsnew.json](data/whatsnew.json) — fetched raw from `main` by the client, with the
+StreamingAssets copy as offline fallback. That file does NOT update itself: after writing the DE+EN
+devblog release posts for the version, run
+
+```bash
+python tools/devblog/export_whatsnew.py
+```
+
+and commit the refreshed `data/whatsnew.json` **before** pushing the tag (a content test guards the
+file's shape). The script reads the devblog drafts `tools/devblog/devblog-artikel.md` (DE) and
+`devblog-artikel-en.md` (EN) — those are **git-ignored on purpose (private drafts) and must stay
+git-ignored**; only the extracted JSON is committed. A version is exported only when the release post
+exists in BOTH languages.
+
 That triggers three jobs: a GameCI Linux Docker job cross-builds the `StandaloneWindows64` player (Mono
 backend), then a `windows-latest` job builds the launcher and runs `scripts/publish-client-installer.ps1 -Msi`
 to attach **Setup.exe** (per-user, no admin), the **WiX MSI** (machine-wide/IT) and **Portable.zip** to a

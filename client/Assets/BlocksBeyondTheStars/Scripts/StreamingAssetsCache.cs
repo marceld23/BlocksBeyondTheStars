@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
             "ship_modules.json",
             "ships.json",
             "station_templates.json",
+            "whatsnew.json",
             "stories/vega_protocol/locales/de.json",
             "stories/vega_protocol/locales/en.json",
             "stories/vega_protocol/story.json",

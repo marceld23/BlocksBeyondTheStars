@@ -837,7 +837,17 @@ namespace BlocksBeyondTheStars.Client
 
         private GameObject _uiMenu;
         private GameObject _uiUpdateNotice;
+        private GameObject _uiWhatsNew;
+        private bool _whatsNewOpen;
+        private bool _whatsNewAutoDone;
         private GameObject _uiLoading;
+
+        /// <summary>Opens the "What's new?" dialog over the main menu (menu button, and the one-shot
+        /// auto-open after an update). Spawned/torn down by <see cref="Update"/> with the phase.</summary>
+        public void OpenWhatsNew() => _whatsNewOpen = true;
+
+        /// <summary>Closes the "What's new?" dialog (its Back button).</summary>
+        public void CloseWhatsNew() => _whatsNewOpen = false;
         private GameObject _uiSettings;
         private GameObject _uiCredits;
         private GameObject _uiEditors;
@@ -1073,6 +1083,7 @@ namespace BlocksBeyondTheStars.Client
             if (Phase == ShellPhase.MainMenu && _uiMenu == null)
             {
                 _uiMenu = UiMainMenu.Build(this);
+                WhatsNew.BeginFetch(this); // one-per-session background load of the release notes (#543)
 
                 // Land the bombastic intro sting on the first menu reveal (logo + full UI), rather
                 // than during the mandatory black Unity engine splash that precedes it.
@@ -1100,6 +1111,36 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_uiUpdateNotice);
                 _uiUpdateNotice = null;
+            }
+
+            // One-shot "What's new?" after an update (#543): once the release notes are loaded and the
+            // update notice is settled (none found, or dismissed — it has priority), compare the last
+            // seen version. A fresh install is stamped silently — its player has no "new" to catch up on.
+            if (Phase == ShellPhase.MainMenu && !_whatsNewAutoDone && WhatsNew.Entries != null
+                && _uiUpdateNotice == null
+                && (ClientUpdater.NoticeVersion.Length == 0 || ClientUpdater.NoticeDismissed))
+            {
+                _whatsNewAutoDone = true;
+                string seen = Settings.LastSeenVersion;
+                if (seen != Version)
+                {
+                    Settings.LastSeenVersion = Version;
+                    Settings.Save();
+                    if (seen.Length > 0 && WhatsNew.Entries.Count > 0)
+                    {
+                        OpenWhatsNew();
+                    }
+                }
+            }
+
+            if (Phase == ShellPhase.MainMenu && _whatsNewOpen && _uiWhatsNew == null)
+            {
+                _uiWhatsNew = UiWhatsNew.Build(this);
+            }
+            else if ((Phase != ShellPhase.MainMenu || !_whatsNewOpen) && _uiWhatsNew != null)
+            {
+                Destroy(_uiWhatsNew);
+                _uiWhatsNew = null;
             }
 
             if (Phase == ShellPhase.Loading && _uiLoading == null)

@@ -23,10 +23,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - Applies from this release onward: older installs (0.9.1 and before) don't carry the check yet, so
   they need one last manual download.
 
+### 📰 "What's new?" in the main menu (#543)
+- **The devblog release notes are readable in-game now** — a new bottom-bar button opens them,
+  localized in German and English, newest first. After an update the notes open **once** by
+  themselves, so you see what changed without hunting for a blog post.
+- Sourced from the same posts the website devblog publishes; the game fetches the latest feed online
+  and falls back to the notes bundled with the build when offline.
+
 ### 🔗 Fixed
 - **The GitHub link in the "Join in" overlay actually opens now** (#544) — it was link-styled text
   with no click handler on every desktop platform. It's a real button now, joined by a second one
   that opens the game website in your language.
+- **Settings: language and back are always visible now** — they used to be the last rows of the
+  scroll list, so leaving the screen meant scrolling the whole way down first. They sit in a fixed
+  footer under the list now.
+- **The pilot-name field on the main menu stands out** — an accented backdrop and a bold label make
+  the required first step obvious instead of a grey side note.
 
 ## [0.9.1] — 2026-07-27
 
