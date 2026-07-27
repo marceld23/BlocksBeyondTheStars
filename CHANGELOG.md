@@ -13,6 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.19] — 2026-07-28
+
+The constellation release — and the first under the date-based version scheme (`YYYY.MM.N`, see
+[ADR 0012](docs/developer/adr/0012-calver-date-based-versioning.md)): after v0.9.1 comes
+v2026.7.19, July's nineteenth release. Newly created worlds roll star-system archetypes from lone
+giants to pirate havens, the installed client finally announces new versions by itself from an
+official update feed, and the devblog release notes are readable in-game.
+
 ### 🌌 Star systems have character now (#546–#549)
 - **Every system rolls an archetype** in newly created worlds: alongside the familiar mix there are
   **Lone Giants** (one oversized planet with 4–8 moons), **Swarms** (many small planets, hardly any
@@ -873,7 +881,11 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...HEAD
+[2026.7.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...v2026.7.19
+[0.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.0...v0.9.1
+[0.9.0]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.7...v0.9.0
+[0.8.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.6...v0.8.7
 [0.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.3...v0.8.4
