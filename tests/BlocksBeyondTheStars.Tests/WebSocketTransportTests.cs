@@ -152,7 +152,14 @@ public sealed class WebSocketTransportTests : IDisposable
     public async Task Gateway_RejectsConnectionsBeyondTheCapAsync()
     {
         int port = FreeTcpPort();
-        using var transport = new WebSocketServerTransport("127.0.0.1", maxConnections: 2);
+
+        // The long handshakeTimeout is load-proofing, not a detail: ws1/ws2 never send, so with the default
+        // 15 s window the transport reaps them as slow-loris idlers — and on a loaded 2-core CI runner the
+        // suite once stretched the gap before ws3's connect past that window (failed 2026-07-27 after
+        // 2 m 56 s: both slots free again, ws3 accepted, "no exception was thrown"). This test is about the
+        // connection CAP; the handshake window has its own test right below.
+        using var transport = new WebSocketServerTransport("127.0.0.1", maxConnections: 2,
+            handshakeTimeout: TimeSpan.FromMinutes(10));
         transport.Start(port);
 
         using var ws1 = new ClientWebSocket();
