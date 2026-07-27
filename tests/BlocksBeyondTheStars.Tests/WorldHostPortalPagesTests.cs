@@ -252,6 +252,30 @@ public sealed class WorldHostPortalPagesTests
             "the delete form must sit inside its own collapsed <details>");
     }
 
+    // ---------------- Fleet admin: stop vs. emergency kill (issue #519) ----------------
+
+    [Fact]
+    public void AdminPage_OffersAHardKill_OnlyWhileAnInstanceIsUp_AndConfirmsFirst()
+    {
+        string running = WorldHostAdminPages.Index(
+            Config, new[] { AdminRow("Justus' Welt", WorldStatus.Running) }, Array.Empty<ReportRecord>(),
+            Array.Empty<AccountRecord>(), null, null);
+
+        Assert.Contains("action='/admin/worlds/aabbccddee11/kill'", running, StringComparison.Ordinal);
+        Assert.Contains("return confirm(", running, StringComparison.Ordinal);
+
+        // The confirm text carries the world ID, never the display name: an apostrophe in a player-chosen
+        // name would break the JS string and silently skip the confirmation.
+        Assert.Contains("Hard kill world aabbccddee11?", running, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hard kill world Justus", running, StringComparison.Ordinal);
+
+        // Nothing to kill on a sleeping world — that cell only offers "wake".
+        string stopped = WorldHostAdminPages.Index(
+            Config, new[] { AdminRow("Justus' Welt") }, Array.Empty<ReportRecord>(),
+            Array.Empty<AccountRecord>(), null, null);
+        Assert.DoesNotContain("/kill'", stopped, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AdminPage_LabelsArcadeWorldDeletionAsAReset()
     {
@@ -272,7 +296,9 @@ public sealed class WorldHostPortalPagesTests
     [InlineData("confirm", "did not match")]
     [InlineData("deleted", "still on disk")]
     [InlineData("purged", "saves erased")]
-    public void AdminPage_ReportsTheOutcomeOfTheLastDelete(string notice, string expected)
+    [InlineData("stopping", "draining and saving")]
+    [InlineData("killed", "no drain, no save")]
+    public void AdminPage_ReportsTheOutcomeOfTheLastAction(string notice, string expected)
     {
         string html = WorldHostAdminPages.Index(
             Config, Array.Empty<AdminWorldRow>(), Array.Empty<ReportRecord>(),

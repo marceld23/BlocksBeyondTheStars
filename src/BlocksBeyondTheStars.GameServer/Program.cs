@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Runtime.InteropServices;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -149,17 +150,29 @@ TaskScheduler.UnobservedTaskException += (_, e) =>
 };
 
 // Registered BEFORE Start() on purpose (issue #243): Start() runs the initial world generation, which
-// can take a while on a freshly created world — a stop arriving in that window (docker stop → SIGINT)
-// must not hit the runtime's default SIGINT handling (immediate exit, no save). RequestStop() latches
-// the request; Run() notices it on entry and goes straight to the drain + save.
-Console.CancelKeyPress += (_, e) =>
+// can take a while on a freshly created world — a stop arriving in that window must not hit the runtime's
+// default handling (immediate exit, no save). RequestStop() latches the request; Run() notices it on entry
+// and goes straight to the drain + save.
+//
+// SIGTERM is the signal that matters in production: `docker stop` sends it, and it is the one a shell can
+// never take away from us. This used to hang off Console.CancelKeyPress (SIGINT) alone, which was silently
+// DEAD in the container (issue #519): POSIX has a non-interactive shell start background jobs with
+// SIGINT/SIGQUIT set to SIG_IGN, that disposition survives exec, and the runtime keeps an inherited SIG_IGN
+// instead of installing a handler. Result: every hosted-world stop ran past Docker's grace period into a
+// SIGKILL, losing everything since the last autosave. PosixSignalRegistration also replaces CancelKeyPress
+// for interactive Ctrl+C — SIGINT is what the console sends on every platform we ship.
+void OnStopSignal(PosixSignalContext ctx)
 {
-    // Only REQUEST the stop here (this runs on the SIGINT handler thread). The run loop notices the flag,
-    // drains + saves on the tick thread, then returns from Run() — so the save never races a live Tick().
-    e.Cancel = true;
-    logger.Info("Shutdown requested...");
+    // Only REQUEST the stop here (this runs on the signal-handling thread) and cancel the runtime's own
+    // termination, or the process would exit while the tick thread is still draining. The run loop notices
+    // the flag, drains + saves on the tick thread, then returns from Run() — the save never races a Tick().
+    ctx.Cancel = true;
+    logger.Info($"Shutdown requested ({ctx.Signal})...");
     server.RequestStop();
-};
+}
+
+using var sigTerm = TryHandleSignal(PosixSignal.SIGTERM, OnStopSignal);
+using var sigInt = TryHandleSignal(PosixSignal.SIGINT, OnStopSignal);
 
 // Graceful stop via stdin, for the bundled singleplayer host (--stdin-stop). The in-game client can't send
 // SIGINT to this child process on Windows, and Process.Kill() would tear us down BEFORE the drain + save —
@@ -236,6 +249,21 @@ else if (pendingCrashes > 0)
 logger.Info("Press Ctrl+C to stop the server.");
 server.Run(); // returns once the shutdown request has been drained + saved on the tick thread
 return 0;
+
+// Registers a graceful-stop handler for one signal. Unlike Console.CancelKeyPress this installs the handler
+// unconditionally, so an inherited SIG_IGN (see the SIGTERM comment above) cannot silently disable it.
+// Null when the platform has no such signal — that host simply keeps the remaining stop paths.
+static PosixSignalRegistration? TryHandleSignal(PosixSignal signal, Action<PosixSignalContext> handler)
+{
+    try
+    {
+        return PosixSignalRegistration.Create(signal, handler);
+    }
+    catch (PlatformNotSupportedException)
+    {
+        return null;
+    }
+}
 
 // Resolves the content directory: configured path, else next to the executable, else by
 // walking up the tree (developer runs from the repository).

@@ -223,6 +223,8 @@ public static class WorldHostAdminPages
             "deleted" => "World deleted. Its saves are still on disk.",
             "purged" => "World deleted and its saves erased.",
             "operator" => "Nothing changed — operator accounts cannot be banned (a locked-out operator could not lift it again).",
+            "stopping" => "World marked stopped. The instance is draining and saving in the background — it can take up to three minutes to disappear from `docker ps`.",
+            "killed" => "World HARD KILLED — no drain, no save. Everything since its last autosave is gone.",
             _ => null,
         };
         if (noticeText is { })
@@ -251,9 +253,16 @@ public static class WorldHostAdminPages
                 string players = w.Status == WorldStatus.Running
                     ? (row.JoinedPlayers is { } n ? $"{n}/{maxPlayers}" : "?")
                     : "—";
+                // `kill` is deliberately last and confirmed: it is the emergency lever for an instance that
+                // will not go down, and it costs everything since the world's last autosave.
                 string action = w.Status is WorldStatus.Running or WorldStatus.Starting
                     ? $"<form method='post' action='/admin/worlds/{w.Id}/restart' style='display:inline'><button title='warn players, then stop after a 10-minute countdown'>restart in 10 min</button></form> " +
-                      $"<form method='post' action='/admin/worlds/{w.Id}/stop' style='display:inline'><button class='danger' title='stop immediately, players get no warning'>stop</button></form>"
+                      $"<form method='post' action='/admin/worlds/{w.Id}/stop' style='display:inline'><button class='danger' title='stop immediately with a clean save; players get no warning'>stop</button></form> " +
+                      $"<form method='post' action='/admin/worlds/{w.Id}/kill' style='display:inline' " +
+                      // The world id (server-generated hex) goes into the JS string, never the display name:
+                      // an apostrophe in a player-chosen name would break the handler and skip the confirm.
+                      $"onsubmit=\"return confirm('Hard kill world {w.Id}?\\n\\nSIGKILL - no save. Everything since its last autosave is lost. Only use this when a normal stop does not work.')\">" +
+                      $"<button class='danger' title='EMERGENCY: SIGKILL, no drain, no save — data since the last autosave is lost'>kill</button></form>"
                     : $"<form method='post' action='/admin/worlds/{w.Id}/wake'><button>wake</button></form>";
                 sb.Append($"<tr><td><a href='/admin/worlds/{w.Id}'><b>{E(w.DisplayName)}</b></a>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
                           $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span></td><td>{players}</td>" +
@@ -261,6 +270,10 @@ public static class WorldHostAdminPages
             }
 
             sb.Append("</table>");
+            sb.Append("<p class='hint'><b>stop</b> saves the world and shuts the instance down cleanly; it is marked " +
+                      "stopped here at once while the container drains behind it (up to ~3 min). <b>kill</b> is the " +
+                      "emergency lever for an instance that will not go down — SIGKILL, no save, everything since the " +
+                      "last autosave is lost.</p>");
             sb.Append("<p class='hint'>Deleting stops the instance and drops the world from the registry. " +
                       "<b>delete</b> leaves its saves in the worlds directory (recoverable by hand), " +
                       "<b>purge saves</b> erases them including the archive copy. Both need the world's " +

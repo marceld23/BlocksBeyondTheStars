@@ -24,6 +24,12 @@ it as `http://ai:8077` on the shared network, and the LLM provider's API key nev
 `/opt/bbs/ai/.env`. The operator admin UI lives at `https://<portal>/admin`
 (`BBS_WH_ADMIN_USER`/`_PASSWORD`) and at `https://<reports>/admin` for the bug-report inbox.
 
+In the instance table, **stop** is the normal lever: it saves the world and shuts the container down
+cleanly. The row flips to `stopped` immediately while the container drains behind it (up to the ~180 s
+stop-timeout), so a world can still show up in `docker ps` for a moment after the page says stopped.
+**kill** next to it is the emergency lever for an instance that will not go down — `docker kill`, no
+drain, no save, everything since the world's last autosave is lost.
+
 ## Secrets model
 
 - GitHub holds exactly **one** deploy secret: `DEPLOY_SSH_KEY` (environment `production`), a

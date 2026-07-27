@@ -6437,6 +6437,44 @@ still exposes ore instead of none.
 **Retroactive**: a body's `PlanetType` is regenerated deterministically, never persisted, so existing worlds'
 asteroids change type and relief — a one-time change like #492/#501, and release-note material.
 
+---
+
+## ✅ Done (2026-07-27): hosted worlds were hard-killed on every operator stop — no save (#519)
+
+Analysis: `analysis/hosted-world-stop-signal.md`. Pressing **stop** in `/admin` hung the page for two minutes
+and the world still looked alive afterwards. Measured on production: the instance sat out Docker's full 180 s
+grace period and was **SIGKILLed (exit 137)** — the game server never reached its drain + save, so every
+externally triggered stop (admin `stop`, `restart in 10 min`, and each image redeploy that restarts world
+containers) silently lost everything since the last autosave. Idle shutdowns were never affected: they call
+`RequestStop` internally and exit 0, which is why this stayed invisible for months.
+
+**Root cause, read out of `/proc/<pid>/status` in a live container** — the game server has SIGINT in `SigIgn`
+(`…1006`), the API sidecar does not (`…1000`). `docker/entrypoint.sh` starts the server as a background job,
+POSIX has a non-interactive shell set SIGINT/SIGQUIT to `SIG_IGN` for asynchronous commands, the disposition
+survives `exec`, and .NET **keeps an inherited `SIG_IGN` instead of installing its own handler**. So
+`Console.CancelKeyPress` — the only wired shutdown path in the container — could never fire, and the
+entrypoint's `kill -INT` was a permanent no-op. Restoring SIGINT is not possible either: a non-interactive
+shell may not re-trap a signal that was ignored on entry.
+
+**Fix.** The server now handles **SIGTERM** (and SIGINT) through `PosixSignalRegistration` with
+`Cancel = true` → `RequestStop()` → drain + save on the tick thread; that API installs its handler
+unconditionally, and SIGTERM is the one signal a shell never takes away from a background job. The entrypoint
+forwards SIGTERM instead of SIGINT. Verified in a container: `docker stop` now takes **1 s and exits 0** with
+`Shutdown requested (SIGTERM)... / Server stopped and world saved.` in the log, instead of 180 s and exit 137.
+
+**Admin UI.** `POST /admin/worlds/{id}/stop` and the owner's `POST /api/worlds/{id}/stop` no longer run
+`docker stop` on the request thread — the world is marked stopped in the registry at once and the container
+drains behind it, so the page answers immediately instead of timing out the browser. New **`kill`** button
+next to `stop`: SIGKILL via `docker kill`, confirmed in the browser first and labelled as the emergency lever
+it is (no drain, no save). The confirmation text carries the world **id**, never the display name — an
+apostrophe in a player-chosen name would break the JS string and skip the confirm.
+
+Tests: `WorldStopAndKillTests` (background stop returns before the drain does and marks the world stopped at
+once; kill never touches the blocking stop path) plus admin-page rendering tests for the new button and
+notices.
+
+---
+
 ## ✅ Done (2026-07-26): "why can't I play any more?" — ban notices, timeouts, world-owner bans (#496/#497)
 
 Analysis: `analysis/ban-notice-and-player-identity.md`. A banned account used to sign in completely normally

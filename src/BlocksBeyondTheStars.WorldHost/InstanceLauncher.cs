@@ -17,6 +17,12 @@ public interface IInstanceLauncher
     /// <summary>Stops the container (triggering the server's clean drain+save via SIGTERM). Idempotent.</summary>
     void Stop(string containerId);
 
+    /// <summary>Kills the container outright — SIGKILL, no drain, no save, everything since the last
+    /// autosave is lost. The operator's emergency lever for an instance that refuses to go down (issue
+    /// #519); never the normal path. Idempotent; the default falls back to <see cref="Stop"/> so test
+    /// doubles that do not model the difference keep working.</summary>
+    void Kill(string containerId) => Stop(containerId);
+
     /// <summary>Removes a world's container OBJECT (not just stops it). Instances deliberately run
     /// without <c>--rm</c> so a sleeping world's logs stay inspectable, and the stale object is normally
     /// cleaned by the next wake — a DELETED world never wakes again, so its object (writable layer +
@@ -177,6 +183,18 @@ public sealed class DockerCliLauncher : IInstanceLauncher
         }
 
         Run(new List<string> { "stop", containerId }); // best effort; "no such container" is fine
+    }
+
+    public void Kill(string containerId)
+    {
+        if (string.IsNullOrEmpty(containerId))
+        {
+            return;
+        }
+
+        // `kill` (not `stop -t 0`): SIGKILL right away, no grace period to sit through. Returns as soon as
+        // the daemon has signalled the container, so this one may stay on the request path.
+        Run(new List<string> { "kill", containerId }); // best effort; "no such container" is fine
     }
 
     public void Remove(string worldId)

@@ -156,15 +156,21 @@ else
 fi
 
 # --- game server: the critical foreground process ---
+# NOTE (issue #519): this is a background job, and POSIX requires a non-interactive shell to start
+# asynchronous (`&`) commands with SIGINT/SIGQUIT set to SIG_IGN. That disposition survives exec and .NET
+# keeps an inherited SIG_IGN instead of installing its own handler — so the server can NOT be stopped with
+# SIGINT from here, and trying to restore it is futile too (a non-interactive shell may not re-trap a signal
+# that was ignored on entry). Sending SIGINT is exactly what this script used to do; the world was never
+# saved and every `docker stop` ended in a SIGKILL after the grace period.
 "$APP_DIR/BlocksBeyondTheStars.GameServer" &
 SERVER_PID=$!
 log "game server started (pid $SERVER_PID); admin supervisor (pid $API_SUPERVISOR_PID)"
 
-# `docker stop` delivers SIGTERM, but the server's clean drain+save path is wired to SIGINT
-# (Console.CancelKeyPress). Translate TERM/INT into SIGINT for the server so the world is always saved.
+# So: forward SIGTERM — the one signal a shell never takes away from a background job, and the one
+# `docker stop` sends anyway. The server handles it directly (PosixSignalRegistration) and drains + saves.
 shutdown() {
-  log "shutdown requested -> SIGINT to game server (clean save)"
-  kill -INT "$SERVER_PID" 2>/dev/null || true
+  log "shutdown requested -> SIGTERM to game server (clean save)"
+  kill -TERM "$SERVER_PID" 2>/dev/null || true
 }
 trap shutdown TERM INT
 

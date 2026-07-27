@@ -872,6 +872,9 @@ app.MapPost("/admin/ban", async (HttpContext ctx) =>
     return Results.Redirect("/admin");
 });
 
+// Stop an instance. The `docker stop` runs OFF the request path (issue #519): it waits out the drain +
+// save and cannot be allowed to hold the admin request for two minutes — the old inline version returned
+// so late that the browser had already given up, which read as "stop does nothing".
 app.MapPost("/admin/worlds/{id}/stop", (HttpContext ctx, string id) =>
 {
     if (GuardAdminUi(ctx) is { } denied)
@@ -881,11 +884,29 @@ app.MapPost("/admin/worlds/{id}/stop", (HttpContext ctx, string id) =>
 
     if (HostRegistry.IsValidWorldId(id) && registry.GetWorld(id) is { } world)
     {
-        orchestrator.StopWorld(world);
-        log.LogInformation("Admin UI: world {Id} stopped.", world.Id);
+        orchestrator.StopWorldInBackground(world);
+        log.LogInformation("Admin UI: world {Id} stopping (draining in the background).", world.Id);
     }
 
-    return Results.Redirect("/admin");
+    return Results.Redirect("/admin?notice=stopping");
+});
+
+// Emergency hard kill: SIGKILL, no drain, no save. For an instance that will not go down on its own —
+// everything since the last autosave is lost, so the UI states that plainly and asks for a confirmation.
+app.MapPost("/admin/worlds/{id}/kill", (HttpContext ctx, string id) =>
+{
+    if (GuardAdminUi(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    if (HostRegistry.IsValidWorldId(id) && registry.GetWorld(id) is { } world)
+    {
+        orchestrator.KillWorld(world);
+        log.LogWarning("Admin UI: world {Id} HARD KILLED (no save).", world.Id);
+    }
+
+    return Results.Redirect("/admin?notice=killed");
 });
 
 // Ban/unban a glitch.fun install id (the arcade channel's ban lever — guests have no account). A ban
@@ -986,8 +1007,9 @@ app.MapPost("/admin/worlds/{id}/wake", async (HttpContext ctx, string id) =>
 // Delete a world from the fleet overview. Guarded by a typed confirmation (the world's display name)
 // checked HERE rather than in the browser — the delete button sits next to `stop` in a narrow table cell
 // and there is no undo. `purge=true` erases the saves as well; the plain delete keeps them on disk.
-// Deleting a RUNNING world is allowed and blocks while `docker stop` drains it, exactly like the stop
-// button. On a mismatch nothing happens and the page says so.
+// Deleting a RUNNING world is allowed and — unlike the stop button — deliberately still BLOCKS while
+// `docker stop` drains it: the container object is removed and the registry row dropped right after, so
+// the stop must be finished before we get there. On a mismatch nothing happens and the page says so.
 app.MapPost("/admin/worlds/{id}/delete", async (HttpContext ctx, string id) =>
 {
     if (GuardAdminUi(ctx) is { } denied)
@@ -1350,7 +1372,9 @@ app.MapPost("/api/worlds/{id}/stop", (HttpContext ctx, string id) =>
         return Results.Forbid();
     }
 
-    orchestrator.StopWorld(world);
+    // Off the request path for the same reason as the admin button (issue #519): the owner's portal call
+    // must not sit through the instance's drain + save.
+    orchestrator.StopWorldInBackground(world);
     return Results.Ok();
 });
 

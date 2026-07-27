@@ -388,10 +388,16 @@ onto the .NET 10 ASP.NET runtime image and runs them through
 - the **AI text backend** (Python) is baked in but only started when you provide its `.env` (below) —
   also a best-effort, auto-restarting sidecar.
 
-`docker stop` sends `SIGTERM`; the entrypoint translates that into the `SIGINT` the server's clean
-drain-and-save path listens for, so the world is always saved on shutdown (give it time with a
-`stop_grace_period`/`--stop-timeout` of ~180 s — generous enough that even a stop during the initial
-world generation of a brand-new world still ends in a clean save instead of a SIGKILL).
+`docker stop` sends `SIGTERM`, which the server handles directly: it drains and saves the world, then
+exits 0. Give it time with a `stop_grace_period`/`--stop-timeout` of ~180 s — generous enough that even a
+stop during the initial world generation of a brand-new world still ends in a clean save instead of a
+SIGKILL.
+
+Do **not** rewire the entrypoint to send `SIGINT` instead (issue #519): the game server runs as a shell
+background job, POSIX has a non-interactive shell start those with `SIGINT`/`SIGQUIT` set to `SIG_IGN`, that
+disposition survives `exec`, and .NET keeps an inherited `SIG_IGN` rather than installing its own handler.
+A `SIGINT` sent from here is silently discarded and the container ends up SIGKILLed after the grace period
+with everything since the last autosave lost. `SIGTERM` is the one signal a shell never takes away.
 
 ### Try it locally (Docker Desktop)
 

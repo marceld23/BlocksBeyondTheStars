@@ -308,10 +308,48 @@ public sealed class WorldOrchestrator
     }
 
     /// <summary>Stops a world's instance on request (the owner's "stop now"; the usual path is the
-    /// instance's own idle shutdown).</summary>
+    /// instance's own idle shutdown). BLOCKS until the container is down — use
+    /// <see cref="StopWorldInBackground"/> on anything that answers an HTTP request.</summary>
     public void StopWorld(WorldRecord world)
     {
         _launcher.Stop(world.ContainerId);
+        _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
+    }
+
+    /// <summary>Same stop, off the request path (issue #519). `docker stop` waits out the container's
+    /// stop-timeout (180 s) while the instance drains and saves, and the CLI wrapper waits 120 s on top —
+    /// doing that inline meant the admin UI hung for two minutes and the browser gave up before the
+    /// redirect ever arrived. The registry is marked stopped IMMEDIATELY so the operator's next page
+    /// render is truthful; the container goes down behind it.</summary>
+    public void StopWorldInBackground(WorldRecord world)
+    {
+        string containerId = world.ContainerId; // captured before SetWorldStatus clears it
+        _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
+        BackgroundStopForTest = Task.Run(() =>
+        {
+            try
+            {
+                _launcher.Stop(containerId);
+            }
+            catch (InvalidOperationException)
+            {
+                // The CLI could not even be started (no docker on this host). Nobody is awaiting this task,
+                // so swallow it exactly like the launcher's own best-effort stop rather than leaving a
+                // faulted task nobody observes; the reaper still reconciles the container state.
+            }
+        });
+    }
+
+    /// <summary>Test seam: the drain started by the last <see cref="StopWorldInBackground"/>, so a test can
+    /// await it instead of racing it. Nothing in production reads this — the whole point is not to wait.</summary>
+    public Task? BackgroundStopForTest { get; private set; }
+
+    /// <summary>Emergency lever: kills the instance outright (SIGKILL, no drain, no save) for a container
+    /// that will not go down on its own. Everything since the last autosave is lost, so this is the
+    /// operator's last resort, never the normal stop. Fast enough to stay on the request path.</summary>
+    public void KillWorld(WorldRecord world)
+    {
+        _launcher.Kill(world.ContainerId);
         _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
     }
 
