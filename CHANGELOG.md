@@ -11,6 +11,27 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🌌 Star systems have character now (#546–#549)
+- **Every system rolls an archetype** in newly created worlds: alongside the familiar mix there are
+  **Lone Giants** (one oversized planet with 4–8 moons), **Swarms** (many small planets, hardly any
+  moons), **Belts** (asteroid fields with barely a planet), **Hubs** (guaranteed stations and busy
+  trade lanes), **Desolate** systems (empty, silent space), **Pirate Havens** (always lawless — no
+  stations, more camps, more wrecks) and **Twin Worlds** (two like-sized planets on close orbits).
+  The home system never rolls the hostile/empty archetypes, so a fresh start stays friendly (#546).
+- **Planets genuinely differ in size now** (#549): archetypes bias the walkable circumference —
+  giants reach 16000 blocks around, swarm dwarfs go down to 4000 (the classic band is 5000–12000) —
+  and the orbit view, the sky and gravity all reflect it.
+- **The inhabitants follow the archetype** (#547): trader traffic, pirate-space flags, bandit-camp
+  odds, ambient drones/UFOs and wreck frequency all read the system's character; the previously dead
+  **Danger** world option now scales hostile encounter odds globally. The synthesised fallback
+  station only appears in the home system anymore — a Desolate system out there really has none.
+- **The space view keeps up** (#548): moons stack on their own orbit rings around their true parent
+  planet (a giant's 8 moons read as a family, not one crowded shell), and the from-the-surface sky
+  sizes bodies by their real circumference, capped at the 14 most prominent.
+- **Existing worlds are completely untouched**: variance only applies to worlds created from this
+  release on (the galaxy re-derives from the seed, so changing counts on an old save would orphan
+  visited worlds — bias 0 and the Standard archetype reproduce the old layout bit-for-bit).
+
 ### 🔔 The game finally tells you about updates (#543)
 - **Update notice on startup.** An installed client now quietly checks for a newer release while the
   splash screens play and, if one exists, offers it on the main menu: *Install now* downloads and

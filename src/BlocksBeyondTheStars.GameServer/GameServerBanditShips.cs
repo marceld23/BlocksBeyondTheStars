@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -38,10 +39,27 @@ public sealed partial class GameServer
         && !_storyState.GuardianDefeated;
 
     /// <summary>Deterministic "pirate space" flag per star system (trader-traffic pattern): roughly a
-    /// quarter of all systems, always the same ones for a given save.</summary>
+    /// quarter of all systems, always the same ones for a given save. With system variance (#547) the
+    /// archetype tilts the odds — a Pirate Haven IS pirate space, patrolled hub space almost never is;
+    /// Standard keeps the classic 25 so pre-variance saves are untouched.</summary>
     private bool BanditSystem(string systemId)
-        => !string.IsNullOrEmpty(systemId)
-           && (int)(((ulong)(_meta.Seed ^ WorldGenerator.StableHash("banditspace:" + systemId))) % 100) < 25;
+    {
+        if (string.IsNullOrEmpty(systemId))
+        {
+            return false;
+        }
+
+        int threshold = SystemArchetypeOf(systemId) switch
+        {
+            SystemArchetype.PirateHaven => 100,
+            SystemArchetype.Belt => 35, // good ambush cover between the rocks
+            SystemArchetype.Hub => 5,
+            SystemArchetype.Desolate => 15,
+            SystemArchetype.LoneGiant => 20,
+            _ => 25,
+        };
+        return (int)(((ulong)(_meta.Seed ^ WorldGenerator.StableHash("banditspace:" + systemId))) % 100) < threshold;
+    }
 
     private string SystemIdOfInstance(SpaceInstance instance)
     {
@@ -68,6 +86,9 @@ public sealed partial class GameServer
                     AlienActivity.Extreme => 0.70,
                     _ => 0.0,
                 };
+                // #547: the world's Danger option scales the ambush odds on top of the rule slider
+                // (Normal = ×1.0, i.e. exactly the old chance; Off disables ambushes entirely).
+                chance = System.Math.Min(0.9, chance * _meta.Description.Danger.DangerFactor());
                 if (_banditRng.NextDouble() < chance)
                 {
                     instance.BanditAmbushAt = _uptime + BanditAmbushDelayMin

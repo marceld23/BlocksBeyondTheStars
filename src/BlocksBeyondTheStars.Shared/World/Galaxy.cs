@@ -52,6 +52,13 @@ public sealed class CelestialBody
     /// <summary>The body this one orbits: a moon's parent planet, else empty (planets/asteroids orbit the
     /// star at the system origin). Lets the client centre a moon's orbit on its (also-moving) planet.</summary>
     public string ParentId { get; set; } = string.Empty;
+
+    /// <summary>Size bias in [-1, 1] fed into <see cref="WorldConstants.CircumferenceFor(string,
+    /// WorldConstants.WorldSizeClass, float)"/> — set by the system archetype (#549: a lone giant is
+    /// genuinely huge, swarm worlds small, twins matched). 0 (the default, and the value for every body
+    /// of a pre-variance save) keeps the classic hashed size exactly. Not persisted: like the rest of
+    /// the galaxy it re-derives deterministically from the seed.</summary>
+    public float SizeBias { get; set; }
 }
 
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>

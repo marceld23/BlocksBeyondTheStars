@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1219 server + 145 client passing** (2026-07-27). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1228 server + 145 client passing** (2026-07-27). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -6465,6 +6465,33 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-07-27): star system archetypes — high per-system variance (#546–#549)
+
+Full analysis in `analysis/star-system-variance.md`. Every system in a NEWLY created world rolls a
+character class (`SystemArchetypes.cs`, Hash01 salt 500): Standard 30 / Lone Giant 12 / Swarm 12 /
+Belt 10 / Hub 10 / Desolate 12 / Pirate Haven 8 / Twin Worlds 6 — shaping planet/moon/asteroid/
+station/wreck rolls in `UniverseGenerator` (#546), per-body size via `CelestialBody.SizeBias` →
+`CircumferenceFor(key, class, bias)` with an extended 4000–16000 planet band (#549), and the
+inhabitants at runtime — trader traffic, pirate flag, camp odds, drones/UFOs, plus the previously
+dead `Danger` option as a global hostility multiplier (#547). Client: moons ladder outward on their
+own orbit slots around their TRUE `ParentId` parent (the nearest-planet scan mis-parented under
+varied sizes), the sky view sizes bodies by real circumference and caps at the 14 most prominent
+(#548).
+
+Hard-won invariants to keep:
+- **`SystemVariance` defaults false on `WorldDescription`** (old saves regenerate byte-identically —
+  count changes would orphan visited worlds) **and true on `ServerConfig.World`** (new-world path).
+  The Standard archetype reproduces the legacy rng draw sequence EXACTLY — the station gate draw
+  happens even when the archetype overrides the outcome, to keep that alignment.
+- **`CircumferenceFor` with bias 0 is bit-identical** to the classic hash (existing terrain).
+  `BiasToward` inverts the mapping (Twin Worlds sizing); both live in `WorldConstants`.
+- The **fallback "Orbital Station" now only synthesises in `sys0`** (variance worlds) — onboarding
+  needs one reachable station; everywhere else Desolate/Pirate systems genuinely have none.
+- `NetBody.SizeBias` must reach EVERY client `CircumferenceFor` call (orbit spheres, sky bodies,
+  pad-map bake) — a missed one desyncs rendered vs walkable size.
+- Moons clamp: `--moons-max` now 0–8 (Lone Giant identity); planets min/max cross-normalise in
+  `ServerConfig` (Range(min>max) silently returned min before).
 
 ## ✅ Done (2026-07-27): landable asteroids — five families and per-body crater relief (#515/#518)
 

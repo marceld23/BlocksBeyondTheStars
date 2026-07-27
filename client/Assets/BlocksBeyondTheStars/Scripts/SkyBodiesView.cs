@@ -252,14 +252,44 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Collect candidates first and CAP them (#548): an archetype system can carry many moons, and
+            // every sky body costs a sphere + a texture bake per world load. Keep the most prominent ones
+            // (apparent size ≈ real size / real distance); the far tail wouldn't read as more than a dot.
+            const int MaxSkyBodies = 14;
+            var candidates = new List<NetBody>();
             foreach (var body in system.Bodies)
             {
-                bool landable = body.Kind is "Planet" or "Moon"
+                bool isLandable = body.Kind is "Planet" or "Moon"
                     || WorldConstants.IsAsteroidType(body.PlanetType);
-                if (!landable || body.Id == map.ActiveLocationId)
+                if (isLandable && body.Id != map.ActiveLocationId)
                 {
-                    continue; // stations etc. stay invisible from the surface; the body you stand on too
+                    candidates.Add(body);
                 }
+            }
+
+            if (candidates.Count > MaxSkyBodies)
+            {
+                float Prominence(NetBody b)
+                {
+                    var c = WorldConstants.IsAsteroidType(b.PlanetType)
+                        ? WorldConstants.WorldSizeClass.Asteroid
+                        : b.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
+                    float d = 600f;
+                    if (current != null)
+                    {
+                        float dx = b.SystemX - current.SystemX, dy = b.SystemY - current.SystemY, dz = b.SystemZ - current.SystemZ;
+                        d = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
+                    }
+
+                    return WorldConstants.CircumferenceFor(b.Id, c, b.SizeBias) / Mathf.Max(d, 40f);
+                }
+
+                candidates.Sort((a, b) => Prominence(b).CompareTo(Prominence(a)));
+                candidates.RemoveRange(MaxSkyBodies, candidates.Count - MaxSkyBodies);
+            }
+
+            foreach (var body in candidates)
+            {
 
                 // Deterministic per (current planet, body): the sky choreography is unique to each world.
                 int h = Hash(map.ActiveLocationId + "|" + body.Id);
@@ -267,6 +297,9 @@ namespace BlocksBeyondTheStars.Client
                 var cls = WorldConstants.IsAsteroidType(body.PlanetType)
                     ? WorldConstants.WorldSizeClass.Asteroid
                     : body.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
+                // The body's REAL walkable circumference (incl. its archetype size bias, #549) — sizes the
+                // sky disc below, so a 12000 giant genuinely looms larger than a 5000 dwarf.
+                int bodyCirc = WorldConstants.CircumferenceFor(body.Id, cls, body.SizeBias);
 
                 var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 go.name = "SkyBody_" + body.Id;
@@ -292,8 +325,7 @@ namespace BlocksBeyondTheStars.Client
                 Texture2D baked = null;
                 if (planet != null)
                 {
-                    int circ = WorldConstants.CircumferenceFor(body.Id, cls);
-                    baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, circ, 96, 48,
+                    baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, bodyCirc, 96, 48,
                         bodyId: body.Id);
                     tint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
                 }
@@ -317,16 +349,13 @@ namespace BlocksBeyondTheStars.Client
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 mr.receiveShadows = false;
 
-                // Apparent size from REAL system-space distance: a per-class "radius" divided by how far the
-                // body is from the world we stand on. A moon's parent planet sits ~90-145 units away → it
-                // fills a chunk of the sky; a neighbour planet hundreds of units out → a small disc; from an
-                // asteroid, nearby planets/moons loom accordingly (the planet largest).
-                float radius = cls switch
-                {
-                    WorldConstants.WorldSizeClass.Asteroid => 6f + (h % 3),
-                    WorldConstants.WorldSizeClass.Moon => 16f + (h % 4),
-                    _ => 36f + (h % 6),
-                };
+                // Apparent size from REAL system-space distance: the body's true circumference (not just a
+                // per-class band — #549: a 12000 giant should dwarf a 5000 world) divided by how far the body
+                // is from the world we stand on. A moon's parent planet sits ~90-145 units away → it fills a
+                // chunk of the sky; a neighbour planet hundreds of units out → a small disc; from an asteroid,
+                // nearby planets/moons loom accordingly. 0.004 keeps the classic per-class midpoints
+                // (asteroid ~10, moon ~18, planet ~39).
+                float radius = 5f + bodyCirc * 0.004f;
                 float dist = 600f; // fallback when coords are missing
                 if (current != null)
                 {

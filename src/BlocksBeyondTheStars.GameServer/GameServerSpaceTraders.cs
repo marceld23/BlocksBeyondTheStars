@@ -143,6 +143,24 @@ public sealed partial class GameServer
 
         uint h = (uint)(_meta.Seed ^ WorldGenerator.StableHash("traffic:" + systemId));
         int bucket = (int)(h % 100u);
+
+        // The system archetype (#547) sets the trade character; Standard (and every pre-variance save)
+        // keeps the classic buckets. Sparse archetypes never exceed Rare — a lone outpost station out
+        // there shouldn't turn a backwater into a shipping lane.
+        switch (SystemArchetypeOf(systemId))
+        {
+            case SystemArchetype.Hub:
+                return TraderTraffic.Often; // civilised space: the lanes are always busy
+            case SystemArchetype.Desolate:
+                return TraderTraffic.None; // nobody trades with empty space
+            case SystemArchetype.PirateHaven:
+                return bucket < 60 ? TraderTraffic.None : TraderTraffic.Rare; // only the brave run this route
+            case SystemArchetype.LoneGiant:
+            case SystemArchetype.Belt:
+                // A lone outpost station still draws the odd freighter, but never a busy lane.
+                return hasStation || bucket >= 30 ? TraderTraffic.Rare : TraderTraffic.None;
+        }
+
         var level = bucket < 30 ? TraderTraffic.None : bucket < 75 ? TraderTraffic.Rare : TraderTraffic.Often;
 
         if (hasStation)

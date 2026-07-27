@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -549,7 +550,19 @@ public sealed partial class GameServer
                 // Spawn hostiles FAR from the launch point (well beyond ShipEngageRange) so launching/docking is
                 // safe and combat is opt-in — you choose to fly out to them. They used to spawn ~25u away and
                 // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
+                // #547: the system archetype shades the ambient hostility — Desolate space is truly empty
+                // (no drones, no UFO), a Pirate Haven runs one extra drone when NPC enemies are on at all.
+                var archetype = SystemArchetypeOf(_galaxy.FindBody(bodyId)?.SystemId);
                 int drones = ActivityCount(Rules.SpaceNpcEnemies);
+                if (archetype == SystemArchetype.Desolate)
+                {
+                    drones = 0;
+                }
+                else if (archetype == SystemArchetype.PirateHaven && drones > 0)
+                {
+                    drones = System.Math.Min(4, drones + 1);
+                }
+
                 for (int i = 0; i < drones; i++)
                 {
                     instance.Entities.Add(new CombatEntity
@@ -565,7 +578,7 @@ public sealed partial class GameServer
                     });
                 }
 
-                if (Rules.AlienUfos != AlienActivity.Off)
+                if (Rules.AlienUfos != AlienActivity.Off && archetype != SystemArchetype.Desolate)
                 {
                     instance.Entities.Add(new CombatEntity
                     {

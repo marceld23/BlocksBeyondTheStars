@@ -413,6 +413,12 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The archetype a system rolled (#546) — Standard for every system of a pre-variance save.
+    /// Recomputed from the seed on demand (the trader-traffic pattern), so nothing is persisted; all
+    /// inhabitant systems (stations, traders, bandits, camps, drones) consult THIS one resolver.</summary>
+    private SystemArchetype SystemArchetypeOf(string? systemId)
+        => SystemArchetypes.For(_meta.Seed, systemId, _meta.Description);
+
     /// <summary>
     /// Makes <paramref name="locationId"/> (a celestial body of type <paramref name="planetTypeKey"/>)
     /// the active world: rebuilds <see cref="_world"/> (its edits load from that body's persistence key),
@@ -445,7 +451,9 @@ public sealed partial class GameServer
         // (deterministic from the body id + its size class), and the noise/wrap/chunk keys all use it.
         var worldBody = _galaxy?.FindBody(locationId);
         var sizeClass = WorldConstants.SizeClassFor(worldBody?.Kind ?? CelestialKind.Planet, planet.Key);
-        int circumference = WorldConstants.CircumferenceFor(locationId, sizeClass);
+        // #549: the archetype's size bias stretches the band (lone giant up to 16000, swarm dwarf down to
+        // 4000); bodies outside the galaxy (station interiors, ship worlds) carry no bias.
+        int circumference = WorldConstants.CircumferenceFor(locationId, sizeClass, worldBody?.SizeBias ?? 0f);
 
         var world = _worlds.GetOrCreate(planet, locationId, circumference, out bool isNew);
         world.SizeClass = sizeClass; // remembered for the per-world gravity band seeded in InitWeather
@@ -4168,6 +4176,7 @@ public sealed partial class GameServer
             SystemZ = b.SystemZ,
             OrbitPeriodDays = b.OrbitPeriodDays,
             ParentId = b.ParentId,
+            SizeBias = b.SizeBias, // #549: the client sizes this body with the same bias the server does
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total) : 0,
         };

@@ -89,7 +89,13 @@ public sealed partial class GameServer
             .Where(b => b.Kind == CelestialKind.SpaceStation)
             .ToList() ?? new List<CelestialBody>();
 
-        if (bodies.Count == 0 && _meta.Description.SpaceStations != Frequency.Off)
+        // The synthesised fallback station used to appear in EVERY station-less system, which defeated the
+        // generator's per-system station gate entirely. With system variance (#547) it survives only in the
+        // home system ("sys0" — where the start planet lands, see BuildGalaxy): a fresh save always has one
+        // reachable station for missions/trade, while Desolate or Pirate Haven systems out there genuinely
+        // have none. Pre-variance saves keep the old always-a-station behaviour.
+        bool fallbackHere = !_meta.Description.SystemVariance || systemId == "sys0";
+        if (bodies.Count == 0 && fallbackHere && _meta.Description.SpaceStations != Frequency.Off)
         {
             bodies.Add(new CelestialBody
             {

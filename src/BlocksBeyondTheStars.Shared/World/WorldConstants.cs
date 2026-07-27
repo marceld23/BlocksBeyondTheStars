@@ -207,21 +207,59 @@ public static class WorldConstants
     /// <summary>A deterministic walkable circumference for a body: very small for asteroids, small for moons,
     /// large for planets, varied within each class from the body key, and rounded to a whole number of chunks
     /// (so chunks tile cleanly across the seam). Same body → same size, on server and client.</summary>
-    public static int CircumferenceFor(string bodyKey, WorldSizeClass cls)
-    {
-        (int lo, int hi) = cls switch
-        {
-            WorldSizeClass.Asteroid => (800, 1600),
-            WorldSizeClass.Moon => (2500, 4000),
-            _ => (5000, 12000),
-        };
+    public static int CircumferenceFor(string bodyKey, WorldSizeClass cls) => CircumferenceFor(bodyKey, cls, 0f);
 
+    /// <summary>Size-biased variant (#549): <paramref name="sizeBias"/> in [-1, 1] pulls the hashed base
+    /// size toward an EXTENDED band edge — +1 reaches hi·4/3 (planets: 16000), −1 reaches lo·4/5
+    /// (planets: 4000) — so system archetypes can express giants and dwarfs. A bias of exactly 0 MUST
+    /// reproduce the unbiased value bit-for-bit: existing saves re-derive their terrain from this number,
+    /// and pre-variance bodies all carry bias 0. Callers pass <c>CelestialBody.SizeBias</c> (server) /
+    /// <c>NetBody.SizeBias</c> (client) so both ends keep agreeing on every body's size.</summary>
+    public static int CircumferenceFor(string bodyKey, WorldSizeClass cls, float sizeBias)
+    {
+        (int lo, int hi) = SizeBandFor(cls);
         uint h = (uint)StableHash(bodyKey);
         int span = hi - lo;
         int raw = lo + (int)(h % (uint)span);
+        if (sizeBias > 0f)
+        {
+            int hiExt = hi * 4 / 3;
+            raw += (int)System.Math.Round(System.Math.Min(1f, sizeBias) * (hiExt - raw));
+        }
+        else if (sizeBias < 0f)
+        {
+            int loExt = lo * 4 / 5;
+            raw += (int)System.Math.Round(System.Math.Max(-1f, sizeBias) * (raw - loExt));
+        }
+
         int rounded = (int)System.Math.Round(raw / (double)ChunkSize) * ChunkSize; // whole chunks
         return System.Math.Max(ChunkSize, rounded);
     }
+
+    /// <summary>The bias that makes <paramref name="bodyKey"/>'s circumference land (as close as the
+    /// extended band allows) on <paramref name="targetCircumference"/> — used by the Twin Worlds
+    /// archetype to size the second twin like the first. Inverse of the bias mapping above.</summary>
+    public static float BiasToward(string bodyKey, WorldSizeClass cls, int targetCircumference)
+    {
+        (int lo, int hi) = SizeBandFor(cls);
+        uint h = (uint)StableHash(bodyKey);
+        int raw = lo + (int)(h % (uint)(hi - lo));
+        if (targetCircumference >= raw)
+        {
+            int hiExt = hi * 4 / 3;
+            return hiExt <= raw ? 0f : System.Math.Clamp((targetCircumference - raw) / (float)(hiExt - raw), 0f, 1f);
+        }
+
+        int loExt = lo * 4 / 5;
+        return raw <= loExt ? 0f : System.Math.Clamp((targetCircumference - raw) / (float)(raw - loExt), -1f, 0f);
+    }
+
+    private static (int Lo, int Hi) SizeBandFor(WorldSizeClass cls) => cls switch
+    {
+        WorldSizeClass.Asteroid => (800, 1600),
+        WorldSizeClass.Moon => (2500, 4000),
+        _ => (5000, 12000),
+    };
 
     private static int StableHash(string s)
     {

@@ -596,7 +596,7 @@ public sealed partial class GameServer
             return new List<LandingPad>();
         }
 
-        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty));
+        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias);
         return ComputeLandingPads(planet, body.Kind, body.Id, circ);
     }
 

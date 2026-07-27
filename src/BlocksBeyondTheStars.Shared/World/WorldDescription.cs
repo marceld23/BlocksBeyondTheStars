@@ -71,6 +71,19 @@ public static class FrequencyExtensions
         Frequency.Frequent => 1.7,
         _ => 1.0,
     };
+
+    /// <summary>Danger multiplier (#547) for <see cref="WorldDescription.Danger"/>: scales hostile
+    /// encounter odds (space ambush chance, bandit-camp presence) on top of the per-archetype gates.
+    /// Normal = 1.0 so existing saves (and the default) behave exactly as before; Off disables them.</summary>
+    public static double DangerFactor(this Frequency f) => f switch
+    {
+        Frequency.Off => 0.0,
+        Frequency.VeryRare => 0.5,
+        Frequency.Rare => 0.75,
+        Frequency.Normal => 1.0,
+        Frequency.Frequent => 1.5,
+        _ => 1.0,
+    };
 }
 
 /// <summary>
@@ -98,6 +111,14 @@ public sealed class WorldDescription
 
     public Frequency RareResources { get; set; } = Frequency.Rare;
     public Frequency Danger { get; set; } = Frequency.Normal;
+
+    /// <summary>Per-system archetype variance (#546): when true, every star system rolls a character
+    /// class (lone giant, swarm, belt, hub, desolate, pirate haven, twin worlds …) that shapes its
+    /// planet/moon/asteroid/station rolls, sizes and inhabitants. MUST default to false: the galaxy is
+    /// re-derived from the seed on every start, so flipping this on an existing save would change body
+    /// counts and orphan already-visited worlds. New worlds switch it on at creation (ServerConfig's
+    /// default description carries true; a loaded save keeps whatever its metadata stored).</summary>
+    public bool SystemVariance { get; set; }
 
     // --- World options (creation-time; baked into the save's metadata — they shape worldgen) ---
 

@@ -86,8 +86,11 @@ public sealed class ServerConfig
     /// <summary>Authoritative world rules (mode, PvP, hazards, death penalty, cheats, ...).</summary>
     public GameRules Rules { get; set; } = new();
 
-    /// <summary>Universe description used when first creating the world.</summary>
-    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new();
+    /// <summary>Universe description used when first creating the world. System variance (#546) is on
+    /// here — every NEWLY created world gets archetype-varied star systems — while the
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SystemVariance"/> property itself
+    /// defaults to false, so a loaded save whose metadata predates the feature stays byte-identical.</summary>
+    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true };
 
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
     public AiLevel AiLevel { get; set; } = AiLevel.Off;
@@ -524,13 +527,40 @@ public sealed class ServerConfig
                     if (int.TryParse(value, out var sy)) { World.StarSystemCount = Math.Clamp(sy, 1, 32); applied.Add("systems"); }
                     break;
                 case "planets-min":
-                    if (int.TryParse(value, out var pmin)) { World.PlanetsPerSystemMin = Math.Clamp(pmin, 1, 10); applied.Add("planets-min"); }
+                    if (int.TryParse(value, out var pmin))
+                    {
+                        World.PlanetsPerSystemMin = Math.Clamp(pmin, 1, 10);
+                        // Keep min ≤ max no matter the arg order: DeterministicRandom.Range silently
+                        // returns min when max < min, which would bypass the max clamp entirely.
+                        World.PlanetsPerSystemMax = Math.Max(World.PlanetsPerSystemMax, World.PlanetsPerSystemMin);
+                        applied.Add("planets-min");
+                    }
+
                     break;
                 case "planets-max":
-                    if (int.TryParse(value, out var pmax)) { World.PlanetsPerSystemMax = Math.Clamp(pmax, 1, 12); applied.Add("planets-max"); }
+                    if (int.TryParse(value, out var pmax))
+                    {
+                        World.PlanetsPerSystemMax = Math.Clamp(pmax, 1, 12);
+                        World.PlanetsPerSystemMin = Math.Min(World.PlanetsPerSystemMin, World.PlanetsPerSystemMax);
+                        applied.Add("planets-max");
+                    }
+
                     break;
                 case "moons-max":
-                    if (int.TryParse(value, out var mm)) { World.MoonsPerPlanetMax = Math.Clamp(mm, 0, 5); applied.Add("moons-max"); }
+                    // Cap raised 5 → 8 (#546): the Lone Giant archetype carries up to 8 moons, so the
+                    // explicit slider may reach the same ceiling.
+                    if (int.TryParse(value, out var mm)) { World.MoonsPerPlanetMax = Math.Clamp(mm, 0, 8); applied.Add("moons-max"); }
+                    break;
+                case "variance":
+                    // System archetype variance (#546). On for every new world by default; "off" is the
+                    // escape hatch for tests/captures that need the classic uniform layout.
+                    if (bool.TryParse(value, out var sv)) { World.SystemVariance = sv; applied.Add("variance"); }
+                    else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.SystemVariance = true; applied.Add("variance"); }
+                    else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.SystemVariance = false; applied.Add("variance"); }
+                    break;
+                case "danger":
+                    // Global hostility multiplier (#547) — scales space-ambush odds + bandit-camp presence.
+                    if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var dg)) { World.Danger = dg; applied.Add("danger"); }
                     break;
                 case "planet-types":
                     // Advanced per-type page: "corrupted=Rare,ocean=Frequent,..." (unknown keys are ignored

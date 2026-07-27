@@ -298,6 +298,192 @@ public sealed class UniverseTests : IDisposable
         }
     }
 
+    // --- System archetype variance (#546/#549) ---
+
+    private static WorldDescription VarianceDesc(int systems = 150) => new()
+    {
+        StarSystemCount = systems,
+        SystemVariance = true,
+        SpaceStations = Frequency.Rare,
+    };
+
+    [Fact]
+    public void VarianceOff_LeavesEveryBodyUnbiased()
+    {
+        // A pre-variance save regenerates its galaxy with this exact path — no body may carry a size bias
+        // (bias 0 keeps CircumferenceFor bit-identical, so existing terrain stays valid).
+        var galaxy = new UniverseGenerator(42, new WorldDescription { StarSystemCount = 20 }, _content).Generate();
+        Assert.All(galaxy.AllBodies(), b => Assert.Equal(0f, b.SizeBias));
+    }
+
+    [Fact]
+    public void Variance_IsDeterministic_ForSameSeed()
+    {
+        var a = new UniverseGenerator(42, VarianceDesc(30), _content).Generate();
+        var b = new UniverseGenerator(42, VarianceDesc(30), _content).Generate();
+        Assert.Equal(BodyKey(a), BodyKey(b));
+        Assert.Equal(
+            a.AllBodies().Select(x => (x.SystemX, x.SystemZ, x.SizeBias)),
+            b.AllBodies().Select(x => (x.SystemX, x.SystemZ, x.SizeBias)));
+    }
+
+    [Fact]
+    public void Variance_EveryArchetypeAppears_AndShapesItsSystems()
+    {
+        var desc = VarianceDesc(150);
+        var galaxy = new UniverseGenerator(7, desc, _content).Generate();
+        var seen = new HashSet<SystemArchetype>();
+
+        for (int i = 0; i < galaxy.Systems.Count; i++)
+        {
+            var sys = galaxy.Systems[i];
+            var archetype = SystemArchetypes.ForIndex(7, i);
+            seen.Add(archetype);
+
+            var planets = sys.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+            int stations = sys.Bodies.Count(b => b.Kind == CelestialKind.SpaceStation);
+            int asteroids = sys.Bodies.Count(b => b.Kind == CelestialKind.AsteroidField);
+
+            switch (archetype)
+            {
+                case SystemArchetype.LoneGiant:
+                    Assert.Single(planets);
+                    Assert.True(planets[0].SizeBias >= 0.6f, $"{sys.Id}: giant bias {planets[0].SizeBias}");
+                    Assert.InRange(sys.Bodies.Count(b => b.Kind == CelestialKind.Moon), 4, 8);
+                    Assert.InRange(stations, 0, 1);
+                    break;
+                case SystemArchetype.Swarm:
+                    Assert.InRange(planets.Count, 6, 9);
+                    Assert.All(planets, p => Assert.True(p.SizeBias < 0f, $"{p.Id}: swarm worlds run small"));
+                    foreach (var p in planets)
+                    {
+                        Assert.InRange(sys.Bodies.Count(b => b.Kind == CelestialKind.Moon && b.ParentId == p.Id), 0, 1);
+                    }
+
+                    break;
+                case SystemArchetype.Belt:
+                    Assert.InRange(planets.Count, 1, 3);
+                    Assert.InRange(asteroids, 5, 8);
+                    Assert.InRange(stations, 0, 1);
+                    break;
+                case SystemArchetype.Hub:
+                    Assert.InRange(planets.Count, 3, 5);
+                    Assert.InRange(stations, 1, 3); // a hub ALWAYS has stations (SpaceStations is not Off)
+                    break;
+                case SystemArchetype.Desolate:
+                    Assert.InRange(planets.Count, 1, 2);
+                    Assert.Equal(0, stations);
+                    Assert.InRange(asteroids, 0, 1);
+                    break;
+                case SystemArchetype.PirateHaven:
+                    Assert.Equal(0, stations);
+                    Assert.InRange(asteroids, 3, 5);
+                    break;
+                case SystemArchetype.TwinWorlds:
+                    Assert.Equal(2, planets.Count);
+                    int c0 = WorldConstants.CircumferenceFor(planets[0].Id, WorldConstants.WorldSizeClass.Planet, planets[0].SizeBias);
+                    int c1 = WorldConstants.CircumferenceFor(planets[1].Id, WorldConstants.WorldSizeClass.Planet, planets[1].SizeBias);
+                    Assert.True(System.Math.Abs(c0 - c1) <= WorldConstants.ChunkSize,
+                        $"{sys.Id}: twins sized {c0} vs {c1}");
+                    break;
+            }
+        }
+
+        // 150 systems at the table weights: every archetype shows up.
+        foreach (SystemArchetype a in System.Enum.GetValues<SystemArchetype>())
+        {
+            Assert.Contains(a, seen);
+        }
+    }
+
+    [Fact]
+    public void Variance_HomeSystem_NeverRollsDesolateOrPirateHaven()
+    {
+        // The start system must stay friendly: a fresh save needs reachable trade + no forced pirate space.
+        for (long seed = 1; seed <= 300; seed++)
+        {
+            var archetype = SystemArchetypes.ForIndex(seed, 0);
+            Assert.NotEqual(SystemArchetype.Desolate, archetype);
+            Assert.NotEqual(SystemArchetype.PirateHaven, archetype);
+        }
+    }
+
+    [Fact]
+    public void Variance_RespectsTheWorldSizePlanetCap()
+    {
+        // The world-size slider still caps planet counts (a "Klein" world stays small); the Lone Giant's
+        // moons are the one deliberate exception to the moon slider (its identity), capped at 8.
+        var desc = new WorldDescription
+        {
+            StarSystemCount = 60,
+            SystemVariance = true,
+            PlanetsPerSystemMax = 4,
+            MoonsPerPlanetMax = 2,
+        };
+        var galaxy = new UniverseGenerator(11, desc, _content).Generate();
+        foreach (var sys in galaxy.Systems)
+        {
+            Assert.InRange(sys.Bodies.Count(b => b.Kind == CelestialKind.Planet), 1, 4);
+            foreach (var planet in sys.Bodies.Where(b => b.Kind == CelestialKind.Planet))
+            {
+                Assert.InRange(sys.Bodies.Count(b => b.Kind == CelestialKind.Moon && b.ParentId == planet.Id), 0, 8);
+            }
+        }
+    }
+
+    [Fact]
+    public void Variance_NeverCollidesWithTheReservedFinaleArea()
+    {
+        const string reserved = SvGameServer.GuardianFinaleSystemId;
+        foreach (long seed in new long[] { 1, 42, 2026 })
+        {
+            var galaxy = new UniverseGenerator(seed, VarianceDesc(150), _content).Generate();
+            Assert.DoesNotContain(galaxy.Systems, s => s.Id == reserved || s.Id.StartsWith(reserved));
+            Assert.DoesNotContain(galaxy.AllBodies(),
+                b => b.Id == SvGameServer.GuardianCoreBodyId || b.Id.StartsWith(reserved) || b.SystemId == reserved);
+        }
+    }
+
+    [Fact]
+    public void Archetypes_DriveTrafficAndPirateFlags_OnALiveServer()
+    {
+        // The runtime consumers resolve the archetype from the seed the same way the generator does:
+        // a Desolate system has no trade, a Hub is always busy, a Pirate Haven is always pirate space.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "arch"));
+        var link = new LoopbackLink();
+        using var st = new LoopbackServerTransport(link);
+
+        var config = new ServerConfig { WorldName = "arch", Seed = 11, AutoSaveIntervalMinutes = 9999 };
+        config.World.StarSystemCount = 32; // ServerConfig's default description has SystemVariance = true
+        config.PlaceBanditCamps = false;   // keep world startup light — we only probe the per-system gates
+
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        bool sawDesolate = false, sawHub = false, sawPirate = false;
+        for (int i = 0; i < 32; i++)
+        {
+            switch (SystemArchetypes.ForIndex(11, i))
+            {
+                case SystemArchetype.Desolate:
+                    sawDesolate = true;
+                    Assert.Equal("None", server.TrafficLevelForTest($"sys{i}"));
+                    break;
+                case SystemArchetype.Hub:
+                    sawHub = true;
+                    Assert.Equal("Often", server.TrafficLevelForTest($"sys{i}"));
+                    break;
+                case SystemArchetype.PirateHaven:
+                    sawPirate = true;
+                    Assert.True(server.BanditSystemForTest($"sys{i}"), $"sys{i} must be pirate space");
+                    break;
+            }
+        }
+
+        Assert.True(sawDesolate && sawHub && sawPirate,
+            $"seed 11 / 32 systems should roll all three probed archetypes (desolate {sawDesolate}, hub {sawHub}, pirate {sawPirate})");
+    }
+
     [Fact]
     public void Server_BuildsGalaxy_MarksStartVisited_AndServesStarMap()
     {

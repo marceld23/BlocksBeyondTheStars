@@ -22,10 +22,10 @@ public sealed class SystemBodyLayoutTests
     private const float KeepOutMargin = 10f; // the shell the ship is held at, from SpaceView
     private const float Tolerance = 0.01f;
 
-    private static float RadiusOf(string id, CelestialKind kind, string? planetType)
+    private static float RadiusOf(string id, CelestialKind kind, string? planetType, float sizeBias = 0f)
     {
         var cls = WorldConstants.SizeClassFor(kind, planetType ?? string.Empty);
-        return (8f + WorldConstants.CircumferenceFor(id, cls) / 220f) * 0.5f;
+        return (8f + WorldConstants.CircumferenceFor(id, cls, sizeBias) / 220f) * 0.5f;
     }
 
     [Fact]
@@ -64,9 +64,14 @@ public sealed class SystemBodyLayoutTests
         var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
         int systemsChecked = 0, bodiesChecked = 0;
 
-        for (long seed = 1; seed <= 40; seed++)
+        // Replay classic worlds AND archetype-varied ones (#546): the lone giant's 8-moon ladder and the
+        // size-biased bodies must keep the same clear-gap guarantee as the uniform layout.
+        // Runs 1..40 use the classic description, 41..80 re-run the same 40 seeds with variance on.
+        for (long run = 1; run <= 80; run++)
         {
-            var galaxy = new UniverseGenerator(seed, new WorldDescription(), content).Generate();
+            long seed = run <= 40 ? run : run - 40;
+            var desc = new WorldDescription { SystemVariance = run > 40 };
+            var galaxy = new UniverseGenerator(seed, desc, content).Generate();
             foreach (var system in galaxy.Systems)
             {
                 // The body you launched from: it stays put and is drawn oversized, as in the view.
@@ -77,7 +82,7 @@ public sealed class SystemBodyLayoutTests
                 }
 
                 systemsChecked++;
-                float homeRadius = RadiusOf(home.Id, home.Kind, home.PlanetType) * 3.2f;
+                float homeRadius = RadiusOf(home.Id, home.Kind, home.PlanetType, home.SizeBias) * 3.2f;
                 const float homeX = 0f, homeZ = -20f;
 
                 var xs = new List<float>();
@@ -90,6 +95,7 @@ public sealed class SystemBodyLayoutTests
                 {
                     (home.SystemX, home.SystemZ, homeX, homeZ, homeRadius),
                 };
+                var parentIndexById = new Dictionary<string, int> { [home.Id] = 0 };
                 foreach (var b in system.Bodies)
                 {
                     if (b.Id == home.Id || b.Kind != CelestialKind.Planet)
@@ -99,12 +105,15 @@ public sealed class SystemBodyLayoutTests
 
                     float x = (b.SystemX - home.SystemX) * SystemViewScale;
                     float z = (b.SystemZ - home.SystemZ) * SystemViewScale;
-                    float r = RadiusOf(b.Id, b.Kind, b.PlanetType);
+                    float r = RadiusOf(b.Id, b.Kind, b.PlanetType, b.SizeBias);
                     xs.Add(x); zs.Add(z); radii.Add(r);
+                    parentIndexById[b.Id] = parents.Count;
                     parents.Add((b.SystemX, b.SystemZ, x, z, r));
                 }
 
-                // Moons, clamped out to the minimum orbit around their nearest planet.
+                // Moons: parented by ParentId (nearest-planet fallback), each on its own ascending orbit
+                // slot around its parent — mirrors SpaceView's moon ladder (#548).
+                var ladder = new Dictionary<int, (float Orbit, float Radius)>();
                 foreach (var b in system.Bodies)
                 {
                     if (b.Id == home.Id || b.Kind != CelestialKind.Moon)
@@ -112,24 +121,33 @@ public sealed class SystemBodyLayoutTests
                         continue;
                     }
 
-                    int best = 0;
-                    float bestSq = float.MaxValue;
-                    for (int i = 0; i < parents.Count; i++)
+                    if (string.IsNullOrEmpty(b.ParentId) || !parentIndexById.TryGetValue(b.ParentId, out int best))
                     {
-                        float ddx = b.SystemX - parents[i].Sx, ddz = b.SystemZ - parents[i].Sz;
-                        float dsq = (ddx * ddx) + (ddz * ddz);
-                        if (dsq < bestSq)
+                        best = 0;
+                        float bestSq = float.MaxValue;
+                        for (int i = 0; i < parents.Count; i++)
                         {
-                            bestSq = dsq;
-                            best = i;
+                            float ddx = b.SystemX - parents[i].Sx, ddz = b.SystemZ - parents[i].Sz;
+                            float dsq = (ddx * ddx) + (ddz * ddz);
+                            if (dsq < bestSq)
+                            {
+                                bestSq = dsq;
+                                best = i;
+                            }
                         }
                     }
 
                     var parent = parents[best];
                     float relX = (b.SystemX - parent.Sx) * SystemViewScale;
                     float relZ = (b.SystemZ - parent.Sz) * SystemViewScale;
-                    float moonRadius = RadiusOf(b.Id, b.Kind, b.PlanetType);
+                    float moonRadius = RadiusOf(b.Id, b.Kind, b.PlanetType, b.SizeBias);
                     float minClear = SystemBodyLayout.MinOrbitFor(parent.R, moonRadius);
+                    if (ladder.TryGetValue(best, out var last))
+                    {
+                        minClear = MathF.Max(minClear,
+                            last.Orbit + last.Radius + moonRadius + SystemBodyLayout.ClearGapFor(last.Radius, moonRadius));
+                    }
+
                     float mag = MathF.Sqrt((relX * relX) + (relZ * relZ));
                     if (mag < minClear)
                     {
@@ -144,7 +162,11 @@ public sealed class SystemBodyLayoutTests
                             relX = minClear;
                             relZ = 0f;
                         }
+
+                        mag = minClear;
                     }
+
+                    ladder[best] = (mag, moonRadius);
 
                     xs.Add(parent.X + relX); zs.Add(parent.Z + relZ); radii.Add(moonRadius);
                     if (best == 0)
@@ -164,7 +186,7 @@ public sealed class SystemBodyLayoutTests
                     string type = string.IsNullOrEmpty(b.PlanetType) ? "asteroid" : b.PlanetType;
                     xs.Add((b.SystemX - home.SystemX) * SystemViewScale);
                     zs.Add((b.SystemZ - home.SystemZ) * SystemViewScale);
-                    radii.Add(RadiusOf(b.Id, b.Kind, type));
+                    radii.Add(RadiusOf(b.Id, b.Kind, type, b.SizeBias));
                 }
 
                 var bx = xs.ToArray();

@@ -51,6 +51,23 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   ~420 units out, +520 per planet ± jitter; moons 90 + m·55 around their planet) and an **orbit
   period** (planets 6–40 in-game days, moons 0.4–2.5, ~20 % retrograde). The orbit period is a
   purely visual phase driver — it never disturbs landing, travel distance or pad reservations.
+- **System archetypes (#546, worlds created ≥ 0.9.2):** when `WorldDescription.SystemVariance` is on,
+  each system rolls a character class in
+  [`SystemArchetypes.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/SystemArchetypes.cs)
+  (own `Hash01` salt 500; 501/502 serve the size-bias and twin-orbit draws) that shapes the counts
+  above: **Standard** (30, exactly the legacy rolls), **Lone Giant** (12: 1 size-biased planet,
+  4–8 moons), **Swarm** (12: 6–9 small planets, ≤1 moon), **Belt** (10: 5–8 asteroids), **Hub**
+  (10: stations guaranteed), **Desolate** (12: 1–2 planets, nothing else), **Pirate Haven**
+  (8: no stations, wrecks doubled), **Twin Worlds** (6: two like-sized planets on close orbits).
+  System 0 (home) never rolls Desolate/Pirate Haven. Runtime consumers (trader traffic, pirate flag,
+  camp odds, drones) resolve the archetype from the seed via `SystemArchetypes.For` — nothing is
+  persisted. `SystemVariance` **defaults to false** on `WorldDescription` (old saves regenerate
+  unchanged) and to **true** on `ServerConfig`'s creation-time description (new worlds get it).
+- **Per-body size bias (#549):** archetypes set `CelestialBody.SizeBias` ∈ [-1, 1], which
+  `WorldConstants.CircumferenceFor(key, class, bias)` maps onto an extended band (planets
+  4000–16000 instead of 5000–12000). Bias 0 is bit-identical to the classic hash — that invariant
+  protects every existing save's terrain. The client receives the bias via `NetBody.SizeBias` and
+  must pass it to every `CircumferenceFor` call (orbit spheres, sky bodies, pad-map bakes).
 
 A `CelestialBody` stores only Id, Name, `Kind` (Planet/Moon/AsteroidField/SpaceStation/Wreck), a
 **`PlanetType` key**, and orbit data. The body's *content* is generated only when a player enters it.

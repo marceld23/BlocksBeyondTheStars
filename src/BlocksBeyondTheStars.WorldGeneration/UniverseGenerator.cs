@@ -142,7 +142,25 @@ public sealed class UniverseGenerator
                 MapY = rng.NextFloat() * 1000f,
             };
 
-            int planets = rng.Range(_desc.PlanetsPerSystemMin, _desc.PlanetsPerSystemMax);
+            // The system's character class (#546). With SystemVariance off (every pre-variance save) this
+            // is ALWAYS Standard, and every Standard roll below is the exact draw the legacy code made —
+            // so old worlds regenerate byte-identically. Drawn from its own Hash01 salt (500), never rng.
+            var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, i) : SystemArchetype.Standard;
+            int planetCap = System.Math.Max(1, _desc.PlanetsPerSystemMax); // the world-size slider still caps
+            int moonCap = System.Math.Max(0, _desc.MoonsPerPlanetMax);
+
+            int planets = archetype switch
+            {
+                SystemArchetype.LoneGiant => 1,
+                SystemArchetype.Swarm => rng.Range(System.Math.Min(6, planetCap), System.Math.Min(9, planetCap)),
+                SystemArchetype.Belt => rng.Range(1, System.Math.Min(3, planetCap)),
+                SystemArchetype.Hub => rng.Range(System.Math.Min(3, planetCap), System.Math.Min(5, planetCap)),
+                SystemArchetype.Desolate => rng.Range(1, System.Math.Min(2, planetCap)),
+                SystemArchetype.PirateHaven => rng.Range(System.Math.Min(2, planetCap), System.Math.Min(4, planetCap)),
+                SystemArchetype.TwinWorlds => System.Math.Min(2, planetCap),
+                _ => rng.Range(_desc.PlanetsPerSystemMin, _desc.PlanetsPerSystemMax),
+            };
+            float firstAngle = 0f, firstRadius = 0f; // the first twin's orbit, so the second can sit beside it
             for (int p = 0; p < planets; p++)
             {
                 var planet = new CelestialBody
@@ -158,6 +176,20 @@ public sealed class UniverseGenerator
                 // existing universes — stay byte-identical.
                 float pAngle = Hash01(i, p, 101) * Tau;
                 float pRadius = BaseOrbit + p * OrbitStep + (Hash01(i, p, 102) - 0.5f) * OrbitJitter;
+                if (archetype == SystemArchetype.TwinWorlds && p == 1)
+                {
+                    // The second twin shares the first's orbit band, a nudge along the arc — visually a pair.
+                    // The client's separation pass guarantees they never clip at render scale.
+                    pAngle = firstAngle + 0.25f + Hash01(i, 502, 1) * 0.25f;
+                    pRadius = firstRadius + 230f;
+                }
+
+                if (p == 0)
+                {
+                    firstAngle = pAngle;
+                    firstRadius = pRadius;
+                }
+
                 planet.SystemX = pRadius * System.MathF.Cos(pAngle);
                 planet.SystemZ = pRadius * System.MathF.Sin(pAngle);
                 // Visual/phase orbit (does not move the t=0 coords above). Period seeded from a SEPARATE hash
@@ -165,9 +197,25 @@ public sealed class UniverseGenerator
                 // enough that, at the default ~10-min day, the phase visibly drifts within a play session.
                 planet.OrbitPeriodDays = OrbitSign(i, p, 130) * (6f + Hash01(i, p, 131) * 34f); // 6..40 d
                 planet.ParentId = string.Empty; // orbits the star at the origin
+                // Archetype size identity (#549): the lone giant is genuinely huge, swarm worlds run small.
+                // Salt 501; bias 0 for everything else keeps the classic hashed size (and pre-variance saves).
+                planet.SizeBias = archetype switch
+                {
+                    SystemArchetype.LoneGiant => 0.6f + Hash01(i, 501, p) * 0.4f,
+                    SystemArchetype.Swarm => -(0.2f + Hash01(i, 501, p) * 0.3f),
+                    _ => 0f,
+                };
                 system.Bodies.Add(planet);
 
-                int moons = rng.Range(_desc.MoonsPerPlanetMin, _desc.MoonsPerPlanetMax);
+                int moons = archetype switch
+                {
+                    SystemArchetype.LoneGiant => rng.Range(4, 8), // its identity — deliberately above the slider
+                    SystemArchetype.Swarm => rng.NextDouble() < 0.8 ? 0 : 1,
+                    SystemArchetype.Belt or SystemArchetype.PirateHaven => rng.Range(0, System.Math.Min(2, moonCap)),
+                    SystemArchetype.Desolate => rng.Range(0, System.Math.Min(1, moonCap)),
+                    SystemArchetype.TwinWorlds => rng.Range(System.Math.Min(1, moonCap), System.Math.Min(2, moonCap)),
+                    _ => rng.Range(_desc.MoonsPerPlanetMin, _desc.MoonsPerPlanetMax), // Standard + Hub
+                };
                 for (int m = 0; m < moons; m++)
                 {
                     float mAngle = Hash01(i, p, 200 + m) * Tau;
@@ -188,13 +236,33 @@ public sealed class UniverseGenerator
                 }
             }
 
+            // Twin Worlds (#549): size the second twin like the first — BiasToward inverts the size mapping,
+            // so both land on (almost) the same circumference despite their independent id hashes.
+            if (archetype == SystemArchetype.TwinWorlds)
+            {
+                var twins = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+                if (twins.Count == 2)
+                {
+                    int target = WorldConstants.CircumferenceFor(twins[0].Id, WorldConstants.WorldSizeClass.Planet);
+                    twins[1].SizeBias = WorldConstants.BiasToward(twins[1].Id, WorldConstants.WorldSizeClass.Planet, target);
+                }
+            }
+
             // A few large, landable asteroids per system: walkable "asteroid" worlds you can land on with the
             // ship or on an EVA, each sized deterministically by its id (CircumferenceFor → Asteroid class). The
             // small mineable rocks spawn separately as space entities at any body. (One rng draw, like the old
             // single-belt gate, so existing systems' stations/wrecks downstream stay put.)
             // Each rock also rolls its own FAMILY (#515) — stony, metallic, icy, carbonaceous or crystalline —
             // so a system's asteroids differ in surface, temperature and what they're worth mining.
-            int asteroidCount = 2 + (rng.NextDouble() < 0.5 ? 1 : 0); // 2 or 3
+            int asteroidCount = archetype switch
+            {
+                SystemArchetype.LoneGiant => rng.Range(1, 2),
+                SystemArchetype.Swarm => rng.Range(2, 4),
+                SystemArchetype.Belt => rng.Range(5, 8), // the belt IS the system
+                SystemArchetype.Desolate => rng.Range(0, 1),
+                SystemArchetype.PirateHaven => rng.Range(3, 5), // cover for ambushes
+                _ => 2 + (rng.NextDouble() < 0.5 ? 1 : 0), // Standard/Hub/Twin: 2 or 3, the legacy draw
+            };
             for (int a = 0; a < asteroidCount; a++)
             {
                 var (ax, az) = DiscPoint(i, planets, 310 + a);
@@ -217,13 +285,28 @@ public sealed class UniverseGenerator
             // planet and named after it ("<planet> Station") so they're attributable. A second station is rare and
             // a third very rare. Count + planet picks come from a SEPARATE hash (not rng), so adding stations never
             // disturbs the wreck rng draw below — only the stations themselves change for existing universes.
-            if (rng.NextDouble() < _desc.SpaceStations.Probability())
+            // The archetype overrides the gate where it defines the system's character: a Hub always has
+            // stations, Desolate/Pirate space never does, a Lone Giant/Belt system tops out at one. The
+            // gate draw itself ALWAYS happens so Standard systems keep the legacy rng sequence.
+            double stationGate = rng.NextDouble();
+            bool anyStations = archetype switch
+            {
+                SystemArchetype.Hub => _desc.SpaceStations != Frequency.Off,
+                SystemArchetype.Desolate or SystemArchetype.PirateHaven => false,
+                _ => stationGate < _desc.SpaceStations.Probability(),
+            };
+            if (anyStations)
             {
                 var systemPlanets = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
 
                 int stationCount = 1;
                 if (Hash01(i, 320, 1) < 0.25f) stationCount = 2;                          // second station: ~25%
                 if (stationCount == 2 && Hash01(i, 320, 2) < 0.30f) stationCount = 3;      // third: ~7.5% (very rare)
+                if (archetype is SystemArchetype.LoneGiant or SystemArchetype.Belt)
+                {
+                    stationCount = 1; // sparse archetypes: at most a single outpost
+                }
+
                 stationCount = System.Math.Min(stationCount, systemPlanets.Count);        // can't exceed planets (one each)
 
                 // Deterministic shuffle so each station sits over a different planet (no two share one).
@@ -254,7 +337,16 @@ public sealed class UniverseGenerator
                 }
             }
 
-            if (rng.NextDouble() < _desc.Wrecks.Probability())
+            // Wreck odds follow the archetype's story: lawless/derelict space is littered with them,
+            // patrolled hub space is mostly cleaned up. Standard multiplier 1.0 = the legacy chance.
+            double wreckChance = _desc.Wrecks.Probability() * archetype switch
+            {
+                SystemArchetype.Belt or SystemArchetype.Desolate => 1.5,
+                SystemArchetype.PirateHaven => 2.0,
+                SystemArchetype.Hub => 0.5,
+                _ => 1.0,
+            };
+            if (rng.NextDouble() < System.Math.Min(0.95, wreckChance))
             {
                 var (wx, wz) = DiscPoint(i, planets, 303);
                 (wx, wz) = SeparateFromBodies(system, wx, wz); // a wreck shouldn't clip a body either

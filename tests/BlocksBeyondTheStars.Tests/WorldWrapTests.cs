@@ -264,6 +264,42 @@ public class WorldWrapTests
     }
 
     [Fact]
+    public void CircumferenceFor_SizeBias_ZeroIsBitIdentical_AndFullBiasReachesTheExtendedBand()
+    {
+        // #549: bias 0 MUST reproduce the classic value exactly — existing saves re-derive their terrain
+        // from it. Full bias lands on the extended band edges (planets 4000/16000), still chunk-aligned.
+        foreach (string key in new[] { "sys0-p0", "sys3-p1", "body-a" })
+        {
+            int baseline = WorldConstants.CircumferenceFor(key, WorldConstants.WorldSizeClass.Planet);
+            Assert.Equal(baseline, WorldConstants.CircumferenceFor(key, WorldConstants.WorldSizeClass.Planet, 0f));
+
+            int giant = WorldConstants.CircumferenceFor(key, WorldConstants.WorldSizeClass.Planet, 1f);
+            int dwarf = WorldConstants.CircumferenceFor(key, WorldConstants.WorldSizeClass.Planet, -1f);
+            Assert.Equal(16000, giant);
+            Assert.Equal(4000, dwarf);
+
+            int half = WorldConstants.CircumferenceFor(key, WorldConstants.WorldSizeClass.Planet, 0.5f);
+            Assert.InRange(half, baseline, giant); // monotonic pull toward the giant edge
+            Assert.Equal(0, half % WorldConstants.ChunkSize);
+        }
+    }
+
+    [Fact]
+    public void BiasToward_MakesTwoBodiesLandOnTheSameSize()
+    {
+        // The Twin Worlds archetype sizes the second twin like the first: the inverse mapping must land
+        // within one chunk of the target (the rounding step) for any pair of ids.
+        foreach (var (a, b) in new[] { ("sys1-p0", "sys1-p1"), ("sys7-p0", "sys7-p1"), ("body-a", "body-b") })
+        {
+            int target = WorldConstants.CircumferenceFor(a, WorldConstants.WorldSizeClass.Planet);
+            float bias = WorldConstants.BiasToward(b, WorldConstants.WorldSizeClass.Planet, target);
+            int got = WorldConstants.CircumferenceFor(b, WorldConstants.WorldSizeClass.Planet, bias);
+            Assert.InRange(System.Math.Abs(got - target), 0, WorldConstants.ChunkSize);
+            Assert.InRange(bias, -1f, 1f);
+        }
+    }
+
+    [Fact]
     public void SizeClassFor_DistinguishesAsteroidMoonPlanet()
     {
         Assert.Equal(WorldConstants.WorldSizeClass.Asteroid, WorldConstants.SizeClassFor(CelestialKind.Planet, "asteroid"));

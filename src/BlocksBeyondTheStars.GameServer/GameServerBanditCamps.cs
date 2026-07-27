@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -41,7 +42,22 @@ public sealed partial class GameServer
 
         // Rarer than ruins: most worlds have none. The rule slider nudges the odds, the seeded roll
         // decides — so a given body either is bandit country or it isn't, forever.
-        double odds = Rules.Bandits switch
+        // #547: in a Pirate Haven system the slider is effectively one step hotter (camps are the
+        // archetype's ground presence), and the world's Danger option scales the odds on top
+        // (Normal = ×1.0 keeps them exactly as before; Off yields no camps at all).
+        var activity = Rules.Bandits;
+        if (activity != AlienActivity.Off
+            && SystemArchetypeOf(_galaxy.FindBody(_world.LocationId)?.SystemId) == SystemArchetype.PirateHaven)
+        {
+            activity = activity switch
+            {
+                AlienActivity.Rare => AlienActivity.Normal,
+                AlienActivity.Normal => AlienActivity.Frequent,
+                _ => AlienActivity.Extreme,
+            };
+        }
+
+        double odds = activity switch
         {
             AlienActivity.Rare => 0.75,
             AlienActivity.Normal => 0.60,
@@ -49,6 +65,7 @@ public sealed partial class GameServer
             AlienActivity.Extreme => 0.30,
             _ => 1.0,
         };
+        odds = System.Math.Clamp(1.0 - (1.0 - odds) * _meta.Description.Danger.DangerFactor(), 0.05, 1.0);
         double r = rng.NextDouble();
         int count = r < odds ? 0 : r < odds + (1.0 - odds) * 0.8 ? 1 : 2;
         count = System.Math.Min(BanditCampHardCap, count);

@@ -961,6 +961,12 @@ public sealed class NetBody
     /// (live occupancy). PadsFree == 0 means the body is full — landing there is refused.</summary>
     public int PadsTotal { get; set; }
     public int PadsFree { get; set; }
+
+    /// <summary>Size bias in [-1, 1] (#549) — the archetype's size identity for this body. The client MUST
+    /// feed it into every <c>WorldConstants.CircumferenceFor</c> call for this body (orbit sphere, sky
+    /// bodies, pad map bake) or its rendered size disagrees with the walkable world the server builds.
+    /// 0 for every pre-variance body, so old saves and old clients keep the classic hashed size.</summary>
+    public float SizeBias { get; set; }
 }
 
 public sealed class NetStarSystem
