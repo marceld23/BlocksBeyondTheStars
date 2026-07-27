@@ -21,6 +21,13 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Explicit on purpose: xunit.core's auto-copy of xunit.runner.json did not fire in our container
+       builds, and a runner config that silently fails to deploy reverts the suite to core-count
+       parallelism — the 20-minute lock-convoy stall it exists to prevent (#536). -->
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
     <ProjectReference Include="..\..\src\BlocksBeyondTheStars.WorldGeneration\BlocksBeyondTheStars.WorldGeneration.csproj" />

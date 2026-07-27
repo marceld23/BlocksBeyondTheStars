@@ -513,12 +513,24 @@ public sealed class WebSocketServerTransport : IServerTransport
     {
         _running = false;
         _cts.Cancel();
-        try { _listener.Stop(); } catch { }
+
+        // Abort(), not Stop()+Close() (#536): on Linux the managed HttpListener's graceful teardown waits
+        // for every connection it still tracks, and a connection with no in-flight request is only
+        // reclaimed by the listener's ~2-minute idle sweep. Measured: whichever transport test tore down
+        // last paid ~120 s alone on an idle machine (5 m 51 s → 3 m 41 s suite total with Abort), and in
+        // production an idle browser connection parked on the gateway would delay a stopping hosted
+        // world's process exit the same way. Stop() only ever runs when the transport is going away — the
+        // gameplay drain + save happened upstream — so a hard close is the correct semantic: WebSocket
+        // peers are torn down via _cts anyway, and an unserved idle socket on a dying server gets a reset
+        // instead of a silently dead keep-alive.
+        try { _listener.Abort(); } catch { }
     }
 
     public void Dispose()
     {
         Stop();
+        // No-op after the Abort() above (the listener is already torn down) — kept because CA2213 wants a
+        // Close/Dispose call on the field, and a disposed listener's Close returns immediately.
         try { _listener.Close(); } catch { }
         _cts.Dispose();
     }

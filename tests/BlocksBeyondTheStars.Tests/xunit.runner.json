@@ -1,0 +1,5 @@
+{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+  "_comment": "maxParallelThreads pinned to 4 (issue #536): the suite is dominated by CPU-bound worldgen tests that all funnel through WorldGenerator's static caches (_riverLock/_calibLock). On a 16-core dev box the default (= core count) parks 16 workers in that lock convoy and the full suite stalls for 20+ minutes; at 4 it finishes in ~2m41s. The 4-core CI runner is unchanged (default was already 4). Measured 2026-07-27, analysis/ci-test-duration-flakiness.md.",
+  "maxParallelThreads": 4
+}

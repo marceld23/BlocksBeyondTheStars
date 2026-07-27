@@ -109,13 +109,13 @@ public sealed class WebSocketTransportTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Slow")] // 183 ms in isolation (measured on Linux in a container), but 178.8 s and
-                                // 208.9 s on two consecutive loaded PR runners on 2026-07-27 — both AFTER
-                                // #536's clean-close fix, which made this rarer without removing it. What
-                                // stretches is the runner's scheduling, not the code under test, so the
-                                // fast-tier budget cannot hold it. Same symptom and same reasoning as
-                                // Gateway_DropsAConnectionThatNeverSendsAsync below; full runs on main and
-                                // release still cover it. Real cause tracked in #536 (reopened).
+    [Trait("Category", "Slow")] // 183 ms in isolation, 118-209 s inside a loaded fast tier (#536). The
+                                // ~120 s teardown-sweep share of that is fixed (transport Stop() now
+                                // Abort()s the listener), but the second mechanism remains: xUnit v2 funnels
+                                // every await continuation through maxParallelThreads workers, and this
+                                // test's HTTP hops queue behind CPU-bound worldgen test bodies — its wall
+                                // duration measures that queue, not the gateway. Full runs on main and
+                                // release still cover it. Evidence: analysis/ci-test-duration-flakiness.md.
     public async Task Gateway_AcceptLoop_SurvivesAFaultingRequestAsync()
     {
         int port = FreeTcpPort();

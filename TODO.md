@@ -6439,6 +6439,45 @@ asteroids change type and relief — a one-time change like #492/#501, and relea
 
 ---
 
+## ✅ Done (2026-07-27): why a 183 ms test measured 120–209 s on CI — gateway teardown tail + xUnit lock convoy (#536)
+
+Analysis: `analysis/ci-test-duration-flakiness.md` (all numbers from real CI TRX artifacts plus A/B re-runs
+of the fast tier in a `--cpus=2` Linux container). The fast-tier guardrail kept tripping on
+`WebSocketTransportTests` with 118–209 s durations for tests that do 183 ms of work in isolation. It was
+**two stacked mechanisms**, not one:
+
+**1. The managed HttpListener's teardown tail (~120 s, fixed here).** TRX timelines from both failing CI
+runs show the stretched test is always the LAST of the transport class to run and spends its final
+100–190 s alone on an idle machine — a wait, not contention. On Linux, `HttpListener.Stop()/Close()` wait
+for every connection the listener still tracks, and a connection with no in-flight request is only
+reclaimed by the ~2-minute idle sweep. A/B in the container: `Stop()+Close()` 5 m 51 s suite total,
+`Abort()` **3 m 41 s** — tail gone. `WebSocketServerTransport.Stop()` now calls `_listener.Abort()`;
+correct in production too, where Dispose runs after the drain + save and an idle parked browser connection
+would otherwise delay a stopping hosted world's process exit by up to ~2 min (the quieter sibling of #519).
+
+**2. xUnit v2's limited SynchronizationContext queues async-test continuations behind CPU-bound test
+bodies.** `maxParallelThreads` (default = core count) is enforced by routing every test-body `await`
+continuation through N dedicated workers; a worldgen body that computes for 30 s without awaiting holds one
+the whole time, so socket tests' wall durations measure the queue (a 9 ms test has measured 37 s; the
+WorldStopAndKill test 123.3 s for 89 ms of work). The counter-experiment `maxParallelThreads: -1` was
+**killed after 24 min** (baseline 5 m 51 s): container load sat at ~1.0 on 2 CPUs — threads parked in the
+static worldgen-cache lock convoy (`_riverLock`/`_calibLock`), the same pathology that stalls the local
+full suite for 20+ min at 16 threads. So the Slow tags on real-socket tests stay, and the guardrail keeps
+its documented looseness.
+
+**Shipped:** the `Abort()` teardown, plus a committed `tests/BlocksBeyondTheStars.Tests/xunit.runner.json`
+pinning `maxParallelThreads: 4` — a no-op on the 4-core CI runner, but locally it replaces the
+easy-to-forget `-- xUnit.MaxParallelThreads=4` incantation (2 m 41 s vs a 20+ minute stall on a 16-core
+box). The copy-to-output is an explicit `<None>` item: xunit.core's auto-copy did not fire in container
+builds, and a runner config that silently fails to deploy reverts the suite to the stall.
+
+**Sharding across runners was evaluated and rejected with numbers:** the per-project split is 2 m 54 s vs
+4 s (#535), the full suite (~11 min, main/release only) runs off every critical path (release's WebGL leg
+is ~31.6 min), and intra-project class-bucket sharding would pay N× ~1 min fixed overhead plus a
+required-check rename to shave minutes nobody waits on.
+
+---
+
 ## ✅ Done (2026-07-27): hosted worlds were hard-killed on every operator stop — no save (#519)
 
 Analysis: `analysis/hosted-world-stop-signal.md`. Pressing **stop** in `/admin` hung the page for two minutes
