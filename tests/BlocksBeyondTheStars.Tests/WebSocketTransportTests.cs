@@ -126,13 +126,14 @@ public sealed class WebSocketTransportTests : IDisposable
         // budget on every PR. Windows (http.sys) never showed it. Closing each connection keeps the
         // shutdown immediate without changing what this test covers.
         http.DefaultRequestHeaders.ConnectionClose = true;
-        try
+
+        // The faulted request must come back as a real 500, not a connection reset. That is the fix for
+        // #536: the accept loop used to Abort() the response, which left the connection for the listener's
+        // 2-minute idle sweep and dragged this test to 180-212 s. A clean close frees it immediately, so
+        // asserting the status code here is also what pins the teardown behaviour.
+        using (var faulted = await http.GetAsync($"http://127.0.0.1:{port}/status"))
         {
-            (await http.GetAsync($"http://127.0.0.1:{port}/status")).Dispose();
-        }
-        catch (System.Net.Http.HttpRequestException)
-        {
-            // the faulted request may tear down its own connection — that is fine
+            Assert.Equal(HttpStatusCode.InternalServerError, faulted.StatusCode);
         }
 
         // The accept loop must still be alive: the next client gets a normal answer.

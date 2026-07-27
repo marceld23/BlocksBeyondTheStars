@@ -126,7 +126,30 @@ public sealed class WebSocketServerTransport : IServerTransport
             }
             catch
             {
-                try { ctx.Response.Abort(); } catch { }
+                // Close the faulted request CLEANLY rather than aborting it. Abort() tears the socket down
+                // without a response, and on Linux (managed HttpListener) the connection object is then only
+                // reclaimed by the listener's 2-minute idle sweep — Dispose() waits for that sweep, which is
+                // why the one test that exercises this path measured 180-212 s against a 120 s budget while
+                // every other test in the suite finished in under 11 s (#536). Windows (http.sys) never
+                // showed it. Writing a real 500 and closing releases the connection immediately.
+                //
+                // KeepAlive = false is the load-bearing part: without it the listener holds the connection
+                // open for reuse and we are back in the idle sweep.
+                //
+                // It also behaves better in production: a transient StatusJsonProvider fault used to hand
+                // the browser a connection reset, and now hands it an honest 500.
+                try
+                {
+                    ctx.Response.StatusCode = 500;
+                    ctx.Response.KeepAlive = false;
+                    ctx.Response.Close();
+                }
+                catch
+                {
+                    // Headers already went out (the fault happened mid-body-write), so a clean close is no
+                    // longer possible — abort is all that is left.
+                    try { ctx.Response.Abort(); } catch { }
+                }
             }
         }
     }
