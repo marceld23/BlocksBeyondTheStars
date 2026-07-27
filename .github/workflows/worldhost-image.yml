@@ -91,5 +91,7 @@ jobs:
           platforms: linux/amd64
           push: ${{ steps.img.outputs.push == 'true' }}
           tags: ${{ steps.img.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Scoped + mode=min so the four image workflows stop evicting each other and the Unity Library
+          # cache out of the repo's 10 GB budget (#529).
+          cache-from: type=gha,scope=worldhost
+          cache-to: type=gha,mode=min,scope=worldhost

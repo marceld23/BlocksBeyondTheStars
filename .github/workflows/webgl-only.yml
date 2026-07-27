@@ -68,7 +68,6 @@ jobs:
           echo "Before:"; df -h /
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
-          sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
       - name: Inject player-feedback API key

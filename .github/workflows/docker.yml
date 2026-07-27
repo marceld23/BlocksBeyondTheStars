@@ -70,7 +70,12 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      # QEMU only matters for cross-architecture emulation. release.yml asks for linux/amd64,linux/arm64
+      # so it is genuinely needed there, but the workflow_dispatch default is linux/amd64 only — a native
+      # build on an amd64 runner, where installing QEMU cost ~30 s and left three duplicate 30 MB binfmt
+      # entries in the repo cache budget for nothing (#532).
       - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
+        if: ${{ contains(inputs.platforms, 'arm') || contains(inputs.platforms, 'ppc') || contains(inputs.platforms, 's390') || contains(inputs.platforms, 'riscv') }}
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
 
       - name: Log in to GHCR
@@ -93,8 +98,15 @@ jobs:
           # release version instead of the .NET default 1.0.0 (release.yml passes the tag as `tag`).
           build-args: |
             VERSION=${{ inputs.tag }}
-          cache-from: type=gha
+          # `scope` keeps the four image workflows (docker, worldhost-image, reports-image, ai-image) in
+          # separate cache namespaces. They previously shared one unscoped `type=gha` namespace and evicted
+          # each other's layers on every push (#529).
+          cache-from: type=gha,scope=dedicated-server
           # Only non-tag runs export the layer cache: this workflow is workflow_call'ed by release.yml
           # on tag refs, and tag-scoped caches are unreadable by every other ref — they only crowded
           # main's caches out of the 10 GB budget. Tag runs still import via cache-from.
-          cache-to: ${{ startsWith(github.ref, 'refs/tags/') && ' ' || 'type=gha,mode=max' }}
+          #
+          # mode=min, not mode=max: mode=max exported every intermediate SDK/restore/build layer, which grew
+          # to ~3.27 GB across ~24 blobs — 64 % of the repo's entire 10 GB cache budget — and churned on
+          # every push, LRU-evicting the Unity Library cache that actually saves release wall-clock (#529).
+          cache-to: ${{ startsWith(github.ref, 'refs/tags/') && ' ' || 'type=gha,mode=min,scope=dedicated-server' }}

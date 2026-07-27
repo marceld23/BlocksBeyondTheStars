@@ -64,16 +64,35 @@ jobs:
           - language: actions
             build-mode: none
     steps:
+      # The C# scan is the expensive one — it runs a full `dotnet build` of CI.slnf, while python/actions
+      # are buildless and take seconds. Measured 2026-07-19..27: CodeQL was the #2 wall-clock consumer of
+      # the whole repo (230 min over 60 runs) and nearly all of it was csharp on pull requests. Since the
+      # "CodeQL" check is deliberately NOT required on main (see the header), restricting csharp to pushes
+      # to main and the weekly schedule cannot block a PR — and main is still scanned on every merge, which
+      # is exactly the coverage the header promises. python/actions keep running on PRs (#530).
+      - name: Skip the C# scan on pull requests
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ matrix.language }}" = "csharp" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "C# CodeQL runs on pushes to main + the weekly schedule, not on PRs (#530)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v5
+        if: steps.gate.outputs.skip != 'true'
 
       # C# only: the manual build below needs the .NET SDK. Skipped for the buildless languages.
       - name: Set up .NET
-        if: matrix.language == 'csharp'
+        if: steps.gate.outputs.skip != 'true' && matrix.language == 'csharp'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Initialize CodeQL
+        if: steps.gate.outputs.skip != 'true'
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
@@ -85,10 +104,11 @@ jobs:
       # on the Linux runner. No -warnaserror here: this gate is for security analysis, not style enforcement
       # (ci.yml already enforces 0 warnings). Skipped for the buildless languages.
       - name: Build C# (solution filter)
-        if: matrix.language == 'csharp'
+        if: steps.gate.outputs.skip != 'true' && matrix.language == 'csharp'
         run: dotnet build BlocksBeyondTheStars.CI.slnf -c Release
 
       - name: Analyze
+        if: steps.gate.outputs.skip != 'true'
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"

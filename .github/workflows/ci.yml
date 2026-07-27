@@ -63,10 +63,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # NuGet package cache. The repo uses no packages.lock.json, so setup-dotnet's default lockfile glob
+      # finds nothing and would fail — cache-dependency-path pins the key to the project files instead.
+      # Deliberately enabled ONLY in ci.yml: this is the job that runs on every PR, where turnaround time
+      # is what a human waits on. The release/CodeQL jobs are not on any critical path, so caching them
+      # would just spend the scarce 10 GB cache budget we are freeing up in #529 (#531).
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
 
       - name: Restore
         run: |
@@ -125,10 +134,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Same NuGet cache as build-test above — `dotnet format` restores the whole CI.slnf, so this job
+      # pays a bigger restore than the test job does (#531).
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
 
       - name: dotnet format --verify-no-changes
         run: dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes

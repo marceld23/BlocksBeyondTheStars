@@ -182,26 +182,31 @@ jobs:
         shell: pwsh
         run: ./scripts/publish-local-server.ps1 -Runtime win-x64 -Version ${{ needs.version.outputs.version }}
 
-      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
-      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
-      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      # The key MUST carry the platform. Unity's Library is per-build-target, and this key used to be a
+      # bare `Library-` / `restore-keys: Library-`, which prefix-matched `Library-WebGL-…` — so this job
+      # downloaded 1.7 GB of WebGL Library that Unity then discarded and re-imported for Windows (#528).
+      # Nothing writes a `Library-Windows-` cache today (see build-player-webgl for why only WebGL saves),
+      # so this restore is normally a clean miss — which is correct, and far cheaper than the wrong hit.
       - name: Restore Unity Library cache
         uses: actions/cache/restore@v5
         with:
           path: client/Library
-          key: Library-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          key: Library-Windows-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
           restore-keys: |
-            Library-
+            Library-Windows-
 
       # The ~6 GB GameCI editor image plus the restored Library cache overflow the hosted runner's
       # ~14 GB free disk ("no space left on device"). Drop preinstalled toolchains we don't need
       # (our .NET steps already ran) to free ~25 GB before the Docker pull.
+      #
+      # No `docker image prune` here: a hosted runner boots with a near-empty local image store, so it
+      # reclaimed nothing while costing 0.6-1.4 min per job (~3.5 min per release across the four Unity
+      # jobs, on the WebGL critical path). The rm -rf above does all the real work (#532).
       - name: Free disk space for the Unity image
         run: |
           echo "Before:"; df -h /
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
-          sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
       - name: Inject player-feedback API key
@@ -268,6 +273,10 @@ jobs:
         with:
           name: player-windows
           path: player
+          # Intermediate hand-off to the packaging job in the SAME run; the shipped copy is attached to the
+          # GitHub Release. 703 artifacts / 7.4 GB had piled up at the 90-day default (#533). Storage is
+          # free on a public repo — this is about keeping the run pages and the storage view usable.
+          retention-days: 7
 
   build-player-linux:
     name: Build Unity player (Linux)
@@ -290,9 +299,9 @@ jobs:
       - name: Publish bundled local server (linux-x64)
         run: ./scripts/publish-local-server.sh linux-x64 ${{ needs.version.outputs.version }}
 
-      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
-      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
-      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      # Restore-only, and in practice always a miss: nothing writes a `Library-Linux-` cache. Only WebGL
+      # saves one, because only WebGL is on the release critical path — see build-player-webgl (#528).
+      # Kept so this job picks the cache up for free if a warming run is ever added for this platform.
       - name: Restore Unity Library cache
         uses: actions/cache/restore@v5
         with:
@@ -306,7 +315,6 @@ jobs:
           echo "Before:"; df -h /
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
-          sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
       - name: Inject player-feedback API key
@@ -376,6 +384,8 @@ jobs:
         with:
           name: player-linux
           path: player-linux
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
   # macOS player (experimental). Built on a Linux runner: the project uses the Mono scripting backend, so
   # GameCI cross-compiles StandaloneOSX without Mac hardware. The result is an unsigned/un-notarized .app
@@ -401,9 +411,9 @@ jobs:
       - name: Publish bundled local server (osx-x64)
         run: ./scripts/publish-local-server.sh osx-x64
 
-      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
-      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
-      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      # Restore-only, and in practice a miss: the only writer of `Library-macOS-` is macos-build.yml, which
+      # is workflow_dispatch-only, so the cache exists just after someone ran it by hand. This workflow does
+      # not save one — only WebGL is on the release critical path, see build-player-webgl (#528).
       - name: Restore Unity Library cache
         uses: actions/cache/restore@v5
         with:
@@ -417,7 +427,6 @@ jobs:
           echo "Before:"; df -h /
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
-          sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
       - name: Inject player-feedback API key
@@ -471,6 +480,8 @@ jobs:
         with:
           name: player-mac
           path: player-mac
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
   # WebGL (browser) player. Unlike the standalone builds it bundles no local server and needs no Velopack
   # or console launcher — it only ever joins a hosted server over WebSocket (issue #121). The output is a
@@ -493,10 +504,18 @@ jobs:
       - name: Sync shared libs + content (bash)
         run: ./scripts/sync-client-libs.sh
 
-      # Restore-only: release runs on tag refs, and a tag-scoped cache can never be restored by any
-      # other ref (not even the next release tag) — writing them only evicted the useful main-scoped
-      # caches from the repo's 10 GB budget. Tag runs still restore main's caches via restore-keys.
+      # WebGL is the ONLY platform whose Library cache is worth keeping, and the only one this workflow
+      # saves (see the paired save step after the build). Measured on run 30223823967: every Unity job
+      # starts in parallel, and WebGL ends at +31.6 min while Windows/Linux/macOS end at +11.0/+13.7/+13.7
+      # — WebGL alone is the release critical path, so only its cache buys wall-clock. A warm Library cuts
+      # the asset import from 257 s (cold) to 85 s, i.e. ~2.9 min off the release. Caching the other three
+      # would save nothing measurable while adding ~4.5 GB to the repo's 10 GB cache budget (#528).
+      #
+      # Restore and save are split because release normally runs on a TAG ref, and a tag-scoped cache can
+      # never be restored by any other ref (not even the next release tag) — writing one would only evict
+      # the useful main-scoped caches. Tag runs still restore main's cache via restore-keys.
       - name: Restore Unity Library cache
+        id: unity-cache
         uses: actions/cache/restore@v5
         with:
           path: client/Library
@@ -509,7 +528,6 @@ jobs:
           echo "Before:"; df -h /
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
-          sudo docker image prune --all --force || true
           echo "After:"; df -h /
 
       - name: Inject player-feedback API key
@@ -578,6 +596,21 @@ jobs:
       - name: Fix output permissions
         run: sudo chmod -R a+rwX player-webgl
 
+      # Paired with the restore step above. Two guards, both load-bearing:
+      #   * ref_type != 'tag' — a tag-scoped cache is unreadable by every other ref, so writing one on the
+      #     usual tag release would burn ~1.7 GB of the 10 GB budget for nothing. A manual
+      #     `workflow_dispatch` run of this workflow on main is what actually (re)warms the cache.
+      #   * cache-hit != 'true' — the exact key already exists; re-uploading it would be a no-op that
+      #     merely resets its LRU position.
+      # Before this step existed, the only writer was the MANUAL webgl-only.yml, so the critical-path cache
+      # was maintained purely by accident and vanished silently whenever it was evicted (#528).
+      - name: Save Unity Library cache
+        if: github.ref_type != 'tag' && steps.unity-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: client/Library
+          key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+
       - name: Verify baked version matches the tag
         shell: bash
         run: |
@@ -590,6 +623,8 @@ jobs:
         with:
           name: player-webgl
           path: player-webgl
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
   # Linux packaging. `needs: test` (like every package/publish job below): nothing ships unless the
   # full suite passed on this commit.
@@ -647,6 +682,8 @@ jobs:
         with:
           name: linux-installers
           path: artifacts/installer-linux
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
       - name: Publish GitHub Release (Linux assets)
         if: startsWith(github.ref, 'refs/tags/')
@@ -701,6 +738,8 @@ jobs:
         with:
           name: mac-installers
           path: artifacts/installer-mac
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
       - name: Publish GitHub Release (macOS assets)
         if: startsWith(github.ref, 'refs/tags/')
@@ -735,6 +774,8 @@ jobs:
         with:
           name: webgl-package
           path: artifacts/webgl
+          # Intermediate hand-off / already on the Release — see player-windows above (#533).
+          retention-days: 7
 
       - name: Publish GitHub Release (WebGL asset)
         if: startsWith(github.ref, 'refs/tags/')
