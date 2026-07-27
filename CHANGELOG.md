@@ -2,14 +2,24 @@
 
 All notable changes to **Blocks Beyond the Stars** are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
-(pre-1.0: minor bumps carry features, patch bumps carry fixes and small additions).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter within the month
+(e.g. `2026.7.2`; SemVer2-valid, so no leading zeros and never a fourth part — see
+[ADR 0012](docs/developer/adr/0012-calver-date-based-versioning.md)). Releases up to
+[0.9.1] followed [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
 ## [Unreleased]
+
+### 📅 Date-based versions
+- **The version scheme switches from SemVer to CalVer `YYYY.MM.N`** (year, month, release counter
+  within the month) — this release is the first under the new scheme; v0.9.1 was the last SemVer
+  release. The tag stays the single source of truth and the format stays SemVer2-compatible, so
+  auto-updates keep working across the switch. The machine-wide MSI shows the year mapped down
+  (`26.x.x`) in Apps & Features because Windows Installer caps its major version field at 255 —
+  all other surfaces show the full version.
 
 ### 🔔 The game finally tells you about updates (#543)
 - **Update notice on startup.** An installed client now quietly checks for a newer release while the
