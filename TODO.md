@@ -100,6 +100,24 @@ Per-item detail lives in the dated work log below.
 
 ---
 
+### ★ Material + Item editors realigned with the game (#508–#514, #516, #517, #520, 2026-07-27, branch fix/editor-audit-2026-07)
+Audit of the two developer editors in the Editors menu. **Correctness:** the item editor's station
+list is now derived from the `CraftingStation` enum — it used to offer `lab`/`machineRoom`, which do
+not exist, so a merged recipe made the whole content load throw (game unstartable), while
+`transmuter`/`factory`/`algaeTank` were unreachable (#508). Ore depth bands go to **2048** like every
+shipped vein instead of stopping at 256 (#509), and a live readout restates the frequency slider as
+the share of rock the vein actually claims (the generator scales + caps the raw value). `scanner`
+dropped from the block mining tools, and `merge_material.py`'s atlas warning fixed from a phantom
+64-tile limit to the real 256 minus the variant slots (#511). **Completeness:** materials now carry a
+palette `category` and a dyeable/shapeable toggle, both written into `blocks.json` (#510); items gained
+area mining, cooldown, scan-knowledge and the market vendor theme, and `gadget` appears as a tool kind
+(#512). Typed item/block keys are checked against the live registry before the export instead of
+failing later as a startup error, and `merge_recipe.py` reminds you to generate the item icon (#517).
+**Fit:** the developer banner no longer runs under the panels (#513), text fields have character
+limits and the description became a wrapping multi-line box (#514), and every picker VALUE is
+localized via new `ui.opt.*` keys instead of showing camelCase internals (#516). Two new content tests
+pin the option sets to the enums + locales.
+
 ### ★ Chat `/help` readable again — no pseudo-HTML, no admin wall (#507, 2026-07-27, branch fix/chat-help-cleanup)
 `/help` used to answer with what looked like broken HTML. Not a rendering bug: the help strings used the
 CLI convention `<item>` / `<x>` / `<player>` for placeholders, and the chat scrollback is a legacy uGUI

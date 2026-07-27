@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,19 +21,36 @@ namespace BlocksBeyondTheStars.Client
     {
         public AppShell Shell;
 
-        private static readonly string[] Categories = { "material", "block", "tool", "consumable", "component" };
-        private static readonly string[] ToolKinds = { "none", "drill", "blockPlacer", "scanner", "repair", "weapon" };
-        private static readonly string[] Stations = { "hand", "workshop", "refinery", "lab", "machineRoom", "detoxifier", "market" };
+        // The pickers are derived from the real enums (in their JSON camelCase spelling), so the editor can
+        // never again offer a value the game refuses to load — it used to list "lab"/"machineRoom", which do
+        // not exist, and to omit transmuter/factory/algaeTank, which do (#508).
+        private static readonly string[] Categories = EnumOptions<ItemCategory>();
+        private static readonly string[] ToolKinds = EnumOptions<ToolKind>();
+        private static readonly string[] Stations = EnumOptions<CraftingStation>();
+
+        /// <summary>An enum's members in declaration order, spelled the way
+        /// <c>ContentLoader.JsonOptions</c>' camelCase <c>JsonStringEnumConverter</c> reads and writes them.</summary>
+        private static string[] EnumOptions<T>() where T : struct, Enum
+        {
+            var names = Enum.GetNames(typeof(T));
+            for (int i = 0; i < names.Length; i++)
+            {
+                names[i] = char.ToLowerInvariant(names[i][0]) + names[i].Substring(1);
+            }
+
+            return names;
+        }
 
         // --- item ---
         private string _key = "my_item", _name = "My Item", _desc = "A custom item.", _placesBlock = string.Empty;
         private int _category, _maxStack = 99;
         private int _toolKind;
-        private float _tier = 1, _miningPower = 1, _damage, _range, _energy;
+        private float _tier = 1, _miningPower = 1, _damage, _range, _energy, _miningRadius, _cooldown;
         private float _consumeHealth, _consumeHunger, _armor, _oxygen, _scan = 1f;
         // --- recipe ---
-        private int _station = 1; // workshop
+        private int _station = Array.IndexOf(Stations, "workshop");
         private int _outputCount = 1;
+        private string _marketTheme = string.Empty;
         private readonly List<Amount> _inputs = new() { new Amount() };
         // --- blueprint ---
         private bool _hasBlueprint;
@@ -64,25 +82,29 @@ namespace BlocksBeyondTheStars.Client
             var root = _canvas.transform;
 
             // Developer-tool banner: its output needs a merge + rebuild and does not affect the current game.
-            UiKit.AddText(root, 16f, 4f, 1400f, 22f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Sits ABOVE the panels' top edge — the panels are later siblings, so any overlap would cut the
+            // bottom off this very warning (#513).
+            UiKit.AddText(root, 16f, 0f, 1400f, 26f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // ── Left panel: item + stats ──────────────────────────────────────────────────────
-            var left = UiKit.AddPanel(root, 16f, 16f, 470f, 1048f, UiKit.PanelFill).transform;
+            var left = UiKit.AddPanel(root, 16f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
             UiKit.AddText(left, 16f, 12f, 440f, 26f, L("ui.content.item"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             float y = 50f;
-            InputRow(left, ref y, L("ui.content.key"), _key, v => _key = v);
-            InputRow(left, ref y, L("ui.content.name"), _name, v => _name = v);
-            InputRow(left, ref y, L("ui.content.desc"), _desc, v => _desc = v);
-            CycleRow(left, ref y, L("ui.content.category"), Categories, () => _category, i => _category = i);
+            InputRow(left, ref y, L("ui.content.key"), _key, v => _key = v, KeyLimit);
+            InputRow(left, ref y, L("ui.content.name"), _name, v => _name = v, NameLimit);
+            TextAreaRow(left, ref y, L("ui.content.desc"), _desc, v => _desc = v);
+            CycleRow(left, ref y, L("ui.content.category"), Display("category", Categories), () => _category, i => _category = i);
             Stepper(left, ref y, L("ui.content.max_stack"), () => _maxStack, v => _maxStack = (int)v, 1, 999, 1, "0");
-            InputRow(left, ref y, L("ui.content.places_block"), _placesBlock, v => _placesBlock = v);
+            InputRow(left, ref y, L("ui.content.places_block"), _placesBlock, v => _placesBlock = v, KeyLimit);
 
             Header(left, ref y, L("ui.content.tool_stats"));
-            CycleRow(left, ref y, L("ui.content.tool_kind"), ToolKinds, () => _toolKind, i => _toolKind = i);
+            CycleRow(left, ref y, L("ui.content.tool_kind"), Display("tool", ToolKinds), () => _toolKind, i => _toolKind = i);
             Stepper(left, ref y, L("ui.content.tier"), () => _tier, v => _tier = v, 1, 5, 1, "0");
             Stepper(left, ref y, L("ui.content.mining_power"), () => _miningPower, v => _miningPower = v, 0, 8, 0.5f, "0.0");
+            Stepper(left, ref y, L("ui.content.mining_radius"), () => _miningRadius, v => _miningRadius = v, 0, 1, 1, "0");
             Stepper(left, ref y, L("ui.content.damage"), () => _damage, v => _damage = v, 0, 200, 5, "0");
             Stepper(left, ref y, L("ui.content.range"), () => _range, v => _range = v, 0, 80, 1, "0");
+            Stepper(left, ref y, L("ui.content.cooldown"), () => _cooldown, v => _cooldown = v, 0, 5, 0.1f, "0.0");
             Stepper(left, ref y, L("ui.content.energy"), () => _energy, v => _energy = v, 0, 20, 1, "0");
 
             Header(left, ref y, L("ui.content.effects"));
@@ -90,13 +112,17 @@ namespace BlocksBeyondTheStars.Client
             Stepper(left, ref y, L("ui.content.consume_hunger"), () => _consumeHunger, v => _consumeHunger = v, 0, 100, 5, "0");
             Stepper(left, ref y, L("ui.content.armor"), () => _armor, v => _armor = v, 0, 0.75f, 0.05f, "0.00");
             Stepper(left, ref y, L("ui.content.oxygen"), () => _oxygen, v => _oxygen = v, 0, 100, 5, "0");
+            Stepper(left, ref y, L("ui.content.scan"), () => _scan, v => _scan = v, 1, 4, 0.25f, "0.00");
 
             // ── Right panel: recipe + blueprint + footer ──────────────────────────────────────
-            var right = UiKit.AddPanel(root, 502f, 16f, 470f, 1048f, UiKit.PanelFill).transform;
+            var right = UiKit.AddPanel(root, 502f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
             UiKit.AddText(right, 16f, 12f, 440f, 26f, L("ui.content.recipe"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             float ry = 50f;
-            CycleRow(right, ref ry, L("ui.content.station"), Stations, () => _station, i => _station = i);
+            CycleRow(right, ref ry, L("ui.content.station"), Display("station", Stations), () => _station, i => _station = i);
             Stepper(right, ref ry, L("ui.content.output_count"), () => _outputCount, v => _outputCount = (int)v, 1, 64, 1, "0");
+            // Market barters are posted by a vendor THEME (miners/traders/researchers/settlers); empty = every
+            // vendor offers it. Ignored for the other stations.
+            InputRow(right, ref ry, L("ui.content.market_theme"), _marketTheme, v => _marketTheme = v, KeyLimit);
 
             // Recipe inputs (dynamic list).
             UiKit.AddText(right, 16f, ry, 300f, 24f, L("ui.content.inputs"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -117,10 +143,10 @@ namespace BlocksBeyondTheStars.Client
             _unlockList = UiKit.ScrollList(right, 12f, ry, 446f, 150f);
 
             // Footer.
-            _status = UiKit.AddText(right, 16f, 1048f - 150f, 446f, 70f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
+            _status = UiKit.AddText(right, 16f, 1010f - 150f, 446f, 70f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(right, 16f, 1048f - 70f, 260f, 40f, L("ui.content.save"), Export);
-            UiKit.AddButton(right, 286f, 1048f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseContentEditor());
+            UiKit.AddButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.content.save"), Export);
+            UiKit.AddButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseContentEditor());
 
             RefreshRows(_inputs, _inputRows, _inputList);
             RefreshRows(_unlock, _unlockRows, _unlockList);
@@ -162,8 +188,8 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(list, false);
             go.AddComponent<LayoutElement>().minHeight = 30f;
             var ui = new RowUi { Go = go };
-            ui.ItemF = UiKit.AddInput(go.transform, 4f, 2f, 280f, 26f, string.Empty, null, "item key");
-            ui.CountF = UiKit.AddInput(go.transform, 290f, 2f, 80f, 26f, string.Empty, null);
+            ui.ItemF = UiKit.AddInput(go.transform, 4f, 2f, 280f, 26f, string.Empty, null, L("ui.content.item_key"), KeyLimit, FieldFont);
+            ui.CountF = UiKit.AddInput(go.transform, 290f, 2f, 80f, 26f, string.Empty, null, string.Empty, 4, FieldFont);
             ui.CountF.contentType = InputField.ContentType.IntegerNumber;
             UiKit.AddButton(go.transform, 376f, 2f, 30f, 26f, "×", () =>
             {
@@ -185,9 +211,10 @@ namespace BlocksBeyondTheStars.Client
         [Serializable]
         private sealed class ContentBundle
         {
-            public string key, name, desc, category, placesBlock, toolKind, station;
-            public int maxStack, tier, outputCount, knowledgeCost;
-            public float miningPower, damage, range, energy, consumeHealth, consumeHunger, armor, oxygen, scan;
+            public string key, name, desc, category, placesBlock, toolKind, station, marketTheme;
+            public int maxStack, tier, outputCount, knowledgeCost, miningRadius;
+            public float miningPower, damage, range, energy, cooldownSeconds;
+            public float consumeHealth, consumeHunger, armor, oxygen, scan;
             public bool hasBlueprint;
             public List<AmountJson> inputs = new();
             public List<AmountJson> unlockCost = new();
@@ -202,13 +229,25 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Item/block keys are typed by hand. An unknown one only surfaces AFTER the merge, as a content
+            // validation failure that stops the game from starting — so check them against the live registry
+            // here, while the author can still fix the typo (#517).
+            var unknown = UnknownKeys();
+            if (unknown.Count > 0)
+            {
+                SetStatus($"{L("ui.content.unknown_keys")} {string.Join(", ", unknown)}");
+                return;
+            }
+
             var b = new ContentBundle
             {
                 key = key, name = _name, desc = _desc, category = Categories[_category],
                 placesBlock = string.IsNullOrWhiteSpace(_placesBlock) ? null : _placesBlock.Trim(),
                 toolKind = ToolKinds[_toolKind], station = Stations[_station],
+                marketTheme = string.IsNullOrWhiteSpace(_marketTheme) ? null : _marketTheme.Trim(),
                 maxStack = _maxStack, tier = (int)_tier, outputCount = _outputCount, knowledgeCost = _knowledgeCost,
-                miningPower = _miningPower, damage = _damage, range = _range, energy = _energy,
+                miningPower = _miningPower, miningRadius = (int)_miningRadius, damage = _damage, range = _range,
+                energy = _energy, cooldownSeconds = _cooldown,
                 consumeHealth = _consumeHealth, consumeHunger = _consumeHunger, armor = _armor, oxygen = _oxygen, scan = _scan,
                 hasBlueprint = _hasBlueprint,
             };
@@ -232,7 +271,76 @@ namespace BlocksBeyondTheStars.Client
 
         private void SetStatus(string s) { if (_status != null) _status.text = s; }
 
+        /// <summary>Every typed item/block key this design references that the loaded content does not know.
+        /// Empty when no content is loaded (nothing to check against) or everything resolves.</summary>
+        private List<string> UnknownKeys()
+        {
+            var unknown = new List<string>();
+            var content = Shell != null ? Shell.Content : null;
+            if (content == null)
+            {
+                return unknown;
+            }
+
+            void CheckItem(string raw)
+            {
+                string k = (raw ?? string.Empty).Trim();
+                if (k.Length > 0 && content.GetItem(k) == null && !unknown.Contains(k))
+                {
+                    unknown.Add(k);
+                }
+            }
+
+            foreach (var a in _inputs)
+            {
+                CheckItem(a.Item);
+            }
+
+            if (_hasBlueprint)
+            {
+                foreach (var a in _unlock)
+                {
+                    CheckItem(a.Item);
+                }
+            }
+
+            string block = _placesBlock.Trim();
+            if (block.Length > 0 && content.GetBlock(block) == null && !unknown.Contains(block))
+            {
+                unknown.Add(block);
+            }
+
+            return unknown;
+        }
+
         // ── small uGUI form helpers (manual y layout) ──────────────────────────────────────────
+
+        /// <summary>Character limits sized so the typed text always FITS its field instead of scrolling out
+        /// of sight (#514): measured against the form font in the 256 px wide input.</summary>
+        private const int KeyLimit = 28, NameLimit = 32, DescLimit = 160;
+
+        /// <summary>Form-field text size — smaller than the UiKit default so a full key/name fits the box.</summary>
+        private const int FieldFont = 15;
+
+        /// <summary>Localized label for a raw option value (<c>ui.opt.&lt;set&gt;.&lt;value&gt;</c>), falling
+        /// back to the identifier itself so a newly added enum member still shows something (#516).</summary>
+        private string Opt(string set, string value)
+        {
+            string key = "ui.opt." + set + "." + value;
+            return Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : value;
+        }
+
+        /// <summary>The display labels for a whole option set; the exported value stays the raw identifier.</summary>
+        private string[] Display(string set, string[] values)
+        {
+            var labels = new string[values.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                labels[i] = Opt(set, values[i]);
+            }
+
+            return labels;
+        }
 
         private static void Header(Transform p, ref float y, string text)
         {
@@ -241,11 +349,20 @@ namespace BlocksBeyondTheStars.Client
             y += 28f;
         }
 
-        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange)
+        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
         {
             UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange);
+            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
             y += 38f;
+        }
+
+        /// <summary>A wrapping multi-line field for sentence-length text: item descriptions run ~70-80
+        /// characters (median of the shipped ones), which a single 256 px line could never show.</summary>
+        private static void TextAreaRow(Transform p, ref float y, string label, string value, Action<string> onChange)
+        {
+            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(p, 200f, y, 256f, 64f, value, onChange, string.Empty, DescLimit, FieldFont, multiline: true);
+            y += 72f;
         }
 
         private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt)
@@ -257,11 +374,13 @@ namespace BlocksBeyondTheStars.Client
             y += 38f;
         }
 
-        private static void CycleRow(Transform p, ref float y, string label, string[] options, Func<int> get, Action<int> set)
+        /// <param name="labels">Localized display labels, one per option — the stored value stays the index
+        /// into the raw identifier list.</param>
+        private static void CycleRow(Transform p, ref float y, string label, string[] labels, Func<int> get, Action<int> set)
         {
             UiKit.AddText(p, 16f, y, 150f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var val = UiKit.AddText(p, 200f, y, 180f, 30f, options[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % options.Length); val.text = options[get()]; });
+            var val = UiKit.AddText(p, 200f, y, 180f, 30f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
             y += 38f;
         }
 

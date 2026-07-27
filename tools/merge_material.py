@@ -28,26 +28,16 @@ import shutil
 import sys
 from pathlib import Path
 
+from content_edit import add_locale_key, load_entries, upsert_entry, upsert_ore_vein
+
 REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
 RES_TEX = REPO / "client" / "Assets" / "Resources" / "textures"
 TILE = 64
-ATLAS_CAPACITY = 64  # BlockTextureAtlas is an 8x8 grid of tiles
-
-
-def _load(p, default=None):
-    p = Path(p)
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else (default if default is not None else [])
-
-
-def _dump(p, obj):
-    Path(p).write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
-def _replace(items, key, entry):
-    items = [e for e in items if e.get("key") != key]
-    items.append(entry)
-    return items
+# BlockTextureAtlas is a 16x16 grid of tiles. Slot 0 is air and the top slots hold the procedural
+# variant tiles (2 per key in BlockTextureAtlas.VariantKeys), so not every slot is free for a block.
+ATLAS_CAPACITY = 16 * 16
+ATLAS_VARIANT_SLOTS = 16
 
 
 def _planet_matches(planet, world_type):
@@ -99,9 +89,12 @@ def main():
     key = m["key"]
 
     # ---- block ----
+    # `category` groups the block in the build palettes / crafting UI (every shipped block has one), and
+    # `tintable` opts it into the always-available Dye/Glow + Shape actions.
     block = {
         "key": key,
         "nameKey": f"block.{key}.name",
+        "category": m.get("category", "building"),
         "hardness": m.get("hardness", 3.0),
         "requiredTool": m.get("requiredTool", "none"),
         "minToolTier": m.get("minToolTier", 0),
@@ -111,13 +104,17 @@ def main():
         "emission": round(m.get("emission", 0.0), 3),
         "color": m.get("colorRgb", 0x8C8C91),
     }
-    blocks = _load(DATA / "blocks.json")
-    is_new = all(e.get("key") != key for e in blocks)
-    blocks = _replace(blocks, key, block)
-    _dump(DATA / "blocks.json", blocks)
-    if is_new and len(blocks) > ATLAS_CAPACITY:
-        print(f"  ! WARNING: {len(blocks)} blocks now exceed the {ATLAS_CAPACITY}-tile atlas; "
-              f"some textures will collide. Enlarge BlockTextureAtlas before shipping.")
+    if m.get("tintable"):
+        block["tintable"] = True
+    is_new = upsert_entry(DATA / "blocks.json", key, block)
+    count = len(load_entries(DATA / "blocks.json"))
+    usable = ATLAS_CAPACITY - ATLAS_VARIANT_SLOTS
+    if is_new and count > usable:
+        print(f"  ! WARNING: {count} blocks exceed the {usable} usable slots of the "
+              f"{ATLAS_CAPACITY}-tile atlas; some textures will collide. Enlarge BlockTextureAtlas "
+              f"(Cols/Rows) before shipping.")
+    elif is_new:
+        print(f"  atlas: {count}/{usable} slots used")
 
     # ---- item (so the block drops something + can be re-placed) ----
     item = {
@@ -128,7 +125,7 @@ def main():
         "maxStack": 99,
         "placesBlock": key,
     }
-    _dump(DATA / "items.json", _replace(_load(DATA / "items.json"), key, item))
+    upsert_entry(DATA / "items.json", key, item)
 
     # ---- texture ----
     _write_texture(bundle, key, m.get("sourceImage"))
@@ -139,29 +136,24 @@ def main():
         "block": key,
         "rarity": round(m.get("frequency", 0.06), 3),
         "minDepth": m.get("minDepth", 4),
-        "maxDepth": m.get("maxDepth", 256),
+        # Worlds run far deeper than the old 256 default since the worldgen overhaul; every shipped vein
+        # goes to 2048, and a shallower band would keep the material out of most of the crust.
+        "maxDepth": m.get("maxDepth", 2048),
     }
-    planets = _load(DATA / "planets.json")
-    touched = 0
-    for planet in planets:
-        if not _planet_matches(planet, world_type):
-            continue
-        ores = [o for o in planet.get("ores", []) if o.get("block") != key]
-        ores.append(dict(vein))
-        planet["ores"] = ores
-        touched += 1
-    _dump(DATA / "planets.json", planets)
+    touched, skipped = upsert_ore_vein(
+        DATA / "planets.json", vein, lambda planet: _planet_matches(planet, world_type))
+    if skipped:
+        # orbital_station / ship_interior are not generated terrain and carry no ore list.
+        print(f"  skipped (no ore list): {', '.join(skipped)}")
 
     # ---- locale placeholders (only if missing) ----
     for code in ("en", "de"):
         p = DATA / "locales" / f"{code}.json"
-        loc = json.loads(p.read_text(encoding="utf-8"))
-        loc.setdefault(f"block.{key}.name", m.get("name", key))
-        loc.setdefault(f"item.{key}.name", m.get("name", key))
-        loc.setdefault(f"item.{key}.desc", m.get("desc", ""))
-        _dump(p, loc)
+        add_locale_key(p, f"block.{key}.name", m.get("name", key))
+        add_locale_key(p, f"item.{key}.name", m.get("name", key))
+        add_locale_key(p, f"item.{key}.desc", m.get("desc", ""))
 
-    print(f"merged material '{key}' into data/ (ore vein added to {touched} planet(s), world type '{world_type}').")
+    print(f"merged material '{key}' into data/ (ore vein added to {len(touched)} planet(s), world type '{world_type}').")
     print("review the diff, translate the placeholder locale strings, and commit.")
 
 

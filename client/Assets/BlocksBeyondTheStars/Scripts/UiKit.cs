@@ -661,9 +661,13 @@ namespace BlocksBeyondTheStars.Client
             o.effectDistance = new Vector2(1.2f, -1.2f);
         }
 
-        /// <summary>Builds a themed single-line text field (background + editable text + placeholder).</summary>
+        /// <summary>Builds a themed text field (background + editable text + placeholder). Single-line by
+        /// default; <paramref name="multiline"/> gives a wrapping box for sentence-length input (item
+        /// descriptions), where the text must stay INSIDE the frame instead of scrolling out of sight.</summary>
+        /// <param name="fontSize">Text size; smaller values fit more characters into a narrow form field.</param>
         public static InputField AddInput(Transform parent, float x, float y, float w, float h, string value,
-            System.Action<string> onChange, string placeholder = "", int maxLength = 0)
+            System.Action<string> onChange, string placeholder = "", int maxLength = 0, int fontSize = 18,
+            bool multiline = false)
         {
             var go = new GameObject("Input", typeof(RectTransform));
             go.transform.SetParent(parent, false);
@@ -674,13 +678,23 @@ namespace BlocksBeyondTheStars.Client
             bg.color = new Color(0.03f, 0.07f, 0.14f, 0.95f);
 
             var input = go.AddComponent<InputField>();
+            var anchor = multiline ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;
+            float textY = multiline ? 5f : 0f, textH = multiline ? h - 10f : h;
 
-            var text = AddText(go.transform, 10f, 0f, w - 20f, h, string.Empty, 18, TextCol);
+            var text = AddText(go.transform, 10f, textY, w - 20f, textH, string.Empty, fontSize, TextCol, anchor);
             text.supportRichText = false;
-            var ph = AddText(go.transform, 10f, 0f, w - 20f, h, placeholder, 18, new Color(0.55f, 0.62f, 0.72f), TextAnchor.MiddleLeft, FontStyle.Italic);
-
+            var ph = AddText(go.transform, 10f, textY, w - 20f, textH, placeholder, fontSize, new Color(0.55f, 0.62f, 0.72f), anchor, FontStyle.Italic);
             input.textComponent = text;
             input.placeholder = ph;
+            if (multiline)
+            {
+                // Set only once the text component is assigned — the lineType setter re-applies the wrap mode
+                // to it. InputField wraps the text itself; the placeholder is ours, and without this a long
+                // hint would run straight out of the frame.
+                input.lineType = InputField.LineType.MultiLineNewline;
+                ph.horizontalOverflow = HorizontalWrapMode.Wrap;
+            }
+
             input.text = value ?? string.Empty;
             if (maxLength > 0) input.characterLimit = maxLength;
             input.caretColor = Cyan;

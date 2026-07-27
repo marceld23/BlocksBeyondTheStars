@@ -23,7 +23,11 @@ namespace BlocksBeyondTheStars.Client
 
         private const int Tile = 64; // matches BlockTextureAtlas tile size
 
-        private static readonly string[] Tools = { "none", "drill", "scanner" };
+        // What a block can require to be MINED. data/blocks.json only ever uses these two — a scanner cannot
+        // break anything, so offering it produced a block nobody could mine (#511).
+        private static readonly string[] Tools = { "none", "drill" };
+        // Palette/UI grouping, mirroring the categories every shipped block carries (#510).
+        private static readonly string[] BlockCategories = { "ore", "terrain", "building", "machine", "light", "door", "flora" };
         // Where the ore vein gets added by the merge tool: any planet, only airless / only with an
         // atmosphere, only single-biome worlds or only multi-biome worlds.
         private static readonly string[] WorldTypes = { "any", "airless", "atmosphere", "single_biome", "multi_biome" };
@@ -42,13 +46,18 @@ namespace BlocksBeyondTheStars.Client
         private float _hardness = 3f;
         private int _tool;            // index into Tools
         private int _minTier;
+        private int _category;        // index into BlockCategories
+        private bool _tintable = true; // may the player dye/re-shape it (plain materials should)
         private float _gloss = 0.1f, _metal, _emission;
         private int _baseR = 140, _baseG = 140, _baseB = 145;
         // --- world placement ---
         private float _frequency = 0.06f;
-        private int _minDepth = 4, _maxDepth = 256;
+        // The shipped veins all run to 2048 — the world is that deep since the worldgen overhaul, and a band
+        // that stops at 256 would leave the material out of most of the crust (#509).
+        private int _minDepth = 4, _maxDepth = 2048;
         private int _worldType;       // index into WorldTypes
         private string _sourceImage = string.Empty; // optional PNG path the merge tool decodes
+        private Text _spawnEstimate;
 
         // --- paint state ---
         private Texture2D _tex;
@@ -132,10 +141,12 @@ namespace BlocksBeyondTheStars.Client
             var root = _ui.transform;
 
             // Developer-tool banner: its output needs a merge + rebuild and does not affect the current game.
-            UiKit.AddText(root, 16f, 4f, 1400f, 22f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Sits ABOVE the panels' top edge — the panels are later siblings, so any overlap would cut the
+            // bottom off this very warning (#513).
+            UiKit.AddText(root, 16f, 0f, 1400f, 26f, L("ui.editors.devbanner"), 15, UiKit.Warn, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // ── Left: paint canvas + palette + base colour ───────────────────────────────────────
-            var left = UiKit.AddPanel(root, 16f, 16f, 540f, 1048f, UiKit.PanelFill).transform;
+            var left = UiKit.AddPanel(root, 16f, 30f, 540f, 1010f, UiKit.PanelFill).transform;
             UiKit.AddText(left, 16f, 12f, 500f, 26f, L("ui.material.texture"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Live paint surface (RawImage showing the 64×64 texture, point-filtered).
@@ -170,17 +181,19 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(left, 340f, by, 160f, 34f, L("ui.material.clear"), () => { _baseR = _baseG = _baseB = 20; RefreshBase(); FillBase(false); });
 
             // ── Right: mechanics + look + world placement + footer ───────────────────────────────
-            var right = UiKit.AddPanel(root, 572f, 16f, 470f, 1048f, UiKit.PanelFill).transform;
+            var right = UiKit.AddPanel(root, 572f, 30f, 470f, 1010f, UiKit.PanelFill).transform;
             UiKit.AddText(right, 16f, 12f, 440f, 26f, L("ui.material.material"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             float y = 50f;
-            InputRow(right, ref y, L("ui.content.key"), _key, v => _key = v);
-            InputRow(right, ref y, L("ui.content.name"), _name, v => _name = v);
-            InputRow(right, ref y, L("ui.content.desc"), _desc, v => _desc = v);
+            InputRow(right, ref y, L("ui.content.key"), _key, v => _key = v, KeyLimit);
+            InputRow(right, ref y, L("ui.content.name"), _name, v => _name = v, NameLimit);
+            TextAreaRow(right, ref y, L("ui.content.desc"), _desc, v => _desc = v);
 
             Header(right, ref y, L("ui.material.mechanics"));
             Stepper(right, ref y, L("ui.material.hardness"), () => _hardness, v => _hardness = v, 0.2f, 12f, 0.2f, "0.0");
-            CycleRow(right, ref y, L("ui.material.tool"), Tools, () => _tool, i => _tool = i);
+            CycleRow(right, ref y, L("ui.material.tool"), Display("blocktool", Tools), () => _tool, i => _tool = i);
             Stepper(right, ref y, L("ui.material.min_tier"), () => _minTier, v => _minTier = (int)v, 0, 3, 1, "0");
+            CycleRow(right, ref y, L("ui.material.category"), CategoryLabels(), () => _category, i => _category = i);
+            ToggleRow(right, ref y, L("ui.material.tintable"), () => _tintable, v => _tintable = v);
 
             Header(right, ref y, L("ui.material.look"));
             Stepper(right, ref y, L("ui.material.gloss"), () => _gloss, v => _gloss = v, 0, 1, 0.05f, "0.00");
@@ -188,17 +201,22 @@ namespace BlocksBeyondTheStars.Client
             Stepper(right, ref y, L("ui.material.emission"), () => _emission, v => _emission = v, 0, 1, 0.05f, "0.00");
 
             Header(right, ref y, L("ui.material.world"));
-            CycleRow(right, ref y, L("ui.material.world_type"), WorldTypes, () => _worldType, i => _worldType = i);
-            Stepper(right, ref y, L("ui.material.frequency"), () => _frequency, v => _frequency = v, 0, 0.5f, 0.01f, "0.00");
-            Stepper(right, ref y, L("ui.material.min_depth"), () => _minDepth, v => _minDepth = (int)v, 0, 200, 2, "0");
-            Stepper(right, ref y, L("ui.material.max_depth"), () => _maxDepth, v => _maxDepth = (int)v, 8, 256, 8, "0");
-            InputRow(right, ref y, L("ui.material.source_png"), _sourceImage, v => _sourceImage = v);
+            CycleRow(right, ref y, L("ui.material.world_type"), Display("worldtype", WorldTypes), () => _worldType, i => _worldType = i);
+            Stepper(right, ref y, L("ui.material.frequency"), () => _frequency, v => _frequency = v, 0, 0.5f, 0.01f, "0.00", RefreshSpawnEstimate);
+            // What the generator actually does with that number — the raw value saturates, so show the share
+            // of deep rock this vein ends up claiming (#509).
+            _spawnEstimate = UiKit.AddText(right, 16f, y, 440f, 22f, string.Empty, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 26f;
+            Stepper(right, ref y, L("ui.material.min_depth"), () => _minDepth, v => _minDepth = (int)v, 0, 256, 2, "0", RefreshSpawnEstimate);
+            Stepper(right, ref y, L("ui.material.max_depth"), () => _maxDepth, v => _maxDepth = (int)v, 8, 2048, 64, "0");
+            InputRow(right, ref y, L("ui.material.source_png"), _sourceImage, v => _sourceImage = v, PathLimit);
+            RefreshSpawnEstimate();
 
             // Footer.
-            _status = UiKit.AddText(right, 16f, 1048f - 152f, 446f, 78f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
+            _status = UiKit.AddText(right, 16f, 1010f - 152f, 446f, 78f, string.Empty, 13, UiKit.Ok, TextAnchor.UpperLeft);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UiKit.AddButton(right, 16f, 1048f - 70f, 260f, 40f, L("ui.material.save"), Export);
-            UiKit.AddButton(right, 286f, 1048f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseMaterialEditor());
+            UiKit.AddButton(right, 16f, 1010f - 70f, 260f, 40f, L("ui.material.save"), Export);
+            UiKit.AddButton(right, 286f, 1010f - 70f, 168f, 40f, L("ui.menu.back"), () => Shell?.CloseMaterialEditor());
 
             // Controls hint.
             UiKit.AddText(root, 16f, 1072f - 28f, 1400f, 24f, L("ui.material.hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -243,9 +261,10 @@ namespace BlocksBeyondTheStars.Client
         [Serializable]
         private sealed class MaterialBundle
         {
-            public string key, name, desc, requiredTool, worldType, sourceImage;
+            public string key, name, desc, requiredTool, worldType, sourceImage, category;
             public float hardness, gloss, metal, emission, frequency;
             public int minToolTier, minDepth, maxDepth, colorRgb;
+            public bool tintable;
         }
 
         private void Export()
@@ -259,7 +278,7 @@ namespace BlocksBeyondTheStars.Client
 
             var b = new MaterialBundle
             {
-                key = key, name = _name, desc = _desc,
+                key = key, name = _name, desc = _desc, category = BlockCategories[_category], tintable = _tintable,
                 requiredTool = Tools[_tool], worldType = WorldTypes[_worldType],
                 sourceImage = string.IsNullOrWhiteSpace(_sourceImage) ? null : _sourceImage.Trim(),
                 hardness = _hardness, gloss = _gloss, metal = _metal, emission = _emission, frequency = _frequency,
@@ -293,29 +312,120 @@ namespace BlocksBeyondTheStars.Client
             y += 28f;
         }
 
-        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange)
+        /// <summary>Character limits sized so the typed text always FITS its field instead of scrolling out
+        /// of sight (#514); a source path may be longer — it scrolls while you type it.</summary>
+        private const int KeyLimit = 28, NameLimit = 32, DescLimit = 160, PathLimit = 120;
+
+        /// <summary>Form-field text size — smaller than the UiKit default so a full key/name fits the box.</summary>
+        private const int FieldFont = 15;
+
+        /// <summary>Localized label for a raw option value (<c>ui.opt.&lt;set&gt;.&lt;value&gt;</c>), falling
+        /// back to the identifier itself so a newly added option still shows something (#516).</summary>
+        private string Opt(string set, string value)
+        {
+            string key = "ui.opt." + set + "." + value;
+            return Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : value;
+        }
+
+        /// <summary>The display labels for a whole option set; the exported value stays the raw identifier.</summary>
+        private string[] Display(string set, string[] values)
+        {
+            var labels = new string[values.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                labels[i] = Opt(set, values[i]);
+            }
+
+            return labels;
+        }
+
+        /// <summary>Block-category labels reusing the palette section titles (<c>ui.cat.*</c>), so the editor
+        /// names a category exactly like the build palettes it will show up in.</summary>
+        private string[] CategoryLabels()
+        {
+            var labels = new string[BlockCategories.Length];
+            for (int i = 0; i < labels.Length; i++)
+            {
+                string key = "ui.cat." + BlockCategories[i];
+                labels[i] = Shell != null && Shell.Localizer != null && Shell.Localizer.Has(key) ? Shell.L(key) : BlockCategories[i];
+            }
+
+            return labels;
+        }
+
+        /// <summary>Restates the frequency slider as the share of deep rock the vein will actually claim:
+        /// <c>WorldGenerator.SelectOre</c> scales and caps the raw rarity (0.30/0.08 for a shallow band,
+        /// 0.15/0.05 deeper), so the number on the slider is not the number in the world.</summary>
+        private void RefreshSpawnEstimate()
+        {
+            if (_spawnEstimate == null)
+            {
+                return;
+            }
+
+            bool shallow = _minDepth <= 8;
+            float scale = shallow ? 0.30f : 0.15f, cap = shallow ? 0.08f : 0.05f;
+            float frac = Mathf.Clamp(_frequency * scale, 0f, cap);
+            _spawnEstimate.text = string.Format(L("ui.material.spawn_estimate"), (frac * 100f).ToString("0.0"));
+        }
+
+        private static void InputRow(Transform p, ref float y, string label, string value, Action<string> onChange, int maxLength)
         {
             UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange);
+            UiKit.AddInput(p, 200f, y, 256f, 30f, value, onChange, string.Empty, maxLength, FieldFont);
             y += 38f;
         }
 
-        private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set, float min, float max, float step, string fmt)
+        /// <summary>A wrapping multi-line field for sentence-length text (see ContentEditor).</summary>
+        private static void TextAreaRow(Transform p, ref float y, string label, string value, Action<string> onChange)
+        {
+            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddInput(p, 200f, y, 256f, 64f, value, onChange, string.Empty, DescLimit, FieldFont, multiline: true);
+            y += 72f;
+        }
+
+        /// <param name="onChanged">Optional extra callback for rows whose value feeds a live readout.</param>
+        private static void Stepper(Transform p, ref float y, string label, Func<float> get, Action<float> set,
+            float min, float max, float step, string fmt, Action onChanged = null)
         {
             UiKit.AddText(p, 16f, y, 200f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             var val = UiKit.AddText(p, 300f, y, 80f, 30f, get().ToString(fmt), 15, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(p, 268f, y + 1f, 28f, 28f, "−", () => { set(Mathf.Clamp(get() - step, min, max)); val.text = get().ToString(fmt); });
-            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); val.text = get().ToString(fmt); });
+            void Apply(float delta)
+            {
+                set(Mathf.Clamp(get() + delta, min, max));
+                val.text = get().ToString(fmt);
+                onChanged?.Invoke();
+            }
+
+            UiKit.AddButton(p, 268f, y + 1f, 28f, 28f, "−", () => Apply(-step));
+            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "+", () => Apply(step));
             y += 38f;
         }
 
-        private static void CycleRow(Transform p, ref float y, string label, string[] options, Func<int> get, Action<int> set)
+        /// <param name="labels">Localized display labels, one per option — the stored value stays the index
+        /// into the raw identifier list.</param>
+        private static void CycleRow(Transform p, ref float y, string label, string[] labels, Func<int> get, Action<int> set)
         {
             UiKit.AddText(p, 16f, y, 150f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            var val = UiKit.AddText(p, 200f, y, 180f, 30f, options[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % options.Length); val.text = options[get()]; });
+            var val = UiKit.AddText(p, 200f, y, 180f, 30f, labels[get()], 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddButton(p, 384f, y + 1f, 28f, 28f, "→", () => { set((get() + 1) % labels.Length); val.text = labels[get()]; });
             y += 38f;
         }
+
+        private void ToggleRow(Transform p, ref float y, string label, Func<bool> get, Action<bool> set)
+        {
+            UiKit.AddText(p, 16f, y, 180f, 30f, label, 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var btn = UiKit.AddButton(p, 200f, y, 154f, 30f, OffOn(get()), null);
+            var caption = btn.GetComponentInChildren<Text>();
+            btn.onClick.AddListener(() =>
+            {
+                set(!get());
+                caption.text = OffOn(get());
+            });
+            y += 38f;
+        }
+
+        private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
 
         private static string Slug(string s)
         {

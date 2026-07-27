@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
@@ -101,6 +102,49 @@ public class ContentTests
             string key = "ui.cat." + block.Category;
             Assert.True(en.Has(key), $"missing '{key}' in en locale (block '{block.Key}')");
             Assert.True(de.Has(key), $"missing '{key}' in de locale (block '{block.Key}')");
+        }
+    }
+
+    [Fact]
+    public void EditorOptionValues_HaveLocalizedLabels()
+    {
+        // The in-game material/item editors offer the enum members as pickers and label each one via
+        // ui.opt.<set>.<value>. A new enum member without locale entries would show its raw identifier
+        // (and the station list once drifted from the enum badly enough to break content loading, #508).
+        var content = Load();
+        var en = content.CreateLocalizer(GameLocale.English);
+        var de = content.CreateLocalizer(GameLocale.German);
+
+        static string Camel(string name) => char.ToLowerInvariant(name[0]) + name.Substring(1);
+
+        void CheckSet(string set, IEnumerable<string> values)
+        {
+            foreach (var value in values)
+            {
+                string key = $"ui.opt.{set}.{value}";
+                Assert.True(en.Has(key), $"missing '{key}' in en locale");
+                Assert.True(de.Has(key), $"missing '{key}' in de locale");
+            }
+        }
+
+        CheckSet("category", Enum.GetNames<ItemCategory>().Select(Camel));
+        CheckSet("tool", Enum.GetNames<ToolKind>().Select(Camel));
+        CheckSet("station", Enum.GetNames<CraftingStation>().Select(Camel));
+        CheckSet("blocktool", new[] { "none", "drill" });
+        CheckSet("worldtype", new[] { "any", "airless", "atmosphere", "single_biome", "multi_biome" });
+    }
+
+    [Fact]
+    public void EditorStationOptions_MatchWhatTheDataUses()
+    {
+        // Every station spelled in recipes.json must be a real enum member — the editor derives its picker
+        // from the same enum, so this pins both ends of the round trip.
+        var content = Load();
+
+        foreach (var recipe in content.Recipes.Values)
+        {
+            Assert.True(Enum.IsDefined(typeof(CraftingStation), recipe.Station),
+                $"recipe '{recipe.Key}' has an undefined station");
         }
     }
 

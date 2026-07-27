@@ -522,12 +522,20 @@ controls (Ship/Station/Town/Material 3D editors): **hold Right-mouse** to look, 
 | **Station Editor** | Space stations (hull/glass/light + hangar/vendor/mission/heal/quarters/console markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
 | **Town Editor** | Settlements/villages (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
 | **Avatar Editor** | Player skin (per-part colours + gear preview) | `skin.json` → `tools/merge_avatar.py` (Apply also saves locally) |
-| **Item & Recipe Editor** | Items + recipes + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
-| **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
+| **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
+| **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
 
 **Material Editor painting:** Left-click paints with the selected swatch, Right-click erases to the base
 colour; Fill/Flat/Clear and an RGB base-colour picker are in the side panel. "World type" targets which
-planets get the ore: any / airless / with-atmosphere / single-biome / multi-biome.
+planets get the ore: any / airless / with-atmosphere / single-biome / multi-biome. Under the frequency
+stepper the editor shows what the generator will actually do with that number — it scales and caps the
+raw value, and a vein that starts within 8 blocks of the surface is deliberately twice as dense.
+
+**Item & Recipe Editor keys:** recipe inputs, unlock costs and "places block" are checked against the
+loaded game content when you save — an unknown key is reported instead of being written into a bundle
+that would later stop the game from starting. A new item that does not place a block also needs an icon
+(`client/Assets/Resources/icons/item_<key>.png`, see `tools/ai-assets/gen_icons.py`); the merge tool
+reminds you.
 
 ---
 
