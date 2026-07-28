@@ -13,6 +13,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧹 Fixed
+- Portal website: the rules-consent checkbox rendered as a centered full-width block (the global
+  input styling caught it) and its label wrapped awkwardly around the button — it is now an
+  inline checkbox in a proper flex row, on both the signup card and the rules re-accept box.
+
 ### 🆘 Rescue codes + operator password reset — a forgotten password is no longer fatal (#557, #558)
 - **Rescue codes ("Rettungscodes")**: every new account gets 3 one-time codes at signup — shown
   exactly once with a big "write these on paper!" prompt (in-game and on the portal website). A

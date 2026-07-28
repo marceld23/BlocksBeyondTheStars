@@ -128,9 +128,9 @@ public static class WorldHostPortalPages
   <p class='hint'>{T(
         "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname, Passwort und deine Rettungscodes auf!</b> Mit einem Rettungscode kannst du ein vergessenes Passwort zurücksetzen.",
         "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write down your account name, password and rescue codes!</b> A rescue code lets you reset a forgotten password.")}</p>
-  <label><input type='checkbox' id='su-accept'> {T(
+  <label class='consent'><input type='checkbox' id='su-accept'> <span>{T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Community-Regeln</a> und den Beta-Hinweis",
-        "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</label>
+        "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</span></label>
   <button onclick='signup()'>{T("Konto erstellen", "Create account")}</button>
   <div id='su-codes' style='display:none'>
     <h2>{T("Deine Rettungscodes", "Your rescue codes")}</h2>
@@ -156,9 +156,9 @@ public static class WorldHostPortalPages
   </div>
   <div id='li-terms' style='display:none'>
     <p>{T("Die Community-Regeln haben sich geändert.", "The community rules changed.")}</p>
-    <label><input type='checkbox' id='li-accept'> {T(
+    <label class='consent'><input type='checkbox' id='li-accept'> <span>{T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Regeln</a>",
-        "I accept the <a href='/rules?lang=en'>rules</a>")}</label>
+        "I accept the <a href='/rules?lang=en'>rules</a>")}</span></label>
     <button onclick='reaccept()'>{T("Weiter", "Continue")}</button>
   </div>
  </div>
@@ -881,6 +881,9 @@ h1{{font-weight:700;letter-spacing:.5px}} .o{{color:var(--orange)}} a{{color:var
 details{{margin:8px 0}} details summary{{cursor:pointer;color:var(--cyan)}}
 input,select{{display:block;width:100%;margin:8px 0;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
  background:#0a101d;color:#dfe9f7;font:inherit}}
+input[type=checkbox]{{display:inline-block;width:auto;margin:0;padding:0}}
+label.consent{{display:flex;align-items:flex-start;gap:9px;margin:10px 0;line-height:1.5}}
+label.consent input[type=checkbox]{{flex:0 0 auto;margin-top:4px}}
 button{{margin:6px 6px 0 0;padding:9px 16px;border-radius:8px;border:1px solid var(--cyan);background:#12335005;
  color:var(--cyan);font:inherit;font-weight:600;cursor:pointer}}
 button:hover{{background:#1c4a6e55}} button.danger{{border-color:#e05c5c;color:#e05c5c}}
