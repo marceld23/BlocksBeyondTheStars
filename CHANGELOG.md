@@ -13,6 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.20] — 2026-07-28
+
+The suit-up release: pilots finally look like astronauts — a proper spacesuit with an open helmet,
+visor band, gloves and a life-support pack, while NPCs deliberately stay civilian so a suited
+figure is always a real player at a glance. And a forgotten account password is no longer fatal:
+rescue codes at signup, in-game password change and an operator reset path close the last gap in
+account access. Also the first release the new startup update notice announces on its own.
+
 ### 🧑‍🚀 Player avatars now wear a spacesuit (#564)
 - Your avatar (third-person, other players, the avatar editor and colour-menu previews) now reads
   as an astronaut: an open helmet with a raised dark-glass visor band, gloves, a neck seal and
@@ -28,7 +36,10 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 ### 🧹 Fixed
 - Portal website: the rules-consent checkbox rendered as a centered full-width block (the global
   input styling caught it) and its label wrapped awkwardly around the button — it is now an
-  inline checkbox in a proper flex row, on both the signup card and the rules re-accept box.
+  inline checkbox in a proper flex row, on both the signup card and the rules re-accept box. (#560)
+- WorldHost: the admin password-reset log lines no longer include raw account ids (they log the
+  account name instead, matching the signup log rule; CodeQL cs/cleartext-storage), and the API
+  twin now resolves the account first so unknown ids take the refusal path too. (#561)
 
 ### 🆘 Rescue codes + operator password reset — a forgotten password is no longer fatal (#557, #558)
 - **Rescue codes ("Rettungscodes")**: every new account gets 3 one-time codes at signup — shown
@@ -920,7 +931,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...HEAD
+[2026.7.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...v2026.7.20
 [2026.7.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...v2026.7.19
 [0.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.8.7...v0.9.0
