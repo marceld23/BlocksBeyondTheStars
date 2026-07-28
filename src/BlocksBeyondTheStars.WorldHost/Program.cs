@@ -741,13 +741,16 @@ app.MapPost("/api/admin/reset-password", (HttpContext ctx, AdminResetPasswordReq
         return Results.Unauthorized();
     }
 
-    var (ok, temp) = registry.AdminResetPassword(req.AccountId ?? string.Empty);
+    var account = registry.GetAccount(req.AccountId ?? string.Empty);
+    var (ok, temp) = account is null ? (false, string.Empty) : registry.AdminResetPassword(account.Id);
     if (!ok)
     {
         return ApiError("Operator accounts cannot be reset here.", StatusCodes.Status403Forbidden);
     }
 
-    log.LogInformation("Admin reset the password of account {Id}.", LogSafe(req.AccountId));
+    // Name, not id (CodeQL cs/cleartext-storage): account ids are stable registry references and
+    // deliberately stay out of log files — same rule as the signup log line.
+    log.LogInformation("Admin reset the password of account '{Name}'.", LogSafe(account!.Name));
     return Results.Json(new { tempPassword = temp });
 });
 
@@ -983,7 +986,9 @@ app.MapPost("/admin/reset-password", async (HttpContext ctx) =>
         return Results.Redirect("/admin?notice=operator_reset");
     }
 
-    log.LogInformation("Admin UI: password of account {Id} reset.", LogSafe(accountId));
+    // Name, not id (CodeQL cs/cleartext-storage): account ids are stable registry references and
+    // deliberately stay out of log files — same rule as the signup log line.
+    log.LogInformation("Admin UI: password of account '{Name}' reset.", LogSafe(account!.Name));
     return Results.Content(WorldHostAdminPages.ResetPasswordResult(config, account!.Name, temp), "text/html; charset=utf-8");
 });
 
