@@ -36,8 +36,12 @@ public sealed partial class GameServer
     // spoofed position can't make the server generate/persist chunks at arbitrary heights — otherwise a cheat
     // client placing/mining at ever-increasing Y grows RAM + disk without bound (DoS). The band is far wider
     // than any legitimate build: terrain sits near Y≈64, the highest planet atmosphere line is ~320 (above
-    // which a player floats in space on foot), so towers to space and deep mines stay well inside it.
-    private const int MinBuildY = -512;
+    // which a player floats in space on foot). The floor covers the DEEPEST world foundation roll
+    // (surface − 2048 → bedrock near Y −1990, #580) so "dig to the bedrock" works on every world — the old
+    // −512 silently walled off the bottom kilometre on deep-rolled worlds. Widening the band grows the
+    // worst-case chunk volume a spoofed client could force by ~2×; still hard-bounded, and the streaming
+    // LOD never sends deep chunks far from a player, so normal-play cost is unchanged.
+    private const int MinBuildY = -2100;
     private const int MaxBuildY = 1024;
 
     /// <summary>True when a client-supplied block Y is inside the legal vertical build band (see MinBuildY).</summary>

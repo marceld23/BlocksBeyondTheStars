@@ -125,42 +125,57 @@ Surface height is computed per column in
 [`WorldGenerator.SurfaceHeight`](../../src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs).
 Variety stacks from five mechanisms:
 
-**a) Five terrain archetypes** (amplitude multiplier, ridged amount):
+**a) Eight terrain archetypes** (`ArchetypeOffset`, explicit landform shapes since #576):
 
-| Archetype | Amp | Ridged |
-|---|---|---|
-| Flats | 0.18 | 0.0 |
-| Rolling plains | 0.55 | 0.0 |
-| Hills | 1.00 | 0.0 |
-| Mountains | 1.90 | 0.12 |
-| Canyons | 1.30 | 0.65 |
+| Archetype | Shape |
+|---|---|
+| Flats | `h·A·0.18` |
+| Rolling plains | `h·A·0.55` |
+| Hills | `h·A·1.00` |
+| Mountains | lightly ridged, `·A·1.9` |
+| Canyons | strongly ridged, `·A·1.3` |
+| Plateau decks (#576) | height quantised into terrace decks (`step = max(5, A·0.5)`) |
+| Extreme peaks (#576) | sharpened ridged crests up to `·A·3.4` — the far tail of relief |
+| Rift gorges (#576) | gentle swell gashed by deep ridged canyons (to `−A·3.0`) |
 
-**b) Regional blend** (`TerrainProfile`) — the heart of *within-world* variety. Each world
-seed-picks **2–5** of the archetypes (from a rotated start index); a **broad field** (`TerrainScale × 6`,
-3 octaves) selects a point in that subset per position and **smoothstep-blends** the two nearest. So
-one region reads flat, the next hilly, the next as a ridged mountain range.
+**b) Regional blend** (`BlendedArchetypeOffset`) — the heart of *within-world* variety. Each world
+seed-picks **2–8** of the archetypes (from a rotated start index); a **broad field** (`TerrainScale × 6`,
+3 octaves) selects a point in that subset per position and **smoothstep-blends the two nearest
+archetypes' computed offsets** (offset-space, since decks/gorges cannot blend as parameters). So one
+region reads flat, the next hilly, the next as terraced mesa country or a ridged mountain range.
 
 **c) Per-world drama** (`DramaFor`) — a seeded **0.9–1.5×** multiplier on the whole relief, so the
-same planet type rolls gentle on one world and jagged on the next.
+same planet type rolls gentle on one world and jagged on the next. A **~6 % tail rolls 1.9–2.6×**
+(#576): the rare outlier world whose relief reads genuinely extreme.
 
-**d) Ridge transform** — for mountain/canyon archetypes, smooth swells are folded into sharp
-ridges/valleys (`h·(1-ridged) + ridge(h)·ridged`).
+**d) Landmark landforms** (#477/#577/#578) — sparse discrete features on a deterministic hotspot-cell
+grid, at most **one per column** (precedence volcano > massif > table mountain > rift): volcano cones
+with molten craters, rare **massifs** (+120–220, ridged flanks, snow/ice summits), flat-topped
+**table mountains** (radius 40–120, near-vertical walls) on dry rocky-reading worlds, and **rift
+chasms** (50–130 deep, fjord-flooded below sea level). `SurfaceHeight` clamps everything at **Y 288**,
+safely under the ~Y 320 atmosphere line.
 
-**e) Overriding shapes** — `TerrainStyle` (mesa, dunes, spires, flats…), `Cratered` (flat regolith +
-impact craters for airless bodies), and `FloatingIslands`. A cratered body skips (c) and (d) entirely
-and instead rolls a **`CraterProfile`** from its own body seed (#518): crater density, basin width,
-depth (5–12 blocks), rim height and how rolling the regolith between craters is — so one rock is a
-pounded ruin and the next a near-smooth pebble. Landable asteroids and airless moons share this path.
+**e) Overriding shapes** — `TerrainStyle` (mesa, **tablelands**, dunes, **badlands**, spires,
+**karst**, flats… — the bold three are #579), `Cratered` (flat regolith + impact craters for airless
+bodies), and `FloatingIslands`. A cratered body skips (c) and (d) entirely and instead rolls a
+**`CraterProfile`** from its own body seed (#518): crater density, basin width, depth (5–12 blocks),
+rim height and how rolling the regolith between craters is — so one rock is a pounded ruin and the
+next a near-smooth pebble. Landable asteroids and airless moons share this path.
 
 Terrain noise is **torus-periodic FBM** (4 octaves); the cave and ore fields are single-octave torus
 value noise whose thresholds are **quantile-calibrated per world** against the field's measured
 distribution (#472) — so data thresholds keep their meaning and everything stays seamless across both
-wrap seams. Carved cave cells below the per-world **lava table** (~64–128 deep) fill with molten rock.
+wrap seams. Carved cave cells below the per-world **lava table** (~64–128 deep) fill with molten rock
+in **coherent molten regions only** (#580): a coarse pocket field leaves ~40 % of the deep caverns
+open, so the deep kilometre stays explorable.
 
 Below the surface: surface/sub-surface layers (`SurfaceDepth`, default 4) → deep block → per-world
 mantle → an unmineable bedrock foundation at 256–2048 blocks down (with a 6-block lava/basalt band
-above it so digging out the bottom is impossible). Ore veins (3D noise × rarity × per-world richness)
-and caves (3D noise, if `CaveThreshold > 0`) are carved into the crust.
+above it so digging out the bottom is impossible). The server's vertical build band reaches
+**Y −2100** (#580), so even the deepest foundation is reachable — "dig to the bedrock" works on every
+world. Ore veins (3D noise × rarity × per-world richness) and caves (3D noise, if `CaveThreshold > 0`)
+are carved into the crust; ore density ramps up to **+60 % over the first ~600 blocks down** (#580),
+so the descent pays.
 
 ---
 
