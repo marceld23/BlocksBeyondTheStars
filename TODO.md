@@ -6468,7 +6468,7 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
-## ✅ Done (2026-07-28): account password change + sign-in lockout fixes (worktree, not merged yet)
+## ✅ Done (2026-07-28): account password change + sign-in lockout fixes (#555/#556)
 
 Trigger: the operator locked himself out after "Abmelden" — the sign-in form blanked the account
 name, its password field said "Passwort" in world-join wording, and a forgotten account password had
@@ -6498,7 +6498,7 @@ switch accounts for it; the fix is clarity + a password-change path, NOT name un
 
 ---
 
-## ✅ Done (2026-07-28): rescue codes + admin password reset (worktree, not merged yet)
+## ✅ Done (2026-07-28): rescue codes + admin password reset (#557/#558)
 
 User decision on the recovery analysis (`analysis/account-recovery-email-hash-2fa.md`): implement
 ONLY ladder steps 1+2 — **admin reset button** and **signup rescue codes**; email-hash recovery and

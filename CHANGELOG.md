@@ -13,7 +13,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🆘 Rescue codes + operator password reset — a forgotten password is no longer fatal
+### 🆘 Rescue codes + operator password reset — a forgotten password is no longer fatal (#557, #558)
 - **Rescue codes ("Rettungscodes")**: every new account gets 3 one-time codes at signup — shown
   exactly once with a big "write these on paper!" prompt (in-game and on the portal website). A
   code plus a new password resets a forgotten account password via the new "Forgot password?"
@@ -24,7 +24,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   lands the player directly in the change-password form until they pick their own. Developer
   accounts are excluded on every path, so admin credentials can never take over the operator.
 
-### 🔑 Account access: change your password + clearer sign-in
+### 🔑 Account access: change your password + clearer sign-in (#555, #556)
 - **Change your account password in-game**: the Official Worlds → Account panel now rotates a known
   password (current one required; every other signed-in device is signed out). New endpoint
   `POST /api/account/password` — wrong-guess attempts share the failed-login budget, so a stolen
