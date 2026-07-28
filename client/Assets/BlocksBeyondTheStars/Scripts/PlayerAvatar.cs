@@ -583,6 +583,14 @@ namespace BlocksBeyondTheStars.Client
             return tex;
         }
 
+        // Ambient floor + opposite-flank fill for avatar materials, same failure mode and values as
+        // creatures (see CreatureBuilder): LitColor's single FIXED key light leaves camera-away /
+        // backlit faces at the floor, and in Linear colour space the tinted suit textures then sink
+        // to a full black silhouette (obvious once the whole figure is suit — no bright skin head to
+        // save it). The fill lifts the flank facing away from the key without darkening anything.
+        private const float AvatarFloor = 0.62f;
+        private const float AvatarFill = 0.3f;
+
         /// <summary>A lit, tinted, optionally-textured material (the grayscale texture tints by the colour).</summary>
         private static Material Lit(Color color, Texture2D tex)
         {
@@ -591,6 +599,12 @@ namespace BlocksBeyondTheStars.Client
             if (tex != null)
             {
                 m.mainTexture = tex;
+            }
+
+            if (m.HasProperty("_Floor"))
+            {
+                m.SetFloat("_Floor", AvatarFloor); // no-op on the Unlit/Color fallback
+                m.SetFloat("_Fill", AvatarFill);
             }
 
             return m;
