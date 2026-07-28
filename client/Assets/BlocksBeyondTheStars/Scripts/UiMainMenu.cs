@@ -479,6 +479,13 @@ namespace BlocksBeyondTheStars.Client
                 oStatus.text = "";
                 RebuildPortal();
                 DoRefresh();
+                if (r.MustChangePassword)
+                {
+                    // An operator handed out a temp password — land the player directly in front of the
+                    // change form instead of hoping they find the Account button on their own.
+                    OpenAccount(shell.L("ui.portal.must_change_password"));
+                }
+
                 if (r.TermsOutdated)
                 {
                     PromptReaccept(); // rules changed since the last visit — re-accept in-game (#268)
@@ -768,10 +775,17 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.PortalSessionToken = r.SessionToken; // a signup IS a sign-in (fresh session)
                 shell.Settings.PortalAccountName = accName;
                 shell.Settings.Save();
-                CloseModal();
                 oStatus.text = "";
                 RebuildPortal();
                 DoRefresh();
+                if (r.RecoveryCodes.Count > 0)
+                {
+                    ShowRecoveryCodes(r.RecoveryCodes); // replaces the signup dialog; OK closes it
+                }
+                else
+                {
+                    CloseModal();
+                }
             }
 
             void OpenSignup()
@@ -1314,6 +1328,96 @@ namespace BlocksBeyondTheStars.Client
                 oStatus.text = shell.L("ui.portal.account_deleted");
             }
 
+            // The one moment rescue-code plaintexts exist (signup / re-issue) — the dialog's whole job
+            // is "write these on paper NOW"; the server keeps only hashes and can never show them again.
+            void ShowRecoveryCodes(System.Collections.Generic.List<string> codes)
+            {
+                var cDlg = OpenModalPanel(560f, 220f, 800f, 600f);
+                UiKit.AddText(cDlg, 30f, 24f, 740f, 30f, shell.L("ui.portal.codes_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var hint = UiKit.AddText(cDlg, 40f, 70f, 720f, 110f, shell.L("ui.portal.codes_hint"), 15, UiKit.Warn, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                for (int i = 0; i < codes.Count; i++)
+                {
+                    UiKit.AddText(cDlg, 40f, 196f + i * 66f, 720f, 56f, codes[i], 34, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
+                }
+
+                UiKit.AddButton(cDlg, 230f, 430f, 340f, 54f, shell.L("ui.portal.codes_written"), CloseModal, "btn_join");
+            }
+
+            async void DoRecover(string accName, string code, string newPw, Text warn)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                var r = await Task.Run(() => portal.Recover(accName, code, newPw));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.color = warnCol;
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                // A successful rescue IS a sign-in (fresh session; every old session is dead anyway).
+                shell.Settings.PortalSessionToken = r.SessionToken;
+                shell.Settings.PortalAccountName = r.AccountName.Length > 0 ? r.AccountName : accName;
+                shell.Settings.Save();
+                CloseModal();
+                oStatus.text = shell.L("ui.portal.recovery_done");
+                RebuildPortal();
+                DoRefresh();
+            }
+
+            void OpenRecovery()
+            {
+                var rDlg = OpenModalPanel(560f, 200f, 800f, 640f);
+                UiKit.AddText(rDlg, 30f, 24f, 740f, 30f, shell.L("ui.portal.recovery_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var hint = UiKit.AddText(rDlg, 40f, 66f, 720f, 66f, shell.L("ui.portal.recovery_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                string[] accName = { shell.Settings.PortalAccountName };
+                string[] code = { "" };
+                string[] pw1 = { "" };
+                string[] pw2 = { "" };
+                UiKit.AddText(rDlg, 40f, 140f, 340f, 22f, shell.L("ui.portal.login_name"), 15, UiKit.TextCol);
+                UiKit.AddInput(rDlg, 40f, 164f, 340f, 38f, accName[0], v => accName[0] = v);
+                UiKit.AddText(rDlg, 420f, 140f, 340f, 22f, shell.L("ui.portal.recovery_code"), 15, UiKit.TextCol);
+                UiKit.AddInput(rDlg, 420f, 164f, 340f, 38f, code[0], v => code[0] = v);
+                UiKit.AddText(rDlg, 40f, 218f, 340f, 22f, shell.L("ui.portal.password_new"), 15, UiKit.TextCol);
+                var rp1 = UiKit.AddInput(rDlg, 40f, 242f, 340f, 38f, pw1[0], v => pw1[0] = v);
+                rp1.contentType = InputField.ContentType.Password;
+                UiKit.AddText(rDlg, 420f, 218f, 340f, 22f, shell.L("ui.portal.password_repeat"), 15, UiKit.TextCol);
+                var rp2 = UiKit.AddInput(rDlg, 420f, 242f, 340f, 38f, pw2[0], v => pw2[0] = v);
+                rp2.contentType = InputField.ContentType.Password;
+                var rWarn = UiKit.AddText(rDlg, 40f, 300f, 720f, 44f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                rWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(rDlg, 40f, 362f, 340f, 54f, shell.L("ui.portal.recovery_submit"), () =>
+                {
+                    if (string.IsNullOrWhiteSpace(accName[0]) || string.IsNullOrWhiteSpace(code[0])) { rWarn.text = shell.L("ui.portal.err_recover_failed"); return; }
+                    if (pw1[0] != pw2[0]) { rWarn.text = shell.L("ui.portal.err_password_mismatch"); return; }
+                    if (pw1[0].Length < 8) { rWarn.text = shell.L("ui.portal.err_password_short"); return; }
+                    DoRecover(accName[0].Trim(), code[0].Trim(), pw1[0], rWarn);
+                }, "btn_join");
+                UiKit.AddButton(rDlg, 420f, 362f, 340f, 54f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+            }
+
+            async void DoRegenCodes(string password, Text warn)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.RegenerateRecoveryCodes(session, password));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.color = warnCol;
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                ShowRecoveryCodes(r.RecoveryCodes); // replaces the account dialog — the codes are the point now
+            }
+
             async void DoChangePassword(string oldPw, string newPw, Text warn)
             {
                 warn.color = warnCol;
@@ -1333,7 +1437,7 @@ namespace BlocksBeyondTheStars.Client
                 warn.text = shell.L("ui.portal.password_changed");
             }
 
-            void OpenAccount()
+            void OpenAccount(string notice = null)
             {
                 var aDlg = OpenModalPanel(510f, 160f, 900f, 770f);
                 UiKit.AddText(aDlg, 30f, 24f, 840f, 30f, shell.L("ui.portal.account_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -1357,6 +1461,11 @@ namespace BlocksBeyondTheStars.Client
                 apNew2.contentType = InputField.ContentType.Password;
                 var pwWarn = UiKit.AddText(aDlg, 40f, 216f, 820f, 40f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 pwWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                if (!string.IsNullOrEmpty(notice))
+                {
+                    pwWarn.text = notice; // e.g. "your password was reset — pick your own now" (login flow)
+                }
+
                 UiKit.AddButton(aDlg, 40f, 262f, 340f, 46f, shell.L("ui.portal.change_password"), () =>
                 {
                     // Same cheap pre-checks as signup, so typos don't burn the shared attempt budget.
@@ -1364,6 +1473,14 @@ namespace BlocksBeyondTheStars.Client
                     if (newPw1[0].Length < 8) { pwWarn.color = warnCol; pwWarn.text = shell.L("ui.portal.err_password_short"); return; }
                     DoChangePassword(oldPw[0], newPw1[0], pwWarn);
                 }, "btn_join");
+
+                // Rescue codes are re-issuable, gated on the SAME "current password" field as the change
+                // button — the one secret a stolen session does not have.
+                UiKit.AddButton(aDlg, 420f, 262f, 340f, 46f, shell.L("ui.portal.codes_regen"), () =>
+                {
+                    if (oldPw[0].Length == 0) { pwWarn.color = warnCol; pwWarn.text = shell.L("ui.portal.codes_need_password"); return; }
+                    DoRegenCodes(oldPw[0], pwWarn);
+                }, "btn_credits");
 
                 var delWarn = UiKit.AddText(aDlg, 40f, 336f, 820f, 110f, shell.L("ui.portal.delete_account_warn"), 14, UiKit.Warn, TextAnchor.UpperLeft);
                 delWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -1538,6 +1655,7 @@ namespace BlocksBeyondTheStars.Client
                     pwInput.contentType = InputField.ContentType.Password;
                     UiKit.AddButton(oContent, 30f, 240f, 320f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
                     UiKit.AddButton(oContent, 370f, 240f, 320f, 54f, shell.L("ui.portal.signup"), OpenSignup, "btn_credits");
+                    UiKit.AddButton(oContent, 710f, 240f, 320f, 54f, shell.L("ui.portal.forgot"), OpenRecovery, "btn_settings");
                     var signupHere = UiKit.AddText(oContent, 30f, 316f, 1040f, 44f, shell.L("ui.portal.signup_here"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
                     signupHere.horizontalOverflow = HorizontalWrapMode.Wrap;
                     UiKit.AddText(oContent, 30f, 366f, 1040f, 24f, PortalBase(), 15, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
@@ -1557,7 +1675,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(oContent, col[0], 54f, colW, 44f, shell.L("ui.portal.refresh"), DoRefresh, "btn_settings");
                 UiKit.AddButton(oContent, col[1], 54f, colW, 44f, shell.L("ui.portal.new_world"), OpenCreateWorld, "btn_join");
                 UiKit.AddButton(oContent, col[3], 54f, colW, 44f, shell.L("ui.portal.feedback"), OpenFeedback, "btn_credits");
-                UiKit.AddButton(oContent, col[4], 54f, colW, 44f, shell.L("ui.portal.account_btn"), OpenAccount, "btn_settings");
+                UiKit.AddButton(oContent, col[4], 54f, colW, 44f, shell.L("ui.portal.account_btn"), () => OpenAccount(), "btn_settings");
 
                 // Both lists live in ONE scrollable area with section headers + a divider — no second window,
                 // and a clear visual split between the player's own worlds and the public ones.

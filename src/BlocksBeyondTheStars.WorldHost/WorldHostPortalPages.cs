@@ -126,18 +126,34 @@ public static class WorldHostPortalPages
   <input id='su-name' placeholder='{T("Erfinde einen Kontonamen (Buchstaben, Zahlen, - und _)", "Invent an account name (letters, digits, - and _)")}' maxlength='24'>
   <input id='su-pass' type='password' placeholder='{T("Passwort (min. 8 Zeichen)", "Password (min. 8 characters)")}'>
   <p class='hint'>{T(
-        "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname und Passwort auf!</b> Ein vergessenes Passwort kann niemand wiederherstellen.",
-        "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write your account name and password down!</b> Nobody can recover a forgotten password.")}</p>
+        "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname, Passwort und deine Rettungscodes auf!</b> Mit einem Rettungscode kannst du ein vergessenes Passwort zurücksetzen.",
+        "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write down your account name, password and rescue codes!</b> A rescue code lets you reset a forgotten password.")}</p>
   <label><input type='checkbox' id='su-accept'> {T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Community-Regeln</a> und den Beta-Hinweis",
         "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</label>
   <button onclick='signup()'>{T("Konto erstellen", "Create account")}</button>
+  <div id='su-codes' style='display:none'>
+    <h2>{T("Deine Rettungscodes", "Your rescue codes")}</h2>
+    <p class='hint'>{T(
+        "<b>Schreib diese Codes auf Papier!</b> Mit einem Code kannst du ein neues Passwort setzen, wenn du deins vergisst. Jeder Code geht nur einmal — sie werden nie wieder angezeigt.",
+        "<b>Write these codes on paper!</b> A code lets you set a new password if you forget yours. Each code works once — they are never shown again.")}</p>
+    <p id='su-codes-list' style='font-size:1.5em'></p>
+    <button onclick=""location.href='/worlds'+LQ"">{T("Aufgeschrieben — weiter", "Written down — continue")}</button>
+  </div>
  </div>
  <div class='card'>
   <h2>{T("Anmelden", "Sign in")}</h2>
-  <input id='li-name' placeholder='Name' maxlength='24'>
+  <input id='li-name' placeholder='{T("Kontoname", "Account name")}' maxlength='24'>
   <input id='li-pass' type='password' placeholder='{T("Passwort", "Password")}'>
   <button onclick='login()'>{T("Anmelden", "Sign in")}</button>
+  <p class='hint'><a href='#' onclick=""document.getElementById('li-recover').style.display='block';return false"">{T(
+        "Passwort vergessen? Mit Rettungscode zurücksetzen", "Forgot your password? Reset it with a rescue code")}</a></p>
+  <div id='li-recover' style='display:none'>
+    <input id='rc-name' placeholder='{T("Kontoname", "Account name")}' maxlength='24'>
+    <input id='rc-code' placeholder='{T("Rettungscode (z. B. AB2C-DEF3)", "Rescue code (e.g. AB2C-DEF3)")}' maxlength='12'>
+    <input id='rc-pass' type='password' placeholder='{T("Neues Passwort (min. 8 Zeichen)", "New password (min. 8 characters)")}'>
+    <button onclick='recover()'>{T("Neues Passwort setzen", "Set new password")}</button>
+  </div>
   <div id='li-terms' style='display:none'>
     <p>{T("Die Community-Regeln haben sich geändert.", "The community rules changed.")}</p>
     <label><input type='checkbox' id='li-accept'> {T(
@@ -175,6 +191,18 @@ async function post(url, body){
 async function signup(){
   if(!document.getElementById('su-accept').checked) return say(L.acceptFirst);
   const r = await post('/api/signup', {name: v('su-name'), password: v('su-pass'), acceptedTermsVersion: TERMS});
+  if(!r.ok) return say(bbsErr(r.j, L.err));
+  localStorage.setItem('bbs_session', r.j.sessionToken);
+  // Rescue codes exist exactly once, in this answer — the page must show them before moving on.
+  if(r.j.recoveryCodes && r.j.recoveryCodes.length){
+    document.getElementById('su-codes-list').textContent = r.j.recoveryCodes.join('   ');
+    document.getElementById('su-codes').style.display='block';
+    return;
+  }
+  location.href='/worlds'+LQ;
+}
+async function recover(){
+  const r = await post('/api/recover', {name: v('rc-name'), code: v('rc-code'), newPassword: v('rc-pass')});
   if(!r.ok) return say(bbsErr(r.j, L.err));
   localStorage.setItem('bbs_session', r.j.sessionToken); location.href='/worlds'+LQ;
 }

@@ -93,6 +93,7 @@ static string? CodeFor(string error) => error switch
     "This world needs a password." => "password_required",
     "Wrong world password." => "wrong_password",
     "Wrong password." => "wrong_account_password", // own code: the world text above localizes as "Welt-Passwort"
+    "Wrong account name or rescue code." => "recover_failed",
     "Too many password attempts — please wait a few minutes." => "too_many_attempts",
     "World password must be 4-24 printable characters." => "world_password_invalid",
     "Empty upload." => "upload_empty",
@@ -546,7 +547,9 @@ app.MapPost("/api/signup", (HttpContext ctx, SignupRequest req) =>
     // Deliberately no account id in the log: ids act as stable references in the registry and appearing
     // in log files would let anyone with log access correlate them (CodeQL cs/cleartext-storage).
     log.LogInformation("Account created: {Name}.", LogSafe(req.Name));
-    return Results.Json(new { accountId, sessionToken = session });
+    // Rescue codes ride the signup answer — the ONE moment the plaintexts exist; only hashes remain
+    // server-side, so this is also the one moment the UI can tell the player to write them down.
+    return Results.Json(new { accountId, sessionToken = session, recoveryCodes = registry.CreateRecoveryCodes(accountId) });
 });
 
 app.MapPost("/api/login", (HttpContext ctx, SignupRequest req) =>
@@ -582,6 +585,9 @@ app.MapPost("/api/login", (HttpContext ctx, SignupRequest req) =>
         // Canonical stored name: lookups are COLLATE NOCASE, so the typed name may differ in casing
         // from the account row — the client shows/persists this one, not what was typed.
         accountName = account.Name,
+        // Set by an operator reset: the login works (temp password), but the client nags the player to
+        // pick their own password now. Cleared by the next successful change/rescue.
+        mustChangePassword = account.MustChangePassword,
         termsOutdated = account.AcceptedTermsVersion < config.TermsVersion,
         // #496: a banned account logs in exactly like any other and only found out at the first blocked
         // action — a dead end nobody explained. The state travels with the login now, and the notices
@@ -667,6 +673,82 @@ app.MapPost("/api/account/password", (HttpContext ctx, ChangePasswordRequest req
 
     log.LogInformation("Account '{Name}' changed its password (other sessions revoked).", LogSafe(account.Name));
     return Results.Ok();
+});
+
+// Self-service reset with a rescue code — anonymous by nature (the password is gone, so there is no
+// session). Same limiter pair as login: per-IP window + per-account failure budget, and the registry
+// answers one uniform failure so the endpoint is no existence/typo oracle.
+app.MapPost("/api/recover", (HttpContext ctx, RecoverRequest req) =>
+{
+    if (!loginLimit.TryPass(CallerIp(ctx)))
+    {
+        return RateLimited();
+    }
+
+    string accountKey = (req.Name ?? string.Empty).Trim().ToLowerInvariant();
+    if (loginFailLimit.IsExhausted(accountKey))
+    {
+        return ApiError("Too many password attempts — please wait a few minutes.", StatusCodes.Status429TooManyRequests);
+    }
+
+    var (ok, error, accountId, accountName, session) = registry.RedeemRecoveryCode(req.Name ?? string.Empty, req.Code, req.NewPassword);
+    if (!ok)
+    {
+        if (error == "Wrong account name or rescue code.")
+        {
+            loginFailLimit.TryPass(accountKey);
+        }
+
+        return ApiError(error);
+    }
+
+    log.LogInformation("Account '{Name}' reset its password with a rescue code (all previous sessions revoked).", LogSafe(accountName));
+    return Results.Json(new { accountId, sessionToken = session, accountName });
+});
+
+// Re-issues the caller's rescue codes (the old set is void). Password-gated like the change endpoint:
+// a stolen 30-day session must not be able to mint itself a permanent recovery secret.
+app.MapPost("/api/account/recovery-codes", (HttpContext ctx, RecoveryCodesRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    string accountKey = account.Name.Trim().ToLowerInvariant();
+    if (loginFailLimit.IsExhausted(accountKey))
+    {
+        return ApiError("Too many password attempts — please wait a few minutes.", StatusCodes.Status429TooManyRequests);
+    }
+
+    if (!registry.VerifyPassword(account.Id, req.Password))
+    {
+        loginFailLimit.TryPass(accountKey);
+        return ApiError("Wrong password.");
+    }
+
+    log.LogInformation("Account '{Name}' re-issued its rescue codes.", LogSafe(account.Name));
+    return Results.Json(new { recoveryCodes = registry.CreateRecoveryCodes(account.Id) });
+});
+
+// Operator password reset, scriptable twin of the /admin form: one-time readable temp password in the
+// answer, must-change flag set, all sessions revoked. Developer accounts are refused — the admin token
+// must not be a path to taking over the operator account itself.
+app.MapPost("/api/admin/reset-password", (HttpContext ctx, AdminResetPasswordRequest req) =>
+{
+    if (!IsAdmin(ctx))
+    {
+        return Results.Unauthorized();
+    }
+
+    var (ok, temp) = registry.AdminResetPassword(req.AccountId ?? string.Empty);
+    if (!ok)
+    {
+        return ApiError("Operator accounts cannot be reset here.", StatusCodes.Status403Forbidden);
+    }
+
+    log.LogInformation("Admin reset the password of account {Id}.", LogSafe(req.AccountId));
+    return Results.Json(new { tempPassword = temp });
 });
 
 // Account self-deletion (DSGVO Art. 17): erases the account, its sessions, its reports AND all of its
@@ -880,6 +962,29 @@ app.MapPost("/admin/reports/{id:long}/close", async (HttpContext ctx, long id) =
     var form = await ctx.Request.ReadFormAsync();
     registry.CloseReport(id, form["status"].ToString() is "dismissed" ? "dismissed" : "reviewed");
     return Results.Redirect("/admin");
+});
+
+// Admin-UI twin of /api/admin/reset-password. Renders the outcome page directly instead of
+// redirecting — the one-time temp password must never travel in a URL (logs, browser history).
+app.MapPost("/admin/reset-password", async (HttpContext ctx) =>
+{
+    if (GuardAdminUi(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    var form = await ctx.Request.ReadFormAsync();
+    string accountId = form["accountId"].ToString();
+    var account = registry.GetAccount(accountId);
+    var (ok, temp) = account is null ? (false, string.Empty) : registry.AdminResetPassword(accountId);
+    if (!ok)
+    {
+        log.LogInformation("Admin UI: password reset refused (unknown or operator account).");
+        return Results.Redirect("/admin?notice=operator_reset");
+    }
+
+    log.LogInformation("Admin UI: password of account {Id} reset.", LogSafe(accountId));
+    return Results.Content(WorldHostAdminPages.ResetPasswordResult(config, account!.Name, temp), "text/html; charset=utf-8");
 });
 
 app.MapPost("/admin/ban", async (HttpContext ctx) =>

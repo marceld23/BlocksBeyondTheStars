@@ -27,6 +27,14 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// re-accept on the portal website before world actions succeed.</summary>
         public bool TermsOutdated { get; set; }
 
+        /// <summary>An operator reset this account's password to a temporary one — the UI nags the
+        /// player to pick their own now (cleared server-side by the next successful change).</summary>
+        public bool MustChangePassword { get; set; }
+
+        /// <summary>Rescue codes, answered by signup (and by an explicit re-issue): the ONE time their
+        /// plaintext exists — the UI must show them for writing down; only hashes remain server-side.</summary>
+        public System.Collections.Generic.List<string> RecoveryCodes { get; set; } = new System.Collections.Generic.List<string>();
+
         /// <summary>Moderation state + unread messages, answered by the login itself (#496): a banned
         /// account used to sign in normally and only hit the wall at its first world action.</summary>
         public PortalNoticesResult State { get; set; } = new PortalNoticesResult();
@@ -310,6 +318,22 @@ namespace BlocksBeyondTheStars.Client.Portal
             return ParseSimple(status, body);
         }
 
+        /// <summary>Self-service reset with a rescue code (anonymous — the password is forgotten, so
+        /// there is no session). A success is a sign-in: the answer carries a fresh session.</summary>
+        public PortalLoginResult Recover(string name, string code, string newPassword)
+        {
+            var (status, body) = Post("/api/recover", new { name, code, newPassword }, session: null);
+            return ParseLogin(status, body);
+        }
+
+        /// <summary>Re-issues the account's rescue codes (current password required; the old set is
+        /// void). The answer's <see cref="PortalLoginResult.RecoveryCodes"/> is their only appearance.</summary>
+        public PortalLoginResult RegenerateRecoveryCodes(string session, string password)
+        {
+            var (status, body) = Post("/api/account/recovery-codes", new { password }, session);
+            return ParseLogin(status, body);
+        }
+
         /// <summary>Creates a hosted world; <paramref name="password"/> (empty/null = open world)
         /// protects it with a join password (4-24 chars).</summary>
         public PortalWorldResult CreateWorld(string session, string name, string? password = null)
@@ -432,6 +456,17 @@ namespace BlocksBeyondTheStars.Client.Portal
                 result.SessionToken = GetString(doc!, "sessionToken");
                 result.AccountName = GetString(doc!, "accountName");
                 result.TermsOutdated = doc!.RootElement.TryGetProperty("termsOutdated", out var to) && to.ValueKind == JsonValueKind.True;
+                result.MustChangePassword = doc!.RootElement.TryGetProperty("mustChangePassword", out var mc) && mc.ValueKind == JsonValueKind.True;
+                if (doc!.RootElement.TryGetProperty("recoveryCodes", out var codes) && codes.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var entry in codes.EnumerateArray())
+                    {
+                        if (entry.ValueKind == JsonValueKind.String)
+                        {
+                            result.RecoveryCodes.Add(entry.GetString() ?? string.Empty);
+                        }
+                    }
+                }
                 result.State = ReadState(doc!.RootElement); // ban state + unread notices ride along (#496)
                 result.State.Ok = true;
             }

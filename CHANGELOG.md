@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🆘 Rescue codes + operator password reset — a forgotten password is no longer fatal
+- **Rescue codes ("Rettungscodes")**: every new account gets 3 one-time codes at signup — shown
+  exactly once with a big "write these on paper!" prompt (in-game and on the portal website). A
+  code plus a new password resets a forgotten account password via the new "Forgot password?"
+  button; codes are stored only as PBKDF2 hashes, survive sloppy typing (case/spaces/dashes),
+  and can be re-issued from the Account panel (current password required — the old set is void).
+- **Operator reset**: the `/admin` account lookup gained a "reset password" button — it shows a
+  one-time readable temp password (never in a URL), signs out every session, and the next login
+  lands the player directly in the change-password form until they pick their own. Developer
+  accounts are excluded on every path, so admin credentials can never take over the operator.
+
 ### 🔑 Account access: change your password + clearer sign-in
 - **Change your account password in-game**: the Official Worlds → Account panel now rotates a known
   password (current one required; every other signed-in device is signed out). New endpoint

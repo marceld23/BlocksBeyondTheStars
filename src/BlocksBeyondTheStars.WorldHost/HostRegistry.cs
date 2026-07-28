@@ -16,7 +16,8 @@ public sealed record AccountRecord(
     int AcceptedTermsVersion = 0,
     long BannedAtUnix = 0,
     long BannedUntilUnix = 0,
-    string BanReasonCode = "")
+    string BanReasonCode = "",
+    bool MustChangePassword = false)
 {
     /// <summary>True for a ban that ends by itself (a timeout); false for "until an operator lifts it".</summary>
     public bool BanExpires => IsBanned && BannedUntilUnix > 0;
@@ -241,6 +242,13 @@ public sealed class HostRegistry : IDisposable
                 reason TEXT NOT NULL DEFAULT '',
                 created_unix INTEGER NOT NULL);
             CREATE INDEX IF NOT EXISTS ix_world_ban_world ON world_ban(world_id);
+            CREATE TABLE IF NOT EXISTS recovery_code(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                created_unix INTEGER NOT NULL,
+                used_unix INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX IF NOT EXISTS ix_recovery_account ON recovery_code(account_id);
             CREATE TABLE IF NOT EXISTS world_visitor(
                 world_id TEXT NOT NULL,
                 account_id TEXT NOT NULL,
@@ -266,6 +274,7 @@ public sealed class HostRegistry : IDisposable
             "ALTER TABLE world ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';", // #250: creator-set join password
             "ALTER TABLE world ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;", // public world browser (opt-in, requires password)
             "ALTER TABLE world ADD COLUMN channel TEXT NOT NULL DEFAULT '';", // world channel ('' portal, 'glitch' arcade)
+            "ALTER TABLE account ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;", // set by an admin reset, cleared by the next change
         })
         {
             try
@@ -422,7 +431,7 @@ public sealed class HostRegistry : IDisposable
                 }
             }
 
-            using (var upd = Cmd("UPDATE account SET password_hash = $p WHERE id = $i"))
+            using (var upd = Cmd("UPDATE account SET password_hash = $p, must_change_password = 0 WHERE id = $i"))
             {
                 upd.Parameters.AddWithValue("$p", PasswordHasher.Hash(newPassword!));
                 upd.Parameters.AddWithValue("$i", accountId);
@@ -440,9 +449,198 @@ public sealed class HostRegistry : IDisposable
         }
     }
 
+    /// <summary>True when <paramref name="password"/> matches the account's stored hash — the gate for
+    /// self-service actions that must not be reachable with a stolen session alone (recovery-code
+    /// regeneration mirrors the password-change rule).</summary>
+    public bool VerifyPassword(string accountId, string? password)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("SELECT password_hash FROM account WHERE id = $i");
+            cmd.Parameters.AddWithValue("$i", accountId);
+            return cmd.ExecuteScalar() is string stored && PasswordHasher.Verify(password ?? string.Empty, stored);
+        }
+    }
+
+    /// <summary>How many rescue codes an account gets — enough that losing one slip of paper is not fatal,
+    /// few enough to fit on one.</summary>
+    public const int RecoveryCodeCount = 3;
+
+    // Rescue codes and admin temp passwords are read out loud and typed by kids (often from paper), so the
+    // alphabet skips lookalikes (0/O, 1/I/L) entirely. 8 symbols of 31 ≈ 40 bits — unguessable behind the
+    // login rate limits, short enough to copy without despair.
+    private const string CodeAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+    private static string NewReadableCode()
+    {
+        Span<char> chars = stackalloc char[9];
+        for (int i = 0; i < chars.Length; i++)
+        {
+            chars[i] = i == 4 ? '-' : CodeAlphabet[RandomNumberGenerator.GetInt32(CodeAlphabet.Length)];
+        }
+
+        return new string(chars);
+    }
+
+    /// <summary>Uppercases and strips separators/whitespace so "abcd-efgh", "ABCD EFGH" and "abcdefgh"
+    /// all redeem the same code — paper transcription must not fail on formatting.</summary>
+    private static string NormalizeCode(string? code)
+        => new((code ?? string.Empty).ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+
+    /// <summary>(Re)issues the account's rescue codes ("Rettungscodes"): the previous set is void, the
+    /// fresh plaintexts are returned EXACTLY ONCE for the player to write down — only PBKDF2 hashes are
+    /// stored, so a leaked registry cannot redeem them (they are password-equivalent secrets).</summary>
+    public IReadOnlyList<string> CreateRecoveryCodes(string accountId)
+    {
+        var codes = new List<string>(RecoveryCodeCount);
+        for (int i = 0; i < RecoveryCodeCount; i++)
+        {
+            codes.Add(NewReadableCode());
+        }
+
+        lock (_gate)
+        {
+            using (var del = Cmd("DELETE FROM recovery_code WHERE account_id = $a"))
+            {
+                del.Parameters.AddWithValue("$a", accountId);
+                del.ExecuteNonQuery();
+            }
+
+            foreach (string code in codes)
+            {
+                using var ins = Cmd("INSERT INTO recovery_code(account_id, code_hash, created_unix) VALUES($a, $h, $c)");
+                ins.Parameters.AddWithValue("$a", accountId);
+                ins.Parameters.AddWithValue("$h", PasswordHasher.Hash(NormalizeCode(code)));
+                ins.Parameters.AddWithValue("$c", NowUnix());
+                ins.ExecuteNonQuery();
+            }
+        }
+
+        return codes;
+    }
+
+    /// <summary>Self-service reset with a rescue code: consumes the code (single use), sets the new
+    /// password and revokes every session — the flow a player uses when the password is GONE, so there is
+    /// no session to keep. Uniform failure text: it never reveals whether the account exists, has codes
+    /// left, or the code was merely mistyped. Returns a fresh session, so a successful rescue is a
+    /// sign-in.</summary>
+    public (bool Ok, string Error, string AccountId, string AccountName, string SessionToken) RedeemRecoveryCode(
+        string name, string code, string newPassword)
+    {
+        const string Failed = "Wrong account name or rescue code.";
+        if ((newPassword ?? string.Empty).Length < 8)
+        {
+            return (false, "Password must be at least 8 characters.", string.Empty, string.Empty, string.Empty);
+        }
+
+        string normalized = NormalizeCode(code);
+        if (normalized.Length == 0)
+        {
+            return (false, Failed, string.Empty, string.Empty, string.Empty);
+        }
+
+        lock (_gate)
+        {
+            string? accountId = null, accountName = null;
+            using (var acc = Cmd("SELECT id, name FROM account WHERE name = $n"))
+            {
+                acc.Parameters.AddWithValue("$n", name ?? string.Empty);
+                using var reader = acc.ExecuteReader();
+                if (reader.Read())
+                {
+                    accountId = reader.GetString(0);
+                    accountName = reader.GetString(1);
+                }
+            }
+
+            if (accountId is null)
+            {
+                return (false, Failed, string.Empty, string.Empty, string.Empty);
+            }
+
+            long matchedRow = 0;
+            using (var sel = Cmd("SELECT id, code_hash FROM recovery_code WHERE account_id = $a AND used_unix = 0"))
+            {
+                sel.Parameters.AddWithValue("$a", accountId);
+                using var reader = sel.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (PasswordHasher.Verify(normalized, reader.GetString(1)))
+                    {
+                        matchedRow = reader.GetInt64(0);
+                        break;
+                    }
+                }
+            }
+
+            if (matchedRow == 0)
+            {
+                return (false, Failed, string.Empty, string.Empty, string.Empty);
+            }
+
+            using (var burn = Cmd("UPDATE recovery_code SET used_unix = $now WHERE id = $id"))
+            {
+                burn.Parameters.AddWithValue("$now", NowUnix());
+                burn.Parameters.AddWithValue("$id", matchedRow);
+                burn.ExecuteNonQuery();
+            }
+
+            using (var upd = Cmd("UPDATE account SET password_hash = $p, must_change_password = 0 WHERE id = $i"))
+            {
+                upd.Parameters.AddWithValue("$p", PasswordHasher.Hash(newPassword!));
+                upd.Parameters.AddWithValue("$i", accountId);
+                upd.ExecuteNonQuery();
+            }
+
+            using (var del = Cmd("DELETE FROM session WHERE account_id = $i"))
+            {
+                del.Parameters.AddWithValue("$i", accountId);
+                del.ExecuteNonQuery();
+            }
+
+            return (true, string.Empty, accountId, accountName!, CreateSessionLocked(accountId));
+        }
+    }
+
+    /// <summary>Operator lever for "my kid forgot the password" support mails: sets a readable one-time
+    /// password (returned exactly once, to the admin page), flags the account so the next login nags to
+    /// change it, and revokes every session. Refused for developer accounts — an admin-token holder must
+    /// not be able to take over the operator account itself.</summary>
+    public (bool Ok, string TempPassword) AdminResetPassword(string accountId)
+    {
+        string temp = NewReadableCode();
+        lock (_gate)
+        {
+            using (var check = Cmd("SELECT is_developer FROM account WHERE id = $i"))
+            {
+                check.Parameters.AddWithValue("$i", accountId);
+                object? dev = check.ExecuteScalar();
+                if (dev is null || Convert.ToInt64(dev, System.Globalization.CultureInfo.InvariantCulture) != 0)
+                {
+                    return (false, string.Empty);
+                }
+            }
+
+            using (var upd = Cmd("UPDATE account SET password_hash = $p, must_change_password = 1 WHERE id = $i"))
+            {
+                upd.Parameters.AddWithValue("$p", PasswordHasher.Hash(temp));
+                upd.Parameters.AddWithValue("$i", accountId);
+                upd.ExecuteNonQuery();
+            }
+
+            using (var del = Cmd("DELETE FROM session WHERE account_id = $i"))
+            {
+                del.Parameters.AddWithValue("$i", accountId);
+                del.ExecuteNonQuery();
+            }
+
+            return (true, temp);
+        }
+    }
+
     /// <summary>Column list every account read shares — see <see cref="ReadAccount"/> for the order.</summary>
     private const string AccountColumns =
-        "id, name, is_developer, banned, ban_reason, terms_version, banned_at_unix, banned_until_unix, ban_reason_code";
+        "id, name, is_developer, banned, ban_reason, terms_version, banned_at_unix, banned_until_unix, ban_reason_code, must_change_password";
 
     /// <summary>Materializes an account row. A timeout whose end has passed reads as NOT banned: the row
     /// keeps the history for the admin list, but every gate asking <c>IsBanned</c> lets the player back in
@@ -452,7 +650,8 @@ public sealed class HostRegistry : IDisposable
         long until = reader.GetInt64(7);
         bool banned = reader.GetInt32(3) != 0 && (until <= 0 || until > NowUnix());
         return new AccountRecord(reader.GetString(0), reader.GetString(1), reader.GetInt32(2) != 0,
-            banned, reader.GetString(4), reader.GetInt32(5), reader.GetInt64(6), until, reader.GetString(8));
+            banned, reader.GetString(4), reader.GetInt32(5), reader.GetInt64(6), until, reader.GetString(8),
+            reader.GetInt32(9) != 0);
     }
 
     /// <summary>Resolves a bearer token to its account, or null when unknown/expired.</summary>

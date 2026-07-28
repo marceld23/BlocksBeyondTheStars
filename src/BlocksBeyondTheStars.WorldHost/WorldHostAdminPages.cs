@@ -193,6 +193,20 @@ public static class WorldHostAdminPages
             : $"{Math.Max(0, (int)span.TotalMinutes)} min ago";
     }
 
+    /// <summary>Outcome page of an admin password reset. Rendered directly (no redirect): the temp
+    /// password must appear exactly once and never in a URL, where it would land in logs and history.</summary>
+    public static string ResetPasswordResult(WorldHostConfig config, string accountName, string tempPassword)
+    {
+        string body =
+            $"<h1>Password <span class='o'>reset</span></h1>" +
+            $"<div class='card'><p><b>{E(accountName)}</b> can now sign in once with:</p>" +
+            $"<p style='font-size:1.6em'><code>{E(tempPassword)}</code></p>" +
+            "<p class='hint'>Shown only this once — pass it to the player/parents now. All previous sign-ins were " +
+            "signed out, and the next login asks the player to choose their own password.</p>" +
+            "<p><a href='/admin'>back to the fleet</a></p></div>";
+        return WorldHostPortalPages.Shell("Password reset — Fleet admin", body, "de", config);
+    }
+
     public static string Index(
         WorldHostConfig config,
         IReadOnlyList<AdminWorldRow> worlds,
@@ -223,6 +237,7 @@ public static class WorldHostAdminPages
             "deleted" => "World deleted. Its saves are still on disk.",
             "purged" => "World deleted and its saves erased.",
             "operator" => "Nothing changed — operator accounts cannot be banned (a locked-out operator could not lift it again).",
+            "operator_reset" => "Nothing changed — operator accounts cannot be reset here (do it directly on the host).",
             "stopping" => "World marked stopped. The instance is draining and saving in the background — it can take up to three minutes to disappear from `docker ps`.",
             "killed" => "World HARD KILLED — no drain, no save. Everything since its last autosave is gone.",
             _ => null,
@@ -386,6 +401,15 @@ public static class WorldHostAdminPages
                 sb.Append("<p class='hint'>The player is told at their next login — reason, date and, for a timeout, " +
                           "the day it ends. A ban also kicks them out of every world they are in right now. " +
                           "A timeout lifts itself; nothing to remember.</p>");
+
+                // Support lever for "my kid forgot the password" mails. Developer accounts are excluded:
+                // the admin credentials must never be a path to taking over the operator account.
+                sb.Append(lookedUp.IsDeveloper
+                    ? "<p class='hint'>Operator account — reset its password directly on the host, not here.</p>"
+                    : $"<form method='post' action='/admin/reset-password'><input type='hidden' name='accountId' value='{E(lookedUp.Id)}'>" +
+                      "<button class='danger'>reset password</button></form>" +
+                      "<p class='hint'>Shows a one-time temporary password ONCE (tell it to the player/parents); every " +
+                      "session is signed out and the next login asks the player to pick their own password.</p>");
             }
         }
 
