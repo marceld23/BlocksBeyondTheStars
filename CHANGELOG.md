@@ -13,6 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.21] — 2026-07-29
+
+The landforms release: worlds finally dare vertical drama. The regional terrain pool grows from
+five to eight archetypes, a rare drama tail pushes peaks toward Y ≈ 280 under automatic snow,
+table mountains, massifs and rift chasms land as far-visible landmarks, and three new planet
+types join the galaxy. Below ground the build band opens to Y −2100 — the deep kilometre — with
+ore density that ramps up and deep caves that stay partly open below the lava table. Existing
+worlds reshape once (like the 0.9.0 overhaul); everything players built stays in place.
+
 ### ⛰️ Terrain extremes & landform variety (#576, #577, #578, #579)
 
 > ⚠️ **One-time world reshape:** terrain is derived from the seed, so existing worlds change shape
@@ -964,7 +973,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...HEAD
+[2026.7.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...v2026.7.21
 [2026.7.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...v2026.7.20
 [2026.7.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...v2026.7.19
 [0.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.0...v0.9.1
