@@ -103,7 +103,7 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
                 go.transform.position = Game != null ? Game.ScenePos(m.X, m.Y, m.Z) : new Vector3(m.X, m.Y, m.Z);
                 var avatar = go.AddComponent<PlayerAvatar>();
-                avatar.Build(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs));
+                avatar.Build(Rgb(m.Skin), Rgb(m.Torso), Rgb(m.Arms), Rgb(m.Legs), spacesuit: true); // players wear the suit
                 if (_faces.TryGetValue(m.PlayerId, out var face))
                 {
                     avatar.SetFace(face); // a face we already received before this first presence

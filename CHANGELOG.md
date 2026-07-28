@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧑‍🚀 Player avatars now wear a spacesuit
+- Your avatar (third-person, other players, the avatar editor and colour-menu previews) now reads
+  as an astronaut: an open helmet with a raised dark-glass visor band, gloves, a neck seal and
+  collar ring, a chest control panel and a life-support backpack with twin tanks. The suit tints
+  with your chosen avatar colours, and your face — including a drawn pixel face — stays visible
+  through the open visor. Settlement and station NPCs deliberately keep their civilian look, so a
+  suited figure is always a real player at a glance.
+- Fixed invisible head gear: the armor-helmet and helmet-lamp visuals had been buried inside the
+  avatar's head since gear existed (a coordinate-space slip). The armor helmet now shows as an open
+  face-guard shell over the suit helmet, the lamp sits visibly on its side, and the armor backpack
+  replaces the suit's life-support pack while worn.
+
 ### 🧹 Fixed
 - Portal website: the rules-consent checkbox rendered as a centered full-width block (the global
   input styling caught it) and its label wrapped awkwardly around the button — it is now an

@@ -14,6 +14,13 @@ namespace BlocksBeyondTheStars.Client
     /// look-around, a jump/fall tuck, and a tool/weapon <see cref="Swing"/> chop. Per-part colours come
     /// from <see cref="ClientSettings"/> (or explicit colours for remotes / NPCs); equipped gear and a
     /// held item are layered on via <see cref="SetGear"/> / <see cref="SetHeldItem"/>.
+    ///
+    /// <b>Spacesuit mode</b> (players only — local third-person, remotes, avatar-editor previews): the same
+    /// body wears a suit so players read as astronauts and are instantly distinguishable from civilian NPCs
+    /// (who keep the bare-headed look): gloved hands + a suit-coloured neck seal instead of bare skin, an
+    /// open helmet shell with a raised glossy visor band (the face — including a custom pixel face — stays
+    /// visible through the opening), a chest control panel and a life-support backpack. Suit parts reuse the
+    /// torso/arm materials, so the player's chosen colours tint the suit.
     /// </summary>
     public sealed class PlayerAvatar : MonoBehaviour
     {
@@ -27,6 +34,10 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<GameObject> _gear = new List<GameObject>();
         private GameObject _held;
         private bool _visible = true;
+
+        private bool _suit; // spacesuit mode (players); NPCs keep the civilian bare-headed look
+        private readonly List<GameObject> _suitPack = new List<GameObject>(); // hidden while armor-pack gear is worn
+        private bool _gearPack; // armor pack currently worn — suppresses the suit pack (also across SetVisible)
 
         // Custom pixel face (FaceEditor): a textured plate on the head front that replaces the procedural
         // eyes/brow/mouth/visor when set. Placed in head-LOCAL space, where the head is a unit-cube primitive
@@ -50,11 +61,12 @@ namespace BlocksBeyondTheStars.Client
         private float _walkPhase;
         private float _swingTimer;
 
-        public void Build(ClientSettings s) => Build(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor);
+        public void Build(ClientSettings s) => Build(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor, spacesuit: true);
 
-        public void Build(Color skin, Color torso, Color arms, Color legs)
+        public void Build(Color skin, Color torso, Color arms, Color legs, bool spacesuit = false)
         {
             EnsureTextures();
+            _suit = spacesuit;
             _phase = (GetEntityId().GetHashCode() & 0x3ff) * 0.11f;
             _skinColor = skin;
             _skin = Lit(skin, _skinTex);
@@ -69,8 +81,9 @@ namespace BlocksBeyondTheStars.Client
             AddCube("ShoulderL", transform, new Vector3(-0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso);
             AddCube("ShoulderR", transform, new Vector3(0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso);
 
-            // Neck + head + a dark visor strip on the front.
-            AddCube("Neck", transform, new Vector3(0f, 1.69f, 0f), new Vector3(0.18f, 0.14f, 0.18f), _skin);
+            // Neck + head + a dark visor strip on the front. Suited players get a suit-coloured neck seal
+            // (no bare skin between collar and helmet); NPCs keep the skin neck.
+            AddCube("Neck", transform, new Vector3(0f, 1.69f, 0f), new Vector3(0.18f, 0.14f, 0.18f), _suit ? _torso : _skin);
             _head = AddCube("Head", transform, new Vector3(0f, 1.86f, 0f), new Vector3(0.46f, 0.46f, 0.46f), _skin).transform;
             // Face features sit on the head's FRONT surface. The head is a unit-cube primitive, so that surface is
             // at head-LOCAL z = 0.5; features must protrude past it (z ≳ 0.5). The old z ≈ 0.235–0.275 placed them
@@ -100,6 +113,51 @@ namespace BlocksBeyondTheStars.Client
             _armR = AddArm("ArmRight", 0.32f, out _elbowR, out _handR);
             _legL = AddLeg("LegLeft", -0.13f, out _kneeL);
             _legR = AddLeg("LegRight", 0.13f, out _kneeR);
+
+            if (_suit)
+            {
+                BuildSuit();
+            }
+        }
+
+        /// <summary>
+        /// The spacesuit layer for players: an OPEN helmet shell (top/back/sides/chin) with a raised glossy
+        /// visor band above the eyes, a collar ring, a chest control panel and a life-support backpack.
+        /// Helmet parts are children of the head (they follow the idle look-around) and use head-LOCAL units —
+        /// the head is a unit cube scaled 0.46, so its surfaces are at ±0.5 and anything wrapping it needs a
+        /// scale &gt; 1 (see the face-feature note above; the pre-suit gear helmet got this wrong and was
+        /// buried invisibly inside the head). The front stays open so the face — procedural or custom pixel
+        /// (<see cref="SetFace"/>) — remains visible; there is no transparent shader to see through a closed
+        /// visor (LitColor is opaque-only), which is why the visor is styled as flipped up.
+        /// </summary>
+        private void BuildSuit()
+        {
+            // Helmet shell in the torso material: tints with the player's suit colour.
+            AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso);
+            AddCube("SuitHelmetBack", _head, new Vector3(0f, 0.04f, -0.55f), new Vector3(1.16f, 1.2f, 0.14f), _torso);
+            AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso);
+            AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso);
+            AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso);
+
+            // Raised visor band across the forehead — dark glossy glass, clear of the brow (brow top ≈ 0.20).
+            AddCube("SuitVisorBand", _head, new Vector3(0f, 0.36f, 0.52f), new Vector3(1.0f, 0.3f, 0.12f),
+                Lit(new Color(0.10f, 0.22f, 0.28f), _visorTex));
+
+            // Collar ring where the helmet locks onto the suit (world units — child of the body root).
+            AddCube("SuitCollar", transform, new Vector3(0f, 1.645f, 0f), new Vector3(0.32f, 0.11f, 0.32f), _torso);
+
+            // Chest control panel + a small status light.
+            var panel = Lit(new Color(0.15f, 0.17f, 0.20f), _armorTex);
+            AddCube("SuitChestPanel", transform, new Vector3(0f, 1.50f, 0.185f), new Vector3(0.22f, 0.14f, 0.04f), panel);
+            AddCube("SuitStatusLight", transform, new Vector3(0.075f, 1.50f, 0.205f), new Vector3(0.045f, 0.045f, 0.02f),
+                Lit(new Color(0.30f, 0.90f, 0.50f), null));
+
+            // Life-support backpack with twin tanks; swapped out for the armor pack gear when carried.
+            var packMat = Lit(new Color(0.30f, 0.34f, 0.40f), _armorTex);
+            var tankMat = Lit(new Color(0.55f, 0.58f, 0.62f), _armorTex);
+            _suitPack.Add(AddCube("SuitPack", transform, new Vector3(0f, 1.40f, -0.24f), new Vector3(0.38f, 0.48f, 0.15f), packMat));
+            _suitPack.Add(AddCube("SuitTankL", transform, new Vector3(-0.09f, 1.42f, -0.33f), new Vector3(0.10f, 0.34f, 0.06f), tankMat));
+            _suitPack.Add(AddCube("SuitTankR", transform, new Vector3(0.09f, 1.42f, -0.33f), new Vector3(0.10f, 0.34f, 0.06f), tankMat));
         }
 
         private Transform AddArm(string name, float x, out Transform elbow, out Transform hand)
@@ -109,7 +167,8 @@ namespace BlocksBeyondTheStars.Client
             elbow = NewPivot(name + "Elbow", shoulder, new Vector3(0f, -0.42f, 0f));
             AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), new Vector3(0.15f, 0.42f, 0.15f), _arms);
             hand = NewPivot(name + "Hand", elbow, new Vector3(0f, -0.44f, 0f));
-            AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), new Vector3(0.2f, 0.16f, 0.2f), _skin);
+            // Suited players wear gloves (arm colour); NPCs keep bare hands.
+            AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), new Vector3(0.2f, 0.16f, 0.2f), _suit ? _arms : _skin);
             return shoulder;
         }
 
@@ -306,7 +365,14 @@ namespace BlocksBeyondTheStars.Client
 
             if (helmet)
             {
-                _gear.Add(AddCube("GearHelmet", _head, new Vector3(0f, 0.04f, -0.02f), new Vector3(0.54f, 0.5f, 0.54f), plate));
+                // An open armor shell OUTSIDE the suit helmet, so the face (and a custom pixel face) stays
+                // visible. Head-LOCAL units: the head is a 0.46-scaled unit cube, so wrapping it needs scales
+                // > 1 — the old single 0.54-cube was smaller than the head itself and sat buried invisibly
+                // inside it (same trap as the face features, see the Build note).
+                _gear.Add(AddCube("GearHelmetTop", _head, new Vector3(0f, 0.68f, 0f), new Vector3(1.34f, 0.16f, 1.34f), plate));
+                _gear.Add(AddCube("GearHelmetBack", _head, new Vector3(0f, 0.08f, -0.66f), new Vector3(1.34f, 1.36f, 0.14f), plate));
+                _gear.Add(AddCube("GearHelmetL", _head, new Vector3(-0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), plate));
+                _gear.Add(AddCube("GearHelmetR", _head, new Vector3(0.66f, 0.08f, 0f), new Vector3(0.14f, 1.36f, 1.2f), plate));
             }
 
             if (chest)
@@ -325,10 +391,15 @@ namespace BlocksBeyondTheStars.Client
                 _gear.Add(AddCube("GearPack", transform, new Vector3(0f, 1.4f, -0.24f), new Vector3(0.4f, 0.5f, 0.2f), packMat));
             }
 
+            // The armor pack replaces the suit's life-support pack (they occupy the same spot on the back).
+            _gearPack = pack;
+            ApplySuitPackVisible();
+
             if (lamp)
             {
                 // A small bright lamp on the side of the helmet (the actual light cone is the suit lamp).
-                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.25f, 0.05f, 0.12f), new Vector3(0.1f, 0.1f, 0.12f),
+                // Head-LOCAL units — outside the suit/armor helmet side plates (see the helmet note above).
+                _gear.Add(AddCube("GearLamp", _head, new Vector3(0.70f, 0.16f, 0.30f), new Vector3(0.22f, 0.22f, 0.26f),
                     Lit(new Color(1f, 0.96f, 0.7f), null)));
             }
         }
@@ -456,6 +527,24 @@ namespace BlocksBeyondTheStars.Client
 
             ApplyHeldVisible();
             ApplyFaceVisibility(); // re-suppress stock features / show the plate when a custom face is set
+            ApplySuitPackVisible(); // re-suppress the suit pack while the armor pack is worn
+        }
+
+        /// <summary>Reconciles the suit life-support pack with visibility and the armor-pack gear (which
+        /// replaces it on the back). Idempotent — called from <see cref="SetGear"/> and <see cref="SetVisible"/>.</summary>
+        private void ApplySuitPackVisible()
+        {
+            foreach (var p in _suitPack)
+            {
+                if (p != null)
+                {
+                    var r = p.GetComponent<Renderer>();
+                    if (r != null)
+                    {
+                        r.enabled = _visible && !_gearPack;
+                    }
+                }
+            }
         }
 
         // Shared (loaded once) tintable grayscale textures for the suit/armor/visor/skin.

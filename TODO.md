@@ -6468,6 +6468,30 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-28): player avatars wear a spacesuit — players distinguishable from NPCs at a glance
+
+User request: player avatars (own third-person + other players) should read as spacesuit-wearers.
+Analysis first (memory `avatar-spacesuit-look-analysis`): the shared `PlayerAvatar` looked like a
+person in a jumpsuit — bare skin head/neck/hands — for players *and* civilian NPCs alike.
+
+- **Spacesuit mode** on `PlayerAvatar.Build(..., spacesuit:)`: open helmet shell (top/back/sides/chin)
+  with a raised dark-glass visor band (uses the previously unused `avatar_visor` texture), gloved
+  hands, suit-coloured neck seal + collar ring, chest control panel with status light, life-support
+  backpack with twin tanks. Suit parts reuse the torso/arm materials → the player's chosen colours
+  tint the suit; the face (procedural or custom pixel face) stays visible through the open front
+  (LitColor is opaque-only, so no see-through closed visor — the visor is styled flipped up).
+- Enabled for the local third-person avatar, remote players, the avatar editor and the in-game
+  colour-menu preview. **NPCs deliberately stay civilian** (suit = player, outfit = NPC, bandana =
+  bandit, grey = robot) — free visual faction language.
+- **Fixed a latent gear bug**: the armor-helmet and helmet-lamp gear cubes were children of the
+  0.46-scaled head but sized in world units — buried invisibly *inside* the head since gear
+  existed. The helmet is now an open armor shell outside the suit helmet (face stays visible), the
+  lamp sits proud on its side; the armor backpack hides the suit's life-support pack while worn.
+- Status: implemented in worktree `SpaceCraft-suit`, branch `feat/avatar-spacesuit`; **local only,
+  no PR yet on user instruction**.
+
+---
+
 ## ✅ Done (2026-07-28): account password change + sign-in lockout fixes (#555/#556)
 
 Trigger: the operator locked himself out after "Abmelden" — the sign-in form blanked the account

@@ -63,7 +63,7 @@ namespace BlocksBeyondTheStars.Client
             _model.position = Origin;
             _model.localRotation = Quaternion.Euler(0f, 180f, 0f); // face the −Z camera (the lit side)
             _avatar = _model.gameObject.AddComponent<PlayerAvatar>();
-            _avatar.Build(skin, torso, arms, legs);
+            _avatar.Build(skin, torso, arms, legs, spacesuit: true); // preview the player's suited look
             _avatar.SetVisible(true);
 
             SetActive(false);

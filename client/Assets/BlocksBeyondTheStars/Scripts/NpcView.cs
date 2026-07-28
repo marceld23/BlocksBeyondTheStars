@@ -119,6 +119,8 @@ namespace BlocksBeyondTheStars.Client
                     var avatar = go.AddComponent<PlayerAvatar>();
                     Color skin = nd.IsRobot ? new Color(0.75f, 0.78f, 0.82f) : Rgb(nd.SkinRgb);
                     Color outfit = Rgb(nd.OutfitRgb);
+                    // Deliberately NO spacesuit: civilians stay bare-headed so suited players are
+                    // recognisable at a glance (suit = player, outfit = NPC, bandana = bandit).
                     avatar.Build(skin, outfit, outfit * 0.85f, outfit * 0.7f);
                     avatar.SetVisible(true);
 

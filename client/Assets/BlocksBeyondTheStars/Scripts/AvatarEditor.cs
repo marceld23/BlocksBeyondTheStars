@@ -75,7 +75,7 @@ namespace BlocksBeyondTheStars.Client
             _avatarRoot = new GameObject("AvatarPreview").transform;
             _avatarRoot.SetParent(transform, false);
             _avatar = _avatarRoot.gameObject.AddComponent<PlayerAvatar>();
-            _avatar.Build(_col[0], _col[1], _col[2], _col[3]);
+            _avatar.Build(_col[0], _col[1], _col[2], _col[3], spacesuit: true); // preview the player's suited look
             _avatar.SetVisible(true);
             _avatar.SetFace(_face); // show the player's current custom face on the preview figure
         }
