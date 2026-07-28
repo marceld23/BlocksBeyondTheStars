@@ -405,12 +405,13 @@ public class WorldGenerationTests
         }
     }
 
-    private static int CountBlock(WorldGenerator gen, BlocksBeyondTheStars.Shared.Definitions.PlanetType planet, ushort block)
+    private static int CountBlock(WorldGenerator gen, BlocksBeyondTheStars.Shared.Definitions.PlanetType planet, ushort block,
+        int cyLo = 3, int cyHi = 5)
     {
         int n = 0;
         for (int cx = 0; cx < 8; cx++)
             for (int cz = 0; cz < 8; cz++)
-                for (int cy = 3; cy <= 5; cy++) // a wide span around typical sea levels (Y ≈ 48..95)
+                for (int cy = cyLo; cy <= cyHi; cy++) // default: a wide span around typical sea levels (Y ≈ 48..95)
                 {
                     var chunk = gen.Generate(planet, new ChunkCoord(cx, cy, cz));
                     foreach (var b in chunk.RawBlocks)
@@ -706,8 +707,15 @@ public class WorldGenerationTests
         ushort lava = content.GetBlock("lava")!.NumericId.Value;
         ushort water = content.GetBlock("water")!.NumericId.Value;
 
-        Assert.True(CountBlock(gen, planet, lava) > 0, "A volcanic world should pool lava in its basins.");
-        Assert.Equal(0, CountBlock(gen, planet, water));
+        // Scan around the world's ACTUAL lava sea level — the percentile-based level moves with the
+        // terrain (and #576's rift gorges can pull it below the old fixed Y 48..95 window).
+        int sea = gen.SeaLevel(planet);
+        Assert.True(sea > int.MinValue, "A volcanic world should have a lava sea level.");
+        int seaCy = WorldConstants.WorldToChunk(sea);
+
+        Assert.True(CountBlock(gen, planet, lava, seaCy - 1, seaCy + 1) > 0,
+            "A volcanic world should pool lava in its basins.");
+        Assert.Equal(0, CountBlock(gen, planet, water, seaCy - 1, seaCy + 1));
     }
 
     [Fact]

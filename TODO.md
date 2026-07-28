@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1228 server + 145 client passing** (2026-07-27). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1245 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -6467,6 +6467,35 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-07-29): terrain extremes & landform variety + the deep kilometre (#576–#580)
+
+One combined worldgen wave (⚠️ one-time reshape of existing worlds, accepted like the 0.9.0 overhaul —
+player edits survive in place):
+
+- **#576 formula variety** — the regional archetype pool grew 5 → 8 (plateau decks, extreme peaks, rift
+  gorges), blending moved to **offset space** (`BlendedArchetypeOffset` lerps computed offsets — shapes
+  like quantised decks can't blend as parameters), worlds draw 2–8 archetypes, and `DramaFor` gained a
+  **~6 % extreme tail** (1.9–2.6× relief). Most worlds stay moderate; outliers now genuinely tower.
+- **#577 table mountains** — sparse flat-topped buttes (radius 40–120, height 30–70, near-vertical
+  walls, dead-flat crowns) on dry rocky-reading worlds, on a shared `TryGetHotspot` cell helper (the
+  #477 volcano recipe, seam-safe by construction).
+- **#578 massifs + rifts** — rare giant mountains (+120–220, ridged flanks, auto snow/ice summits) and
+  deep gorge segments (50–130) that flood into fjord lakes below sea level. At most ONE landmark claims
+  a column (volcano > massif > butte > rift) and `SurfaceHeight` clamps at Y 288 (atmosphere line ~320).
+  Calibration now samples the full `SurfaceHeight` so the snow gate sees massif summits; altitude-biome
+  normalisation switched to the 2–98 % height percentiles so lone landmarks don't compress the biome span.
+- **#579 new planet types** — tablelands (grand-mesa terraces), badlands (fine-ridged gullies), karst
+  (exotic; sheer towers with walkable crowns): new `StyledHeightOffset` styles + `planets.json` entries +
+  DE/EN locale. Save-safe thanks to the persisted body→type map (#468).
+- **#580 deep kilometre** — `MinBuildY` −512 → **−2100** (deepest foundation reachable; anti-DoS band
+  still hard-bounded, ~2× worst-case volume, streaming LOD unaffected), cave/ore CDF sampling extended to
+  the full depth band, deep caves below the lava table stay ~40 % open (coherent molten-pocket field),
+  and ore density ramps to +60 % over the first ~600 blocks down. Digging stays rewarding, never frustig.
+- Drive-by fix: a "no monuments here" roll never persisted its decision (contract said it should).
+- New `TerrainExtremesTests` (drama-tail distribution, Y-cap over all types, seam-wrap on landmark/new-
+  style worlds, butte flat-top shape, build-band-covers-floor, deep-caves-not-all-lava); the volcanic
+  basin test now scans around the world's actual percentile sea level.
 
 ## ✅ Done (2026-07-28): player avatars wear a spacesuit — players distinguishable from NPCs at a glance (#564)
 

@@ -205,40 +205,112 @@ public sealed class WorldGenerator
     /// <summary>Canonical Z for per-column hash rolls (trees/flora/props), so stamps match across the Z seam.</summary>
     private int Wz(int worldZ) => WorldConstants.WrapZ(worldZ, _circumference);
 
-    // Terrain archetypes (amplitude multiplier, ridged amount): flats, rolling plains, hills, mountains,
-    // canyons. A world uses a seed-picked subset, varied across the surface by a large-scale field, so areas
-    // read as flat / rolling / mountainous and (high end) carve into canyons.
-    private static readonly (double Amp, double Ridged)[] TerrainArchetypes =
+    // Terrain archetypes: regional landform SHAPES — flats, rolling plains, hills, mountains, canyons,
+    // plus (#576) plateau decks, extreme peaks and rift gorges. A world uses a seed-picked subset, varied
+    // across the surface by a large-scale field, so areas read as flat / rolling / mountainous — and on
+    // worlds whose subset drew the new entries, as terraced mesa country, jagged extremes or gorge lands.
+    private const int TerrainArchetypeCount = 8;
+
+    /// <summary>One archetype's height offset (blocks relative to BaseHeight, before drama) at a column.
+    /// <paramref name="h"/> is the base FBM swell in [-1,1]. Archetypes are explicit shapes rather than
+    /// (amplitude, ridged) parameter pairs because the #576 additions — quantised decks, asymmetric
+    /// gorges — cannot be expressed as parameters of one shared formula; the regional blend therefore
+    /// lerps computed OFFSETS, not parameters.</summary>
+    private double ArchetypeOffset(int archetype, PlanetType planet, long seed, double h, int worldX, int worldZ)
     {
-        (0.18, 0.0),  // flats
-        (0.55, 0.0),  // rolling plains
-        (1.00, 0.0),  // hills
-        (1.90, 0.12), // mountains
-        (1.30, 0.65), // canyons
-    };
+        double amp = planet.Amplitude;
+        double Ridge(double v) => (1.0 - System.Math.Abs(v)) * 2.0 - 1.0; // smooth swell → sharp ridge/valley
+
+        switch (archetype)
+        {
+            case 0: return h * amp * 0.18; // flats
+            case 1: return h * amp * 0.55; // rolling plains
+            case 2: return h * amp * 1.00; // hills
+            case 3: // mountains (lightly ridged)
+                return (h * 0.88 + Ridge(h) * 0.12) * amp * 1.9;
+            case 4: // canyons (strongly ridged)
+                return (h * 0.35 + Ridge(h) * 0.65) * amp * 1.3;
+            case 5: // plateau decks (#576): terraced mesa country as a REGION, not a whole-world style
+                {
+                    double raw = h * amp * 1.05;
+                    double step = System.Math.Max(5.0, amp * 0.5);
+                    double deck = System.Math.Floor(raw / step) * step;
+                    double roll = FbmT(seed + 0x9D3C, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    return deck + (roll - 0.5) * 2.0; // ±1-block texture so decks read as rock, not glass
+                }
+
+            case 6: // extreme peaks (#576): the far tail of relief, well above the mountains archetype
+                {
+                    double r = h * 0.25 + Ridge(h) * 0.75;
+                    if (r > 0)
+                    {
+                        r = System.Math.Pow(r, 1.6); // flatter mid-slopes, prouder crests
+                    }
+
+                    return r * amp * 3.4;
+                }
+
+            default: // 7: rift gorges (#576): gentle ground gashed by deep ridged canyons
+                {
+                    double g = Ridge(h);
+                    double swell = h * amp * 0.3;
+                    return g > 0 ? swell - System.Math.Pow(g, 2.2) * amp * 3.0 : swell;
+                }
+        }
+    }
 
     /// <summary>Per-world terrain drama ("Welten reicher" W-R1): a seeded ~0.9–1.5× multiplier on the relief,
-    /// so the same planet type rolls gentle on one world and jagged/dramatic on the next. Craters
-    /// (airless regolith) stay flat by design.</summary>
+    /// so the same planet type rolls gentle on one world and jagged/dramatic on the next. A small tail of
+    /// bodies (~6 %, #576) instead rolls 1.9–2.6× — the rare outlier world whose relief reads genuinely
+    /// extreme. Craters (airless regolith) stay flat by design.</summary>
     private static double DramaFor(long seed)
-        => 0.9 + 0.6 * ((seed * 2654435761L >> 16 & 0x3FF) / 1023.0);
+    {
+        ulong u = (ulong)(seed * 2654435761L);
+        if (((u >> 40) & 0xFF) < 16)
+        {
+            return 1.9 + 0.7 * ((u >> 26 & 0x3FF) / 1023.0);
+        }
 
-    /// <summary>Computes the surface height (world Y) of a column for a planet — the raw terrain plus, on
-    /// watery worlds, the volcano cones (#477). Everything that consumes terrain (rivers, settlements,
-    /// pads, previews) goes through here, so every system sees the same mountain.</summary>
+        return 0.9 + 0.6 * ((u >> 16 & 0x3FF) / 1023.0);
+    }
+
+    /// <summary>Highest world Y natural terrain may reach — safely under the atmosphere line (~Y 320), so
+    /// no peak ever pokes a player "into space" on foot (#577/#578). Landmark height rolls clamp against
+    /// it; the final clamp here is the safety net for freak archetype × drama × landmark stacks.</summary>
+    private const int MaxNaturalSurfaceY = 288;
+
+    /// <summary>Computes the surface height (world Y) of a column for a planet — the raw terrain plus at
+    /// most ONE landmark overlay: volcano cones (#477), massifs, table mountains or rift chasms
+    /// (#577/#578). Precedence volcano &gt; massif &gt; butte &gt; rift, one landmark per column, so a
+    /// landmark's own summit/fluid helpers always anchor to ground no other landmark has moved.
+    /// Everything that consumes terrain (rivers, settlements, pads, previews) goes through here, so
+    /// every system sees the same mountain.</summary>
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
     {
         int h = RawSurfaceHeight(planet, worldX, worldZ);
-        if (HasVolcanoes(planet))
+        long seed = PlanetSeed(planet);
+        double overlay = HasVolcanoes(planet) ? VolcanoOffset(planet, seed, worldX, worldZ) : 0.0;
+        if (overlay == 0.0 && HasMassifs(planet))
         {
-            double vo = VolcanoOffset(planet, PlanetSeed(planet), worldX, worldZ);
-            if (vo != 0.0)
-            {
-                h += (int)System.Math.Round(vo);
-            }
+            overlay = MassifOffset(planet, seed, worldX, worldZ);
         }
 
-        return h;
+        if (overlay == 0.0 && HasTableMountains(planet))
+        {
+            overlay = TableMountainOffset(seed, worldX, worldZ);
+        }
+
+        if (overlay == 0.0 && HasRifts(planet))
+        {
+            overlay = RiftOffset(seed, worldX, worldZ);
+        }
+
+        if (overlay != 0.0)
+        {
+            h += (int)System.Math.Round(overlay);
+        }
+
+        return h > MaxNaturalSurfaceY ? MaxNaturalSurfaceY : h;
     }
 
     /// <summary>The terrain height WITHOUT the volcano overlay — the base field volcano geometry itself is
@@ -267,16 +339,10 @@ public sealed class WorldGenerator
             return planet.BaseHeight + (int)System.Math.Round(StyledHeightOffset(planet, planet.TerrainStyle, seed, h, worldX, worldZ) * drama);
         }
 
-        // Regional terrain character: a large-scale field selects how rugged this area is (a blend across the
-        // world's archetype subset), so the surface varies between flat plains, hills, mountains and canyons.
-        var (amp, ridged) = TerrainProfile(planet, seed, worldX, worldZ);
-        if (ridged > 0.0)
-        {
-            double r = (1.0 - System.Math.Abs(h)) * 2.0 - 1.0; // ridged: turn smooth swells into sharp valleys/ridges
-            h = h * (1.0 - ridged) + r * ridged;
-        }
-
-        return planet.BaseHeight + (int)System.Math.Round(h * planet.Amplitude * amp * drama);
+        // Regional terrain character: a large-scale field selects how rugged this area is (a blend across
+        // the world's archetype subset), so the surface varies between flat plains, hills, mountains — and,
+        // where the subset drew the #576 archetypes, terraced decks, extreme crests or rift gorges.
+        return planet.BaseHeight + (int)System.Math.Round(BlendedArchetypeOffset(planet, seed, h, worldX, worldZ) * drama);
     }
 
     /// <summary>The vertical band [<paramref name="bottom"/>..<paramref name="top"/>] of a floating sky island at
@@ -444,6 +510,195 @@ public sealed class WorldGenerator
         return true;
     }
 
+    // --- Landmark landforms (#577/#578): table mountains, massifs and rift chasms — sparse discrete
+    // features on the #477 volcano hotspot-cell recipe: one deterministic candidate per cell, the centre
+    // kept a full feature extent inside its cell, so no landmark ever straddles a wrap seam and checking
+    // the containing cell alone is complete. All are pure functions of the body seed → O(1) per column. ---
+
+    /// <summary>Shared hotspot-cell lookup for the landmark landforms: resolves whether the cell containing
+    /// (worldX, worldZ) hosts a feature centre and, if so, outputs the per-cell hash (feature rolls come
+    /// from its bits) plus the torus-wrapped offset (dx, dz) from the centre to the queried column. The
+    /// centre never sits closer than <paramref name="margin"/> to a cell border — pass the WORST-CASE
+    /// feature extent so the seam-safety argument holds for every roll.</summary>
+    private bool TryGetHotspot(long salt, double cellSize, double chance, double margin,
+        int worldX, int worldZ, out ulong hash, out double dx, out double dz)
+    {
+        dx = 0.0;
+        dz = 0.0;
+        int period = LatPeriod;
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / cellSize));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / cellSize));
+        double cw = _circumference / (double)nx;
+        double ch = period / (double)nz;
+
+        int wx = WorldConstants.WrapX(worldX, _circumference);
+        int zc = ((worldZ + period / 2) % period + period) % period; // canonical [0, period)
+        int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
+        int czI = System.Math.Min(nz - 1, (int)(zc / ch));
+
+        hash = Noise.Hash(salt, cxI, 0, czI);
+        if ((hash & 0xFFFF) / 65536.0 >= chance)
+        {
+            return false; // this cell grew no feature
+        }
+
+        double ox = margin + ((hash >> 36) & 0x3FF) / 1023.0 * System.Math.Max(1.0, cw - 2.0 * margin);
+        double oz = margin + ((hash >> 46) & 0x3FF) / 1023.0 * System.Math.Max(1.0, ch - 2.0 * margin);
+        dx = WorldConstants.WrapDeltaX(wx - (int)(cxI * cw + ox), _circumference);
+        dz = zc - (int)(czI * ch + oz);
+        if (dz > period / 2.0)
+        {
+            dz -= period;
+        }
+
+        if (dz < -period / 2.0)
+        {
+            dz += period;
+        }
+
+        return true;
+    }
+
+    private const double ButteCellSize = 1600.0;  // hotspot pitch (≈8 candidate cells on a default world)
+    private const double ButteChance = 0.40;      // fraction of cells that grow a table mountain
+    private const double ButteMaxRadius = 120.0;
+
+    /// <summary>Table mountains grow on dry, rocky-reading worlds (#577) — dune/mesa/canyon-style terrain
+    /// plus the savanna — never on airless bodies, sky worlds or void interiors.</summary>
+    private bool HasTableMountains(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        return (planet.TerrainStyle?.ToLowerInvariant()) switch
+        {
+            "dunes" or "mesa" or "canyons" or "tablelands" or "badlands" => true,
+            _ => string.Equals(planet.Key, "savanna", System.StringComparison.OrdinalIgnoreCase),
+        };
+    }
+
+    /// <summary>The table mountain's height contribution at a column, or 0 if none covers it (#577): a
+    /// talus foot steepening into a near-vertical upper wall (outer 30 % of the radius), then a dead-flat
+    /// cap with a light rock roll so the top reads as stone, not glass.</summary>
+    private double TableMountainOffset(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x7AB1E0, ButteCellSize, ButteChance, ButteMaxRadius + 20.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double radius = 40.0 + ((h >> 16) & 0x3FF) / 1023.0 * (ButteMaxRadius - 40.0); // 40..120
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return 0.0;
+        }
+
+        double height = 30.0 + ((h >> 26) & 0x3FF) / 1023.0 * 40.0; // 30..70
+        double t = 1.0 - dist / radius;
+        if (t >= 0.30)
+        {
+            double roll = FbmT(seed + 0x7AB2E, worldX, worldZ, 24.0, octaves: 2);
+            return height + (roll - 0.5) * 2.0; // the table top
+        }
+
+        return height * System.Math.Pow(t / 0.30, 1.8); // talus foot → near-vertical upper wall
+    }
+
+    private const double MassifCellSize = 3200.0; // very sparse: ~1 in 5 default worlds carries a massif
+    private const double MassifChance = 0.10;     // decision "bold but varied": a massif is a FIND, not the norm
+    private const double MassifMaxRadius = 300.0;
+
+    /// <summary>Massifs — rare single giant mountains, visible from very far — grow on any solid-ground
+    /// world with an atmosphere (#578); airless/cratered bodies are geologically dead, sky worlds stay
+    /// floaty, void interiors have no terrain.</summary>
+    private bool HasMassifs(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        return !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The massif's height contribution at a column, or 0 if none covers it (#578): a broad cone
+    /// with ridged flanks (spurs + gullies from a mid-frequency field); the summit is capped at the rolled
+    /// height so flank noise sculpts the sides, never the peak — and the roll itself is clamped so the
+    /// summit stays under <see cref="MaxNaturalSurfaceY"/> with margin for the underlying swell.</summary>
+    private double MassifOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double radius = 150.0 + ((h >> 16) & 0x3FF) / 1023.0 * (MassifMaxRadius - 150.0); // 150..300
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return 0.0;
+        }
+
+        double height = 120.0 + ((h >> 26) & 0x3FF) / 1023.0 * 100.0; // 120..220
+        height = System.Math.Min(height, MaxNaturalSurfaceY - 16.0 - planet.BaseHeight);
+
+        double t = 1.0 - dist / radius;
+        double flank = FbmT(seed + 0x3A552F, worldX, worldZ, 90.0, octaves: 2);
+        return height * System.Math.Min(1.0, System.Math.Pow(t, 1.5) * (0.75 + 0.5 * flank));
+    }
+
+    private const double RiftCellSize = 2400.0;
+    private const double RiftChance = 0.15; // ~1 in 4 worlds — a gorge is a discovery, not scenery
+    private const double RiftMaxHalfLen = 500.0;
+    private const double RiftMaxHalfWidth = 28.0;
+
+    /// <summary>Rift chasms cut the same worlds massifs grow on (#578) — solid ground plus an atmosphere.
+    /// Where the floor dips under the sea level the rift floods into a fjord lake for free (the sea fill
+    /// is by level), and rivers crossing the rim drop in as waterfalls.</summary>
+    private bool HasRifts(PlanetType planet) => HasMassifs(planet);
+
+    /// <summary>The rift's (negative) height contribution at a column, or 0 if none covers it (#578): a
+    /// straight gorge segment with steep walls dropping to a broad floor, tapered toward both ends so the
+    /// chasm closes naturally instead of ending in a cliff face.</summary>
+    private double RiftOffset(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x21F7A9, RiftCellSize, RiftChance,
+                RiftMaxHalfLen + RiftMaxHalfWidth + 16.0, worldX, worldZ,
+                out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double angle = ((h >> 16) & 0x3FF) / 1023.0 * System.Math.PI;
+        double halfLen = 260.0 + ((h >> 26) & 0x3FF) / 1023.0 * (RiftMaxHalfLen - 260.0); // 260..500
+        double halfWidth = 14.0 + ((h >> 56) & 0xFF) / 255.0 * (RiftMaxHalfWidth - 14.0); // 14..28
+
+        double cos = System.Math.Cos(angle);
+        double sin = System.Math.Sin(angle);
+        double along = dx * cos + dz * sin;
+        double across = -dx * sin + dz * cos;
+        if (System.Math.Abs(along) > halfLen || System.Math.Abs(across) > halfWidth)
+        {
+            return 0.0;
+        }
+
+        // Depth comes from a re-hash — the primary hash's roll bits are spent on placement + shape.
+        ulong h2 = h * 0x9E3779B97F4A7C15UL;
+        double depth = 50.0 + ((h2 >> 20) & 0x3FF) / 1023.0 * 80.0; // 50..130
+
+        double Smooth(double v) => v * v * (3.0 - 2.0 * v);
+        double w = 1.0 - System.Math.Abs(across) / halfWidth;         // 0 rim .. 1 axis
+        double wall = w >= 0.45 ? 1.0 : Smooth(w / 0.45);             // walls in the outer 45 %, flat floor within
+        double endT = 1.0 - System.Math.Abs(along) / halfLen;
+        double taper = endT >= 0.15 ? 1.0 : Smooth(endT / 0.15);
+        return -depth * wall * taper;
+    }
+
     /// <summary>Height offset (blocks, added to BaseHeight) for a planet with an explicit <see cref="PlanetType.TerrainStyle"/>
     /// (item 21 V2). <paramref name="h"/> is the base FBM swell in [-1,1]. Each style reshapes it into a distinct
     /// landform so worlds look structurally different. Deterministic + seam-safe (all noise wraps on X).</summary>
@@ -510,6 +765,46 @@ public sealed class WorldGenerator
                     {
                         double t = (mask - 0.72) / 0.28; // 0..1 toward the spike centre
                         return basep + t * t * amp * 2.6;
+                    }
+
+                    return basep;
+                }
+
+            case "tablelands":
+                {
+                    // Grand mesa country (#579): a few MONUMENTAL terrace decks with escarpment cliffs —
+                    // the mesa style scaled up (decks of 8+ blocks instead of ~4).
+                    double raw = h * amp * 1.2;
+                    double step = System.Math.Max(8.0, amp * 0.45);
+                    double deck = System.Math.Floor(raw / step) * step;
+                    double roll = FbmT(seed + 0x7B1D, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    return deck + (roll - 0.5) * 3.0; // rough rock texture on each deck
+                }
+
+            case "badlands":
+                {
+                    // Fine-ridged gully country (#579): dense sharp crests + broad eroded floors over a
+                    // modest base swell — canyon geology at a smaller, busier wavelength.
+                    double fine = FbmT(seed + 0x0BAD, worldX, worldZ, planet.TerrainScale * 0.35, octaves: 3);
+                    double r = h * 0.3 + (1.0 - System.Math.Abs(fine * 2.0 - 1.0)) * 1.4 - 0.7;
+                    if (r < 0)
+                    {
+                        r = -System.Math.Pow(-r, 0.85); // broaden the gully floors
+                    }
+
+                    return r * amp * 1.1;
+                }
+
+            case "karst":
+                {
+                    // Karst tower country (#579): steep stone towers with flat, walkable tops rising from
+                    // rolling green ground — denser than spires, and capped instead of needle-pointed.
+                    double basep = h * amp * 0.35;
+                    double mask = FbmT(seed + 0x4A85, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    if (mask > 0.62)
+                    {
+                        double t = System.Math.Min(1.0, (mask - 0.62) / 0.22); // capped → flat tower top
+                        return basep + t * t * (3.0 - 2.0 * t) * amp * 1.9;
                     }
 
                     return basep;
@@ -653,11 +948,13 @@ public sealed class WorldGenerator
         return _content.GetBlock(CraterFloorMetals[pick])?.NumericId;
     }
 
-    /// <summary>The terrain archetype blend for a column: a large-scale region field picks among the world's
-    /// seed-chosen subset of archetypes (deterministic, seam-free across the X wrap) and blends neighbours.</summary>
-    private (double Amp, double Ridged) TerrainProfile(PlanetType planet, long seed, int worldX, int worldZ)
+    /// <summary>The blended archetype height offset for a column: a large-scale region field picks among
+    /// the world's seed-chosen subset of archetypes (deterministic, seam-free across the X wrap) and
+    /// smoothstep-blends the two neighbours' computed OFFSETS (#576 — shapes like quantised decks or
+    /// asymmetric gorges cannot be blended as parameters).</summary>
+    private double BlendedArchetypeOffset(PlanetType planet, long seed, double h, int worldX, int worldZ)
     {
-        int pool = TerrainArchetypes.Length;
+        int pool = TerrainArchetypeCount;
         long s = seed ^ 0x7E44A1;
         ulong us = (ulong)(s < 0 ? -s : s);
         int count = 2 + (int)(us % (ulong)(pool - 1)); // this world uses 2..pool archetypes
@@ -671,9 +968,15 @@ public sealed class WorldGenerator
         double t = pos - i0;
         double f = t * t * (3.0 - 2.0 * t); // smoothstep blend between adjacent archetypes
 
-        var a0 = TerrainArchetypes[(rot + i0) % pool];
-        var a1 = TerrainArchetypes[(rot + i1) % pool];
-        return (a0.Amp + (a1.Amp - a0.Amp) * f, a0.Ridged + (a1.Ridged - a0.Ridged) * f);
+        int a0 = (rot + i0) % pool;
+        int a1 = (rot + i1) % pool;
+        double o0 = ArchetypeOffset(a0, planet, seed, h, worldX, worldZ);
+        if (a1 == a0 || f <= 0.0)
+        {
+            return o0;
+        }
+
+        return o0 + (ArchetypeOffset(a1, planet, seed, h, worldX, worldZ) - o0) * f;
     }
 
     /// <summary>The world's surface sea level (world Y) — the height water/lava fills basins to, or
@@ -693,6 +996,10 @@ public sealed class WorldGenerator
         public BlockId SeaFluid;
         public int[] SortedHeights = System.Array.Empty<int>(); // coarse whole-world surface sample, sorted
         public int MinHeight, MaxHeight;
+        public int AltLo, AltHi;              // 2nd/98th height percentiles: the altitude-biome span. The
+                                              // absolute extremes are landmark summits/rift floors (#578) —
+                                              // normalising biomes against those would compress the whole
+                                              // ordinary surface into the middle entries.
         public double CaveThreshold;          // quantile-calibrated (0 = caves disabled)
         public double[] OreCdf = System.Array.Empty<double>();  // sorted ore-field samples (empirical CDF)
         public int LavaTableDepth = int.MaxValue; // cave cells deeper than this fill with lava (#472/#477 L-A)
@@ -737,17 +1044,22 @@ public sealed class WorldGenerator
 
         // 1) Whole-world height sample (coarse but torus-complete) — the basis for the percentile sea level
         //    and the altitude normalisation. ~17k samples on the default world; cached per world afterwards.
+        //    Sampled through the FULL SurfaceHeight (#577/#578): landmark overlays (volcanoes, massifs,
+        //    buttes, rifts) count toward MinHeight/MaxHeight, so the snow-possible gate sees a massif's
+        //    summit on an otherwise warm world and the sea percentile knows about flooded rift floors.
         int period = LatPeriod;
         int stepX = System.Math.Max(8, _circumference / 188);
         int stepZ = System.Math.Max(8, period / 94);
         var hs = new System.Collections.Generic.List<int>((_circumference / stepX + 1) * (period / stepZ + 1));
         for (int z = -period / 2; z < period / 2; z += stepZ)
             for (int x = 0; x < _circumference; x += stepX)
-                hs.Add(RawSurfaceHeight(planet, x, z));
+                hs.Add(SurfaceHeight(planet, x, z));
         hs.Sort();
         c.SortedHeights = hs.ToArray();
         c.MinHeight = c.SortedHeights[0];
         c.MaxHeight = c.SortedHeights[c.SortedHeights.Length - 1];
+        c.AltLo = c.SortedHeights[(int)(0.02 * (c.SortedHeights.Length - 1))];
+        c.AltHi = c.SortedHeights[(int)(0.98 * (c.SortedHeights.Length - 1))];
 
         // 2) Sea level by height percentile (#473): waterAbundance now really means "roughly this fraction
         //    of the world floods" — on every terrain style and every drama roll. Ocean-class worlds
@@ -848,7 +1160,7 @@ public sealed class WorldGenerator
             double u2 = Noise.Value01(fieldSeed ^ 0x5A11, i, 2, 0);
             double u3 = Noise.Value01(fieldSeed ^ 0x5A11, i, 3, 0);
             double x = u1 * _circumference;
-            double y = -600.0 + u2 * 680.0; // the depth band caves/ore actually occupy
+            double y = -2100.0 + u2 * 2180.0; // the FULL depth band caves/ore occupy (#580: floors reach ~-1990)
             double z = -period / 2.0 + u3 * period;
             vals[i] = ValueT(fieldSeed, x, y, z, scaleX, scaleY, scaleZ);
         }
@@ -1581,7 +1893,12 @@ public sealed class WorldGenerator
                             // Below the world's lava table a carved cell fills with molten rock instead of
                             // air (#472/#477 L-A): the deep ore bands are now reachable — and dangerous.
                             // Airless bodies stay dry (their floor band is basalt for the same reason).
-                            if (!airlessBody && depth > lavaTableDepth)
+                            // #580: only MOLTEN REGIONS fill — a coarse pocket field leaves ~40 % of the
+                            // deep caverns open, so the deep kilometre is explorable, not a uniform lava
+                            // bath (mining down must stay rewarding, not frustrating). The pocket scale is
+                            // large so each region reads as one coherent cave system, not salt-and-pepper.
+                            if (!airlessBody && depth > lavaTableDepth
+                                && ValueT(seed + 0xDEE9, worldX, worldY, worldZ, 56.0, 40.0, 56.0) > 0.47)
                             {
                                 chunk.Set(lx, ly, lz, lavaFloorId);
                             }
@@ -2298,7 +2615,12 @@ public sealed class WorldGenerator
             // 2026-07-26 — "nothing but rock at the spawn").
             double scale = ore.MinDepth <= 8 ? 0.30 : 0.15;
             double cap = ore.MinDepth <= 8 ? 0.08 : 0.05;
-            double frac = System.Math.Clamp(ore.Rarity * richness * scale, 0.0, cap);
+
+            // Depth pays (#580): ore density ramps up to +60 % over the first ~600 blocks down, so the
+            // now-reachable deep kilometre rewards the descent instead of frustrating it. Shallow bands
+            // are untouched (bonus ≈ 0 near the surface) — nothing moves away from new players.
+            double depthBonus = 1.0 + 0.6 * System.Math.Min(1.0, depth / 600.0);
+            double frac = System.Math.Clamp(ore.Rarity * richness * depthBonus * scale, 0.0, cap);
             if (frac <= 0.0)
             {
                 continue;
@@ -2430,8 +2752,11 @@ public sealed class WorldGenerator
         double n = Noise.FbmTorus(seed ^ 0x0B10E, worldX, worldZ, _circumference,
             WorldConstants.LatitudePeriodFor(_circumference), 360.0, octaves: 3);
         double spread = System.Math.Clamp((n - 0.5) * 2.4 + 0.5, 0.0, 1.0);
-        double span = System.Math.Max(1.0, calib.MaxHeight - calib.MinHeight);
-        double alt = System.Math.Clamp((surfaceY - calib.MinHeight) / span, 0.0, 1.0);
+        // Normalise against the 2–98 % height band, not the absolute extremes: a lone massif summit or
+        // rift floor (#578) would otherwise stretch the span and compress every ordinary column into the
+        // middle biome entries. Landmark columns simply clamp to the top/bottom entry — which is right.
+        double span = System.Math.Max(1.0, calib.AltHi - calib.AltLo);
+        double alt = System.Math.Clamp((surfaceY - calib.AltLo) / span, 0.0, 1.0);
         double mix = System.Math.Clamp(spread * 0.6 + alt * 0.4, 0.0, 0.9999);
         int idx = (int)(mix * count);
         return idx < 0 ? 0 : (idx >= count ? count - 1 : idx);

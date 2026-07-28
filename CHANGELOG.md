@@ -13,6 +13,39 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ⛰️ Terrain extremes & landform variety (#576, #577, #578, #579)
+
+> ⚠️ **One-time world reshape:** terrain is derived from the seed, so existing worlds change shape
+> once with this release (like the 0.9.0 worldgen overhaul). Player-built blocks survive in place.
+
+- Three new regional terrain archetypes join the blend pool: **plateau decks** (terraced mesa
+  country), **extreme peaks** (sharpened crests far above the old ceiling) and **rift gorges** —
+  and worlds now draw 2–8 archetypes instead of 2–5, so regions differ more. (#576)
+- A **~6 % drama tail**: a small share of bodies rolls 1.9–2.6× relief instead of 0.9–1.5× — the
+  rare world that reads genuinely extreme, with peaks toward Y ≈ 280 under automatic snow and ice.
+  (#576)
+- **Table mountains**: sparse flat-topped buttes with near-vertical walls on dry, rocky-reading
+  worlds (dunes/mesa/canyon styles + savanna) — a climbable landmark with a dead-flat crown. (#577)
+- **Massifs and rift chasms**: rare single giant mountains (+120–220, ridged flanks, iced summits,
+  visible from very far) and deep straight gorges (50–130 blocks) that flood into fjord lakes where
+  they dip under the sea. At most one landmark claims a column; everything stays seam-free and caps
+  safely under the atmosphere line. (#578)
+- Three new planet types: **Tablelands** (monumental grand-mesa terraces), **Badlands**
+  (fine-ridged painted gully country) and the exotic **Karst** (sheer jungle towers with walkable
+  crowns) — with DE+EN names and descriptions. (#579)
+
+### ⛏️ The deep kilometre opens up (#580)
+- The vertical build band now reaches **Y −2100** (was −512): even the deepest-rolled world
+  foundation is reachable, so "dig to the bedrock" works on every world.
+- Cave/ore calibration now samples the full depth band, deep caves below the lava table stay
+  **partly open** (coherent molten regions instead of a uniform lava bath), and ore density ramps
+  up to **+60 %** over the first ~600 blocks down — digging deep rewards instead of frustrates,
+  while shallow starter veins stay exactly where they were.
+
+### 🧹 Fixed
+- Monuments: a body whose roll decided "no monuments here" never persisted that decision and
+  re-rolled it on every load — the decision is now recorded like every other stamp. (#578)
+
 ## [2026.7.20] — 2026-07-28
 
 The suit-up release: pilots finally look like astronauts — a proper spacesuit with an open helmet,

@@ -367,6 +367,67 @@
     ]
   },
   {
+    "key": "tablelands", "floraTheme": "savanna", "baseTemperature": 24, "nameKey": "planet.tablelands.name", "atmosphereHeight": 200, "cloudColor": 15450749, "cloudDensity": 0.25,
+    "baseHeight": 62, "amplitude": 26, "terrainScale": 58.0, "terrainStyle": "tablelands",
+    "surfaceBlock": "granite", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0012,
+    "weather": "clear", "stormChance": 0.15, "dayLengthSeconds": 640, "worldRadius": 900, "floraDensity": 0.05, "waterAbundance": 0.35, "creatureAbundance": "few", "atmosphere": "breathable", "oxygenExtractability": 0.8, "spawnWeight": 6,
+    "biomes": [
+      { "surfaceBlock": "sand",    "subSurfaceBlock": "sand" },
+      { "surfaceBlock": "granite", "subSurfaceBlock": "granite" },
+      { "surfaceBlock": "grass",   "subSurfaceBlock": "dirt" }
+    ],
+    "ores": [
+      { "block": "iron_ore",     "rarity": 0.07, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore",   "rarity": 0.05, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silicate",     "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "carbon",       "rarity": 0.04, "minDepth": 8,  "maxDepth": 2048 },
+      { "block": "gold_ore",     "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 },
+      { "block": "titanium_ore", "rarity": 0.02, "minDepth": 24, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "badlands", "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.badlands.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.2,
+    "baseHeight": 60, "amplitude": 16, "terrainScale": 40.0, "terrainStyle": "badlands",
+    "surfaceBlock": "sand", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 3,
+    "caveThreshold": 0.73, "dataCacheRarity": 0.0014,
+    "weather": "clear", "stormChance": 0.2, "dayLengthSeconds": 600, "worldRadius": 850, "floraDensity": 0.03, "waterAbundance": 0.1, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 5,
+    "biomes": [
+      { "surfaceBlock": "sand",    "subSurfaceBlock": "sand" },
+      { "surfaceBlock": "granite", "subSurfaceBlock": "granite" },
+      { "surfaceBlock": "stone",   "subSurfaceBlock": "stone" }
+    ],
+    "ores": [
+      { "block": "copper_ore",   "rarity": 0.05, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "iron_ore",     "rarity": 0.07, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silicate",     "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "zinc_ore",     "rarity": 0.03, "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "lead_ore",     "rarity": 0.03, "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "gold_ore",     "rarity": 0.025, "minDepth": 18, "maxDepth": 2048 },
+      { "block": "uranium_ore",  "rarity": 0.012, "minDepth": 48, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "karst", "floraTheme": "tropical", "exotic": true, "baseTemperature": 27, "nameKey": "planet.karst.name", "atmosphereHeight": 210, "cloudColor": 14210014, "cloudDensity": 0.5,
+    "baseHeight": 60, "amplitude": 18, "terrainScale": 46.0, "terrainStyle": "karst",
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.68, "dataCacheRarity": 0.0016,
+    "weather": "dynamic", "stormChance": 0.35, "dayLengthSeconds": 580, "worldRadius": 850, "floraDensity": 0.12, "waterAbundance": 0.5, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 4,
+    "biomes": [
+      { "surfaceBlock": "mud",   "subSurfaceBlock": "mud" },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt" },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone" }
+    ],
+    "ores": [
+      { "block": "silicate",    "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "carbon",      "rarity": 0.05, "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "iron_ore",    "rarity": 0.07, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore",  "rarity": 0.05, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silver_ore",  "rarity": 0.025, "minDepth": 16, "maxDepth": 2048 },
+      { "block": "lithium_ore", "rarity": 0.03, "minDepth": 10, "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

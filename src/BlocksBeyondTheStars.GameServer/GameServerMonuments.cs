@@ -77,6 +77,10 @@ public sealed partial class GameServer
         count = System.Math.Min(MonumentHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
         if (count <= 0)
         {
+            // The "none here" roll is a decision too — record it (the guard above documents exactly this
+            // case). Without the mark a zero-count world re-rolled on every load; harmless while the roll
+            // was deterministic, but a contract violation the #576-#580 galaxy shift finally surfaced.
+            MarkFeatureStamped("monuments");
             return;
         }
 
