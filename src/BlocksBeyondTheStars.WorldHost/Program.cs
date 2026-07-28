@@ -92,6 +92,7 @@ static string? CodeFor(string error) => error switch
     "Stop the world before uploading a save." or "Stop the world before downloading its save." => "stop_first",
     "This world needs a password." => "password_required",
     "Wrong world password." => "wrong_password",
+    "Wrong password." => "wrong_account_password", // own code: the world text above localizes as "Welt-Passwort"
     "Too many password attempts — please wait a few minutes." => "too_many_attempts",
     "World password must be 4-24 printable characters." => "world_password_invalid",
     "Empty upload." => "upload_empty",
@@ -125,6 +126,15 @@ AccountRecord? Caller(HttpContext ctx)
     return header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
         ? registry.ResolveSession(header.Substring(prefix.Length).Trim())
         : null;
+}
+
+// The caller's raw bearer token (empty when absent) — needed where the session itself is the subject,
+// e.g. a password change that revokes every OTHER session but must keep the one making the request.
+string BearerToken(HttpContext ctx)
+{
+    string header = ctx.Request.Headers.Authorization.ToString();
+    const string prefix = "Bearer ";
+    return header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? header.Substring(prefix.Length).Trim() : string.Empty;
 }
 
 // Strips CR/LF so a player-supplied string (name, reason) can never forge extra log lines. Account and
@@ -569,6 +579,9 @@ app.MapPost("/api/login", (HttpContext ctx, SignupRequest req) =>
     {
         accountId = login.AccountId,
         sessionToken = login.SessionToken,
+        // Canonical stored name: lookups are COLLATE NOCASE, so the typed name may differ in casing
+        // from the account row — the client shows/persists this one, not what was typed.
+        accountName = account.Name,
         termsOutdated = account.AcceptedTermsVersion < config.TermsVersion,
         // #496: a banned account logs in exactly like any other and only found out at the first blocked
         // action — a dead end nobody explained. The state travels with the login now, and the notices
@@ -622,6 +635,37 @@ app.MapPost("/api/accept-terms", (HttpContext ctx) =>
     }
 
     registry.AcceptTerms(account.Id, config.TermsVersion);
+    return Results.Ok();
+});
+
+// Password change — a KNOWN password can be rotated (a forgotten one still cannot: no recovery channel
+// exists by design). Wrong-old-password guesses burn the same per-account budget as failed logins, so a
+// stolen session cannot brute-force its way from "signed in" to "owns the password".
+app.MapPost("/api/account/password", (HttpContext ctx, ChangePasswordRequest req) =>
+{
+    if (Caller(ctx) is not { } account)
+    {
+        return Results.Unauthorized();
+    }
+
+    string accountKey = account.Name.Trim().ToLowerInvariant();
+    if (loginFailLimit.IsExhausted(accountKey))
+    {
+        return ApiError("Too many password attempts — please wait a few minutes.", StatusCodes.Status429TooManyRequests);
+    }
+
+    var (ok, error) = registry.ChangePassword(account.Id, req.OldPassword, req.NewPassword, BearerToken(ctx));
+    if (!ok)
+    {
+        if (error == "Wrong password.")
+        {
+            loginFailLimit.TryPass(accountKey);
+        }
+
+        return ApiError(error);
+    }
+
+    log.LogInformation("Account '{Name}' changed its password (other sessions revoked).", LogSafe(account.Name));
     return Results.Ok();
 });
 

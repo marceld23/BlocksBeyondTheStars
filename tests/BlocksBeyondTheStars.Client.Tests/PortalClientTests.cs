@@ -27,6 +27,20 @@ public sealed class PortalClientTests
     }
 
     [Fact]
+    public void ParseLogin_ReadsCanonicalAccountName_AndToleratesItsAbsence()
+    {
+        // Logins are case-insensitive server-side; the answer carries the stored casing for the client
+        // to persist (sign-in form prefill). Older/other answers without the field must keep parsing.
+        var named = PortalClient.ParseLogin(200, "{\"accountId\":\"acc-1\",\"sessionToken\":\"tok\",\"accountName\":\"Pilot\"}");
+        Assert.True(named.Ok);
+        Assert.Equal("Pilot", named.AccountName);
+
+        var unnamed = PortalClient.ParseLogin(200, "{\"accountId\":\"acc-1\",\"sessionToken\":\"tok\"}");
+        Assert.True(unnamed.Ok);
+        Assert.Equal(string.Empty, unnamed.AccountName);
+    }
+
+    [Fact]
     public void ParseLogin_FailurePaths()
     {
         Assert.Equal("unauthorized", PortalClient.ParseLogin(401, "").Error);

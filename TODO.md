@@ -6468,6 +6468,36 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-28): account password change + sign-in lockout fixes (worktree, not merged yet)
+
+Trigger: the operator locked himself out after "Abmelden" — the sign-in form blanked the account
+name, its password field said "Passwort" in world-join wording, and a forgotten account password had
+no path at all (no change, no recovery). Decision (revised mid-implementation): account name and
+player name **stay separate** — players keep a freely changeable player name and never have to
+switch accounts for it; the fix is clarity + a password-change path, NOT name unification.
+
+- `POST /api/account/password` (WorldHost): verifies the current password, rotates the PBKDF2 hash,
+  revokes every session except the caller's; wrong guesses burn the shared failed-login budget
+  (10/15 min per account). `HostRegistry.ChangePassword` + `ChangePasswordRequest` DTO.
+- Client: Official Worlds → Account panel gained a change-password section (current + new ×2, same
+  pre-checks as signup); login response now carries the canonical `accountName` (NOCASE logins);
+  sign-out keeps the account name for the sign-in prefill (lockout fix); new labels
+  `ui.portal.login_name` ("Kontoname (nicht dein Spielername!)"), `ui.portal.login_password`
+  ("Konto-Passwort"), `ui.portal.signup_name`; error code `wrong_account_password` (the shared
+  `wrong_password` would have localized as "Welt-Passwort").
+- Web portal: signup copy says the account name is sign-in-only and the player name is separate and
+  changeable; "write your ACCOUNT NAME and password down".
+- glitch.fun untouched (guest flow has no accounts/passwords; WebGL compiles the whole overlay out).
+- Tests: `ChangePassword_RotatesHash_RevokesOtherSessions_AndKeepsCaller` (WorldHostTests),
+  `ParseLogin_ReadsCanonicalAccountName_AndToleratesItsAbsence` (PortalClientTests).
+- Ops footnote: the live `maduet` password was reset 2026-07-28 directly in the VPS `worldhost.db`
+  (PBKDF2 hash update; no restart needed) after the lockout.
+- Status: implemented + tested in worktree `SpaceCraft-wt-unified-name`, branch
+  `feat/unified-player-name`; **no PR yet on user instruction**. Follow-up analysis requested:
+  hashed-email verification, TOTP 2FA, secure recovery (see `analysis/`).
+
+---
+
 ## ✅ Done (2026-07-27): star system archetypes — high per-system variance (#546–#549)
 
 Full analysis in `analysis/star-system-variance.md`. Every system in a NEWLY created world rolls a

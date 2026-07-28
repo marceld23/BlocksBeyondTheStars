@@ -374,10 +374,18 @@ namespace BlocksBeyondTheStars.Client
 
             bool SignedIn() => !string.IsNullOrEmpty(shell.Settings.PortalSessionToken);
 
-            void SignOut()
+            void SignOut(bool forgetName = false)
             {
                 shell.Settings.PortalSessionToken = "";
-                shell.Settings.PortalAccountName = "";
+                // The account name stays: it prefills the sign-in form with exactly the value the player
+                // will need again. Blanking it caused real lockouts — players typed their PLAYER name
+                // into the empty field and concluded their account was gone. Forgotten only when the
+                // account itself is (deletion).
+                if (forgetName)
+                {
+                    shell.Settings.PortalAccountName = "";
+                }
+
                 shell.Settings.Save();
                 oStatus.text = "";
                 RebuildPortal();
@@ -466,7 +474,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 shell.Settings.PortalSessionToken = r.SessionToken; // session only — the password is never stored
-                shell.Settings.PortalAccountName = account;
+                shell.Settings.PortalAccountName = r.AccountName.Length > 0 ? r.AccountName : account;
                 shell.Settings.Save();
                 oStatus.text = "";
                 RebuildPortal();
@@ -775,7 +783,10 @@ namespace BlocksBeyondTheStars.Client
                 string[] pw2 = { "" };
                 bool[] accepted = { false };
                 int[] termsVersion = { 0 };
-                UiKit.AddText(sDlg, 40f, 70f, 720f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol);
+                // Deliberately labelled "account name, NOT your player name": the two are different
+                // identities (the player name stays freely changeable in the main menu) and mixing
+                // them up at the sign-in form later is THE classic lockout.
+                UiKit.AddText(sDlg, 40f, 70f, 720f, 22f, shell.L("ui.portal.signup_name"), 15, UiKit.TextCol);
                 UiKit.AddInput(sDlg, 40f, 94f, 720f, 38f, accName[0], v => accName[0] = v);
                 UiKit.AddText(sDlg, 40f, 146f, 340f, 22f, shell.L("ui.portal.password_label"), 15, UiKit.TextCol);
                 var sp1 = UiKit.AddInput(sDlg, 40f, 170f, 340f, 38f, pw1[0], v => pw1[0] = v);
@@ -1299,24 +1310,69 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 CloseModal();
-                SignOut(); // wipes the (now dead) session + account name and rebuilds the sign-in view
+                SignOut(forgetName: true); // wipes the (now dead) session + account name and rebuilds the sign-in view
                 oStatus.text = shell.L("ui.portal.account_deleted");
+            }
+
+            async void DoChangePassword(string oldPw, string newPw, Text warn)
+            {
+                warn.color = warnCol;
+                warn.text = shell.L("ui.portal.working");
+                var portal = new PortalClient(PortalBase());
+                string session = shell.Settings.PortalSessionToken;
+                var r = await Task.Run(() => portal.ChangePassword(session, oldPw, newPw));
+                if (official == null || warn == null) { return; }
+                if (!r.Ok)
+                {
+                    warn.color = warnCol;
+                    warn.text = PortalErr(r.Code, r.Error);
+                    return;
+                }
+
+                warn.color = UiKit.Ok;
+                warn.text = shell.L("ui.portal.password_changed");
             }
 
             void OpenAccount()
             {
-                var aDlg = OpenModalPanel(510f, 260f, 900f, 560f);
+                var aDlg = OpenModalPanel(510f, 160f, 900f, 770f);
                 UiKit.AddText(aDlg, 30f, 24f, 840f, 30f, shell.L("ui.portal.account_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
                 UiKit.AddText(aDlg, 40f, 70f, 820f, 26f,
                     shell.L("ui.portal.signed_in") + " " + shell.Settings.PortalAccountName, 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
-                var delWarn = UiKit.AddText(aDlg, 40f, 112f, 820f, 110f, shell.L("ui.portal.delete_account_warn"), 14, UiKit.Warn, TextAnchor.UpperLeft);
+
+                // Password change (the account panel is the one place a signed-in player manages their
+                // access): current password required, new one typed twice — same rules as signup.
+                UiKit.AddText(aDlg, 40f, 112f, 820f, 24f, shell.L("ui.portal.change_password"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                string[] oldPw = { "" };
+                string[] newPw1 = { "" };
+                string[] newPw2 = { "" };
+                UiKit.AddText(aDlg, 40f, 144f, 260f, 22f, shell.L("ui.portal.password_old"), 14, UiKit.TextCol);
+                var apOld = UiKit.AddInput(aDlg, 40f, 168f, 260f, 38f, oldPw[0], v => oldPw[0] = v);
+                apOld.contentType = InputField.ContentType.Password;
+                UiKit.AddText(aDlg, 320f, 144f, 260f, 22f, shell.L("ui.portal.password_new"), 14, UiKit.TextCol);
+                var apNew1 = UiKit.AddInput(aDlg, 320f, 168f, 260f, 38f, newPw1[0], v => newPw1[0] = v);
+                apNew1.contentType = InputField.ContentType.Password;
+                UiKit.AddText(aDlg, 600f, 144f, 260f, 22f, shell.L("ui.portal.password_repeat"), 14, UiKit.TextCol);
+                var apNew2 = UiKit.AddInput(aDlg, 600f, 168f, 260f, 38f, newPw2[0], v => newPw2[0] = v);
+                apNew2.contentType = InputField.ContentType.Password;
+                var pwWarn = UiKit.AddText(aDlg, 40f, 216f, 820f, 40f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                pwWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(aDlg, 40f, 262f, 340f, 46f, shell.L("ui.portal.change_password"), () =>
+                {
+                    // Same cheap pre-checks as signup, so typos don't burn the shared attempt budget.
+                    if (newPw1[0] != newPw2[0]) { pwWarn.color = warnCol; pwWarn.text = shell.L("ui.portal.err_password_mismatch"); return; }
+                    if (newPw1[0].Length < 8) { pwWarn.color = warnCol; pwWarn.text = shell.L("ui.portal.err_password_short"); return; }
+                    DoChangePassword(oldPw[0], newPw1[0], pwWarn);
+                }, "btn_join");
+
+                var delWarn = UiKit.AddText(aDlg, 40f, 336f, 820f, 110f, shell.L("ui.portal.delete_account_warn"), 14, UiKit.Warn, TextAnchor.UpperLeft);
                 delWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddText(aDlg, 40f, 234f, 820f, 22f, shell.L("ui.portal.delete_confirm_name"), 14, UiKit.TextCol);
+                UiKit.AddText(aDlg, 40f, 458f, 820f, 22f, shell.L("ui.portal.delete_confirm_name"), 14, UiKit.TextCol);
                 string[] typed = { "" };
-                UiKit.AddInput(aDlg, 40f, 260f, 480f, 38f, typed[0], v => typed[0] = v, shell.Settings.PortalAccountName);
-                var aWarn = UiKit.AddText(aDlg, 40f, 318f, 820f, 44f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
+                UiKit.AddInput(aDlg, 40f, 484f, 480f, 38f, typed[0], v => typed[0] = v, shell.Settings.PortalAccountName);
+                var aWarn = UiKit.AddText(aDlg, 40f, 542f, 820f, 44f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 aWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(aDlg, 40f, 380f, 480f, 50f, shell.L("ui.portal.delete_account"), () =>
+                UiKit.AddButton(aDlg, 40f, 604f, 480f, 50f, shell.L("ui.portal.delete_account"), () =>
                 {
                     if (typed[0].Trim() != shell.Settings.PortalAccountName)
                     {
@@ -1327,7 +1383,7 @@ namespace BlocksBeyondTheStars.Client
 
                     DoDeleteAccount(aWarn);
                 }, "btn_exit");
-                UiKit.AddButton(aDlg, 540f, 380f, 320f, 50f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
+                UiKit.AddButton(aDlg, 540f, 604f, 320f, 50f, shell.L("ui.menu.back"), CloseModal, "btn_exit");
             }
 
             void PromptWorldPassword(string worldId, bool wrongBefore)
@@ -1473,9 +1529,11 @@ namespace BlocksBeyondTheStars.Client
                     intro.horizontalOverflow = HorizontalWrapMode.Wrap;
                     string[] acc = { shell.Settings.PortalAccountName };
                     string[] pw = { "" };
-                    UiKit.AddText(oContent, 30f, 76f, 1040f, 22f, shell.L("ui.portal.account"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    UiKit.AddText(oContent, 30f, 76f, 1040f, 22f, shell.L("ui.portal.login_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
                     UiKit.AddInput(oContent, 30f, 102f, 1040f, 38f, acc[0], v => acc[0] = v);
-                    UiKit.AddText(oContent, 30f, 156f, 1040f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    // Own key, not ui.menu.connect_password: that one reads as the WORLD password in
+                    // this overlay's context — this field asks for the ACCOUNT password.
+                    UiKit.AddText(oContent, 30f, 156f, 1040f, 22f, shell.L("ui.portal.login_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
                     var pwInput = UiKit.AddInput(oContent, 30f, 182f, 1040f, 38f, pw[0], v => pw[0] = v);
                     pwInput.contentType = InputField.ContentType.Password;
                     UiKit.AddButton(oContent, 30f, 240f, 320f, 54f, shell.L("ui.portal.login"), () => DoLogin(acc[0].Trim(), pw[0]), "btn_join");
@@ -1488,7 +1546,7 @@ namespace BlocksBeyondTheStars.Client
 
                 UiKit.AddText(oContent, 30f, 18f, 640f, 26f,
                     shell.L("ui.portal.signed_in") + " " + shell.Settings.PortalAccountName, 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddButton(oContent, 874f, 8f, 195f, 44f, shell.L("ui.portal.logout"), SignOut, "btn_exit");
+                UiKit.AddButton(oContent, 874f, 8f, 195f, 44f, shell.L("ui.portal.logout"), () => SignOut(), "btn_exit");
 
                 // Entry points in a uniform column grid (equal width + gap). Columns are reused by the world
                 // rows below: Play sits in the "Feedback" column (663), Manage in the "Konto" column (874),

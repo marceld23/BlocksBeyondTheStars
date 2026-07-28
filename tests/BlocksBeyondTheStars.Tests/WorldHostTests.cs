@@ -107,6 +107,27 @@ public sealed class WorldHostTests : IDisposable
     }
 
     [Fact]
+    public void ChangePassword_RotatesHash_RevokesOtherSessions_AndKeepsCaller()
+    {
+        var registry = NewRegistry();
+        var (ok, _, accountId, otherDeviceSession) = registry.CreateAccount("Pilot", "old-password-1", acceptedTermsVersion: Terms);
+        Assert.True(ok);
+        string callerSession = registry.Login("Pilot", "old-password-1")!.Value.SessionToken;
+
+        // Wrong current password or a too-short new one: nothing changes, the old password stays live.
+        Assert.False(registry.ChangePassword(accountId, "wrong", "new-password-1", callerSession).Ok);
+        Assert.False(registry.ChangePassword(accountId, "old-password-1", "short", callerSession).Ok);
+        Assert.NotNull(registry.Login("Pilot", "old-password-1"));
+
+        Assert.True(registry.ChangePassword(accountId, "old-password-1", "new-password-1", callerSession).Ok);
+
+        Assert.Null(registry.Login("Pilot", "old-password-1"));       // the old password is dead
+        Assert.NotNull(registry.Login("Pilot", "new-password-1"));    // the new one signs in
+        Assert.NotNull(registry.ResolveSession(callerSession));       // the changing device stays signed in
+        Assert.Null(registry.ResolveSession(otherDeviceSession));     // every other session was revoked
+    }
+
+    [Fact]
     public void Signup_Rejects_TakenNames_CaseInsensitive_AndInvalidInput()
     {
         var registry = NewRegistry();

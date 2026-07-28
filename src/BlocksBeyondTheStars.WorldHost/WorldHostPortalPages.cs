@@ -123,11 +123,11 @@ public static class WorldHostPortalPages
 <div class='cols'>
  <div class='card'>
   <h2>{T("Konto erstellen", "Create account")}</h2>
-  <input id='su-name' placeholder='{T("Erfinde einen Namen (Buchstaben, Zahlen, - und _)", "Invent a name (letters, digits, - and _)")}' maxlength='24'>
+  <input id='su-name' placeholder='{T("Erfinde einen Kontonamen (Buchstaben, Zahlen, - und _)", "Invent an account name (letters, digits, - and _)")}' maxlength='24'>
   <input id='su-pass' type='password' placeholder='{T("Passwort (min. 8 Zeichen)", "Password (min. 8 characters)")}'>
   <p class='hint'>{T(
-        "Keine E-Mail nötig. <b>Schreib dir dein Passwort auf!</b> Wenn du es vergisst, kann es niemand wiederherstellen.",
-        "No email needed. <b>Write your password down!</b> If you forget it, nobody can recover it.")}</p>
+        "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname und Passwort auf!</b> Ein vergessenes Passwort kann niemand wiederherstellen.",
+        "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write your account name and password down!</b> Nobody can recover a forgotten password.")}</p>
   <label><input type='checkbox' id='su-accept'> {T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Community-Regeln</a> und den Beta-Hinweis",
         "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</label>
@@ -208,7 +208,8 @@ function v(id){return document.getElementById(id).value.trim();}
 <div class='card'>
  <h2>{T("Dein Spielername", "Your player name")}</h2>
  <input id='player-name' placeholder='{T("Dein Spielername", "Your player name")}' maxlength='24'>
- <p class='hint'>{T("Mit diesem Namen trittst du Welten bei.", "You join worlds with this name.")}</p>
+ <p class='hint'>{T("Mit diesem Namen trittst du Welten bei — er ist unabhängig vom Kontonamen und jederzeit änderbar.",
+        "You join worlds with this name — it is independent of your account name and can be changed anytime.")}</p>
 </div>
 <div class='card'>
  <h2>{T("Neue Welt", "New world")}</h2>

@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🔑 Account access: change your password + clearer sign-in
+- **Change your account password in-game**: the Official Worlds → Account panel now rotates a known
+  password (current one required; every other signed-in device is signed out). New endpoint
+  `POST /api/account/password` — wrong-guess attempts share the failed-login budget, so a stolen
+  session cannot brute-force its way to owning the account.
+- **The sign-in form no longer causes lockouts**: signing out keeps the account name prefilled (it
+  was blanked, and players then typed their *player* name and concluded the account was gone), the
+  password field is labelled "account password" (it borrowed the world-password wording), and both
+  the in-game and web signup say clearly that the account name is for signing in only — the player
+  name stays a separate, freely changeable identity.
+
 ## [2026.7.19] — 2026-07-28
 
 The constellation release — and the first under the date-based version scheme (`YYYY.MM.N`, see

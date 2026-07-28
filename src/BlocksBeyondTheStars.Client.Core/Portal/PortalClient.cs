@@ -19,6 +19,10 @@ namespace BlocksBeyondTheStars.Client.Portal
         public string AccountId { get; set; } = string.Empty;
         public string SessionToken { get; set; } = string.Empty;
 
+        /// <summary>Canonical stored account name (login answers it; empty on signup, where the typed
+        /// name IS canonical) — logins are case-insensitive, so the typed name may differ in casing.</summary>
+        public string AccountName { get; set; } = string.Empty;
+
         /// <summary>The community rules changed since this account accepted them — the player must
         /// re-accept on the portal website before world actions succeed.</summary>
         public bool TermsOutdated { get; set; }
@@ -298,6 +302,14 @@ namespace BlocksBeyondTheStars.Client.Portal
             return ParseSimple(status, body);
         }
 
+        /// <summary>Rotates the account password (current one required — a stolen session must not be
+        /// enough). A success revokes every other session; the calling one stays valid.</summary>
+        public PortalSimpleResult ChangePassword(string session, string oldPassword, string newPassword)
+        {
+            var (status, body) = Post("/api/account/password", new { oldPassword, newPassword }, session);
+            return ParseSimple(status, body);
+        }
+
         /// <summary>Creates a hosted world; <paramref name="password"/> (empty/null = open world)
         /// protects it with a join password (4-24 chars).</summary>
         public PortalWorldResult CreateWorld(string session, string name, string? password = null)
@@ -418,6 +430,7 @@ namespace BlocksBeyondTheStars.Client.Portal
                 result.Ok = true;
                 result.AccountId = GetString(doc!, "accountId");
                 result.SessionToken = GetString(doc!, "sessionToken");
+                result.AccountName = GetString(doc!, "accountName");
                 result.TermsOutdated = doc!.RootElement.TryGetProperty("termsOutdated", out var to) && to.ValueKind == JsonValueKind.True;
                 result.State = ReadState(doc!.RootElement); // ban state + unread notices ride along (#496)
                 result.State.Ok = true;

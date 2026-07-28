@@ -399,6 +399,47 @@ public sealed class HostRegistry : IDisposable
         }
     }
 
+    /// <summary>Rotates an account's password after verifying the current one — the missing half of
+    /// "write your password down": a KNOWN password can now be changed (a forgotten one still cannot,
+    /// there is no recovery channel by design). Every other session is revoked so a stolen or shared
+    /// sign-in dies with the old password; <paramref name="keepSessionToken"/> (the caller's own bearer)
+    /// survives. The error string is safe to show to the player.</summary>
+    public (bool Ok, string Error) ChangePassword(string accountId, string oldPassword, string newPassword, string? keepSessionToken)
+    {
+        if ((newPassword ?? string.Empty).Length < 8)
+        {
+            return (false, "Password must be at least 8 characters.");
+        }
+
+        lock (_gate)
+        {
+            using (var cmd = Cmd("SELECT password_hash FROM account WHERE id = $i"))
+            {
+                cmd.Parameters.AddWithValue("$i", accountId);
+                if (cmd.ExecuteScalar() is not string stored || !PasswordHasher.Verify(oldPassword ?? string.Empty, stored))
+                {
+                    return (false, "Wrong password.");
+                }
+            }
+
+            using (var upd = Cmd("UPDATE account SET password_hash = $p WHERE id = $i"))
+            {
+                upd.Parameters.AddWithValue("$p", PasswordHasher.Hash(newPassword!));
+                upd.Parameters.AddWithValue("$i", accountId);
+                upd.ExecuteNonQuery();
+            }
+
+            using (var del = Cmd("DELETE FROM session WHERE account_id = $i AND token_hash != $keep"))
+            {
+                del.Parameters.AddWithValue("$i", accountId);
+                del.Parameters.AddWithValue("$keep", string.IsNullOrEmpty(keepSessionToken) ? string.Empty : Sha256Hex(keepSessionToken));
+                del.ExecuteNonQuery();
+            }
+
+            return (true, string.Empty);
+        }
+    }
+
     /// <summary>Column list every account read shares — see <see cref="ReadAccount"/> for the order.</summary>
     private const string AccountColumns =
         "id, name, is_developer, banned, ban_reason, terms_version, banned_at_unix, banned_until_unix, ban_reason_code";
