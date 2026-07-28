@@ -13,7 +13,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🧑‍🚀 Player avatars now wear a spacesuit
+### 🧑‍🚀 Player avatars now wear a spacesuit (#564)
 - Your avatar (third-person, other players, the avatar editor and colour-menu previews) now reads
   as an astronaut: an open helmet with a raised dark-glass visor band, gloves, a neck seal and
   collar ring, a chest control panel and a life-support backpack with twin tanks. The suit tints

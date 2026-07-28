@@ -6468,7 +6468,7 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
-## ✅ Done (2026-07-28): player avatars wear a spacesuit — players distinguishable from NPCs at a glance
+## ✅ Done (2026-07-28): player avatars wear a spacesuit — players distinguishable from NPCs at a glance (#564)
 
 User request: player avatars (own third-person + other players) should read as spacesuit-wearers.
 Analysis first (memory `avatar-spacesuit-look-analysis`): the shared `PlayerAvatar` looked like a
@@ -6487,8 +6487,9 @@ person in a jumpsuit — bare skin head/neck/hands — for players *and* civilia
   0.46-scaled head but sized in world units — buried invisibly *inside* the head since gear
   existed. The helmet is now an open armor shell outside the suit helmet (face stays visible), the
   lamp sits proud on its side; the armor backpack hides the suit's life-support pack while worn.
-- Status: implemented in worktree `SpaceCraft-suit`, branch `feat/avatar-spacesuit`; **local only,
-  no PR yet on user instruction**.
+- Backlit avatars sank to a black silhouette once fully suited (fixed key light + 0.35 floor +
+  linear tints); avatar materials now use the creature-proven `_Floor` 0.62 / `_Fill` 0.3.
+- Status: shipped via branch `feat/avatar-spacesuit` (issue #564); verified with a local Unity build.
 
 ---
 
