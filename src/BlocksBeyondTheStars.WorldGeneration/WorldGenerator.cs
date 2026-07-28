@@ -231,31 +231,31 @@ public sealed class WorldGenerator
             case 4: // canyons (strongly ridged)
                 return (h * 0.35 + Ridge(h) * 0.65) * amp * 1.3;
             case 5: // plateau decks (#576): terraced mesa country as a REGION, not a whole-world style
-            {
-                double raw = h * amp * 1.05;
-                double step = System.Math.Max(5.0, amp * 0.5);
-                double deck = System.Math.Floor(raw / step) * step;
-                double roll = FbmT(seed + 0x9D3C, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
-                return deck + (roll - 0.5) * 2.0; // ±1-block texture so decks read as rock, not glass
-            }
-
-            case 6: // extreme peaks (#576): the far tail of relief, well above the mountains archetype
-            {
-                double r = h * 0.25 + Ridge(h) * 0.75;
-                if (r > 0)
                 {
-                    r = System.Math.Pow(r, 1.6); // flatter mid-slopes, prouder crests
+                    double raw = h * amp * 1.05;
+                    double step = System.Math.Max(5.0, amp * 0.5);
+                    double deck = System.Math.Floor(raw / step) * step;
+                    double roll = FbmT(seed + 0x9D3C, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    return deck + (roll - 0.5) * 2.0; // ±1-block texture so decks read as rock, not glass
                 }
 
-                return r * amp * 3.4;
-            }
+            case 6: // extreme peaks (#576): the far tail of relief, well above the mountains archetype
+                {
+                    double r = h * 0.25 + Ridge(h) * 0.75;
+                    if (r > 0)
+                    {
+                        r = System.Math.Pow(r, 1.6); // flatter mid-slopes, prouder crests
+                    }
+
+                    return r * amp * 3.4;
+                }
 
             default: // 7: rift gorges (#576): gentle ground gashed by deep ridged canyons
-            {
-                double g = Ridge(h);
-                double swell = h * amp * 0.3;
-                return g > 0 ? swell - System.Math.Pow(g, 2.2) * amp * 3.0 : swell;
-            }
+                {
+                    double g = Ridge(h);
+                    double swell = h * amp * 0.3;
+                    return g > 0 ? swell - System.Math.Pow(g, 2.2) * amp * 3.0 : swell;
+                }
         }
     }
 
