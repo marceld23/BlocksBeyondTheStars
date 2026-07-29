@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🗑️ Throw unwanted items away
+
+- **New "Throw away" button** in the Inventory and Cargo Hold tabs (#599). Until now nothing could actually
+  be *removed* — the cargo hold, a storage crate and the ✕ on the quick-bar all just move an item somewhere
+  else — so a stack of 300 dirt was carried around forever. It asks once before destroying, and clears every
+  stack of that item at once.
+- **Your starting equipment is safe.** The drill, scanner, suit lamp, machete and sidearm have no throw-away
+  button and are refused by the server, so nobody can strand themselves without a way to dig or to see.
+  Everything else — ores, blocks, food, better tools — can go.
+- **A full backpack no longer eats things in silence** (#600). With inventory *and* cargo hold full, mined
+  drops and craft outputs were destroyed without any message at all. You now get a warning instead.
+
 ### 🧭 Admin teleport by landmark, not by coordinates
 
 - **`/tp` takes a target word.** World admins can jump to a landmark on the body they are standing on —

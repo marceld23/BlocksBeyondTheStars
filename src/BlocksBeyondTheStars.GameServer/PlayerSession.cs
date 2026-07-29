@@ -55,6 +55,10 @@ public sealed class PlayerSession
     public double NextFaceChangeAt { get; set; }
     public double NextVoiceFrameAt { get; set; }
 
+    /// <summary>Server uptime (seconds) before which the "backpack full" toast is suppressed (#600). Area
+    /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
+    public double NextInventoryFullHintAt { get; set; }
+
     /// <summary>Token bucket for the per-connection message-rate gate (anti-flood). Refilled by wall clock.</summary>
     public double MsgBudget { get; set; } = 60.0;
     public int LastMsgRefillTick { get; set; }

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1245 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1254 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,36 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Throw unwanted loot away — and stop losing drops in silence (#599, #600, 2026-07-29, branch feat/discard-materials)
+There was **no way to get rid of an item**. Everything the inventory offered only *moved* it: the cargo
+hold, a storage crate, a trade, or the ✕ "Remove from quick-bar" — which is a *stow* into the backpack, not
+a delete (`MoveItemIntent {ToSlot=-1}`), and a silent no-op when the backpack is full. Every other sink
+*consumes* the item in a recipe. So 300 mined dirt was carried around forever.
+
+**Discard (#599).** New `DiscardItemIntent {Slot, FromCargo}` (NetCodec **182**) → `GameServer.HandleDiscardItem`:
+the slot picks the item (a dyed/shaped stack carries a composite `ItemKey`, so only the slot is unambiguous),
+then **every** stack of that key goes — clearing 300 dirt one stack at a time is busywork. Works on the cargo
+tab too, since "stow all" is exactly what piles junk into the hold; that path is gated on being aboard.
+Protected: the **starter kit** only. `Shared.Definitions.StarterKit` now owns the list
+(`basic_drill`, `hand_scanner`, `suit_lamp`, `machete`, `scrap_pistol`) and `CreatePlayer` *stocks slots 0..4
+from that same array* — one source, so the guard cannot drift from what a fresh pilot is handed. Berries are
+deliberately not protected (food you re-gather, and a toxic batch is what you most want to bin). The client
+hides the button for protected items and the server refuses them anyway. UI: a red **Throw away** button in
+the inventory detail pane that arms on the first click and sends on the second ("Really throw away?" + a
+can't-be-undone line); navigating to another entry disarms it. Observers never reach the handler
+(`SpectatorMayHandle` defaults to false).
+
+**Silent loss (#600).** `MaterialPool.Add` returns what did not fit — and `BreakBlockAt` threw that away.
+With 24/24 slots *and* a full hold, mined blocks were **destroyed with no message, no sound, no hint** (there
+wasn't even an "inventory full" locale key). Rather than patch ~15 call sites, `MaterialPool` now accumulates
+an `Overflow` total and the handlers check it once: mining, crafting, disassembly, and dye/shape — the last
+two matter because re-keying *part* of a stack needs a fresh slot, so a full inventory eats it. One throttled
+toast per player per 8 s (area mining overflows on every block of a burst), sent as the `@inventory_full`
+token and localized client-side like `@spawn_set`. Bilingual keys added. Tests: `DiscardItemTests` (9) —
+discard-all, starter-kit refusal, berries allowed, empty/out-of-range no-op, the aboard gate, the pinned
+starter-kit list, composite-key handling, and the overflow bookkeeping.
+Not covered: entity/space-loot paths already bounce their leftovers into the world-container flow.
 
 ### ★ Planet map legible: bold white marker icons + working waypoint navigation (#592, 2026-07-29, branch fix/planet-map-legibility-waypoint)
 The M-map's landmark icons were effectively invisible: the `map_*` sprites were thin cyan line art

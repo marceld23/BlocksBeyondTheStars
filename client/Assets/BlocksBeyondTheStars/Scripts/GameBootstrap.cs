@@ -821,6 +821,13 @@ namespace BlocksBeyondTheStars.Client
                 return Localizer?.Get("ui.spawn.set") ?? "Spawn point set — you'll respawn here from now on.";
             }
 
+            // #600: mined drops / craft outputs that fit nowhere used to vanish without a word.
+            if (text == "@inventory_full")
+            {
+                return Localizer?.Get("ui.hint.inventory_full")
+                    ?? "Backpack and cargo hold are full — anything else you pick up is lost.";
+            }
+
             return text;
         }
 

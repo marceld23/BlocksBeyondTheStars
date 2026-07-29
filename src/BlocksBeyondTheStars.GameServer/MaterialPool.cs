@@ -62,8 +62,15 @@ public sealed class MaterialPool
     }
 
     /// <summary>
+    /// Total items this pool could not store since it was created (#600). Most callers hand out drops or craft
+    /// outputs in a loop and have no use for a per-call leftover — they check this once at the end and warn the
+    /// player, so a full backpack + full hold stops eating items unannounced.
+    /// </summary>
+    public int Overflow { get; private set; }
+
+    /// <summary>
     /// Adds items, personal inventory first then cargo. Returns the amount that did not fit
-    /// anywhere (0 = fully stored).
+    /// anywhere (0 = fully stored) and accumulates it into <see cref="Overflow"/>.
     /// </summary>
     public int Add(string item, int count)
     {
@@ -74,6 +81,7 @@ public sealed class MaterialPool
             leftover = _cargo.Add(item, leftover, maxStack);
         }
 
+        Overflow += leftover;
         return leftover;
     }
 }

@@ -224,6 +224,12 @@ separate unlock; admins can still disable it through server world rules.
   while you're aboard (in flight or standing in the landed cabin); on foot the cargo tab says so.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board. Off by default.
+- **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
+  away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
+  This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
+  sidearm) has no such button, so you can never leave yourself without a way to dig or a way to see.
+- **When everything is full:** if your backpack *and* your hold are full, whatever you mine or craft next is
+  simply gone — the game warns you when that happens, so throw something away or empty the hold first.
 
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market
