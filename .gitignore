@@ -126,3 +126,9 @@ client/devlog-*.md
 
 # Local analysis notes (worldgen audits etc.) — deliberately never part of the repo
 /analysis/
+
+# Unity performance-test package run artifacts — rewritten on every batch build, never source
+client/Assets/Resources/PerformanceTestRunInfo.json
+client/Assets/Resources/PerformanceTestRunInfo.json.meta
+client/Assets/Resources/PerformanceTestRunSettings.json
+client/Assets/Resources/PerformanceTestRunSettings.json.meta
