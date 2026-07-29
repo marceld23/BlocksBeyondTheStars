@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1245 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1248 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Inventory stacks hold 1024 instead of 99 (#603, 2026-07-29, branch feat/stack-size-1024)
+The stack cap was never code — it is per-item data (`data/items.json`), read through
+`GameContent.MaxStackOf` by every container path (`Inventory.Add`, `MaterialPool`, cargo `MoveSlot`,
+loot containers, salvage, the ration dispenser). Raised the **bulk group** (108 entries: blocks, ores,
+materials, components) from 99 → **1024**; tools/equipment stay at 1 and the deliberately scarce goods
+keep their caps (medpack 20, `energy_cell_1` 50, `access_code` 10, food 16). Nothing in the protocol or
+persistence had to change — every `Count` is already an `int` (MessagePack contractless, `Snapshots`
+stores it unclamped) — and the hotbar draws no count badges at all, so no UI field had to grow.
+Follow-through so 1024 isn't cosmetic: the three server batch clamps (`craft` / `tint` / `shape`,
+`Clamp(count, 1, 999)`) and the client's `MaxCraftable` (hard-capped at 99, so "Max" never proposed
+more than 99) now share one constant, `ItemDefinition.DefaultMaxStack`, which also replaces the three
+`?? 99` fallbacks and the ContentEditor default (stepper range widened to 4096). `tools/merge_material.py`
+and `tools/merge_recipe.py` emit 1024 for generated items. **No migration needed** — `Inventory.Add`
+tops existing stacks up first, so a save's old 99-stacks just keep filling (covered by a new test).
+Balance note: carry capacity per material goes 2,376 → 24,576 (24 slots), which also makes the
+"inventory full → mined drops vanish" problem (see the discard-items analysis) far rarer.
 
 ### ★ Planet map legible: bold white marker icons + working waypoint navigation (#592, 2026-07-29, branch fix/planet-map-legibility-waypoint)
 The M-map's landmark icons were effectively invisible: the `map_*` sprites were thin cyan line art

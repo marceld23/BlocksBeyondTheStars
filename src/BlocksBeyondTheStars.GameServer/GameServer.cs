@@ -3106,7 +3106,8 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(craft.Count, 1, 999); // bound the batch size (avoid input*count overflow)
+        // Bound the batch size (avoid input*count overflow); a full stack in one order is the useful ceiling.
+        int count = System.Math.Clamp(craft.Count, 1, ItemDefinition.DefaultMaxStack);
 
         // Creative mode: no material/blueprint/station cost — just produce the output.
         if (!Rules.CraftingCostsMaterials)
@@ -3222,7 +3223,7 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(intent.Count, 1, 999);
+        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
         // Preserve any shape the source already carried — colouring a shaped block keeps its form.
         string output = ItemKey.Compose(baseKey, tint, glow, ItemKey.Shape(intent.SourceItemKey));
 
@@ -3296,7 +3297,7 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(intent.Count, 1, 999);
+        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
         // Only the form changes — keep whatever colour the source carried.
         string output = ItemKey.Compose(baseKey, ItemKey.Tint(intent.SourceItemKey), ItemKey.Glow(intent.SourceItemKey), shape);
 

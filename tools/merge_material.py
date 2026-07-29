@@ -122,7 +122,7 @@ def main():
         "nameKey": f"item.{key}.name",
         "descriptionKey": f"item.{key}.desc",
         "category": "material",
-        "maxStack": 99,
+        "maxStack": 1024,
         "placesBlock": key,
     }
     upsert_entry(DATA / "items.json", key, item)
