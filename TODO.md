@@ -2853,18 +2853,20 @@ readability bug. HUD chrome and all in-game overlays likewise stay as they are.
    fill α 1.0) and a `UiKit.PanelDark = (0.02, 0.05, 0.11, 1)` backing colour. `AddDialogPanel` then becomes
    a single Image instead of three (fewer draw calls, exactly opaque). `PanelSprite` stays as-is so the menu
    screens and HUD chrome are untouched.
-2. **One named scrim level for menu dialogs** — `UiKit.ScrimDialog` — replacing the 7 ad-hoc values.
+2. **One named scrim level for menu dialogs** — `UiKit.ScrimDialog = 0.78` (**decided**) — replacing the 7
+   ad-hoc values.
 3. **One entry point** `UiKit.AddModalOverlay(parent, x, y, w, h)` returning the dialog transform, so a new
    menu dialog cannot get the combination wrong.
-4. **Migrate the 4 ❌/⚠ dialogs** (world options, credits, content-load error, face/avatar editor) plus the
-   ✅ dialogs' scrim values onto the shared constant. No behaviour change for in-game UI.
+4. **Migrate every menu dialog** onto it (**decided**: full uniformity, not just the broken ones) — the 4
+   ❌/⚠ ones (world options, credits, content-load error, face/avatar editor) get the opaque panel, and the
+   already-solid ones (settings, connect, what's new, update notice, feedback, official worlds,
+   portal/rules/password/participate, delete-confirm, pause, maintenance, disconnect) get the shared 0.78
+   scrim in place of their 0.55–0.92 values. No behaviour change for in-game UI or the menu screens.
 5. **Verify** with a local Unity build + screenshots of world options, credits and settings side by side
    (per [[post-change-verification-routine]]).
 
-**Open questions for Marcel:** (a) which scrim strength for menu dialogs — keep it moderate (~0.7, menu
-still recognisable) or black the menu out almost completely (~0.9)? (b) should the ✅ dialogs also be
-re-pointed at the shared constant (fully uniform, but changes dialogs that are already fine), or only the
-4 broken ones fixed?
+**Decisions (2026-07-29, Marcel):** scrim 0.78 — menu still readable as context but clearly pushed back;
+unify *all* menu dialogs rather than only patching the four broken ones.
 
 ### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual
