@@ -205,6 +205,22 @@ public sealed class UniverseGenerator
                     SystemArchetype.Swarm => -(0.2f + Hash01(i, 501, p) * 0.3f),
                     _ => 0f,
                 };
+                // Planetary rings (#596): a purely visual identity — some planets carry a Saturn-like
+                // ring system. Presence and style come from their own Hash01 salts (600/601; the 6xx
+                // series belongs to rings) so the body sequence — and thus every existing universe —
+                // stays byte-identical; existing worlds simply GAIN rings, retroactive by design.
+                // Big planets ring more often, icy/crystal ones too (real rings are mostly ice).
+                float ringChance = planet.SizeBias > 0.3f ? 0.35f : 0.18f;
+                if (IsRingProneType(planet.PlanetType))
+                {
+                    ringChance = System.Math.Min(0.5f, ringChance * 1.5f);
+                }
+
+                if (Hash01(i, p, 600) < ringChance)
+                {
+                    planet.RingSeed = 1 + (int)(Hash01(i, p, 601) * 999_999f);
+                }
+
                 system.Bodies.Add(planet);
 
                 int moons = archetype switch
@@ -365,6 +381,11 @@ public sealed class UniverseGenerator
 
     /// <summary>Seeded orbit direction: mostly prograde (+1), ~20% retrograde (-1), so a system mixes both.</summary>
     private float OrbitSign(long a, long b, long c) => Hash01(a, b, c) < 0.2f ? -1f : 1f;
+
+    /// <summary>Planet types that ring more often (#596) — icy/crystalline worlds, because real
+    /// planetary rings are mostly water ice.</summary>
+    private static bool IsRingProneType(string? planetType)
+        => planetType is "ice" or "tundra" or "crystal" or "crystal_living";
 
     /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>
     private (float X, float Z) DiscPoint(int systemIndex, int planets, int salt)

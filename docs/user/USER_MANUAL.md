@@ -143,7 +143,8 @@ Enter space by launching the ship; on foot you board/leave via the cockpit. Whil
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
 | **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
-| **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to the nearest station / landable body; any manual input takes the helm back |
+| **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
+| **M** | **System chart**: a top-down map of the current system. Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,

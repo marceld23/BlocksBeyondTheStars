@@ -23,6 +23,9 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        /// <summary>The flight system chart (#597), opened with the FlightMap action while cruising.</summary>
+        public SpaceMap Map;
+
         /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): force the flight heading so the
         /// marketing vantage shots differ. Safe because in manual flight <c>_yaw</c> only changes from mouse
         /// input, which is absent during an unattended capture run.</summary>
@@ -905,6 +908,13 @@ namespace BlocksBeyondTheStars.Client
         /// Returns the point to fly at plus the squared arrival distance (just outside dock/land range).</summary>
         private bool TryAutopilotTarget(out Vector3 target, out float arriveSq)
         {
+            // A waypoint the player set on the system chart (#597) outranks the default pick — that is
+            // the whole point of setting one. Falls through to nearest-station/nearest-body without one.
+            if (TryResolveSpaceWaypoint(out target, out arriveSq))
+            {
+                return true;
+            }
+
             Vector3 pos = _ship != null ? _ship.transform.localPosition : Vector3.zero;
             target = Vector3.zero;
             arriveSq = 0f;
@@ -998,6 +1008,14 @@ namespace BlocksBeyondTheStars.Client
             if (InputMap.Down(InputAction.FlightPadChooser))
             {
                 OpenPadChooser(Game.StarMap != null ? Game.StarMap.ActiveLocationId : string.Empty);
+                return;
+            }
+
+            // M: the system chart (#597) — a clickable top-down map of this system to set a nav waypoint.
+            // Opening it takes menu ownership, so the ship holds position until it closes (like Tab).
+            if (Map != null && InputMap.Down(InputAction.FlightMap))
+            {
+                Map.Open();
                 return;
             }
 
@@ -2509,7 +2527,7 @@ namespace BlocksBeyondTheStars.Client
             // big or small in orbit instead of all identical — an approximate reflection of how varied they are.
             float homeBias = current?.SizeBias ?? 0f;
             float homeDiameter = OrbitDiameterFor(current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType, homeBias) * 3.2f;
-            SpawnBody("HomePlanet", current?.Id, current?.Kind, Game?.LocationName ?? "home", homePos, homeDiameter, homeType, homeBias);
+            SpawnBody("HomePlanet", current?.Id, current?.Kind, Game?.LocationName ?? "home", homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
             _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
@@ -2529,12 +2547,14 @@ namespace BlocksBeyondTheStars.Client
                 var bodyTypes = new List<string>();
                 var kinds = new List<string>(); // star-map Kind — keys each body's true circumference
                 var biases = new List<float>(); // per-body archetype size bias (#549) — keys the circumference too
+                var rings = new List<int>(); // per-planet ring style seed (#596), 0 = no rings
                 var homeMoons = new List<int>(); // planned in home's plane → must also clear home itself
 
-                void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type, float sizeBias)
+                void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type, float sizeBias, int ringSeed = 0)
                 {
                     ids.Add(id); names.Add(name); kinds.Add(kind); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
                     biases.Add(sizeBias);
+                    rings.Add(ringSeed);
                     locKeys.Add(PlanetOrbitLook.LocationKeyFor(system?.Name, name));
                 }
 
@@ -2557,7 +2577,7 @@ namespace BlocksBeyondTheStars.Client
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
                     float diameter = OrbitDiameterFor(b.Id, b.Kind, b.PlanetType, b.SizeBias);
-                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, b.SizeBias);
+                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, b.SizeBias, b.RingSeed);
                     planetIndexById[b.Id] = planets.Count;
                     planets.Add((b.SystemX, b.SystemZ, pos, diameter * 0.5f));
                 }
@@ -2661,7 +2681,7 @@ namespace BlocksBeyondTheStars.Client
                 // Spawn the separated bodies + register them as landable / keep-out.
                 for (int k = 0; k < positions.Count; k++)
                 {
-                    SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], locKeys[k], positions[k], radii[k] * 2f, bodyTypes[k], biases[k]);
+                    SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], locKeys[k], positions[k], radii[k] * 2f, bodyTypes[k], biases[k], rings[k]);
                     _landables.Add((ids[k], names[k], positions[k], radii[k]));
                     _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
                     maxDist = Mathf.Max(maxDist, positions[k].magnitude);
@@ -2693,7 +2713,7 @@ namespace BlocksBeyondTheStars.Client
         /// plus a per-type cloud shell and an atmosphere haze rim scaled by atmosphere density.
         /// <paramref name="bodyId"/> keys the body's true circumference; <paramref name="locationName"/>
         /// seeds the per-planet flora hue.</summary>
-        private void SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType, float sizeBias = 0f)
+        private void SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType, float sizeBias = 0f, int ringSeed = 0)
         {
             // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
             // red sun the whole system reads warm (a light wash — the biome tint stays recognisable).
@@ -2753,6 +2773,13 @@ namespace BlocksBeyondTheStars.Client
                 hMr.sharedMaterial = hMat;
                 hMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 hMr.receiveShadows = false;
+            }
+
+            // Planetary rings (#596): a seeded, tilted band disc — queue 3001 so it draws after the
+            // haze (2999) and cloud shell (3000); the opaque planet sphere occludes the far half.
+            if (ringSeed != 0)
+            {
+                PlanetRings.Attach(sphere.transform, ringSeed, sunHue, 0.55f, 3001, out _);
             }
         }
 
@@ -3642,6 +3669,72 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The system's landable bodies (scene-local positions + names) — the radar reads these to
         /// draw a bearing marker toward each planet/moon you can fly to.</summary>
         public IReadOnlyList<(string Id, string Name, Vector3 Pos, float Radius)> Landables => _landables;
+
+        /// <summary>Scene-local star position (meaningful when <see cref="HasStar"/>) — the system
+        /// chart (#597) marks the star with it.</summary>
+        public Vector3 StarPosition => _starLocal;
+        public bool HasStar => _hasStar;
+
+        /// <summary>The flight-volume clamp radius; the system chart keeps free waypoints inside it.</summary>
+        public float FlightBounds => _bounds;
+
+        /// <summary>Waypoint id for the launch body (#597) — its <see cref="Landables"/> entry carries an
+        /// empty id (it doubles as "no travel target"), so the chart pins it under this sentinel instead.</summary>
+        public const string HomeWaypointId = "~home";
+
+        /// <summary>Resolves the player's space waypoint (#597) to a scene position + squared arrival
+        /// distance: a landable body id (arrive just outside land range), a station entity id (arrive in
+        /// dock range), or a free point (arrive within a small fixed radius). False when no waypoint is
+        /// set or an id no longer resolves in this space instance (a stale target counts as cleared).</summary>
+        public bool TryResolveSpaceWaypoint(out Vector3 target, out float arriveSq)
+        {
+            target = Vector3.zero;
+            arriveSq = 100f; // free-point arrival: within 10 units
+            if (Game == null)
+            {
+                return false;
+            }
+
+            string id = Game.SpaceWaypointId;
+            if (!string.IsNullOrEmpty(id))
+            {
+                foreach (var b in _landables)
+                {
+                    bool isHome = id == HomeWaypointId && string.IsNullOrEmpty(b.Id);
+                    if (isHome || b.Id == id)
+                    {
+                        target = b.Pos;
+                        float approach = b.Radius + KeepOutMargin + LandBand * 0.5f;
+                        arriveSq = approach * approach;
+                        return true;
+                    }
+                }
+
+                var space = Game.Space;
+                if (space != null)
+                {
+                    foreach (var e in space.Entities)
+                    {
+                        if (e.Kind == "SpaceStation" && e.Id == id)
+                        {
+                            target = new Vector3(e.X, e.Y, e.Z);
+                            arriveSq = BoardRange * BoardRange * 0.64f;
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            if (Game.SpaceWaypointPos.HasValue)
+            {
+                target = Game.SpaceWaypointPos.Value;
+                return true;
+            }
+
+            return false;
+        }
         // Every body (landable + decorative) as a keep-out sphere: the ship slides along it instead of
         // flying into the planet, so there is no "fell into the planet / auto-landed" — you stop at the
         // approach distance and press E to land. (Pos, keep-out radius.)
@@ -3979,6 +4072,11 @@ namespace BlocksBeyondTheStars.Client
                 if (Game.AiCoreTier >= 2 && InputMap.ActiveDevice != InputDeviceKind.Touch)
                 {
                     _hint.text += " · " + Loc("ui.vega.autopilot.hint", "[P] Autopilot");
+                }
+
+                if (InputMap.ActiveDevice != InputDeviceKind.Touch)
+                {
+                    _hint.text += " · " + Loc("ui.spacemap.key_hint", "[M] Chart"); // system chart (#597)
                 }
 
                 _hint.gameObject.SetActive(true);

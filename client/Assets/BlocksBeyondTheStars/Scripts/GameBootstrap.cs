@@ -206,6 +206,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>An optional world-map waypoint (XZ); the HUD compass points to it when set.</summary>
         public Vector3? Waypoint;
 
+        /// <summary>An optional space-flight nav waypoint (#597), set on the system chart while flying:
+        /// either the id of a landable body / space station (snap-to-marker; <see cref="SpaceView"/>
+        /// resolves it to a live position) or a free scene-space point. The space radar shows it and the
+        /// VEGA autopilot steers to it. Cleared with the world-scoped state on travel — like the surface
+        /// waypoint, its coordinates mean nothing in the next world (#592's lesson).</summary>
+        public string SpaceWaypointId;
+        public Vector3? SpaceWaypointPos;
+
         /// <summary>Interactive ship stations, and the one the player is currently next to (or empty).</summary>
         public NetShipStation[] Stations { get; private set; } = System.Array.Empty<NetShipStation>();
 
@@ -1717,6 +1725,8 @@ namespace BlocksBeyondTheStars.Client
             PendingSpeederFx.Clear(); // queued one-shot FX would play at old-world coordinates
             Waypoint = null; // a map-click waypoint is old-world coordinates too — without this the HUD
                              // compass kept pointing at a meaningless spot on every next planet (#592)
+            SpaceWaypointId = null; // the space waypoint is scoped to the space layout it was set in —
+            SpaceWaypointPos = null; // a new world means a new system view, so it dies with it (#597)
 
             foreach (var view in _chunkObjects.Values)
             {

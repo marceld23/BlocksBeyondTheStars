@@ -59,6 +59,12 @@ public sealed class CelestialBody
     /// of a pre-variance save) keeps the classic hashed size exactly. Not persisted: like the rest of
     /// the galaxy it re-derives deterministically from the seed.</summary>
     public float SizeBias { get; set; }
+
+    /// <summary>Planetary-ring style seed (#596): 0 = no rings (the default), non-zero = this planet
+    /// carries a Saturn-like ring system whose tilt/bands/hue the client derives from this seed.
+    /// Purely cosmetic — no gameplay reads it; like the rest of the galaxy it re-derives
+    /// deterministically from the world seed and is never persisted.</summary>
+    public int RingSeed { get; set; }
 }
 
 /// <summary>A star system: a named cluster of bodies on the star map.</summary>

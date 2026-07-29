@@ -122,8 +122,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A planet-type → dot colour mapping (a few known biomes, else a stable hash hue); stations
-        /// and asteroid fields get neutral greys.</summary>
-        private static Color PlanetColor(string type, string kind)
+        /// and asteroid fields get neutral greys. Shared with the flight system chart (#597).</summary>
+        internal static Color PlanetColor(string type, string kind)
         {
             if (string.IsNullOrEmpty(type))
             {

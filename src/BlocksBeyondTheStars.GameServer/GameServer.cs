@@ -4187,6 +4187,7 @@ public sealed partial class GameServer
             OrbitPeriodDays = b.OrbitPeriodDays,
             ParentId = b.ParentId,
             SizeBias = b.SizeBias, // #549: the client sizes this body with the same bias the server does
+            RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total) : 0,
         };

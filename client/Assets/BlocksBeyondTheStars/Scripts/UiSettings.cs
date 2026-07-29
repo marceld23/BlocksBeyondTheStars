@@ -336,6 +336,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
             InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
             InputAction.FlightAutopilot => "ui.key.flight_autopilot",
+            InputAction.FlightMap => "ui.key.flight_map",
             InputAction.EvaDeployStation => "ui.key.eva_deploy_station",
             InputAction.SpeederBoost => "ui.key.speeder_boost",
             InputAction.SpeederExit => "ui.key.speeder_exit",

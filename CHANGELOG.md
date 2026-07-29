@@ -13,6 +13,28 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🪐 Planetary rings (#596)
+
+- **Some planets now carry Saturn-like ring systems** — tilted, banded discs with seeded gaps and
+  an icy tint, unique per planet. You see them from orbit while flying the system, on the discs of
+  ringed neighbours in another world's sky (pale and sky-washed by day, like the real Moon), and —
+  standing on a ringed planet itself — as a ribbon arcing across the sky: bold at night, a faint
+  pale arc by day.
+- Ring assignment is deterministic from the world seed (every player sees the same rings) and
+  purely visual; large and icy/crystal planets ring more often. **Existing worlds gain rings too**
+  — nothing else about your universe changes.
+
+### 🧭 Flight system chart & nav waypoint (#597)
+
+- **Press M while flying to open the system chart** — a top-down map of the current system drawn
+  from the real flight positions: star, planets, moons, asteroids, stations, wrecks, hostiles, and
+  your ship with its heading. The ship holds position while the chart is open; the key is
+  rebindable in Settings → Controls.
+- **Click to set a nav waypoint** — click a body or station to target it, or click empty space for
+  a free waypoint. The space radar shows it as an amber marker with its own live distance readout,
+  and the VEGA autopilot (P, AI Core Mk2) now flies to *your* waypoint instead of just the nearest
+  station. The waypoint clears automatically when you travel — no stale markers in the next world.
+
 ## [2026.7.22] — 2026-07-29
 
 The wayfinder release: the planet map becomes a real navigation tool and the world generator

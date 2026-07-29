@@ -967,6 +967,11 @@ public sealed class NetBody
     /// bodies, pad map bake) or its rendered size disagrees with the walkable world the server builds.
     /// 0 for every pre-variance body, so old saves and old clients keep the classic hashed size.</summary>
     public float SizeBias { get; set; }
+
+    /// <summary>Planetary-ring style seed (#596): 0 = no rings, non-zero = the client renders a
+    /// Saturn-like ring system around this planet, deriving tilt/bands/hue from the seed. Purely
+    /// cosmetic; an additive contractless field, so old clients/servers simply ignore it.</summary>
+    public int RingSeed { get; set; }
 }
 
 public sealed class NetStarSystem
