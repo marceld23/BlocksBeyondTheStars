@@ -87,6 +87,9 @@ namespace BlocksBeyondTheStars.Client
         // Placement orientation override for shaped building blocks: -1 = auto (the server orients from the
         // surface built against), 0..5 = a forced up-face cycled with the RotateShape key. Sent on each place.
         private int _placeUpFace = -1;
+
+        /// <summary>Explicit quarter-turn (0..3) for the next shaped placement; -1 = derive it from facing.</summary>
+        private int _placeYaw = -1;
         private float _verticalVelocity;
         private float _moveSendTimer;
         private bool _spawned;
@@ -329,15 +332,43 @@ namespace BlocksBeyondTheStars.Client
                 ApplyCameraMode();
             }
 
-            // Rotate the held building shape's placement orientation: auto (-1) → the 6 up-faces → auto.
-            // Only cycles when a shaped block is selected (so it never clashes with RepairWreck on the same key).
+            // Rotate the held building shape's placement orientation. The key walks the orientations in the order
+            // a builder actually wants them: first the four QUARTER TURNS about the current up-face (turning a
+            // staircase to face another way — what a player asked for: "Ich will das Treppen in verschiedenen
+            // Winkeln platzierbar sind"), then on to the next up-face, and finally back to Auto.
+            //
+            // Yaw used to be taken solely from where the player was looking, so getting the turn you wanted meant
+            // standing in a particular direction — which does not work when you are building into a corner. The
+            // shape descriptor has always stored yaw × up-face (24 orientations); this just hands the player the
+            // controls. Only cycles for a shaped block, so it never clashes with RepairWreck on the same key.
             if (InputMap.Down(InputAction.RotateShape))
             {
                 string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
                 if (!string.IsNullOrEmpty(held) && BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held) > 0)
                 {
-                    _placeUpFace = _placeUpFace >= 5 ? -1 : _placeUpFace + 1;
-                    string label = _placeUpFace < 0 ? "Auto" : UpFaceLabel(_placeUpFace);
+                    if (_placeUpFace < 0)
+                    {
+                        _placeUpFace = 0; // leaving Auto: start at +Y up, no turn
+                        _placeYaw = 0;
+                    }
+                    else if (_placeYaw < 3)
+                    {
+                        _placeYaw++; // another quarter turn about the same up-face
+                    }
+                    else if (_placeUpFace < 5)
+                    {
+                        _placeUpFace++; // tipped onto the next face, turns start over
+                        _placeYaw = 0;
+                    }
+                    else
+                    {
+                        _placeUpFace = -1; // back to Auto (orient from the surface built against)
+                        _placeYaw = -1;
+                    }
+
+                    string label = _placeUpFace < 0
+                        ? (Game.Localizer?.Get("hud.shape.auto") ?? "Auto")
+                        : $"{UpFaceLabel(_placeUpFace)} · {_placeYaw * 90}°";
                     Game.ShowMessage(string.Format(Game.Localizer?.Get("hud.shape.orient") ?? "Shape orientation: {0}", label));
                 }
             }
@@ -2289,7 +2320,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item, upFace: _placeUpFace);
+                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item, upFace: _placeUpFace, yaw: _placeYaw);
                     }
 
                     TriggerSwing();

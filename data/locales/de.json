@@ -1419,6 +1419,7 @@
   "ui.hud.station": "Station",
   "hud.atmosphere.left": "Du hast die Atmosphäre verlassen — Schwerelosigkeit",
   "hud.atmosphere.entered": "Wiedereintritt in die Atmosphäre",
+  "hud.shape.auto": "Automatisch",
   "hud.shape.orient": "Form-Ausrichtung: {0}",
   "ui.hud.ship": "Schiff",
   "ui.hud.hull": "Hülle",

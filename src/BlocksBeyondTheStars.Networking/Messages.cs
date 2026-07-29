@@ -66,6 +66,15 @@ public sealed class PlaceBlockIntent
     /// <summary>Explicit shape up-face override (0..5) from the client's rotate key; -1 = none, so the server
     /// auto-orients the shape from the surface it was built against. Only used for shapeable building blocks.</summary>
     public int UpFace { get; set; } = -1;
+
+    /// <summary>
+    /// Explicit shape YAW override (0..3, quarter turns about the up-face); -1 = none, so the server derives it
+    /// from where the player is looking. Asked for by a player who wanted stairs placeable at different angles:
+    /// facing-derived yaw means you have to stand in a particular direction to get the turn you want, which does
+    /// not work when you are building into a corner. Together with <see cref="UpFace"/> this gives the player
+    /// direct control of all 24 orientations the shape descriptor already stores.
+    /// </summary>
+    public int Yaw { get; set; } = -1;
 }
 
 public sealed class CraftIntent

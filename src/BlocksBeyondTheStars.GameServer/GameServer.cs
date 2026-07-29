@@ -2650,11 +2650,15 @@ public sealed partial class GameServer
 
     /// <summary>Places a block from a held item for a player (test/util entrypoint). An optional label rides
     /// along for labelled blocks (a radio beacon).</summary>
-    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string? label = null)
+    public void PlaceBlock(string playerId, int x, int y, int z, string itemKey, string? label = null,
+        int upFace = -1, int yaw = -1)
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            HandlePlace(session, new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty });
+            HandlePlace(session, new PlaceBlockIntent
+            {
+                X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty, UpFace = upFace, Yaw = yaw,
+            });
         }
     }
 
@@ -3238,7 +3242,12 @@ public sealed partial class GameServer
             int shapeIndex = ItemKey.Shape(place.ItemKey);
             if (ShapeCode.IsValidShape(shapeIndex))
             {
-                int facing = ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+                // Yaw: the client may send an explicit quarter-turn (rotate key); otherwise it follows where the
+                // player is looking. An explicit turn is what lets you build stairs into a corner without having
+                // to stand in a particular direction to get the angle you want.
+                int facing = place.Yaw >= 0 && place.Yaw <= 3
+                    ? place.Yaw
+                    : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
                 // Orientation: the client may send an explicit rotation override (rotate key); otherwise the
                 // shape auto-orients so its base rests on the surface it was built against (floor → +Y, i.e.
                 // unchanged; walls/ceiling tilt it). up-face × yaw give the full 24 orientations.

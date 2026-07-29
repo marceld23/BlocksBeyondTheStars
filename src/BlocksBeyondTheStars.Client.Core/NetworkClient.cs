@@ -214,8 +214,11 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
-        public void SendPlace(int x, int y, int z, string itemKey, string? label = null, int upFace = -1)
-            => Send(new PlaceBlockIntent { X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty, UpFace = upFace });
+        public void SendPlace(int x, int y, int z, string itemKey, string? label = null, int upFace = -1, int yaw = -1)
+            => Send(new PlaceBlockIntent
+            {
+                X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty, UpFace = upFace, Yaw = yaw,
+            });
 
         public void SendSetBeaconLabel(int beaconId, string label)
             => Send(new SetBeaconLabelIntent { BeaconId = beaconId, Label = label ?? string.Empty });

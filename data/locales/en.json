@@ -1418,6 +1418,7 @@
   "ui.hud.station": "station",
   "hud.atmosphere.left": "You have left the atmosphere — zero gravity",
   "hud.atmosphere.entered": "Re-entering the atmosphere",
+  "hud.shape.auto": "Auto",
   "hud.shape.orient": "Shape orientation: {0}",
   "ui.hud.ship": "Ship",
   "ui.hud.hull": "Hull",
