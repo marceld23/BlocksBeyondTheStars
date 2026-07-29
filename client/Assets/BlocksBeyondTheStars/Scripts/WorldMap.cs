@@ -24,6 +24,15 @@ namespace BlocksBeyondTheStars.Client
         private int _radius = 180;      // half-side of the shown square, in blocks (zoomable)
         private float _ox, _oz, _side;  // region origin (world) + side, for marker mapping
 
+        // Markers scale with the player's UI-scale setting (#592). The CANVAS must stay absolute-1920
+        // (a scaled full-screen layout would run off-screen, #483) — marker size is not layout though,
+        // so it alone follows the accessibility setting.
+        private static float MarkerScale => UiKit.UserScale;
+
+        /// <summary>The dark backing disc behind every marker icon — the contrast separation that keeps
+        /// a marker readable over any terrain colour (#592).</summary>
+        private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f);
+
         private void Update()
         {
             if (Game == null)
@@ -116,26 +125,44 @@ namespace BlocksBeyondTheStars.Client
             float ix = 1010f, iy = 130f;
             UiKit.AddText(root, ix, iy, 840, 28, L("ui.map.legend"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             iy += 40f;
-            _info = UiKit.AddText(root, ix, iy, 840, 600, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
+            // Truncate (not Overflow): a long POI/beacon list must not run through the legend and buttons
+            // below — the last visible line simply cuts off (#592; the layout-overflow class of bug).
+            _info = UiKit.AddText(root, ix, iy, 840, 570, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _info.verticalOverflow = VerticalWrapMode.Overflow;
+            _info.verticalOverflow = VerticalWrapMode.Truncate;
 
-            // Icon legend (matches the marker sprites; replaces the old unicode-glyph line in the info text).
+            // Icon legend — every marker type the map actually draws, each tinted its ON-MAP colour so the
+            // legend explains the map instead of showing everything cyan (#592). Two rows; a fixed slot
+            // width keeps DE labels from pushing the row past the panel.
             {
-                string[] legendIcons = { "map_player", "map_ship", "map_waypoint", "map_beacon", "map_base", "map_pad" };
-                string[] legendKeys = { "ui.map.you", "ui.hud.ship", "ui.map.waypoint", "ui.beacon.default", "ui.base.default", "ui.map.pad" };
-                float lx = ix;
-                for (int li = 0; li < legendIcons.Length; li++)
+                (string icon, string key, Color col)[] entries =
                 {
-                    var sprite = UiKit.Icon(legendIcons[li]);
+                    ("map_player", "ui.map.you", UiKit.Cyan),
+                    ("map_ship", "ui.hud.ship", new Color(0.5f, 0.9f, 1f)),
+                    ("map_waypoint", "ui.map.waypoint", new Color(1f, 0.85f, 0.3f)),
+                    ("map_beacon", "ui.beacon.default", new Color(1f, 0.72f, 0.2f)),
+                    ("map_base", "ui.base.default", new Color(0.36f, 0.82f, 0.86f)),
+                    ("map_pad", "ui.map.pad", new Color(0.5f, 0.9f, 0.6f)),
+                    ("map_settlement", "ui.map.settlement", new Color(0.5f, 0.95f, 0.6f)),
+                    ("map_ruin", "ui.map.ruin", new Color(0.65f, 0.6f, 0.55f)),
+                    ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
+                    ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
+                };
+                const int perRow = 5;
+                const float slotW = 168f, rowH = 34f;
+                for (int li = 0; li < entries.Length; li++)
+                {
+                    float lx = ix + (li % perRow) * slotW;
+                    float ly = 795f + (li / perRow) * rowH;
+                    var sprite = UiKit.Icon(entries[li].icon);
                     if (sprite != null)
                     {
-                        UiKit.AddImage(root, lx, 832, 24, 24, sprite, UiKit.Cyan);
-                        lx += 28f;
+                        UiKit.AddImage(root, lx, ly + 2f, 26, 26, UiKit.DiscSprite, DiscCol);
+                        UiKit.AddImage(root, lx + 3f, ly + 5f, 20, 20, sprite, entries[li].col);
+                        lx += 32f;
                     }
 
-                    var lt = UiKit.AddText(root, lx, 828, 150, 30, L(legendKeys[li]), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                    lx += lt.preferredWidth + 26f;
+                    UiKit.AddText(root, lx, ly, slotW - 36f, 30, L(entries[li].key), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 }
             }
 
@@ -239,15 +266,16 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_mapRt.GetChild(i).gameObject);
             }
 
-            // Ship + stations + waypoint as icons; player as a heading arrow.
+            // Ship + stations + waypoint as icons; player as a heading arrow. Sizes were 20–28 px before
+            // #592 — with 1–10 % ink line icons that lit a handful of pixels; the bold set at ~1.5× reads.
             if (Game.ShipPosition.HasValue)
             {
-                Marker(Game.ShipPosition.Value.x, Game.ShipPosition.Value.z, 20f, new Color(0.5f, 0.9f, 1f), "▣", "map_ship");
+                Marker(Game.ShipPosition.Value.x, Game.ShipPosition.Value.z, 32f, new Color(0.5f, 0.9f, 1f), "▣", "map_ship");
             }
 
             if (Game.Waypoint.HasValue)
             {
-                Marker(Game.Waypoint.Value.x, Game.Waypoint.Value.z, 24f, new Color(1f, 0.85f, 0.3f), "✛", "map_waypoint");
+                Marker(Game.Waypoint.Value.x, Game.Waypoint.Value.z, 36f, new Color(1f, 0.85f, 0.3f), "✛", "map_waypoint");
             }
 
             // World POIs (settlements, …) from the server.
@@ -257,7 +285,7 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var p in Game.PlanetPois)
                 {
                     var (glyph, col, icon) = PoiLook(p.Type);
-                    Marker(p.X, p.Z, 24f, col, glyph, icon);
+                    Marker(p.X, p.Z, 36f, col, glyph, icon);
                     float d = GroundDistance(p.X, p.Z);
                     poiLines.Append($"\n{glyph} {p.Name}  —  {Mathf.RoundToInt(d)} m");
                 }
@@ -269,7 +297,7 @@ namespace BlocksBeyondTheStars.Client
                 var beaconCol = new Color(1f, 0.72f, 0.2f);
                 foreach (var b in Game.Beacons)
                 {
-                    Marker(b.X, b.Z, 22f, beaconCol, "✦", "map_beacon");
+                    Marker(b.X, b.Z, 32f, beaconCol, "✦", "map_beacon");
                     string name = string.IsNullOrEmpty(b.Label) ? L("ui.beacon.default") : b.Label;
                     MarkerLabel(b.X, b.Z, name, beaconCol);
                     float bd = GroundDistance(b.X, b.Z);
@@ -283,7 +311,7 @@ namespace BlocksBeyondTheStars.Client
                 var beamCol = new Color(0.28f, 0.85f, 1f);
                 foreach (var b in Game.Beams)
                 {
-                    Marker(b.X, b.Z, 22f, beamCol, "⊕", "map_beacon");
+                    Marker(b.X, b.Z, 32f, beamCol, "⊕", "map_beacon");
                     string name = string.IsNullOrEmpty(b.Name) ? L("ui.beam.default") : b.Name;
                     MarkerLabel(b.X, b.Z, name, beamCol);
                     float bd = GroundDistance(b.X, b.Z);
@@ -297,7 +325,7 @@ namespace BlocksBeyondTheStars.Client
                 var baseCol = new Color(0.36f, 0.82f, 0.86f);
                 foreach (var bp in Game.Bases)
                 {
-                    Marker(bp.X, bp.Z, 24f, baseCol, "⌂", "map_base");
+                    Marker(bp.X, bp.Z, 36f, baseCol, "⌂", "map_base");
                     string name = string.IsNullOrEmpty(bp.Name) ? L("ui.base.default") : bp.Name;
                     MarkerLabel(bp.X, bp.Z, name, baseCol);
                     float bd = GroundDistance(bp.X, bp.Z);
@@ -325,12 +353,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var s in Game.Stations)
                 {
-                    Marker(s.X, s.Z, 11f, new Color(0.55f, 0.8f, 1f, 0.85f), "•");
+                    Marker(s.X, s.Z, 14f, new Color(0.55f, 0.8f, 1f, 0.85f), "•");
                 }
             }
 
             // Player arrow (rotated to heading; the arrowhead icon points north / +Z).
-            var pa = Marker(Game.PlayerPosition.x, Game.PlayerPosition.z, 28f, UiKit.Cyan, "▲", "map_player");
+            var pa = Marker(Game.PlayerPosition.x, Game.PlayerPosition.z, 44f, UiKit.Cyan, "▲", "map_player");
             if (pa != null)
             {
                 pa.transform.localRotation = Quaternion.Euler(0, 0, -Game.PlayerYaw);
@@ -369,7 +397,9 @@ namespace BlocksBeyondTheStars.Client
         };
 
         /// <summary>A map marker: a generated HUD ICON when one exists (uGUI icon pass), else the unicode
-        /// glyph as fallback — both tinted with the marker colour.</summary>
+        /// glyph as fallback — both tinted with the marker colour, drawn on a dark backing disc so the
+        /// marker separates from the terrain texture (#592). The icons are pure WHITE ink, so the tint
+        /// renders exactly the marker colour (the old cyan-ink set multiplied red tints into grey).</summary>
         private Graphic Marker(float wx, float wz, float size, Color color, string glyph, string icon = null)
         {
             // Round worlds: map the marker's world X/Z to the scene spot nearest the player (no seam on the map).
@@ -379,6 +409,10 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
+            size *= MarkerScale;
+
+            // Anchor object at the map spot; the disc + icon are children so a caller can rotate the
+            // returned graphic (player heading) without the anchor moving.
             var go = new GameObject("Marker", typeof(RectTransform));
             go.transform.SetParent(_mapRt, false);
             var rt = go.GetComponent<RectTransform>();
@@ -387,17 +421,34 @@ namespace BlocksBeyondTheStars.Client
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = new Vector2(size, size);
 
+            float d = size * 1.3f;
+            var disc = UiKit.AddImage(go.transform, -(d - size) / 2f, -(d - size) / 2f, d, d, UiKit.DiscSprite, DiscCol);
+            disc.raycastTarget = false;
+
             var sprite = icon != null ? UiKit.Icon(icon) : null;
             if (sprite != null)
             {
-                var img = go.AddComponent<Image>();
+                // Centre pivot (not UiKit.Place's top-left) so the player-heading rotation spins in place.
+                var igo = new GameObject("Icon", typeof(RectTransform));
+                igo.transform.SetParent(go.transform, false);
+                var irt = igo.GetComponent<RectTransform>();
+                irt.anchorMin = Vector2.zero;
+                irt.anchorMax = Vector2.one;
+                irt.offsetMin = irt.offsetMax = Vector2.zero;
+                var img = igo.AddComponent<Image>();
                 img.sprite = sprite;
                 img.color = color;
                 img.raycastTarget = false;
                 return img;
             }
 
-            var t = go.AddComponent<Text>();
+            var tgo = new GameObject("Glyph", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = tgo.GetComponent<RectTransform>();
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = trt.offsetMax = Vector2.zero;
+            var t = tgo.AddComponent<Text>();
             t.font = UiKit.Font;
             t.text = glyph;
             t.fontSize = Mathf.RoundToInt(size);
@@ -422,7 +473,7 @@ namespace BlocksBeyondTheStars.Client
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(u, v);
             rt.pivot = new Vector2(0.5f, 1f);            // hang the text below the glyph
-            rt.anchoredPosition = new Vector2(0f, -13f);
+            rt.anchoredPosition = new Vector2(0f, -20f * MarkerScale); // clears the bigger #592 markers
             rt.sizeDelta = new Vector2(140f, 18f);
             var t = go.AddComponent<Text>();
             t.font = UiKit.Font;
@@ -455,24 +506,41 @@ namespace BlocksBeyondTheStars.Client
             rt.anchorMin = rt.anchorMax = new Vector2(u, v);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
-            float size = clamped ? 16f : 22f;
+            float size = (clamped ? 22f : 32f) * MarkerScale;
             rt.sizeDelta = new Vector2(size, size);
             var tint = clamped ? new Color(color.r, color.g, color.b, 0.7f) : color;
+
+            float d = size * 1.3f;
+            var discCol = clamped ? new Color(DiscCol.r, DiscCol.g, DiscCol.b, DiscCol.a * 0.7f) : DiscCol;
+            UiKit.AddImage(go.transform, -(d - size) / 2f, -(d - size) / 2f, d, d, UiKit.DiscSprite, discCol)
+                .raycastTarget = false;
 
             var sprite = UiKit.Icon("map_pad");
             if (sprite != null)
             {
-                var img = go.AddComponent<Image>();
+                var igo = new GameObject("Icon", typeof(RectTransform));
+                igo.transform.SetParent(go.transform, false);
+                var irt = igo.GetComponent<RectTransform>();
+                irt.anchorMin = Vector2.zero;
+                irt.anchorMax = Vector2.one;
+                irt.offsetMin = irt.offsetMax = Vector2.zero;
+                var img = igo.AddComponent<Image>();
                 img.sprite = sprite;
                 img.color = tint;
                 img.raycastTarget = false;
                 return;
             }
 
-            var t = go.AddComponent<Text>();
+            var tgo = new GameObject("Glyph", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = tgo.GetComponent<RectTransform>();
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = trt.offsetMax = Vector2.zero;
+            var t = tgo.AddComponent<Text>();
             t.font = UiKit.Font;
             t.text = "⊕";
-            t.fontSize = clamped ? 15 : 20;
+            t.fontSize = Mathf.RoundToInt(size * 0.9f);
             t.color = tint;
             t.alignment = TextAnchor.MiddleCenter;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;

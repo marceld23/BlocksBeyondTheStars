@@ -1715,6 +1715,8 @@ namespace BlocksBeyondTheStars.Client
             NetFragments = System.Array.Empty<NetStoryFragment>();
             Speeders = System.Array.Empty<NetSpeeder>();
             PendingSpeederFx.Clear(); // queued one-shot FX would play at old-world coordinates
+            Waypoint = null; // a map-click waypoint is old-world coordinates too — without this the HUD
+                             // compass kept pointing at a meaningless spot on every next planet (#592)
 
             foreach (var view in _chunkObjects.Values)
             {

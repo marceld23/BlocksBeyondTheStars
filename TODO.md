@@ -102,6 +102,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Planet map legible: bold white marker icons + working waypoint navigation (#592, 2026-07-29, branch fix/planet-map-legibility-waypoint)
+The M-map's landmark icons were effectively invisible: the `map_*` sprites were thin cyan line art
+with **1–10 % ink coverage** (the 28 px player arrow lit ~8 pixels), and `Image.color` tints
+multiplied against the cyan ink so the colour coding died (occupied-pad red rendered grey, waypoint
+amber rendered green — nothing matched the legend, which tinted everything cyan). Regenerated the
+set as **bold filled pure-WHITE pictograms** (`tools/ai-assets/gen_map_icons.py`, post-processes
+every opaque pixel to white so tints render exact; ink now 21–35 %), added the missing `map_base`
+icon (bases fell back to a text glyph), fixed the import settings (`enableMipMap: 0`,
+`alphaIsTransparency: 1`), and drew every marker on a dark `UiKit.DiscSprite` backing disc at ~1.5×
+size, scaled by the UI-scale setting (markers only — the 1920-absolute canvas must not scale, #483).
+Legend rebuilt: all 10 marker types in their real on-map colours, fixed slot grid (DE labels can't
+overflow), POI list truncates instead of running through the buttons. Waypoint side: the HUD compass
+blip became the `map_waypoint` icon at 16 px with its own amber distance line (before: a 7 px amber
+square identical to beacon blips, and the only distance was the ship's), blip radii are log-scaled
+(linear `dist*1.2` pinned everything past ~37 m to the rim), and **`Game.Waypoint` is cleared on
+`OnWorldReset`** — the stale-waypoint-on-the-next-planet bug.
+
 ### ★ Sky bodies no longer read as dark silhouettes by day (#585, 2026-07-29, branch fix/sky-bodies-dark-discs)
 Other planets/moons in the surface sky often looked completely dark. Not a lighting bug (the #400
 `_DayLight` ramp already front-lights them by day) but a luminance ratio: baked-map albedo × the 0.7

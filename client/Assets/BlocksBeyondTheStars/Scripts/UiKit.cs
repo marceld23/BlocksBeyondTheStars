@@ -51,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
         private static Sprite _buttonSprite;
         private static Sprite _solidSprite;
         private static Sprite _spinnerSprite;
+        private static Sprite _discSprite;
 
         /// <summary>A plain white sprite (tint via Image.color) — used for fills/bars.</summary>
         public static Sprite SolidSprite
@@ -72,6 +73,36 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return _solidSprite;
+            }
+        }
+
+        /// <summary>A white anti-aliased filled circle (tint via Image.color) — the backing disc that
+        /// separates map/HUD markers from a noisy terrain texture underneath (#592). Cached.</summary>
+        public static Sprite DiscSprite
+        {
+            get
+            {
+                if (_discSprite == null)
+                {
+                    const int n = 64;
+                    var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                    var px = new Color[n * n];
+                    float c = (n - 1) * 0.5f, r = c - 1f;
+                    for (int y = 0; y < n; y++)
+                    {
+                        for (int x = 0; x < n; x++)
+                        {
+                            float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                            px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(r - d + 1f)); // 1 px AA edge
+                        }
+                    }
+
+                    tex.SetPixels(px);
+                    tex.Apply();
+                    _discSprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
+                }
+
+                return _discSprite;
             }
         }
 

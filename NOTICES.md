@@ -31,11 +31,12 @@ are AI-synthesised instrumental audio (not third-party recordings); use is gover
 Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay
 **generated procedurally in code** (`ClientMusic`, `ClientAudio`).
 
-**UI icons:** `client/Assets/Resources/icons/*.png` (40 files, incl. menu category icons, the world-map
+**UI icons:** `client/Assets/Resources/icons/*.png` (41 files, incl. menu category icons, the world-map
 marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with the
 **OpenAI** image API (`gpt-image-1-mini`, transparent cyan line icons — see
-`tools/ai-assets/gen_icons.py`); they are AI-synthesised images, use governed by the OpenAI
-usage terms for the generating account.
+`tools/ai-assets/gen_icons.py`; the world-map marker set `map_*` was regenerated as bold filled
+white-ink pictograms for tintability/legibility — see `tools/ai-assets/gen_map_icons.py`); they are
+AI-synthesised images, use governed by the OpenAI usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for
 non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/electronic components, the

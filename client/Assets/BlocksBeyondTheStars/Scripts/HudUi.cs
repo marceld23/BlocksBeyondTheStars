@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
-        private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist;
+        private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist, _compassWpDist;
         private Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private Text _playtimeText;
@@ -90,6 +90,7 @@ namespace BlocksBeyondTheStars.Client
         private const float RefreshInterval = 0.1f;
         private float _refreshTimer;
         private int _lastCompassDist = int.MinValue;
+        private int _lastCompassWpDist = int.MinValue;
 
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
@@ -382,8 +383,13 @@ namespace BlocksBeyondTheStars.Client
             craw.texture = UiKit.RadarCircle;
             UiKit.AddText(comp.transform, 0, 2, 120, 18, "▲", 14, UiKit.Cyan, TextAnchor.UpperCenter, FontStyle.Bold);
             _compassDist = UiKit.AddText(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            // Waypoint distance on its own line under the ship distance — before #592 the compass number
+            // was the SHIP only and the waypoint's distance existed nowhere outside the map panel.
+            _compassWpDist = UiKit.AddText(comp.transform, 0, 118, 120, 18, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
-            _compassWp = Blip(comp.transform, new Color(1f, 0.85f, 0.3f), 7f);
+            // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
+            // nearly indistinguishable from the 6 px amber beacon blips (#592).
+            _compassWp = Blip(comp.transform, new Color(1f, 0.85f, 0.3f), 16f, "map_waypoint");
             _compassParent = comp.transform;
 
             // Time of day + temperature.
@@ -761,9 +767,12 @@ namespace BlocksBeyondTheStars.Client
 
         // --- compass ---
 
-        private RectTransform Blip(Transform parent, Color color, float size)
+        /// <summary>A compass blip: a plain square, or a white-ink map icon when <paramref name="icon"/>
+        /// is given (the waypoint — a shaped, larger blip so it never reads as just another beacon, #592).</summary>
+        private RectTransform Blip(Transform parent, Color color, float size, string icon = null)
         {
-            var img = UiKit.AddImage(parent, 0, 0, size, size, UiKit.SolidSprite, color);
+            var sprite = icon != null ? UiKit.Icon(icon) : null;
+            var img = UiKit.AddImage(parent, 0, 0, size, size, sprite != null ? sprite : UiKit.SolidSprite, color);
             var rt = img.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
@@ -788,15 +797,22 @@ namespace BlocksBeyondTheStars.Client
             }
 
             const float radius = 44f;
-            PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius);
+            PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius, out float wpDist);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
 
-            // This runs per frame, so only rebuild the distance string when the rounded value changed.
+            // This runs per frame, so only rebuild the distance strings when the rounded value changed.
             int distNow = Game.ShipPosition.HasValue ? Mathf.RoundToInt(dist) : -1;
             if (distNow != _lastCompassDist)
             {
                 _lastCompassDist = distNow;
                 _compassDist.text = distNow >= 0 ? $"{distNow} m" : string.Empty;
+            }
+
+            int wpDistNow = Game.Waypoint.HasValue ? Mathf.RoundToInt(wpDist) : -1;
+            if (wpDistNow != _lastCompassWpDist)
+            {
+                _lastCompassWpDist = wpDistNow;
+                _compassWpDist.text = wpDistNow >= 0 ? $"✛ {wpDistNow} m" : string.Empty;
             }
 
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
@@ -829,7 +845,10 @@ namespace BlocksBeyondTheStars.Client
             float dx = target.x - Game.PlayerPosition.x, dz = target.z - Game.PlayerPosition.z;
             dist = Mathf.Sqrt(dx * dx + dz * dz);
             float ang = (Mathf.Atan2(dx, dz) * Mathf.Rad2Deg - Game.PlayerYaw) * Mathf.Deg2Rad;
-            float r = Mathf.Clamp(dist * 1.2f, 8f, radius);
+            // Log-scaled radius (#592): the old linear dist*1.2 pinned everything past ~37 m to the rim,
+            // so approach progress was unreadable. Log keeps direction AND lets "getting closer" show:
+            // ~20 px at 40 m, ~34 px at 400 m, rim only past ~2 km.
+            float r = 8f + (radius - 8f) * Mathf.Clamp01(Mathf.Log10(1f + dist / 8f) / Mathf.Log10(1f + 2000f / 8f));
             blip.gameObject.SetActive(true);
             blip.anchoredPosition = new Vector2(Mathf.Sin(ang) * r, Mathf.Cos(ang) * r); // +Y up = north
         }

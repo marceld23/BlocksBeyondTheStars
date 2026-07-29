@@ -13,6 +13,21 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🗺️ Planet map you can actually read (#592)
+
+- **Landmark markers are finally legible.** The world-map marker set (`map_*`) is regenerated as
+  bold filled pictograms (the old thin-line icons lit as few as 1 % of their pixels), every marker
+  now sits on a dark backing disc so it separates from any terrain colour, and markers are ~1.5×
+  larger — and additionally scale with the UI-scale accessibility setting.
+- **Marker colours mean something again.** The icons are pure white ink, so the tints show true:
+  occupied landing pads are red (they rendered grey before), waypoints amber (they rendered green),
+  and the legend shows each marker in its real on-map colour — with the full marker set listed,
+  including the previously missing base icon.
+- **Waypoints work as navigation.** The HUD compass shows the map-set waypoint as its own flag icon
+  (no longer a tiny amber square identical to beacon blips) with its own distance readout, compass
+  blip distance is log-scaled so approaching a target is visible (before, everything past ~37 m
+  pinned to the rim), and a stale waypoint no longer survives travelling to another planet.
+
 ### 🏗️ Structure placement guarantee & terrain-adaptive foundations (#586)
 
 - **What the world rolls, the world gets.** Settlements, ruins, factories, bandit camps, monuments,
