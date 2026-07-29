@@ -2792,9 +2792,13 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Dialog opacity is inconsistent — some overlays show the menu/world through, others don't — 🔍 ANALYSIS ONLY (2026-07-29)
-**Report:** "In the in-game menu some dialogs are see-through (e.g. the world-options dialog), others black
-out the menu behind them and are much easier to read. Make it consistent."
+### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't — 🔍 ANALYSIS ONLY (2026-07-29)
+**Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind
+them and are much easier to read. Make it consistent."
+**Scope (confirmed with Marcel):** the **shell/menu dialogs only** — main menu, world picker, settings,
+credits, editors submenu, what's new / update notice, connect & official-worlds modals. In-game overlays
+(crafting/tech/ship, world map, vendor, beacon, beam pad, HUD chrome) are explicitly **out of scope** and
+keep their current look.
 
 **Root cause — the panel sprite can never be opaque.**
 [UiKit.RoundedSprite](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs#L760-L764) bakes
@@ -2807,58 +2811,60 @@ alpha 0.97 and actually renders 0.82 × 0.97 = **0.795**.
 around this by stacking **three** sliced layers (0.656 + 0.82 + 0.82 ⇒ ≈ 98.9 % opaque) — a workaround, not
 a rule, and only some dialogs use it.
 
-**Resulting three panel tiers (effective opacity), used with no rule:**
-| helper | effective α | used by |
+**Resulting three panel tiers (effective opacity), used with no rule — menu dialogs split across all three:**
+| helper | effective α | menu dialogs using it |
 |---|---|---|
-| `AddPanel(…, UiKit.Panel)` (tint α 0.80) | **0.656** | crafting/tech/ship, world map, vendor, credits, beacon, beam pad, content-error |
-| `AddPanel(…, UiKit.PanelFill)` (tint α 1.0) | **0.82** | save picker, main menu, editors, loading, face editor |
-| `AddDialogPanel` (3 layers) | **0.989** | pause menu, settings, what's-new, update notice, feedback, connect/portal/rules/password, delete-confirm, ship/structure editor prompts |
+| `AddPanel(…, UiKit.Panel)` (tint α 0.80) | **0.656** | credits, content-load error |
+| `AddPanel(…, UiKit.PanelFill)` (tint α 1.0) | **0.82** | face/avatar editor panel |
+| `AddPanel(…, custom α 0.97)` | **0.795** | world options |
+| `AddDialogPanel` (3 layers) | **0.989** | settings, what's new, update notice, feedback, connect, official worlds, portal/rules/password/participate, delete-confirm, pause |
 
-**And 12 different scrim values** (full-screen dim behind a modal), from 0.45 to 0.97 — plus overlays with
-no scrim at all. `UiKit.AddModalDim` exists (default 0.7) but is used by only 9 of ~24 overlays; TODO.md
-line ~1752 already noted "existing overlays can adopt it later". Measured **bleed-through** =
-`(1 − scrim) × (1 − panel α)`, i.e. how much of the live menu/3-D world mixes into the dialog:
+**And 7 different scrim values** among the menu dialogs alone (0.55 / 0.60 / 0.70 / 0.75 / 0.85 / 0.90 /
+0.92), plus overlays with none. `UiKit.AddModalDim` exists (default 0.7) but is used by only some call
+sites; TODO.md line ~1752 already noted "existing overlays can adopt it later". Measured **bleed-through**
+= `(1 − scrim) × (1 − panel α)`, i.e. how much of the animated menu background mixes into the dialog:
 
-| overlay | scrim | panel | bleed | |
+| menu dialog | scrim | panel | bleed | |
 |---|---|---|---|---|
-| Pause menu, Settings, What's new, Update notice, Feedback, Connect/Portal/Rules/Password, Delete-confirm | 0.55–0.92 | dialog | **0.3–0.5 %** | ✅ reads solid |
-| WikiUI / ArcadeUI | 0.96–0.97 | 0.79 | 0.6–0.9 % | ✅ |
+| Connect, Delete-confirm | 0.60 | dialog | 0.44 % | ✅ reads solid |
+| Settings | 0.55 | dialog | 0.50 % | ✅ |
+| What's new, Update notice, Feedback, Official worlds, Participate | 0.70 | dialog | 0.33 % | ✅ |
+| Portal / Rules / Password modals | 0.90–0.92 | dialog | ~0.1 % | ✅ |
+| Maintenance, Disconnect | 0.85–0.92 | dialog | ~0.2 % | ✅ |
 | **World options** | 0.90 | 0.795 | **2.1 %** | ⚠ 4–6× the dialog tier |
-| World map | 0.92 | 0.656 | 2.8 % | ⚠ |
-| Minigame host | 0.82 | 0.80 | 3.5 % | ⚠ |
-| Face editor | 0.60 | 0.82 | 7.2 % | ❌ |
-| Content-load error | 0.75 | 0.656 | 8.6 % | ❌ |
-| Vendor trade | 0.72 | 0.656 | 9.6 % | ❌ |
-| **Crafting / tech / ship menu** | 0.60 | 0.656 | **13.8 %** | ❌ worst in-game; the *animated* 3-D world shows through |
-| Credits | 0.55 | 0.656 | 15.5 % | ❌ |
-| Beacon label / Beam pad | 0.45 | 0.656 | 18.9 % | ❌ |
-| Editors submenu | none | 0.82 | 18 % | ❌ |
+| **Face / avatar editor panel** | 0.60 | 0.82 | **7.2 %** | ❌ |
+| **Content-load error** | 0.75 | 0.656 | **8.6 %** | ❌ |
+| **Credits** | 0.55 | 0.656 | **15.5 %** | ❌ |
 
-Text contrast itself is fine in both tiers (13.8:1 on the world-options blue, 16.3:1 on the dialog backing);
-what hurts readability is the *moving* background bleeding through — 2 % of a drifting starfield or 14 % of
-the live world is far more distracting than a static 2 % would be. Note
-[CraftingTechShipUI.cs:405](client/Assets/BlocksBeyondTheStars/Scripts/CraftingTechShipUI.cs#L405) calls its
-translucency an intentional "holographic-overlay look" — so that one is a **design decision to confirm**,
-not automatically a bug. HUD chrome (`HudUi`, `VegaPanel`, `ChatUi` input row) is translucent by design and
-is explicitly **out of scope**.
+The clearest same-screen comparison: **Settings vs. Credits** — identical 0.55 scrim, but Settings uses
+`AddDialogPanel` (0.5 % bleed) and Credits uses `UiKit.Panel` (15.5 %). Likewise in the world picker:
+**Delete-confirm 0.44 % vs. World options 2.1 %**.
+
+Text contrast itself is fine everywhere (13.8:1 on the world-options blue, 16.3:1 on the dialog backing);
+what hurts readability is that the bleed-through comes from the **animated** `MenuBackground` (drifting
+starfield + planet), so even 2 % shimmers and draws the eye.
+
+**Not dialogs, out of scope:** the menu *screens* themselves (main menu, world picker, editors submenu,
+loading) deliberately float `PanelFill` panels over the animated background — that is the menu look, not a
+readability bug. HUD chrome and all in-game overlays likewise stay as they are.
 
 **Plan (not implemented):**
 1. **Fix the sprite, not the call sites.** Add `UiKit.PanelSpriteOpaque` (same rounded shape + cyan edge,
    fill α 1.0) and a `UiKit.PanelDark = (0.02, 0.05, 0.11, 1)` backing colour. `AddDialogPanel` then becomes
-   a single Image instead of three (fewer draw calls, exactly opaque). `PanelSprite` stays as-is so HUD
-   chrome is untouched.
-2. **Two named scrim levels** replacing the 12 ad-hoc values:
-   `UiKit.ScrimDialog = 0.78` (modal over a screen — background recognisable but clearly pushed back) and
-   `UiKit.ScrimFullScreen = 0.94` (a mode that *replaces* the view: map, wiki, arcade, crafting).
-3. **One entry point** `UiKit.AddModalOverlay(parent, x, y, w, h, fullScreen: false)` returning the dialog
-   transform, so a new dialog cannot get the combination wrong.
-4. **Migrate** the ❌/⚠ rows above to it; leave the ✅ rows (they already match tier 1).
-5. **Verify** with a local Unity build + screenshots of the world-options, crafting and vendor overlays
+   a single Image instead of three (fewer draw calls, exactly opaque). `PanelSprite` stays as-is so the menu
+   screens and HUD chrome are untouched.
+2. **One named scrim level for menu dialogs** — `UiKit.ScrimDialog` — replacing the 7 ad-hoc values.
+3. **One entry point** `UiKit.AddModalOverlay(parent, x, y, w, h)` returning the dialog transform, so a new
+   menu dialog cannot get the combination wrong.
+4. **Migrate the 4 ❌/⚠ dialogs** (world options, credits, content-load error, face/avatar editor) plus the
+   ✅ dialogs' scrim values onto the shared constant. No behaviour change for in-game UI.
+5. **Verify** with a local Unity build + screenshots of world options, credits and settings side by side
    (per [[post-change-verification-routine]]).
 
-**Open questions for Marcel:** (a) keep the crafting/tech/ship "holographic" translucency or make it opaque
-like the rest? (b) is `ScrimDialog = 0.78` the right feel, or should modals black the background out
-almost completely (0.9+)? (c) beacon/beam-pad overlays — dialogs (opaque) or HUD chrome (stay translucent)?
+**Open questions for Marcel:** (a) which scrim strength for menu dialogs — keep it moderate (~0.7, menu
+still recognisable) or black the menu out almost completely (~0.9)? (b) should the ✅ dialogs also be
+re-pointed at the shared constant (fully uniform, but changes dialogs that are already fine), or only the
+4 broken ones fixed?
 
 ### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual
