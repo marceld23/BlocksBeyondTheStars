@@ -13,6 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.22] — 2026-07-29
+
+The wayfinder release: the planet map becomes a real navigation tool and the world generator
+stops losing villages. Map markers are redrawn as bold, backed, colour-true pictograms, waypoints
+get their own compass icon with a live distance readout, and every structure a world rolls is now
+guaranteed a home — with foundations that adapt to slopes, lakes (stilt villages!) and lava.
+Rounding it off: menu dialogs are properly opaque again, and moons no longer hang as black
+silhouettes in the daytime sky.
+
 ### 🗺️ Planet map you can actually read (#592)
 
 - **Landmark markers are finally legible.** The world-map marker set (`map_*`) is regenerated as
@@ -48,6 +57,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   daytime sky: a sky-colour atmosphere wash makes them pale and sky-tinted by day (like the real
   daytime Moon), and their unlit night sides survive as a faint disc instead of vanishing to
   black. Airless worlds and the space view are unchanged. (#585)
+- Menu dialogs (world options, account, settings, …) are properly opaque again instead of
+  ghost-transparent, and they all share one consistent darkening scrim behind the panel — the
+  menu behind a dialog no longer bleeds through the text. (#588)
 
 ## [2026.7.21] — 2026-07-29
 
@@ -1009,7 +1021,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...HEAD
+[2026.7.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...v2026.7.22
 [2026.7.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...v2026.7.21
 [2026.7.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...v2026.7.20
 [2026.7.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v0.9.1...v2026.7.19
