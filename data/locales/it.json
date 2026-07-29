@@ -231,7 +231,7 @@
   "block.heal_tank.desc": "Vasca di rigenerazione rilassante. Restando vicino recuperi lentamente salute, sazietà ed energia della tuta: il cuore di ogni base o stazione. Premi E per impostare qui il tuo punto di rinascita.",
   "block.energy_fence.desc": "Pilone energetico ronzante. Le creature — selvatiche, addomesticate e ostili — non possono attraversarlo, quindi un anello di piloni forma un recinto sicuro o un muro di difesa. Le bestie volanti però lo scavalcano.",
   "block.energy_gate.desc": "Membrana energetica per le aperture del recinto: i giocatori e gli abitanti degli insediamenti la attraversano, le creature restano fuori. Sempre attiva, non c'è nulla da aprire o chiudere.",
-  "block.factory_terminal.desc": "Il terminale di controllo di una fabbrica. Produci le sue ricette in blocco gratuitamente, oppure rivendica la fabbrica come base con un codice d'accesso SPS.",
+  "block.factory_terminal.desc": "Il terminale di controllo di una fabbrica. Produci le sue ricette in serie gratuitamente, oppure rivendica la fabbrica come base con un codice d'accesso SPS.",
   "block.machine_block.desc": "Pesante macchinario industriale: le viscere operative di un capannone.",
   "block.factory_pipe.desc": "Tubature industriali che attraversano i capannoni della fabbrica.",
   "block.iron_block.desc": "Blocco solido di ferro raffinato: stoccaggio compatto e materiale da costruzione d'impatto.",
