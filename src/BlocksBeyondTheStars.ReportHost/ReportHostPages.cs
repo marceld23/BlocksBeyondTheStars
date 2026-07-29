@@ -56,15 +56,44 @@ public static class ReportHostPages
         }
         else
         {
-            sb.Append("<table><tr><th>When (UTC)</th><th>Category</th><th>Title</th><th>Player</th><th>Version</th><th>📷</th><th>Status</th></tr>");
-            foreach (var r in items)
+            var groups = GroupDuplicates(items);
+            int duplicateRows = items.Count - groups.Count;
+            if (duplicateRows > 0)
             {
-                string when = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).ToString("yyyy-MM-dd HH:mm");
-                string cat = r.Kind.Length > 0 ? $"{r.Category}/{r.Kind}" : r.Category;
+                sb.Append($"<p class='hint'>{groups.Count} report(s) in {items.Count} rows — every in-game F1 report " +
+                          "arrives twice (once straight from the client, once as the server's /bump snapshot). " +
+                          "The pairs are shown as one row below; the read API still returns both.</p>");
+            }
+
+            sb.Append("<table><tr><th>When (UTC)</th><th>Category</th><th>Title</th><th>Player</th><th>Version</th><th>📷</th><th>Status</th></tr>");
+            foreach (var group in groups)
+            {
+                // Show the cleanest title (the client-direct row carries what the player actually typed; the
+                // server forward prefixes "Bump [world]: [feedback] …"), but link to the richest row — the one
+                // with the screenshot and the /bump snapshot attached.
+                var display = group.OrderBy(r => r.Title.Length).First();
+                var primary = group.OrderByDescending(r => r.ScreenshotFile.Length > 0)
+                                   .ThenByDescending(r => r.ReportJson.Length)
+                                   .First();
+
+                string when = DateTimeOffset.FromUnixTimeSeconds(primary.CreatedUnix).ToString("yyyy-MM-dd HH:mm");
+                string cat = primary.Kind.Length > 0 ? $"{primary.Category}/{primary.Kind}" : primary.Category;
                 sb.Append($"<tr><td>{when}</td><td>{E(cat)}</td>");
-                sb.Append($"<td><a href='/admin/report/{r.Id}'>{E(Shorten(r.Title.Length > 0 ? r.Title : r.Description, 70))}</a></td>");
-                sb.Append($"<td>{E(r.PlayerName)}</td><td>{E(r.GameVersion)}</td>");
-                sb.Append($"<td>{(r.ScreenshotFile.Length > 0 ? "📷" : "")}</td><td class='st-{r.Status}'>{E(r.Status)}</td></tr>");
+                sb.Append($"<td><a href='/admin/report/{primary.Id}'>{E(Shorten(display.Title.Length > 0 ? display.Title : display.Description, 70))}</a>");
+
+                // The other rows of the pair stay reachable — they are separate records with their own status.
+                foreach (var other in group.Where(r => r.Id != primary.Id))
+                {
+                    sb.Append($" <a class='dup' href='/admin/report/{other.Id}' title='duplicate row: {E(other.Source.Length > 0 ? other.Source : "client")}'>+1</a>");
+                }
+
+                sb.Append("</td>");
+                sb.Append($"<td>{E(primary.PlayerName)}</td><td>{E(primary.GameVersion)}</td>");
+                sb.Append($"<td>{(group.Any(r => r.ScreenshotFile.Length > 0) ? "📷" : "")}</td>");
+
+                // If the pair was triaged apart, show that rather than pretending one status covers both.
+                string statuses = string.Join("/", group.Select(r => r.Status).Distinct());
+                sb.Append($"<td class='st-{primary.Status}'>{E(statuses)}</td></tr>");
             }
 
             sb.Append("</table>");
@@ -72,6 +101,81 @@ public static class ReportHostPages
 
         return Shell("Bug reports — Blocks Beyond the Stars", sb.ToString());
     }
+
+    /// <summary>How far apart the two rows of one F1 report may be stamped. The client posts directly and the
+    /// server forwards its /bump snapshot independently, so they land a moment apart — observed 0–2 s.</summary>
+    private const long DuplicateWindowSeconds = 8;
+
+    /// <summary>
+    /// Collapses the two database rows that one in-game F1 report produces into a single group.
+    /// <para>
+    /// Pressing F1 fires two independent uploads by design (see the ReportHost docs): the client posts to
+    /// /api/bugreport itself, so feedback arrives even from someone else's dedicated server, AND the game server
+    /// forwards the rich /bump snapshot to the same inbox. Both paths were built when only one of them reached
+    /// the inbox; since singleplayer got a crash-upload sink they both do, and the list double-counted every
+    /// report. Grouping happens at RENDER time only — ingest still stores both rows (it must never drop a player
+    /// report) and the read API still returns both.
+    /// </para>
+    /// Rows pair up when they were stamped within <see cref="DuplicateWindowSeconds"/> of each other and one
+    /// description contains the other: the server forward wraps the player's text as
+    /// <c>[feedback] &lt;title&gt; — &lt;description&gt;</c>, so the client row's text is a substring of it.
+    /// </summary>
+    public static List<List<BugReportRecord>> GroupDuplicates(IReadOnlyList<BugReportRecord> items)
+    {
+        var groups = new List<List<BugReportRecord>>();
+        var taken = new bool[items.Count];
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (taken[i])
+            {
+                continue;
+            }
+
+            var group = new List<BugReportRecord> { items[i] };
+            taken[i] = true;
+
+            for (int j = i + 1; j < items.Count; j++)
+            {
+                if (!taken[j] && IsSameReport(items[i], items[j]))
+                {
+                    group.Add(items[j]);
+                    taken[j] = true;
+                }
+            }
+
+            groups.Add(group);
+        }
+
+        return groups;
+    }
+
+    private static bool IsSameReport(BugReportRecord a, BugReportRecord b)
+    {
+        if (Math.Abs(a.CreatedUnix - b.CreatedUnix) > DuplicateWindowSeconds)
+        {
+            return false;
+        }
+
+        // Only the two halves of ONE report pair up — never a client report with an unrelated crash, and never
+        // two rows from different players/builds that happen to collide in time.
+        if (a.Category != b.Category || a.GameVersion != b.GameVersion || a.PlayerId != b.PlayerId)
+        {
+            return false;
+        }
+
+        string da = Normalize(a.Description);
+        string db = Normalize(b.Description);
+        if (da.Length == 0 || db.Length == 0)
+        {
+            return false; // nothing to compare — keep them apart rather than guess
+        }
+
+        return da.Contains(db, StringComparison.Ordinal) || db.Contains(da, StringComparison.Ordinal);
+    }
+
+    /// <summary>Collapses whitespace so the two wordings compare cleanly.</summary>
+    private static string Normalize(string s) => string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public static string Detail(BugReportRecord r)
     {
@@ -153,6 +257,7 @@ public static class ReportHostPages
  button:disabled {{ opacity:.45; cursor:default; }}
  button.danger {{ background:#4a1d24; border-color:#7c2f3c; }}
  .st-new {{ color:#ffd479; }} .st-triaged {{ color:#7fb4ff; }} .st-done {{ color:#77dd9a; }}
+ .dup {{ background:#26314f; border-radius:4px; padding:0 .3rem; font-size:.8rem; text-decoration:none; }}
 </style></head><body>
 {body}
 </body></html>";
