@@ -3602,6 +3602,12 @@ public sealed partial class GameServer
                 CheatLog(p, $"teleported to ({cmd.X:0.#}, {cmd.Y:0.#}, {cmd.Z:0.#})");
                 break;
 
+            // The named form of the same command ("/tp village2"). Same-body only and therefore the same
+            // gate as the coordinate teleport it extends — cross-body jumping stays fleet-admin `/goto`.
+            case "teleport_to_named":
+                AdminTeleportNamed(session, cmd.StringArg);
+                break;
+
             case "teleport_to_player":
                 {
                     var target = FindSessionByName(cmd.TargetPlayer);

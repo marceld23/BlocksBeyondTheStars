@@ -107,6 +107,19 @@ public sealed partial class GameServer
             });
         }
 
+        // Factories: industrial halls are landmarks you go back to (the production terminal is a workstation),
+        // so unlike bandit camps and monuments they belong on the map rather than staying discovery content.
+        foreach (var f in _factories)
+        {
+            pois.Add(new NetPoi
+            {
+                Type = "factory",
+                Name = f.Name,
+                X = f.TerminalPos.X,
+                Z = f.TerminalPos.Z,
+            });
+        }
+
         // Buried vault ruins (W-R3): the surface pillar rings show on the map as discovery targets.
         for (int i = 0; i < _vaultEntrances.Count; i++)
         {

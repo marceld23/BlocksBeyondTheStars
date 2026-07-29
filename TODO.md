@@ -6583,6 +6583,29 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-29): `/tp` takes named landmarks — admin teleport without coordinates
+
+The world admin could jump to coordinates (`/tp X Y Z`) but not to places; `/goto` already resolved
+*names* but is fleet-admin only by design (issue #487) and only knew player-built structures.
+
+- **Named targets, same body only** — `/tp ship|pad|village|ruin|vault|wreck|factory|camp|monument|
+  treasure|base|beacon|beam|station`, addressed by kind + a stable 1-based number (`/tp village2`,
+  `/tp village 2`; no number = the first). Deliberately NOT by generated name: they are procedural,
+  duplicated and easy to mistype. Aliases fold in the map's own vocabulary (`settlement`, `bandit`, plurals).
+- **Gate unchanged** — same admin role + `CheatsAllowed` gate as the coordinate `/tp` it extends, so no
+  new reach: cross-body jumping stays fleet-admin `/goto` and the #487 boundary is untouched.
+  Refused while flying a space instance (nothing to resolve against).
+- **`/tp` alone lists** every resolvable target on this body with the word to type and its distance —
+  the numbering has to be discoverable, not guessed.
+- **Landing spots** — a stamped structure resolves to its first interaction marker (a vendor/NPC spawn is
+  standable by construction), else a column probe that climbs out of whatever is stamped over the terrain
+  (`SurfaceHeight` knows the terrain, not the buildings on it). `ship` = the medbay heal tank.
+- **Map** — factories now emit a `factory` POI (tracked server-side but never drawn); bandit camps and
+  monuments stay off the map on purpose (discovery content) and are admin-only tp targets.
+- `GameServerAdminTeleport.cs` + `AdminNamedTeleportTests`; the RespawnNotice snap (#414 M7/N17) is now a
+  single shared `SnapPlayerTo` used by both `/tp` and `/goto`. Locale key `ui.cmd.usage_tp` retired in
+  favour of `ui.admin.help_teleport`.
+
 ## ✅ Done (2026-07-29): structure placement guarantee + terrain-adaptive foundations (#586)
 
 Whatever the seed rolls for a world now actually lands in it — no more silent drops on dramatic terrain

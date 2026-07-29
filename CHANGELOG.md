@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧭 Admin teleport by landmark, not by coordinates
+
+- **`/tp` takes a target word.** World admins can jump to a landmark on the body they are standing on —
+  `/tp ship`, `/tp village2`, `/tp pad1`, `/tp factory1`, plus `ruin`, `vault`, `wreck`, `camp`,
+  `monument`, `treasure` and anything a player built here (`base`, `beacon`, `beam`, `station`).
+  Targets are addressed by kind and a stable 1-based number rather than by their generated names, and
+  the number can be written either way round: `/tp village2` and `/tp village 2` mean the same place.
+- **`/tp` on its own lists what is here** — every resolvable target with the exact word to type and its
+  distance, so the numbering is discoverable instead of guessed at.
+- **Factories now show on the planet map.** They were tracked by the server but never drawn.
+
 ## [2026.7.22] — 2026-07-29
 
 The wayfinder release: the planet map becomes a real navigation tool and the world generator

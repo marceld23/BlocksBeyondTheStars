@@ -618,6 +618,8 @@ short player help (`/report`, `/bump`) so a normal player is not buried under co
 |---|---|
 | `/give Item [Count] [Player]` | Give an item to yourself or a target player |
 | `/tp X Y Z` | Teleport to coordinates |
+| `/tp Target` | Teleport to a landmark **on the body you are standing on** — see *Named teleport targets* below |
+| `/tp` | List every named target here, with the exact word to type and its distance |
 | `/tpp Player` | Teleport to a player |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
@@ -626,6 +628,33 @@ short player help (`/report`, `/bump`) so a normal player is not buried under co
 | `/instant` | Toggle free/instant crafting |
 | `/ai Prompt` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
 | `/help admin` | List the admin commands in chat (`/admin` does the same) |
+
+#### Named teleport targets
+
+Typing coordinates to get to the village you can see on the map is silly, so `/tp` also takes a **target
+word**. Targets are addressed by **kind + number** — never by name, because settlement names are generated
+and easy to mistype. The numbering is stable for a world: `village2` is the same village tomorrow.
+
+| Word | Where it takes you |
+|---|---|
+| `ship` | Your own parked ship (the medbay heal tank — same spot the suit teleporter recalls to) |
+| `pad` | A landing pad |
+| `village` / `ruin` | An inhabited settlement / a ruined one (`settlement` also works) |
+| `vault` | A buried vault's surface pillar ring |
+| `wreck` | The crashed ship — even before an NPC has pointed you at it |
+| `factory` | A factory's production terminal |
+| `camp` | A bandit camp (`bandit` also works) |
+| `monument` | A rune monument |
+| `treasure` | A hidden loot chest |
+| `base` / `beacon` / `beam` / `station` | Something a player built here |
+
+Write the number straight after the word or separated by a space — `/tp village2` and `/tp village 2` are
+the same thing, and leaving it off means the first one. **`/tp` on its own lists everything on this body**
+with the exact word to type and how far away it is, so you never have to guess a number.
+
+Two limits worth knowing: this only ever resolves on the body you are **currently standing on** (the
+cross-body jump is `/goto`, fleet admin only), and it does not work while you are flying in space — land
+first.
 
 #### Inspection (admins) — who is here and what have they built
 
@@ -663,7 +692,7 @@ skips the world password (child-safety oversight, issue #495); once in, `/specta
 | `/spectate on\|off` | Enter/leave observer mode: invisible to players, creatures and NPCs, invulnerable, free flight through walls, no ship, no landing pad, no player slot |
 | `/goto Player` | Travel to that player's body and jump to their position (works for offline players via their last position) |
 | `/goto base\|beacon\|beam\|station Name` | Jump to a named structure anywhere in the save |
-| `/goto BodyId X Y Z` | Jump to raw coordinates on any body — this is the cross-body teleport `/tp` never was |
+| `/goto BodyId X Y Z` | Jump to raw coordinates on any body — this is the cross-body teleport `/tp` is not (`/tp` names landmarks, but only on the body you are already on) |
 | `/say Text` | Speak while observing. Chat is muted by default in observer mode, so a stray line can't give you away |
 
 While observing you fly with WASD (in the direction you look), Space/Ctrl for up/down, Shift for a burst of
